@@ -1,0 +1,31 @@
+{
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "moduleResolution": "node",
+    "target": "ES2022",
+    "outDir": "../dist/api",
+    "rootDir": "..",
+    "noEmit": false,
+    "declaration": false,
+    "sourceMap": false,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "jsx": "react-jsx",
+    "incremental": false
+  },
+  "include": [
+    "../backend/**/*.ts",
+    "../src/lib/**/*.ts"
+  ],
+  "exclude": [
+    "../node_modules",
+    "../src/**/*.tsx",
+    "../src/app/**/*",
+    "../src/components/**/*",
+    "../src/hooks/**/*",
+    "../tests/**/*",
+    "../playwright.config.ts",
+    "../vitest.config.ts"
+  ]
+}
