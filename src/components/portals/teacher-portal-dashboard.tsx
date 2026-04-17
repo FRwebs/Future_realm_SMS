@@ -11,26 +11,7 @@ export function TeacherPortalDashboard({ portal }: { portal: TeacherPortalView }
         <p className="mt-3 text-sm leading-6 text-ink/68">
           {portal.teacherName} can review assigned classes, mark attendance, enter scores, manage assignments, and follow the current teaching week from one responsive portal.
         </p>
-        <div className="mt-6 flex flex-wrap gap-3">
-          {[
-            { label: "My classes", href: "/portals/teacher/classes" },
-            { label: "Mark attendance", href: "/portals/teacher/attendance" },
-            { label: "Enter scores", href: "/portals/teacher/scores" },
-            { label: "Scheme of work", href: "/portals/teacher/curriculum" },
-            { label: "Clock in/out", href: "/portals/teacher/staff-attendance" },
-            { label: "Training", href: "/portals/teacher/training" },
-            { label: "Assignments", href: "/portals/teacher/assignments" },
-            { label: "Timetable", href: "/portals/teacher/timetable" }
-          ].map((item) => (
-            <a
-              key={item.href}
-              href={item.href}
-              className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-800"
-            >
-              {item.label}
-            </a>
-          ))}
-        </div>
+
         <div className="mt-6 grid gap-4 md:grid-cols-3">
           {portal.stats.map((stat) => (
             <article key={stat.label} className="rounded-[1.5rem] bg-sand/65 p-5">

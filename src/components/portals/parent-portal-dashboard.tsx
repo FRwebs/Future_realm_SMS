@@ -19,23 +19,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             </article>
           ))}
         </div>
-        <div className="mt-6 flex flex-wrap gap-2">
-          <a href="/portals/parent/children" className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
-            My children
-          </a>
-          <a href="/portals/parent/announcements" className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">
-            Announcements
-          </a>
-          <a href="/portals/parent/curriculum" className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">
-            Scheme of Work
-          </a>
-          <a href="/portals/parent/notifications" className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">
-            Notifications
-          </a>
-          <a href="/portals/parent/profile" className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">
-            Profile
-          </a>
-        </div>
+     
       </section>
 
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
