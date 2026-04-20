@@ -4,19 +4,6 @@ import { TableCard } from "@/components/data-display/table-card";
 import { StudentPortalView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
-const quickLinks = [
-  { href: "/portals/student/profile", label: "My profile" },
-  { href: "/portals/student/attendance", label: "Attendance" },
-  { href: "/portals/student/results", label: "Results" },
-  { href: "/portals/student/curriculum", label: "Scheme of Work" },
-  { href: "/portals/student/timetable", label: "Timetable" },
-  { href: "/portals/student/assignments", label: "Assignments" },
-  { href: "/portals/student/fees", label: "Fees" },
-  { href: "/portals/student/services", label: "Services" },
-  { href: "/portals/student/announcements", label: "Announcements" },
-  { href: "/portals/student/notifications", label: "Notifications" },
-] as const;
-
 function DashboardCard({
   children,
   className = "",
@@ -95,6 +82,10 @@ export function StudentPortalDashboard({
             <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
               <span className="font-semibold text-ink">Term:</span>{" "}
               {portal.term ?? "Current"}
+            </p>
+            <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
+              <span className="font-semibold text-ink">Department / track:</span>{" "}
+              {portal.departmentTrack ?? "Not applicable"}
             </p>
           </div>
         </div>
@@ -214,6 +205,17 @@ export function StudentPortalDashboard({
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
+        <TableCard
+          title="Subjects I offer"
+          description="Current subject assignments for your class."
+          items={portal.subjects ?? portal.profile?.subjectDetails ?? []}
+          emptyState="No subject assignment is visible for your class yet."
+          columns={[
+            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+            { key: "teacher", header: "Teacher", render: (item) => item.teacherName ?? "Not assigned" },
+            { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
+          ]}
+        />
         <TableCard
           title="This week's timetable"
           description={`${portal.className} timetable for the current school week.`}

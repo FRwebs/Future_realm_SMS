@@ -7,6 +7,7 @@ import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { DashboardSummary } from "@/lib/domain/types";
+import { getRoleAccent } from "@/lib/navigation/registry";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 function alertClass(tone: "neutral" | "warning" | "danger") {
@@ -19,6 +20,53 @@ function displayDateOrText(value: string) {
   return Number.isNaN(new Date(value).getTime()) ? value : formatDate(value);
 }
 
+function greeting() {
+  const hour = new Date().getHours();
+  if (hour < 12) return "Good morning";
+  if (hour < 17) return "Good afternoon";
+  return "Good evening";
+}
+
+function dashboardTitle(role: string, name: string) {
+  const firstName = name.split(" ")[0] ?? name;
+  const titles: Record<string, string> = {
+    SCHOOL_OWNER: `${greeting()}, ${firstName}. Here's your school at a glance.`,
+    PROPRIETOR: `${greeting()}, ${firstName}. Here's your school at a glance.`,
+    PRINCIPAL: `${greeting()}, Principal ${firstName}.`,
+    HEAD_TEACHER: `${greeting()}, Head Teacher ${firstName}.`,
+    VICE_PRINCIPAL_ACADEMICS: `${greeting()}, ${firstName}. Academic operations are ready.`,
+    VICE_PRINCIPAL_ADMINISTRATION: `${greeting()}, ${firstName}. Admin operations are ready.`,
+    HEAD_OF_DEPARTMENT: `${greeting()}, ${firstName}. Your department dashboard is ready.`,
+    CLASS_TEACHER: `${greeting()}, ${firstName}. Your class workspace is ready.`,
+    SUBJECT_TEACHER: `${greeting()}, ${firstName}. Today's teaching work is ready.`,
+    TEACHER: `${greeting()}, ${firstName}. Today's teaching work is ready.`,
+    BURSAR: `${greeting()}, ${firstName}. Finance operations are ready.`,
+    ACCOUNTANT: `${greeting()}, ${firstName}. Finance operations are ready.`,
+    ACCOUNT_OFFICER: `${greeting()}, ${firstName}. Finance support is ready.`,
+    HR_OFFICER: `${greeting()}, ${firstName}. Staff operations are ready.`,
+    ADMISSIONS_OFFICER: `${greeting()}, ${firstName}. Admissions pipeline is ready.`,
+    EXAMINATION_OFFICER: `${greeting()}, ${firstName}. Exams and results workflow is ready.`,
+    EXAM_OFFICER: `${greeting()}, ${firstName}. Exams and results workflow is ready.`,
+    GUIDANCE_COUNSELOR: `${greeting()}, ${firstName}. Welfare support is ready.`,
+    GUIDANCE_COUNSELLOR: `${greeting()}, ${firstName}. Welfare support is ready.`,
+    LIBRARIAN: `${greeting()}, ${firstName}. Library operations are ready.`,
+    TRANSPORT_COORDINATOR: `${greeting()}, ${firstName}. Fleet operations are ready.`,
+    TRANSPORT_MANAGER: `${greeting()}, ${firstName}. Fleet operations are ready.`,
+    HOSTEL_MANAGER: `${greeting()}, ${firstName}. Hostel operations are ready.`,
+    HOSTEL_MASTER: `${greeting()}, ${firstName}. Hostel operations are ready.`,
+    HOSTEL_MATRON: `${greeting()}, ${firstName}. Hostel operations are ready.`,
+    HOSTEL_MISTRESS: `${greeting()}, ${firstName}. Hostel operations are ready.`,
+    IT_ADMINISTRATOR: `${greeting()}, ${firstName}. Systems support is ready.`,
+    ICT_CBT_ADMIN: `${greeting()}, ${firstName}. Systems support is ready.`,
+    SCHOOL_NURSE: `${greeting()}, ${firstName}. Sick bay dashboard is ready.`,
+    NURSE: `${greeting()}, ${firstName}. Sick bay dashboard is ready.`,
+    RECEPTIONIST: `${greeting()}, ${firstName}. Front desk is ready.`,
+    PARENT: `${greeting()}, ${firstName}. Your family portal is ready.`,
+    STUDENT: `${greeting()}, ${firstName}. Your school day is ready.`
+  };
+  return titles[role] ?? `${greeting()}, ${firstName}.`;
+}
+
 export default async function DashboardPage() {
   const session = await getServerSession();
   if (!session) return null;
@@ -27,22 +75,23 @@ export default async function DashboardPage() {
   }
 
   const overview = await apiGet<DashboardSummary>("/api/v1/dashboard/overview");
+  const accent = getRoleAccent(session.role);
 
   return (
     <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">{overview.schoolName}</p>
+      <section className={`overflow-hidden rounded-[2rem] border border-white/50 bg-gradient-to-br ${accent.gradient} p-6 text-white shadow-panel`}>
+        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/65">{overview.schoolName}</p>
         <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <h1 className="font-[var(--font-heading)] text-4xl font-extrabold text-ink">
-              Admin command centre
+              <span className="text-white">{dashboardTitle(session.role, session.name)}</span>
             </h1>
-            <p className="mt-2 text-sm leading-6 text-ink/68">
+            <p className="mt-2 text-sm leading-6 text-white/75">
               {overview.currentSession} · {overview.currentTerm} · {roleLabels[session.role]}
             </p>
           </div>
-          <div className="rounded-[1.25rem] bg-sand/70 px-4 py-3 text-sm text-ink/70">
-            Session and term context is driven by the current school configuration.
+          <div className="rounded-[1.25rem] bg-white/12 px-4 py-3 text-sm text-white/75 ring-1 ring-white/15">
+            Dashboard widgets and quick actions are filtered by your resolved permissions.
           </div>
         </div>
       </section>

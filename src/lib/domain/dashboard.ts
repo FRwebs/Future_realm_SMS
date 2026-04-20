@@ -1,4 +1,4 @@
-import { canAccessPath } from "@/lib/auth/roles";
+import { canAccessPath, hasRole } from "@/lib/auth/roles";
 import type { DashboardQuickAction, Role } from "@/lib/domain/types";
 
 const financeManagers: Role[] = ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"];
@@ -18,12 +18,12 @@ const academicLeaders: Role[] = [
 ];
 
 export function canSeeDashboardWidget(role: Role, widget: "finance" | "admissions" | "academics" | "attendance" | "staff" | "system") {
-  if (widget === "finance") return financeManagers.includes(role) || role === "PRINCIPAL";
-  if (widget === "admissions") return ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER"].includes(role);
-  if (widget === "academics") return academicLeaders.includes(role) || role === "ADMIN_OFFICER";
-  if (widget === "attendance") return academicLeaders.includes(role) || role === "ADMIN_OFFICER" || role === "ATTENDANCE_OFFICER";
-  if (widget === "staff") return ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "VICE_PRINCIPAL_ADMINISTRATION", "ADMIN_OFFICER"].includes(role);
-  return ["SUPER_ADMIN", "SCHOOL_OWNER"].includes(role);
+  if (widget === "finance") return hasRole(role, financeManagers) || role === "PRINCIPAL";
+  if (widget === "admissions") return hasRole(role, ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER"]);
+  if (widget === "academics") return hasRole(role, academicLeaders) || role === "ADMIN_OFFICER";
+  if (widget === "attendance") return hasRole(role, academicLeaders) || role === "ADMIN_OFFICER" || role === "ATTENDANCE_OFFICER";
+  if (widget === "staff") return hasRole(role, ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "VICE_PRINCIPAL_ADMINISTRATION", "ADMIN_OFFICER"]);
+  return hasRole(role, ["SUPER_ADMIN", "SCHOOL_OWNER"]);
 }
 
 export function getDashboardQuickActions(role: Role): DashboardQuickAction[] {
@@ -66,5 +66,5 @@ export function getDashboardQuickActions(role: Role): DashboardQuickAction[] {
     }
   ];
 
-  return actions.filter((action) => action.roleScope?.includes(role) && canAccessPath(role, action.href));
+  return actions.filter((action) => action.roleScope && hasRole(role, action.roleScope) && canAccessPath(role, action.href));
 }

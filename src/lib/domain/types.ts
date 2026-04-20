@@ -1,4 +1,10 @@
 export type Role =
+  | "PLATFORM_OWNER"
+  | "PLATFORM_ADMIN"
+  | "SUPPORT_AGENT"
+  | "SALES_MANAGER"
+  | "FINANCE_MANAGER"
+  | "DEVELOPER"
   | "SUPER_ADMIN"
   | "SCHOOL_OWNER"
   | "PROPRIETOR"
@@ -11,22 +17,35 @@ export type Role =
   | "ADMIN_OFFICER"
   | "TEACHER"
   | "EXAM_OFFICER"
+  | "EXAMINATION_OFFICER"
   | "HEAD_OF_DEPARTMENT"
   | "CLASS_TEACHER"
   | "SUBJECT_TEACHER"
+  | "BURSAR"
   | "ACCOUNTANT"
+  | "ACCOUNT_OFFICER"
+  | "HR_OFFICER"
+  | "SECURITY_OFFICER"
+  | "MAINTENANCE_OFFICER"
   | "PARENT"
   | "STUDENT"
   | "ADMISSIONS_OFFICER"
+  | "GUIDANCE_COUNSELOR"
   | "GUIDANCE_COUNSELLOR"
   | "LIBRARIAN"
   | "LABORATORY_STAFF"
+  | "LABORATORY_ASSISTANT"
   | "ICT_CBT_ADMIN"
+  | "IT_ADMINISTRATOR"
   | "ATTENDANCE_OFFICER"
+  | "SCHOOL_NURSE"
   | "NURSE"
+  | "RECEPTIONIST"
+  | "TRANSPORT_COORDINATOR"
   | "TRANSPORT_MANAGER"
   | "HOSTEL_MANAGER"
   | "HOSTEL_MASTER"
+  | "HOSTEL_MATRON"
   | "HOSTEL_MISTRESS"
   | "STORE_OFFICER";
 
@@ -206,6 +225,112 @@ export interface NigeriaOperationsDashboardView {
   };
 }
 
+export type SubscriptionPlan = "BASIC" | "STANDARD" | "ENTERPRISE";
+export type TenantStatus = "ACTIVE" | "SUSPENDED" | "TRIAL" | "DELETED";
+export type PlatformBillingStatus = "TRIAL" | "ACTIVE" | "OVERDUE" | "SUSPENDED";
+
+export interface SuperAdminSchoolRow {
+  id: string;
+  name: string;
+  slug: string;
+  plan: SubscriptionPlan;
+  status: TenantStatus;
+  billingStatus: PlatformBillingStatus;
+  totalUsers: number;
+  totalStudents: number;
+  totalTeachers: number;
+  createdAt: string;
+  trialEndsAt?: string;
+  lastPaymentAt?: string;
+  nextBillingAt?: string;
+}
+
+export interface SuperAdminSchoolDetail {
+  id: string;
+  name: string;
+  slug: string;
+  category: string;
+  plan: SubscriptionPlan;
+  status: TenantStatus;
+  billingStatus: PlatformBillingStatus;
+  featureFlags: Record<string, boolean>;
+  trialEndsAt?: string;
+  lastPaymentAt?: string;
+  nextBillingAt?: string;
+  createdAt: string;
+  counts: Record<string, number>;
+  admins: Array<{ id: string; name: string; email: string; role: Role; status: string; createdAt: string }>;
+}
+
+export interface SuperAdminUserRow {
+  id: string;
+  name: string;
+  email: string;
+  role: Role;
+  schoolId: string;
+  schoolName: string;
+  schoolStatus: TenantStatus;
+  status: "ACTIVE" | "SUSPENDED";
+  lastLoginAt?: string;
+  createdAt: string;
+}
+
+export interface SuperAdminBillingRow {
+  schoolId: string;
+  schoolName: string;
+  plan: SubscriptionPlan;
+  status: PlatformBillingStatus;
+  tenantStatus: TenantStatus;
+  lastPaymentAt?: string;
+  nextDueAt?: string;
+  trialEndsAt?: string;
+  monthlyAmount: number;
+}
+
+export interface SuperAdminAuditLogRow {
+  id: string;
+  timestamp: string;
+  action: string;
+  superAdmin: string;
+  target: string;
+  schoolId?: string;
+  schoolName?: string;
+  details?: unknown;
+}
+
+export interface SuperAdminAnalyticsOverview {
+  schools: { total: number; active: number; suspended: number; trial: number };
+  users: { total: number; parents: number; teachers: number; students: number; schoolAdmins: number };
+  signups: { last7Days: number; last30Days: number };
+  mau: number;
+  revenue: { mrr: number; arr: number; totalPaidSchools: number };
+  recentActivity: SuperAdminAuditLogRow[];
+}
+
+export interface SuperAdminUsageRow {
+  schoolId: string;
+  schoolName: string;
+  logins: number;
+  activeUsers: number;
+  modulesUsed: string[];
+}
+
+export interface SuperAdminRevenueView {
+  mrr: number;
+  arr: number;
+  totalPaidSchools: number;
+  schoolsByPlan: Array<{ plan: SubscriptionPlan; count: number }>;
+  monthlyRevenue: Array<{ month: string; amount: number }>;
+}
+
+export interface SuperAdminSettingsView {
+  id: string;
+  maintenanceMode: boolean;
+  platformAnnouncement?: string;
+  defaultGradingScale: unknown;
+  globalModuleAvailability: Record<string, boolean>;
+}
+
 export interface AdmissionApplicationView {
   id: string;
   applicationNo: string;
@@ -347,6 +472,7 @@ export interface StudentRecordView {
   id: string;
   admissionNumber: string;
   fullName: string;
+  classId?: string;
   className: string;
   guardianName: string;
   status: string;
@@ -486,11 +612,15 @@ export interface AttendanceRecordView {
   id: string;
   studentId: string;
   studentName: string;
+  classId?: string;
   className: string;
+  subjectId?: string;
   subject: string;
   status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
   date: string;
   reason?: string;
+  markedByName?: string;
+  termName?: string;
 }
 
 export interface GradeRecordView {
@@ -539,14 +669,27 @@ export interface SubjectView {
   id: string;
   name: string;
   code: string;
+  departmentId?: string;
+  departmentName?: string;
+  description?: string;
+  waecCode?: string;
+  necoCode?: string;
+  isWaecSubject?: boolean;
   section?: SchoolSectionView;
   applicableClassLevels: string[];
+  subjectCombination?: string;
+  periodsPerWeek?: number;
+  requiresLab?: boolean;
+  sortOrder?: number;
+  isActive?: boolean;
   isCore: boolean;
   isOptional: boolean;
   religionSpecific: boolean;
   trackSpecific?: string;
   tradeSubject: boolean;
   status: string;
+  classCount?: number;
+  teacherCount?: number;
 }
 
 export type AcademicAssessmentType =
@@ -837,7 +980,21 @@ export interface PortalFinanceItem {
   dueOn: string;
   status: string;
   issuedOn?: string;
+  canPay?: boolean;
+  paymentUrl?: string;
   payments?: { id: string; reference: string; amount: number; paidAt?: string; status: string; method: string; receiptNumber?: string }[];
+}
+
+export interface PortalSubjectOffering {
+  id: string;
+  name: string;
+  code?: string;
+  departmentName?: string;
+  track?: string;
+  teacherName?: string;
+  periodsPerWeek?: number;
+  isCore?: boolean;
+  isOptional?: boolean;
 }
 
 export interface StudentPortalProfileView {
@@ -869,6 +1026,8 @@ export interface StudentPortalProfileView {
   };
   medical?: StudentMedicalView;
   subjects: string[];
+  subjectDetails?: PortalSubjectOffering[];
+  departmentTrack?: string;
 }
 
 export interface StudentPortalAttendanceRecord {
@@ -973,6 +1132,9 @@ export interface ParentChildPortalView {
   examTimetable?: StudentPortalExamEntry[];
   calendar?: StudentPortalCalendarEvent[];
   weeklyTimetable: PortalTimetableEntry[];
+  subjects?: PortalSubjectOffering[];
+  curriculumTopics?: CurriculumTopicView[];
+  departmentTrack?: string;
   resultHistory: PortalResultHistory[];
   finance: PortalFinanceItem[];
   transport?: StudentPortalTransportView[];
@@ -1005,6 +1167,19 @@ export interface ParentProfileView {
   linkedChildren: Array<{ studentId: string; studentName: string; className: string; admissionNumber: string }>;
 }
 
+export interface ParentDirectoryRecordView {
+  id: string;
+  parentName: string;
+  relationship: string;
+  phone: string;
+  email?: string;
+  occupation?: string;
+  address?: string;
+  canReceiveSms: boolean;
+  canReceiveEmail: boolean;
+  linkedChildren: Array<{ studentId: string; studentName: string; className: string; admissionNumber: string }>;
+}
+
 export interface StudentPortalView {
   studentId?: string;
   studentName: string;
@@ -1016,6 +1191,9 @@ export interface StudentPortalView {
   headline: string;
   stats: { label: string; value: string }[];
   profile?: StudentPortalProfileView;
+  subjects?: PortalSubjectOffering[];
+  curriculumTopics?: CurriculumTopicView[];
+  departmentTrack?: string;
   attendance?: StudentPortalAttendanceView;
   latestResult?: PortalResultHistory;
   timetablePreview?: PortalTimetableEntry[];
@@ -1108,6 +1286,59 @@ export interface TeacherPortalView {
   announcements?: { id: string; title: string; detail: string; time: string }[];
   notifications?: StudentPortalNotificationView[];
   recentActivity: { id: string; title: string; detail: string; time: string }[];
+}
+
+export interface PermissionItemView {
+  id?: string;
+  key: string;
+  label: string;
+  description?: string;
+  module: string;
+}
+
+export interface PermissionGroupView {
+  module: string;
+  permissions: PermissionItemView[];
+}
+
+export interface SchoolRoleView {
+  id: string;
+  name: string;
+  slug?: string;
+  description?: string | null;
+  isSystem: boolean;
+  systemRole?: Role | null;
+  permissionsCount?: number;
+  staffCount?: number;
+  permissions?: string[];
+  createdAt?: string;
+}
+
+export interface StaffRoleRowView {
+  id: string;
+  name: string;
+  email: string;
+  department: string;
+  roles: Array<{ id: string; name: string; isSystem: boolean; systemRole?: Role | null }>;
+}
+
+export interface PermissionOverrideView {
+  id: string;
+  type: "GRANT" | "REVOKE";
+  createdAt: string;
+  permission: PermissionItemView;
+  setBy: string;
+}
+
+export interface StaffRoleDetailView extends StaffRoleRowView {
+  permissions: string[];
+  groupedPermissions: Array<{ module: string; permissions: PermissionItemView[] }>;
+  overrides: PermissionOverrideView[];
+}
+
+export interface MyPermissionsView {
+  permissions: string[];
+  grouped: Array<{ module: string; permissions: PermissionItemView[] }>;
 }
 
 export interface DemoUserCredential {

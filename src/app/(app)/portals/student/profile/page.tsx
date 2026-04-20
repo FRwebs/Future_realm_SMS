@@ -34,6 +34,7 @@ export default async function StudentProfilePage() {
             <p><span className="font-semibold text-ink">Admission number:</span> {profile.admissionNumber}</p>
             <p><span className="font-semibold text-ink">Student number:</span> {profile.studentNumber ?? "Not recorded"}</p>
             <p><span className="font-semibold text-ink">Class:</span> {formatNigeriaClassName(profile.className)}</p>
+            <p><span className="font-semibold text-ink">Department / track:</span> {profile.departmentTrack ?? "Not applicable"}</p>
             <p><span className="font-semibold text-ink">Session:</span> {profile.session ?? "Current"}</p>
             <p><span className="font-semibold text-ink">Term:</span> {profile.term ?? "Current"}</p>
             <p><span className="font-semibold text-ink">Date of birth:</span> {profile.dateOfBirth ? formatDate(profile.dateOfBirth) : "Not recorded"}</p>
@@ -58,9 +59,16 @@ export default async function StudentProfilePage() {
         <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
           <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Enrolled subjects</h2>
           <div className="mt-5 flex flex-wrap gap-2">
-            {profile.subjects.map((subject) => (
-              <span key={subject} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">{subject}</span>
-            ))}
+            {profile.subjectDetails?.length
+              ? profile.subjectDetails.map((subject) => (
+                  <span key={subject.id} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">
+                    {subject.name}
+                    {subject.teacherName ? <span className="ml-1 text-ink/50">· {subject.teacherName}</span> : null}
+                  </span>
+                ))
+              : profile.subjects.map((subject) => (
+                  <span key={subject} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">{subject}</span>
+                ))}
             {profile.subjects.length === 0 ? <p className="text-sm text-ink/65">No subject enrollment found for your class yet.</p> : null}
           </div>
         </article>

@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { endOfDay, format, startOfDay, subDays } from "date-fns";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { hasRole } from "../../../../src/lib/auth/roles";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { demoDashboardSummary } from "../../../../src/lib/demo/data";
 import { canSeeDashboardWidget, getDashboardQuickActions } from "../../../../src/lib/domain/dashboard";
@@ -38,6 +39,18 @@ export class DashboardService {
         roleWidgets,
         pendingActions: this.filterPendingActions(session.role, demoDashboardSummary.pendingActions ?? [])
       };
+    }
+
+    if (session.role === "PARENT") {
+      return this.getParentOverview(session);
+    }
+
+    if (session.role === "STUDENT") {
+      return this.getStudentOverview(session);
+    }
+
+    if (["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(session.role)) {
+      return this.getTeacherOverview(session);
     }
 
     const schoolId = session.schoolId;
@@ -261,7 +274,147 @@ export class DashboardService {
   }
 
   private filterPendingActions(role: SessionPayload["role"], actions: DashboardActionItem[]) {
-    return actions.filter((item) => !item.roleScope || item.roleScope.includes(role));
+    return actions.filter((item) => !item.roleScope || hasRole(role, item.roleScope));
+  }
+
+  private async sessionContext(schoolId: string) {
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      include: { academicSessions: { where: { isCurrent: true }, include: { terms: { where: { isCurrent: true } } } } }
+    });
+    return {
+      schoolName: school?.name ?? "School",
+      currentSession: school?.academicSessions[0]?.name ?? "No active session",
+      currentTerm: school?.academicSessions[0]?.terms[0]?.name ?? "No active term"
+    };
+  }
+
+  private emptyTrends() {
+    return {
+      attendanceTrend: [],
+      feeTrend: [],
+      admissionsByStage: [],
+      alerts: []
+    };
+  }
+
+  private async getParentOverview(session: SessionPayload): Promise<DashboardSummary> {
+    const context = await this.sessionContext(session.schoolId);
+    const guardian = await prisma.guardian.findFirst({
+      where: { schoolId: session.schoolId, userId: session.userId },
+      include: {
+        students: {
+          include: {
+            student: {
+              include: {
+                currentClass: true,
+                invoices: { where: { status: { not: "VOID" } }, select: { balance: true } },
+                resultSheets: { where: { status: "PUBLISHED" }, take: 1, orderBy: { publishedAt: "desc" } },
+                attendance: { take: 20, orderBy: { date: "desc" } }
+              }
+            }
+          }
+        }
+      }
+    });
+    const children = guardian?.students.map((link) => link.student) ?? [];
+    const balance = children.reduce((sum, student) => sum + student.invoices.reduce((inner, invoice) => inner + Number(invoice.balance), 0), 0);
+    const publishedResults = children.reduce((sum, student) => sum + student.resultSheets.length, 0);
+    const attendanceRecords = children.flatMap((student) => student.attendance);
+    const present = attendanceRecords.filter((record) => record.status !== "ABSENT").length;
+    const attendanceRate = attendanceRecords.length ? (present / attendanceRecords.length) * 100 : 0;
+
+    return {
+      schoolId: session.schoolId,
+      ...context,
+      metrics: [
+        { label: "Linked children", value: String(children.length), change: "Children connected to this parent account" },
+        { label: "Fee balance", value: formatCurrency(balance), change: balance > 0 ? "Outstanding across linked children" : "No outstanding balance" },
+        { label: "Published results", value: String(publishedResults), change: "Visible report sheets" },
+        { label: "Attendance", value: `${attendanceRate.toFixed(1)}%`, change: "Recent attendance across linked children" }
+      ],
+      roleWidgets: [],
+      quickActions: [
+        { label: "View Children", href: "/portals/parent/children", description: "Switch children and view attendance, fees, and results." },
+        { label: "Pay Fees", href: "/portals/parent/children", description: "Open your child's fee account." },
+        { label: "School Announcements", href: "/portals/parent/announcements", description: "Read school notices and family updates." }
+      ],
+      pendingActions: balance > 0 ? [{ id: "parent-fee-balance", title: "Outstanding fee balance", detail: "Open your child fee account to review invoices and payments.", href: "/portals/parent/children", tone: "warning" }] : [],
+      recentActivity: children.slice(0, 5).map((student) => ({ id: student.id, title: studentName(student), detail: className(student.currentClass), time: "Linked child", category: "system" })),
+      ...this.emptyTrends()
+    };
+  }
+
+  private async getStudentOverview(session: SessionPayload): Promise<DashboardSummary> {
+    const context = await this.sessionContext(session.schoolId);
+    const student = await prisma.student.findFirst({
+      where: { schoolId: session.schoolId, userId: session.userId },
+      include: {
+        currentClass: true,
+        invoices: { where: { status: { not: "VOID" } }, select: { balance: true } },
+        resultSheets: { where: { status: "PUBLISHED" }, take: 3, orderBy: { publishedAt: "desc" } },
+        attendance: { take: 50, orderBy: { date: "desc" } },
+        assignmentSubmissions: { take: 5, orderBy: { submittedAt: "desc" }, include: { assignment: true } }
+      }
+    });
+    const balance = student?.invoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0) ?? 0;
+    const present = student?.attendance.filter((record) => record.status !== "ABSENT").length ?? 0;
+    const attendanceRate = student?.attendance.length ? (present / student.attendance.length) * 100 : 0;
+
+    return {
+      schoolId: session.schoolId,
+      ...context,
+      metrics: [
+        { label: "My class", value: student?.currentClass ? className(student.currentClass) : "Unassigned", change: "Current class placement" },
+        { label: "Attendance", value: `${attendanceRate.toFixed(1)}%`, change: "Recent school attendance" },
+        { label: "Fee balance", value: balance > 0 ? formatCurrency(balance) : "Paid", change: "Current fee account" },
+        { label: "Published results", value: String(student?.resultSheets.length ?? 0), change: "Visible report sheets" }
+      ],
+      roleWidgets: [],
+      quickActions: [
+        { label: "View Timetable", href: "/portals/student/timetable", description: "See today's class schedule." },
+        { label: "Assignments", href: "/portals/student/assignments", description: "Check pending assignments and submissions." },
+        { label: "Results", href: "/portals/student/results", description: "View published results and reports." }
+      ],
+      pendingActions: (student?.assignmentSubmissions ?? []).length
+        ? [{ id: "student-assignments", title: "Recent assignment activity", detail: "Open assignments to confirm submissions and deadlines.", href: "/portals/student/assignments", tone: "neutral" }]
+        : [],
+      recentActivity: (student?.assignmentSubmissions ?? []).map((submission) => ({ id: submission.id, title: submission.assignment.title, detail: submission.submittedAt ? "Submitted" : "Pending submission", time: submission.submittedAt?.toISOString() ?? "Not submitted", category: "academics" })),
+      ...this.emptyTrends()
+    };
+  }
+
+  private async getTeacherOverview(session: SessionPayload): Promise<DashboardSummary> {
+    const context = await this.sessionContext(session.schoolId);
+    const assignments = await prisma.classSubject.findMany({
+      where: { schoolId: session.schoolId, teacherId: session.userId },
+      include: { classRoom: { include: { students: true } }, subject: true }
+    });
+    const classCount = new Set(assignments.map((assignment) => assignment.classId)).size;
+    const subjectCount = new Set(assignments.map((assignment) => assignment.subjectId)).size;
+    const studentCount = new Set(assignments.flatMap((assignment) => assignment.classRoom.students.map((student) => student.id))).size;
+    const pendingResults = await prisma.resultSheet.count({
+      where: { schoolId: session.schoolId, createdById: session.userId, status: { in: ["DRAFT", "SUBMITTED", "RETURNED"] } }
+    }).catch(() => 0);
+
+    return {
+      schoolId: session.schoolId,
+      ...context,
+      metrics: [
+        { label: "Classes I teach", value: String(classCount), change: "Assigned classes" },
+        { label: "Subjects I teach", value: String(subjectCount), change: "Assigned subjects" },
+        { label: "Students in my classes", value: String(studentCount), change: "Teaching scope only" },
+        { label: "Pending score sheets", value: String(pendingResults), change: "Draft/submitted/returned sheets" }
+      ],
+      roleWidgets: assignments.slice(0, 4).map((assignment) => ({ label: assignment.subject.name, value: className(assignment.classRoom), change: `${assignment.classRoom.students.length} students` })),
+      quickActions: getDashboardQuickActions(session.role),
+      pendingActions: [
+        { id: "teacher-attendance", title: "Mark attendance", detail: "Open your attendance workspace for assigned classes.", href: "/portals/teacher/attendance", tone: "neutral" },
+        { id: "teacher-scores", title: "Enter scores", detail: "Review pending score sheets for your assigned subjects.", href: "/portals/teacher/scores", tone: pendingResults > 0 ? "warning" : "neutral" }
+      ],
+      recentActivity: assignments.slice(0, 6).map((assignment) => ({ id: assignment.id, title: assignment.subject.name, detail: className(assignment.classRoom), time: "Assigned class", category: "academics" })),
+      ...this.emptyTrends()
+    };
   }
 
   private buildAttendanceTrend(records: Array<{ date: Date; status: string }>) {

@@ -10,7 +10,9 @@ import {
   ParentProfileView,
   PortalFinanceItem,
   PortalResultHistory,
+  PortalSubjectOffering,
   PortalTimetableEntry,
+  CurriculumTopicView,
   StudentPortalAttendanceView,
   StudentPortalCalendarEvent,
   StudentPortalExamEntry,
@@ -27,7 +29,7 @@ type LinkedChild = {
   firstName: string;
   lastName: string;
   middleName?: string | null;
-  currentClass?: { id: string; name: string; arm: string | null } | null;
+  currentClass?: { id: string; name: string; arm: string | null; category?: string | null; department?: { name: string } | null } | null;
 };
 
 function formatClassName(name?: string | null, arm?: string | null) {
@@ -37,6 +39,15 @@ function formatClassName(name?: string | null, arm?: string | null) {
 
 function formatStudentName(student: { firstName: string; lastName: string; middleName?: string | null }) {
   return [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ");
+}
+
+function resolveDepartmentTrack(classRoom?: LinkedChild["currentClass"]) {
+  if (!classRoom) return undefined;
+  if (classRoom.department?.name) return classRoom.department.name;
+  const category = classRoom.category?.toLowerCase() ?? "";
+  const arm = classRoom.arm?.trim();
+  if (category.includes("senior") && arm && !["A", "B", "C"].includes(arm.toUpperCase())) return arm;
+  return undefined;
 }
 
 function isAudienceForParent(audience: string, classNames: string[]) {
@@ -99,7 +110,7 @@ export class ParentPortalService {
         user: true,
         students: {
           include: {
-            student: { include: { currentClass: true } }
+            student: { include: { currentClass: { include: { department: true } } } }
           },
           orderBy: { student: { admissionNumber: "asc" } }
         }
@@ -195,6 +206,8 @@ export class ParentPortalService {
       dueOn: invoice.dueOn.toISOString(),
       issuedOn: invoice.issuedOn.toISOString(),
       status: invoice.status,
+      canPay: Number(invoice.balance) > 0 && !["VOID", "PAID"].includes(invoice.status),
+      paymentUrl: Number(invoice.balance) > 0 && !["VOID", "PAID"].includes(invoice.status) ? `/api/v1/finance/payments` : undefined,
       payments: invoice.payments.map((payment) => ({
         id: payment.id,
         reference: payment.reference,
@@ -207,13 +220,73 @@ export class ParentPortalService {
     }));
   }
 
-  private async getTimetable(session: SessionPayload, student: LinkedChild) {
-    if (!student.currentClass) return { weeklyTimetable: [], examTimetable: [], calendar: [] };
+  private async getSubjectOfferings(session: SessionPayload, classId?: string | null): Promise<PortalSubjectOffering[]> {
+    if (!classId) return [];
+    const assignments = await prisma.classSubject.findMany({
+      where: { schoolId: session.schoolId, classId, isActive: true },
+      include: { subject: { include: { department: true } } },
+      orderBy: [{ subject: { sortOrder: "asc" } }, { subject: { name: "asc" } }]
+    });
+    const teacherIds = assignments.map((item) => item.teacherId).filter(Boolean) as string[];
+    const teachers = teacherIds.length
+      ? new Map(
+          (
+            await prisma.user.findMany({
+              where: { schoolId: session.schoolId, id: { in: teacherIds } },
+              select: { id: true, firstName: true, lastName: true }
+            })
+          ).map((teacher) => [teacher.id, `${teacher.firstName} ${teacher.lastName}`])
+        )
+      : new Map<string, string>();
 
-    const [term, timetable, exams, events] = await Promise.all([
+    return assignments.map((assignment) => ({
+      id: assignment.subject.id,
+      name: assignment.subject.name,
+      code: assignment.subject.code,
+      departmentName: assignment.subject.department?.name,
+      track: assignment.subject.trackSpecific ?? assignment.subject.subjectCombination ?? undefined,
+      teacherName: assignment.teacherId ? teachers.get(assignment.teacherId) : undefined,
+      periodsPerWeek: assignment.subject.periodsPerWeek,
+      isCore: assignment.subject.isCore,
+      isOptional: assignment.subject.isOptional
+    }));
+  }
+
+  private async getCurriculumTopics(session: SessionPayload, classId?: string | null): Promise<CurriculumTopicView[]> {
+    if (!classId) return [];
+    const topics = await prisma.curriculumTopic.findMany({
+      where: { schoolId: session.schoolId, classId, status: "ACTIVE" },
+      include: { academicSession: true, term: true, classRoom: true, subject: true },
+      orderBy: [{ term: { order: "asc" } }, { subject: { name: "asc" } }, { weekNumber: "asc" }]
+    });
+    return topics.map((topic) => ({
+      id: topic.id,
+      academicSession: topic.academicSession.name,
+      term: topic.term.name,
+      classId: topic.classRoom.id,
+      className: formatClassName(topic.classRoom.name, topic.classRoom.arm),
+      subjectId: topic.subject.id,
+      subject: topic.subject.name,
+      weekNumber: topic.weekNumber,
+      topic: topic.topic,
+      subTopic: topic.subTopic ?? undefined,
+      learningObjectives: topic.learningObjectives ?? undefined,
+      teacherNotes: topic.teacherNotes ?? undefined,
+      recommendedResources: topic.recommendedResources ?? undefined,
+      assignmentNote: topic.assignmentNote ?? undefined,
+      status: topic.status,
+      progressStatus: topic.progressStatus,
+      actualDateTaught: topic.actualDateTaught?.toISOString()
+    }));
+  }
+
+  private async getTimetable(session: SessionPayload, student: LinkedChild) {
+    if (!student.currentClass) return { weeklyTimetable: [], examTimetable: [], calendar: [], subjects: [], curriculumTopics: [], departmentTrack: undefined };
+
+    const [term, timetable, exams, events, subjects, curriculumTopics] = await Promise.all([
       prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true } }),
       prisma.timetableEntry.findMany({
-        where: { schoolId: session.schoolId, classId: student.currentClass.id },
+        where: { schoolId: session.schoolId, classId: student.currentClass.id, isPublished: true, subjectId: { not: null } },
         include: { subject: true },
         orderBy: [{ dayOfWeek: "asc" }, { startsAt: "asc" }]
       }),
@@ -226,7 +299,9 @@ export class ParentPortalService {
         where: { schoolId: session.schoolId, endsAt: { gte: new Date() } },
         orderBy: { startsAt: "asc" },
         take: 20
-      })
+      }),
+      this.getSubjectOfferings(session, student.currentClass.id),
+      this.getCurriculumTopics(session, student.currentClass.id)
     ]);
     const className = formatClassName(student.currentClass.name, student.currentClass.arm);
     const teacherIds = timetable.map((item) => item.teacherId).filter(Boolean) as string[];
@@ -249,7 +324,7 @@ export class ParentPortalService {
           id: item.id,
           day: dayNames[item.dayOfWeek] ?? `Day ${item.dayOfWeek}`,
           time: `${item.startsAt} - ${item.endsAt}`,
-          subject: item.subject.name,
+          subject: item.subject?.name ?? "Free Period",
           venue: item.venue ?? "Classroom",
           teacherName: item.teacherId ? teachers.get(item.teacherId) : undefined,
           className
@@ -272,7 +347,10 @@ export class ParentPortalService {
           startsAt: item.startsAt.toISOString(),
           endsAt: item.endsAt.toISOString(),
           audience: item.audience
-        }))
+        })),
+      subjects,
+      curriculumTopics,
+      departmentTrack: resolveDepartmentTrack(student.currentClass)
     };
   }
 
@@ -352,6 +430,9 @@ export class ParentPortalService {
       examTimetable: timetable.examTimetable,
       calendar: timetable.calendar,
       weeklyTimetable: timetable.weeklyTimetable,
+      subjects: timetable.subjects,
+      curriculumTopics: timetable.curriculumTopics,
+      departmentTrack: timetable.departmentTrack,
       resultHistory,
       finance,
       transport: services.transport,
@@ -425,7 +506,10 @@ export class ParentPortalService {
       return {
         weeklyTimetable: child.weeklyTimetable,
         examTimetable: child.examTimetable ?? [],
-        calendar: child.calendar ?? []
+        calendar: child.calendar ?? [],
+        subjects: child.subjects ?? [],
+        curriculumTopics: child.curriculumTopics ?? [],
+        departmentTrack: child.departmentTrack
       };
     }
     const child = await this.getAuthorizedChild(session, studentId);

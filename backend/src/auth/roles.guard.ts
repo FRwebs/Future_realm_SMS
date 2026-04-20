@@ -7,7 +7,7 @@ import {
 import { Reflector } from "@nestjs/core";
 import type { Request } from "express";
 
-import { hasRole } from "../../../src/lib/auth/roles";
+import { hasRole, normalizeRole } from "../../../src/lib/auth/roles";
 import { Role } from "../../../src/lib/domain/types";
 import { ROLES_KEY } from "./roles.decorator";
 
@@ -25,8 +25,8 @@ export class RolesGuard implements CanActivate {
       return true;
     }
 
-    const request = context.switchToHttp().getRequest<Request & { user?: { role: Role } }>();
-    const role = request.user?.role;
+    const request = context.switchToHttp().getRequest<Request & { user?: { role: string } }>();
+    const role = normalizeRole(request.user?.role);
     if (!role || !hasRole(role, roles)) {
       throw new ForbiddenException("Forbidden");
     }

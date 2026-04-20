@@ -24,7 +24,7 @@ const defaultBands = JSON.stringify(
 export default async function ResultSettingsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/academics/results")) {
+  if (!canAccessPath(session.role, "/academics/results/settings")) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

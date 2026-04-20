@@ -1,28 +1,10 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole, isPlatformRole, normalizeRole } from "@/lib/auth/roles";
 import type { Role } from "@/lib/domain/types";
 
-const protectedPrefixes = ["/dashboard", "/admissions", "/students", "/teachers", "/attendance", "/academics", "/finance", "/communications", "/analytics", "/settings", "/portals"];
-const validRoles: Role[] = [
-  "SUPER_ADMIN",
-  "SCHOOL_OWNER",
-  "PRINCIPAL",
-  "ADMIN_OFFICER",
-  "ADMISSIONS_OFFICER",
-  "ACCOUNTANT",
-  "TEACHER",
-  "LIBRARIAN",
-  "TRANSPORT_MANAGER",
-  "HOSTEL_MANAGER",
-  "PARENT",
-  "STUDENT"
-];
-
-function isRole(value: unknown): value is Role {
-  return typeof value === "string" && validRoles.includes(value as Role);
-}
+const protectedPrefixes = ["/super-admin", "/dashboard", "/admissions", "/students", "/parents", "/teachers", "/attendance", "/academics", "/finance", "/communications", "/analytics", "/operations", "/settings", "/school", "/portals"];
 
 function base64UrlToString(value: string) {
   const normalized = value.replaceAll("-", "+").replaceAll("_", "/");
@@ -54,8 +36,9 @@ async function verifySession(token?: string) {
     if (expected !== signature) return null;
 
     const payload = JSON.parse(base64UrlToString(encodedPayload)) as { role?: Role; exp?: number };
-    if (!isRole(payload.role) || !payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
-    return { role: payload.role, exp: payload.exp };
+    const role = normalizeRole(payload.role);
+    if (!role || !payload.exp || payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return { role, exp: payload.exp };
   } catch {
     return null;
   }
@@ -73,7 +56,29 @@ export async function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  if (!canAccessPath(session.role, pathname)) {
+  const isParentPortal = pathname.startsWith("/portals/parent");
+  const isStudentPortal = pathname.startsWith("/portals/student");
+  const isTeacherPortal = pathname.startsWith("/portals/teacher");
+  const isSuperAdmin = pathname.startsWith("/super-admin");
+  const platformUser = isPlatformRole(session.role);
+
+  if (isSuperAdmin && !platformUser) {
+    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+  }
+
+  if (!isSuperAdmin && platformUser) {
+    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+  }
+
+  if (isParentPortal && session.role !== "PARENT") {
+    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+  }
+
+  if (isStudentPortal && session.role !== "STUDENT") {
+    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+  }
+
+  if (isTeacherPortal && !["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(session.role)) {
     return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
   }
 
@@ -81,5 +86,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/admissions/:path*", "/students/:path*", "/teachers/:path*", "/attendance/:path*", "/academics/:path*", "/finance/:path*", "/communications/:path*", "/analytics/:path*", "/settings/:path*", "/portals/:path*"]
+  matcher: ["/super-admin/:path*", "/dashboard/:path*", "/admissions/:path*", "/students/:path*", "/parents/:path*", "/teachers/:path*", "/attendance/:path*", "/academics/:path*", "/finance/:path*", "/communications/:path*", "/analytics/:path*", "/operations/:path*", "/settings/:path*", "/school/:path*", "/portals/:path*"]
 };

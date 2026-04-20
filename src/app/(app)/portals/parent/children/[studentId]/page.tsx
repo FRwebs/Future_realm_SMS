@@ -27,6 +27,9 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
         <p className="mt-3 text-sm leading-6 text-ink/68">
           {formatNigeriaClassName(child.className)} · {child.admissionNumber ?? "No admission number"}
         </p>
+        {child.departmentTrack ? (
+          <p className="mt-2 text-sm font-semibold text-brand-700">Senior secondary track: {child.departmentTrack}</p>
+        ) : null}
         <div className="mt-5 flex flex-wrap gap-2">
           <a href={`/portals/parent/children/${child.studentId}/attendance`} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">Attendance</a>
           <a href={`/portals/parent/children/${child.studentId}/results`} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Results</a>
@@ -55,6 +58,17 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
       </section>
 
       <section className="grid gap-6 xl:grid-cols-2">
+        <TableCard
+          title="Subjects offered"
+          description="Subjects currently assigned to this child's class."
+          items={child.subjects ?? []}
+          emptyState="No subject assignment is visible for this class yet."
+          columns={[
+            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+            { key: "teacher", header: "Teacher", render: (item) => item.teacherName ?? "Not assigned" },
+            { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
+          ]}
+        />
         <TableCard
           title="Recent timetable"
           description="Class periods visible for this child."

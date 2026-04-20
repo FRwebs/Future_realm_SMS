@@ -2,7 +2,7 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { InstallmentPlanView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
@@ -13,7 +13,7 @@ export default async function InstallmentsPage() {
   if (!canAccessPath(session.role, "/finance")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
   const plans = await apiGet<InstallmentPlanView[]>("/api/v1/finance/installment-plans");
-  const canManageFinance = ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"].includes(session.role);
+  const canManageFinance = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"]);
 
   return (
     <div className="grid gap-6">

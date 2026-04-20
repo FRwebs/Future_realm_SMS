@@ -364,7 +364,7 @@ export class NigeriaOperationsService {
   }
 
   async listCurriculum(session: SessionPayload): Promise<CurriculumTopicView[]> {
-    if (env.DEMO_MODE) {
+    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
       return [
         {
           id: "demo-curriculum-1",
@@ -563,6 +563,44 @@ export class NigeriaOperationsService {
   }
 
   async listStaffAttendance(session: SessionPayload) {
+    if (env.DEMO_MODE) {
+      const records: StaffClockView[] = [
+        {
+          id: "demo-staff-attendance-1",
+          teacherName: "Boma Hart",
+          userId: "user_teacher",
+          date: "2026-04-18T00:00:00.000Z",
+          status: "PRESENT",
+          checkInAt: "2026-04-18T06:42:00.000Z",
+          checkOutAt: "2026-04-18T14:38:00.000Z",
+          totalMinutes: 476,
+          notes: "Teacher self-service clock record."
+        },
+        {
+          id: "demo-staff-attendance-2",
+          teacherName: "Adaeze Okafor",
+          userId: "user_teacher_english",
+          date: "2026-04-18T00:00:00.000Z",
+          status: "LATE",
+          checkInAt: "2026-04-18T07:08:00.000Z",
+          checkOutAt: "2026-04-18T14:35:00.000Z",
+          totalMinutes: 447,
+          notes: "Late after resumption grace period."
+        },
+        {
+          id: "demo-staff-attendance-3",
+          teacherName: "Ibrahim Musa",
+          userId: "user_teacher_science",
+          date: "2026-04-18T00:00:00.000Z",
+          status: "OFFICIAL_DUTY",
+          checkInAt: "2026-04-18T06:55:00.000Z",
+          totalMinutes: 0,
+          notes: "Represented the school at a science fair."
+        }
+      ];
+      return session.role === "TEACHER" ? records.filter((record) => record.userId === session.userId) : records;
+    }
+
     if (session.role === "TEACHER") {
       const records = await prisma.staffAttendance.findMany({
         where: { schoolId: session.schoolId, userId: session.userId },
@@ -659,6 +697,33 @@ export class NigeriaOperationsService {
   }
 
   async listTrainingParticipants(session: SessionPayload): Promise<TrainingParticipantView[]> {
+    if (env.DEMO_MODE) {
+      const participants: TrainingParticipantView[] = [
+        {
+          id: "demo-training-participant-1",
+          trainingProgramId: "demo-training-1",
+          title: "Second Term Scheme of Work Orientation",
+          teacherName: "Boma Hart",
+          status: "INVITED",
+          startsAt: "2026-04-18T09:00:00.000Z",
+          cpdPoints: 0,
+          notes: "Mandatory for class and subject teachers."
+        },
+        {
+          id: "demo-training-participant-2",
+          trainingProgramId: "demo-training-1",
+          title: "Second Term Scheme of Work Orientation",
+          teacherName: "Adaeze Okafor",
+          status: "COMPLETED",
+          startsAt: "2026-04-18T09:00:00.000Z",
+          completedAt: "2026-04-18T12:00:00.000Z",
+          cpdPoints: 2,
+          notes: "Certificate pending upload."
+        }
+      ];
+      return session.role === "TEACHER" ? participants.filter((participant) => participant.teacherName === "Boma Hart") : participants;
+    }
+
     const where = session.role === "TEACHER" ? { schoolId: session.schoolId, userId: session.userId } : { schoolId: session.schoolId };
     if (session.role !== "TEACHER") assertTrainingAdmin(session);
     const participants = await prisma.trainingParticipant.findMany({

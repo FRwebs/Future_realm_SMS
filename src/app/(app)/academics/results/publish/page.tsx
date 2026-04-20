@@ -12,7 +12,7 @@ import { formatNigeriaClassName } from "@/lib/school-options";
 export default async function PublishResultsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/academics/results") || session.role === "TEACHER") {
+  if (!canAccessPath(session.role, "/academics/results/publish") || session.role === "TEACHER") {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

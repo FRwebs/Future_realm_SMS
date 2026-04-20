@@ -28,13 +28,17 @@ export function generateCsrfToken() {
   return randomBytes(24).toString("base64url");
 }
 
-export async function createSessionToken(user: Omit<SessionUser, "csrfToken">) {
+export async function createSessionToken(
+  user: Omit<SessionUser, "csrfToken">,
+  options?: { maxAgeSeconds?: number }
+) {
   const csrfToken = generateCsrfToken();
+  const maxAgeSeconds = options?.maxAgeSeconds ?? SESSION_MAX_AGE;
   const payload: SessionPayload = {
     ...user,
     csrfToken,
     iat: Math.floor(Date.now() / 1000),
-    exp: Math.floor(Date.now() / 1000) + SESSION_MAX_AGE
+    exp: Math.floor(Date.now() / 1000) + maxAgeSeconds
   };
   const body = base64UrlEncode(JSON.stringify(payload));
   return `${body}.${sign(body)}`;

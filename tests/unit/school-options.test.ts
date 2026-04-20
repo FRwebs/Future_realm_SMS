@@ -40,6 +40,8 @@ describe("Nigerian school class options", () => {
       "NURSERY_1",
       "NURSERY_2",
       "KG_RECEPTION",
+      "KG_1",
+      "KG_2",
       "NURSERY_3"
     ]);
   });

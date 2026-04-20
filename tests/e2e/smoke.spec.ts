@@ -62,8 +62,73 @@ test("principal can sign in and reach dashboard", async ({ page }) => {
   await page.getByLabel("Password").fill(password);
   await page.getByRole("button", { name: "Sign in" }).click();
   await expect(page).toHaveURL(/dashboard/);
-  await expect(page.getByRole("heading", { name: "Admin command centre" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Principal/i })).toBeVisible();
   await expect(page.getByText("Pending actions")).toBeVisible();
+});
+
+test("super admin can access the separate platform console", async ({ page }) => {
+  await waitForApi(page);
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("admin@futurerealm.sms");
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page).toHaveURL(/super-admin/);
+  await expect(page.getByRole("complementary").getByText("Super Admin", { exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: /Platform Overview|Platform operations|support queue|Revenue and billing|Technical controls/i })).toBeVisible();
+
+  await page.goto("/super-admin/schools");
+  await expect(page.getByRole("heading", { name: "Schools", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: /Greenfield College, Ibadan/ })).toBeVisible();
+
+  await page.goto("/super-admin/users?search=admin.officer%40greenfieldcollege.ng");
+  await expect(page.getByRole("heading", { name: "Users", exact: true })).toBeVisible();
+  await expect(page.getByText("admin.officer@greenfieldcollege.ng")).toBeVisible();
+});
+
+test("exam officer can access exam workflow routes without final publishing routes", async ({ page }) => {
+  await waitForApi(page);
+  await page.goto("/login");
+  await page.getByLabel("Email").fill("exam.officer@greenfieldcollege.ng");
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page).toHaveURL(/dashboard/);
+  await expect(page.getByRole("heading", { name: /Exams and results workflow/i })).toBeVisible();
+  await expect(page.getByRole("complementary").getByRole("link", { name: "Students" })).toBeVisible();
+  await expect(page.getByRole("complementary").getByRole("link", { name: "Assessments & Exams" })).toBeVisible();
+  await expect(page.getByRole("complementary").getByRole("link", { name: "Exam Logistics" })).toBeVisible();
+  await expect(page.getByRole("complementary").getByRole("link", { name: "Reports" })).toBeVisible();
+
+  await page.goto("/students");
+  await expect(page.getByRole("heading", { name: "Students" })).toBeVisible();
+
+  await page.goto("/academics/results");
+  await expect(page.getByRole("heading", { name: "Result workflow" })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Assessments", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Broadsheets", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Analytics", exact: true })).toBeVisible();
+  await expect(page.getByRole("link", { name: "Publish", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Approvals", exact: true })).toHaveCount(0);
+  await expect(page.getByRole("link", { name: "Settings", exact: true })).toHaveCount(0);
+
+  await page.goto("/academics/results/assessments");
+  await expect(page.getByRole("heading", { name: "Assessment setup and marking" })).toBeVisible();
+
+  await page.goto("/academics/results/broadsheets");
+  await expect(page.getByRole("heading", { name: "Broadsheet compilation" })).toBeVisible();
+
+  await page.goto("/academics/results/analytics");
+  await expect(page.getByRole("heading", { name: "Result analytics" })).toBeVisible();
+
+  await page.goto("/operations/exams");
+  await expect(page.getByRole("heading", { name: "External Exams & Logistics" })).toBeVisible();
+
+  await page.goto("/operations/academics");
+  await expect(page.getByRole("heading", { name: "Lesson Plans, Question Bank & Materials" })).toBeVisible();
+
+  await page.goto("/academics/results/publish");
+  await expect(page).toHaveURL(/dashboard/);
 });
 
 test("student can sign in and use the student portal", async ({ page }) => {
@@ -149,19 +214,11 @@ test("teacher can use timetable, attendance, scores, and assignments", async ({ 
 test("restricted routes cannot expose unauthorized workspaces", async ({ page }) => {
   await loginAs(page, "teacher@greenfieldcollege.ng");
   await page.goto("/finance");
-  if (new URL(page.url()).pathname === "/finance") {
-    await expect(page.getByRole("heading", { name: "Access restricted" })).toBeVisible();
-    await page.getByRole("link", { name: "Go to allowed workspace" }).click();
-  }
   await expect(page).toHaveURL(/portals\/teacher/);
   await expect(page.getByRole("heading", { name: /manage science and mathematics|manage your classes/i })).toBeVisible();
 
   await loginAs(page, "student@greenfieldcollege.ng");
   await page.goto("/settings");
-  if (new URL(page.url()).pathname === "/settings") {
-    await expect(page.getByRole("heading", { name: "Access restricted" })).toBeVisible();
-    await page.getByRole("link", { name: "Go to allowed workspace" }).click();
-  }
   await expect(page).toHaveURL(/portals\/student/);
   await expect(page.getByRole("heading", { name: /school week|track this week's classes/i })).toBeVisible();
 });

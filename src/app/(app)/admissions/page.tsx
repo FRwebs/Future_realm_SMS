@@ -6,7 +6,7 @@ import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { AdmissionApplicationView, AdmissionMetricsView, AdmissionStatus, Role } from "@/lib/domain/types";
 import {
@@ -29,7 +29,7 @@ type AdmissionsPageProps = {
 };
 
 function canRunAdmissionStep(role: Role, allowed: Role[]) {
-  return role === "SUPER_ADMIN" || role === "SCHOOL_OWNER" || allowed.includes(role);
+  return hasRole(role, ["SUPER_ADMIN", "SCHOOL_OWNER", ...allowed]);
 }
 
 function hasFeeClearance(application: AdmissionApplicationView) {

@@ -1,13 +1,10 @@
-import { Injectable } from "@nestjs/common";
-import { randomUUID } from "crypto";
+import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { z } from "zod";
 
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoStore } from "../../../../src/lib/demo/data";
-import { AttendanceRecordView } from "../../../../src/lib/domain/types";
+import type { AttendanceRecordView } from "../../../../src/lib/domain/types";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
 import { formatNigeriaClassName, normalizeNigeriaClassValue } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const nigeriaClassInputSchema = z
   .string()
@@ -16,68 +13,149 @@ const nigeriaClassInputSchema = z
 
 export const attendanceSchema = z.object({
   studentId: z.string().optional(),
-  studentName: z.string().min(2),
-  className: nigeriaClassInputSchema,
-  subject: z.string().min(2),
+  studentName: z.string().min(2).optional(),
+  classId: z.string().optional(),
+  className: nigeriaClassInputSchema.optional(),
+  subjectId: z.string().optional(),
+  subject: z.string().min(2).optional(),
+  date: z.coerce.date().optional(),
   status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
   reason: z.string().optional()
 });
 
+type AttendanceFilters = {
+  classId?: string;
+  date?: string;
+  startDate?: string;
+  endDate?: string;
+  termId?: string;
+  studentId?: string;
+  status?: string;
+};
+
+function formatClassName(classRoom?: { name: string; arm?: string | null } | null) {
+  if (!classRoom) return "Unassigned";
+  return formatNigeriaClassName(classRoom.arm ? `${classRoom.name} - ${classRoom.arm}` : classRoom.name);
+}
+
+function normalizeAttendanceDate(date = new Date()) {
+  return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
+}
+
 @Injectable()
 export class AttendanceService {
-  async listAttendance(schoolId: string) {
-    if (env.DEMO_MODE) {
-      return getDemoStore().attendance;
-    }
+  async listAttendance(schoolId: string, filters: AttendanceFilters = {}) {
+    const status = ["PRESENT", "ABSENT", "LATE", "EXCUSED"].includes(filters.status ?? "")
+      ? (filters.status as "PRESENT" | "ABSENT" | "LATE" | "EXCUSED")
+      : undefined;
+    const term = filters.termId
+      ? null
+      : await prisma.term.findFirst({
+          where: { schoolId, isCurrent: true },
+          select: { id: true }
+        });
 
     const attendance = await prisma.studentAttendance.findMany({
-      where: { schoolId },
+      where: {
+        schoolId,
+        ...(filters.termId ? { termId: filters.termId } : term?.id ? { termId: term.id } : {}),
+        ...(filters.classId ? { classId: filters.classId } : {}),
+        ...(filters.studentId ? { studentId: filters.studentId } : {}),
+        ...(status ? { status } : {}),
+        ...(filters.date ? { date: normalizeAttendanceDate(new Date(filters.date)) } : {}),
+        ...(filters.startDate && filters.endDate
+          ? {
+              date: {
+                gte: normalizeAttendanceDate(new Date(filters.startDate)),
+                lte: normalizeAttendanceDate(new Date(filters.endDate))
+              }
+            }
+          : {})
+      },
       include: {
         student: true,
-        classRoom: true
+        classRoom: true,
+        markedBy: { select: { firstName: true, lastName: true } },
+        term: { select: { name: true } }
       },
       orderBy: { date: "desc" },
-      take: 50
+      take: 250
     });
+    const subjectIds = attendance.flatMap((item) => (item.subjectId ? [item.subjectId] : []));
+    const subjects = subjectIds.length
+      ? await prisma.subject.findMany({
+          where: { schoolId, id: { in: subjectIds } },
+          select: { id: true, name: true }
+        })
+      : [];
+    const subjectsById = new Map(subjects.map((subject) => [subject.id, subject.name]));
 
     return attendance.map<AttendanceRecordView>((item) => ({
       id: item.id,
       studentId: item.studentId,
       studentName: `${item.student.firstName} ${item.student.lastName}`,
-      className: formatNigeriaClassName(item.classRoom.arm ? `${item.classRoom.name} - ${item.classRoom.arm}` : item.classRoom.name),
-      subject: "General attendance",
+      classId: item.classId,
+      className: formatClassName(item.classRoom),
+      subjectId: item.subjectId ?? undefined,
+      subject: item.subjectId ? subjectsById.get(item.subjectId) ?? "Subject attendance" : "Morning attendance",
       status: item.status,
       date: item.date.toISOString(),
-      reason: item.reason ?? undefined
+      reason: item.reason ?? undefined,
+      markedByName: `${item.markedBy.firstName} ${item.markedBy.lastName}`,
+      termName: item.term.name
     }));
+  }
+
+  async summarizeAttendance(schoolId: string, filters: AttendanceFilters = {}) {
+    const term = filters.termId
+      ? null
+      : await prisma.term.findFirst({
+          where: { schoolId, isCurrent: true },
+          select: { id: true }
+        });
+
+    const records = await prisma.studentAttendance.findMany({
+      where: {
+        schoolId,
+        subjectId: null,
+        ...(filters.termId ? { termId: filters.termId } : term?.id ? { termId: term.id } : {}),
+        ...(filters.classId ? { classId: filters.classId } : {})
+      },
+      include: { student: true, classRoom: true }
+    });
+    const grouped = new Map<string, typeof records>();
+    for (const record of records) {
+      grouped.set(record.studentId, [...(grouped.get(record.studentId) ?? []), record]);
+    }
+
+    return Array.from(grouped.values())
+      .map((items) => {
+        const [first] = items;
+        const present = items.filter((item) => item.status === "PRESENT").length;
+        const late = items.filter((item) => item.status === "LATE").length;
+        const absent = items.filter((item) => item.status === "ABSENT").length;
+        const excused = items.filter((item) => item.status === "EXCUSED").length;
+        const attended = present + late + excused;
+        const percentage = items.length > 0 ? Math.round((attended / items.length) * 1000) / 10 : 0;
+        return {
+          studentId: first.studentId,
+          studentName: `${first.student.firstName} ${first.student.lastName}`,
+          admissionNumber: first.student.admissionNumber,
+          classId: first.classId,
+          className: formatClassName(first.classRoom),
+          totalDays: items.length,
+          present,
+          late,
+          absent,
+          excused,
+          percentage
+        };
+      })
+      .sort((a, b) => a.percentage - b.percentage || a.studentName.localeCompare(b.studentName));
   }
 
   async recordAttendance(schoolId: string, markedById: string, payload: unknown) {
     const parsed = attendanceSchema.parse(payload);
-    const className = formatNigeriaClassName(parsed.className);
-
-    if (env.DEMO_MODE) {
-      const record: AttendanceRecordView = {
-        id: randomUUID(),
-        studentId: parsed.studentId ?? randomUUID(),
-        studentName: parsed.studentName,
-        className,
-        subject: parsed.subject,
-        status: parsed.status,
-        date: new Date().toISOString(),
-        reason: parsed.reason
-      };
-      getDemoStore().attendance.unshift(record);
-      if (record.status === "ABSENT") {
-        await sendNotification({
-          channel: "SMS",
-          recipient: "parent",
-          title: "Attendance alert",
-          body: `${record.studentName} was marked absent in ${record.className}.`
-        });
-      }
-      return record;
-    }
 
     const student = parsed.studentId
       ? await prisma.student.findUnique({
@@ -92,36 +170,91 @@ export class AttendanceService {
       }
     });
 
-    if (!student?.currentClassId || !term) {
-      throw new Error("Student or active term not available");
+    if (!term) {
+      throw new NotFoundException("No active term is configured for this school.");
     }
+    if (!student?.currentClassId || student.schoolId !== schoolId) {
+      throw new BadRequestException("Select a valid enrolled student before saving attendance.");
+    }
+    const classId = parsed.classId ?? student.currentClassId;
+    if (student.currentClassId !== classId) {
+      throw new BadRequestException("Selected student is not enrolled in the selected class.");
+    }
+    const subject = parsed.subjectId
+      ? await prisma.subject.findFirst({
+          where: { schoolId, id: parsed.subjectId },
+          select: { id: true, name: true }
+        })
+      : null;
 
-    const record = await prisma.studentAttendance.create({
-      data: {
-        schoolId,
+    const attendanceDate = normalizeAttendanceDate(parsed.date);
+    const existingRecord = await prisma.studentAttendance.findFirst({
+      where: {
         studentId: student.id,
-        classId: student.currentClassId,
         termId: term.id,
-        markedById,
-        date: new Date(),
-        status: parsed.status,
-        reason: parsed.reason
+        date: attendanceDate,
+        subjectId: parsed.subjectId ?? null
       },
-      include: {
-        student: true,
-        classRoom: true
-      }
+      select: { id: true }
     });
 
-    return {
+    const record = existingRecord
+      ? await prisma.studentAttendance.update({
+          where: { id: existingRecord.id },
+          data: {
+            markedById,
+            status: parsed.status,
+            reason: parsed.reason
+          },
+          include: {
+            student: true,
+            classRoom: true,
+            markedBy: { select: { firstName: true, lastName: true } },
+            term: { select: { name: true } }
+          }
+        })
+      : await prisma.studentAttendance.create({
+          data: {
+            schoolId,
+            studentId: student.id,
+            classId,
+            termId: term.id,
+            markedById,
+            subjectId: parsed.subjectId,
+            date: attendanceDate,
+            status: parsed.status,
+            reason: parsed.reason
+          },
+          include: {
+            student: true,
+            classRoom: true,
+            markedBy: { select: { firstName: true, lastName: true } },
+            term: { select: { name: true } }
+          }
+        });
+
+    const view: AttendanceRecordView = {
       id: record.id,
       studentId: record.studentId,
       studentName: `${record.student.firstName} ${record.student.lastName}`,
-      className: formatNigeriaClassName(record.classRoom.arm ? `${record.classRoom.name} - ${record.classRoom.arm}` : record.classRoom.name),
-      subject: parsed.subject,
+      classId: record.classId,
+      className: formatClassName(record.classRoom),
+      subjectId: record.subjectId ?? undefined,
+      subject: subject?.name ?? parsed.subject ?? "Morning attendance",
       status: record.status,
       date: record.date.toISOString(),
-      reason: record.reason ?? undefined
+      reason: record.reason ?? undefined,
+      markedByName: `${record.markedBy.firstName} ${record.markedBy.lastName}`,
+      termName: record.term.name
     };
+    if (view.status === "ABSENT") {
+      await sendNotification({
+        channel: "SMS",
+        recipient: "parent",
+        title: "Attendance alert",
+        body: `${view.studentName} was marked absent in ${view.className}.`
+      });
+    }
+    return view;
   }
 }
