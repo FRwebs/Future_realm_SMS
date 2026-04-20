@@ -1,10 +1,9 @@
-import { TableCard } from "@/components/data-display/table-card";
+import { TimetableGrid } from "@/components/academics/timetable-grid";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { PortalTimetableEntry } from "@/lib/domain/types";
-import { formatNigeriaClassName } from "@/lib/school-options";
 
 export default async function TeacherTimetablePage() {
   const session = await getServerSession();
@@ -25,31 +24,12 @@ export default async function TeacherTimetablePage() {
         </p>
       </section>
 
-      <TableCard
+      <TimetableGrid
         title="Weekly timetable"
         description="Teaching periods grouped by day, time, subject, and class."
-        items={timetable}
-        columns={[
-          { key: "day", header: "Day", render: (item) => item.day },
-          { key: "time", header: "Time", render: (item) => item.time },
-          {
-            key: "subject",
-            header: "Subject",
-            render: (item) => (
-              <div>
-                <p className="font-semibold text-ink">{item.subject}</p>
-                <p className="text-xs text-ink/55">{item.className ? formatNigeriaClassName(item.className) : "-"}</p>
-              </div>
-            )
-          },
-          { key: "venue", header: "Venue", render: (item) => item.venue }
-        ]}
+        entries={timetable}
+        emptyState="No timetable periods are currently linked to your account."
       />
-      {timetable.length === 0 ? (
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 text-sm text-ink/65 shadow-panel">
-          No timetable periods are currently linked to your account.
-        </section>
-      ) : null}
     </div>
   );
 }

@@ -7,7 +7,9 @@ import { buildPortalSubjectResults, resolveGradeLabel } from "../../../../src/li
 import {
   PortalFinanceItem,
   PortalResultHistory,
+  PortalSubjectOffering,
   PortalTimetableEntry,
+  CurriculumTopicView,
   StudentPortalAssignmentView,
   StudentPortalAttendanceView,
   StudentPortalCalendarEvent,
@@ -31,6 +33,15 @@ function formatClassName(name?: string | null, arm?: string | null) {
 
 function formatStudentName(student: { firstName: string; lastName: string; middleName?: string | null }) {
   return [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" ");
+}
+
+function resolveDepartmentTrack(classRoom?: { arm?: string | null; category?: string | null; department?: { name: string } | null } | null) {
+  if (!classRoom) return undefined;
+  if (classRoom.department?.name) return classRoom.department.name;
+  const category = classRoom.category?.toLowerCase() ?? "";
+  const arm = classRoom.arm?.trim();
+  if (category.includes("senior") && arm && !["A", "B", "C"].includes(arm.toUpperCase())) return arm;
+  return undefined;
 }
 
 function isStudentAudience(audience: string, className?: string) {
@@ -92,7 +103,7 @@ export class StudentPortalService {
       where: { schoolId: session.schoolId, userId: session.userId },
       include: {
         user: true,
-        currentClass: true,
+        currentClass: { include: { department: true } },
         currentSession: true,
         guardians: { include: { guardian: true } },
         medicalRecord: true
@@ -113,6 +124,66 @@ export class StudentPortalService {
     });
   }
 
+  private async getSubjectOfferings(session: SessionPayload, classId?: string | null): Promise<PortalSubjectOffering[]> {
+    if (!classId) return [];
+    const assignments = await prisma.classSubject.findMany({
+      where: { schoolId: session.schoolId, classId, isActive: true },
+      include: { subject: { include: { department: true } } },
+      orderBy: [{ subject: { sortOrder: "asc" } }, { subject: { name: "asc" } }]
+    });
+    const teacherIds = assignments.map((item) => item.teacherId).filter(Boolean) as string[];
+    const teachers = teacherIds.length
+      ? new Map(
+          (
+            await prisma.user.findMany({
+              where: { schoolId: session.schoolId, id: { in: teacherIds } },
+              select: { id: true, firstName: true, lastName: true }
+            })
+          ).map((teacher) => [teacher.id, `${teacher.firstName} ${teacher.lastName}`])
+        )
+      : new Map<string, string>();
+
+    return assignments.map((assignment) => ({
+      id: assignment.subject.id,
+      name: assignment.subject.name,
+      code: assignment.subject.code,
+      departmentName: assignment.subject.department?.name,
+      track: assignment.subject.trackSpecific ?? assignment.subject.subjectCombination ?? undefined,
+      teacherName: assignment.teacherId ? teachers.get(assignment.teacherId) : undefined,
+      periodsPerWeek: assignment.subject.periodsPerWeek,
+      isCore: assignment.subject.isCore,
+      isOptional: assignment.subject.isOptional
+    }));
+  }
+
+  private async getCurriculumTopics(session: SessionPayload, classId?: string | null): Promise<CurriculumTopicView[]> {
+    if (!classId) return [];
+    const topics = await prisma.curriculumTopic.findMany({
+      where: { schoolId: session.schoolId, classId, status: "ACTIVE" },
+      include: { academicSession: true, term: true, classRoom: true, subject: true },
+      orderBy: [{ term: { order: "asc" } }, { subject: { name: "asc" } }, { weekNumber: "asc" }]
+    });
+    return topics.map((topic) => ({
+      id: topic.id,
+      academicSession: topic.academicSession.name,
+      term: topic.term.name,
+      classId: topic.classRoom.id,
+      className: formatClassName(topic.classRoom.name, topic.classRoom.arm),
+      subjectId: topic.subject.id,
+      subject: topic.subject.name,
+      weekNumber: topic.weekNumber,
+      topic: topic.topic,
+      subTopic: topic.subTopic ?? undefined,
+      learningObjectives: topic.learningObjectives ?? undefined,
+      teacherNotes: topic.teacherNotes ?? undefined,
+      recommendedResources: topic.recommendedResources ?? undefined,
+      assignmentNote: topic.assignmentNote ?? undefined,
+      status: topic.status,
+      progressStatus: topic.progressStatus,
+      actualDateTaught: topic.actualDateTaught?.toISOString()
+    }));
+  }
+
   async getStudentProfile(session: SessionPayload): Promise<StudentPortalProfileView> {
     this.assertStudentSession(session);
     if (env.DEMO_MODE) {
@@ -131,13 +202,7 @@ export class StudentPortalService {
     }
 
     const [student, term] = await Promise.all([this.getStudentContext(session), this.currentTerm(session.schoolId)]);
-    const subjects = student.currentClassId
-      ? await prisma.classSubject.findMany({
-          where: { schoolId: session.schoolId, classId: student.currentClassId },
-          include: { subject: true },
-          orderBy: { subject: { name: "asc" } }
-        })
-      : [];
+    const subjectDetails = await this.getSubjectOfferings(session, student.currentClassId);
     const primaryGuardian = student.guardians.find((item) => item.isPrimary)?.guardian ?? student.guardians[0]?.guardian;
 
     return {
@@ -172,7 +237,9 @@ export class StudentPortalService {
         conditions: student.medicalRecord?.conditions ?? undefined,
         notes: student.medicalRecord?.notes ?? undefined
       },
-      subjects: subjects.map((item) => item.subject.name)
+      subjects: subjectDetails.map((item) => item.name),
+      subjectDetails,
+      departmentTrack: resolveDepartmentTrack(student.currentClass)
     };
   }
 
@@ -259,19 +326,22 @@ export class StudentPortalService {
       return {
         weeklyTimetable: portal.weeklyTimetable,
         examTimetable: portal.examTimetable ?? [],
-        calendar: portal.calendar ?? []
+        calendar: portal.calendar ?? [],
+        subjects: portal.profile?.subjectDetails ?? Array.from(new Set(portal.weeklyTimetable.map((item) => item.subject))).map((subject) => ({ id: subject, name: subject })),
+        curriculumTopics: portal.curriculumTopics ?? [],
+        departmentTrack: portal.departmentTrack
       };
     }
 
     const student = await this.getStudentContext(session);
     if (!student.currentClassId) {
-      return { weeklyTimetable: [], examTimetable: [], calendar: [] };
+      return { weeklyTimetable: [], examTimetable: [], calendar: [], subjects: [], curriculumTopics: [], departmentTrack: undefined };
     }
 
-    const [term, timetable, exams, events] = await Promise.all([
+    const [term, timetable, exams, events, subjects, curriculumTopics] = await Promise.all([
       this.currentTerm(session.schoolId),
       prisma.timetableEntry.findMany({
-        where: { schoolId: session.schoolId, classId: student.currentClassId },
+        where: { schoolId: session.schoolId, classId: student.currentClassId, isPublished: true, subjectId: { not: null } },
         include: { subject: true },
         orderBy: [{ dayOfWeek: "asc" }, { startsAt: "asc" }]
       }),
@@ -287,7 +357,9 @@ export class StudentPortalService {
         },
         orderBy: { startsAt: "asc" },
         take: 20
-      })
+      }),
+      this.getSubjectOfferings(session, student.currentClassId),
+      this.getCurriculumTopics(session, student.currentClassId)
     ]);
     const teacherIds = timetable.map((item) => item.teacherId).filter(Boolean) as string[];
     const teachers =
@@ -310,7 +382,7 @@ export class StudentPortalService {
           id: item.id,
           day: dayNames[item.dayOfWeek] ?? `Day ${item.dayOfWeek}`,
           time: `${item.startsAt} - ${item.endsAt}`,
-          subject: item.subject.name,
+          subject: item.subject?.name ?? "Free Period",
           venue: item.venue ?? "Classroom",
           teacherName: item.teacherId ? teachers.get(item.teacherId) : undefined,
           className
@@ -333,7 +405,10 @@ export class StudentPortalService {
           startsAt: item.startsAt.toISOString(),
           endsAt: item.endsAt.toISOString(),
           audience: item.audience
-        }))
+        })),
+      subjects,
+      curriculumTopics,
+      departmentTrack: resolveDepartmentTrack(student.currentClass)
     };
   }
 
@@ -407,6 +482,7 @@ export class StudentPortalService {
       dueOn: invoice.dueOn.toISOString(),
       issuedOn: invoice.issuedOn.toISOString(),
       status: invoice.status,
+      canPay: false,
       payments: invoice.payments.map((payment) => ({
         id: payment.id,
         reference: payment.reference,
@@ -579,6 +655,9 @@ export class StudentPortalService {
         { label: "Outstanding", value: `NGN ${outstanding.toLocaleString("en-NG")}` }
       ],
       profile,
+      subjects: profile.subjectDetails,
+      departmentTrack: profile.departmentTrack,
+      curriculumTopics: timetable.curriculumTopics,
       attendance,
       latestResult,
       timetablePreview: timetable.weeklyTimetable.slice(0, 3),

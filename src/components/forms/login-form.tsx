@@ -2,12 +2,11 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 
 function resolveLandingPath(role: string) {
-  if (role === "PARENT") return "/portals/parent";
-  if (role === "TEACHER") return "/portals/teacher";
-  if (role === "STUDENT") return "/portals/student";
-  return "/dashboard";
+  const normalizedRole = normalizeRole(role);
+  return normalizedRole ? getDefaultPathForRole(normalizedRole) : "/dashboard";
 }
 
 export function LoginForm() {

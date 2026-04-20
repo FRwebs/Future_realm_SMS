@@ -13,7 +13,7 @@ import { formatDate } from "@/lib/utils/formatters";
 export default async function ResultApprovalsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/academics/results") || session.role === "TEACHER") {
+  if (!canAccessPath(session.role, "/academics/results/approvals") || session.role === "TEACHER") {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

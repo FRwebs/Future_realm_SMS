@@ -243,7 +243,7 @@ export class TeacherPortalService {
 
   async getTeacherTimetable(session: SessionPayload): Promise<PortalTimetableEntry[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
+    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
       return getDemoTeacherPortalByEmail(session.email).weeklyTimetable;
     }
 
@@ -257,7 +257,7 @@ export class TeacherPortalService {
       id: item.id,
       day: dayNames[item.dayOfWeek] ?? `Day ${item.dayOfWeek}`,
       time: `${item.startsAt} - ${item.endsAt}`,
-      subject: item.subject.name,
+      subject: item.subject?.name ?? "Free Period",
       venue: item.venue ?? "Classroom",
       className: formatClassName(item.classRoom),
       teacherName: session.name
@@ -266,7 +266,7 @@ export class TeacherPortalService {
 
   async listAttendance(session: SessionPayload): Promise<TeacherAttendanceEntryView[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
+    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
       const portal = getDemoTeacherPortalByEmail(session.email);
       return portal.assignedClasses.slice(0, 3).map((assignment, index) => ({
         id: `demo-att-${index + 1}`,
@@ -307,8 +307,7 @@ export class TeacherPortalService {
   async markAttendance(session: SessionPayload, payload: unknown): Promise<TeacherAttendanceEntryView> {
     this.assertTeacherSession(session);
     const parsed = teacherAttendanceSchema.parse(payload);
-
-    if (env.DEMO_MODE) {
+    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
       const portal = getDemoTeacherPortalByEmail(session.email);
       const assignment = portal.assignedClasses.find((item) => item.classId === parsed.classId || item.subjectId === parsed.subjectId);
       return {

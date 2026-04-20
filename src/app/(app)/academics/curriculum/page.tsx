@@ -3,7 +3,6 @@ import type { Route } from "next";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { TableCard } from "@/components/data-display/table-card";
 import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
@@ -278,52 +277,67 @@ export default async function CurriculumPage({
         ) : null}
       </section>
 
-      <TableCard
-        title="Weekly curriculum plan"
-        description="Class-based subject scheme of work for the active Nigerian term."
-        items={filteredTopics}
-        columns={[
-          {
-            key: "week",
-            header: "Week",
-            render: (item) => `Week ${item.weekNumber}`,
-          },
-          {
-            key: "topic",
-            header: "Topic",
-            render: (item) => (
-              <div>
-                <p className="font-semibold text-ink">{item.topic}</p>
-                <p className="text-xs text-ink/55">
-                  {item.subTopic ?? item.learningObjectives ?? "No sub-topic"}
-                </p>
-              </div>
-            ),
-          },
-          {
-            key: "class",
-            header: "Class",
-            render: (item) => formatNigeriaClassName(item.className),
-          },
-          {
-            key: "subject",
-            header: "Subject",
-            render: (item) => item.subject,
-          },
-          {
-            key: "progress",
-            header: "Progress",
-            render: (item) => item.progressStatus.replaceAll("_", " "),
-          },
-          {
-            key: "taught",
-            header: "Taught",
-            render: (item) =>
-              item.actualDateTaught ? formatDate(item.actualDateTaught) : "-",
-          },
-        ]}
-        emptyState="No scheme-of-work topics have been configured yet."
-      />
+      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-5 shadow-panel md:p-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+              Weekly curriculum plan
+            </h2>
+            <p className="mt-1 text-sm text-ink/62">
+              Class-based Nigerian scheme of work with weekly objectives, resources, and coverage status.
+            </p>
+          </div>
+          <span className="text-sm font-semibold text-ink/55">{filteredTopics.length} topics</span>
+        </div>
+
+        {filteredTopics.length === 0 ? (
+          <div className="mt-5 rounded-2xl border border-dashed border-ink/10 bg-sand/45 p-6 text-sm text-ink/62">
+            No scheme-of-work topics match these filters. Add topics from a configured class and subject to build the register.
+          </div>
+        ) : (
+          <div className="mt-5 grid gap-3">
+            {filteredTopics.map((topic) => (
+              <details key={topic.id} className="group rounded-2xl border border-ink/6 bg-sand/45 p-4 open:bg-white">
+                <summary className="flex cursor-pointer list-none flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <p className="text-xs font-semibold uppercase tracking-[0.22em] text-brand-700">
+                      Week {topic.weekNumber} · {formatNigeriaClassName(topic.className)} · {topic.subject}
+                    </p>
+                    <h3 className="mt-2 font-[var(--font-heading)] text-xl font-bold text-ink">{topic.topic}</h3>
+                    <p className="mt-1 text-sm text-ink/60">{topic.subTopic ?? topic.learningObjectives ?? "Open for weekly teaching details"}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/65">
+                      {topic.progressStatus.replaceAll("_", " ")}
+                    </span>
+                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/65">
+                      {topic.actualDateTaught ? formatDate(topic.actualDateTaught) : "Upcoming"}
+                    </span>
+                  </div>
+                </summary>
+                <div className="mt-4 grid gap-3 border-t border-ink/6 pt-4 md:grid-cols-2">
+                  <div className="rounded-2xl bg-white/75 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-ink/40">Learning objectives</p>
+                    <p className="mt-2 text-sm leading-6 text-ink/68">{topic.learningObjectives ?? "No objectives recorded yet."}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/75 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-ink/40">Resources / reference books</p>
+                    <p className="mt-2 text-sm leading-6 text-ink/68">{topic.recommendedResources ?? "No resources recorded yet."}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/75 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-ink/40">Assignment note</p>
+                    <p className="mt-2 text-sm leading-6 text-ink/68">{topic.assignmentNote ?? "No assignment note recorded."}</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/75 p-4">
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-ink/40">Teacher notes</p>
+                    <p className="mt-2 text-sm leading-6 text-ink/68">{topic.teacherNotes ?? topic.teacherName ?? "No teacher note recorded."}</p>
+                  </div>
+                </div>
+              </details>
+            ))}
+          </div>
+        )}
+      </section>
     </div>
   );
 }

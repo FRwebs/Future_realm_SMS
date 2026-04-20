@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
+import { PermissionsGuard } from "../../auth/permissions.guard";
+import { RequirePermission } from "../../auth/require-permission.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
@@ -16,7 +18,7 @@ export class AcademicsController {
   constructor(private readonly academicsService: AcademicsService) {}
 
   @Get("grades")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
   async list(@CurrentSession() session: SessionPayload) {
     return {
       ok: true,
@@ -68,16 +70,45 @@ export class AcademicsController {
   }
 
   @Get("subjects")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("subjects.view")
   async subjects(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listSubjects(session) };
   }
 
+  @Get("subjects/:subjectId")
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("subjects.view")
+  async subject(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
+    return { ok: true, data: await this.academicsService.getSubject(session, subjectId) };
+  }
+
   @Post("subjects")
-  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subjects.create")
   async createSubject(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.createSubject(session, body) };
+  }
+
+  @Patch("subjects/:subjectId")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subjects.edit")
+  async updateSubject(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Body() body: Record<string, unknown>) {
+    return { ok: true, data: await this.academicsService.updateSubject(session, subjectId, body) };
+  }
+
+  @Delete("subjects/:subjectId")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subjects.delete")
+  async deleteSubject(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
+    return { ok: true, data: await this.academicsService.deleteSubject(session, subjectId) };
+  }
+
+  @Post("subjects/:subjectId/assign-teacher")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subjects.assign")
+  async assignSubjectTeacher(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Body() body: Record<string, unknown>) {
+    return { ok: true, data: await this.academicsService.assignSubjectTeacher(session, subjectId, body) };
   }
 
   @Get("section-assessment-components")
@@ -207,7 +238,7 @@ export class AcademicsController {
   }
 
   @Get("analytics")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
   async analytics(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.getResultAnalytics(session) };
   }

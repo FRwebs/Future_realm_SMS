@@ -2,7 +2,7 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { FeeStructureView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
@@ -14,7 +14,7 @@ export default async function FeeStructuresPage() {
   if (!canAccessPath(session.role, "/finance")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
   const structures = await apiGet<FeeStructureView[]>("/api/v1/finance/fee-structures");
-  const canManageFinance = ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"].includes(session.role);
+  const canManageFinance = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"]);
 
   return (
     <div className="grid gap-6">

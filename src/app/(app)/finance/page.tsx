@@ -2,7 +2,7 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { FinanceDashboardView } from "@/lib/domain/types";
 import { feeGatewayOptions, formatNigeriaClassName, nigerianClassFieldOptions } from "@/lib/school-options";
@@ -16,7 +16,7 @@ export default async function FinancePage() {
   }
 
   const dashboard = await apiGet<FinanceDashboardView>("/api/v1/finance/dashboard");
-  const canManageFinance = ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"].includes(session.role);
+  const canManageFinance = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"]);
 
   return (
     <div className="grid gap-6">

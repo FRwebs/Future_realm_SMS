@@ -6,15 +6,24 @@ import { AdmissionsModule } from "./modules/admissions/admissions.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
 import { AuthFeatureModule } from "./modules/auth/auth.module";
 import { CommunicationsModule } from "./modules/communications/communications.module";
+import { ConfigurationModule } from "./modules/configuration/configuration.module";
+import { ClassesModule } from "./modules/classes/classes.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { NigeriaOperationsModule } from "./modules/nigeria-operations/nigeria-operations.module";
 import { ParentPortalModule } from "./modules/parent-portal/parent-portal.module";
+import { ParentsModule } from "./modules/parents/parents.module";
+import { OperationsModule } from "./modules/operations/operations.module";
+import { ProfileModule } from "./modules/profile/profile.module";
 import { ReportsModule } from "./modules/reports/reports.module";
+import { RolesManagementModule } from "./modules/roles-management/roles-management.module";
+import { StaffModule } from "./modules/staff/staff.module";
 import { StudentPortalModule } from "./modules/student-portal/student-portal.module";
+import { SuperAdminModule } from "./modules/super-admin/super-admin.module";
 import { TeacherPortalModule } from "./modules/teacher-portal/teacher-portal.module";
 import { StudentsModule } from "./modules/students/students.module";
 import { TeachersModule } from "./modules/teachers/teachers.module";
+import { TimetableModule } from "./modules/timetable/timetable.module";
 
 @Module({
   imports: [
@@ -24,15 +33,24 @@ import { TeachersModule } from "./modules/teachers/teachers.module";
     AdmissionsModule,
     StudentsModule,
     AttendanceModule,
+    ClassesModule,
     AcademicsModule,
     FinanceModule,
     NigeriaOperationsModule,
     CommunicationsModule,
+    ConfigurationModule,
     ReportsModule,
+    RolesManagementModule,
+    ProfileModule,
+    StaffModule,
+    OperationsModule,
     ParentPortalModule,
+    ParentsModule,
     StudentPortalModule,
+    SuperAdminModule,
     TeacherPortalModule,
-    TeachersModule
+    TeachersModule,
+    TimetableModule
   ]
 })
 export class AppModule {}

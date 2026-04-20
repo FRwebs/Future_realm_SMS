@@ -7,6 +7,18 @@ import { getServerSession } from "@/lib/auth/session";
 import { GradeRecordView } from "@/lib/domain/types";
 import { formatNigeriaClassName, nigerianClassFieldOptions } from "@/lib/school-options";
 
+const resultWorkspaceLinks = [
+  ["Assessments", "/academics/results/assessments"],
+  ["Subjects", "/academics/subjects"],
+  ["Settings", "/academics/results/settings"],
+  ["Approvals", "/academics/results/approvals"],
+  ["Broadsheets", "/academics/results/broadsheets"],
+  ["Publish", "/academics/results/publish"],
+  ["Analytics", "/academics/results/analytics"],
+  ["History", "/academics/results/history"],
+  ["Report cards", "/academics/results/report-cards"]
+] as const;
+
 export default async function ResultsPage() {
   const session = await getServerSession();
   if (!session) return null;
@@ -64,17 +76,7 @@ export default async function ResultsPage() {
                 />
               </>
             ) : null}
-            {[
-              ["Assessments", "/academics/results/assessments"],
-              ["Subjects", "/academics/subjects"],
-              ["Settings", "/academics/results/settings"],
-              ["Approvals", "/academics/results/approvals"],
-              ["Broadsheets", "/academics/results/broadsheets"],
-              ["Publish", "/academics/results/publish"],
-              ["Analytics", "/academics/results/analytics"],
-              ["History", "/academics/results/history"],
-              ["Report cards", "/academics/results/report-cards"]
-            ].map(([label, href]) => (
+            {resultWorkspaceLinks.filter(([, href]) => canAccessPath(session.role, href)).map(([label, href]) => (
               <a
                 key={href}
                 href={href}

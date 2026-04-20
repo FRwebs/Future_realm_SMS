@@ -35,7 +35,7 @@ export type FilterControl =
 interface FilterToolbarProps {
   title?: string;
   description?: string;
-  action: Route;
+  action: Route | string;
   controls: FilterControl[];
   activeSummary?: string[];
   resultCount?: number;
@@ -121,7 +121,7 @@ export function FilterToolbar({
             ) : null}
 
             <Link
-              href={action}
+              href={action as Route}
               className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm transition hover:border-ink/15 hover:bg-sand/60"
             >
               <X className="h-4 w-4" />
@@ -171,7 +171,7 @@ export function FilterToolbar({
 
             <div className="flex flex-wrap items-center gap-2">
               <Link
-                href={action}
+                href={action as Route}
                 className="inline-flex h-12 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-5 text-sm font-semibold text-ink shadow-sm transition hover:border-ink/15 hover:bg-sand/60"
               >
                 <X className="h-4 w-4" />

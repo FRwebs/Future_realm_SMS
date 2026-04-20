@@ -140,6 +140,7 @@ export class StudentsService {
       id: student.id,
       admissionNumber: student.admissionNumber,
       fullName: `${student.firstName} ${student.lastName}`,
+      classId: student.currentClassId ?? undefined,
       className: formatClassName(student.currentClass?.name, student.currentClass?.arm),
       guardianName:
         student.guardians.find((item) => item.isPrimary)?.guardian.firstName ??

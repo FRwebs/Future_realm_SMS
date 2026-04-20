@@ -2,7 +2,9 @@ import { Body, Controller, ForbiddenException, Get, Param, Post, Put, Query, Res
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 
+import { hasRole } from "../../../../src/lib/auth/roles";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import type { Role } from "../../../../src/lib/domain/types";
 import type { AdmissionApplicationView } from "../../../../src/lib/domain/types";
 import { buildAdmissionOfferPdf } from "../../../../src/lib/pdf/admission-offer";
 import { CsrfGuard } from "../../auth/csrf.guard";
@@ -21,7 +23,7 @@ type AdmissionWorkflowRole =
   | "PARENT";
 
 function assertAdmissionWorkflowRole(session: SessionPayload, allowed: AdmissionWorkflowRole[]) {
-  if (session.role === "SUPER_ADMIN" || session.role === "SCHOOL_OWNER" || allowed.includes(session.role as AdmissionWorkflowRole)) {
+  if (hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", ...allowed] as Role[])) {
     return;
   }
 

@@ -16,6 +16,8 @@ export type NigeriaClassValue =
   | "NURSERY_2"
   | "NURSERY_3"
   | "KG_RECEPTION"
+  | "KG_1"
+  | "KG_2"
   | "PRIMARY_1"
   | "PRIMARY_2"
   | "PRIMARY_3"
@@ -56,19 +58,21 @@ export const nigeriaClassOptions = [
   { label: "Nursery 1", value: "NURSERY_1", section: "NURSERY", order: 3 },
   { label: "Nursery 2", value: "NURSERY_2", section: "NURSERY", order: 4 },
   { label: "KG / Reception", value: "KG_RECEPTION", section: "NURSERY", order: 5 },
-  { label: "Nursery 3", value: "NURSERY_3", section: "NURSERY", order: 6 },
-  { label: "Primary 1", value: "PRIMARY_1", section: "PRIMARY", order: 7 },
-  { label: "Primary 2", value: "PRIMARY_2", section: "PRIMARY", order: 8 },
-  { label: "Primary 3", value: "PRIMARY_3", section: "PRIMARY", order: 9 },
-  { label: "Primary 4", value: "PRIMARY_4", section: "PRIMARY", order: 10 },
-  { label: "Primary 5", value: "PRIMARY_5", section: "PRIMARY", order: 11 },
-  { label: "Primary 6", value: "PRIMARY_6", section: "PRIMARY", order: 12 },
-  { label: "JSS 1", value: "JSS_1", section: "JUNIOR_SECONDARY", order: 13 },
-  { label: "JSS 2", value: "JSS_2", section: "JUNIOR_SECONDARY", order: 14 },
-  { label: "JSS 3", value: "JSS_3", section: "JUNIOR_SECONDARY", order: 15 },
-  { label: "SSS 1", value: "SSS_1", section: "SENIOR_SECONDARY", order: 16 },
-  { label: "SSS 2", value: "SSS_2", section: "SENIOR_SECONDARY", order: 17 },
-  { label: "SSS 3", value: "SSS_3", section: "SENIOR_SECONDARY", order: 18 }
+  { label: "KG 1", value: "KG_1", section: "NURSERY", order: 6 },
+  { label: "KG 2", value: "KG_2", section: "NURSERY", order: 7 },
+  { label: "Nursery 3", value: "NURSERY_3", section: "NURSERY", order: 8 },
+  { label: "Primary 1", value: "PRIMARY_1", section: "PRIMARY", order: 9 },
+  { label: "Primary 2", value: "PRIMARY_2", section: "PRIMARY", order: 10 },
+  { label: "Primary 3", value: "PRIMARY_3", section: "PRIMARY", order: 11 },
+  { label: "Primary 4", value: "PRIMARY_4", section: "PRIMARY", order: 12 },
+  { label: "Primary 5", value: "PRIMARY_5", section: "PRIMARY", order: 13 },
+  { label: "Primary 6", value: "PRIMARY_6", section: "PRIMARY", order: 14 },
+  { label: "JSS 1", value: "JSS_1", section: "JUNIOR_SECONDARY", order: 15 },
+  { label: "JSS 2", value: "JSS_2", section: "JUNIOR_SECONDARY", order: 16 },
+  { label: "JSS 3", value: "JSS_3", section: "JUNIOR_SECONDARY", order: 17 },
+  { label: "SSS 1", value: "SSS_1", section: "SENIOR_SECONDARY", order: 18 },
+  { label: "SSS 2", value: "SSS_2", section: "SENIOR_SECONDARY", order: 19 },
+  { label: "SSS 3", value: "SSS_3", section: "SENIOR_SECONDARY", order: 20 }
 ] as const satisfies readonly NigeriaClassOption[];
 
 export const nigeriaClassLookup = Object.fromEntries(
@@ -112,6 +116,8 @@ nigeriaClassOptions.forEach((option) => {
 registerAlias("CRECHE", "Creche", "Crèche", "Creche / Nursery", "Creche Nursery");
 registerAlias("PRE_NURSERY", "Pre Nursery", "Prenursery", "Pre-nursery");
 registerAlias("KG_RECEPTION", "KG", "Reception", "KG Reception", "KG / Reception", "Kindergarten");
+registerAlias("KG_1", "KG 1", "KG1", "Kindergarten 1");
+registerAlias("KG_2", "KG 2", "KG2", "Kindergarten 2");
 registerAlias("JSS_1", "JSS1", "Junior Secondary 1", "Junior Secondary School 1");
 registerAlias("JSS_2", "JSS2", "Junior Secondary 2", "Junior Secondary School 2");
 registerAlias("JSS_3", "JSS3", "Junior Secondary 3", "Junior Secondary School 3");

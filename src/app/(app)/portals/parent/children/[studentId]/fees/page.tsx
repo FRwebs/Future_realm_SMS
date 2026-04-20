@@ -1,5 +1,6 @@
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { PayInvoiceButton } from "@/components/portals/pay-invoice-button";
 import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
@@ -24,7 +25,7 @@ export default async function ParentChildFeesPage({ params }: PageProps) {
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
         <a href={`/portals/parent/children/${studentId}`} className="text-sm font-semibold text-brand-700">Back to child overview</a>
         <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Child fees</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">Read-only invoice and payment records for this child.</p>
+        <p className="mt-3 text-sm leading-6 text-ink/68">Invoice, payment, and receipt records for this child. Outstanding invoices can be paid through the school's configured online payment flow.</p>
         <p className="mt-5 text-3xl font-bold text-ink">{formatCurrency(outstanding)} outstanding</p>
       </section>
       <TableCard
@@ -36,7 +37,17 @@ export default async function ParentChildFeesPage({ params }: PageProps) {
           { key: "amount", header: "Total", render: (item) => formatCurrency(item.amount) },
           { key: "balance", header: "Balance", render: (item) => formatCurrency(item.balance) },
           { key: "due", header: "Due", render: (item) => formatDate(item.dueOn) },
-          { key: "status", header: "Status", render: (item) => item.status }
+          { key: "status", header: "Status", render: (item) => item.status },
+          {
+            key: "action",
+            header: "Action",
+            render: (item) =>
+              item.canPay && item.balance > 0 ? (
+                <PayInvoiceButton invoiceId={item.id} amount={item.balance} />
+              ) : (
+                <span className="text-xs text-ink/45">No payment due</span>
+              )
+          }
         ]}
       />
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">

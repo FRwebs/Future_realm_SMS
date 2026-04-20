@@ -7,6 +7,7 @@ import cookieParser from "cookie-parser";
 
 import { env } from "../../src/lib/utils/env";
 import { ApiExceptionFilter } from "./common/api-exception.filter";
+import { enrichOpenApiDocument } from "./common/openapi-docs";
 import { AppModule } from "./app.module";
 
 async function bootstrap() {
@@ -29,11 +30,28 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle("FutureRealm SMS API")
-    .setDescription("NestJS backend for FutureRealm SMS")
+    .setDescription(
+      [
+        "Backend API for the FutureRealm multi-tenant School Management System.",
+        "",
+        "OpenAPI is generated from the Nest controllers and enriched with SMS-specific developer notes, response envelopes, auth requirements, filter/query usage, and practical Nigerian school examples."
+      ].join("\n")
+    )
     .setVersion("1.0.0")
-    .addCookieAuth("fr_session")
+    .addCookieAuth(
+      "fr_session",
+      {
+        type: "apiKey",
+        in: "cookie",
+        name: "fr_session",
+        description:
+          "HTTP-only session cookie set by /api/v1/auth/login. Browser clients should send requests with credentials included."
+      },
+      "fr_session"
+    )
     .build();
   const document = SwaggerModule.createDocument(app, config);
+  enrichOpenApiDocument(document);
   SwaggerModule.setup("api/docs", app, document, {
     jsonDocumentUrl: "api/docs-json"
   });

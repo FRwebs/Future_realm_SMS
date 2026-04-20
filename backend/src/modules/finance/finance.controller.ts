@@ -1,6 +1,7 @@
 import { Body, Controller, ForbiddenException, Get, Header, Param, Post, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
+import { hasRole } from "../../../../src/lib/auth/roles";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
@@ -16,7 +17,7 @@ export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   private assertFinanceManager(session: SessionPayload) {
-    if (!["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"].includes(session.role)) {
+    if (!hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"])) {
       throw new ForbiddenException("Only finance managers can perform this action.");
     }
   }

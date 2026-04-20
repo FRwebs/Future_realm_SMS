@@ -11,7 +11,7 @@ interface ResourceActionDialogProps {
   title: string;
   description: string;
   endpoint: string;
-  method?: "POST" | "PUT";
+  method?: "POST" | "PUT" | "PATCH" | "DELETE";
   fields: ResourceField[];
   submitLabel: string;
   confirmLabel?: string;

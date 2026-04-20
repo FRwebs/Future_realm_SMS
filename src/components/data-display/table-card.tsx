@@ -1,5 +1,7 @@
 import { ReactNode } from "react";
 
+import { PaginatedTable } from "@/components/data-display/paginated-table";
+
 export interface TableColumn<TItem> {
   key: string;
   header: string;
@@ -26,8 +28,8 @@ export function TableCard<TItem>({ title, description, columns, items, emptyStat
           {emptyState}
         </div>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="min-w-full border-separate border-spacing-y-3 text-left">
+        <PaginatedTable
+          header={
             <thead className="sticky top-0 z-10 bg-white/95 backdrop-blur">
               <tr className="text-xs uppercase tracking-[0.24em] text-ink/40">
                 {columns.map((column) => (
@@ -37,19 +39,18 @@ export function TableCard<TItem>({ title, description, columns, items, emptyStat
                 ))}
               </tr>
             </thead>
-            <tbody>
-              {items.map((item, index) => (
-                <tr key={index} className="rounded-2xl bg-sand/55 text-sm text-ink/80 transition hover:bg-brand-50/70">
-                  {columns.map((column) => (
-                    <td key={column.key} className="px-4 py-4 align-top first:rounded-l-2xl last:rounded-r-2xl">
-                      {column.render(item)}
-                    </td>
-                  ))}
-                </tr>
+          }
+        >
+          {items.map((item, index) => (
+            <tr key={index} className="rounded-2xl bg-sand/55 text-sm text-ink/80 transition hover:bg-brand-50/70">
+              {columns.map((column) => (
+                <td key={column.key} className="px-4 py-4 align-top first:rounded-l-2xl last:rounded-r-2xl">
+                  {column.render(item)}
+                </td>
               ))}
-            </tbody>
-          </table>
-        </div>
+            </tr>
+          ))}
+        </PaginatedTable>
       )}
     </section>
   );

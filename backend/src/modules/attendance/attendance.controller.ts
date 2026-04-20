@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -15,12 +15,21 @@ import { AttendanceService } from "./attendance.service";
 export class AttendanceController {
   constructor(private readonly attendanceService: AttendanceService) {}
 
-  @Get()
+  @Get("summary")
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
-  async list(@CurrentSession() session: SessionPayload) {
+  async summary(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
     return {
       ok: true,
-      data: await this.attendanceService.listAttendance(session.schoolId)
+      data: await this.attendanceService.summarizeAttendance(session.schoolId, query)
+    };
+  }
+
+  @Get()
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  async list(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
+    return {
+      ok: true,
+      data: await this.attendanceService.listAttendance(session.schoolId, query)
     };
   }
 

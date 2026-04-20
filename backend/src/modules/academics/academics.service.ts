@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { z } from "zod";
+import { AuditAction, UserRole } from "@prisma/client";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -128,14 +129,36 @@ const academicAssessmentSchema = z.object({
 const subjectSchema = z.object({
   name: z.string().min(2).max(140),
   code: z.string().min(2).max(40),
+  waecCode: z.string().max(10).optional().or(z.literal("")),
+  necoCode: z.string().max(10).optional().or(z.literal("")),
+  departmentId: z.string().optional().nullable(),
+  description: z.string().max(1000).optional().or(z.literal("")),
   section: schoolSectionSchema.optional(),
   applicableClassLevelsJson: z.string().optional(),
+  classLevels: z.array(z.string()).optional(),
+  isWaecSubject: z.coerce.boolean().default(false),
   isCore: z.coerce.boolean().default(false),
   isOptional: z.coerce.boolean().default(false),
   religionSpecific: z.coerce.boolean().default(false),
+  subjectCombination: z.string().max(30).optional().or(z.literal("")),
+  periodsPerWeek: z.coerce.number().int().min(1).max(30).default(3),
+  requiresLab: z.coerce.boolean().default(false),
+  sortOrder: z.coerce.number().int().min(0).default(0),
   trackSpecific: z.string().max(60).optional(),
   tradeSubject: z.coerce.boolean().default(false),
   status: z.string().max(40).default("ACTIVE")
+});
+
+const subjectUpdateSchema = subjectSchema.partial();
+
+const assignSubjectTeacherSchema = z.object({
+  classId: z.string().optional(),
+  class_id: z.string().optional(),
+  teacherId: z.string().optional().nullable(),
+  teacher_id: z.string().optional().nullable(),
+  applyToAllArms: z.coerce.boolean().default(false),
+  apply_to_all_arms: z.coerce.boolean().optional(),
+  reason: z.string().max(500).optional().nullable()
 });
 
 const assessmentScoresSchema = z.object({
@@ -218,6 +241,25 @@ function assertAssessmentManager(session: SessionPayload) {
   }
 }
 
+function assertSubjectManager(session: SessionPayload) {
+  if (
+    ![
+      "SUPER_ADMIN",
+      "SCHOOL_OWNER",
+      "PROPRIETOR",
+      "ADMINISTRATOR",
+      "PRINCIPAL",
+      "HEAD_TEACHER",
+      "VICE_PRINCIPAL_ACADEMICS",
+      "ADMIN_OFFICER",
+      "EXAM_OFFICER",
+      "HEAD_OF_DEPARTMENT"
+    ].includes(session.role)
+  ) {
+    throw new ForbiddenException("Only academic leaders can manage subjects.");
+  }
+}
+
 function assertFinalAcademicApprover(session: SessionPayload) {
   if (!["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL", "HEAD_TEACHER"].includes(session.role)) {
     throw new ForbiddenException("Only the Principal, Head Teacher, Proprietor, or Super Admin can give final result approval.");
@@ -286,6 +328,19 @@ export class AcademicsService {
     const term = await prisma.term.findFirst({ where: { schoolId, isCurrent: true } });
     if (!term) throw new NotFoundException("No active term is configured for this school.");
     return term;
+  }
+
+  private async auditSubject(session: SessionPayload, action: AuditAction, subjectId: string, metadata?: Record<string, unknown>) {
+    await prisma.auditLog.create({
+      data: {
+        schoolId: session.schoolId,
+        actorId: session.userId,
+        action,
+        entityType: "subject",
+        entityId: subjectId,
+        metadata: metadata as never
+      }
+    });
   }
 
   private async activeScheme(schoolId: string) {
@@ -537,27 +592,53 @@ export class AcademicsService {
     id: string;
     name: string;
     code: string;
+    departmentId?: string | null;
+    department?: { name: string } | null;
+    description?: string | null;
+    waecCode?: string | null;
+    necoCode?: string | null;
+    isWaecSubject?: boolean;
     section: string | null;
     applicableClassLevels: unknown;
+    subjectCombination?: string | null;
+    periodsPerWeek?: number;
+    requiresLab?: boolean;
+    sortOrder?: number;
+    isActive?: boolean;
     isCore: boolean;
     isOptional: boolean;
     religionSpecific: boolean;
     trackSpecific: string | null;
     tradeSubject: boolean;
     status: string;
+    classSubjects?: Array<{ classId: string; teacherId: string | null }>;
   }): SubjectView {
+    const classSubjects = subject.classSubjects ?? [];
     return {
       id: subject.id,
       name: subject.name,
       code: subject.code,
+      departmentId: subject.departmentId ?? undefined,
+      departmentName: subject.department?.name,
+      description: subject.description ?? undefined,
+      waecCode: subject.waecCode ?? undefined,
+      necoCode: subject.necoCode ?? undefined,
+      isWaecSubject: subject.isWaecSubject ?? false,
       section: subject.section as SubjectView["section"],
       applicableClassLevels: Array.isArray(subject.applicableClassLevels) ? subject.applicableClassLevels.map(String) : [],
+      subjectCombination: subject.subjectCombination ?? undefined,
+      periodsPerWeek: subject.periodsPerWeek ?? 3,
+      requiresLab: subject.requiresLab ?? false,
+      sortOrder: subject.sortOrder ?? 0,
+      isActive: subject.isActive ?? subject.status === "ACTIVE",
       isCore: subject.isCore,
       isOptional: subject.isOptional,
       religionSpecific: subject.religionSpecific,
       trackSpecific: subject.trackSpecific ?? undefined,
       tradeSubject: subject.tradeSubject,
-      status: subject.status
+      status: subject.status,
+      classCount: new Set(classSubjects.map((assignment) => assignment.classId)).size,
+      teacherCount: new Set(classSubjects.flatMap((assignment) => (assignment.teacherId ? [assignment.teacherId] : []))).size
     };
   }
 
@@ -1051,53 +1132,43 @@ export class AcademicsService {
   }
 
   async listSubjects(session: SessionPayload): Promise<SubjectView[]> {
-    if (env.DEMO_MODE) {
-      return [
-        {
-          id: "sub_math",
-          name: "Mathematics",
-          code: "JSS2",
-          section: "JUNIOR_SECONDARY",
-          applicableClassLevels: ["JSS_1", "JSS_2", "JSS_3"],
-          isCore: true,
-          isOptional: false,
-          religionSpecific: false,
-          tradeSubject: false,
-          status: "ACTIVE"
-        },
-        {
-          id: "sub_biology",
-          name: "Biology",
-          code: "SSSCI1",
-          section: "SENIOR_SECONDARY",
-          applicableClassLevels: ["SSS_1", "SSS_2", "SSS_3"],
-          isCore: false,
-          isOptional: true,
-          religionSpecific: false,
-          trackSpecific: "SCIENCE",
-          tradeSubject: false,
-          status: "ACTIVE"
-        }
-      ];
-    }
-
+    const staffProfile = session.role === "HEAD_OF_DEPARTMENT"
+      ? await prisma.staffProfile.findUnique({ where: { userId: session.userId }, select: { departmentId: true } })
+      : null;
     const subjects = await prisma.subject.findMany({
-      where: { schoolId: session.schoolId },
-      orderBy: [{ section: "asc" }, { name: "asc" }]
+      where: {
+        schoolId: session.schoolId,
+        deletedAt: null,
+        isActive: true,
+        ...(staffProfile?.departmentId ? { departmentId: staffProfile.departmentId } : {})
+      },
+      include: {
+        department: { select: { name: true } },
+        classSubjects: { where: { isActive: true }, select: { classId: true, teacherId: true } }
+      },
+      orderBy: [{ section: "asc" }, { sortOrder: "asc" }, { name: "asc" }]
     });
     return subjects.map((subject) => this.mapSubject(subject));
   }
 
   async createSubject(session: SessionPayload, payload: unknown): Promise<SubjectView> {
-    assertAssessmentManager(session);
+    assertSubjectManager(session);
     const parsed = subjectSchema.parse(payload);
+    const applicableClassLevels = parsed.classLevels?.length
+      ? Array.from(new Set(parsed.classLevels.flatMap((level) => normalizeNigeriaClassValue(level) ?? [])))
+      : parseClassLevelsJson(parsed.applicableClassLevelsJson);
     if (env.DEMO_MODE) {
       return {
         id: randomUUID(),
         name: parsed.name,
         code: parsed.code.toUpperCase(),
+        waecCode: parsed.waecCode || undefined,
+        necoCode: parsed.necoCode || undefined,
+        isWaecSubject: parsed.isWaecSubject,
+        periodsPerWeek: parsed.periodsPerWeek,
+        requiresLab: parsed.requiresLab,
         section: parsed.section,
-        applicableClassLevels: parseClassLevelsJson(parsed.applicableClassLevelsJson),
+        applicableClassLevels,
         isCore: parsed.isCore,
         isOptional: parsed.isOptional,
         religionSpecific: parsed.religionSpecific,
@@ -1107,25 +1178,27 @@ export class AcademicsService {
       };
     }
 
-    const subject = await prisma.subject.upsert({
-      where: { schoolId_code: { schoolId: session.schoolId, code: parsed.code.toUpperCase() } },
-      update: {
-        name: parsed.name,
-        section: parsed.section,
-        applicableClassLevels: parseClassLevelsJson(parsed.applicableClassLevelsJson),
-        isCore: parsed.isCore,
-        isOptional: parsed.isOptional,
-        religionSpecific: parsed.religionSpecific,
-        trackSpecific: parsed.trackSpecific,
-        tradeSubject: parsed.tradeSubject,
-        status: parsed.status
-      },
-      create: {
+    const code = parsed.code.toUpperCase().trim();
+    const existing = await prisma.subject.findFirst({ where: { schoolId: session.schoolId, code, deletedAt: null } });
+    if (existing) throw new ConflictException(`A subject with code ${code} already exists.`);
+
+    const subject = await prisma.subject.create({
+      data: {
         schoolId: session.schoolId,
-        name: parsed.name,
-        code: parsed.code.toUpperCase(),
+        name: parsed.name.trim(),
+        code,
+        waecCode: parsed.waecCode?.toUpperCase().trim() || null,
+        necoCode: parsed.necoCode?.toUpperCase().trim() || null,
+        departmentId: parsed.departmentId || null,
+        description: parsed.description || null,
         section: parsed.section,
-        applicableClassLevels: parseClassLevelsJson(parsed.applicableClassLevelsJson),
+        applicableClassLevels,
+        isWaecSubject: parsed.isWaecSubject,
+        subjectCombination: parsed.subjectCombination || null,
+        periodsPerWeek: parsed.periodsPerWeek,
+        requiresLab: parsed.requiresLab,
+        sortOrder: parsed.sortOrder,
+        isActive: parsed.status !== "INACTIVE",
         isCore: parsed.isCore,
         isOptional: parsed.isOptional,
         religionSpecific: parsed.religionSpecific,
@@ -1134,7 +1207,227 @@ export class AcademicsService {
         status: parsed.status
       }
     });
+
+    if (applicableClassLevels.length > 0) {
+      const classes = await prisma.classRoom.findMany({
+        where: { schoolId: session.schoolId, deletedAt: null },
+        include: { classLevel: true }
+      });
+      const matchingClasses = classes.filter((classRoom) => applicableClassLevels.includes(normalizeNigeriaClassValue(classRoom.classLevel.name) ?? ""));
+      if (matchingClasses.length > 0) {
+        await prisma.classSubject.createMany({
+          data: matchingClasses.map((classRoom) => ({
+            schoolId: session.schoolId,
+            classId: classRoom.id,
+            subjectId: subject.id,
+            assignedById: session.userId,
+            isActive: true
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    await this.auditSubject(session, AuditAction.CREATE, subject.id, { name: subject.name, code: subject.code, applicableClassLevels });
     return this.mapSubject(subject);
+  }
+
+  async getSubject(session: SessionPayload, subjectId: string) {
+    const subject = await prisma.subject.findFirst({
+      where: { id: subjectId, schoolId: session.schoolId, deletedAt: null },
+      include: {
+        department: { select: { name: true } },
+        classSubjects: { include: { classRoom: { include: { classLevel: true } } } }
+      }
+    });
+    if (!subject) throw new NotFoundException("Subject not found.");
+
+    const teacherIds = subject.classSubjects.flatMap((assignment) => (assignment.teacherId ? [assignment.teacherId] : []));
+    const teachers = teacherIds.length
+      ? new Map((await prisma.user.findMany({ where: { schoolId: session.schoolId, id: { in: teacherIds } }, select: { id: true, firstName: true, lastName: true, email: true } })).map((teacher) => [teacher.id, teacher]))
+      : new Map<string, { id: string; firstName: string; lastName: string; email: string }>();
+    const history = await prisma.subjectTeacherHistory.findMany({
+      where: { schoolId: session.schoolId, subjectId },
+      orderBy: { assignedAt: "desc" },
+      take: 50
+    });
+
+    return {
+      ...this.mapSubject(subject),
+      classAssignments: subject.classSubjects.map((assignment) => {
+        const teacher = assignment.teacherId ? teachers.get(assignment.teacherId) : null;
+        return {
+          id: assignment.id,
+          classId: assignment.classId,
+          className: formatNigeriaClassName(`${assignment.classRoom.classLevel.name} - ${assignment.classRoom.arm}`),
+          teacherId: assignment.teacherId,
+          teacherName: teacher ? `${teacher.firstName} ${teacher.lastName}` : null,
+          teacherEmail: teacher?.email ?? null,
+          isActive: assignment.isActive,
+          assignedAt: assignment.assignedAt
+        };
+      }),
+      teacherHistory: history
+    };
+  }
+
+  async updateSubject(session: SessionPayload, subjectId: string, payload: unknown): Promise<SubjectView> {
+    assertSubjectManager(session);
+    const parsed = subjectUpdateSchema.parse(payload);
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId: session.schoolId, deletedAt: null } });
+    if (!subject) throw new NotFoundException("Subject not found.");
+
+    if (parsed.code && parsed.code.toUpperCase().trim() !== subject.code) {
+      const duplicate = await prisma.subject.findFirst({
+        where: { schoolId: session.schoolId, code: parsed.code.toUpperCase().trim(), id: { not: subjectId }, deletedAt: null }
+      });
+      if (duplicate) throw new ConflictException(`Another subject with code ${parsed.code.toUpperCase()} already exists.`);
+    }
+
+    const applicableClassLevels = parsed.classLevels?.length
+      ? Array.from(new Set(parsed.classLevels.flatMap((level) => normalizeNigeriaClassValue(level) ?? [])))
+      : parsed.applicableClassLevelsJson
+        ? parseClassLevelsJson(parsed.applicableClassLevelsJson)
+        : undefined;
+
+    const updated = await prisma.subject.update({
+      where: { id: subjectId },
+      data: {
+        ...(parsed.name ? { name: parsed.name.trim() } : {}),
+        ...(parsed.code ? { code: parsed.code.toUpperCase().trim() } : {}),
+        ...(parsed.waecCode !== undefined ? { waecCode: parsed.waecCode?.toUpperCase().trim() || null } : {}),
+        ...(parsed.necoCode !== undefined ? { necoCode: parsed.necoCode?.toUpperCase().trim() || null } : {}),
+        ...(parsed.departmentId !== undefined ? { departmentId: parsed.departmentId || null } : {}),
+        ...(parsed.description !== undefined ? { description: parsed.description || null } : {}),
+        ...(parsed.section !== undefined ? { section: parsed.section } : {}),
+        ...(applicableClassLevels ? { applicableClassLevels } : {}),
+        ...(parsed.isWaecSubject !== undefined ? { isWaecSubject: parsed.isWaecSubject } : {}),
+        ...(parsed.subjectCombination !== undefined ? { subjectCombination: parsed.subjectCombination || null } : {}),
+        ...(parsed.periodsPerWeek !== undefined ? { periodsPerWeek: parsed.periodsPerWeek } : {}),
+        ...(parsed.requiresLab !== undefined ? { requiresLab: parsed.requiresLab } : {}),
+        ...(parsed.sortOrder !== undefined ? { sortOrder: parsed.sortOrder } : {}),
+        ...(parsed.isCore !== undefined ? { isCore: parsed.isCore } : {}),
+        ...(parsed.isOptional !== undefined ? { isOptional: parsed.isOptional } : {}),
+        ...(parsed.religionSpecific !== undefined ? { religionSpecific: parsed.religionSpecific } : {}),
+        ...(parsed.trackSpecific !== undefined ? { trackSpecific: parsed.trackSpecific || null } : {}),
+        ...(parsed.tradeSubject !== undefined ? { tradeSubject: parsed.tradeSubject } : {}),
+        ...(parsed.status !== undefined ? { status: parsed.status, isActive: parsed.status !== "INACTIVE" } : {})
+      }
+    });
+
+    if (applicableClassLevels) {
+      const classes = await prisma.classRoom.findMany({
+        where: { schoolId: session.schoolId, deletedAt: null },
+        include: { classLevel: true }
+      });
+      const matchingClasses = classes.filter((classRoom) => applicableClassLevels.includes(normalizeNigeriaClassValue(classRoom.classLevel.name) ?? ""));
+      if (matchingClasses.length > 0) {
+        await prisma.classSubject.createMany({
+          data: matchingClasses.map((classRoom) => ({
+            schoolId: session.schoolId,
+            classId: classRoom.id,
+            subjectId,
+            assignedById: session.userId,
+            isActive: true
+          })),
+          skipDuplicates: true
+        });
+      }
+    }
+
+    await this.auditSubject(session, AuditAction.UPDATE, subjectId, payload as Record<string, unknown>);
+    return this.mapSubject(updated);
+  }
+
+  async deleteSubject(session: SessionPayload, subjectId: string) {
+    assertSubjectManager(session);
+    const subject = await prisma.subject.findFirst({ where: { id: subjectId, schoolId: session.schoolId, deletedAt: null } });
+    if (!subject) throw new NotFoundException("Subject not found.");
+    const scoreCount = await prisma.scoreEntry.count({ where: { subjectId } });
+    if (scoreCount > 0) {
+      throw new BadRequestException(`Cannot delete ${subject.name} because it has ${scoreCount} score record(s). Archive it instead.`);
+    }
+    await prisma.subject.update({
+      where: { id: subjectId },
+      data: { deletedAt: new Date(), isActive: false, status: "ARCHIVED" }
+    });
+    await prisma.classSubject.updateMany({ where: { schoolId: session.schoolId, subjectId }, data: { isActive: false } });
+    await this.auditSubject(session, AuditAction.DELETE, subjectId, { name: subject.name });
+    return { message: `${subject.name} has been archived.` };
+  }
+
+  async assignSubjectTeacher(session: SessionPayload, subjectId: string, payload: unknown) {
+    assertSubjectManager(session);
+    const parsed = assignSubjectTeacherSchema.parse(payload);
+    const classId = parsed.classId ?? parsed.class_id;
+    const teacherId = parsed.teacherId ?? parsed.teacher_id ?? null;
+    const applyToAllArms = parsed.applyToAllArms || parsed.apply_to_all_arms || false;
+    if (!classId) throw new BadRequestException("classId is required.");
+
+    const [subject, selectedClass, term] = await Promise.all([
+      prisma.subject.findFirst({ where: { id: subjectId, schoolId: session.schoolId, deletedAt: null } }),
+      prisma.classRoom.findFirst({ where: { id: classId, schoolId: session.schoolId, deletedAt: null }, include: { classLevel: true } }),
+      this.currentTerm(session.schoolId)
+    ]);
+    if (!subject) throw new NotFoundException("Subject not found.");
+    if (!selectedClass) throw new NotFoundException("Class not found.");
+
+    if (teacherId) {
+      const teacher = await prisma.user.findFirst({ where: { id: teacherId, schoolId: session.schoolId, deletedAt: null, isActive: true } });
+      if (!teacher) throw new BadRequestException("Selected teacher not found in this school.");
+      const validRoles: UserRole[] = [UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.SUBJECT_TEACHER, UserRole.HEAD_OF_DEPARTMENT, UserRole.VICE_PRINCIPAL_ACADEMICS, UserRole.PRINCIPAL];
+      if (!validRoles.includes(teacher.role)) {
+        throw new BadRequestException(`${teacher.firstName} ${teacher.lastName} does not have a teaching role.`);
+      }
+    }
+
+    const targetClasses = applyToAllArms
+      ? await prisma.classRoom.findMany({ where: { schoolId: session.schoolId, classLevelId: selectedClass.classLevelId, deletedAt: null } })
+      : [selectedClass];
+
+    for (const classRoom of targetClasses) {
+      const existing = await prisma.classSubject.findUnique({ where: { classId_subjectId: { classId: classRoom.id, subjectId } } });
+      if (existing?.teacherId) {
+        await prisma.subjectTeacherHistory.updateMany({
+          where: { schoolId: session.schoolId, subjectId, classId: classRoom.id, teacherId: existing.teacherId, unassignedAt: null },
+          data: { unassignedAt: new Date(), reason: parsed.reason ?? "Teacher changed" }
+        });
+      }
+
+      await prisma.classSubject.upsert({
+        where: { classId_subjectId: { classId: classRoom.id, subjectId } },
+        update: { teacherId, assignedById: session.userId, assignedAt: new Date(), isActive: true },
+        create: { schoolId: session.schoolId, classId: classRoom.id, subjectId, teacherId, assignedById: session.userId, isActive: true }
+      });
+
+      if (teacherId) {
+        await prisma.subjectTeacherHistory.create({
+          data: {
+            schoolId: session.schoolId,
+            subjectId,
+            classId: classRoom.id,
+            teacherId,
+            academicSessionId: term.academicSessionId,
+            termId: term.id,
+            assignedById: session.userId,
+            reason: parsed.reason ?? null
+          }
+        });
+      }
+
+      await prisma.timetableEntry.updateMany({
+        where: { schoolId: session.schoolId, classId: classRoom.id, subjectId, termId: term.id },
+        data: { teacherId, updatedById: session.userId }
+      });
+    }
+
+    await this.auditSubject(session, AuditAction.UPDATE, subjectId, {
+      action: "assign_teacher",
+      teacherId,
+      classIds: targetClasses.map((classRoom) => classRoom.id),
+      applyToAllArms
+    });
+    return { assignedClasses: targetClasses.length };
   }
 
   async createSectionAssessmentComponent(session: SessionPayload, payload: unknown): Promise<SectionAssessmentComponentView> {
