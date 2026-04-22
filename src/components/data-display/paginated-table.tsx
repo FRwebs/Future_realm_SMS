@@ -27,11 +27,13 @@ export function PaginatedTable({
 
   return (
     <>
-      <div className="overflow-x-auto">
-        <table className="min-w-full border-separate border-spacing-y-3 text-left">
-          {header}
-          <tbody>{visibleRows}</tbody>
-        </table>
+      <div className="overflow-hidden rounded-xl border border-slate-100">
+        <div className="overflow-x-auto">
+          <table className="min-w-full border-collapse text-left">
+            {header}
+            <tbody>{visibleRows}</tbody>
+          </table>
+        </div>
       </div>
       <Pagination
         currentPage={currentPage}
@@ -42,7 +44,7 @@ export function PaginatedTable({
           setPageSize(size);
           setCurrentPage(1);
         }}
-        className="mt-2 border-t border-slate-100 px-1 pt-4"
+        className="border-x border-b border-slate-100 bg-white px-4 py-3"
       />
     </>
   );

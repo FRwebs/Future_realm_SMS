@@ -33,8 +33,10 @@ function PageButton({
     <button
       type="button"
       className={cn(
-        "flex h-8 min-w-8 items-center justify-center rounded-lg px-2 text-[0.8rem] font-medium transition",
-        active ? "bg-ink text-white shadow-sm" : "text-slate-600 hover:bg-slate-100",
+        "flex h-9 min-w-9 items-center justify-center rounded-xl border px-2 text-[12px] font-semibold transition",
+        active
+          ? "border-primary-500 bg-primary-500 text-white shadow-sm"
+          : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50",
         props.disabled && "cursor-not-allowed opacity-40 hover:bg-transparent",
         className
       )}
@@ -64,12 +66,12 @@ export function Pagination({
   const endItem = Math.min(safePage * pageSize, totalItems);
 
   return (
-    <div className={cn("flex flex-col items-center justify-between gap-3 py-3 sm:flex-row", className)}>
-      <div className="flex flex-wrap items-center gap-3 text-[0.8rem] text-slate-500">
+    <div className={cn("flex flex-col items-center justify-between gap-3 sm:flex-row", className)}>
+      <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-500">
         {showItemCount ? (
           <span>
-            Showing <span className="font-medium text-slate-700">{startItem}-{endItem}</span> of{" "}
-            <span className="font-medium text-slate-700">{totalItems.toLocaleString()}</span> results
+            Showing <span className="font-semibold text-slate-700">{startItem}-{endItem}</span> of{" "}
+            <span className="font-semibold text-slate-700">{totalItems.toLocaleString()}</span> results
           </span>
         ) : null}
         {showPageSizeSelector ? (
@@ -78,7 +80,7 @@ export function Pagination({
             <select
               value={pageSize}
               onChange={(event) => onPageSizeChange(Number(event.target.value))}
-              className="h-8 rounded-lg border border-slate-200 bg-white px-2 text-[0.78rem] font-medium text-slate-700 outline-none transition focus:border-ink/30 focus:ring-4 focus:ring-slate-100"
+              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
             >
               {pageSizeOptions.map((option) => (
                 <option key={option} value={option}>

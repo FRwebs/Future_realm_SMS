@@ -1,3 +1,6 @@
+import Link from "next/link";
+import type { Route } from "next";
+
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
@@ -22,7 +25,7 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
   return (
     <div className="grid gap-6">
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/portals/parent/children" className="text-sm font-semibold text-brand-700">Back to children</a>
+        <Link href={"/portals/parent/children" as Route} className="text-sm font-semibold text-brand-700">Back to children</Link>
         <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{child.studentName}</h1>
         <p className="mt-3 text-sm leading-6 text-ink/68">
           {formatNigeriaClassName(child.className)} · {child.admissionNumber ?? "No admission number"}
@@ -31,10 +34,11 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
           <p className="mt-2 text-sm font-semibold text-brand-700">Senior secondary track: {child.departmentTrack}</p>
         ) : null}
         <div className="mt-5 flex flex-wrap gap-2">
-          <a href={`/portals/parent/children/${child.studentId}/attendance`} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">Attendance</a>
-          <a href={`/portals/parent/children/${child.studentId}/results`} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Results</a>
-          <a href={`/portals/parent/children/${child.studentId}/fees`} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Fees</a>
-          <a href={`/portals/parent/children/${child.studentId}/timetable`} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Timetable</a>
+          <Link href={`/portals/parent/children/${child.studentId}/attendance` as Route} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">Attendance</Link>
+          <Link href={`/portals/parent/children/${child.studentId}/results` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Results</Link>
+          <Link href={`/portals/parent/children/${child.studentId}/fees` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Fees</Link>
+          <Link href={`/portals/parent/children/${child.studentId}/timetable` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Timetable</Link>
+          <Link href={`/my-children/${child.studentId}/subjects` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Subjects & SOW</Link>
         </div>
       </section>
 

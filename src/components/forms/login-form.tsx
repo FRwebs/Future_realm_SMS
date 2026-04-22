@@ -57,33 +57,33 @@ export function LoginForm() {
   return (
     <form onSubmit={handleSubmit} method="post" className="grid gap-4">
       <label>
-        <span className="text-sm font-semibold text-ink/70">Email</span>
+        <span className="field-label">Email</span>
         <input
           type="email"
           name="email"
           required
-          className="mt-2 w-full rounded-2xl border border-ink/10 bg-sand/55 px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:bg-white"
+          className="field-control mt-2 h-12 rounded-2xl bg-white/90"
           placeholder="principal@greenfieldcollege.ng"
         />
       </label>
       <label>
-        <span className="text-sm font-semibold text-ink/70">Password</span>
+        <span className="field-label">Password</span>
         <input
           type="password"
           name="password"
           required
-          className="mt-2 w-full rounded-2xl border border-ink/10 bg-sand/55 px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:bg-white"
+          className="field-control mt-2 h-12 rounded-2xl bg-white/90"
           placeholder="FutureRealm123!"
         />
       </label>
       <button
         type="submit"
         disabled={pending}
-        className="rounded-full bg-ink px-5 py-3 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-ink/40"
+        className="btn-primary h-12 rounded-2xl text-[14px]"
       >
         {pending ? "Signing in..." : "Sign in"}
       </button>
-      {error ? <p className="text-sm text-danger">{error}</p> : null}
+      {error ? <p className="text-[13px] text-rose-600">{error}</p> : null}
     </form>
   );
 }

@@ -7,31 +7,30 @@ export function MetricCard({ metric }: { metric: DashboardMetric }) {
     metric.change.trim().startsWith("+");
 
   return (
-    <article className="group relative overflow-hidden rounded-[1.75rem] border border-white/60 bg-white/90 p-5 shadow-panel backdrop-blur transition-all duration-300 hover:shadow-[0_20px_50px_rgba(15,23,42,0.12)]">
-      
-      {/* Subtle glow */}
-      <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
-        <div className="absolute -top-10 left-1/2 h-32 w-32 -translate-x-1/2 rounded-full bg-brand-400/20 blur-3xl" />
+    <article className="group surface-card relative overflow-hidden p-5 transition-all duration-200 hover:border-primary-200 hover:shadow-md">
+      <div className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
+        {isPositive ? (
+          <ArrowUpRight className="h-4 w-4" />
+        ) : (
+          <ArrowDownRight className="h-4 w-4" />
+        )}
       </div>
 
-      {/* Header */}
-      <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-ink/45">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
         {metric.label}
       </p>
 
-      {/* Value */}
-      <p className="mt-4 font-[var(--font-heading)] text-3xl font-extrabold tracking-tight text-ink">
+      <p className="mt-4 text-[28px] font-extrabold leading-none tracking-tight text-slate-900">
         {metric.value}
       </p>
 
-      {/* Change */}
       {metric.change ? (
         <div className="mt-4 flex items-center gap-2">
           <span
-            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-semibold ${
+            className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
               isPositive
-                ? "bg-emerald-50 text-emerald-700"
-                : "bg-rose-50 text-rose-700"
+                ? "bg-emerald-100 text-emerald-700"
+                : "bg-rose-100 text-rose-700"
             }`}
           >
             {isPositive ? (
@@ -42,7 +41,7 @@ export function MetricCard({ metric }: { metric: DashboardMetric }) {
             {metric.change}
           </span>
 
-          <span className="text-xs text-ink/40">vs last period</span>
+          <span className="text-[12px] text-slate-400">vs last period</span>
         </div>
       ) : null}
     </article>

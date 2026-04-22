@@ -1,11 +1,12 @@
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 
 export default async function SettingsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/settings")) {
+  if (!(await canAccessServerPath(session, "/settings"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

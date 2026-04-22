@@ -1,7 +1,8 @@
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
@@ -33,7 +34,7 @@ function className(classRoom?: { name: string; arm: string | null } | null) {
 export default async function InvoiceDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/finance")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
+  if (!(await canAccessServerPath(session, "/finance"))) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
   const { invoiceId } = await params;
   const invoice = await apiGet<InvoiceDetail>(`/api/v1/finance/invoices/${invoiceId}`);

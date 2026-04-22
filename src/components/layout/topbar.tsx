@@ -58,7 +58,6 @@ import type {
   StudentPortalNotificationView,
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
-import { getRoleAccent } from "@/lib/navigation/registry";
 import { getWorkflowNavItemForPath } from "@/lib/navigation/workflows";
 import { cn } from "@/lib/utils/cn";
 
@@ -127,7 +126,7 @@ const iconMap = {
 };
 
 const chromeButton =
-  "inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-white/80 bg-white/78 text-ink/55 shadow-[0_8px_22px_rgba(18,33,23,0.06)] ring-1 ring-ink/[0.03] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-ink hover:shadow-[0_12px_28px_rgba(18,33,23,0.10)]";
+  "inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-brand-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(235,244,238,0.88))] text-brand-700 shadow-[0_10px_24px_rgba(37,89,63,0.10)] ring-1 ring-brand-100/40 transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-50 hover:text-brand-800 hover:shadow-[0_14px_32px_rgba(37,89,63,0.14)]";
 
 function initials(name: string) {
   return name
@@ -177,11 +176,6 @@ function dropdownItemsFor(session: SessionUser): DropdownItem[] {
 
   return [
     ...common,
-    {
-      label: "My Permissions",
-      icon: "KeyRound",
-      path: "/school/my-permissions",
-    },
   ];
 }
 
@@ -281,8 +275,8 @@ function NotificationBell({
       </button>
 
       <DropdownShell open={open} className="w-72">
-        <div className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/95 shadow-[0_20px_50px_rgba(18,33,23,0.14)] backdrop-blur-xl">
-          <div className="border-b border-ink/10 px-4 py-3.5">
+        <div className="overflow-hidden rounded-[1.5rem] border border-brand-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.97),rgba(246,250,247,0.96))] shadow-[0_20px_50px_rgba(37,89,63,0.14)] backdrop-blur-xl">
+          <div className="border-b border-brand-100/80 px-4 py-3.5">
             <p className="text-sm font-semibold text-ink">Notifications</p>
             <p className="text-xs text-ink/50">{count} unread updates</p>
           </div>
@@ -292,7 +286,7 @@ function NotificationBell({
               notifications.slice(0, 6).map((notification) => (
                 <div
                   key={notification.id}
-                  className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-sand/60"
+                  className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-brand-50/75"
                 >
                   <p className="text-xs font-semibold text-ink">
                     {notification.title}
@@ -354,10 +348,10 @@ function ProfileDropdown({
   }
 
   return (
-    <div className="w-64 overflow-hidden rounded-[1.5rem] border border-ink/10 bg-white shadow-[0_20px_50px_rgba(18,33,23,0.16)]">
-      <div className="border-b border-ink/10 px-4 py-3.5">
+    <div className="w-64 overflow-hidden rounded-[1.5rem] border border-brand-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(246,250,247,0.95))] shadow-[0_20px_50px_rgba(37,89,63,0.16)]">
+      <div className="border-b border-brand-100/80 px-4 py-3.5">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-ink text-xs font-bold text-white shadow-sm">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 text-xs font-bold text-white shadow-[0_12px_28px_rgba(37,89,63,0.18)]">
             {initials(session.name)}
           </div>
 
@@ -387,7 +381,7 @@ function ProfileDropdown({
               "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[0.82rem] transition",
               item.danger
                 ? "text-rose-600 hover:bg-rose-50"
-                : "text-ink/75 hover:bg-sand/60 hover:text-ink",
+                : "text-ink/75 hover:bg-brand-50/80 hover:text-brand-900",
             )}
           >
             <Icon
@@ -399,7 +393,7 @@ function ProfileDropdown({
         ))}
       </div>
 
-      <div className="border-t border-ink/10 py-1.5">
+      <div className="border-t border-brand-100/80 py-1.5">
         <button
           type="button"
           onClick={() =>
@@ -430,7 +424,6 @@ export function Topbar({
   const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-  const accent = getRoleAccent(session.role);
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -447,15 +440,16 @@ export function Topbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full shrink-0 px-3 pt-3 md:px-4 md:pt-4">
-      <div className="relative flex h-20 items-center justify-between gap-4 overflow-visible rounded-[1.75rem] border border-white/75 bg-white/90 px-4 shadow-[0_16px_44px_rgba(18,33,23,0.09)] ring-1 ring-ink/[0.03] backdrop-blur-xl md:px-5">
+    <header className="sticky top-0 z-30 w-full shrink-0 px-3 pt-3 md:px-4 md:pt-3">
+      <div className="relative flex h-[var(--layout-topbar-height)] items-center justify-between gap-4 overflow-visible rounded-[20px] border border-brand-100/80 bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(246,250,247,0.97),rgba(235,244,238,0.94))] px-4 shadow-[0_12px_30px_rgba(37,89,63,0.10)] ring-1 ring-brand-100/35 backdrop-blur-xl md:px-5">
         <span
           className={cn(
             "absolute inset-y-3 left-0 w-1 rounded-r-full",
-            accent.active,
+            "bg-gradient-to-b from-brand-700 via-brand-500 to-emerald-400",
           )}
         />
-        <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white to-transparent" />
+        <span className="pointer-events-none absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-brand-100/80 to-transparent" />
+        <span className="pointer-events-none absolute inset-x-0 top-0 h-full bg-[radial-gradient(circle_at_top_left,rgba(116,176,141,0.12),transparent_32%)]" />
 
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -468,7 +462,7 @@ export function Topbar({
           </button>
 
           <div className="min-w-0">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-ink/38">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-brand-700/70">
               {portalType === "super_admin"
                 ? "Platform workspace"
                 : "School workspace"}
@@ -494,19 +488,18 @@ export function Topbar({
             <HelpCircle className="h-4 w-4" />
           </Link>
 
-          <div className="mx-1 hidden h-7 w-px bg-ink/10 md:block" />
+          <div className="mx-1 hidden h-7 w-px bg-brand-100 md:block" />
 
           <div ref={dropdownRef} className="relative">
             <button
               type="button"
               onClick={() => setDropdownOpen((value) => !value)}
               aria-expanded={dropdownOpen}
-              className="flex h-12 items-center gap-2 rounded-2xl border border-white/80 bg-white/78 py-1.5 pl-1.5 pr-3 text-ink/70 shadow-[0_8px_22px_rgba(18,33,23,0.06)] ring-1 ring-ink/[0.03] transition-all duration-200 hover:-translate-y-0.5 hover:bg-white hover:text-ink hover:shadow-[0_12px_28px_rgba(18,33,23,0.10)]"
+              className="flex h-12 items-center gap-2 rounded-2xl border border-brand-100/80 bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(235,244,238,0.88))] py-1.5 pl-1.5 pr-3 text-ink/70 shadow-[0_10px_24px_rgba(37,89,63,0.10)] ring-1 ring-brand-100/40 transition-all duration-200 hover:-translate-y-0.5 hover:bg-brand-50 hover:text-brand-900 hover:shadow-[0_14px_32px_rgba(37,89,63,0.14)]"
             >
               <span
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[0.68rem] font-bold text-white shadow-sm ring-2 ring-white/80",
-                  accent.active,
+                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 text-[0.68rem] font-bold text-white shadow-[0_12px_28px_rgba(37,89,63,0.18)] ring-2 ring-white/80",
                 )}
               >
                 {initials(session.name)}

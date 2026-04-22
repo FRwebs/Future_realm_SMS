@@ -1,3 +1,6 @@
+import Link from "next/link";
+import type { Route } from "next";
+
 import { TableCard } from "@/components/data-display/table-card";
 import { ParentPortalView } from "@/lib/domain/types";
 import { formatCurrency, formatDate, formatPercentage } from "@/lib/utils/formatters";
@@ -27,13 +30,13 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
         <p className="mt-2 text-sm leading-6 text-ink/65">Choose a child before viewing child-specific records.</p>
         <div className="mt-5 flex flex-wrap gap-2">
           {portal.children.map((child) => (
-            <a
+            <Link
               key={child.studentId}
-              href={`/portals/parent/children/${child.studentId}`}
+              href={`/portals/parent/children/${child.studentId}` as Route}
               className="rounded-full bg-brand-100 px-4 py-2 text-sm font-semibold text-brand-900"
             >
               {child.studentName} · {child.className}
-            </a>
+            </Link>
           ))}
         </div>
       </section>
@@ -86,18 +89,18 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               </article>
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <a href={`/portals/parent/children/${child.studentId}`} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
+              <Link href={`/portals/parent/children/${child.studentId}` as Route} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
                 View overview
-              </a>
-              <a href={`/portals/parent/children/${child.studentId}/results`} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
+              </Link>
+              <Link href={`/portals/parent/children/${child.studentId}/results` as Route} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
                 Results
-              </a>
-              <a href={`/portals/parent/children/${child.studentId}/fees`} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
+              </Link>
+              <Link href={`/portals/parent/children/${child.studentId}/fees` as Route} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
                 Fees
-              </a>
-              <a href={`/portals/parent/children/${child.studentId}/attendance`} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
+              </Link>
+              <Link href={`/portals/parent/children/${child.studentId}/attendance` as Route} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
                 Attendance
-              </a>
+              </Link>
             </div>
           </section>
 

@@ -177,11 +177,11 @@ export function ResourceForm({
 
   const feedbackToneClass = {
     success:
-      "border-emerald-200 bg-emerald-50 text-emerald-800",
+      "border-emerald-200 bg-emerald-50 text-emerald-700",
     warning:
-      "border-amber-200 bg-amber-50 text-amber-800",
+      "border-amber-200 bg-amber-50 text-amber-700",
     danger:
-      "border-rose-200 bg-rose-50 text-rose-800",
+      "border-rose-200 bg-rose-50 text-rose-700",
   }[tone];
 
   const feedbackIcon = {
@@ -195,27 +195,21 @@ export function ResourceForm({
       {showHeader ? (
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">
-              Resource form
-            </p>
-            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-bold tracking-tight text-ink">
-              {title}
-            </h3>
-            <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/62">
-              {description}
-            </p>
+            <p className="section-eyebrow">Resource form</p>
+            <h3 className="mt-2 text-[20px] font-bold text-slate-900">{title}</h3>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-slate-600">{description}</p>
           </div>
 
           {offlineKey ? (
-            <div className="rounded-2xl border border-ink/8 bg-sand/55 px-4 py-3 text-sm shadow-sm">
-              <p className="font-semibold text-ink">
+            <div className="rounded-2xl border border-primary-100 bg-primary-50/80 px-4 py-3 text-sm shadow-sm">
+              <p className="font-semibold text-slate-800">
                 Queued drafts: {offlineQueue.draftCount}
               </p>
               <button
                 type="button"
                 onClick={handleSyncDrafts}
                 disabled={offlineQueue.draftCount === 0 || offlineQueue.syncing}
-                className="mt-2 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-ink/35"
+                className="btn-primary mt-2 h-9 px-4 text-[12px]"
               >
                 <RefreshCcw className="h-3.5 w-3.5" />
                 {offlineQueue.syncing ? "Syncing..." : "Sync queued drafts"}
@@ -225,15 +219,15 @@ export function ResourceForm({
         </div>
       ) : offlineKey ? (
         <div className="mb-6 flex justify-end">
-          <div className="rounded-2xl border border-ink/8 bg-sand/55 px-4 py-3 text-sm shadow-sm">
-            <p className="font-semibold text-ink">
+          <div className="rounded-2xl border border-primary-100 bg-primary-50/80 px-4 py-3 text-sm shadow-sm">
+            <p className="font-semibold text-slate-800">
               Queued drafts: {offlineQueue.draftCount}
             </p>
             <button
               type="button"
               onClick={handleSyncDrafts}
               disabled={offlineQueue.draftCount === 0 || offlineQueue.syncing}
-              className="mt-2 inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-ink/35"
+              className="btn-primary mt-2 h-9 px-4 text-[12px]"
             >
               <RefreshCcw className="h-3.5 w-3.5" />
               {offlineQueue.syncing ? "Syncing..." : "Sync queued drafts"}
@@ -245,15 +239,12 @@ export function ResourceForm({
       <form onSubmit={handleSubmit} className="grid gap-5">
         <div className="grid gap-4 md:grid-cols-2">
           {fields.map((field) => {
-            const baseClassName =
-              "mt-2 w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm font-medium text-ink shadow-sm outline-none transition duration-200 placeholder:text-ink/35 hover:border-ink/15 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70";
-
             const wrapperClass =
               field.type === "textarea" ? "md:col-span-2" : "";
 
             return (
               <label key={field.name} className={wrapperClass}>
-                <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">
+                <span className="field-label">
                   {field.label}
                   {field.required ? " *" : ""}
                 </span>
@@ -265,14 +256,14 @@ export function ResourceForm({
                     placeholder={field.placeholder}
                     defaultValue={field.defaultValue as string | undefined}
                     rows={5}
-                    className={cn(baseClassName, "min-h-[120px] resize-y")}
+                    className="field-textarea min-h-[120px]"
                   />
                 ) : field.type === "select" ? (
                   <select
                     name={field.name}
                     required={field.required}
                     defaultValue={field.defaultValue as string | undefined}
-                    className={cn(baseClassName, "h-12 appearance-none")}
+                    className="field-select h-10"
                   >
                     {(field.options ?? []).map((option) => (
                       <option key={option.value} value={option.value}>
@@ -286,7 +277,7 @@ export function ResourceForm({
                     required={field.required}
                     multiple
                     defaultValue={field.defaultValue as string[] | undefined}
-                    className={cn(baseClassName, "min-h-40 appearance-none")}
+                    className="field-control min-h-40 py-3"
                   >
                     {(field.options ?? []).map((option) => (
                       <option key={option.value} value={option.value}>
@@ -305,7 +296,7 @@ export function ResourceForm({
                     min={field.min}
                     max={field.max}
                     step={field.step}
-                    className={cn(baseClassName, "h-12")}
+                    className="field-control h-10"
                     type={field.type ?? "text"}
                   />
                 )}
@@ -314,13 +305,13 @@ export function ResourceForm({
           })}
         </div>
 
-        <div className="border-t border-ink/6 pt-4">
+        <div className="border-t border-slate-100 pt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-h-[24px]">
               {message ? (
                 <div
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium",
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium",
                     feedbackToneClass
                   )}
                 >
@@ -336,18 +327,18 @@ export function ResourceForm({
             <button
               type="submit"
               disabled={pending}
-              className="inline-flex items-center justify-center rounded-full bg-ink px-6 py-3 text-sm font-semibold text-white shadow-[0_12px_28px_rgba(15,23,42,0.18)] transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-ink/40"
+              className="btn-primary px-6"
             >
               {pending ? "Saving..." : submitLabel}
             </button>
           </div>
 
           {needsConfirmation && pendingPayload ? (
-            <div className="mt-4 rounded-[1.5rem] border border-amber-200 bg-amber-50/90 p-4 shadow-sm">
-              <p className="font-semibold text-amber-900">
+            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 shadow-sm">
+              <p className="text-[14px] font-semibold text-amber-900">
                 Confirm before continuing
               </p>
-              <p className="mt-1 text-sm text-amber-800">
+              <p className="mt-1 text-[13px] text-amber-800">
                 {confirmMessage ??
                   "Please confirm this action before the record is saved."}
               </p>
@@ -360,7 +351,7 @@ export function ResourceForm({
                     const form = event.currentTarget.closest("form");
                     if (form) void submitPayload(pendingPayload, form);
                   }}
-                  className="rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition disabled:cursor-not-allowed disabled:bg-ink/40"
+                  className="btn-primary h-9 px-4 text-[12px]"
                 >
                   {pending ? "Saving..." : confirmLabel}
                 </button>
@@ -373,7 +364,7 @@ export function ResourceForm({
                     setPendingPayload(null);
                     setMessage(null);
                   }}
-                  className="rounded-full bg-white px-4 py-2 text-xs font-semibold text-ink ring-1 ring-ink/10 transition hover:bg-sand/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="btn-secondary h-9 px-4 text-[12px] disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Cancel
                 </button>
@@ -388,7 +379,7 @@ export function ResourceForm({
   if (chrome === "plain") return content;
 
   return (
-    <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel backdrop-blur">
+    <section className="surface-card p-6">
       {content}
     </section>
   );

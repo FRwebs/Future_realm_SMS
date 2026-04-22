@@ -50,6 +50,20 @@ export class ParentPortalController {
     return { ok: true, data: await this.parentPortalService.getChildTimetableForParent(session, studentId) };
   }
 
+  @Get("children/:studentId/subjects")
+  async childSubjects(@CurrentSession() session: SessionPayload, @Param("studentId") studentId: string) {
+    return { ok: true, data: await this.parentPortalService.getChildSubjectsForParent(session, studentId) };
+  }
+
+  @Get("children/:studentId/subjects/:subjectId/scheme-of-work")
+  async childSubjectSchemeOfWork(
+    @CurrentSession() session: SessionPayload,
+    @Param("studentId") studentId: string,
+    @Param("subjectId") subjectId: string
+  ) {
+    return { ok: true, data: await this.parentPortalService.getChildSubjectSchemeOfWorkForParent(session, studentId, subjectId) };
+  }
+
   @Get("announcements")
   async announcements(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.parentPortalService.getParentAnnouncements(session) };

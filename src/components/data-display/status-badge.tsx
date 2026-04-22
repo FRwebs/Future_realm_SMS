@@ -2,12 +2,27 @@ import { cn } from "@/lib/utils/cn";
 
 type StatusTone = "neutral" | "success" | "warning" | "danger" | "brand";
 
-const toneStyles: Record<StatusTone, string> = {
-  neutral: "border-ink/10 bg-sand/70 text-ink/70",
-  success: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  warning: "border-amber-200 bg-amber-50 text-amber-800",
-  danger: "border-rose-200 bg-rose-50 text-rose-800",
-  brand: "border-brand-100 bg-brand-50 text-brand-800"
+const toneStyles: Record<StatusTone, { shell: string; dot: string }> = {
+  neutral: {
+    shell: "border-slate-200 bg-slate-100 text-slate-600",
+    dot: "bg-slate-400",
+  },
+  success: {
+    shell: "border-emerald-200 bg-emerald-50 text-emerald-700",
+    dot: "bg-emerald-500",
+  },
+  warning: {
+    shell: "border-amber-200 bg-amber-100 text-amber-700",
+    dot: "bg-amber-500",
+  },
+  danger: {
+    shell: "border-rose-200 bg-rose-50 text-rose-700",
+    dot: "bg-rose-500",
+  },
+  brand: {
+    shell: "border-primary-200 bg-primary-50 text-primary-700",
+    dot: "bg-primary-500",
+  },
 };
 
 export function getWorkflowStatusTone(status?: string | null): StatusTone {
@@ -19,8 +34,16 @@ export function getWorkflowStatusTone(status?: string | null): StatusTone {
 }
 
 export function StatusBadge({ status, tone }: { status: string; tone?: StatusTone }) {
+  const resolvedTone = tone ?? getWorkflowStatusTone(status);
+
   return (
-    <span className={cn("inline-flex rounded-full border px-3 py-1 text-xs font-semibold", toneStyles[tone ?? getWorkflowStatusTone(status)])}>
+    <span
+      className={cn(
+        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
+        toneStyles[resolvedTone].shell
+      )}
+    >
+      <span className={cn("h-1.5 w-1.5 rounded-full", toneStyles[resolvedTone].dot)} />
       {status.replaceAll("_", " ")}
     </span>
   );

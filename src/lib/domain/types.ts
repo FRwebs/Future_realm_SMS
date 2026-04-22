@@ -110,6 +110,14 @@ export interface DashboardSummary {
 
 export type CurriculumStatus = "DRAFT" | "ACTIVE" | "ARCHIVED";
 export type CurriculumProgressStatus = "NOT_STARTED" | "IN_PROGRESS" | "TAUGHT" | "COMPLETED";
+export type SchemeOfWorkStatus = "DRAFT" | "SUBMITTED" | "APPROVED" | "RETURNED";
+export type SchemeOfWorkWeekType = "TEACHING" | "REVISION" | "EXAM" | "HOLIDAY" | "ACTIVITY";
+export type TopicUnderstanding =
+  | "EXCELLENT"
+  | "GOOD"
+  | "AVERAGE"
+  | "BELOW_AVERAGE"
+  | "POOR";
 export type StaffClockStatus = "PRESENT" | "ABSENT" | "LATE" | "EXCUSED" | "ON_LEAVE" | "OFFICIAL_DUTY";
 export type TrainingCategory =
   | "PEDAGOGY"
@@ -156,6 +164,102 @@ export interface CurriculumSummaryView {
   completionRate: number;
   overdueTopics: number;
   bySubject: { subject: string; className: string; totalTopics: number; completionRate: number }[];
+}
+
+export interface SchemeOfWorkTopicResourceView {
+  id: string;
+  resourceType: string;
+  title: string;
+  url?: string;
+  filePath?: string;
+  createdAt?: string;
+}
+
+export interface SchemeOfWorkTopicView {
+  id: string;
+  weekNumber: number;
+  topic: string;
+  subtopics?: string[];
+  behaviouralObjectives?: string;
+  content?: string;
+  teachingMethods?: string[];
+  teachingAids?: string[];
+  referenceMaterials?: string[];
+  evaluation?: string;
+  assignment?: string;
+  isCovered: boolean;
+  coveredDate?: string;
+  coveredByName?: string;
+  actualTopicTaught?: string;
+  coverageNotes?: string;
+  weekType: SchemeOfWorkWeekType;
+  sortOrder?: number;
+  resources?: SchemeOfWorkTopicResourceView[];
+}
+
+export interface SchemeOfWorkSummaryView {
+  id: string;
+  status: SchemeOfWorkStatus;
+  subjectId: string;
+  subjectName: string;
+  subjectCode?: string;
+  classId: string;
+  className: string;
+  level?: string;
+  section?: string;
+  category?: string;
+  arm?: string;
+  departmentId?: string;
+  departmentName?: string;
+  teacherId?: string;
+  teacherName?: string;
+  totalWeeks: number;
+  teachingWeeks: number;
+  coveredWeeks: number;
+  coveragePercent: number;
+  lastCoveredWeek?: number;
+  nextWeek?: number;
+  submittedAt?: string;
+  approvedAt?: string;
+}
+
+export interface SchemeOfWorkDetailView {
+  id: string;
+  schoolId: string;
+  subjectId: string;
+  classId: string;
+  academicSessionId: string;
+  termId: string;
+  teacherId?: string;
+  status: SchemeOfWorkStatus;
+  returnReason?: string;
+  submittedAt?: string;
+  approvedAt?: string;
+  subjectName: string;
+  subjectCode?: string;
+  periodsPerWeek?: number;
+  requiresLab?: boolean;
+  className: string;
+  level?: string;
+  section?: string;
+  category?: string;
+  arm?: string;
+  termName: string;
+  termNumber?: number;
+  academicSessionName: string;
+  teacherName?: string;
+  teacherEmail?: string;
+  teacherAvatar?: string;
+  approvedByName?: string;
+  topics: SchemeOfWorkTopicView[];
+  stats: {
+    totalWeeks: number;
+    teachingWeeks: number;
+    coveredWeeks: number;
+    coveragePercent: number;
+    currentWeek?: number;
+    isOnTrack: boolean;
+  };
 }
 
 export interface StaffClockView {
@@ -773,12 +877,29 @@ export interface AcademicAssessmentView {
 }
 
 export interface BroadsheetSubjectCellView {
+  subjectId?: string;
+  subjectCode?: string;
   subject: string;
+  teacherId?: string;
+  teacherName?: string;
+  components?: Array<{
+    code: string;
+    name: string;
+    score?: number;
+    weightedScore: number;
+    maxScore: number;
+    weight: number;
+    isExam: boolean;
+    isMissing: boolean;
+  }>;
   caTotal: number;
   examTotal: number;
   total: number;
   grade: string;
   remark?: string;
+  position?: number;
+  isComplete?: boolean;
+  missingComponents?: string[];
 }
 
 export interface BroadsheetRowView {
@@ -786,8 +907,13 @@ export interface BroadsheetRowView {
   studentName: string;
   admissionNumber?: string;
   subjects: BroadsheetSubjectCellView[];
+  totalSubjectsOffered?: number;
+  completedSubjects?: number;
+  missingSubjects?: number;
+  isComplete?: boolean;
   total: number;
   average: number;
+  overallGrade?: string;
   position?: number;
   attendance?: string;
   classTeacherRemark?: string;
@@ -797,14 +923,30 @@ export interface BroadsheetRowView {
 
 export interface BroadsheetView {
   id: string;
+  academicSessionId?: string;
+  termId?: string;
   classId?: string;
   className: string;
+  classLevel?: string;
+  classArm?: string;
+  classCategory?: string;
+  classTeacherId?: string;
+  classTeacherName?: string;
   term: string;
   session?: string;
   status: BroadsheetStatus;
   approvalStage: AcademicApprovalStage;
   rankingEnabled: boolean;
   missingScoreWarnings: string[];
+  metrics?: {
+    studentCount: number;
+    subjectCount: number;
+    completeStudents: number;
+    incompleteStudents: number;
+    missingEntries: number;
+    classAverage: number;
+    published: boolean;
+  };
   rows: BroadsheetRowView[];
   approvals: Array<{ id: string; actorName: string; stage: AcademicApprovalStage; action: AcademicApprovalAction; note?: string; createdAt: string }>;
   publishedAt?: string;
@@ -995,6 +1137,11 @@ export interface PortalSubjectOffering {
   periodsPerWeek?: number;
   isCore?: boolean;
   isOptional?: boolean;
+  schemeOfWorkId?: string;
+  schemeStatus?: SchemeOfWorkStatus;
+  coveragePercent?: number;
+  coveredWeeks?: number;
+  teachingWeeks?: number;
 }
 
 export interface StudentPortalProfileView {

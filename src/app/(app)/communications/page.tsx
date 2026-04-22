@@ -2,7 +2,8 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { AnnouncementView } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -10,7 +11,7 @@ import { formatDate } from "@/lib/utils/formatters";
 export default async function CommunicationsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/communications")) {
+  if (!(await canAccessServerPath(session, "/communications"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

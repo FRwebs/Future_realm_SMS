@@ -5,7 +5,8 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { StudentRecordView } from "@/lib/domain/types";
 import {
@@ -37,7 +38,7 @@ function matchesSearch(student: StudentRecordView, search?: string) {
 export default async function StudentsPage({ searchParams }: StudentsPageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/students")) {
+  if (!(await canAccessServerPath(session, "/students"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

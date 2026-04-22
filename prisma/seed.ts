@@ -99,6 +99,105 @@ const cohortNames = [
   ["David", "Ibe", "MALE"],
 ] as const;
 
+type SeedSchemeTopic = {
+  topic: string;
+  subtopics?: string[];
+  behaviouralObjectives?: string;
+  content?: string;
+  teachingMethods?: string[];
+  teachingAids?: string[];
+  referenceMaterials?: string[];
+  evaluation?: string;
+  assignment?: string;
+  weekType?: "TEACHING" | "REVISION" | "EXAM" | "HOLIDAY" | "ACTIVITY";
+};
+
+async function createSeedSchemeOfWork({
+  schoolId,
+  academicSessionId,
+  termId,
+  subjectId,
+  classId,
+  teacherId,
+  submittedById,
+  approvedById,
+  topics,
+  coveredTeachingWeeks = 0,
+}: {
+  schoolId: string;
+  academicSessionId: string;
+  termId: string;
+  subjectId: string;
+  classId: string;
+  teacherId?: string | null;
+  submittedById?: string | null;
+  approvedById?: string | null;
+  topics: SeedSchemeTopic[];
+  coveredTeachingWeeks?: number;
+}) {
+  const scheme = await prisma.schemeOfWork.create({
+    data: {
+      schoolId,
+      academicSessionId,
+      termId,
+      subjectId,
+      classId,
+      teacherId: teacherId ?? null,
+      status: "APPROVED",
+      submittedAt: submittedById ? new Date("2026-02-10T08:00:00.000Z") : null,
+      submittedById: submittedById ?? null,
+      approvedAt: approvedById ? new Date("2026-02-12T10:00:00.000Z") : null,
+      approvedById: approvedById ?? null,
+    },
+  });
+
+  let coveredCounter = 0;
+  const teachingDates = [
+    "2026-02-16",
+    "2026-02-23",
+    "2026-03-02",
+    "2026-03-09",
+    "2026-03-16",
+    "2026-03-23",
+    "2026-03-30",
+    "2026-04-06",
+    "2026-04-13",
+  ];
+
+  await prisma.sowTopic.createMany({
+    data: topics.map((topic, index) => {
+      const weekType = topic.weekType ?? "TEACHING";
+      const shouldCover = weekType === "TEACHING" && coveredCounter < coveredTeachingWeeks;
+      const coveredDate = shouldCover ? new Date(`${teachingDates[coveredCounter] ?? teachingDates.at(-1)}T08:00:00.000Z`) : null;
+      if (shouldCover) coveredCounter += 1;
+
+      return {
+        schoolId,
+        schemeOfWorkId: scheme.id,
+        weekNumber: index + 1,
+        topic: topic.topic,
+        subtopics: topic.subtopics ?? [],
+        behaviouralObjectives: topic.behaviouralObjectives ?? null,
+        content: topic.content ?? null,
+        teachingMethods: topic.teachingMethods ?? [],
+        teachingAids: topic.teachingAids ?? [],
+        referenceMaterials: topic.referenceMaterials ?? [],
+        evaluation: topic.evaluation ?? null,
+        assignment: topic.assignment ?? null,
+        isCovered: shouldCover,
+        coveredDate,
+        coveredById: shouldCover ? teacherId ?? null : null,
+        actualTopicTaught: shouldCover ? topic.topic : null,
+        coverageNotes: shouldCover ? "Delivered according to term plan with class exercise and short feedback notes." : null,
+        weekType,
+        sortOrder: index + 1,
+      };
+    }),
+  });
+
+  return scheme;
+}
+
 async function clearDatabase() {
   await prisma.$transaction([
     prisma.webhookDeliveryLog.deleteMany(),
@@ -158,6 +257,10 @@ async function clearDatabase() {
     prisma.visitorLog.deleteMany(),
     prisma.questionBankItem.deleteMany(),
     prisma.lessonPlan.deleteMany(),
+    prisma.studentTopicProgress.deleteMany(),
+    prisma.sowTopicResource.deleteMany(),
+    prisma.sowTopic.deleteMany(),
+    prisma.schemeOfWork.deleteMany(),
     prisma.learningMaterial.deleteMany(),
     prisma.healthVisit.deleteMany(),
     prisma.counselingRecord.deleteMany(),
@@ -200,6 +303,7 @@ async function clearDatabase() {
     prisma.gradingScheme.deleteMany(),
     prisma.classSubject.deleteMany(),
     prisma.subject.deleteMany(),
+    prisma.subjectCategory.deleteMany(),
     prisma.leaveRequest.deleteMany(),
     prisma.staffAttendance.deleteMany(),
     prisma.libraryLoan.deleteMany(),
@@ -1907,6 +2011,61 @@ async function main() {
   const primaryMath = subjectByCode.get("UP2")!;
   const jssEnglish = subjectByCode.get("JSS1")!;
 
+  await prisma.subjectCategory.createMany({
+    data: [
+      { schoolId: school.id, name: "Core / Compulsory", sortOrder: 1 },
+      { schoolId: school.id, name: "Sciences", sortOrder: 2 },
+      { schoolId: school.id, name: "Mathematics", sortOrder: 3 },
+      { schoolId: school.id, name: "Languages", sortOrder: 4 },
+      { schoolId: school.id, name: "Social Sciences", sortOrder: 5 },
+      { schoolId: school.id, name: "Commercial Studies", sortOrder: 6 },
+      { schoolId: school.id, name: "Technical & Vocational", sortOrder: 7 },
+      { schoolId: school.id, name: "Arts & Creative", sortOrder: 8 },
+      { schoolId: school.id, name: "Religious Studies", sortOrder: 9 },
+      { schoolId: school.id, name: "Physical Education", sortOrder: 10 },
+      { schoolId: school.id, name: "Information Technology", sortOrder: 11 },
+    ],
+    skipDuplicates: true,
+  });
+
+  const subjectCategories = await prisma.subjectCategory.findMany({
+    where: { schoolId: school.id },
+  });
+  const subjectCategoryByName = new Map(subjectCategories.map((category) => [category.name, category]));
+
+  await prisma.subject.update({
+    where: { id: jssEnglish.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Languages")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: english.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Languages")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: primaryEnglish.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Languages")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: math.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Mathematics")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: primaryMath.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Mathematics")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: biology.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Sciences")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: basicScience.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Sciences")?.id },
+  });
+  await prisma.subject.update({
+    where: { id: economics.id },
+    data: { subjectCategoryId: subjectCategoryByName.get("Commercial Studies")?.id },
+  });
+
   await prisma.classSubject.createMany({
     data: [
       {
@@ -1984,6 +2143,21 @@ async function main() {
     ],
   });
 
+  const jss3Bronze = await prisma.classRoom.findFirst({
+    where: { schoolId: school.id, name: "JSS 3", arm: "B" },
+  });
+
+  if (jss3Bronze) {
+    await prisma.classSubject.create({
+      data: {
+        schoolId: school.id,
+        classId: jss3Bronze.id,
+        subjectId: jssEnglish.id,
+        teacherId: teacherEnglishUser.id,
+      },
+    });
+  }
+
   const timetablePeriods = [
     { startsAt: "07:45", endsAt: "08:25", venue: "Main classroom" },
     { startsAt: "08:25", endsAt: "09:05", venue: "Main classroom" },
@@ -2005,31 +2179,39 @@ async function main() {
       assignment,
     ]);
   }
+  const timetableSeedRows = Array.from(assignmentsByClass.entries()).flatMap(
+    ([classId, assignments]) =>
+      [1, 2, 3, 4, 5].flatMap((dayOfWeek) =>
+        timetablePeriods.map((period, index) => {
+          const assignment = assignments[(dayOfWeek + index) % assignments.length];
+          return {
+            schoolId: school.id,
+            termId: secondTerm.id,
+            classId,
+            subjectId: assignment.subjectId,
+            teacherId: assignment.teacherId,
+            dayOfWeek,
+            periodNumber: index + 1,
+            startsAt: period.startsAt,
+            endsAt: period.endsAt,
+            venue:
+              index === 2 && assignment.subject.name.includes("Science")
+                ? "Science Laboratory"
+                : period.venue,
+          };
+        }),
+      ),
+  );
+  const uniqueTimetableRows = Array.from(
+    new Map(
+      timetableSeedRows.map((row) => [
+        `${row.classId}:${row.dayOfWeek}:${row.periodNumber}:${row.termId}`,
+        row,
+      ]),
+    ).values(),
+  );
   await prisma.timetableEntry.createMany({
-    data: Array.from(assignmentsByClass.entries()).flatMap(
-      ([classId, assignments]) =>
-        [1, 2, 3, 4, 5].flatMap((dayOfWeek) =>
-          timetablePeriods.map((period, index) => {
-            const assignment =
-              assignments[(dayOfWeek + index) % assignments.length];
-            return {
-              schoolId: school.id,
-              termId: secondTerm.id,
-              classId,
-              subjectId: assignment.subjectId,
-              teacherId: assignment.teacherId,
-              dayOfWeek,
-              periodNumber: index + 1,
-              startsAt: period.startsAt,
-              endsAt: period.endsAt,
-              venue:
-                index === 2 && assignment.subject.name.includes("Science")
-                  ? "Science Laboratory"
-                  : period.venue,
-            };
-          }),
-        ),
-    ),
+    data: uniqueTimetableRows,
     skipDuplicates: true,
   });
   const gradingScheme = await prisma.gradingScheme.create({
@@ -4608,6 +4790,272 @@ async function main() {
           ? new Date(`2026-03-${String(2 + index * 3).padStart(2, "0")}`)
           : undefined,
     })),
+  });
+
+  const jss1EnglishSowTopics: SeedSchemeTopic[] = [
+    {
+      topic: "Reading Comprehension: Narrative Texts",
+      subtopics: ["Meaning of narrative texts", "Skimming and scanning", "Answering comprehension questions"],
+      behaviouralObjectives: "Learners define narrative texts, identify sequence of events, and answer comprehension questions correctly.",
+      teachingMethods: ["Guided reading", "Discussion", "Question and answer"],
+      teachingAids: ["Passage handout", "Dictionary", "Whiteboard"],
+      referenceMaterials: ["NERDC English Studies JSS1", "New Oxford Secondary English JSS1"],
+      evaluation: "Short comprehension exercise with vocabulary questions.",
+      assignment: "Read a short folktale and list five events in sequence.",
+    },
+    {
+      topic: "Nouns and Pronouns",
+      subtopics: ["Common nouns", "Proper nouns", "Personal pronouns", "Possessive pronouns"],
+      behaviouralObjectives: "Learners identify nouns and pronouns and use them correctly in simple sentences.",
+      teachingMethods: ["Demonstration", "Drill", "Pair work"],
+      teachingAids: ["Word cards", "Charts"],
+      referenceMaterials: ["Countdown English JSS1 Chapter 3"],
+      evaluation: "Class drill on replacing nouns with correct pronouns.",
+      assignment: "Write ten sentences using proper nouns from your community.",
+    },
+    {
+      topic: "Verbs and Basic Tenses",
+      subtopics: ["Action verbs", "Present tense", "Past tense", "Future tense"],
+      behaviouralObjectives: "Learners identify verbs and change sentences from one tense to another.",
+      teachingMethods: ["Explanation", "Substitution drill", "Peer correction"],
+      teachingAids: ["Verb chart", "Exercise books"],
+      referenceMaterials: ["NERDC English Studies JSS1"],
+      evaluation: "Rewrite five sentences in the past tense.",
+      assignment: "Compose eight sentences showing present and future actions.",
+    },
+    {
+      topic: "Adjectives and Adverbs",
+      subtopics: ["Descriptive adjectives", "Adverbs of manner", "Comparison"],
+      behaviouralObjectives: "Learners distinguish adjectives from adverbs and use them correctly.",
+      teachingMethods: ["Discovery learning", "Game activity"],
+      teachingAids: ["Picture cards", "Comparison chart"],
+      referenceMaterials: ["New Oxford English JSS1 Unit 5"],
+      evaluation: "Fill in the correct adjective or adverb in ten sentences.",
+      assignment: "Describe your classroom using six adjectives and two adverbs.",
+    },
+    {
+      topic: "Sentence Structure: Simple and Compound Sentences",
+      subtopics: ["Subject and predicate", "Simple sentences", "Compound sentences"],
+      behaviouralObjectives: "Learners form simple and compound sentences and punctuate them correctly.",
+      teachingMethods: ["Explanation", "Sentence building", "Pair work"],
+      teachingAids: ["Sentence strips", "Conjunction chart"],
+      referenceMaterials: ["Countdown English JSS1 Sentence Structure"],
+      evaluation: "Combine simple sentences into compound sentences.",
+      assignment: "Write five simple and five compound sentences about school life.",
+    },
+    {
+      topic: "Comprehension: Informational Text",
+      subtopics: ["Main idea", "Supporting details", "Signal words", "Summary writing"],
+      behaviouralObjectives: "Learners identify the main idea and supporting details in informational passages.",
+      teachingMethods: ["Guided reading", "Graphic organizer"],
+      teachingAids: ["Passage handout", "Highlighters"],
+      referenceMaterials: ["Essential English for JSS"],
+      evaluation: "Answer comprehension and summary questions from a civic passage.",
+      assignment: "Summarize the class passage in five clear sentences.",
+    },
+    {
+      topic: "Informal Letter Writing",
+      subtopics: ["Address", "Salutation", "Body", "Closing"],
+      behaviouralObjectives: "Learners write an informal letter with correct structure and tone.",
+      teachingMethods: ["Model demonstration", "Guided writing", "Peer review"],
+      teachingAids: ["Sample letter", "Exercise books"],
+      referenceMaterials: ["Countdown English JSS1 Letter Writing"],
+      evaluation: "In-class informal letter on first week in JSS.",
+      assignment: "Write a letter to your cousin describing your school.",
+    },
+    {
+      topic: "Mid-Term Revision",
+      subtopics: ["Grammar review", "Comprehension review", "Letter writing review"],
+      behaviouralObjectives: "Learners consolidate weeks 1 to 7 and prepare for mid-term assessment.",
+      teachingMethods: ["Revision exercise", "Question and answer"],
+      teachingAids: ["Revision notes"],
+      referenceMaterials: ["All class notes so far"],
+      evaluation: "Mid-term revision test.",
+      assignment: "Revise correction notes and grammar drills.",
+      weekType: "REVISION",
+    },
+    {
+      topic: "Oral English: Vowel Sounds",
+      subtopics: ["Short vowels", "Long vowels", "Diphthongs", "Minimal pairs"],
+      behaviouralObjectives: "Learners identify and pronounce common vowel sounds accurately.",
+      teachingMethods: ["Repetition drill", "Audio practice"],
+      teachingAids: ["Vowel chart", "Audio device"],
+      referenceMaterials: ["Oral English for Schools and Colleges"],
+      evaluation: "Pronounce minimal pairs and selected classroom words.",
+      assignment: "Practice ten words with long vowel sounds at home.",
+    },
+    {
+      topic: "Narrative Composition",
+      subtopics: ["Plot", "Setting", "Characters", "Beginning, middle, end"],
+      behaviouralObjectives: "Learners plan and write a simple narrative essay using familiar Nigerian settings.",
+      teachingMethods: ["Story mapping", "Guided writing"],
+      teachingAids: ["Story map", "Model essay"],
+      referenceMaterials: ["New Oxford English JSS1 Composition"],
+      evaluation: "Write a narrative composition titled 'A Memorable Day at School'.",
+      assignment: "Complete and edit your narrative essay.",
+    },
+    {
+      topic: "Vocabulary Development",
+      subtopics: ["Synonyms", "Antonyms", "Context clues"],
+      behaviouralObjectives: "Learners build vocabulary through synonyms, antonyms, and context clues.",
+      teachingMethods: ["Word games", "Partner work"],
+      teachingAids: ["Vocabulary cards", "Dictionary"],
+      referenceMaterials: ["English Vocabulary in Use Elementary"],
+      evaluation: "Vocabulary worksheet and sentence construction.",
+      assignment: "Use ten new words in original sentences.",
+    },
+    {
+      topic: "Punctuation and Capitalisation",
+      subtopics: ["Comma", "Full stop", "Apostrophe", "Quotation marks"],
+      behaviouralObjectives: "Learners apply punctuation and capitalisation rules in written work.",
+      teachingMethods: ["Error correction", "Dictation"],
+      teachingAids: ["Punctuation chart", "Correction strips"],
+      referenceMaterials: ["Countdown English JSS1 Punctuation Chapter"],
+      evaluation: "Correct an unpunctuated paragraph.",
+      assignment: "Copy ten sentences and insert the correct punctuation marks.",
+    },
+    {
+      topic: "Revision and Examination Practice",
+      subtopics: ["Past questions", "Time management", "Common errors"],
+      behaviouralObjectives: "Learners revise the term's work and answer practice questions confidently.",
+      teachingMethods: ["Timed exercise", "Review discussion"],
+      teachingAids: ["Past questions", "Revision guide"],
+      referenceMaterials: ["School revision pack"],
+      evaluation: "Timed mock paper on comprehension, grammar, and composition.",
+      assignment: "Revise all correction notes for the terminal examination.",
+      weekType: "REVISION",
+    },
+  ];
+
+  const jss2EnglishSowTopics: SeedSchemeTopic[] = [
+    { topic: "Reading for Main Ideas and Inference", subtopics: ["Topic sentence", "Supporting details", "Inference"], behaviouralObjectives: "Learners identify main ideas and make valid inferences from passages.", teachingMethods: ["Guided reading", "Discussion"], teachingAids: ["Passage handout"], evaluation: "Comprehension exercise on community service.", assignment: "Write the main idea of two newspaper paragraphs." },
+    { topic: "Clauses and Sentence Patterns", subtopics: ["Independent clauses", "Dependent clauses", "Sentence patterns"], behaviouralObjectives: "Learners distinguish clause types and build correct sentences.", teachingMethods: ["Explanation", "Sentence drill"], teachingAids: ["Sentence strips"], evaluation: "Identify clauses in ten example sentences.", assignment: "Create six sentences using different clause patterns." },
+    { topic: "Figures of Speech", subtopics: ["Simile", "Metaphor", "Personification", "Hyperbole"], behaviouralObjectives: "Learners identify common figures of speech and use them in expressions.", teachingMethods: ["Demonstration", "Creative writing"], teachingAids: ["Poem extracts"], evaluation: "Match examples to figures of speech.", assignment: "Write four examples from school and home life." },
+    { topic: "Summary Writing", subtopics: ["Picking key points", "Note making", "Concise language"], behaviouralObjectives: "Learners identify key points and write concise summaries.", teachingMethods: ["Model analysis", "Guided practice"], teachingAids: ["Summary passage"], evaluation: "Summarize a passage in five clear sentences.", assignment: "Practice one summary from the class text." },
+    { topic: "Formal Letter Writing", subtopics: ["Writer's address", "Receiver's address", "Subject line", "Formal tone"], behaviouralObjectives: "Learners write formal letters using correct format and tone.", teachingMethods: ["Model demonstration", "Guided writing"], teachingAids: ["Formal letter sample"], evaluation: "Write a formal letter requesting books for the library.", assignment: "Rewrite the class formal letter neatly." },
+    { topic: "Speech Work: Consonant Sounds", subtopics: ["Voiced consonants", "Voiceless consonants", "Minimal pairs"], behaviouralObjectives: "Learners identify and pronounce common consonant sounds accurately.", teachingMethods: ["Oral drill", "Audio practice"], teachingAids: ["Consonant chart"], evaluation: "Pronunciation exercise using selected word pairs.", assignment: "Practice ten consonant sounds at home." },
+    { topic: "Direct and Indirect Speech", subtopics: ["Quotation marks", "Reporting verbs", "Tense changes"], behaviouralObjectives: "Learners change direct speech to indirect speech correctly.", teachingMethods: ["Explanation", "Guided examples"], teachingAids: ["Dialogue samples"], evaluation: "Transform eight direct statements to reported speech.", assignment: "Write five examples of direct and indirect speech." },
+    { topic: "Mid-Term Revision", subtopics: ["Comprehension", "Letter writing", "Grammar review"], behaviouralObjectives: "Learners consolidate the first half of the term and prepare for assessment.", teachingMethods: ["Revision", "Quiz"], teachingAids: ["Revision notes"], evaluation: "Mid-term assessment.", assignment: "Revise note corrections and grammar exercises.", weekType: "REVISION" },
+    { topic: "Debate and Speaking Skills", subtopics: ["Constructing arguments", "Speaking confidently", "Listening respectfully"], behaviouralObjectives: "Learners speak logically and confidently during guided debate.", teachingMethods: ["Debate", "Group work"], teachingAids: ["Debate motion cards"], evaluation: "Class debate on whether uniforms should be compulsory.", assignment: "Prepare three points for the next debate." },
+    { topic: "Comprehension: Argumentative Text", subtopics: ["Fact and opinion", "Author's viewpoint", "Supporting evidence"], behaviouralObjectives: "Learners distinguish fact from opinion in argumentative passages.", teachingMethods: ["Guided reading", "Discussion"], teachingAids: ["Argumentative passage handout"], evaluation: "Answer inference questions from the class passage.", assignment: "List four facts and four opinions from a newspaper article." },
+    { topic: "Vocabulary Through Word Formation", subtopics: ["Prefixes", "Suffixes", "Root words"], behaviouralObjectives: "Learners use prefixes and suffixes to derive word meanings.", teachingMethods: ["Word building game", "Worksheet"], teachingAids: ["Word cards"], evaluation: "Create new words from base words with correct prefixes and suffixes.", assignment: "Write ten derived words from class examples." },
+    { topic: "Expository Composition", subtopics: ["Introduction", "Body paragraphs", "Conclusion"], behaviouralObjectives: "Learners write an expository essay with clear structure and supporting details.", teachingMethods: ["Model essay analysis", "Guided writing"], teachingAids: ["Essay plan"], evaluation: "Write an essay on keeping the school environment clean.", assignment: "Rewrite your essay after corrections." },
+    { topic: "Revision and Examination Practice", subtopics: ["Past questions", "Error correction", "Essay planning"], behaviouralObjectives: "Learners revise all major skills covered this term and practise timed responses.", teachingMethods: ["Mock test", "Review discussion"], teachingAids: ["Past questions"], evaluation: "Timed examination practice.", assignment: "Study all corrected scripts and notes.", weekType: "REVISION" },
+  ];
+
+  const jss3EnglishSowTopics: SeedSchemeTopic[] = [
+    { topic: "Comprehension and Critical Response", subtopics: ["Main ideas", "Tone", "Inference", "Author's purpose"], behaviouralObjectives: "Learners read closely and give reasoned responses to questions.", teachingMethods: ["Guided reading", "Discussion"], teachingAids: ["Passage handout"], evaluation: "Critical response questions on a passage about civic duty.", assignment: "Summarize the author's message in one paragraph." },
+    { topic: "Essay Writing: Argumentative Essays", subtopics: ["Forming arguments", "Supporting evidence", "Counter arguments"], behaviouralObjectives: "Learners present clear arguments in well-structured essays.", teachingMethods: ["Model essay review", "Guided writing"], teachingAids: ["Essay outline"], evaluation: "Short argumentative essay in class.", assignment: "Write a full essay on a class debate topic." },
+    { topic: "Summary and Note Making", subtopics: ["Key points", "Topic sentences", "Concise language"], behaviouralObjectives: "Learners identify and condense key ideas without distortion.", teachingMethods: ["Demonstration", "Pair work"], teachingAids: ["Summary passage"], evaluation: "Summary exercise from an expository passage.", assignment: "Practise one summary from a textbook passage." },
+    { topic: "Registers and Vocabulary Choice", subtopics: ["Formal register", "Informal register", "Technical vocabulary"], behaviouralObjectives: "Learners choose vocabulary suitable for audience and purpose.", teachingMethods: ["Examples", "Role play"], teachingAids: ["Dialogue strips"], evaluation: "Identify the correct register for communication contexts.", assignment: "Rewrite an informal note as a formal message." },
+    { topic: "Speech Work and Stress Patterns", subtopics: ["Word stress", "Sentence stress", "Meaning changes"], behaviouralObjectives: "Learners place stress correctly in common words and statements.", teachingMethods: ["Oral drill", "Audio modelling"], teachingAids: ["Pronunciation chart"], evaluation: "Read a short passage with attention to stress.", assignment: "Practise stress patterns for twenty selected words." },
+    { topic: "Revision of Grammar Structures", subtopics: ["Tenses", "Clauses", "Concord", "Punctuation"], behaviouralObjectives: "Learners revise core grammar structures for JSS final assessment.", teachingMethods: ["Revision drill", "Quiz"], teachingAids: ["Revision notes"], evaluation: "Grammar test covering major structures.", assignment: "Complete revision worksheet." },
+    { topic: "Letter Writing and Examination Format", subtopics: ["Informal letter", "Formal letter", "Article writing"], behaviouralObjectives: "Learners select the correct writing format for examination questions.", teachingMethods: ["Comparison table", "Guided correction"], teachingAids: ["Format samples"], evaluation: "Outline the correct response format for three questions.", assignment: "Write one formal and one informal letter." },
+    { topic: "Mid-Term Revision", subtopics: ["Essay review", "Grammar review", "Comprehension review"], behaviouralObjectives: "Learners consolidate weeks 1 to 7 and identify weak areas.", teachingMethods: ["Revision", "Mock quiz"], teachingAids: ["Past scripts"], evaluation: "Mid-term revision paper.", assignment: "Review all marked exercises and corrections.", weekType: "REVISION" },
+    { topic: "Literature and Appreciation", subtopics: ["Poetry appreciation", "Theme", "Imagery", "Moral lessons"], behaviouralObjectives: "Learners identify basic literary devices and themes in simple poems.", teachingMethods: ["Reading aloud", "Discussion"], teachingAids: ["Poem handout"], evaluation: "Explain the theme of the selected poem.", assignment: "Write five lines about your favourite poem." },
+    { topic: "Comprehension: Examination Practice", subtopics: ["Time allocation", "Reading strategy", "Answer planning"], behaviouralObjectives: "Learners improve speed and accuracy in examination comprehension practice.", teachingMethods: ["Timed practice", "Feedback review"], teachingAids: ["Past comprehension passages"], evaluation: "Timed comprehension section.", assignment: "Practise one more passage at home." },
+    { topic: "Essay Editing and Error Correction", subtopics: ["Common composition errors", "Sentence improvement", "Punctuation review"], behaviouralObjectives: "Learners edit compositions and identify recurring writing errors.", teachingMethods: ["Peer editing", "Teacher correction"], teachingAids: ["Error correction strips"], evaluation: "Edit an error-filled essay and justify corrections.", assignment: "Rewrite corrected essay neatly." },
+    { topic: "Oral English Revision", subtopics: ["Consonants", "Vowels", "Stress", "Pronunciation review"], behaviouralObjectives: "Learners revise oral English features likely to appear in assessment.", teachingMethods: ["Drill", "Repetition"], teachingAids: ["Pronunciation chart"], evaluation: "Teacher-led oral response drill.", assignment: "Practise class pronunciation list." },
+    { topic: "Final Revision and Examination Drill", subtopics: ["Past questions", "Essay planning", "Summary practice"], behaviouralObjectives: "Learners revise all core English components in preparation for terminal examination.", teachingMethods: ["Mock test", "Feedback"], teachingAids: ["Past questions"], evaluation: "Full revision drill under timed conditions.", assignment: "Study all revision topics and teacher feedback.", weekType: "REVISION" },
+  ];
+
+  const jss1MathSowTopics: SeedSchemeTopic[] = [
+    { topic: "Whole Numbers and Place Value", subtopics: ["Place value chart", "Reading large numbers", "Expanded form"], behaviouralObjectives: "Learners read, write, and expand whole numbers correctly.", teachingMethods: ["Explanation", "Number drill"], teachingAids: ["Place value chart"], evaluation: "Write and expand given numbers.", assignment: "Practise ten place value questions." },
+    { topic: "Operations on Whole Numbers", subtopics: ["Addition", "Subtraction", "Multiplication", "Division"], behaviouralObjectives: "Learners solve operations on whole numbers accurately.", teachingMethods: ["Worked examples", "Class exercise"], teachingAids: ["Board examples"], evaluation: "Solve mixed operation questions.", assignment: "Complete exercise on basic operations." },
+    { topic: "Fractions", subtopics: ["Proper fractions", "Improper fractions", "Equivalent fractions"], behaviouralObjectives: "Learners identify and simplify fractions.", teachingMethods: ["Demonstration", "Practice"], teachingAids: ["Fraction strips"], evaluation: "Simplify and compare fractions.", assignment: "Answer ten fraction questions." },
+    { topic: "Decimals", subtopics: ["Place value in decimals", "Addition and subtraction of decimals"], behaviouralObjectives: "Learners read decimals and perform simple operations on them.", teachingMethods: ["Explanation", "Guided practice"], teachingAids: ["Decimal chart"], evaluation: "Add and subtract decimals correctly.", assignment: "Worksheet on decimal operations." },
+    { topic: "Percentages", subtopics: ["Meaning of percent", "Converting fractions and decimals"], behaviouralObjectives: "Learners convert between fractions, decimals, and percentages.", teachingMethods: ["Demonstration", "Question and answer"], teachingAids: ["Percent chart"], evaluation: "Convert numbers to percentages and vice versa.", assignment: "Solve practical percentage questions." },
+    { topic: "Simple Algebraic Expressions", subtopics: ["Variables", "Terms", "Simplifying expressions"], behaviouralObjectives: "Learners identify algebraic terms and simplify simple expressions.", teachingMethods: ["Explanation", "Practice drill"], teachingAids: ["Algebra chart"], evaluation: "Simplify five algebraic expressions.", assignment: "Practise class exercise on algebraic terms." },
+    { topic: "Linear Equations in One Variable", subtopics: ["Balancing method", "Checking solutions"], behaviouralObjectives: "Learners solve simple linear equations using balancing steps.", teachingMethods: ["Worked examples", "Pair practice"], teachingAids: ["Equation cards"], evaluation: "Solve simple equations and verify answers.", assignment: "Solve ten equations in your workbook." },
+    { topic: "Mid-Term Revision", subtopics: ["Numbers", "Fractions", "Decimals", "Algebra"], behaviouralObjectives: "Learners review all first-half topics and prepare for assessment.", teachingMethods: ["Revision quiz", "Correction session"], teachingAids: ["Revision notes"], evaluation: "Mid-term revision test.", assignment: "Study corrected examples.", weekType: "REVISION" },
+    { topic: "Geometry: Lines and Angles", subtopics: ["Types of lines", "Types of angles", "Measuring angles"], behaviouralObjectives: "Learners identify and measure angles accurately.", teachingMethods: ["Demonstration", "Practical work"], teachingAids: ["Protractor", "Ruler"], evaluation: "Measure and classify given angles.", assignment: "Draw lines and angles in your notebook." },
+    { topic: "Plane Shapes", subtopics: ["Triangles", "Quadrilaterals", "Properties of shapes"], behaviouralObjectives: "Learners identify common plane shapes and state their properties.", teachingMethods: ["Illustration", "Shape hunt"], teachingAids: ["Shape cut-outs"], evaluation: "State properties of listed shapes.", assignment: "Draw five plane shapes and label their sides." },
+    { topic: "Perimeter of Plane Figures", subtopics: ["Formula for perimeter", "Worked examples"], behaviouralObjectives: "Learners calculate perimeter of simple figures correctly.", teachingMethods: ["Explanation", "Exercise"], teachingAids: ["Ruler", "Worksheet"], evaluation: "Find the perimeter of given shapes.", assignment: "Calculate perimeter from five homework figures." },
+    { topic: "Data Representation", subtopics: ["Tally chart", "Pictogram", "Bar chart"], behaviouralObjectives: "Learners collect simple data and display it using charts.", teachingMethods: ["Group activity", "Discussion"], teachingAids: ["Graph sheet", "Chart paper"], evaluation: "Draw a simple bar chart from class data.", assignment: "Record home survey data and present it in a tally table." },
+    { topic: "Revision and Examination Drill", subtopics: ["Past questions", "Error correction", "Formula recall"], behaviouralObjectives: "Learners revise the term's mathematics topics and practise solving mixed questions.", teachingMethods: ["Mock test", "Correction drill"], teachingAids: ["Past questions"], evaluation: "Timed revision paper.", assignment: "Revise all formulas and corrected work.", weekType: "REVISION" },
+  ];
+
+  const ss1BiologySowTopics: SeedSchemeTopic[] = [
+    { topic: "Biology as a Science", subtopics: ["Meaning of biology", "Branches of biology", "Importance of biology"], behaviouralObjectives: "Students explain biology and identify its major branches.", teachingMethods: ["Lecture", "Discussion"], teachingAids: ["Chart", "Textbook"], evaluation: "Short note on branches of biology.", assignment: "List three careers related to biology." },
+    { topic: "Characteristics of Living Things", subtopics: ["Movement", "Respiration", "Growth", "Reproduction"], behaviouralObjectives: "Students state and explain key characteristics of living things.", teachingMethods: ["Explanation", "Observation"], teachingAids: ["Specimens", "Charts"], evaluation: "Identify characteristics in everyday organisms.", assignment: "Observe organisms around your home and list living characteristics." },
+    { topic: "Classification of Living Things", subtopics: ["Kingdoms", "Taxonomy", "Binomial nomenclature"], behaviouralObjectives: "Students classify living things into broad groups.", teachingMethods: ["Lecture", "Guided sorting"], teachingAids: ["Classification chart"], evaluation: "Group selected organisms into kingdoms.", assignment: "Write examples of organisms in each kingdom." },
+    { topic: "Cell Structure and Organization", subtopics: ["Plant cell", "Animal cell", "Cell organelles"], behaviouralObjectives: "Students draw and label plant and animal cells.", teachingMethods: ["Demonstration", "Drawing practice"], teachingAids: ["Microscope images", "Charts"], evaluation: "Label a cell diagram correctly.", assignment: "Draw plant and animal cells in your notebook." },
+    { topic: "Nutrition in Plants", subtopics: ["Photosynthesis", "Mineral requirements", "Limiting factors"], behaviouralObjectives: "Students explain photosynthesis and factors that affect it.", teachingMethods: ["Explanation", "Experiment discussion"], teachingAids: ["Leaf specimen", "Experiment setup"], evaluation: "Explain the starch test in leaves.", assignment: "Draw and label the photosynthesis experiment setup." },
+    { topic: "Nutrition in Animals", subtopics: ["Food classes", "Balanced diet", "Digestive system"], behaviouralObjectives: "Students identify food classes and explain balanced diet.", teachingMethods: ["Discussion", "Chart work"], teachingAids: ["Digestive system chart"], evaluation: "State the importance of each class of food.", assignment: "Prepare a balanced diet chart for a teenager." },
+    { topic: "Ecological Concepts", subtopics: ["Habitat", "Population", "Community", "Ecosystem"], behaviouralObjectives: "Students explain basic ecological terms and give examples.", teachingMethods: ["Field observation", "Discussion"], teachingAids: ["Nature pictures"], evaluation: "Define habitat, population, community, and ecosystem.", assignment: "Describe an ecosystem in your locality." },
+    { topic: "Mid-Term Revision", subtopics: ["Cells", "Nutrition", "Ecology", "Classification"], behaviouralObjectives: "Students consolidate first-half topics and prepare for assessment.", teachingMethods: ["Revision", "Quiz"], teachingAids: ["Revision notes"], evaluation: "Mid-term biology revision test.", assignment: "Revise class notes and diagrams.", weekType: "REVISION" },
+    { topic: "Micro-Organisms", subtopics: ["Useful micro-organisms", "Harmful micro-organisms", "Prevention of disease"], behaviouralObjectives: "Students identify useful and harmful micro-organisms.", teachingMethods: ["Explanation", "Discussion"], teachingAids: ["Micro-organism chart"], evaluation: "Differentiate useful and harmful micro-organisms.", assignment: "List five diseases caused by micro-organisms." },
+    { topic: "Reproduction in Flowering Plants", subtopics: ["Parts of a flower", "Pollination", "Fertilization"], behaviouralObjectives: "Students describe reproduction in flowering plants.", teachingMethods: ["Practical demonstration", "Drawing"], teachingAids: ["Flower specimen", "Chart"], evaluation: "Label a flower and explain pollination.", assignment: "Collect and press a flower for class discussion." },
+    { topic: "Seed Germination", subtopics: ["Conditions for germination", "Types of germination"], behaviouralObjectives: "Students state conditions necessary for germination.", teachingMethods: ["Experiment", "Observation"], teachingAids: ["Bean seeds", "Cotton wool", "Water"], evaluation: "State conditions necessary for seed germination.", assignment: "Set up a simple germination experiment at home." },
+    { topic: "Conservation of Natural Resources", subtopics: ["Deforestation", "Soil erosion", "Wildlife conservation"], behaviouralObjectives: "Students explain the need for conservation of natural resources.", teachingMethods: ["Discussion", "Case study"], teachingAids: ["Pictures", "Local examples"], evaluation: "Write a short note on conservation.", assignment: "Identify two conservation challenges in your state." },
+    { topic: "Revision and Examination Practice", subtopics: ["Past questions", "Diagram practice", "Short answers"], behaviouralObjectives: "Students revise all major biology themes covered this term.", teachingMethods: ["Mock test", "Feedback review"], teachingAids: ["Past questions", "Marking guide"], evaluation: "Timed biology revision paper.", assignment: "Study all corrected questions and diagrams.", weekType: "REVISION" },
+  ];
+
+  await createSeedSchemeOfWork({
+    schoolId: school.id,
+    academicSessionId: session.id,
+    termId: secondTerm.id,
+    subjectId: jssEnglish.id,
+    classId: jss1Silver.id,
+    teacherId: teacherEnglishUser.id,
+    submittedById: teacherEnglishUser.id,
+    approvedById: principalUser.id,
+    topics: jss1EnglishSowTopics,
+    coveredTeachingWeeks: 7,
+  });
+
+  await createSeedSchemeOfWork({
+    schoolId: school.id,
+    academicSessionId: session.id,
+    termId: secondTerm.id,
+    subjectId: jssEnglish.id,
+    classId: jss2Gold.id,
+    teacherId: teacherEnglishUser.id,
+    submittedById: teacherEnglishUser.id,
+    approvedById: principalUser.id,
+    topics: jss2EnglishSowTopics,
+    coveredTeachingWeeks: 6,
+  });
+
+  if (jss3Bronze) {
+    await createSeedSchemeOfWork({
+      schoolId: school.id,
+      academicSessionId: session.id,
+      termId: secondTerm.id,
+      subjectId: jssEnglish.id,
+      classId: jss3Bronze.id,
+      teacherId: teacherEnglishUser.id,
+      submittedById: teacherEnglishUser.id,
+      approvedById: principalUser.id,
+      topics: jss3EnglishSowTopics,
+      coveredTeachingWeeks: 5,
+    });
+  }
+
+  await createSeedSchemeOfWork({
+    schoolId: school.id,
+    academicSessionId: session.id,
+    termId: secondTerm.id,
+    subjectId: math.id,
+    classId: jss1Silver.id,
+    teacherId: teacherUser.id,
+    submittedById: teacherUser.id,
+    approvedById: principalUser.id,
+    topics: jss1MathSowTopics,
+    coveredTeachingWeeks: 6,
+  });
+
+  await createSeedSchemeOfWork({
+    schoolId: school.id,
+    academicSessionId: session.id,
+    termId: secondTerm.id,
+    subjectId: biology.id,
+    classId: ss1Emerald.id,
+    teacherId: teacherUser.id,
+    submittedById: teacherUser.id,
+    approvedById: principalUser.id,
+    topics: ss1BiologySowTopics,
+    coveredTeachingWeeks: 5,
   });
 
   const teacherPrimaryProfile = await prisma.staffProfile.findUniqueOrThrow({

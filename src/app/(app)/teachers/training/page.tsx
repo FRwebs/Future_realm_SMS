@@ -2,7 +2,8 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { TableCard } from "@/components/data-display/table-card";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { TrainingParticipantView, TrainingProgramView } from "@/lib/domain/types";
 import { trainingCategoryOptions } from "@/lib/school-options";
@@ -11,7 +12,7 @@ import { formatDate } from "@/lib/utils/formatters";
 export default async function TeacherTrainingPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/teachers/training")) {
+  if (!(await canAccessServerPath(session, "/teachers/training"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

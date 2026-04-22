@@ -2,7 +2,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath, getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { PaymentView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
@@ -10,10 +11,15 @@ import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 export default async function PaymentsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/finance")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
+  if (!(await canAccessServerPath(session, "/finance"))) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
-  const payments = await apiGet<PaymentView[]>("/api/v1/finance/payments");
-  const canManageFinance = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"]);
+  const [payments, permissions] = await Promise.all([
+    apiGet<PaymentView[]>("/api/v1/finance/payments"),
+    getServerPermissions(session),
+  ]);
+  const canManageFinance = permissions.some((permission) =>
+    ["fees.collect", "fees.edit_payment", "fees.approve", "fees.create_receipt", "fees.apply_waiver"].includes(permission),
+  );
 
   return (
     <div className="grid gap-6">

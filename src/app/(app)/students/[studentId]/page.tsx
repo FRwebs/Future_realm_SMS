@@ -4,7 +4,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, canManagePath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { canManagePath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { StudentProfileView } from "@/lib/domain/types";
 import { formatNigeriaClassName, nigerianClassFieldOptions } from "@/lib/school-options";
@@ -15,7 +16,7 @@ type PageProps = { params: Promise<{ studentId: string }> };
 export default async function StudentDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/students")) {
+  if (!(await canAccessServerPath(session, "/students"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

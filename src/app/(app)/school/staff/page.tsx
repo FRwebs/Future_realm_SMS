@@ -5,7 +5,8 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { allRoles, canAccessPath, getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
+import { allRoles, getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { MyPermissionsView } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -46,7 +47,7 @@ function queryString(params: Record<string, string | undefined>) {
 export default async function StaffPage({ searchParams }: StaffPageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/school/staff")) {
+  if (!(await canAccessServerPath(session, "/school/staff"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

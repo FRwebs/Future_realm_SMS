@@ -1,7 +1,7 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { AuditAction, UserRole } from "@prisma/client";
+import { AuditAction, Prisma, UserRole } from "@prisma/client";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -9,6 +9,7 @@ import { getDemoStore } from "../../../../src/lib/demo/data";
 import {
   canAdvanceAcademicApproval,
   canTransitionResult,
+  calculateWeightedScore,
   calculateSubjectTotals,
   getNextAcademicApprovalStage,
   nigerianTermGradeBands,
@@ -32,6 +33,7 @@ import {
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName, normalizeNigeriaClassValue } from "../../../../src/lib/school-options";
 import { env } from "../../../../src/lib/utils/env";
+import { RolesManagementService } from "../roles-management/roles-management.service";
 
 const nigeriaClassInputSchema = z
   .string()
@@ -322,12 +324,130 @@ function parseClassLevelsJson(input?: string) {
   return Array.from(new Set(normalized)) as string[];
 }
 
+function isExamComponent(component: { code?: string | null; name?: string | null }) {
+  const code = component.code?.toUpperCase() ?? "";
+  const name = component.name?.toUpperCase() ?? "";
+  return code.includes("EXAM") || name.includes("EXAM");
+}
+
+function parseSubjectIds(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.map((item) => String(item)).filter(Boolean);
+}
+
+function calculateCompetitionPositions(items: Array<{ key: string; score: number }>) {
+  const sorted = [...items].sort((left, right) => right.score - left.score);
+  const positions = new Map<string, number>();
+  let currentPosition = 0;
+  let lastScore: number | null = null;
+
+  sorted.forEach((item, index) => {
+    if (lastScore === null || item.score !== lastScore) {
+      currentPosition = index + 1;
+      lastScore = item.score;
+    }
+    positions.set(item.key, currentPosition);
+  });
+
+  return positions;
+}
+
 @Injectable()
 export class AcademicsService {
+  constructor(private readonly rolesManagementService: RolesManagementService) {}
+
   private async currentTerm(schoolId: string) {
     const term = await prisma.term.findFirst({ where: { schoolId, isCurrent: true } });
     if (!term) throw new NotFoundException("No active term is configured for this school.");
     return term;
+  }
+
+  private async permissionSet(session: SessionPayload) {
+    return new Set(await this.rolesManagementService.resolveUserPermissions(session.userId, session.schoolId, session));
+  }
+
+  private async classTeacherClassIds(schoolId: string, userId: string, termId?: string) {
+    const [directClasses, academicAssignments] = await Promise.all([
+      prisma.classRoom.findMany({
+        where: {
+          schoolId,
+          deletedAt: null,
+          OR: [{ classTeacherId: userId }, { assistantClassTeacherId: userId }]
+        },
+        select: { id: true }
+      }),
+      prisma.classAcademicAssignment.findMany({
+        where: {
+          schoolId,
+          ...(termId ? { termId } : {}),
+          OR: [{ classTeacherId: userId }, { assistantClassTeacherId: userId }]
+        },
+        select: { classId: true }
+      })
+    ]);
+
+    return new Set([
+      ...directClasses.map((item) => item.id),
+      ...academicAssignments.map((item) => item.classId)
+    ]);
+  }
+
+  private async assertBroadsheetWorkspaceAccess(session: SessionPayload, classId?: string, termId?: string) {
+    const permissions = await this.permissionSet(session);
+    if (
+      permissions.has("results.compile") ||
+      permissions.has("results.approve") ||
+      permissions.has("results.publish") ||
+      permissions.has("results.export")
+    ) {
+      return { permissions, classTeacherClassIds: new Set<string>() };
+    }
+
+    const classTeacherClassIds = await this.classTeacherClassIds(session.schoolId, session.userId, termId);
+    if (classTeacherClassIds.size === 0) {
+      throw new ForbiddenException("Only class teachers and academic result officers can access broadsheets.");
+    }
+    if (classId && !classTeacherClassIds.has(classId)) {
+      throw new ForbiddenException("You can only access broadsheets for classes assigned to you.");
+    }
+
+    return { permissions, classTeacherClassIds };
+  }
+
+  private async assertBroadsheetActionAccess(session: SessionPayload, broadsheet: { classId: string; approvalStage: string; status: string; termId: string }) {
+    const permissions = await this.permissionSet(session);
+    const classTeacherClassIds = await this.classTeacherClassIds(session.schoolId, session.userId, broadsheet.termId);
+    const managesClass = classTeacherClassIds.has(broadsheet.classId);
+
+    if (broadsheet.approvalStage === "CLASS_TEACHER") {
+      if (managesClass || permissions.has("results.approve") || permissions.has("results.publish")) {
+        return { permissions, managesClass };
+      }
+      throw new ForbiddenException("Only the assigned class teacher or academic approvers can review this broadsheet at class level.");
+    }
+
+    if (broadsheet.approvalStage === "EXAM_OFFICER") {
+      if (permissions.has("results.approve") || permissions.has("results.publish") || permissions.has("results.compile")) {
+        return { permissions, managesClass };
+      }
+      throw new ForbiddenException("Only exam officers or academic approvers can review this broadsheet.");
+    }
+
+    if (broadsheet.approvalStage === "VICE_PRINCIPAL_ACADEMICS") {
+      if (permissions.has("results.approve") || permissions.has("results.publish")) {
+        return { permissions, managesClass };
+      }
+      throw new ForbiddenException("Only academic approvers can review this broadsheet at vice-principal stage.");
+    }
+
+    if (broadsheet.approvalStage === "PRINCIPAL" || broadsheet.approvalStage === "PUBLISHED") {
+      if (permissions.has("results.publish")) {
+        return { permissions, managesClass };
+      }
+      throw new ForbiddenException("Only final approvers can publish or unlock this broadsheet.");
+    }
+
+    return { permissions, managesClass };
   }
 
   private async auditSubject(session: SessionPayload, action: AuditAction, subjectId: string, metadata?: Record<string, unknown>) {
@@ -551,7 +671,18 @@ export class AcademicsService {
     data: unknown;
     publishedAt: Date | null;
     lockedAt: Date | null;
-    classRoom: { id: string; name: string; arm?: string | null };
+    approvedAt?: Date | null;
+    academicSessionId?: string | null;
+    termId: string;
+    classRoom: {
+      id: string;
+      name: string;
+      arm?: string | null;
+      category?: string | null;
+      classTeacherId?: string | null;
+      classLevel?: { name: string } | null;
+      classTeacher?: { firstName: string; lastName: string } | null;
+    };
     term: { name: string; academicSession?: { name: string } | null };
     approvals: Array<{
       id: string;
@@ -564,17 +695,42 @@ export class AcademicsService {
   }): BroadsheetView {
     const data = broadsheet.data as { rows?: BroadsheetView["rows"] };
     const warnings = Array.isArray(broadsheet.missingScoreWarnings) ? broadsheet.missingScoreWarnings : [];
+    const rows = data.rows ?? [];
+    const incompleteStudents = rows.filter((row) => row.isComplete === false).length;
+    const subjectCount = Math.max(0, ...rows.map((row) => row.subjects.length));
+    const classAverage = rows.length
+      ? Number((rows.reduce((sum, row) => sum + row.average, 0) / rows.length).toFixed(2))
+      : 0;
+
     return {
       id: broadsheet.id,
+      academicSessionId: broadsheet.academicSessionId ?? undefined,
+      termId: broadsheet.termId,
       classId: broadsheet.classRoom.id,
       className: formatClassName(broadsheet.classRoom),
+      classLevel: broadsheet.classRoom.classLevel?.name ?? undefined,
+      classArm: broadsheet.classRoom.arm ?? undefined,
+      classCategory: broadsheet.classRoom.category ?? undefined,
+      classTeacherId: broadsheet.classRoom.classTeacherId ?? undefined,
+      classTeacherName: broadsheet.classRoom.classTeacher
+        ? `${broadsheet.classRoom.classTeacher.firstName} ${broadsheet.classRoom.classTeacher.lastName}`.trim()
+        : undefined,
       term: broadsheet.term.name,
       session: broadsheet.term.academicSession?.name,
       status: broadsheet.status as BroadsheetView["status"],
       approvalStage: broadsheet.approvalStage as BroadsheetView["approvalStage"],
       rankingEnabled: broadsheet.rankingEnabled,
       missingScoreWarnings: warnings.map(String),
-      rows: data.rows ?? [],
+      metrics: {
+        studentCount: rows.length,
+        subjectCount,
+        completeStudents: rows.length - incompleteStudents,
+        incompleteStudents,
+        missingEntries: warnings.length,
+        classAverage,
+        published: Boolean(broadsheet.publishedAt)
+      },
+      rows,
       approvals: broadsheet.approvals.map((approval) => ({
         id: approval.id,
         actorName: `${approval.actor.firstName} ${approval.actor.lastName}`,
@@ -1131,16 +1287,62 @@ export class AcademicsService {
     return components;
   }
 
-  async listSubjects(session: SessionPayload): Promise<SubjectView[]> {
+  async listSubjects(session: SessionPayload, query: Record<string, string | undefined> = {}): Promise<SubjectView[]> {
     const staffProfile = session.role === "HEAD_OF_DEPARTMENT"
       ? await prisma.staffProfile.findUnique({ where: { userId: session.userId }, select: { departmentId: true } })
       : null;
+    const search = query.search?.trim();
+    const status = query.status?.trim();
+    const section = query.section?.trim();
+    const classLevel = normalizeNigeriaClassValue(query.classLevel?.trim() ?? "");
+    const teacherAssigned = (query.teacherAssigned ?? query.teacher_assigned)?.trim().toLowerCase();
+    const teacherId = (query.teacherId ?? query.teacher_id)?.trim();
+    const departmentId = staffProfile?.departmentId ?? (query.departmentId ?? query.department_id)?.trim();
     const subjects = await prisma.subject.findMany({
       where: {
         schoolId: session.schoolId,
         deletedAt: null,
-        isActive: true,
-        ...(staffProfile?.departmentId ? { departmentId: staffProfile.departmentId } : {})
+        ...(status ? { status } : { isActive: true }),
+        ...(departmentId ? { departmentId } : {}),
+        ...(section ? { section: section as z.infer<typeof schoolSectionSchema> } : {}),
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { code: { contains: search, mode: "insensitive" } },
+                { description: { contains: search, mode: "insensitive" } }
+              ]
+            }
+          : {}),
+        ...(teacherId
+          ? {
+              classSubjects: {
+                some: {
+                  isActive: true,
+                  teacherId
+                }
+              }
+            }
+          : {}),
+        ...(teacherAssigned === "yes"
+          ? {
+              classSubjects: {
+                some: {
+                  isActive: true,
+                  teacherId: { not: null }
+                }
+              }
+            }
+          : teacherAssigned === "no"
+            ? {
+                classSubjects: {
+                  some: {
+                    isActive: true,
+                    teacherId: null
+                  }
+                }
+              }
+            : {})
       },
       include: {
         department: { select: { name: true } },
@@ -1148,7 +1350,41 @@ export class AcademicsService {
       },
       orderBy: [{ section: "asc" }, { sortOrder: "asc" }, { name: "asc" }]
     });
-    return subjects.map((subject) => this.mapSubject(subject));
+    const mappedSubjects = subjects.map((subject) => this.mapSubject(subject));
+    return classLevel
+      ? mappedSubjects.filter((subject) => subject.applicableClassLevels.includes(classLevel))
+      : mappedSubjects;
+  }
+
+  async listSubjectTeacherOptions(session: SessionPayload, query: Record<string, string | undefined>) {
+    const search = query.search?.trim();
+    const teachers = await prisma.user.findMany({
+      where: {
+        schoolId: session.schoolId,
+        deletedAt: null,
+        isActive: true,
+        role: { in: [UserRole.TEACHER, UserRole.CLASS_TEACHER, UserRole.SUBJECT_TEACHER, UserRole.HEAD_OF_DEPARTMENT, UserRole.VICE_PRINCIPAL_ACADEMICS, UserRole.PRINCIPAL] },
+        ...(search
+          ? {
+              OR: [
+                { firstName: { contains: search, mode: "insensitive" } },
+                { lastName: { contains: search, mode: "insensitive" } },
+                { email: { contains: search, mode: "insensitive" } }
+              ]
+            }
+          : {})
+      },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      take: 250
+    });
+
+    return teachers.map((teacher) => ({
+      id: teacher.id,
+      name: `${teacher.firstName} ${teacher.lastName}`.trim(),
+      email: teacher.email,
+      role: teacher.role
+    }));
   }
 
   async createSubject(session: SessionPayload, payload: unknown): Promise<SubjectView> {
@@ -1893,25 +2129,45 @@ export class AcademicsService {
   }
 
   async compileBroadsheet(session: SessionPayload, payload: unknown): Promise<BroadsheetView> {
-    assertAcademicApprover(session);
     const parsed = broadsheetCompileSchema.parse(payload);
+    const access = await this.assertBroadsheetWorkspaceAccess(session, parsed.classId, parsed.termId);
+    if (!access.permissions.has("results.compile")) {
+      throw new ForbiddenException("You do not have permission to compile broadsheets.");
+    }
+
     if (env.DEMO_MODE) {
       return {
         id: `broad_${parsed.classId}`,
         classId: parsed.classId,
         className: "JSS 2 - Gold",
+        classLevel: "JSS 2",
+        classArm: "Gold",
         term: "Second Term",
         session: "2025/2026",
         status: "IN_REVIEW",
-        approvalStage: "EXAM_OFFICER",
+        approvalStage: "CLASS_TEACHER",
         rankingEnabled: parsed.rankingEnabled,
         missingScoreWarnings: [],
+        metrics: {
+          studentCount: 1,
+          subjectCount: 1,
+          completeStudents: 1,
+          incompleteStudents: 0,
+          missingEntries: 0,
+          classAverage: 80,
+          published: false
+        },
         rows: getDemoStore().grades.map((grade, index) => ({
           studentId: grade.studentId,
           studentName: grade.studentName,
-          subjects: [{ subject: grade.subject, caTotal: grade.continuousAssessment, examTotal: grade.exam, total: grade.total, grade: grade.grade, remark: grade.remark }],
+          totalSubjectsOffered: 1,
+          completedSubjects: 1,
+          missingSubjects: 0,
+          isComplete: true,
+          subjects: [{ subject: grade.subject, caTotal: grade.continuousAssessment, examTotal: grade.exam, total: grade.total, grade: grade.grade, remark: grade.remark, isComplete: true, missingComponents: [] }],
           total: grade.total,
           average: grade.total,
+          overallGrade: grade.grade,
           position: index + 1,
           promotionStatus: grade.total >= 40 ? "Promoted / Good standing" : "Review required"
         })),
@@ -1924,67 +2180,251 @@ export class AcademicsService {
       : await prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, include: { academicSession: true } });
     if (!term) throw new NotFoundException("No valid term was found for broadsheet compilation.");
 
-    const [classRoom, students, classSubjects, sheets] = await Promise.all([
-      prisma.classRoom.findFirst({ where: { id: parsed.classId, schoolId: session.schoolId } }),
+    const [existingBroadsheet, classRoom, students, classSubjects, sheets, attendance, scheme] = await Promise.all([
+      prisma.broadsheet.findUnique({
+        where: { schoolId_termId_classId: { schoolId: session.schoolId, termId: term.id, classId: parsed.classId } }
+      }),
+      prisma.classRoom.findFirst({
+        where: { id: parsed.classId, schoolId: session.schoolId, deletedAt: null },
+        include: {
+          classLevel: true,
+          classTeacher: { select: { id: true, firstName: true, lastName: true } }
+        }
+      }),
       prisma.student.findMany({
         where: { schoolId: session.schoolId, currentClassId: parsed.classId, status: "ACTIVE" },
         orderBy: [{ lastName: "asc" }, { firstName: "asc" }]
       }),
-      prisma.classSubject.findMany({ where: { schoolId: session.schoolId, classId: parsed.classId }, include: { subject: true } }),
+      prisma.classSubject.findMany({
+        where: { schoolId: session.schoolId, classId: parsed.classId, isActive: true },
+        include: { subject: true },
+        orderBy: [{ subject: { name: "asc" } }]
+      }),
       prisma.resultSheet.findMany({
         where: { schoolId: session.schoolId, termId: term.id, classId: parsed.classId },
-        include: { scoreEntries: { include: { subject: true, assessmentComponent: true } } }
-      })
-    ]);
-    if (!classRoom) throw new NotFoundException("Class not found.");
-
-    const sheetByStudent = new Map(sheets.map((sheet) => [sheet.studentId, sheet]));
-    const warnings: string[] = [];
-    const rows = students.map((student) => {
-      const sheet = sheetByStudent.get(student.id);
-      const subjects = classSubjects.map((classSubject) => {
-        const entries = sheet?.scoreEntries.filter((entry) => entry.subjectId === classSubject.subjectId) ?? [];
-        const caTotal = Number(entries.filter((entry) => !entry.assessmentComponent.code.startsWith("EXAM")).reduce((sum, entry) => sum + entry.score, 0).toFixed(2));
-        const examTotal = Number(entries.filter((entry) => entry.assessmentComponent.code.startsWith("EXAM")).reduce((sum, entry) => sum + entry.score, 0).toFixed(2));
-        const total = Number((caTotal + examTotal).toFixed(2));
-        if (entries.length === 0) {
-          warnings.push(`${formatStudentName(student)} is missing ${classSubject.subject.name}.`);
+        include: {
+          scoreEntries: {
+            include: {
+              subject: true,
+              assessmentComponent: true
+            }
+          }
         }
-        const band = resolveGradeLabel(total, nigerianTermGradeBands);
-        return { subject: classSubject.subject.name, caTotal, examTotal, total, grade: band.label, remark: band.remark };
+      }),
+      prisma.studentAttendance.findMany({
+        where: { schoolId: session.schoolId, classId: parsed.classId, termId: term.id },
+        select: { studentId: true, status: true }
+      }),
+      this.activeScheme(session.schoolId)
+    ]);
+
+    if (!classRoom) throw new NotFoundException("Class not found.");
+    if (existingBroadsheet?.lockedAt && !access.permissions.has("results.publish")) {
+      throw new ForbiddenException("Locked broadsheets must be reopened by a final approver before recompilation.");
+    }
+
+    const studentIds = students.map((student) => student.id);
+    const combinations = term.academicSessionId
+      ? await prisma.subjectCombination.findMany({
+          where: {
+            schoolId: session.schoolId,
+            academicSessionId: term.academicSessionId,
+            studentId: { in: studentIds }
+          }
+        })
+      : [];
+    const sectionComponents = classRoom.classLevel.schoolSection
+      ? await prisma.sectionAssessmentComponent.findMany({
+          where: {
+            schoolId: session.schoolId,
+            section: classRoom.classLevel.schoolSection,
+            isActive: true,
+            OR: [{ termId: term.id }, { termId: null }]
+          },
+          orderBy: [{ order: "asc" }, { name: "asc" }]
+        })
+      : [];
+    const teacherIds = Array.from(new Set(classSubjects.flatMap((item) => (item.teacherId ? [item.teacherId] : []))));
+    const teachers = teacherIds.length
+      ? await prisma.user.findMany({
+          where: { schoolId: session.schoolId, id: { in: teacherIds } },
+          select: { id: true, firstName: true, lastName: true }
+        })
+      : [];
+
+    const teacherNameById = new Map(teachers.map((teacher) => [teacher.id, `${teacher.firstName} ${teacher.lastName}`.trim()]));
+    const combinationByStudent = new Map(combinations.map((item) => [item.studentId, new Set(parseSubjectIds(item.subjectIds))]));
+    const attendanceByStudent = new Map<string, { present: number; total: number }>();
+    const sheetByStudent = new Map(sheets.map((sheet) => [sheet.studentId, sheet]));
+    const warnings = new Set<string>();
+
+    attendance.forEach((entry) => {
+      const stats = attendanceByStudent.get(entry.studentId) ?? { present: 0, total: 0 };
+      stats.total += 1;
+      if (entry.status === "PRESENT" || entry.status === "LATE") stats.present += 1;
+      attendanceByStudent.set(entry.studentId, stats);
+    });
+
+    const baseRows = students.map((student) => {
+      const sheet = sheetByStudent.get(student.id);
+      const subjectIdsForStudent = combinationByStudent.get(student.id);
+      const offeredSubjects = classSubjects.filter((classSubject) =>
+        !subjectIdsForStudent || subjectIdsForStudent.size === 0 || subjectIdsForStudent.has(classSubject.subjectId)
+      );
+
+      const subjectCells = offeredSubjects.map((classSubject) => {
+        const entries = sheet?.scoreEntries.filter((entry) => entry.subjectId === classSubject.subjectId) ?? [];
+        const fallbackComponents = Array.from(
+          new Map(
+            entries.map((entry) => [
+              entry.assessmentComponentId,
+              {
+                code: entry.assessmentComponent.code,
+                name: entry.assessmentComponent.name,
+                weight: entry.assessmentComponent.weight,
+                maxScore: entry.assessmentComponent.maxScore
+              }
+            ])
+          ).values()
+        );
+        const expectedComponents =
+          sectionComponents.length > 0
+            ? sectionComponents.map((component) => ({
+                code: component.code,
+                name: component.name,
+                weight: component.weight,
+                maxScore: component.maxScore
+              }))
+            : fallbackComponents.length > 0
+              ? fallbackComponents
+              : [
+                  { code: "CA", name: "Continuous Assessment", weight: 40, maxScore: 40 },
+                  { code: "EXAM", name: "Exam", weight: 60, maxScore: 60 }
+                ];
+
+        const components = expectedComponents.map((component) => {
+          const entry = entries.find((item) => item.assessmentComponent.code === component.code);
+          const weightedScore = entry
+            ? calculateWeightedScore([{ score: entry.score, maxScore: entry.maxScore, weight: component.weight }])
+            : 0;
+          return {
+            code: component.code,
+            name: component.name,
+            score: entry?.score,
+            weightedScore,
+            maxScore: component.maxScore,
+            weight: component.weight,
+            isExam: isExamComponent(component),
+            isMissing: !entry
+          };
+        });
+
+        const missingComponents = components.filter((component) => component.isMissing).map((component) => component.code);
+        const caTotal = Number(components.filter((component) => !component.isExam).reduce((sum, component) => sum + component.weightedScore, 0).toFixed(2));
+        const examTotal = Number(components.filter((component) => component.isExam).reduce((sum, component) => sum + component.weightedScore, 0).toFixed(2));
+        const total = Number((caTotal + examTotal).toFixed(2));
+        const band = this.resolveBand(total, scheme);
+        const complete = missingComponents.length === 0;
+
+        if (entries.length === 0) {
+          warnings.add(`${formatStudentName(student)} has no score entry for ${classSubject.subject.name}.`);
+        } else if (!complete) {
+          warnings.add(`${formatStudentName(student)} is missing ${missingComponents.join(", ")} for ${classSubject.subject.name}.`);
+        }
+
+        return {
+          subjectId: classSubject.subjectId,
+          subjectCode: classSubject.subject.code,
+          subject: classSubject.subject.name,
+          teacherId: classSubject.teacherId ?? undefined,
+          teacherName: classSubject.teacherId ? teacherNameById.get(classSubject.teacherId) : undefined,
+          components,
+          caTotal,
+          examTotal,
+          total,
+          grade: band.label,
+          remark: band.remark,
+          isComplete: complete,
+          missingComponents
+        };
       });
-      const total = Number(subjects.reduce((sum, subject) => sum + subject.total, 0).toFixed(2));
-      const average = subjects.length ? Number((total / subjects.length).toFixed(2)) : 0;
+
+      const total = Number(subjectCells.reduce((sum, subject) => sum + subject.total, 0).toFixed(2));
+      const average = subjectCells.length ? Number((total / subjectCells.length).toFixed(2)) : 0;
+      const band = this.resolveBand(average, scheme);
+      const attendanceStats = attendanceByStudent.get(student.id);
+      const attendanceLabel = attendanceStats?.total
+        ? `${Math.round((attendanceStats.present / attendanceStats.total) * 100)}%`
+        : "N/A";
+      const completedSubjects = subjectCells.filter((subject) => subject.isComplete).length;
+      const missingSubjects = subjectCells.length - completedSubjects;
+
       return {
         studentId: student.id,
         studentName: formatStudentName(student),
         admissionNumber: student.admissionNumber,
-        subjects,
+        subjects: subjectCells,
+        totalSubjectsOffered: subjectCells.length,
+        completedSubjects,
+        missingSubjects,
+        isComplete: missingSubjects === 0,
         total,
         average,
-        attendance: "See attendance register",
+        overallGrade: band.label,
+        attendance: attendanceLabel,
         classTeacherRemark: sheet?.teacherComment ?? undefined,
         principalRemark: sheet?.principalComment ?? undefined,
-        promotionStatus: average >= 40 ? "Promoted / Good standing" : "Review required"
+        promotionStatus: average >= (scheme?.passMark ?? 40) ? "Promoted / Good standing" : "Review required"
       };
     });
 
-    const rankedRows = parsed.rankingEnabled
-      ? [...rows]
-          .sort((left, right) => right.average - left.average)
-          .map((row, index) => ({ ...row, position: index + 1 }))
-      : rows;
-    const data = { rows: rankedRows, generatedAt: new Date().toISOString() };
+    const subjectPositionMaps = new Map<string, Map<string, number>>();
+    const allSubjectIds = Array.from(new Set(baseRows.flatMap((row) => row.subjects.map((subject) => subject.subjectId)).filter(Boolean))) as string[];
+    allSubjectIds.forEach((subjectId) => {
+      const positions = calculateCompetitionPositions(
+        baseRows
+          .map((row) => {
+            const cell = row.subjects.find((subject) => subject.subjectId === subjectId);
+            return cell ? { key: row.studentId, score: cell.total } : null;
+          })
+          .filter((item): item is { key: string; score: number } => Boolean(item))
+      );
+      subjectPositionMaps.set(subjectId, positions);
+    });
+
+    const overallPositions = parsed.rankingEnabled
+      ? calculateCompetitionPositions(baseRows.map((row) => ({ key: row.studentId, score: row.average })))
+      : new Map<string, number>();
+
+    const rankedRows = baseRows.map((row) => ({
+      ...row,
+      subjects: row.subjects.map((subject) => ({
+        ...subject,
+        position: subject.subjectId ? subjectPositionMaps.get(subject.subjectId)?.get(row.studentId) : undefined
+      })),
+      position: parsed.rankingEnabled ? overallPositions.get(row.studentId) : undefined
+    }));
+
+    const reviewStage = classRoom.classTeacherId ? "CLASS_TEACHER" : "EXAM_OFFICER";
+    const warningList = Array.from(warnings);
+    const data = {
+      generatedAt: new Date().toISOString(),
+      rows: rankedRows
+    };
+
     const broadsheet = await prisma.broadsheet.upsert({
       where: { schoolId_termId_classId: { schoolId: session.schoolId, termId: term.id, classId: parsed.classId } },
       update: {
         academicSessionId: term.academicSessionId,
         compiledById: session.userId,
-        status: warnings.length ? "DRAFT" : "IN_REVIEW",
-        approvalStage: "EXAM_OFFICER",
+        status: warningList.length ? "DRAFT" : "IN_REVIEW",
+        approvalStage: reviewStage,
         rankingEnabled: parsed.rankingEnabled,
-        missingScoreWarnings: warnings,
-        data
+        missingScoreWarnings: warningList,
+        data,
+        approvedAt: null,
+        publishedAt: null,
+        lockedAt: null
       },
       create: {
         schoolId: session.schoolId,
@@ -1992,82 +2432,128 @@ export class AcademicsService {
         termId: term.id,
         classId: parsed.classId,
         compiledById: session.userId,
-        status: warnings.length ? "DRAFT" : "IN_REVIEW",
-        approvalStage: "EXAM_OFFICER",
+        status: warningList.length ? "DRAFT" : "IN_REVIEW",
+        approvalStage: reviewStage,
         rankingEnabled: parsed.rankingEnabled,
-        missingScoreWarnings: warnings,
+        missingScoreWarnings: warningList,
         data
       },
-      include: { classRoom: true, term: { include: { academicSession: true } }, approvals: { include: { actor: true } } }
+      include: {
+        classRoom: {
+          include: {
+            classLevel: true,
+            classTeacher: { select: { firstName: true, lastName: true } }
+          }
+        },
+        term: { include: { academicSession: true } },
+        approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } }
+      }
     });
 
-    if (!warnings.length) {
-      await prisma.broadsheetApprovalHistory.create({
-        data: {
-          schoolId: session.schoolId,
-          broadsheetId: broadsheet.id,
-          actorId: session.userId,
-          stage: "EXAM_OFFICER",
-          action: "COMPILE",
-          note: "Broadsheet compiled with all required subject scores."
-        }
-      });
-      await Promise.all(
-        rankedRows.map((row) =>
-          prisma.reportCard.upsert({
-            where: { schoolId_studentId_termId: { schoolId: session.schoolId, studentId: row.studentId, termId: term.id } },
-            update: { broadsheetId: broadsheet.id, classId: parsed.classId, generatedById: session.userId, status: "GENERATED", data: row },
-            create: {
-              schoolId: session.schoolId,
-              broadsheetId: broadsheet.id,
-              studentId: row.studentId,
-              academicSessionId: term.academicSessionId,
-              termId: term.id,
-              classId: parsed.classId,
-              generatedById: session.userId,
-              status: "GENERATED",
-              data: row
-            }
-          })
-        )
-      );
-      await this.notifyAcademicWorkflow({
+    await prisma.broadsheetApprovalHistory.create({
+      data: {
         schoolId: session.schoolId,
-        title: "Broadsheet ready for review",
-        body: `${formatClassName(classRoom)} broadsheet is ready for VP Academics and Principal review.`,
-        metadata: { broadsheetId: broadsheet.id, classId: parsed.classId, termId: term.id }
-      });
-    }
+        broadsheetId: broadsheet.id,
+        actorId: session.userId,
+        stage: reviewStage,
+        action: "COMPILE",
+        note: warningList.length
+          ? "Broadsheet compiled with missing-score warnings that must be resolved before approval."
+          : "Broadsheet compiled successfully and routed for class review."
+      }
+    });
+
+    await Promise.all(
+      rankedRows.map((row) =>
+        prisma.reportCard.upsert({
+          where: { schoolId_studentId_termId: { schoolId: session.schoolId, studentId: row.studentId, termId: term.id } },
+          update: {
+            broadsheetId: broadsheet.id,
+            classId: parsed.classId,
+            generatedById: session.userId,
+            status: "GENERATED",
+            publishedAt: null,
+            lockedAt: null,
+            data: row
+          },
+          create: {
+            schoolId: session.schoolId,
+            broadsheetId: broadsheet.id,
+            studentId: row.studentId,
+            academicSessionId: term.academicSessionId,
+            termId: term.id,
+            classId: parsed.classId,
+            generatedById: session.userId,
+            status: "GENERATED",
+            data: row
+          }
+        })
+      )
+    );
+
+    await this.notifyAcademicWorkflow({
+      schoolId: session.schoolId,
+      title: warningList.length ? "Broadsheet needs correction" : "Broadsheet ready for review",
+      body: warningList.length
+        ? `${formatClassName(classRoom)} broadsheet has incomplete result entries that require correction.`
+        : `${formatClassName(classRoom)} broadsheet is ready for ${reviewStage === "CLASS_TEACHER" ? "class teacher" : "exam office"} review.`,
+      metadata: { broadsheetId: broadsheet.id, classId: parsed.classId, termId: term.id, warnings: warningList.length }
+    });
 
     const hydrated = await prisma.broadsheet.findUniqueOrThrow({
       where: { id: broadsheet.id },
-      include: { classRoom: true, term: { include: { academicSession: true } }, approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } } }
+      include: {
+        classRoom: {
+          include: {
+            classLevel: true,
+            classTeacher: { select: { firstName: true, lastName: true } }
+          }
+        },
+        term: { include: { academicSession: true } },
+        approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } }
+      }
     });
     return this.mapBroadsheet(hydrated);
   }
 
-  async listBroadsheets(session: SessionPayload): Promise<BroadsheetView[]> {
-    assertAcademicApprover(session);
+  async listBroadsheets(session: SessionPayload, query: Record<string, string | undefined> = {}): Promise<BroadsheetView[]> {
+    const access = await this.assertBroadsheetWorkspaceAccess(session, query.classId, query.termId);
     if (env.DEMO_MODE) {
       return [
         {
           id: "broad_jss2_gold",
           classId: "class_jss2_gold",
           className: "JSS 2 - Gold",
+          classLevel: "JSS 2",
+          classArm: "Gold",
           term: "Second Term",
           session: "2025/2026",
           status: "IN_REVIEW",
           approvalStage: "VICE_PRINCIPAL_ACADEMICS",
           rankingEnabled: true,
           missingScoreWarnings: [],
+          metrics: {
+            studentCount: 1,
+            subjectCount: 1,
+            completeStudents: 1,
+            incompleteStudents: 0,
+            missingEntries: 0,
+            classAverage: 80,
+            published: false
+          },
           rows: [
             {
               studentId: "stu_1",
               studentName: "Daniel Yusuf",
               admissionNumber: "GFC/26/0001",
-              subjects: [{ subject: "Mathematics", caTotal: 32, examTotal: 48, total: 80, grade: "A", remark: "Excellent" }],
+              subjects: [{ subject: "Mathematics", caTotal: 32, examTotal: 48, total: 80, grade: "A", remark: "Excellent", isComplete: true, missingComponents: [] }],
+              totalSubjectsOffered: 1,
+              completedSubjects: 1,
+              missingSubjects: 0,
+              isComplete: true,
               total: 80,
               average: 80,
+              overallGrade: "A",
               position: 1,
               attendance: "93%",
               promotionStatus: "Promoted / Good standing"
@@ -2078,39 +2564,81 @@ export class AcademicsService {
       ];
     }
 
+    const search = query.search?.trim();
+    const where: Prisma.BroadsheetWhereInput = {
+      schoolId: session.schoolId
+    };
+
+    if (query.termId) where.termId = query.termId;
+    if (query.sessionId) where.academicSessionId = query.sessionId;
+    if (query.classId) where.classId = query.classId;
+    if (query.status) where.status = query.status as never;
+    if (query.approvalStage) where.approvalStage = query.approvalStage as never;
+    if (query.published === "yes") where.publishedAt = { not: null };
+    if (query.published === "no") where.publishedAt = null;
+    if (!access.permissions.has("results.compile") && !access.permissions.has("results.publish")) {
+      where.classId = { in: Array.from(access.classTeacherClassIds) };
+    }
+    if (search) {
+      where.classRoom = {
+        OR: [
+          { name: { contains: search, mode: "insensitive" } },
+          { arm: { contains: search, mode: "insensitive" } },
+          { classLevel: { name: { contains: search, mode: "insensitive" } } }
+        ]
+      };
+    }
+
     const broadsheets = await prisma.broadsheet.findMany({
-      where: { schoolId: session.schoolId },
-      include: { classRoom: true, term: { include: { academicSession: true } }, approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } } },
+      where,
+      include: {
+        classRoom: {
+          include: {
+            classLevel: true,
+            classTeacher: { select: { firstName: true, lastName: true } }
+          }
+        },
+        term: { include: { academicSession: true } },
+        approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } }
+      },
       orderBy: [{ updatedAt: "desc" }],
-      take: 100
+      take: 200
     });
 
     return broadsheets.map((broadsheet) => this.mapBroadsheet(broadsheet));
   }
 
   async getBroadsheet(session: SessionPayload, broadsheetId: string): Promise<BroadsheetView> {
-    assertAcademicApprover(session);
     if (env.DEMO_MODE) {
       return { ...(await this.listBroadsheets(session))[0], id: broadsheetId };
     }
 
     const broadsheet = await prisma.broadsheet.findFirst({
       where: { id: broadsheetId, schoolId: session.schoolId },
-      include: { classRoom: true, term: { include: { academicSession: true } }, approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } } }
+      include: {
+        classRoom: {
+          include: {
+            classLevel: true,
+            classTeacher: { select: { firstName: true, lastName: true } }
+          }
+        },
+        term: { include: { academicSession: true } },
+        approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } }
+      }
     });
     if (!broadsheet) throw new NotFoundException("Broadsheet not found.");
+    await this.assertBroadsheetWorkspaceAccess(session, broadsheet.classId, broadsheet.termId);
     return this.mapBroadsheet(broadsheet);
   }
 
   async reviewBroadsheet(session: SessionPayload, payload: unknown): Promise<BroadsheetView> {
-    assertAcademicApprover(session);
     const parsed = broadsheetActionSchema.parse(payload);
     if (env.DEMO_MODE) {
       const broadsheet = await this.getBroadsheet(session, parsed.broadsheetId);
       return {
         ...broadsheet,
-        status: parsed.action === "PUBLISH" ? "PUBLISHED" : broadsheet.status,
-        approvalStage: parsed.action === "PUBLISH" ? "PUBLISHED" : getNextAcademicApprovalStage(broadsheet.approvalStage),
+        status: parsed.action === "PUBLISH" ? "PUBLISHED" : parsed.action === "UNLOCK" ? "APPROVED" : broadsheet.status,
+        approvalStage: parsed.action === "PUBLISH" ? "PUBLISHED" : broadsheet.approvalStage,
         approvals: [
           {
             id: randomUUID(),
@@ -2126,39 +2654,103 @@ export class AcademicsService {
     }
 
     const broadsheet = await prisma.broadsheet.findFirst({
-      where: { id: parsed.broadsheetId, schoolId: session.schoolId }
+      where: { id: parsed.broadsheetId, schoolId: session.schoolId },
+      include: {
+        classRoom: {
+          include: {
+            classLevel: true,
+            classTeacher: { select: { firstName: true, lastName: true } }
+          }
+        }
+      }
     });
     if (!broadsheet) throw new NotFoundException("Broadsheet not found.");
+
+    const access = await this.assertBroadsheetActionAccess(session, broadsheet);
     if (!canAdvanceAcademicApproval(broadsheet.approvalStage, parsed.action)) {
       throw new BadRequestException(`Cannot ${parsed.action.toLowerCase().replaceAll("_", " ")} from ${broadsheet.approvalStage}.`);
     }
-    if (parsed.action === "PUBLISH" || (broadsheet.approvalStage === "PRINCIPAL" && parsed.action === "APPROVE")) {
-      assertFinalAcademicApprover(session);
+    if (["REQUEST_CORRECTION", "REJECT"].includes(parsed.action) && !parsed.note?.trim()) {
+      throw new BadRequestException("A review note is required when returning or rejecting a broadsheet.");
+    }
+    if (["APPROVE", "PUBLISH"].includes(parsed.action) && Array.isArray(broadsheet.missingScoreWarnings) && broadsheet.missingScoreWarnings.length > 0) {
+      throw new BadRequestException("Incomplete broadsheets cannot be approved or published until all missing scores are resolved.");
+    }
+    if (parsed.action === "PUBLISH" && !access.permissions.has("results.publish")) {
+      throw new ForbiddenException("You do not have permission to publish broadsheets.");
+    }
+    if (parsed.action === "UNLOCK" && !access.permissions.has("results.publish")) {
+      throw new ForbiddenException("Only final approvers can unlock a published broadsheet.");
     }
     if (parsed.action === "PUBLISH" && broadsheet.status !== "APPROVED") {
-      throw new BadRequestException("Broadsheet must be approved before publishing report cards.");
+      throw new BadRequestException("Broadsheets must be approved before publishing report cards.");
     }
 
+    const correctionStage = broadsheet.classRoom.classTeacherId ? "CLASS_TEACHER" : "EXAM_OFFICER";
     const now = new Date();
-    const nextStage = parsed.action === "APPROVE" ? getNextAcademicApprovalStage(broadsheet.approvalStage) : broadsheet.approvalStage;
-    const data =
-      parsed.action === "REJECT" || parsed.action === "REQUEST_CORRECTION"
-        ? { status: "CORRECTION_REQUESTED" as const }
-        : parsed.action === "PUBLISH"
-          ? { status: "PUBLISHED" as const, approvalStage: "PUBLISHED" as const, publishedAt: now, lockedAt: now }
-          : parsed.action === "UNLOCK"
-            ? { status: "APPROVED" as const, approvalStage: "PRINCIPAL" as const, lockedAt: null, publishedAt: null }
-            : {
-                status: nextStage === "PUBLISHED" ? ("APPROVED" as const) : ("IN_REVIEW" as const),
-                approvalStage: nextStage,
-                approvedAt: nextStage === "PUBLISHED" ? now : broadsheet.approvedAt
-              };
+
+    let updateData:
+      | {
+          status: "CORRECTION_REQUESTED" | "PUBLISHED" | "APPROVED" | "IN_REVIEW";
+          approvalStage?: "CLASS_TEACHER" | "EXAM_OFFICER" | "VICE_PRINCIPAL_ACADEMICS" | "PRINCIPAL" | "PUBLISHED";
+          approvedAt?: Date | null;
+          publishedAt?: Date | null;
+          lockedAt?: Date | null;
+        }
+      = { status: broadsheet.status as "CORRECTION_REQUESTED" | "PUBLISHED" | "APPROVED" | "IN_REVIEW" };
+
+    if (parsed.action === "REQUEST_CORRECTION" || parsed.action === "REJECT") {
+      updateData = {
+        status: "CORRECTION_REQUESTED",
+        approvalStage: correctionStage,
+        approvedAt: null,
+        publishedAt: null,
+        lockedAt: null
+      };
+    } else if (parsed.action === "UNLOCK") {
+      updateData = {
+        status: "APPROVED",
+        approvalStage: "PRINCIPAL",
+        publishedAt: null,
+        lockedAt: null
+      };
+    } else if (parsed.action === "PUBLISH") {
+      updateData = {
+        status: "PUBLISHED",
+        approvalStage: "PUBLISHED",
+        publishedAt: now,
+        lockedAt: now
+      };
+    } else if (parsed.action === "APPROVE") {
+      if (broadsheet.approvalStage === "PRINCIPAL") {
+        updateData = {
+          status: "APPROVED",
+          approvalStage: "PRINCIPAL",
+          approvedAt: now
+        };
+      } else {
+        updateData = {
+          status: "IN_REVIEW",
+          approvalStage: getNextAcademicApprovalStage(broadsheet.approvalStage) as "EXAM_OFFICER" | "VICE_PRINCIPAL_ACADEMICS" | "PRINCIPAL" | "PUBLISHED"
+        };
+      }
+    }
 
     const updated = await prisma.broadsheet.update({
       where: { id: broadsheet.id },
-      data,
-      include: { classRoom: true, term: { include: { academicSession: true } }, approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } } }
+      data: updateData,
+      include: {
+        classRoom: {
+          include: {
+            classLevel: true,
+            classTeacher: { select: { firstName: true, lastName: true } }
+          }
+        },
+        term: { include: { academicSession: true } },
+        approvals: { include: { actor: true }, orderBy: { createdAt: "desc" } }
+      }
     });
+
     await prisma.broadsheetApprovalHistory.create({
       data: {
         schoolId: session.schoolId,
@@ -2169,6 +2761,7 @@ export class AcademicsService {
         note: parsed.note
       }
     });
+
     if (parsed.action === "PUBLISH") {
       await prisma.reportCard.updateMany({
         where: { schoolId: session.schoolId, broadsheetId: broadsheet.id },
@@ -2179,9 +2772,21 @@ export class AcademicsService {
         data: { status: "PUBLISHED", publishedAt: now, lockedAt: now }
       });
     }
+
+    if (parsed.action === "UNLOCK") {
+      await prisma.reportCard.updateMany({
+        where: { schoolId: session.schoolId, broadsheetId: broadsheet.id },
+        data: { status: "GENERATED", publishedAt: null, lockedAt: null }
+      });
+      await prisma.resultSheet.updateMany({
+        where: { schoolId: session.schoolId, termId: broadsheet.termId, classId: broadsheet.classId },
+        data: { status: "APPROVED", publishedAt: null, lockedAt: null }
+      });
+    }
+
     await this.notifyAcademicWorkflow({
       schoolId: session.schoolId,
-      title: parsed.action === "PUBLISH" ? "Results published" : "Broadsheet review updated",
+      title: parsed.action === "PUBLISH" ? "Results published" : "Broadsheet workflow updated",
       body: `Broadsheet ${parsed.action.toLowerCase().replaceAll("_", " ")} by ${session.name}.`,
       metadata: { broadsheetId: broadsheet.id, action: parsed.action, stage: broadsheet.approvalStage }
     });

@@ -4,7 +4,8 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { ReportCardView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
@@ -12,7 +13,7 @@ import { formatNigeriaClassName } from "@/lib/school-options";
 export default async function ReportCardsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/academics/results")) {
+  if (!(await canAccessServerPath(session, "/academics/results/report-cards"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

@@ -20,6 +20,7 @@ import { RolesManagementModule } from "./modules/roles-management/roles-manageme
 import { StaffModule } from "./modules/staff/staff.module";
 import { StudentPortalModule } from "./modules/student-portal/student-portal.module";
 import { SuperAdminModule } from "./modules/super-admin/super-admin.module";
+import { SchemeOfWorkModule } from "./modules/scheme-of-work/scheme-of-work.module";
 import { TeacherPortalModule } from "./modules/teacher-portal/teacher-portal.module";
 import { StudentsModule } from "./modules/students/students.module";
 import { TeachersModule } from "./modules/teachers/teachers.module";
@@ -43,6 +44,7 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     RolesManagementModule,
     ProfileModule,
     StaffModule,
+    SchemeOfWorkModule,
     OperationsModule,
     ParentPortalModule,
     ParentsModule,

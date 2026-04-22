@@ -1,4 +1,4 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -38,6 +38,16 @@ export class StudentPortalController {
   @Get("timetable")
   async timetable(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.studentPortalService.getStudentTimetable(session) };
+  }
+
+  @Get("subjects")
+  async subjects(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.studentPortalService.getStudentSubjects(session) };
+  }
+
+  @Get("subjects/:subjectId/scheme-of-work")
+  async subjectSchemeOfWork(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
+    return { ok: true, data: await this.studentPortalService.getStudentSubjectSchemeOfWork(session, subjectId) };
   }
 
   @Get("assignments")

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -72,8 +72,15 @@ export class AcademicsController {
   @Get("subjects")
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermission("subjects.view")
-  async subjects(@CurrentSession() session: SessionPayload) {
-    return { ok: true, data: await this.academicsService.listSubjects(session) };
+  async subjects(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
+    return { ok: true, data: await this.academicsService.listSubjects(session, query) };
+  }
+
+  @Get("subjects/teacher-options")
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("subjects.assign")
+  async subjectTeacherOptions(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
+    return { ok: true, data: await this.academicsService.listSubjectTeacherOptions(session, query) };
   }
 
   @Get("subjects/:subjectId")
@@ -158,39 +165,43 @@ export class AcademicsController {
   }
 
   @Get("broadsheets")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
-  async broadsheets(@CurrentSession() session: SessionPayload) {
-    return { ok: true, data: await this.academicsService.listBroadsheets(session) };
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("results.view")
+  async broadsheets(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
+    return { ok: true, data: await this.academicsService.listBroadsheets(session, query) };
   }
 
   @Post("broadsheets/compile")
-  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("results.compile")
   async compileBroadsheet(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.compileBroadsheet(session, body) };
   }
 
   @Get("broadsheets/:broadsheetId")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("results.view")
   async broadsheet(@CurrentSession() session: SessionPayload, @Param("broadsheetId") broadsheetId: string) {
     return { ok: true, data: await this.academicsService.getBroadsheet(session, broadsheetId) };
   }
 
   @Post("broadsheets/review")
-  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("results.view")
   async reviewBroadsheet(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.reviewBroadsheet(session, body) };
   }
 
   @Get("report-cards")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("results.view")
   async reportCards(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listReportCards(session) };
   }
 
   @Get("approval-queue")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @UseGuards(SessionGuard, PermissionsGuard)
+  @RequirePermission("results.approve")
   async approvalQueue(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listApprovalQueue(session) };
   }
