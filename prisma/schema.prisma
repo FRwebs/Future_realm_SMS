@@ -157,6 +157,29 @@ enum CurriculumProgressStatus {
   COMPLETED
 }
 
+enum SchemeOfWorkStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  RETURNED
+}
+
+enum SchemeOfWorkWeekType {
+  TEACHING
+  REVISION
+  EXAM
+  HOLIDAY
+  ACTIVITY
+}
+
+enum TopicUnderstanding {
+  EXCELLENT
+  GOOD
+  AVERAGE
+  BELOW_AVERAGE
+  POOR
+}
+
 enum TrainingCategory {
   PEDAGOGY
   CLASSROOM_MANAGEMENT
@@ -567,7 +590,12 @@ model School {
   leaveRequests                 LeaveRequest[]
   staffAttendancePolicy         StaffAttendancePolicy?
   staffAttendanceAudits         StaffAttendanceAudit[]
+  subjectCategories             SubjectCategory[]
   curriculumTopics              CurriculumTopic[]
+  schemeOfWork                  SchemeOfWork[]
+  sowTopics                     SowTopic[]
+  sowTopicResources             SowTopicResource[]
+  studentTopicProgress          StudentTopicProgress[]
   trainingPrograms              TrainingProgram[]
   trainingParticipants          TrainingParticipant[]
   admissionConfigs              AdmissionConfig[]
@@ -694,6 +722,7 @@ model AcademicSession {
   terms                         Term[]
   classAcademicAssignments       ClassAcademicAssignment[]
   curriculumTopics              CurriculumTopic[]
+  schemeOfWork                  SchemeOfWork[]
   promotionsFrom                PromotionRecord[]              @relation("PromotionFromSession")
   promotionsTo                  PromotionRecord[]              @relation("PromotionToSession")
   hostelAllocs                  HostelAllocation[]
@@ -736,6 +765,7 @@ model Term {
   exams                         ExamTimetableEntry[]
   resultPublications            ResultPublication[]
   curriculumTopics              CurriculumTopic[]
+  schemeOfWork                  SchemeOfWork[]
   AdmissionApplication          AdmissionApplication[]
   AdmissionConfig               AdmissionConfig[]
   academicAssessments           AcademicAssessment[]
@@ -765,6 +795,21 @@ model Department {
   resultEntryWindows ResultEntryWindow[]
 
   @@unique([schoolId, code])
+}
+
+model SubjectCategory {
+  id          String    @id @default(cuid())
+  schoolId    String?
+  name        String
+  description String?
+  sortOrder   Int       @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  school      School?   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subjects    Subject[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, sortOrder])
 }
 
 model ClassLevel {
@@ -833,6 +878,7 @@ model ClassRoom {
   academicAssignments           ClassAcademicAssignment[]
   studentSkills                 StudentSkill[]
   timetablePublishLogs          TimetablePublishLog[]
+  schemeOfWork                  SchemeOfWork[]
 
   @@unique([schoolId, name, arm])
   @@index([schoolId, isActive, deletedAt])
@@ -1051,6 +1097,12 @@ model User {
   privacyRequestsHandled      DataPrivacyRequest[]        @relation("PrivacyRequestHandler")
   knowledgeBaseArticles       KnowledgeBaseArticle[]      @relation("KnowledgeBaseAuthor")
   maintenanceWindowsCreated   MaintenanceWindow[]         @relation("MaintenanceWindowCreator")
+  teachingSchemeOfWork        SchemeOfWork[]             @relation("SchemeOfWorkTeacher")
+  submittedSchemeOfWork       SchemeOfWork[]             @relation("SchemeOfWorkSubmittedBy")
+  approvedSchemeOfWork        SchemeOfWork[]             @relation("SchemeOfWorkApprovedBy")
+  coveredSowTopics            SowTopic[]                 @relation("SowTopicCoveredBy")
+  uploadedSowTopicResources   SowTopicResource[]         @relation("SowTopicResourceUploadedBy")
+  assessedStudentTopicProgress StudentTopicProgress[]    @relation("StudentTopicProgressAssessedBy")
 }
 
 model ProfileDocument {
@@ -1259,6 +1311,7 @@ model Student {
   parentMeetings                ParentMeeting[]
   examSeatingPlans              ExamSeatingPlan[]
   subjectCombinations           SubjectCombination[]
+  topicProgress                 StudentTopicProgress[]
 
   @@unique([schoolId, admissionNumber])
   @@index([schoolId, currentClassId])
@@ -1641,8 +1694,10 @@ model Subject {
   id                            String                         @id @default(cuid())
   schoolId                      String
   departmentId                  String?
+  subjectCategoryId             String?
   school                        School                         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   department                    Department?                    @relation(fields: [departmentId], references: [id], onDelete: SetNull)
+  subjectCategory               SubjectCategory?               @relation(fields: [subjectCategoryId], references: [id], onDelete: SetNull)
   name                          String
   code                          String
   section                       SchoolSection?
@@ -1675,10 +1730,12 @@ model Subject {
   assignments                   Assignment[]
   curriculumTopics              CurriculumTopic[]
   teacherHistory                SubjectTeacherHistory[]
+  schemeOfWork                  SchemeOfWork[]
 
   @@unique([schoolId, code])
   @@index([schoolId, isActive, deletedAt])
   @@index([schoolId, departmentId])
+  @@index([schoolId, subjectCategoryId])
 }
 
 model CurriculumTopic {
@@ -1710,6 +1767,109 @@ model CurriculumTopic {
   @@unique([schoolId, termId, classId, subjectId, weekNumber, topic])
   @@index([schoolId, termId, classId, subjectId, status])
   @@index([schoolId, teacherId, progressStatus])
+}
+
+model SchemeOfWork {
+  id                String             @id @default(cuid())
+  schoolId          String
+  subjectId         String
+  classId           String
+  academicSessionId String
+  termId            String
+  teacherId         String?
+  status            SchemeOfWorkStatus @default(DRAFT)
+  submittedAt       DateTime?
+  submittedById     String?
+  approvedAt        DateTime?
+  approvedById      String?
+  returnReason      String?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subject           Subject            @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  classRoom         ClassRoom          @relation(fields: [classId], references: [id], onDelete: Cascade)
+  academicSession   AcademicSession    @relation(fields: [academicSessionId], references: [id], onDelete: Cascade)
+  term              Term               @relation(fields: [termId], references: [id], onDelete: Cascade)
+  teacher           User?              @relation("SchemeOfWorkTeacher", fields: [teacherId], references: [id], onDelete: SetNull)
+  submittedBy       User?              @relation("SchemeOfWorkSubmittedBy", fields: [submittedById], references: [id], onDelete: SetNull)
+  approvedBy        User?              @relation("SchemeOfWorkApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  topics            SowTopic[]
+  lessonPlans       LessonPlan[]
+
+  @@unique([subjectId, classId, termId])
+  @@index([schoolId, termId, status])
+  @@index([schoolId, teacherId, termId])
+  @@index([schoolId, classId, subjectId])
+}
+
+model SowTopic {
+  id                    String                @id @default(cuid())
+  schoolId              String
+  schemeOfWorkId        String
+  weekNumber            Int
+  topic                 String
+  subtopics             Json?
+  behaviouralObjectives String?
+  content               String?
+  teachingMethods       Json?
+  teachingAids          Json?
+  referenceMaterials    Json?
+  evaluation            String?
+  assignment            String?
+  isCovered             Boolean               @default(false)
+  coveredDate           DateTime?
+  coveredById           String?
+  actualTopicTaught     String?
+  coverageNotes         String?
+  weekType              SchemeOfWorkWeekType  @default(TEACHING)
+  sortOrder             Int                   @default(0)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+  school                School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schemeOfWork          SchemeOfWork          @relation(fields: [schemeOfWorkId], references: [id], onDelete: Cascade)
+  coveredBy             User?                 @relation("SowTopicCoveredBy", fields: [coveredById], references: [id], onDelete: SetNull)
+  resources             SowTopicResource[]
+  lessonPlans           LessonPlan[]          @relation("LessonPlanSowTopic")
+  studentProgress       StudentTopicProgress[]
+
+  @@unique([schemeOfWorkId, weekNumber])
+  @@index([schoolId, schemeOfWorkId, isCovered])
+  @@index([schoolId, weekType, weekNumber])
+}
+
+model SowTopicResource {
+  id           String   @id @default(cuid())
+  schoolId     String
+  sowTopicId   String
+  resourceType String
+  title        String
+  url          String?
+  filePath     String?
+  uploadedById String?
+  createdAt    DateTime @default(now())
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sowTopic     SowTopic @relation(fields: [sowTopicId], references: [id], onDelete: Cascade)
+  uploadedBy   User?    @relation("SowTopicResourceUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, sowTopicId, createdAt])
+}
+
+model StudentTopicProgress {
+  id            String            @id @default(cuid())
+  schoolId      String
+  sowTopicId    String
+  studentId     String
+  understanding TopicUnderstanding?
+  assessedById  String?
+  assessedAt    DateTime          @default(now())
+  notes         String?
+  school        School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sowTopic      SowTopic          @relation(fields: [sowTopicId], references: [id], onDelete: Cascade)
+  student       Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assessedBy    User?             @relation("StudentTopicProgressAssessedBy", fields: [assessedById], references: [id], onDelete: SetNull)
+
+  @@unique([sowTopicId, studentId])
+  @@index([schoolId, studentId, assessedAt])
 }
 
 model ClassSubject {
@@ -2776,6 +2936,8 @@ model LessonPlan {
   subjectId         String
   teacherId         String
   departmentId      String?
+  schemeOfWorkId    String?
+  sowTopicId        String?
   weekNumber        Int
   topic             String
   objectives        String
@@ -2797,6 +2959,8 @@ model LessonPlan {
   teacher           User             @relation("LessonPlanTeacher", fields: [teacherId], references: [id], onDelete: Cascade)
   department        Department?      @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   approvedBy        User?            @relation("LessonPlanApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  schemeOfWork      SchemeOfWork?    @relation(fields: [schemeOfWorkId], references: [id], onDelete: SetNull)
+  sowTopic          SowTopic?        @relation("LessonPlanSowTopic", fields: [sowTopicId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, teacherId, status])
   @@index([schoolId, departmentId, status])

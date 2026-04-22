@@ -2,7 +2,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath, getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { FinanceDashboardView } from "@/lib/domain/types";
 import { feeGatewayOptions, formatNigeriaClassName, nigerianClassFieldOptions } from "@/lib/school-options";
@@ -11,12 +12,17 @@ import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 export default async function FinancePage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/finance")) {
+  if (!(await canAccessServerPath(session, "/finance"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const dashboard = await apiGet<FinanceDashboardView>("/api/v1/finance/dashboard");
-  const canManageFinance = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"]);
+  const [dashboard, permissions] = await Promise.all([
+    apiGet<FinanceDashboardView>("/api/v1/finance/dashboard"),
+    getServerPermissions(session),
+  ]);
+  const canManageFinance = permissions.some((permission) =>
+    ["fees.create", "fees.edit", "fees.collect", "fees.approve", "fees.apply_waiver", "fees.create_receipt"].includes(permission),
+  );
 
   return (
     <div className="grid gap-6">

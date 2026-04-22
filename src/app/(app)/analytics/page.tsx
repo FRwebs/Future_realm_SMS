@@ -3,7 +3,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { TrendCard } from "@/components/dashboard/trend-card";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { DashboardSummary, StudentRecordView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
@@ -12,7 +13,7 @@ import { formatCurrency, formatPercentage } from "@/lib/utils/formatters";
 export default async function AnalyticsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/analytics")) {
+  if (!(await canAccessServerPath(session, "/analytics"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

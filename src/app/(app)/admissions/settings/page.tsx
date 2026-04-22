@@ -3,7 +3,8 @@ import Link from "next/link";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { AdmissionConfigView } from "@/lib/domain/types";
 import { formatCurrency } from "@/lib/utils/formatters";
@@ -11,7 +12,7 @@ import { formatCurrency } from "@/lib/utils/formatters";
 export default async function AdmissionSettingsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/admissions")) {
+  if (!(await canAccessServerPath(session, "/admissions/settings"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

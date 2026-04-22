@@ -4,7 +4,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { allRoles, canAccessPath, getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
+import { allRoles, getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { MyPermissionsView, SchoolRoleView } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -61,7 +62,7 @@ function FieldLine({ label, value }: { label: string; value?: string | number | 
 export default async function StaffDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/school/staff")) {
+  if (!(await canAccessServerPath(session, "/school/staff"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

@@ -126,11 +126,22 @@ export class StudentPortalService {
 
   private async getSubjectOfferings(session: SessionPayload, classId?: string | null): Promise<PortalSubjectOffering[]> {
     if (!classId) return [];
-    const assignments = await prisma.classSubject.findMany({
-      where: { schoolId: session.schoolId, classId, isActive: true },
-      include: { subject: { include: { department: true } } },
-      orderBy: [{ subject: { sortOrder: "asc" } }, { subject: { name: "asc" } }]
-    });
+    const [term, assignments] = await Promise.all([
+      this.currentTerm(session.schoolId),
+      prisma.classSubject.findMany({
+        where: {
+          schoolId: session.schoolId,
+          classId,
+          isActive: true,
+          subject: {
+            deletedAt: null,
+            isActive: true
+          }
+        },
+        include: { subject: { include: { department: true } } },
+        orderBy: [{ subject: { sortOrder: "asc" } }, { subject: { name: "asc" } }]
+      })
+    ]);
     const teacherIds = assignments.map((item) => item.teacherId).filter(Boolean) as string[];
     const teachers = teacherIds.length
       ? new Map(
@@ -142,6 +153,33 @@ export class StudentPortalService {
           ).map((teacher) => [teacher.id, `${teacher.firstName} ${teacher.lastName}`])
         )
       : new Map<string, string>();
+    const schemeRows = term
+      ? await prisma.schemeOfWork.findMany({
+          where: { schoolId: session.schoolId, classId, termId: term.id },
+          include: {
+            topics: {
+              select: { weekType: true, isCovered: true }
+            }
+          }
+        })
+      : [];
+    const schemeBySubject = new Map(
+      schemeRows.map((row) => {
+        const teachingWeeks = row.topics.filter((item) => item.weekType === "TEACHING").length;
+        const coveredWeeks = row.topics.filter((item) => item.weekType === "TEACHING" && item.isCovered).length;
+        const coveragePercent = teachingWeeks === 0 ? 0 : Number(((coveredWeeks / teachingWeeks) * 100).toFixed(0));
+        return [
+          row.subjectId,
+          {
+            id: row.id,
+            status: row.status,
+            teachingWeeks,
+            coveredWeeks,
+            coveragePercent
+          }
+        ];
+      })
+    );
 
     return assignments.map((assignment) => ({
       id: assignment.subject.id,
@@ -152,7 +190,12 @@ export class StudentPortalService {
       teacherName: assignment.teacherId ? teachers.get(assignment.teacherId) : undefined,
       periodsPerWeek: assignment.subject.periodsPerWeek,
       isCore: assignment.subject.isCore,
-      isOptional: assignment.subject.isOptional
+      isOptional: assignment.subject.isOptional,
+      schemeOfWorkId: schemeBySubject.get(assignment.subjectId)?.id,
+      schemeStatus: schemeBySubject.get(assignment.subjectId)?.status,
+      coveragePercent: schemeBySubject.get(assignment.subjectId)?.coveragePercent,
+      coveredWeeks: schemeBySubject.get(assignment.subjectId)?.coveredWeeks,
+      teachingWeeks: schemeBySubject.get(assignment.subjectId)?.teachingWeeks
     }));
   }
 
@@ -182,6 +225,118 @@ export class StudentPortalService {
       progressStatus: topic.progressStatus,
       actualDateTaught: topic.actualDateTaught?.toISOString()
     }));
+  }
+
+  private async getSchemeOfWorkForClassSubject(session: SessionPayload, classId: string, subjectId: string) {
+    const assignment = await prisma.classSubject.findFirst({
+      where: {
+        schoolId: session.schoolId,
+        classId,
+        subjectId,
+        isActive: true,
+        subject: {
+          deletedAt: null,
+          isActive: true
+        }
+      },
+      select: { id: true }
+    });
+    if (!assignment) {
+      throw new NotFoundException("This subject is not currently assigned to your class.");
+    }
+
+    const term = await this.currentTerm(session.schoolId);
+    if (!term) throw new NotFoundException("No active term configured for this school.");
+
+    const sow = await prisma.schemeOfWork.findFirst({
+      where: { schoolId: session.schoolId, classId, subjectId, termId: term.id },
+      include: {
+        subject: true,
+        classRoom: { include: { classLevel: true } },
+        academicSession: true,
+        teacher: { select: { firstName: true, lastName: true, email: true, avatarUrl: true } },
+        approvedBy: { select: { firstName: true, lastName: true } },
+        topics: {
+          include: {
+            coveredBy: { select: { firstName: true, lastName: true } },
+            resources: true
+          },
+          orderBy: [{ weekNumber: "asc" }]
+        }
+      }
+    });
+    if (!sow) throw new NotFoundException("No scheme of work has been published for this subject yet.");
+
+    const teachingWeeks = sow.topics.filter((topic) => topic.weekType === "TEACHING");
+    const coveredWeeks = teachingWeeks.filter((topic) => topic.isCovered);
+    const coveragePercent = teachingWeeks.length === 0 ? 0 : Number(((coveredWeeks.length / teachingWeeks.length) * 100).toFixed(0));
+    const currentWeek = teachingWeeks.find((topic) => !topic.isCovered)?.weekNumber;
+
+    return {
+      id: sow.id,
+      schoolId: sow.schoolId,
+      subjectId: sow.subjectId,
+      classId: sow.classId,
+      academicSessionId: sow.academicSessionId,
+      termId: sow.termId,
+      teacherId: sow.teacherId ?? undefined,
+      status: sow.status,
+      returnReason: sow.returnReason ?? undefined,
+      submittedAt: sow.submittedAt?.toISOString(),
+      approvedAt: sow.approvedAt?.toISOString(),
+      subjectName: sow.subject.name,
+      subjectCode: sow.subject.code,
+      periodsPerWeek: sow.subject.periodsPerWeek,
+      requiresLab: sow.subject.requiresLab,
+      className: formatClassName(sow.classRoom.classLevel?.name ?? sow.classRoom.name, sow.classRoom.arm),
+      level: sow.classRoom.classLevel?.name ?? sow.classRoom.name,
+      section: sow.classRoom.section ?? undefined,
+      category: sow.classRoom.category ?? undefined,
+      arm: sow.classRoom.arm,
+      termName: term.name,
+      termNumber: term.order,
+      academicSessionName: sow.academicSession.name,
+      teacherName: sow.teacher ? `${sow.teacher.firstName} ${sow.teacher.lastName}` : undefined,
+      teacherEmail: sow.teacher?.email ?? undefined,
+      teacherAvatar: sow.teacher?.avatarUrl ?? undefined,
+      approvedByName: sow.approvedBy ? `${sow.approvedBy.firstName} ${sow.approvedBy.lastName}` : undefined,
+      topics: sow.topics.map((topic) => ({
+        id: topic.id,
+        weekNumber: topic.weekNumber,
+        topic: topic.topic,
+        subtopics: Array.isArray(topic.subtopics) ? topic.subtopics.map((item) => String(item)) : undefined,
+        behaviouralObjectives: topic.behaviouralObjectives ?? undefined,
+        content: topic.content ?? undefined,
+        teachingMethods: Array.isArray(topic.teachingMethods) ? topic.teachingMethods.map((item) => String(item)) : undefined,
+        teachingAids: Array.isArray(topic.teachingAids) ? topic.teachingAids.map((item) => String(item)) : undefined,
+        referenceMaterials: Array.isArray(topic.referenceMaterials) ? topic.referenceMaterials.map((item) => String(item)) : undefined,
+        evaluation: topic.evaluation ?? undefined,
+        assignment: topic.assignment ?? undefined,
+        isCovered: topic.isCovered,
+        coveredDate: topic.coveredDate?.toISOString(),
+        coveredByName: topic.coveredBy ? `${topic.coveredBy.firstName} ${topic.coveredBy.lastName}` : undefined,
+        actualTopicTaught: topic.actualTopicTaught ?? undefined,
+        coverageNotes: topic.coverageNotes ?? undefined,
+        weekType: topic.weekType,
+        sortOrder: topic.sortOrder,
+        resources: topic.resources.map((resource) => ({
+          id: resource.id,
+          resourceType: resource.resourceType,
+          title: resource.title,
+          url: resource.url ?? undefined,
+          filePath: resource.filePath ?? undefined,
+          createdAt: resource.createdAt.toISOString()
+        }))
+      })),
+      stats: {
+        totalWeeks: sow.topics.length,
+        teachingWeeks: teachingWeeks.length,
+        coveredWeeks: coveredWeeks.length,
+        coveragePercent,
+        currentWeek,
+        isOnTrack: true
+      }
+    };
   }
 
   async getStudentProfile(session: SessionPayload): Promise<StudentPortalProfileView> {
@@ -410,6 +565,19 @@ export class StudentPortalService {
       curriculumTopics,
       departmentTrack: resolveDepartmentTrack(student.currentClass)
     };
+  }
+
+  async getStudentSubjects(session: SessionPayload) {
+    const student = await this.getStudentContext(session);
+    return this.getSubjectOfferings(session, student.currentClassId);
+  }
+
+  async getStudentSubjectSchemeOfWork(session: SessionPayload, subjectId: string) {
+    const student = await this.getStudentContext(session);
+    if (!student.currentClassId) {
+      throw new NotFoundException("No active class is linked to this student.");
+    }
+    return this.getSchemeOfWorkForClassSubject(session, student.currentClassId, subjectId);
   }
 
   async getStudentAssignments(session: SessionPayload): Promise<StudentPortalAssignmentView[]> {

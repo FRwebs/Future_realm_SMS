@@ -6,7 +6,6 @@ import { PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 
 import { SessionUser } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
-import { getRoleAccent } from "@/lib/navigation/registry";
 import { getVisibleWorkflowNavGroups } from "@/lib/navigation/workflows";
 import { cn } from "@/lib/utils/cn";
 
@@ -48,7 +47,6 @@ function SidebarContent({
     permissions,
     portalType,
   );
-  const accent = getRoleAccent(session.role);
 
   const normalizedPath = normalizePath(pathname);
 
@@ -65,10 +63,10 @@ function SidebarContent({
       .sort((a, b) => b.length - a.length)[0] ?? null;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-white/70 bg-white/88 text-ink shadow-[0_14px_40px_rgba(18,33,23,0.08)] backdrop-blur-xl">
+    <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-brand-100/80 bg-[linear-gradient(180deg,rgba(246,250,247,0.98),rgba(235,244,238,0.96),rgba(255,255,255,0.94))] text-ink shadow-[0_20px_48px_rgba(37,89,63,0.12)] backdrop-blur-xl">
       <div
         className={cn(
-          "border-b border-ink/10",
+          "border-b border-brand-100/80 bg-[radial-gradient(circle_at_top_left,rgba(116,176,141,0.18),rgba(255,255,255,0.72),rgba(235,244,238,0.85))]",
           collapsed ? "px-3 py-4" : "px-5 py-5",
         )}
       >
@@ -76,8 +74,7 @@ function SidebarContent({
           <div className="flex flex-col items-center gap-3">
             <div
               className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-white shadow-md shadow-brand-950/20",
-                accent.active,
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 font-bold text-white shadow-[0_16px_34px_rgba(37,89,63,0.26)]",
               )}
             >
               {portalType === "super_admin" ? "SA" : "FR"}
@@ -87,7 +84,7 @@ function SidebarContent({
               type="button"
               onClick={onToggleCollapse}
               aria-label="Expand sidebar"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-ink/10 bg-white text-ink/55 transition hover:bg-sand/70 hover:text-ink"
+              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-100 bg-white/92 text-brand-700 transition hover:bg-brand-50 hover:text-brand-800"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
@@ -96,8 +93,7 @@ function SidebarContent({
           <div className="flex items-center gap-3">
             <div
               className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-bold text-white shadow-md shadow-brand-950/20",
-                accent.active,
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 font-bold text-white shadow-[0_16px_34px_rgba(37,89,63,0.26)]",
               )}
             >
               {portalType === "super_admin" ? "SA" : "FR"}
@@ -125,7 +121,7 @@ function SidebarContent({
                   type="button"
                   onClick={onToggleCollapse}
                   aria-label="Collapse sidebar"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-ink/10 bg-white text-ink/55 transition hover:bg-sand/70 hover:text-ink"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-100 bg-white/92 text-brand-700 transition hover:bg-brand-50 hover:text-brand-800"
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
@@ -136,7 +132,7 @@ function SidebarContent({
                   type="button"
                   onClick={onCloseMobile}
                   aria-label="Close mobile sidebar"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-ink/10 bg-white text-ink/55 transition hover:bg-sand/70 hover:text-ink"
+                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-100 bg-white/92 text-brand-700 transition hover:bg-brand-50 hover:text-brand-800"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -147,8 +143,8 @@ function SidebarContent({
       </div>
 
       {!collapsed && (
-        <div className="border-b border-ink/10 px-5 py-4">
-          <div className="rounded-2xl bg-sand/65 px-4 py-3 ring-1 ring-ink/10">
+        <div className="border-b border-brand-100/70 px-5 py-4">
+          <div className="rounded-2xl bg-white/88 px-4 py-3 ring-1 ring-brand-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
             <p className="mt-1 truncate text-sm font-semibold text-ink">
               {session.name}
             </p>
@@ -167,8 +163,8 @@ function SidebarContent({
           collapsed ? "px-2" : "px-3",
         )}
       >
-        <div className="pointer-events-none absolute inset-x-3 top-4 z-10 h-6 bg-gradient-to-b from-white to-transparent" />
-        <div className="pointer-events-none absolute inset-x-3 bottom-4 z-10 h-6 bg-gradient-to-t from-white to-transparent" />
+        <div className="pointer-events-none absolute inset-x-3 top-4 z-10 h-6 bg-gradient-to-b from-brand-50/95 to-transparent" />
+        <div className="pointer-events-none absolute inset-x-3 bottom-4 z-10 h-6 bg-gradient-to-t from-brand-50/95 to-transparent" />
 
         <nav className="sidebar-scroll h-full overflow-y-auto pr-1">
           <div className="grid gap-5 pb-4">
@@ -176,7 +172,7 @@ function SidebarContent({
               <section key={group.title} className="grid gap-2">
                 {!collapsed && (
                   <div className="px-3">
-                    <p className="text-[0.67rem] font-semibold uppercase tracking-[0.24em] text-ink/40">
+                    <p className="text-[0.67rem] font-semibold uppercase tracking-[0.24em] text-brand-700/70">
                       {group.title}
                     </p>
                   </div>
@@ -200,8 +196,8 @@ function SidebarContent({
                               ? "mx-auto h-12 w-12 justify-center p-0"
                               : "gap-3 px-4 py-3",
                             active
-                              ? `${accent.badge} ring-1 ring-white/60 shadow-[0_12px_28px_rgba(18,33,23,0.10)]`
-                              : "text-ink/65 hover:bg-sand/75 hover:text-ink hover:shadow-[0_8px_20px_rgba(18,33,23,0.05)]",
+                              ? "border border-brand-100 bg-gradient-to-r from-brand-50 via-emerald-50 to-white text-brand-900 ring-1 ring-white/70 shadow-[0_14px_30px_rgba(37,89,63,0.14)]"
+                              : "text-ink/65 hover:bg-brand-50/75 hover:text-brand-900 hover:shadow-[0_8px_20px_rgba(37,89,63,0.08)]",
                           )}
                         >
                           <span
@@ -210,14 +206,14 @@ function SidebarContent({
                               collapsed
                                 ? "bottom-1.5 left-1/2 h-1.5 w-6 -translate-x-1/2"
                                 : "left-1 top-1/2 h-8 w-1 -translate-y-1/2",
-                              active ? accent.active : "bg-transparent",
+                              active ? "bg-brand-600" : "bg-transparent",
                             )}
                           />
 
                           <span
                             className={cn(
                               "absolute inset-0 rounded-2xl opacity-0 blur-xl transition-opacity duration-200",
-                              active && "bg-ink/5 opacity-100",
+                              active && "bg-brand-200/35 opacity-100",
                             )}
                           />
 
@@ -238,9 +234,9 @@ function SidebarContent({
 
                         {collapsed && !isMobile && (
                           <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 opacity-0 transition-all duration-200 group-hover/item:translate-x-0 group-hover/item:opacity-100">
-                            <div className="relative whitespace-nowrap rounded-xl border border-ink/10 bg-white px-3 py-2 text-xs font-medium text-ink shadow-[0_12px_30px_rgba(18,33,23,0.16)]">
+                            <div className="relative whitespace-nowrap rounded-xl border border-brand-100 bg-white px-3 py-2 text-xs font-medium text-ink shadow-[0_12px_30px_rgba(37,89,63,0.14)]">
                               {item.label}
-                              <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-ink/10 bg-white" />
+                              <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-brand-100 bg-white" />
                             </div>
                           </div>
                         )}
@@ -272,11 +268,13 @@ export function Sidebar({
     <>
       <aside
         className={cn(
-          "sticky top-0 z-40 hidden h-screen shrink-0 overflow-hidden bg-white p-3 transition-all duration-200 md:block",
-          collapsed ? "w-24 min-w-24" : "w-72 min-w-72",
+          "sticky top-0 z-40 hidden h-screen shrink-0 overflow-hidden bg-white p-0 transition-all duration-200 md:block",
+          collapsed
+            ? "w-[var(--layout-sidebar-collapsed)] min-w-[var(--layout-sidebar-collapsed)]"
+            : "w-[var(--layout-sidebar-width)] min-w-[var(--layout-sidebar-width)]",
         )}
       >
-        <div className="h-full">
+        <div className="h-full border-l-[3px] border-primary-500 p-3">
           <SidebarContent
             session={session}
             permissions={permissions}
@@ -290,7 +288,7 @@ export function Sidebar({
       </aside>
 
       {mobileOpen && (
-        <aside className="fixed inset-y-0 left-0 z-50 w-72 max-w-[calc(100vw-2rem)] bg-sand/30 p-3 md:hidden">
+        <aside className="fixed inset-y-0 left-0 z-50 w-[var(--layout-sidebar-width)] max-w-[calc(100vw-1rem)] bg-transparent md:hidden">
           <SidebarContent
             session={session}
             permissions={permissions}

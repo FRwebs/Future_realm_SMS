@@ -4,7 +4,8 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { TrendCard } from "@/components/dashboard/trend-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
+import { getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { DashboardSummary } from "@/lib/domain/types";
 import { getRoleAccent } from "@/lib/navigation/registry";
@@ -70,7 +71,7 @@ function dashboardTitle(role: string, name: string) {
 export default async function DashboardPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/dashboard")) {
+  if (!(await canAccessServerPath(session, "/dashboard"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

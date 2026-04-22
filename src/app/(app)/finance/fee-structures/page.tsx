@@ -2,7 +2,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath, getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { FeeStructureView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
@@ -11,10 +12,15 @@ import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 export default async function FeeStructuresPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/finance")) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
+  if (!(await canAccessServerPath(session, "/finance"))) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
-  const structures = await apiGet<FeeStructureView[]>("/api/v1/finance/fee-structures");
-  const canManageFinance = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"]);
+  const [structures, permissions] = await Promise.all([
+    apiGet<FeeStructureView[]>("/api/v1/finance/fee-structures"),
+    getServerPermissions(session),
+  ]);
+  const canManageFinance = permissions.some((permission) =>
+    ["fees.create", "fees.edit", "fees.delete"].includes(permission),
+  );
 
   return (
     <div className="grid gap-6">

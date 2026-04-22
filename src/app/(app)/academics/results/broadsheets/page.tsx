@@ -4,22 +4,96 @@ import type { Route } from "next";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath, getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { BroadsheetView } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
-export default async function BroadsheetsPage() {
+type BroadsheetsPageProps = {
+  searchParams?: Promise<{
+    search?: string;
+    sessionId?: string;
+    termId?: string;
+    classId?: string;
+    status?: string;
+    approvalStage?: string;
+    published?: string;
+  }>;
+};
+
+type ClassesPayload = {
+  data: Array<{ id: string; name: string; arm?: string; category?: string }>;
+};
+
+type SessionTermPayload = {
+  records: Array<{
+    id: string;
+    name: string;
+    terms?: Array<{ id: string; name: string }>;
+  }>;
+};
+
+function queryString(params: Record<string, string | undefined>) {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([key, value]) => {
+    if (value) query.set(key, value);
+  });
+  const stringified = query.toString();
+  return stringified ? `?${stringified}` : "";
+}
+
+function SummaryCard({ label, value, tone = "ink" }: { label: string; value: string | number; tone?: "ink" | "brand" | "emerald" | "amber" }) {
+  const toneClasses = {
+    ink: "text-ink",
+    brand: "text-brand-700",
+    emerald: "text-emerald-700",
+    amber: "text-amber-700"
+  };
+
+  return (
+    <article className="rounded-[1.5rem] border border-white/60 bg-white/90 p-5 shadow-sm">
+      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-ink/45">{label}</p>
+      <p className={`mt-3 font-[var(--font-heading)] text-3xl font-bold ${toneClasses[tone]}`}>{value}</p>
+    </article>
+  );
+}
+
+export default async function BroadsheetsPage({ searchParams }: BroadsheetsPageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/academics/results") || ["TEACHER", "SUBJECT_TEACHER"].includes(session.role)) {
+  if (!(await canAccessServerPath(session, "/academics/results/broadsheets"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const broadsheets = await apiGet<BroadsheetView[]>("/api/v1/academics/broadsheets");
-  const canManage = canManagePath(session.role, "/academics/results") && !["TEACHER", "SUBJECT_TEACHER"].includes(session.role);
+  const params = searchParams ? await searchParams : {};
+  const [broadsheets, permissions, classesPayload, sessionTerms] = await Promise.all([
+    apiGet<BroadsheetView[]>(`/api/v1/academics/broadsheets${queryString(params)}`),
+    getServerPermissions(session),
+    apiGet<ClassesPayload>("/api/v1/classes").catch(() => ({ data: [] })),
+    apiGet<SessionTermPayload>("/api/v1/configuration/sessions-terms").catch(() => ({ records: [] }))
+  ]);
+
+  const canCompile = permissions.includes("results.compile");
+  const classes = classesPayload.data ?? [];
+  const sessionOptions = sessionTerms.records.map((item) => ({ label: item.name, value: item.id }));
+  const termOptions = sessionTerms.records.flatMap((item) => (item.terms ?? []).map((term) => ({ label: `${item.name} · ${term.name}`, value: term.id })));
+  const classOptions = classes.map((item) => ({ label: item.arm ? `${item.name} - ${item.arm}` : item.name, value: item.id }));
+
+  const totals = {
+    count: broadsheets.length,
+    published: broadsheets.filter((item) => item.status === "PUBLISHED").length,
+    flagged: broadsheets.filter((item) => item.missingScoreWarnings.length > 0).length,
+    classAverage:
+      broadsheets.length === 0
+        ? 0
+        : Math.round(
+            broadsheets.reduce((sum, item) => sum + (item.metrics?.classAverage ?? 0), 0) / broadsheets.length
+          )
+  };
 
   return (
     <div className="grid gap-6">
@@ -27,35 +101,124 @@ export default async function BroadsheetsPage() {
         <Link href="/academics/results" className="text-sm font-semibold text-brand-700">Back to results</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Exam office workspace</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">Broadsheet compilation</h1>
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Canonical class result workspace</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">Broadsheets</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
-              Compile Nigerian-style class broadsheets, surface missing-score warnings, track moderation stages, and generate report-card records.
+              Review class result completeness, workflow state, publication readiness, and exportable term summaries from one consolidated broadsheet module.
             </p>
           </div>
-          {canManage ? (
+          {canCompile ? (
             <ResourceActionDialog
               triggerLabel="Compile broadsheet"
               title="Compile broadsheet"
-              description="Use a class ID from class management to compile a term broadsheet and generate report-card records."
+              description="Compile a full class broadsheet for the selected term. The system will flag missing subject scores, update report-card snapshots, and route the broadsheet into review."
               endpoint="/api/v1/academics/broadsheets/compile"
-              submitLabel="Compile"
-              confirmLabel="Confirm compilation"
-              confirmMessage="Compilation will fail with visible warnings if required subject scores are missing."
+              submitLabel="Compile broadsheet"
+              confirmLabel="Compile now"
+              confirmMessage="This will refresh the canonical broadsheet and replace any earlier draft snapshot for the same class and term."
               fields={[
-                { name: "classId", label: "Class ID", required: true, placeholder: "class_jss2_gold" },
-                { name: "termId", label: "Term ID", placeholder: "Optional current term ID" },
-                { name: "rankingEnabled", label: "Ranking enabled", type: "select", options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] }
+                {
+                  name: "classId",
+                  label: "Class",
+                  type: "select",
+                  required: true,
+                  options: [{ label: "Select class", value: "" }, ...classOptions]
+                },
+                {
+                  name: "termId",
+                  label: "Term",
+                  type: "select",
+                  options: [{ label: "Use current term", value: "" }, ...termOptions]
+                },
+                {
+                  name: "rankingEnabled",
+                  label: "Ranking",
+                  type: "select",
+                  defaultValue: "true",
+                  options: [
+                    { label: "Enable class ranking", value: "true" },
+                    { label: "Disable class ranking", value: "false" }
+                  ]
+                }
               ]}
             />
           ) : null}
         </div>
       </section>
 
+      <div className="grid gap-4 md:grid-cols-4">
+        <SummaryCard label="Broadsheets" value={totals.count} />
+        <SummaryCard label="Published" value={totals.published} tone="emerald" />
+        <SummaryCard label="Flagged" value={totals.flagged} tone="amber" />
+        <SummaryCard label="Average Class Mean" value={`${totals.classAverage}%`} tone="brand" />
+      </div>
+
+      <FilterToolbar
+        action={"/academics/results/broadsheets" as Route}
+        title="Filter broadsheets"
+        description="Query the broadsheet register by session, term, class, workflow status, approval stage, publication state, or class search."
+        resultCount={broadsheets.length}
+        activeSummary={[
+          params.search ? `Search: ${params.search}` : "",
+          params.sessionId ? `Session selected` : "",
+          params.termId ? `Term selected` : "",
+          params.classId ? `Class selected` : "",
+          params.status ? `Status: ${params.status}` : "",
+          params.approvalStage ? `Stage: ${params.approvalStage.replaceAll("_", " ")}` : "",
+          params.published ? `Published: ${params.published}` : ""
+        ].filter(Boolean)}
+        controls={[
+          { name: "search", label: "Search", type: "search", placeholder: "Class name, arm, level", defaultValue: params.search ?? "" },
+          { name: "sessionId", label: "Session", type: "select", defaultValue: params.sessionId ?? "", options: [{ label: "All sessions", value: "" }, ...sessionOptions] },
+          { name: "termId", label: "Term", type: "select", defaultValue: params.termId ?? "", options: [{ label: "All terms", value: "" }, ...termOptions] },
+          { name: "classId", label: "Class", type: "select", defaultValue: params.classId ?? "", options: [{ label: "All classes", value: "" }, ...classOptions] },
+          {
+            name: "status",
+            label: "Status",
+            type: "select",
+            defaultValue: params.status ?? "",
+            options: [
+              { label: "All statuses", value: "" },
+              { label: "Draft", value: "DRAFT" },
+              { label: "In review", value: "IN_REVIEW" },
+              { label: "Correction requested", value: "CORRECTION_REQUESTED" },
+              { label: "Approved", value: "APPROVED" },
+              { label: "Published", value: "PUBLISHED" }
+            ]
+          },
+          {
+            name: "approvalStage",
+            label: "Approval stage",
+            type: "select",
+            defaultValue: params.approvalStage ?? "",
+            options: [
+              { label: "All stages", value: "" },
+              { label: "Class Teacher", value: "CLASS_TEACHER" },
+              { label: "Exam Officer", value: "EXAM_OFFICER" },
+              { label: "VP Academics", value: "VICE_PRINCIPAL_ACADEMICS" },
+              { label: "Principal", value: "PRINCIPAL" },
+              { label: "Published", value: "PUBLISHED" }
+            ]
+          },
+          {
+            name: "published",
+            label: "Publication",
+            type: "select",
+            defaultValue: params.published ?? "",
+            options: [
+              { label: "All broadsheets", value: "" },
+              { label: "Published only", value: "yes" },
+              { label: "Not published", value: "no" }
+            ]
+          }
+        ]}
+      />
+
       <TableCard
-        title="Class broadsheets"
-        description="Approval stage follows Subject Teacher, HOD, Class Teacher, Exam Officer, VP Academics, and Principal final approval."
+        title="Class broadsheet register"
+        description="One canonical record per class and term, with completeness, approval workflow, and publication readiness visible at a glance."
         items={broadsheets}
+        emptyState="No broadsheets match the selected filters yet."
         columns={[
           {
             key: "class",
@@ -63,21 +226,55 @@ export default async function BroadsheetsPage() {
             render: (item) => (
               <div>
                 <p className="font-semibold text-ink">{item.className}</p>
-                <p className="text-xs text-ink/55">{item.term}{item.session ? ` · ${item.session}` : ""}</p>
+                <p className="text-xs text-ink/55">
+                  {item.term}
+                  {item.session ? ` · ${item.session}` : ""}
+                  {item.classTeacherName ? ` · ${item.classTeacherName}` : ""}
+                </p>
               </div>
             )
           },
-          { key: "stage", header: "Stage", render: (item) => <StatusBadge status={item.approvalStage} tone="brand" /> },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "students", header: "Students", render: (item) => item.rows.length },
-          { key: "warnings", header: "Warnings", render: (item) => item.missingScoreWarnings.length },
-          { key: "published", header: "Published", render: (item) => item.publishedAt ? formatDate(item.publishedAt) : "Not published" },
+          {
+            key: "workflow",
+            header: "Workflow",
+            render: (item) => (
+              <div className="flex min-w-[180px] flex-wrap gap-2">
+                <StatusBadge status={item.status} />
+                <StatusBadge status={item.approvalStage} tone="brand" />
+              </div>
+            )
+          },
+          {
+            key: "completeness",
+            header: "Completeness",
+            render: (item) => (
+              <div className="text-sm text-ink/72">
+                <p>{item.metrics?.completeStudents ?? 0}/{item.metrics?.studentCount ?? item.rows.length} students complete</p>
+                <p className="text-xs text-ink/52">{item.missingScoreWarnings.length} flagged issues</p>
+              </div>
+            )
+          },
+          {
+            key: "performance",
+            header: "Performance",
+            render: (item) => (
+              <div className="text-sm text-ink/72">
+                <p className="font-semibold text-ink">{item.metrics?.classAverage ?? 0}% mean</p>
+                <p className="text-xs text-ink/52">{item.metrics?.subjectCount ?? 0} subjects</p>
+              </div>
+            )
+          },
+          {
+            key: "publication",
+            header: "Publication",
+            render: (item) => item.publishedAt ? formatDate(item.publishedAt) : "Not published"
+          },
           {
             key: "open",
             header: "Workspace",
             render: (item) => (
               <Link className="font-semibold text-brand-700" href={`/academics/results/broadsheets/${item.id}` as Route}>
-                Open
+                Open broadsheet
               </Link>
             )
           }

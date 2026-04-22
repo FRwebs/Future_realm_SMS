@@ -6,7 +6,8 @@ import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole, hasRole } from "@/lib/auth/roles";
+import { canAccessServerPath, getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { AdmissionApplicationView, AdmissionMetricsView, AdmissionStatus, Role } from "@/lib/domain/types";
 import {
@@ -57,13 +58,14 @@ function statusPill(status: AdmissionStatus) {
 export default async function AdmissionsPage({ searchParams }: AdmissionsPageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/admissions")) {
+  if (!(await canAccessServerPath(session, "/admissions"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const [admissions, metrics] = await Promise.all([
+  const [admissions, metrics, permissions] = await Promise.all([
     apiGet<AdmissionApplicationView[]>("/api/v1/admissions"),
-    apiGet<AdmissionMetricsView>("/api/v1/admissions/metrics")
+    apiGet<AdmissionMetricsView>("/api/v1/admissions/metrics"),
+    getServerPermissions(session),
   ]);
   const resolvedSearchParams = searchParams ? await searchParams : undefined;
   const selectedApplication =
@@ -83,13 +85,14 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
     return matchesStatus && matchesClass && matchesPayment && matchesSearch;
   });
 
-  const canHandleIntake = canRunAdmissionStep(session.role, ["ADMISSIONS_OFFICER", "PARENT"]);
-  const canReview = canRunAdmissionStep(session.role, ["ADMISSIONS_OFFICER"]);
-  const canApprove = canRunAdmissionStep(session.role, ["PRINCIPAL", "ADMIN_OFFICER"]);
-  const canRegister = canRunAdmissionStep(session.role, ["ADMIN_OFFICER"]);
-  const canVerifyFinance = canRunAdmissionStep(session.role, ["ACCOUNTANT", "ADMIN_OFFICER"]);
-  const canScreen = canRunAdmissionStep(session.role, ["TEACHER", "ADMISSIONS_OFFICER"]);
-  const canIssueOffer = canRunAdmissionStep(session.role, ["ADMIN_OFFICER", "ADMISSIONS_OFFICER"]);
+  const permissionSet = new Set(permissions);
+  const canHandleIntake = permissionSet.has("admissions.create") || canRunAdmissionStep(session.role, ["ADMISSIONS_OFFICER", "PARENT"]);
+  const canReview = permissionSet.has("admissions.edit") || canRunAdmissionStep(session.role, ["ADMISSIONS_OFFICER"]);
+  const canApprove = permissionSet.has("admissions.approve") || canRunAdmissionStep(session.role, ["PRINCIPAL", "ADMIN_OFFICER"]);
+  const canRegister = permissionSet.has("admissions.enroll") || canRunAdmissionStep(session.role, ["ADMIN_OFFICER"]);
+  const canVerifyFinance = permissionSet.has("fees.approve") || canRunAdmissionStep(session.role, ["ACCOUNTANT", "ADMIN_OFFICER"]);
+  const canScreen = permissionSet.has("admissions.edit") || canRunAdmissionStep(session.role, ["TEACHER", "ADMISSIONS_OFFICER"]);
+  const canIssueOffer = permissionSet.has("admissions.approve") || canRunAdmissionStep(session.role, ["ADMIN_OFFICER", "ADMISSIONS_OFFICER"]);
 
   return (
     <div className="grid gap-6">

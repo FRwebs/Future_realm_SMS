@@ -4,20 +4,130 @@
 
 :root {
   color-scheme: light;
-  --font-body:
-    "Avenir Next", "Segoe UI", "Helvetica Neue", "Noto Sans", sans-serif;
-  --font-heading:
-    "Avenir Next Condensed", "Trebuchet MS", "Segoe UI", sans-serif;
+  --font-body: "Inter", "Plus Jakarta Sans", "Segoe UI", "Helvetica Neue",
+    "Noto Sans", sans-serif;
+  --font-heading: "Inter", "Plus Jakarta Sans", "Segoe UI", "Helvetica Neue",
+    sans-serif;
+
+  --color-primary-50: #f6faf7;
+  --color-primary-100: #ebf4ee;
+  --color-primary-200: #d3e8db;
+  --color-primary-300: #afd2bd;
+  --color-primary-400: #74b08d;
+  --color-primary-500: #428c62;
+  --color-primary-600: #2f704e;
+  --color-primary-700: #25593f;
+  --color-primary-800: #1f4734;
+  --color-primary-900: #1a3b2d;
+
+  --color-primary-50-rgb: 246 250 247;
+  --color-primary-100-rgb: 235 244 238;
+  --color-primary-200-rgb: 211 232 219;
+  --color-primary-300-rgb: 175 210 189;
+  --color-primary-400-rgb: 116 176 141;
+  --color-primary-500-rgb: 66 140 98;
+  --color-primary-600-rgb: 47 112 78;
+  --color-primary-700-rgb: 37 89 63;
+  --color-primary-800-rgb: 31 71 52;
+  --color-primary-900-rgb: 26 59 45;
+
+  --color-teal-rgb: 20 184 166;
+  --color-blue-rgb: 37 99 235;
+  --color-indigo-rgb: 99 102 241;
+  --color-violet-rgb: 124 58 237;
+  --color-amber-rgb: 245 158 11;
+  --color-orange-rgb: 249 115 22;
+  --color-red-rgb: 239 68 68;
+  --color-slate-50-rgb: 248 250 252;
+  --color-slate-100-rgb: 241 245 249;
+  --color-slate-200-rgb: 226 232 240;
+  --color-slate-300-rgb: 203 213 225;
+  --color-slate-400-rgb: 148 163 184;
+  --color-slate-500-rgb: 100 116 139;
+  --color-slate-600-rgb: 71 85 105;
+  --color-slate-700-rgb: 51 65 85;
+  --color-slate-800-rgb: 30 41 59;
+  --color-slate-900-rgb: 15 23 42;
+  --color-white-rgb: 255 255 255;
+  --color-ink-rgb: 18 33 23;
+
+  --surface-page: rgb(var(--color-slate-50-rgb));
+  --surface-card: rgb(var(--color-white-rgb));
+  --surface-muted: rgb(var(--color-primary-50-rgb));
+  --surface-sidebar: rgb(var(--color-white-rgb));
+  --surface-topbar: rgb(var(--color-white-rgb));
+
+  --text-primary: rgb(var(--color-slate-900-rgb));
+  --text-secondary: rgb(var(--color-slate-600-rgb));
+  --text-tertiary: rgb(var(--color-slate-400-rgb));
+  --text-inverse: rgb(var(--color-white-rgb));
+
+  --border-default: rgb(var(--color-slate-100-rgb));
+  --border-strong: rgb(var(--color-slate-200-rgb));
+  --border-focus: rgb(var(--color-primary-500-rgb) / 0.3);
+
+  --color-owner: #1e40af;
+  --color-principal: #2563eb;
+  --color-vp-academic: #3b82f6;
+  --color-vp-admin: #0ea5e9;
+  --color-hod: #14b8a6;
+  --color-class-teacher: #06b6d4;
+  --color-subject-teacher: #6366f1;
+  --color-bursar: #10b981;
+  --color-admissions: #7c3aed;
+  --color-exam-officer: #9333ea;
+  --color-counselor: #e11d48;
+  --color-librarian: #f59e0b;
+  --color-transport: #f97316;
+  --color-hostel: #78716c;
+  --color-it-admin: #475569;
+  --color-nurse: #ec4899;
+  --color-receptionist: #84cc16;
+  --color-parent: #22c55e;
+  --color-student: #6366f1;
+
+  --font-display: 32px;
+  --font-h1: 24px;
+  --font-h2: 20px;
+  --font-h3: 16px;
+  --font-h4: 14px;
+  --font-body-lg: 15px;
+  --font-body: 13px;
+  --font-caption: 12px;
+  --font-tiny: 11px;
+  --font-micro: 10px;
+
+  --space-page-x: 24px;
+  --space-page-x-mobile: 16px;
+  --space-card: 20px;
+  --space-card-compact: 16px;
+  --space-card-hero: 28px;
+  --space-section-gap: 24px;
+  --space-card-gap: 16px;
+  --space-table-x: 16px;
+  --space-table-y: 12px;
+  --space-table-x-compact: 12px;
+  --space-table-y-compact: 8px;
+
+  --radius-input: 10px;
+  --radius-card: 12px;
+  --radius-panel: 16px;
+  --radius-hero: 20px;
+  --layout-sidebar-width: 240px;
+  --layout-sidebar-collapsed: 64px;
+  --layout-topbar-height: 64px;
 }
 
 body {
   min-height: 100vh;
   background:
-    radial-gradient(circle at top left, rgba(194, 140, 61, 0.14), transparent 24%),
-    radial-gradient(circle at top right, rgba(66, 140, 98, 0.18), transparent 32%),
-    #f5efe6;
-  color: #122117;
+    radial-gradient(circle at top left, rgb(var(--color-primary-200-rgb) / 0.26), transparent 22%),
+    radial-gradient(circle at top right, rgb(var(--color-primary-400-rgb) / 0.18), transparent 30%),
+    linear-gradient(180deg, rgb(var(--color-slate-50-rgb)), rgb(var(--color-white-rgb)));
+  color: var(--text-primary);
   font-family: var(--font-body);
+  font-size: var(--font-body);
+  line-height: 1.6;
 }
 
 a {
@@ -26,11 +136,213 @@ a {
 }
 
 * {
-  border-color: rgba(18, 33, 23, 0.08);
+  border-color: rgb(var(--color-slate-200-rgb) / 0.55);
+  box-sizing: border-box;
 }
 
 ::selection {
-  background: rgba(66, 140, 98, 0.25);
+  background: rgb(var(--color-primary-500-rgb) / 0.25);
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4 {
+    color: var(--text-primary);
+    font-family: var(--font-heading);
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+  }
+
+  h1 {
+    font-size: var(--font-h1);
+    font-weight: 700;
+  }
+
+  h2 {
+    font-size: var(--font-h2);
+    font-weight: 700;
+  }
+
+  h3 {
+    font-size: var(--font-h3);
+    font-weight: 600;
+  }
+
+  h4 {
+    font-size: var(--font-h4);
+    font-weight: 600;
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@layer components {
+  .surface-card {
+    @apply rounded-2xl border bg-white shadow-panel;
+    border-color: rgb(var(--color-slate-100-rgb));
+    background-color: rgb(var(--color-white-rgb));
+  }
+
+  .surface-hero {
+    @apply overflow-hidden rounded-[20px] border bg-white shadow-panel;
+    border-color: rgb(var(--color-slate-100-rgb));
+    background:
+      radial-gradient(circle at top left, rgb(var(--color-primary-100-rgb) / 0.75), transparent 36%),
+      linear-gradient(180deg, rgb(var(--color-white-rgb) / 0.98), rgb(var(--color-primary-50-rgb) / 0.52));
+  }
+
+  .section-eyebrow {
+    @apply text-[10px] font-semibold uppercase tracking-[0.28em];
+    color: rgb(var(--color-primary-700-rgb));
+  }
+
+  .btn-primary {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold text-white transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
+    height: 40px;
+    border-color: rgb(var(--color-primary-500-rgb));
+    background: linear-gradient(180deg, rgb(var(--color-primary-500-rgb)), rgb(var(--color-primary-600-rgb)));
+    box-shadow: 0 8px 18px rgba(37, 89, 63, 0.16);
+  }
+
+  .btn-primary:hover {
+    background: linear-gradient(180deg, rgb(var(--color-primary-600-rgb)), rgb(var(--color-primary-700-rgb)));
+    box-shadow: 0 12px 26px rgba(37, 89, 63, 0.2);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150;
+    height: 40px;
+    color: rgb(var(--color-slate-700-rgb));
+    border-color: rgb(var(--color-slate-200-rgb));
+    background: rgb(var(--color-white-rgb));
+  }
+
+  .btn-secondary:hover {
+    background: rgb(var(--color-slate-50-rgb));
+  }
+
+  .btn-destructive {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold text-white transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
+    height: 40px;
+    border-color: rgb(var(--color-red-rgb));
+    background: rgb(var(--color-red-rgb));
+  }
+
+  .btn-destructive:hover {
+    filter: brightness(0.94);
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 rounded-[10px] px-4 text-[13px] font-semibold transition-all duration-150;
+    height: 40px;
+    color: rgb(var(--color-slate-600-rgb));
+    background: transparent;
+  }
+
+  .btn-ghost:hover {
+    background: rgb(var(--color-slate-100-rgb));
+    color: rgb(var(--color-slate-900-rgb));
+  }
+
+  .btn-link {
+    @apply inline-flex items-center gap-1.5 text-[13px] font-semibold transition-colors duration-150;
+    color: rgb(var(--color-primary-600-rgb));
+  }
+
+  .btn-link:hover {
+    color: rgb(var(--color-primary-700-rgb));
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+
+  .icon-btn {
+    @apply inline-flex items-center justify-center rounded-xl border transition-all duration-150;
+    height: 36px;
+    width: 36px;
+    color: rgb(var(--color-slate-600-rgb));
+    background: rgb(var(--color-white-rgb));
+    border-color: rgb(var(--color-slate-200-rgb));
+  }
+
+  .icon-btn:hover {
+    background: rgb(var(--color-slate-50-rgb));
+    color: rgb(var(--color-primary-700-rgb));
+    border-color: rgb(var(--color-primary-200-rgb));
+  }
+
+  .field-label {
+    @apply mb-1.5 block text-[12px] font-semibold uppercase tracking-[0.18em];
+    color: rgb(var(--color-slate-500-rgb));
+  }
+
+  .field-control {
+    @apply w-full rounded-[10px] border bg-white px-4 text-[13px] font-medium outline-none transition-all duration-150 placeholder:text-slate-400;
+    min-height: 40px;
+    color: rgb(var(--color-slate-900-rgb));
+    border-color: rgb(var(--color-slate-200-rgb));
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+  }
+
+  .field-control:hover {
+    border-color: rgb(var(--color-slate-300-rgb));
+  }
+
+  .field-control:focus {
+    border-color: rgb(var(--color-primary-500-rgb));
+    box-shadow: 0 0 0 3px rgb(var(--color-primary-500-rgb) / 0.2);
+  }
+
+  .field-control:disabled {
+    background: rgb(var(--color-slate-50-rgb));
+    color: rgb(var(--color-slate-400-rgb));
+    cursor: not-allowed;
+  }
+
+  .field-textarea {
+    @apply field-control py-3;
+    min-height: 96px;
+    resize: vertical;
+  }
+
+  .field-select {
+    @apply field-control appearance-none pr-10;
+  }
+
+  .empty-state {
+    @apply flex flex-col items-center justify-center rounded-2xl border border-dashed px-6 py-10 text-center;
+    border-color: rgb(var(--color-slate-200-rgb));
+    background: linear-gradient(180deg, rgb(var(--color-white-rgb)), rgb(var(--color-primary-50-rgb) / 0.55));
+  }
+
+  .skeleton-line,
+  .skeleton-block {
+    background: linear-gradient(
+      90deg,
+      rgb(var(--color-slate-100-rgb)) 0%,
+      rgb(var(--color-white-rgb)) 50%,
+      rgb(var(--color-slate-100-rgb)) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  .skeleton-line {
+    @apply rounded-md;
+    height: 12px;
+  }
+
+  .skeleton-block {
+    @apply rounded-2xl;
+  }
 }
 /* Sidebar scrollbar: hidden until hover */
 .sidebar-scroll {

@@ -21,12 +21,9 @@ interface ResourceActionDialogProps {
 }
 
 const triggerStyles = {
-  primary:
-    "bg-ink text-white shadow-[0_10px_24px_rgba(15,23,42,0.18)] hover:bg-brand-800",
-  secondary:
-    "border border-ink/10 bg-white text-ink shadow-sm hover:bg-sand/70",
-  danger:
-    "bg-rose-700 text-white shadow-[0_10px_24px_rgba(190,24,93,0.18)] hover:bg-rose-800",
+  primary: "btn-primary px-5",
+  secondary: "btn-secondary px-5",
+  danger: "btn-destructive px-5",
 };
 
 const triggerIcons = {
@@ -81,7 +78,7 @@ export function ResourceActionDialog({
         type="button"
         onClick={openDialog}
         className={cn(
-          "inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold transition-all duration-200 active:scale-[0.99]",
+          "inline-flex items-center justify-center gap-2 text-[13px] font-semibold transition-all duration-200 active:scale-[0.99]",
           triggerStyles[variant]
         )}
       >
@@ -93,27 +90,21 @@ export function ResourceActionDialog({
         ref={dialogRef}
         onClick={handleBackdropClick}
         onCancel={closeDialog}
-        className="w-[min(960px,calc(100vw-2rem))] rounded-[2rem] border border-white/60 bg-white p-0 text-ink shadow-[0_30px_80px_rgba(15,23,42,0.25)] backdrop:bg-ink/55 backdrop:backdrop-blur-[3px]"
+        className="w-[min(900px,calc(100vw-2rem))] rounded-[20px] border border-slate-100 bg-white p-0 text-slate-900 shadow-[0_30px_80px_rgba(15,23,42,0.2)] backdrop:bg-black/50 backdrop:backdrop-blur-[3px]"
       >
-        <div className="max-h-[min(88vh,900px)] overflow-hidden rounded-[2rem]">
-          <div className="border-b border-ink/6 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(255,255,255,0.95),rgba(250,245,235,0.95))] px-6 py-5 md:px-8">
+        <div className="max-h-[min(88vh,900px)] overflow-hidden rounded-[20px]">
+          <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,rgba(235,244,238,0.95),rgba(255,255,255,0.98),rgba(246,250,247,0.96))] px-6 py-5 md:px-8">
             <div className="flex items-start justify-between gap-4">
               <div className="min-w-0">
-                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
-                  Action
-                </p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold tracking-tight text-ink md:text-3xl">
-                  {title}
-                </h2>
-                <p className="mt-2 max-w-2xl text-sm leading-6 text-ink/62">
-                  {description}
-                </p>
+                <p className="section-eyebrow">Action</p>
+                <h2 className="mt-2 text-[20px] font-bold text-slate-900 md:text-[24px]">{title}</h2>
+                <p className="mt-2 max-w-2xl text-[13px] leading-6 text-slate-600">{description}</p>
               </div>
 
               <button
                 type="button"
                 onClick={closeDialog}
-                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-ink/8 bg-white text-ink shadow-sm transition hover:bg-sand/70"
+                className="icon-btn shrink-0"
                 aria-label="Close dialog"
               >
                 <X className="h-4 w-4" />

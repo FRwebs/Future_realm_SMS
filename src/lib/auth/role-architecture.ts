@@ -120,7 +120,8 @@ export function isAcademicRole(role: Role | string) {
 }
 
 export function isNonAcademicRole(role: Role | string) {
-  return getRoleCategory(role) === "non_academic";
+  const canonical = getCanonicalRole(role);
+  return canonical ? nonAcademicRoleSet.has(canonical) : false;
 }
 
 export function isSchoolStaffRole(role: Role | string) {

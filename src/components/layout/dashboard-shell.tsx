@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
-import { getDefaultPathForRole } from "@/lib/auth/roles";
 import { SessionUser } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
 import { canAccessPathWithPermissions } from "@/lib/navigation/registry";
@@ -33,19 +32,27 @@ export function DashboardShell({
 
   useEffect(() => {
     if (!canOpenRoute && portalType === "school") {
-      router.replace(getDefaultPathForRole(session.role));
+      router.replace(`/unauthorized?from=${encodeURIComponent(pathname)}`);
     }
-  }, [canOpenRoute, portalType, router, session.role]);
+  }, [canOpenRoute, pathname, portalType, router]);
 
   if (!canOpenRoute && portalType === "super_admin") {
     return (
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-8 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Permission check</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">Super Admin permission required</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/68">
-          Your internal platform role can sign in, but it cannot open this Super Admin section.
-        </p>
-      </section>
+      <div className="mx-auto flex min-h-[60vh] w-full max-w-5xl items-center justify-center">
+        <section className="w-full">
+          <div className="surface-hero p-8 md:p-10">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-primary-700">
+              Permission Check
+            </p>
+            <h1 className="mt-3 text-[28px] font-extrabold tracking-tight text-slate-900 md:text-[32px]">
+              Super Admin permission required
+            </h1>
+            <p className="mt-3 max-w-2xl text-[14px] leading-7 text-slate-600">
+              Your internal platform role can sign in, but it cannot open this Super Admin section.
+            </p>
+          </div>
+        </section>
+      </div>
     );
   }
 
@@ -53,7 +60,7 @@ export function DashboardShell({
 
   return (
     <PermissionProvider permissions={permissions}>
-      <div className="flex h-screen overflow-hidden bg-dashboard-grid">
+      <div className="flex h-screen overflow-hidden bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))]">
         {mobileSidebarOpen && (
           <button
             type="button"
@@ -81,7 +88,7 @@ export function DashboardShell({
             portalType={portalType}
             schoolName={schoolName}
           />
-          <main className="min-w-0 flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
             {children}
           </main>
         </div>

@@ -1,3 +1,6 @@
+import Link from "next/link";
+import type { Route } from "next";
+
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
@@ -19,7 +22,7 @@ export default async function ParentChildrenPage() {
   return (
     <div className="grid gap-6">
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/portals/parent" className="text-sm font-semibold text-brand-700">Back to parent portal</a>
+        <Link href={"/portals/parent" as Route} className="text-sm font-semibold text-brand-700">Back to parent portal</Link>
         <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">My children</h1>
         <p className="mt-3 text-sm leading-6 text-ink/68">All students linked to your guardian account.</p>
       </section>
@@ -34,9 +37,9 @@ export default async function ParentChildrenPage() {
             header: "Student",
             render: (item) => (
               <div>
-                <a href={`/portals/parent/children/${item.studentId}`} className="font-semibold text-ink underline decoration-ink/20 underline-offset-4">
+                <Link href={`/portals/parent/children/${item.studentId}` as Route} className="font-semibold text-ink underline decoration-ink/20 underline-offset-4">
                   {item.studentName}
-                </a>
+                </Link>
                 <p className="text-xs text-ink/55">{item.admissionNumber ?? item.studentId}</p>
               </div>
             )

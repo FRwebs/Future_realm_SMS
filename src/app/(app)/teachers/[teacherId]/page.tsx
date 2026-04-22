@@ -3,7 +3,8 @@ import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { TeacherProfileView } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -18,7 +19,7 @@ function formatTime(value?: string) {
 export default async function TeacherDetailPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/teachers")) {
+  if (!(await canAccessServerPath(session, "/teachers"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

@@ -3,7 +3,8 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import { canAccessPath, canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canManagePath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { AttendanceRecordView, StudentRecordView } from "@/lib/domain/types";
 import { attendanceStatusOptions, formatNigeriaClassName } from "@/lib/school-options";
@@ -55,7 +56,7 @@ function weekdayLabel(value: string) {
 export default async function AttendancePage({ searchParams }: AttendancePageProps) {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/attendance")) {
+  if (!(await canAccessServerPath(session, "/attendance"))) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

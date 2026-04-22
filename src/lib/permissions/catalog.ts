@@ -231,6 +231,20 @@ export const permissionModules: PermissionModule[] = [
     ]
   },
   {
+    module: "Scheme of Work",
+    permissions: [
+      permission("sow.view", "View a specific scheme of work record and its weekly topics."),
+      permission("sow.view_all", "View scheme of work coverage across all classes and subjects."),
+      permission("sow.view_own", "View your own assigned schemes of work."),
+      permission("sow.create", "Create or initialize scheme of work records."),
+      permission("sow.edit", "Edit weekly scheme of work topics and instructional notes."),
+      permission("sow.mark_covered", "Mark weekly topics as taught/covered."),
+      permission("sow.submit", "Submit a scheme of work for academic review."),
+      permission("sow.approve", "Approve or return submitted schemes of work."),
+      permission("sow.delete", "Archive or delete a scheme of work.")
+    ]
+  },
+  {
     module: "Library",
     permissions: [
       permission("library.view", "View library books and loans."),
@@ -690,7 +704,7 @@ export const systemRolePermissionKeys: Partial<Record<Role, string[]>> = {
   HEAD_TEACHER: allPermissionKeys.filter((key) => !principalDenied.has(key)),
   VICE_PRINCIPAL_ACADEMICS: mergePermissions(
     selfProfilePermissions,
-    keysFor("timetable", "subjects", "academic_calendar", "lesson_plans"),
+    keysFor("timetable", "subjects", "academic_calendar", "lesson_plans", "sow"),
     ["profiles.view", "profiles.view_documents", "profiles.view_login_history", "staff.view", "results.view", "results.create", "results.edit", "results.compile", "results.approve", "students.view", "students.transfer", "attendance.view", "attendance.export", "classes.view", "classes.edit", "classes.assign_teacher", "reports.view", "reports.generate", "reports.export"]
   ),
   VICE_PRINCIPAL_ADMINISTRATION: mergePermissions(
@@ -704,10 +718,114 @@ export const systemRolePermissionKeys: Partial<Record<Role, string[]>> = {
   ADMISSIONS_OFFICER: mergePermissions(selfProfilePermissions, keysFor("admissions", "documents"), ["students.view", "students.create", "parents.view", "parents.create", "parents.edit", "messaging.send", "reports.view", "reports.generate", "reports.export"]),
   EXAM_OFFICER: mergePermissions(selfProfilePermissions, keysFor("exams", "exam_timetable", "seating_plan", "invigilation", "external_exams"), ["results.view", "results.compile", "results.export", "question_bank.view", "students.view", "reports.view", "reports.generate", "reports.export", "discipline.view", "discipline.create"]),
   EXAMINATION_OFFICER: mergePermissions(selfProfilePermissions, keysFor("exams", "exam_timetable", "seating_plan", "invigilation", "external_exams"), ["results.view", "results.compile", "results.export", "question_bank.view", "students.view", "reports.view", "reports.generate", "reports.export", "discipline.view", "discipline.create"]),
-  HEAD_OF_DEPARTMENT: mergePermissions(selfProfilePermissions, keysFor("question_bank", "lesson_plans"), ["students.view", "teachers.view", "staff.view", "profiles.view", "profiles.view_documents", "classes.view", "subjects.view", "subjects.create", "subjects.edit", "subjects.assign", "results.view", "results.create", "results.edit", "results.compile", "results.approve", "timetable.view", "timetable.view_all", "timetable.create", "timetable.edit", "attendance.view", "reports.view", "reports.generate"]),
-  CLASS_TEACHER: mergePermissions(selfProfilePermissions, ["students.view", "students.edit", "attendance.view", "attendance.mark", "attendance.edit", "conduct_records.view", "conduct_records.create", "conduct_records.edit", "discipline.view", "results.view", "messaging.view", "messaging.send", "class_reports.view", "class_reports.create", "class_reports.edit", "timetable.view", "announcements.view", "events.view"]),
-  TEACHER: mergePermissions(selfProfilePermissions, keysFor("assignments", "learning_materials"), ["students.view", "attendance.view", "attendance.mark", "results.view", "results.create", "results.edit", "timetable.view", "announcements.view", "question_bank.create", "question_bank.edit", "messaging.send"]),
-  SUBJECT_TEACHER: mergePermissions(selfProfilePermissions, keysFor("assignments", "learning_materials"), ["students.view", "attendance.view", "attendance.mark", "results.view", "results.create", "results.edit", "timetable.view", "announcements.view", "question_bank.create", "question_bank.edit", "messaging.send"]),
+  HEAD_OF_DEPARTMENT: mergePermissions(
+    selfProfilePermissions,
+    keysFor("question_bank", "lesson_plans"),
+    [
+      "students.view",
+      "teachers.view",
+      "staff.view",
+      "profiles.view",
+      "profiles.view_documents",
+      "classes.view",
+      "subjects.view",
+      "subjects.create",
+      "subjects.edit",
+      "subjects.assign",
+      "results.view",
+      "results.create",
+      "results.edit",
+      "results.compile",
+      "results.approve",
+      "timetable.view",
+      "timetable.view_all",
+      "timetable.create",
+      "timetable.edit",
+      "attendance.view",
+      "reports.view",
+      "reports.generate",
+      "sow.view",
+      "sow.view_all",
+      "sow.view_own",
+      "sow.create",
+      "sow.edit",
+      "sow.mark_covered",
+      "sow.submit",
+      "sow.approve"
+    ]
+  ),
+  CLASS_TEACHER: mergePermissions(
+    selfProfilePermissions,
+    [
+      "students.view",
+      "students.edit",
+      "attendance.view",
+      "attendance.mark",
+      "attendance.edit",
+      "conduct_records.view",
+      "conduct_records.create",
+      "conduct_records.edit",
+      "discipline.view",
+      "results.view",
+      "results.approve",
+      "messaging.view",
+      "messaging.send",
+      "class_reports.view",
+      "class_reports.create",
+      "class_reports.edit",
+      "timetable.view",
+      "announcements.view",
+      "events.view",
+      "sow.view",
+      "sow.view_own"
+    ]
+  ),
+  TEACHER: mergePermissions(
+    selfProfilePermissions,
+    keysFor("assignments", "learning_materials"),
+    [
+      "students.view",
+      "attendance.view",
+      "attendance.mark",
+      "results.view",
+      "results.create",
+      "results.edit",
+      "timetable.view",
+      "announcements.view",
+      "question_bank.create",
+      "question_bank.edit",
+      "messaging.send",
+      "sow.view",
+      "sow.view_own",
+      "sow.create",
+      "sow.edit",
+      "sow.mark_covered",
+      "sow.submit"
+    ]
+  ),
+  SUBJECT_TEACHER: mergePermissions(
+    selfProfilePermissions,
+    keysFor("assignments", "learning_materials"),
+    [
+      "students.view",
+      "attendance.view",
+      "attendance.mark",
+      "results.view",
+      "results.create",
+      "results.edit",
+      "timetable.view",
+      "announcements.view",
+      "question_bank.create",
+      "question_bank.edit",
+      "messaging.send",
+      "sow.view",
+      "sow.view_own",
+      "sow.create",
+      "sow.edit",
+      "sow.mark_covered",
+      "sow.submit"
+    ]
+  ),
   BURSAR: mergePermissions(selfProfilePermissions, keysFor("fees", "expenses", "salaries", "bank_reconciliation"), ["students.view", "parents.view", "reports.view", "reports.generate", "reports.export"]),
   ACCOUNTANT: mergePermissions(selfProfilePermissions, keysFor("fees", "expenses", "salaries", "bank_reconciliation"), ["students.view", "parents.view", "reports.view", "reports.generate", "reports.export"]),
   ACCOUNT_OFFICER: mergePermissions(selfProfilePermissions, keysFor("fees", "expenses"), ["students.view", "parents.view", "reports.view", "reports.generate"]),
