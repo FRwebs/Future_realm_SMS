@@ -338,6 +338,11 @@ enum PaymentMethod {
   TRANSFER
   POS
   ONLINE
+  BANK_TRANSFER
+  USSD
+  CHEQUE
+  SCHOLARSHIP
+  WAIVER
 }
 
 enum FeeComponentType {
@@ -375,6 +380,44 @@ enum AdjustmentValueType {
 enum ReceiptStatus {
   ISSUED
   VOID
+}
+
+enum LateFeeType {
+  FIXED
+  PERCENTAGE
+}
+
+enum PaymentGatewayProvider {
+  PAYSTACK
+  FLUTTERWAVE
+  REMITA
+}
+
+enum GatewayTransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  ABANDONED
+  REVERSED
+  REFUNDED
+}
+
+enum FeeWaiverStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum FeeWaiverType {
+  FULL
+  PARTIAL
+  PERCENTAGE
+}
+
+enum ScholarshipType {
+  FULL
+  PARTIAL
+  PERCENTAGE
 }
 
 enum InstallmentStatus {
@@ -573,7 +616,7 @@ model School {
   departments                   Department[]
   classLevels                   ClassLevel[]
   classRooms                    ClassRoom[]
-  classAcademicAssignments       ClassAcademicAssignment[]
+  classAcademicAssignments      ClassAcademicAssignment[]
   configurationItems            ConfigurationItem[]
   skillDefinitions              SkillDefinition[]
   studentSkills                 StudentSkill[]
@@ -629,8 +672,15 @@ model School {
   assignments                   Assignment[]
   assignmentSubmissions         AssignmentSubmission[]
   feeStructures                 FeeStructure[]
+  feeCategories                 FeeCategory[]
+  feeItems                      FeeItem[]
   invoices                      Invoice[]
   payments                      Payment[]
+  paymentGatewayConfigs         PaymentGatewayConfig[]
+  gatewayTransactions           GatewayTransaction[]
+  feeWaivers                    FeeWaiver[]
+  scholarships                  Scholarship[]
+  studentScholarships           StudentScholarship[]
   expenses                      Expense[]
   announcements                 Announcement[]
   internalMessages              InternalMessage[]
@@ -720,13 +770,16 @@ model AcademicSession {
   isCurrent                     Boolean                        @default(false)
   students                      Student[]
   terms                         Term[]
-  classAcademicAssignments       ClassAcademicAssignment[]
+  classAcademicAssignments      ClassAcademicAssignment[]
   curriculumTopics              CurriculumTopic[]
   schemeOfWork                  SchemeOfWork[]
   promotionsFrom                PromotionRecord[]              @relation("PromotionFromSession")
   promotionsTo                  PromotionRecord[]              @relation("PromotionToSession")
   hostelAllocs                  HostelAllocation[]
   feeStructures                 FeeStructure[]
+  feeItems                      FeeItem[]
+  invoices                      Invoice[]
+  studentScholarships           StudentScholarship[]
   AdmissionApplication          AdmissionApplication[]
   AdmissionConfig               AdmissionConfig[]
   academicAssessments           AcademicAssessment[]
@@ -775,8 +828,10 @@ model Term {
   seniorSecondaryResultArchives SeniorSecondaryResultArchive[]
   lessonPlans                   LessonPlan[]
   resultEntryWindows            ResultEntryWindow[]
-  classAcademicAssignments       ClassAcademicAssignment[]
+  classAcademicAssignments      ClassAcademicAssignment[]
   studentSkills                 StudentSkill[]
+  feeItems                      FeeItem[]
+  invoices                      Invoice[]
 
   @@unique([academicSessionId, order])
 }
@@ -860,6 +915,8 @@ model ClassRoom {
   curriculumTopics              CurriculumTopic[]
   resultPublications            ResultPublication[]
   feeStructures                 FeeStructure[]
+  feeItems                      FeeItem[]
+  invoices                      Invoice[]
   openAdmissions                AdmissionConfig[]              @relation("AdmissionConfigOpenClasses")
   classTeacherId                String?
   academicAssessments           AcademicAssessment[]
@@ -969,140 +1026,146 @@ model StudentSkill {
 }
 
 model User {
-  id                          String                      @id @default(cuid())
-  schoolId                    String
-  school                      School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  email                       String                      @unique
-  phone                       String?
-  username                    String?
-  firstName                   String
-  middleName                  String?
-  lastName                    String
-  preferredName               String?
-  gender                      Gender?
-  dateOfBirth                 DateTime?
-  nationality                 String?
-  stateOfOrigin               String?
-  lga                         String?
-  religion                    String?
-  maritalStatus               String?
-  bloodGroup                  String?
-  genotype                    String?
-  avatarUrl                   String?
-  alternateEmail              String?
-  secondaryPhone              String?
-  homeAddress                 String?
-  residentialAddress          String?
-  city                        String?
-  country                     String?
-  accountStatus               String                      @default("ACTIVE")
-  nextOfKinFirstName          String?
-  nextOfKinLastName           String?
-  nextOfKinOtherName          String?
-  nextOfKinPhone              String?
-  nextOfKinEmail              String?
-  nextOfKinRelationship       String?
-  nextOfKinAddress            String?
-  nextOfKinOccupation         String?
-  passwordHash                String
-  role                        UserRole
-  isActive                    Boolean                     @default(true)
-  deletedAt                   DateTime?
-  suspendedAt                 DateTime?
-  passwordResetRequired       Boolean                     @default(false)
-  lastLoginAt                 DateTime?
-  createdAt                   DateTime                    @default(now())
-  updatedAt                   DateTime                    @updatedAt
-  guardian                    Guardian?
-  student                     Student?
-  staffProfile                StaffProfile?
-  admissionsReviewed          AdmissionReview[]
-  admissionScreeningsAssigned AdmissionScreening[]        @relation("AdmissionScreeningInterviewer")
-  admissionComments           AdmissionComment[]          @relation("AdmissionCommentAuthor")
-  admissionStatusChanges      AdmissionStatusHistory[]    @relation("AdmissionStatusChangedBy")
-  admissionOffersIssued       AdmissionOffer[]            @relation("AdmissionOfferIssuedBy")
-  admissionPaymentsVerified   AdmissionPaymentLink[]      @relation("AdmissionPaymentVerifiedBy")
-  enrollmentConversions       EnrollmentConversionLog[]   @relation("EnrollmentConvertedBy")
-  resultSheets                ResultSheet[]               @relation("ResultSheetCreatedBy")
-  scoresEntered               ScoreEntry[]                @relation("ScoreEntryCreatedBy")
-  academicAssessmentsAssigned AcademicAssessment[]        @relation("AcademicAssessmentTeacher")
-  academicAssessmentsCreated  AcademicAssessment[]        @relation("AcademicAssessmentCreatedBy")
-  assessmentScoresEntered     AssessmentCandidate[]       @relation("AssessmentScoreEnteredBy")
-  assessmentScoresEdited      AssessmentCandidate[]       @relation("AssessmentScoreLastEditedBy")
-  assessmentScoreAudits       AssessmentScoreAudit[]      @relation("AssessmentScoreAuditActor")
-  resultApprovals             ResultApproval[]            @relation("ResultApprovalActor")
-  resultPublications          ResultPublication[]         @relation("ResultPublicationActor")
-  broadsheetsCompiled         Broadsheet[]                @relation("BroadsheetCompiledBy")
-  broadsheetApprovals         BroadsheetApprovalHistory[] @relation("BroadsheetApprovalActor")
-  reportCardsGenerated        ReportCard[]                @relation("ReportCardGeneratedBy")
-  attendanceMarked            StudentAttendance[]         @relation("AttendanceMarkedBy")
-  assignmentsCreated          Assignment[]                @relation("AssignmentCreatedBy")
-  invoicesCreated             Invoice[]                   @relation("InvoiceCreatedBy")
-  paymentsRecorded            Payment[]                   @relation("PaymentRecordedBy")
-  announcements               Announcement[]
-  messagesSent                InternalMessage[]           @relation("MessageSender")
-  messagesReceived            InternalMessage[]           @relation("MessageRecipient")
-  logs                        AuditLog[]
-  drafts                      SyncDraft[]
-  staffAttendance             StaffAttendance[]
-  staffAttendanceAudits       StaffAttendanceAudit[]      @relation("StaffAttendanceAuditActor")
-  trainingProgramsCreated     TrainingProgram[]           @relation("TrainingProgramCreatedBy")
-  trainingParticipants        TrainingParticipant[]
-  rolesCreated                Role[]                      @relation("RoleCreatedBy")
-  roleAssignments             UserRoleAssignment[]
-  rolesAssigned               UserRoleAssignment[]        @relation("UserRoleAssignedBy")
-  permissionOverrides         UserPermissionOverride[]    @relation("UserPermissionOverrideTarget")
-  permissionOverridesCreated  UserPermissionOverride[]    @relation("UserPermissionOverrideSetBy")
-  classesLed                  ClassRoom[]                 @relation("ClassRoomClassTeacher")
-  classesAssisted             ClassRoom[]                 @relation("ClassRoomAssistantTeacher")
-  classAssignmentsLed         ClassAcademicAssignment[]    @relation("ClassAcademicAssignmentTeacher")
-  classAssignmentsAssisted    ClassAcademicAssignment[]    @relation("ClassAcademicAssignmentAssistant")
-  timetableCreated            TimetableEntry[]            @relation("TimetableCreatedBy")
-  timetableUpdated            TimetableEntry[]            @relation("TimetableUpdatedBy")
-  timetablePublishLogs        TimetablePublishLog[]        @relation("TimetablePublishedBy")
-  disciplineReports           DisciplineRecord[]          @relation("DisciplineReporter")
-  disciplineEscalations       DisciplineRecord[]          @relation("DisciplineEscalatedTo")
-  disciplineCounselorRefs     DisciplineRecord[]          @relation("DisciplineCounselor")
-  counselingRecords           CounselingRecord[]          @relation("CounselingCounselor")
-  healthVisits                HealthVisit[]               @relation("HealthVisitNurse")
-  learningMaterials           LearningMaterial[]          @relation("LearningMaterialTeacher")
-  lessonPlans                 LessonPlan[]                @relation("LessonPlanTeacher")
-  lessonPlansApproved         LessonPlan[]                @relation("LessonPlanApprover")
-  questionBankItems           QuestionBankItem[]          @relation("QuestionBankTeacher")
-  questionBankApproved        QuestionBankItem[]          @relation("QuestionBankApprover")
-  visitorLogsCreated          VisitorLog[]                @relation("VisitorLogCreator")
-  visitorHosts                VisitorLog[]                @relation("VisitorHost")
-  facilityReports             FacilityMaintenanceLog[]    @relation("FacilityReportedBy")
-  idCards                     IdCard[]
-  parentMeetingsScheduled     ParentMeeting[]             @relation("ParentMeetingScheduler")
-  budgetsApproved             Budget[]                    @relation("BudgetApprover")
-  resultEntryWindowsCreated   ResultEntryWindow[]         @relation("ResultEntryWindowCreator")
-  subjectCombinationsApproved SubjectCombination[]        @relation("SubjectCombinationApprover")
-  schoolsManaged              School[]                    @relation("SchoolAccountManager")
-  assignedSupportTickets      SupportTicket[]             @relation("TicketAssignedAgent")
-  createdSupportTickets       SupportTicket[]             @relation("TicketCreatedBy")
-  ticketMessages              TicketMessage[]
-  crmInteractionsCreated      CrmInteraction[]            @relation("CrmInteractionCreator")
-  crmNotesCreated             CrmNote[]                   @relation("CrmNoteCreator")
-  leadsAssigned               Lead[]                      @relation("LeadAssignedTo")
-  platformAnnouncements       PlatformAnnouncement[]      @relation("PlatformAnnouncementAuthor")
-  featureFlagsCreated         PlatformFeatureFlag[]       @relation("FeatureFlagCreatedBy")
-  platformSessions            PlatformSession[]
-  loginAttempts               LoginAttempt[]
-  profileDocuments            ProfileDocument[]           @relation("ProfileDocumentUser")
-  uploadedProfileDocuments    ProfileDocument[]           @relation("ProfileDocumentUploadedBy")
-  profileEditRequests         ProfileEditRequest[]        @relation("ProfileEditRequestTarget")
-  profileEditRequestsMade     ProfileEditRequest[]        @relation("ProfileEditRequestRequester")
-  profileEditRequestsReviewed ProfileEditRequest[]        @relation("ProfileEditRequestReviewer")
-  privacyRequestsHandled      DataPrivacyRequest[]        @relation("PrivacyRequestHandler")
-  knowledgeBaseArticles       KnowledgeBaseArticle[]      @relation("KnowledgeBaseAuthor")
-  maintenanceWindowsCreated   MaintenanceWindow[]         @relation("MaintenanceWindowCreator")
-  teachingSchemeOfWork        SchemeOfWork[]             @relation("SchemeOfWorkTeacher")
-  submittedSchemeOfWork       SchemeOfWork[]             @relation("SchemeOfWorkSubmittedBy")
-  approvedSchemeOfWork        SchemeOfWork[]             @relation("SchemeOfWorkApprovedBy")
-  coveredSowTopics            SowTopic[]                 @relation("SowTopicCoveredBy")
-  uploadedSowTopicResources   SowTopicResource[]         @relation("SowTopicResourceUploadedBy")
-  assessedStudentTopicProgress StudentTopicProgress[]    @relation("StudentTopicProgressAssessedBy")
+  id                           String                      @id @default(cuid())
+  schoolId                     String
+  school                       School                      @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  email                        String                      @unique
+  phone                        String?
+  username                     String?
+  firstName                    String
+  middleName                   String?
+  lastName                     String
+  preferredName                String?
+  gender                       Gender?
+  dateOfBirth                  DateTime?
+  nationality                  String?
+  stateOfOrigin                String?
+  lga                          String?
+  religion                     String?
+  maritalStatus                String?
+  bloodGroup                   String?
+  genotype                     String?
+  avatarUrl                    String?
+  alternateEmail               String?
+  secondaryPhone               String?
+  homeAddress                  String?
+  residentialAddress           String?
+  city                         String?
+  country                      String?
+  accountStatus                String                      @default("ACTIVE")
+  nextOfKinFirstName           String?
+  nextOfKinLastName            String?
+  nextOfKinOtherName           String?
+  nextOfKinPhone               String?
+  nextOfKinEmail               String?
+  nextOfKinRelationship        String?
+  nextOfKinAddress             String?
+  nextOfKinOccupation          String?
+  passwordHash                 String
+  role                         UserRole
+  isActive                     Boolean                     @default(true)
+  deletedAt                    DateTime?
+  suspendedAt                  DateTime?
+  passwordResetRequired        Boolean                     @default(false)
+  lastLoginAt                  DateTime?
+  createdAt                    DateTime                    @default(now())
+  updatedAt                    DateTime                    @updatedAt
+  guardian                     Guardian?
+  student                      Student?
+  staffProfile                 StaffProfile?
+  admissionsReviewed           AdmissionReview[]
+  admissionScreeningsAssigned  AdmissionScreening[]        @relation("AdmissionScreeningInterviewer")
+  admissionComments            AdmissionComment[]          @relation("AdmissionCommentAuthor")
+  admissionStatusChanges       AdmissionStatusHistory[]    @relation("AdmissionStatusChangedBy")
+  admissionOffersIssued        AdmissionOffer[]            @relation("AdmissionOfferIssuedBy")
+  admissionPaymentsVerified    AdmissionPaymentLink[]      @relation("AdmissionPaymentVerifiedBy")
+  enrollmentConversions        EnrollmentConversionLog[]   @relation("EnrollmentConvertedBy")
+  resultSheets                 ResultSheet[]               @relation("ResultSheetCreatedBy")
+  scoresEntered                ScoreEntry[]                @relation("ScoreEntryCreatedBy")
+  academicAssessmentsAssigned  AcademicAssessment[]        @relation("AcademicAssessmentTeacher")
+  academicAssessmentsCreated   AcademicAssessment[]        @relation("AcademicAssessmentCreatedBy")
+  assessmentScoresEntered      AssessmentCandidate[]       @relation("AssessmentScoreEnteredBy")
+  assessmentScoresEdited       AssessmentCandidate[]       @relation("AssessmentScoreLastEditedBy")
+  assessmentScoreAudits        AssessmentScoreAudit[]      @relation("AssessmentScoreAuditActor")
+  resultApprovals              ResultApproval[]            @relation("ResultApprovalActor")
+  resultPublications           ResultPublication[]         @relation("ResultPublicationActor")
+  broadsheetsCompiled          Broadsheet[]                @relation("BroadsheetCompiledBy")
+  broadsheetApprovals          BroadsheetApprovalHistory[] @relation("BroadsheetApprovalActor")
+  reportCardsGenerated         ReportCard[]                @relation("ReportCardGeneratedBy")
+  attendanceMarked             StudentAttendance[]         @relation("AttendanceMarkedBy")
+  assignmentsCreated           Assignment[]                @relation("AssignmentCreatedBy")
+  invoicesCreated              Invoice[]                   @relation("InvoiceCreatedBy")
+  paymentsRecorded             Payment[]                   @relation("PaymentRecordedBy")
+  paymentGatewayConfigsCreated PaymentGatewayConfig[]      @relation("PaymentGatewayConfigCreatedBy")
+  feeWaiversRequested          FeeWaiver[]                 @relation("FeeWaiverRequestedBy")
+  feeWaiversApproved           FeeWaiver[]                 @relation("FeeWaiverApprovedBy")
+  scholarshipsApproved         StudentScholarship[]        @relation("StudentScholarshipApprovedBy")
+  paymentsReversed             Payment[]                   @relation("PaymentReversedBy")
+  receiptsIssued               Receipt[]                   @relation("ReceiptIssuedBy")
+  announcements                Announcement[]
+  messagesSent                 InternalMessage[]           @relation("MessageSender")
+  messagesReceived             InternalMessage[]           @relation("MessageRecipient")
+  logs                         AuditLog[]
+  drafts                       SyncDraft[]
+  staffAttendance              StaffAttendance[]
+  staffAttendanceAudits        StaffAttendanceAudit[]      @relation("StaffAttendanceAuditActor")
+  trainingProgramsCreated      TrainingProgram[]           @relation("TrainingProgramCreatedBy")
+  trainingParticipants         TrainingParticipant[]
+  rolesCreated                 Role[]                      @relation("RoleCreatedBy")
+  roleAssignments              UserRoleAssignment[]
+  rolesAssigned                UserRoleAssignment[]        @relation("UserRoleAssignedBy")
+  permissionOverrides          UserPermissionOverride[]    @relation("UserPermissionOverrideTarget")
+  permissionOverridesCreated   UserPermissionOverride[]    @relation("UserPermissionOverrideSetBy")
+  classesLed                   ClassRoom[]                 @relation("ClassRoomClassTeacher")
+  classesAssisted              ClassRoom[]                 @relation("ClassRoomAssistantTeacher")
+  classAssignmentsLed          ClassAcademicAssignment[]   @relation("ClassAcademicAssignmentTeacher")
+  classAssignmentsAssisted     ClassAcademicAssignment[]   @relation("ClassAcademicAssignmentAssistant")
+  timetableCreated             TimetableEntry[]            @relation("TimetableCreatedBy")
+  timetableUpdated             TimetableEntry[]            @relation("TimetableUpdatedBy")
+  timetablePublishLogs         TimetablePublishLog[]       @relation("TimetablePublishedBy")
+  disciplineReports            DisciplineRecord[]          @relation("DisciplineReporter")
+  disciplineEscalations        DisciplineRecord[]          @relation("DisciplineEscalatedTo")
+  disciplineCounselorRefs      DisciplineRecord[]          @relation("DisciplineCounselor")
+  counselingRecords            CounselingRecord[]          @relation("CounselingCounselor")
+  healthVisits                 HealthVisit[]               @relation("HealthVisitNurse")
+  learningMaterials            LearningMaterial[]          @relation("LearningMaterialTeacher")
+  lessonPlans                  LessonPlan[]                @relation("LessonPlanTeacher")
+  lessonPlansApproved          LessonPlan[]                @relation("LessonPlanApprover")
+  questionBankItems            QuestionBankItem[]          @relation("QuestionBankTeacher")
+  questionBankApproved         QuestionBankItem[]          @relation("QuestionBankApprover")
+  visitorLogsCreated           VisitorLog[]                @relation("VisitorLogCreator")
+  visitorHosts                 VisitorLog[]                @relation("VisitorHost")
+  facilityReports              FacilityMaintenanceLog[]    @relation("FacilityReportedBy")
+  idCards                      IdCard[]
+  parentMeetingsScheduled      ParentMeeting[]             @relation("ParentMeetingScheduler")
+  budgetsApproved              Budget[]                    @relation("BudgetApprover")
+  resultEntryWindowsCreated    ResultEntryWindow[]         @relation("ResultEntryWindowCreator")
+  subjectCombinationsApproved  SubjectCombination[]        @relation("SubjectCombinationApprover")
+  schoolsManaged               School[]                    @relation("SchoolAccountManager")
+  assignedSupportTickets       SupportTicket[]             @relation("TicketAssignedAgent")
+  createdSupportTickets        SupportTicket[]             @relation("TicketCreatedBy")
+  ticketMessages               TicketMessage[]
+  crmInteractionsCreated       CrmInteraction[]            @relation("CrmInteractionCreator")
+  crmNotesCreated              CrmNote[]                   @relation("CrmNoteCreator")
+  leadsAssigned                Lead[]                      @relation("LeadAssignedTo")
+  platformAnnouncements        PlatformAnnouncement[]      @relation("PlatformAnnouncementAuthor")
+  featureFlagsCreated          PlatformFeatureFlag[]       @relation("FeatureFlagCreatedBy")
+  platformSessions             PlatformSession[]
+  loginAttempts                LoginAttempt[]
+  profileDocuments             ProfileDocument[]           @relation("ProfileDocumentUser")
+  uploadedProfileDocuments     ProfileDocument[]           @relation("ProfileDocumentUploadedBy")
+  profileEditRequests          ProfileEditRequest[]        @relation("ProfileEditRequestTarget")
+  profileEditRequestsMade      ProfileEditRequest[]        @relation("ProfileEditRequestRequester")
+  profileEditRequestsReviewed  ProfileEditRequest[]        @relation("ProfileEditRequestReviewer")
+  privacyRequestsHandled       DataPrivacyRequest[]        @relation("PrivacyRequestHandler")
+  knowledgeBaseArticles        KnowledgeBaseArticle[]      @relation("KnowledgeBaseAuthor")
+  maintenanceWindowsCreated    MaintenanceWindow[]         @relation("MaintenanceWindowCreator")
+  teachingSchemeOfWork         SchemeOfWork[]              @relation("SchemeOfWorkTeacher")
+  submittedSchemeOfWork        SchemeOfWork[]              @relation("SchemeOfWorkSubmittedBy")
+  approvedSchemeOfWork         SchemeOfWork[]              @relation("SchemeOfWorkApprovedBy")
+  coveredSowTopics             SowTopic[]                  @relation("SowTopicCoveredBy")
+  uploadedSowTopicResources    SowTopicResource[]          @relation("SowTopicResourceUploadedBy")
+  assessedStudentTopicProgress StudentTopicProgress[]      @relation("StudentTopicProgressAssessedBy")
 }
 
 model ProfileDocument {
@@ -1130,22 +1193,22 @@ model ProfileDocument {
 }
 
 model ProfileEditRequest {
-  id              String    @id @default(cuid())
-  schoolId        String
-  targetUserId    String
-  requestedById   String
-  reviewedById    String?
-  fields          Json
-  reason          String?
-  status          String    @default("PENDING")
-  reviewComment   String?
-  reviewedAt      DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
-  school          School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  targetUser      User      @relation("ProfileEditRequestTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
-  requestedBy     User      @relation("ProfileEditRequestRequester", fields: [requestedById], references: [id], onDelete: Cascade)
-  reviewedBy      User?     @relation("ProfileEditRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
+  id            String    @id @default(cuid())
+  schoolId      String
+  targetUserId  String
+  requestedById String
+  reviewedById  String?
+  fields        Json
+  reason        String?
+  status        String    @default("PENDING")
+  reviewComment String?
+  reviewedAt    DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  targetUser    User      @relation("ProfileEditRequestTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+  requestedBy   User      @relation("ProfileEditRequestRequester", fields: [requestedById], references: [id], onDelete: Cascade)
+  reviewedBy    User?     @relation("ProfileEditRequestReviewer", fields: [reviewedById], references: [id], onDelete: SetNull)
 
   @@index([schoolId, targetUserId, status])
   @@index([schoolId, requestedById, createdAt])
@@ -1299,6 +1362,8 @@ model Student {
   assignmentSubmissions         AssignmentSubmission[]
   invoices                      Invoice[]
   payments                      Payment[]
+  feeWaivers                    FeeWaiver[]
+  studentScholarships           StudentScholarship[]
   installmentPlans              InstallmentPlan[]
   financialClearances           FinancialClearance[]
   transport                     TransportAssignment[]
@@ -1803,7 +1868,7 @@ model SchemeOfWork {
 }
 
 model SowTopic {
-  id                    String                @id @default(cuid())
+  id                    String                 @id @default(cuid())
   schoolId              String
   schemeOfWorkId        String
   weekNumber            Int
@@ -1816,20 +1881,20 @@ model SowTopic {
   referenceMaterials    Json?
   evaluation            String?
   assignment            String?
-  isCovered             Boolean               @default(false)
+  isCovered             Boolean                @default(false)
   coveredDate           DateTime?
   coveredById           String?
   actualTopicTaught     String?
   coverageNotes         String?
-  weekType              SchemeOfWorkWeekType  @default(TEACHING)
-  sortOrder             Int                   @default(0)
-  createdAt             DateTime              @default(now())
-  updatedAt             DateTime              @updatedAt
-  school                School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  schemeOfWork          SchemeOfWork          @relation(fields: [schemeOfWorkId], references: [id], onDelete: Cascade)
-  coveredBy             User?                 @relation("SowTopicCoveredBy", fields: [coveredById], references: [id], onDelete: SetNull)
+  weekType              SchemeOfWorkWeekType   @default(TEACHING)
+  sortOrder             Int                    @default(0)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schemeOfWork          SchemeOfWork           @relation(fields: [schemeOfWorkId], references: [id], onDelete: Cascade)
+  coveredBy             User?                  @relation("SowTopicCoveredBy", fields: [coveredById], references: [id], onDelete: SetNull)
   resources             SowTopicResource[]
-  lessonPlans           LessonPlan[]          @relation("LessonPlanSowTopic")
+  lessonPlans           LessonPlan[]           @relation("LessonPlanSowTopic")
   studentProgress       StudentTopicProgress[]
 
   @@unique([schemeOfWorkId, weekNumber])
@@ -1855,18 +1920,18 @@ model SowTopicResource {
 }
 
 model StudentTopicProgress {
-  id            String            @id @default(cuid())
+  id            String              @id @default(cuid())
   schoolId      String
   sowTopicId    String
   studentId     String
   understanding TopicUnderstanding?
   assessedById  String?
-  assessedAt    DateTime          @default(now())
+  assessedAt    DateTime            @default(now())
   notes         String?
-  school        School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  sowTopic      SowTopic          @relation(fields: [sowTopicId], references: [id], onDelete: Cascade)
-  student       Student           @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  assessedBy    User?             @relation("StudentTopicProgressAssessedBy", fields: [assessedById], references: [id], onDelete: SetNull)
+  school        School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  sowTopic      SowTopic            @relation(fields: [sowTopicId], references: [id], onDelete: Cascade)
+  student       Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  assessedBy    User?               @relation("StudentTopicProgressAssessedBy", fields: [assessedById], references: [id], onDelete: SetNull)
 
   @@unique([sowTopicId, studentId])
   @@index([schoolId, studentId, assessedAt])
@@ -2283,17 +2348,17 @@ model StudentAttendance {
 }
 
 model PeriodDefinition {
-  id            String   @id @default(cuid())
-  schoolId      String
-  periodNumber  Int
-  label         String
-  startsAt      String
-  endsAt        String
-  slotType      String   @default("lesson")
-  category      String   @default("secondary")
-  displayOrder  Int
-  createdAt     DateTime @default(now())
-  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id           String   @id @default(cuid())
+  schoolId     String
+  periodNumber Int
+  label        String
+  startsAt     String
+  endsAt       String
+  slotType     String   @default("lesson")
+  category     String   @default("secondary")
+  displayOrder Int
+  createdAt    DateTime @default(now())
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, periodNumber, category])
   @@index([schoolId, category, displayOrder])
@@ -2483,6 +2548,57 @@ model TrainingParticipant {
   @@index([schoolId, userId, status])
 }
 
+model FeeCategory {
+  id                  String        @id @default(cuid())
+  schoolId            String
+  school              School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name                String
+  description         String?
+  isMandatory         Boolean       @default(true)
+  isRecurring         Boolean       @default(true)
+  appliesToCategories String[]      @default([])
+  sortOrder           Int           @default(0)
+  isActive            Boolean       @default(true)
+  createdAt           DateTime      @default(now())
+  feeItems            FeeItem[]
+  invoiceItems        InvoiceItem[]
+  feeWaivers          FeeWaiver[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isActive, sortOrder])
+  @@map("fee_categories")
+}
+
+model FeeItem {
+  id                String           @id @default(cuid())
+  schoolId          String
+  feeCategoryId     String
+  classId           String?
+  classLevel        String?
+  classCategory     String?
+  academicSessionId String?
+  termId            String?
+  school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  feeCategory       FeeCategory      @relation(fields: [feeCategoryId], references: [id], onDelete: Restrict)
+  classRoom         ClassRoom?       @relation(fields: [classId], references: [id], onDelete: SetNull)
+  academicSession   AcademicSession? @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
+  term              Term?            @relation(fields: [termId], references: [id], onDelete: SetNull)
+  amount            Decimal          @db.Decimal(12, 2)
+  currency          String           @default("NGN")
+  dueDate           DateTime?
+  lateFeeAmount     Decimal          @default(0) @db.Decimal(12, 2)
+  lateFeeType       LateFeeType      @default(FIXED)
+  isActive          Boolean          @default(true)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  invoiceItems      InvoiceItem[]
+  feeWaivers        FeeWaiver[]
+
+  @@index([schoolId, academicSessionId, termId, classId, isActive])
+  @@index([schoolId, classLevel, classCategory])
+  @@map("fee_items")
+}
+
 model FeeStructure {
   id                String             @id @default(cuid())
   schoolId          String
@@ -2522,73 +2638,103 @@ model FeeStructureItem {
 }
 
 model Invoice {
-  id               String              @id @default(cuid())
-  schoolId         String
-  studentId        String
-  feeStructureId   String?
-  createdById      String?
-  invoiceNumber    String
-  issuedOn         DateTime
-  dueOn            DateTime
-  subtotal         Decimal             @db.Decimal(12, 2)
-  discount         Decimal             @db.Decimal(12, 2)
-  fine             Decimal             @db.Decimal(12, 2)
-  total            Decimal             @db.Decimal(12, 2)
-  balance          Decimal             @db.Decimal(12, 2)
-  status           InvoiceStatus
-  school           School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student          Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  feeStructure     FeeStructure?       @relation(fields: [feeStructureId], references: [id], onDelete: SetNull)
-  createdBy        User?               @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  items            InvoiceItem[]
-  payments         Payment[]
-  allocations      PaymentAllocation[]
-  receipts         Receipt[]
-  adjustments      InvoiceAdjustment[]
-  installmentPlans InstallmentPlan[]
+  id                String              @id @default(cuid())
+  schoolId          String
+  studentId         String
+  classId           String?
+  academicSessionId String?
+  termId            String?
+  feeStructureId    String?
+  createdById       String?
+  invoiceNumber     String
+  issuedOn          DateTime
+  dueOn             DateTime
+  subtotal          Decimal             @db.Decimal(12, 2)
+  discount          Decimal             @db.Decimal(12, 2)
+  fine              Decimal             @db.Decimal(12, 2)
+  total             Decimal             @db.Decimal(12, 2)
+  balance           Decimal             @db.Decimal(12, 2)
+  status            InvoiceStatus
+  school            School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student           Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  classRoom         ClassRoom?          @relation(fields: [classId], references: [id], onDelete: SetNull)
+  academicSession   AcademicSession?    @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
+  term              Term?               @relation(fields: [termId], references: [id], onDelete: SetNull)
+  feeStructure      FeeStructure?       @relation(fields: [feeStructureId], references: [id], onDelete: SetNull)
+  createdBy         User?               @relation("InvoiceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  items             InvoiceItem[]
+  payments          Payment[]
+  allocations       PaymentAllocation[]
+  receipts          Receipt[]
+  adjustments       InvoiceAdjustment[]
+  feeWaivers        FeeWaiver[]
+  installmentPlans  InstallmentPlan[]
 
   @@unique([schoolId, invoiceNumber])
   @@index([schoolId, studentId, status])
   @@index([schoolId, dueOn])
+  @@index([schoolId, academicSessionId, termId, classId])
 }
 
 model InvoiceItem {
-  id          String  @id @default(cuid())
-  invoiceId   String
-  invoice     Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-  description String
-  amount      Decimal @db.Decimal(12, 2)
-  quantity    Int     @default(1)
+  id            String       @id @default(cuid())
+  invoiceId     String
+  feeItemId     String?
+  feeCategoryId String?
+  invoice       Invoice      @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeItem       FeeItem?     @relation(fields: [feeItemId], references: [id], onDelete: SetNull)
+  feeCategory   FeeCategory? @relation(fields: [feeCategoryId], references: [id], onDelete: SetNull)
+  description   String
+  amount        Decimal      @db.Decimal(12, 2)
+  quantity      Int          @default(1)
+  isWaived      Boolean      @default(false)
+  waiverReason  String?
+  createdAt     DateTime     @default(now())
+  feeWaivers    FeeWaiver[]
 }
 
 model Payment {
-  id                    String              @id @default(cuid())
+  id                    String                    @id @default(cuid())
   schoolId              String
   studentId             String
   invoiceId             String?
   recordedById          String?
+  reversedById          String?
   reference             String
+  paymentNumber         String?
   provider              String?
   providerTransactionId String?
-  amount                Decimal             @db.Decimal(12, 2)
-  currency              String              @default("NGN")
+  amount                Decimal                   @db.Decimal(12, 2)
+  currency              String                    @default("NGN")
   status                PaymentStatus
   method                PaymentMethod
+  paymentChannel        String?
+  gateway               PaymentGatewayProvider?
+  gatewayReference      String?
+  gatewayStatus         GatewayTransactionStatus?
+  schoolBankReference   String?
+  receiptNumber         String?
   paidAt                DateTime?
   metadata              Json?
-  school                School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  student               Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  invoice               Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
-  recordedBy            User?               @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  school                School                    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student               Student                   @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoice               Invoice?                  @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  recordedBy            User?                     @relation("PaymentRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  reversedBy            User?                     @relation("PaymentReversedBy", fields: [reversedById], references: [id], onDelete: SetNull)
   verifiedAt            DateTime?
+  isReversed            Boolean                   @default(false)
   reversedAt            DateTime?
   reversalReason        String?
   allocations           PaymentAllocation[]
   receipts              Receipt[]
+  gatewayTransactions   GatewayTransaction[]
 
   @@unique([schoolId, reference])
+  @@unique([schoolId, paymentNumber])
+  @@unique([schoolId, gatewayReference])
   @@index([schoolId, studentId, status])
   @@index([schoolId, paidAt])
+  @@index([schoolId, gateway, gatewayStatus])
 }
 
 model PaymentAllocation {
@@ -2617,9 +2763,13 @@ model Receipt {
   currency      String        @default("NGN")
   status        ReceiptStatus @default(ISSUED)
   issuedAt      DateTime      @default(now())
+  filePath      String?
+  sentToParent  Boolean       @default(false)
+  sentAt        DateTime?
   metadata      Json?
   invoice       Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
   payment       Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+  issuedBy      User?         @relation("ReceiptIssuedBy", fields: [issuedById], references: [id], onDelete: SetNull)
 
   @@unique([schoolId, receiptNumber])
   @@index([schoolId, invoiceId])
@@ -2641,6 +2791,124 @@ model InvoiceAdjustment {
   invoice      Invoice               @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, invoiceId, type])
+}
+
+model FeeWaiver {
+  id            String          @id @default(cuid())
+  schoolId      String
+  studentId     String
+  invoiceId     String
+  feeItemId     String?
+  invoiceItemId String?
+  feeCategoryId String?
+  waiverType    FeeWaiverType
+  amount        Decimal         @default(0) @db.Decimal(12, 2)
+  percentage    Decimal?        @db.Decimal(5, 2)
+  reason        String
+  requestedById String?
+  approvedById  String?
+  approvedAt    DateTime?
+  status        FeeWaiverStatus @default(PENDING)
+  createdAt     DateTime        @default(now())
+  school        School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student       Student         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  invoice       Invoice         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  feeItem       FeeItem?        @relation(fields: [feeItemId], references: [id], onDelete: SetNull)
+  invoiceItem   InvoiceItem?    @relation(fields: [invoiceItemId], references: [id], onDelete: SetNull)
+  feeCategory   FeeCategory?    @relation(fields: [feeCategoryId], references: [id], onDelete: SetNull)
+  requestedBy   User?           @relation("FeeWaiverRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  approvedBy    User?           @relation("FeeWaiverApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, studentId, status])
+  @@index([schoolId, invoiceId, status])
+  @@map("fee_waivers")
+}
+
+model Scholarship {
+  id                  String               @id @default(cuid())
+  schoolId            String
+  name                String
+  description         String?
+  type                ScholarshipType
+  amount              Decimal              @default(0) @db.Decimal(12, 2)
+  percentage          Decimal?             @db.Decimal(5, 2)
+  fundedBy            String?
+  conditions          String?
+  isActive            Boolean              @default(true)
+  createdAt           DateTime             @default(now())
+  school              School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  studentScholarships StudentScholarship[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isActive])
+  @@map("scholarships")
+}
+
+model StudentScholarship {
+  id                String           @id @default(cuid())
+  schoolId          String
+  scholarshipId     String
+  studentId         String
+  academicSessionId String?
+  approvedById      String?
+  approvedAt        DateTime?
+  validFrom         DateTime
+  validTo           DateTime?
+  notes             String?
+  school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  scholarship       Scholarship      @relation(fields: [scholarshipId], references: [id], onDelete: Cascade)
+  student           Student          @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  academicSession   AcademicSession? @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
+  approvedBy        User?            @relation("StudentScholarshipApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@unique([scholarshipId, studentId, academicSessionId])
+  @@index([schoolId, studentId])
+  @@map("student_scholarships")
+}
+
+model PaymentGatewayConfig {
+  id            String                 @id @default(cuid())
+  schoolId      String
+  gateway       PaymentGatewayProvider
+  publicKey     String?
+  secretKey     String?
+  webhookSecret String?
+  isActive      Boolean                @default(false)
+  isPrimary     Boolean                @default(false)
+  testMode      Boolean                @default(true)
+  createdById   String?
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+  school        School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy     User?                  @relation("PaymentGatewayConfigCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, gateway])
+  @@index([schoolId, isActive, isPrimary])
+  @@map("payment_gateways_config")
+}
+
+model GatewayTransaction {
+  id              String                 @id @default(cuid())
+  schoolId        String
+  paymentId       String?
+  gateway         PaymentGatewayProvider
+  eventType       String
+  reference       String
+  amount          Decimal                @default(0) @db.Decimal(12, 2)
+  currency        String                 @default("NGN")
+  customerEmail   String?
+  customerPhone   String?
+  gatewayResponse Json
+  processed       Boolean                @default(false)
+  processedAt     DateTime?
+  createdAt       DateTime               @default(now())
+  school          School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payment         Payment?               @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@unique([gateway, reference, eventType])
+  @@index([schoolId, gateway, processed])
+  @@index([schoolId, reference])
+  @@map("gateway_transactions")
 }
 
 model InstallmentPlan {

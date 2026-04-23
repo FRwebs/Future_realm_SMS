@@ -78,10 +78,15 @@ export const paymentSchema = z.object({
   invoiceId: z.string(),
   email: z.string().email().optional().or(z.literal("")),
   amount: z.coerce.number().min(1),
-  method: z.enum(["CASH", "TRANSFER", "POS", "ONLINE"]).default("ONLINE"),
-  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]).default("PAYSTACK"),
+  method: z.enum(["CASH", "TRANSFER", "BANK_TRANSFER", "POS", "CHEQUE", "ONLINE", "USSD"]).default("ONLINE"),
+  provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]).optional(),
   reference: z.string().optional().or(z.literal("")),
   paidAt: dateStringSchema.optional().or(z.literal("")),
+  paymentChannel: z.string().optional().or(z.literal("")),
+  schoolBankReference: z.string().optional().or(z.literal("")),
+  chequeNumber: z.string().optional().or(z.literal("")),
+  chequeBankName: z.string().optional().or(z.literal("")),
+  chequeDate: dateStringSchema.optional().or(z.literal("")),
   note: z.string().optional().or(z.literal(""))
 });
 
@@ -110,6 +115,10 @@ function studentName(student: { firstName: string; lastName: string; middleName?
 
 function nextCode(prefix: string) {
   return `${prefix}-${Date.now().toString().slice(-8)}-${randomUUID().slice(0, 4).toUpperCase()}`;
+}
+
+function jsonValue(value: Record<string, unknown>): Prisma.InputJsonValue {
+  return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
 @Injectable()
@@ -400,18 +409,28 @@ export class FinanceService {
 
   async initializePaymentFlow(schoolId: string, recordedById: string, payload: unknown, session?: SessionPayload) {
     const parsed = paymentSchema.parse(payload);
-    const gateway = getPaymentGateway(parsed.provider);
     const reference = parsed.reference || nextCode("PAY");
-    const checkout = await gateway.initializePayment({
-      amount: parsed.amount,
-      email: parsed.email || "accounts@greenfieldcollege.ng",
-      reference,
-      callbackUrl: `${process.env.APP_URL ?? "http://localhost:3000"}/finance`
-    });
+    const provider = parsed.provider ?? "PAYSTACK";
 
     if (env.DEMO_MODE) {
       const demoInvoice = getDemoStore().invoices.find((item) => item.id === parsed.invoiceId);
       if (!demoInvoice) throw new NotFoundException("Open invoice not found.");
+      if (parsed.amount > demoInvoice.balance) {
+        throw new BadRequestException("Payment amount cannot exceed the outstanding invoice balance.");
+      }
+      const checkout = await getPaymentGateway(provider).initializePayment({
+        amount: parsed.amount,
+        email: parsed.email || "accounts@greenfieldcollege.ng",
+        reference,
+        callbackUrl: `${process.env.APP_URL ?? "http://localhost:3000"}/finance/payments`,
+        metadata: {
+          school_id: schoolId,
+          invoice_id: parsed.invoiceId,
+          student_name: demoInvoice.studentName,
+          class_name: demoInvoice.className,
+          invoice_number: demoInvoice.invoiceNumber
+        }
+      });
       demoInvoice.balance = Math.max(demoInvoice.balance - parsed.amount, 0);
       demoInvoice.status = demoInvoice.balance === 0 ? "PAID" : "PARTIALLY_PAID";
       demoInvoice.receiptNumber = nextCode("RCT");
@@ -419,6 +438,39 @@ export class FinanceService {
     }
 
     const invoice = await this.ensureInvoiceForPayment(schoolId, parsed.invoiceId, session);
+    if (parsed.amount > Number(invoice.balance)) {
+      throw new BadRequestException("Payment amount cannot exceed the outstanding invoice balance.");
+    }
+    const gateway = getPaymentGateway(provider);
+    const studentFullName = studentName(invoice.student);
+    const parentGuardian = invoice.student.guardians[0]?.guardian;
+    const callbackUrl =
+      session?.role === "PARENT"
+        ? `${process.env.APP_URL ?? "http://localhost:3000"}/portals/parent/children/${invoice.studentId}/fees`
+        : `${process.env.APP_URL ?? "http://localhost:3000"}/finance/payments`;
+    const checkout = await gateway.initializePayment({
+      amount: parsed.amount,
+      email: parsed.email || parentGuardian?.email || "accounts@greenfieldcollege.ng",
+      customerName: parentGuardian ? `${parentGuardian.firstName} ${parentGuardian.lastName}` : studentFullName,
+      customerPhone: parentGuardian?.phone,
+      reference,
+      callbackUrl,
+      channels: parsed.paymentChannel ? parsed.paymentChannel.split(",").map((item) => item.trim()).filter(Boolean) : undefined,
+      metadata: {
+        school_id: schoolId,
+        student_id: invoice.studentId,
+        invoice_id: invoice.id,
+        student_name: studentFullName,
+        class_name: className(invoice.student.currentClass),
+        invoice_number: invoice.invoiceNumber
+      },
+      customFields: [
+        { display_name: "Student Name", variable_name: "student_name", value: studentFullName },
+        { display_name: "Class", variable_name: "class_name", value: className(invoice.student.currentClass) },
+        { display_name: "Invoice Number", variable_name: "invoice_number", value: invoice.invoiceNumber }
+      ]
+    });
+
     await prisma.payment.create({
       data: {
         schoolId,
@@ -426,14 +478,19 @@ export class FinanceService {
         invoiceId: parsed.invoiceId,
         recordedById,
         reference,
+        paymentNumber: reference,
         amount: parsed.amount,
         status: "PENDING",
-        method: parsed.method,
-        provider: parsed.provider,
-        metadata: { checkoutUrl: checkout.checkoutUrl, note: parsed.note || undefined }
+        method: "ONLINE",
+        provider,
+        gateway: provider,
+        gatewayReference: reference,
+        gatewayStatus: "PENDING",
+        paymentChannel: parsed.paymentChannel || undefined,
+        metadata: jsonValue({ checkoutUrl: checkout.checkoutUrl, gatewayRaw: checkout.raw, note: parsed.note || undefined })
       }
     });
-    await this.audit(schoolId, recordedById, "PAYMENT", "Payment", reference, { status: "PENDING", provider: parsed.provider });
+    await this.audit(schoolId, recordedById, "PAYMENT", "Payment", reference, { status: "PENDING", provider });
     return checkout;
   }
 
@@ -441,17 +498,28 @@ export class FinanceService {
     const parsed = paymentSchema.parse(payload);
     if (parsed.method === "ONLINE") throw new BadRequestException("Use online verification for ONLINE payments.");
     const invoice = await this.ensureInvoiceForPayment(schoolId, parsed.invoiceId);
+    if (parsed.amount > Number(invoice.balance)) {
+      throw new BadRequestException("Payment amount cannot exceed the outstanding invoice balance.");
+    }
     return this.createSuccessfulPayment(schoolId, recordedById, invoice, {
       amount: parsed.amount,
       method: parsed.method,
       provider: parsed.provider,
       reference: parsed.reference || nextCode("PAY"),
       paidAt: parsed.paidAt ? new Date(parsed.paidAt) : new Date(),
+      paymentChannel: parsed.paymentChannel || undefined,
+      schoolBankReference: parsed.schoolBankReference || undefined,
+      metadata: {
+        note: parsed.note || undefined,
+        chequeNumber: parsed.chequeNumber || undefined,
+        chequeBankName: parsed.chequeBankName || undefined,
+        chequeDate: parsed.chequeDate || undefined
+      },
       note: parsed.note
     });
   }
 
-  async verifyOnlinePayment(schoolId: string, actorId: string, reference: string) {
+  async verifyOnlinePayment(schoolId: string, actorId: string | undefined, reference: string) {
     const payment = await prisma.payment.findFirst({ where: { schoolId, reference }, include: { invoice: true } });
     if (!payment) throw new NotFoundException("Payment reference not found.");
     if (!payment.invoice) throw new BadRequestException("Payment is not linked to an invoice.");
@@ -459,12 +527,35 @@ export class FinanceService {
     const provider = payment.provider === "FLUTTERWAVE" ? "FLUTTERWAVE" : "PAYSTACK";
     const verification = await getPaymentGateway(provider).verifyPayment(reference);
     if (verification.status !== "SUCCESS") {
-      await prisma.payment.update({ where: { id: payment.id }, data: { status: verification.status, metadata: { verification: verification.raw } } });
+      const paymentStatus = verification.status === "PENDING" ? "PENDING" : "FAILED";
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: paymentStatus,
+          gatewayStatus: verification.status,
+          metadata: jsonValue({ verification: verification.raw })
+        }
+      });
       throw new BadRequestException(`Payment verification returned ${verification.status}.`);
+    }
+    if (verification.amount !== undefined && verification.amount < Number(payment.amount)) {
+      await prisma.payment.update({
+        where: { id: payment.id },
+        data: { status: "FAILED", gatewayStatus: "FAILED", metadata: jsonValue({ verification: verification.raw, failureReason: "Amount mismatch" }) }
+      });
+      throw new BadRequestException("Gateway amount is lower than expected payment amount.");
     }
     await prisma.payment.update({
       where: { id: payment.id },
-      data: { status: "SUCCESS", paidAt: new Date(), verifiedAt: new Date(), metadata: { verification: verification.raw } }
+      data: {
+        status: "SUCCESS",
+        paidAt: verification.paidAt ? new Date(verification.paidAt) : new Date(),
+        verifiedAt: new Date(),
+        gatewayStatus: "SUCCESS",
+        paymentChannel: verification.channel,
+        providerTransactionId: verification.gatewayTransactionId,
+        metadata: jsonValue({ verification: verification.raw })
+      }
     });
     await this.allocatePayment(schoolId, payment.id);
     await this.notifyStudentGuardians(schoolId, payment.studentId, "Payment received", `Payment ${payment.reference} has been verified.`);
@@ -516,6 +607,7 @@ export class FinanceService {
         metadata: { paymentReference: payment.reference }
       }
     });
+    await prisma.payment.update({ where: { id: payment.id }, data: { receiptNumber: receipt.receiptNumber } });
     await this.audit(schoolId, issuedById, "CREATE", "Receipt", receipt.id, { receiptNumber: receipt.receiptNumber });
     await this.notifyStudentGuardians(schoolId, payment.studentId, "Receipt available", `Receipt ${receipt.receiptNumber} is ready.`);
     return this.mapReceipt(receipt, payment.invoice.invoiceNumber);
@@ -649,11 +741,148 @@ export class FinanceService {
     return [header, ...rows].map((row) => row.map((cell) => `"${cell.replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
   }
 
+  async handlePaystackWebhook(payload: Record<string, unknown>) {
+    const eventType = String(payload.event ?? "unknown");
+    const data = (payload.data && typeof payload.data === "object" ? payload.data : {}) as Record<string, unknown>;
+    const metadata = (data.metadata && typeof data.metadata === "object" ? data.metadata : {}) as Record<string, unknown>;
+    const reference = String(data.reference ?? "");
+    if (!reference) throw new BadRequestException("Webhook reference is missing.");
+
+    const existingPayment = await prisma.payment.findFirst({ where: { reference }, include: { invoice: true } });
+    const schoolId = String(metadata.school_id ?? existingPayment?.schoolId ?? "");
+    if (!schoolId) throw new BadRequestException("Webhook school context is missing.");
+
+    const gatewayLog = await this.logGatewayTransaction({
+      schoolId,
+      paymentId: existingPayment?.id,
+      gateway: "PAYSTACK",
+      eventType,
+      reference,
+      amount: typeof data.amount === "number" ? data.amount / 100 : 0,
+      currency: String(data.currency ?? "NGN"),
+      customerEmail: ((data.customer as Record<string, unknown> | undefined)?.email as string | undefined) ?? undefined,
+      customerPhone: ((data.customer as Record<string, unknown> | undefined)?.phone as string | undefined) ?? undefined,
+      payload
+    });
+
+    if (gatewayLog.processed) return { processed: false, duplicate: true };
+    if (!existingPayment) return { processed: false, missingPayment: true };
+
+    if (eventType === "charge.success") {
+      await this.verifyOnlinePayment(schoolId, existingPayment.recordedById ?? undefined, reference);
+    } else if (eventType === "charge.failed") {
+      await prisma.payment.update({
+        where: { id: existingPayment.id },
+        data: { status: "FAILED", gatewayStatus: "FAILED", metadata: jsonValue({ webhook: payload }) }
+      });
+    } else if (eventType === "refund.processed") {
+      await prisma.payment.update({
+        where: { id: existingPayment.id },
+        data: { gatewayStatus: "REFUNDED", metadata: jsonValue({ webhook: payload }) }
+      });
+    }
+
+    await prisma.gatewayTransaction.update({
+      where: { id: gatewayLog.id },
+      data: { processed: true, processedAt: new Date() }
+    });
+    return { processed: true };
+  }
+
+  async handleFlutterwaveWebhook(payload: Record<string, unknown>) {
+    const eventType = String(payload.event ?? payload["event.type"] ?? "unknown");
+    const data = (payload.data && typeof payload.data === "object" ? payload.data : payload) as Record<string, unknown>;
+    const meta = (data.meta && typeof data.meta === "object" ? data.meta : {}) as Record<string, unknown>;
+    const reference = String(data.tx_ref ?? data.reference ?? "");
+    if (!reference) throw new BadRequestException("Webhook reference is missing.");
+
+    const existingPayment = await prisma.payment.findFirst({ where: { reference }, include: { invoice: true } });
+    const schoolId = String(meta.school_id ?? existingPayment?.schoolId ?? "");
+    if (!schoolId) throw new BadRequestException("Webhook school context is missing.");
+
+    const gatewayLog = await this.logGatewayTransaction({
+      schoolId,
+      paymentId: existingPayment?.id,
+      gateway: "FLUTTERWAVE",
+      eventType,
+      reference,
+      amount: Number(data.amount ?? 0),
+      currency: String(data.currency ?? "NGN"),
+      customerEmail: ((data.customer as Record<string, unknown> | undefined)?.email as string | undefined) ?? undefined,
+      customerPhone: ((data.customer as Record<string, unknown> | undefined)?.phone_number as string | undefined) ?? undefined,
+      payload
+    });
+
+    if (gatewayLog.processed) return { processed: false, duplicate: true };
+    if (!existingPayment) return { processed: false, missingPayment: true };
+
+    if (String(data.status) === "successful" || eventType === "charge.completed") {
+      await this.verifyOnlinePayment(schoolId, existingPayment.recordedById ?? undefined, reference);
+    } else if (String(data.status) === "failed") {
+      await prisma.payment.update({
+        where: { id: existingPayment.id },
+        data: { status: "FAILED", gatewayStatus: "FAILED", metadata: jsonValue({ webhook: payload }) }
+      });
+    }
+
+    await prisma.gatewayTransaction.update({
+      where: { id: gatewayLog.id },
+      data: { processed: true, processedAt: new Date() }
+    });
+    return { processed: true };
+  }
+
+  private async logGatewayTransaction(input: {
+    schoolId: string;
+    paymentId?: string;
+    gateway: "PAYSTACK" | "FLUTTERWAVE";
+    eventType: string;
+    reference: string;
+    amount: number;
+    currency: string;
+    customerEmail?: string;
+    customerPhone?: string;
+    payload: Record<string, unknown>;
+  }) {
+    try {
+      return await prisma.gatewayTransaction.create({
+        data: {
+          schoolId: input.schoolId,
+          paymentId: input.paymentId,
+          gateway: input.gateway,
+          eventType: input.eventType,
+          reference: input.reference,
+          amount: input.amount,
+          currency: input.currency,
+          customerEmail: input.customerEmail,
+          customerPhone: input.customerPhone,
+          gatewayResponse: input.payload as Prisma.InputJsonValue
+        }
+      });
+    } catch (error) {
+      const existing = await prisma.gatewayTransaction.findFirst({
+        where: { gateway: input.gateway, reference: input.reference, eventType: input.eventType }
+      });
+      if (existing) return existing;
+      throw error;
+    }
+  }
+
   private async createSuccessfulPayment(
     schoolId: string,
     recordedById: string,
     invoice: { id: string; studentId: string; invoiceNumber: string; total: unknown; balance: unknown; dueOn: Date },
-    input: { amount: number; method: "CASH" | "TRANSFER" | "POS" | "ONLINE"; provider: "PAYSTACK" | "FLUTTERWAVE"; reference: string; paidAt: Date; note?: string }
+    input: {
+      amount: number;
+      method: "CASH" | "TRANSFER" | "BANK_TRANSFER" | "POS" | "CHEQUE" | "ONLINE" | "USSD";
+      provider?: "PAYSTACK" | "FLUTTERWAVE";
+      reference: string;
+      paidAt: Date;
+      paymentChannel?: string;
+      schoolBankReference?: string;
+      metadata?: Record<string, unknown>;
+      note?: string;
+    }
   ) {
     const existing = await prisma.payment.findFirst({ where: { schoolId, reference: input.reference } });
     if (existing) throw new BadRequestException("Payment reference already exists.");
@@ -664,13 +893,16 @@ export class FinanceService {
         invoiceId: invoice.id,
         recordedById,
         reference: input.reference,
+        paymentNumber: input.reference,
         amount: input.amount,
         status: "SUCCESS",
         method: input.method,
         provider: input.provider,
+        paymentChannel: input.paymentChannel,
+        schoolBankReference: input.schoolBankReference,
         paidAt: input.paidAt,
         verifiedAt: input.paidAt,
-        metadata: { note: input.note || undefined }
+        metadata: { ...(input.metadata ?? {}), note: input.note || undefined }
       }
     });
     await this.allocatePayment(schoolId, payment.id);
@@ -682,7 +914,7 @@ export class FinanceService {
   private async ensureInvoiceForPayment(schoolId: string, invoiceId: string, session?: SessionPayload) {
     const invoice = await prisma.invoice.findFirst({
       where: { schoolId, id: invoiceId, status: { notIn: ["VOID", "PAID"] } },
-      include: { student: { include: { guardians: { include: { guardian: true } } } } }
+      include: { student: { include: { currentClass: true, guardians: { include: { guardian: true } } } } }
     });
     if (!invoice) throw new NotFoundException("Open invoice not found.");
     if (session?.role === "PARENT") {

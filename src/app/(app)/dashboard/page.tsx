@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { Route } from "next";
+import { Activity, AlertTriangle, CalendarDays, CheckCircle2, ClipboardList, GraduationCap, Megaphone, Sparkles, Target, Users } from "lucide-react";
 
 import { MetricCard } from "@/components/dashboard/metric-card";
 import { TrendCard } from "@/components/dashboard/trend-card";
@@ -7,18 +9,31 @@ import { apiGet } from "@/lib/api/server";
 import { getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
 import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
+import { getRoleDashboardProfile } from "@/lib/domain/dashboard";
 import { DashboardSummary } from "@/lib/domain/types";
 import { getRoleAccent } from "@/lib/navigation/registry";
-import { formatCurrency, formatDate } from "@/lib/utils/formatters";
-
-function alertClass(tone: "neutral" | "warning" | "danger") {
-  if (tone === "danger") return "bg-rose-50 text-rose-900";
-  if (tone === "warning") return "bg-amber-50 text-amber-900";
-  return "bg-brand-50 text-brand-900";
-}
+import { formatDate } from "@/lib/utils/formatters";
 
 function displayDateOrText(value: string) {
   return Number.isNaN(new Date(value).getTime()) ? value : formatDate(value);
+}
+
+function toneRing(tone: "neutral" | "warning" | "danger") {
+  if (tone === "danger") return "border-rose-200 bg-rose-50 text-rose-900";
+  if (tone === "warning") return "border-amber-200 bg-amber-50 text-amber-900";
+  return "border-primary-100 bg-primary-50 text-primary-900";
+}
+
+function categoryIcon(category?: string) {
+  const icons = {
+    admissions: GraduationCap,
+    finance: Target,
+    academics: ClipboardList,
+    attendance: Users,
+    communication: Megaphone,
+    system: Activity
+  };
+  return icons[category as keyof typeof icons] ?? Sparkles;
 }
 
 function greeting() {
@@ -77,146 +92,231 @@ export default async function DashboardPage() {
 
   const overview = await apiGet<DashboardSummary>("/api/v1/dashboard/overview");
   const accent = getRoleAccent(session.role);
+  const profile = getRoleDashboardProfile(session.role);
+  const primaryMetrics = overview.metrics.slice(0, 4);
+  const roleSignals = overview.roleWidgets?.slice(0, 6) ?? [];
+  const visibleActions = (overview.quickActions ?? []).slice(0, 5);
+  const topAlerts = overview.alerts.slice(0, 3);
+  const timeline = [
+    ...(overview.recentActivity ?? []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      detail: item.detail,
+      meta: displayDateOrText(item.time),
+      category: item.category
+    })),
+    ...(overview.recentAnnouncements ?? []).map((item) => ({
+      id: item.id,
+      title: item.title,
+      detail: item.detail,
+      meta: formatDate(item.publishedAt),
+      category: "communication"
+    }))
+  ].slice(0, 6);
 
   return (
     <div className="grid gap-6">
-      <section className={`overflow-hidden rounded-[2rem] border border-white/50 bg-gradient-to-br ${accent.gradient} p-6 text-white shadow-panel`}>
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-white/65">{overview.schoolName}</p>
-        <div className="mt-3 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+      <section className={`relative overflow-hidden rounded-[2rem] border border-white/50 bg-gradient-to-br ${accent.gradient} p-6 text-white shadow-panel md:p-8`}>
+        <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+        <div className="absolute -bottom-16 left-1/3 h-44 w-44 rounded-full bg-emerald-300/15 blur-3xl" />
+        <div className="relative grid gap-6 xl:grid-cols-[1.35fr_0.65fr] xl:items-end">
           <div>
-            <h1 className="font-[var(--font-heading)] text-4xl font-extrabold text-ink">
-              <span className="text-white">{dashboardTitle(session.role, session.name)}</span>
+            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/75">
+              <Sparkles className="h-3.5 w-3.5" />
+              {profile.eyebrow}
+            </div>
+            <h1 className="mt-4 max-w-4xl font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">
+              {dashboardTitle(session.role, session.name)}
             </h1>
-            <p className="mt-2 text-sm leading-6 text-white/75">
-              {overview.currentSession} · {overview.currentTerm} · {roleLabels[session.role]}
-            </p>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/76">{profile.mission}</p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+                {overview.currentTerm} · {overview.currentSession}
+              </span>
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+                {roleLabels[session.role]}
+              </span>
+              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+                {overview.schoolName}
+              </span>
+            </div>
           </div>
-          <div className="rounded-[1.25rem] bg-white/12 px-4 py-3 text-sm text-white/75 ring-1 ring-white/15">
-            Dashboard widgets and quick actions are filtered by your resolved permissions.
+          <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-4 backdrop-blur-xl">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/60">Focus for this role</p>
+            <div className="mt-3 grid gap-2">
+              {profile.focus.map((item) => (
+                <div key={item} className="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-sm font-semibold text-white/82">
+                  <CheckCircle2 className="h-4 w-4 text-emerald-200" />
+                  {item}
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        {overview.metrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
+        {primaryMetrics.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
       </section>
 
-      {overview.roleWidgets?.length ? (
-        <section className="grid gap-4 md:grid-cols-3">
-          {overview.roleWidgets.map((metric) => <MetricCard key={metric.label} metric={metric} />)}
+      {visibleActions.length ? (
+        <section className="rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Quick action bar</p>
+              <p className="mt-1 text-sm text-slate-600">The fastest routes for this role and permission set.</p>
+            </div>
+            <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              {visibleActions.map((action) => (
+                <Link
+                  key={action.href}
+                  href={action.href as Route}
+                  className="group rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50"
+                >
+                  <span className="block text-[13px] font-bold text-slate-900 group-hover:text-primary-800">{action.label}</span>
+                  <span className="mt-1 line-clamp-2 block text-[11px] leading-5 text-slate-500">{action.description}</span>
+                </Link>
+              ))}
+            </div>
+          </div>
         </section>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
-            <div>
-              <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Pending actions</p>
-              <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-ink">What needs attention</h2>
+      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
+          <div className="h-1.5 bg-gradient-to-r from-primary-700 via-emerald-500 to-teal-400" />
+          <div className="p-6">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Priority queue</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">{profile.commandTitle}</h2>
+                <p className="mt-2 max-w-xl text-[13px] leading-6 text-slate-600">{profile.commandDescription}</p>
+              </div>
+              <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
+                {(overview.pendingActions ?? []).length} item(s)
+              </span>
             </div>
-            <p className="max-w-md text-sm leading-6 text-ink/60">Items are filtered for your role and link back to the owning workflow.</p>
-          </div>
-          <div className="mt-6 grid gap-3">
-            {(overview.pendingActions ?? []).map((item) => (
-              <a key={item.id} href={item.href} className={`rounded-[1.5rem] p-5 transition hover:-translate-y-0.5 ${alertClass(item.tone)}`}>
-                <p className="font-semibold">{item.title}</p>
-                <p className="mt-2 text-sm leading-6 opacity-85">{item.detail}</p>
-              </a>
-            ))}
-            {(overview.pendingActions ?? []).length === 0 ? <p className="text-sm text-ink/60">No pending actions for this role.</p> : null}
+            <div className="mt-5 grid gap-3">
+              {(overview.pendingActions ?? []).slice(0, 5).map((item) => (
+                <Link key={item.id} href={item.href as Route} className={`group rounded-[1.4rem] border p-4 transition hover:-translate-y-0.5 hover:shadow-sm ${toneRing(item.tone)}`}>
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/70">
+                      {item.tone === "danger" ? <AlertTriangle className="h-4 w-4" /> : <Target className="h-4 w-4" />}
+                    </div>
+                    <div>
+                      <p className="text-sm font-bold">{item.title}</p>
+                      <p className="mt-1 text-[13px] leading-6 opacity-80">{item.detail}</p>
+                    </div>
+                  </div>
+                </Link>
+              ))}
+              {(overview.pendingActions ?? []).length === 0 ? (
+                <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                  No pending actions for this role right now.
+                </div>
+              ) : null}
+            </div>
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Quick actions</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-ink">Jump into work</h2>
-          <div className="mt-6 grid gap-3">
-            {(overview.quickActions ?? []).map((action) => (
-              <a key={action.href} href={action.href} className="rounded-[1.4rem] border border-ink/8 bg-sand/55 p-4 transition hover:bg-brand-50">
-                <p className="font-semibold text-ink">{action.label}</p>
-                <p className="mt-2 text-sm leading-6 text-ink/62">{action.description}</p>
-              </a>
-            ))}
+        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
+          <div className="h-1.5 bg-gradient-to-r from-teal-500 via-primary-500 to-slate-900" />
+          <div className="p-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Role snapshot</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">{profile.spotlightTitle}</h2>
+            <p className="mt-2 text-[13px] leading-6 text-slate-600">{profile.spotlightDescription}</p>
+            <div className="mt-5 grid gap-3 sm:grid-cols-2">
+              {roleSignals.length ? roleSignals.map((metric) => (
+                <article key={metric.label} className="rounded-[1.35rem] border border-slate-100 bg-slate-50/70 p-4">
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{metric.label}</p>
+                  <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{metric.value}</p>
+                  <p className="mt-1 text-[12px] leading-5 text-slate-500">{metric.change}</p>
+                </article>
+              )) : (
+                <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 sm:col-span-2">
+                  No additional role-specific signal is available yet.
+                </div>
+              )}
+            </div>
           </div>
         </section>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
-        <TrendCard title="Attendance trend" description="Daily attendance performance from the latest school week." items={overview.attendanceTrend.map((item) => ({ label: item.day, value: item.rate, suffix: "%" }))} />
-        <TrendCard title="Fee collection trend" description="Collections versus outstanding exposure in NGN millions." items={overview.feeTrend.map((item) => ({ label: item.month, value: item.collected, suffix: "m" }))} />
+        <TrendCard title="Attendance pulse" description="Daily attendance performance from the latest school week." items={overview.attendanceTrend.map((item) => ({ label: item.day, value: item.rate, suffix: "%" }))} />
+        <TrendCard title="Fee movement" description="Collections versus outstanding exposure in NGN millions." items={overview.feeTrend.map((item) => ({ label: item.month, value: item.collected, suffix: "m" }))} />
         <TrendCard title="Admissions funnel" description="Applications by current workflow stage." items={overview.admissionsByStage.map((item) => ({ label: item.stage.replaceAll("_", " "), value: item.count }))} />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Upcoming exams</h3>
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
+          <div className="border-b border-slate-100 bg-slate-50/70 p-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Role intelligence</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">{profile.insightTitle}</h3>
+            <p className="mt-2 text-[13px] leading-6 text-slate-600">{profile.insightDescription}</p>
+          </div>
           <div className="mt-5 grid gap-3">
             {(overview.upcomingExams ?? []).map((exam) => (
-              <a key={exam.id} href={exam.href} className="rounded-2xl bg-sand/60 p-4 text-sm">
-                <p className="font-semibold text-ink">{exam.title}</p>
-                <p className="mt-1 text-ink/65">{exam.detail}</p>
-                <p className="mt-1 text-ink/45">{formatDate(exam.startsAt)}</p>
-              </a>
-            ))}
-            {(overview.upcomingExams ?? []).length === 0 ? <p className="text-sm text-ink/60">No upcoming exams found.</p> : null}
-          </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Recent payments</h3>
-          <div className="mt-5 grid gap-3">
-            {(overview.recentPayments ?? []).map((payment) => (
-              <Link key={payment.id} href="/finance/payments" className="rounded-2xl bg-sand/60 p-4 text-sm">
-                <p className="font-semibold text-ink">{payment.reference}</p>
-                <p className="mt-1 text-ink/65">{payment.studentName} · {formatCurrency(payment.amount)}</p>
-                <p className="mt-1 text-ink/45">{payment.status}{payment.paidAt ? ` · ${formatDate(payment.paidAt)}` : ""}</p>
+              <Link key={exam.id} href={exam.href as Route} className="mx-6 rounded-2xl border border-slate-100 bg-white p-4 text-sm transition hover:bg-primary-50">
+                <div className="flex items-start gap-3">
+                  <CalendarDays className="mt-0.5 h-4 w-4 text-primary-600" />
+                  <div>
+                    <p className="font-semibold text-slate-900">{exam.title}</p>
+                    <p className="mt-1 text-slate-600">{exam.detail}</p>
+                    <p className="mt-1 text-slate-400">{formatDate(exam.startsAt)}</p>
+                  </div>
+                </div>
               </Link>
             ))}
-            {(overview.recentPayments ?? []).length === 0 ? <p className="text-sm text-ink/60">No payment records visible for this role.</p> : null}
+            {(overview.upcomingExams ?? []).length === 0 ? <p className="px-6 pb-6 text-sm text-slate-500">No upcoming exams found.</p> : null}
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Announcements</h3>
-          <div className="mt-5 grid gap-3">
-            {(overview.recentAnnouncements ?? []).map((announcement) => (
-              <a key={announcement.id} href={announcement.href} className="rounded-2xl bg-sand/60 p-4 text-sm">
-                <p className="font-semibold text-ink">{announcement.title}</p>
-                <p className="mt-1 line-clamp-2 text-ink/65">{announcement.detail}</p>
-                <p className="mt-1 text-ink/45">{formatDate(announcement.publishedAt)}</p>
-              </a>
-            ))}
-            {(overview.recentAnnouncements ?? []).length === 0 ? <p className="text-sm text-ink/60">No active announcements.</p> : null}
+        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
+          <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,rgba(235,244,238,0.9),rgba(255,255,255,0.98))] p-6">
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Recent operating timeline</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">What changed recently</h3>
+          </div>
+          <div className="grid gap-3 p-6">
+            {timeline.map((item) => {
+              const Icon = categoryIcon(item.category);
+              return (
+                <article key={`${item.category}-${item.id}`} className="flex gap-3 rounded-[1.4rem] border border-slate-100 bg-white p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+                    <Icon className="h-4 w-4" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-bold text-slate-900">{item.title}</p>
+                    <p className="mt-1 text-[13px] leading-6 text-slate-600">{item.detail}</p>
+                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{item.meta}</p>
+                  </div>
+                </article>
+              );
+            })}
+            {timeline.length === 0 ? <p className="text-sm text-slate-500">No recent activity visible for this role.</p> : null}
           </div>
         </section>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Recent activity</h3>
-          <div className="mt-5 grid gap-3">
-            {(overview.recentActivity ?? []).map((item) => (
-              <article key={item.id} className="rounded-2xl bg-sand/60 p-4 text-sm">
-                <p className="font-semibold text-ink">{item.title}</p>
-                <p className="mt-1 text-ink/65">{item.detail}</p>
-                <p className="mt-1 text-ink/45">{displayDateOrText(item.time)}</p>
-              </article>
-            ))}
-            {(overview.recentActivity ?? []).length === 0 ? <p className="text-sm text-ink/60">No recent activity visible for this role.</p> : null}
+      <section className="rounded-[2rem] border border-white/65 bg-white/92 p-6 shadow-panel">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Operational alerts</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">Risk radar</h3>
           </div>
-        </section>
-
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Operational alerts</h3>
-          <div className="mt-5 grid gap-4">
-            {overview.alerts.map((alert) => (
-              <article key={alert.id} className={`rounded-[1.5rem] p-5 ${alertClass(alert.tone)}`}>
-                <p className="font-semibold">{alert.title}</p>
-                <p className="mt-2 text-sm leading-6 opacity-85">{alert.detail}</p>
-              </article>
-            ))}
-          </div>
-        </section>
+          <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
+            {topAlerts.length} visible
+          </span>
+        </div>
+        <div className="mt-5 grid gap-3 md:grid-cols-3">
+          {topAlerts.map((alert) => (
+            <article key={alert.id} className={`rounded-[1.5rem] border p-5 ${toneRing(alert.tone)}`}>
+              <p className="font-semibold">{alert.title}</p>
+              <p className="mt-2 text-sm leading-6 opacity-85">{alert.detail}</p>
+            </article>
+          ))}
+          {topAlerts.length === 0 ? <p className="text-sm text-slate-500">No alerts visible for this role.</p> : null}
+        </div>
       </section>
     </div>
   );

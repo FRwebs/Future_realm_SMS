@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
@@ -213,20 +214,23 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
                       </div>
                       {sow ? <SchemeOfWorkStatusBadge status={sow.status} size="sm" /> : null}
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Link href={`/subjects/${id}/scheme-of-work/${item.classId}`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
-                        Open class SOW
-                      </Link>
-                      {canAssign ? (
-                        <AssignSubjectTeacherDialog
-                          subjectId={id}
-                          subjectName={subject.name}
-                          assignments={subject.classAssignments}
-                          teachers={teacherOptions}
-                          initialClassId={item.classId}
-                          triggerLabel={item.teacherId ? "Reassign teacher" : "Assign teacher"}
-                        />
-                      ) : null}
+                    <div className="mt-4">
+                      <ActionMenu triggerLabel={`Actions for ${item.className}`}>
+                        <ActionMenuLink href={`/subjects/${id}/scheme-of-work/${item.classId}`}>
+                          Open class SOW
+                        </ActionMenuLink>
+                        {canAssign ? (
+                          <AssignSubjectTeacherDialog
+                            subjectId={id}
+                            subjectName={subject.name}
+                            assignments={subject.classAssignments}
+                            teachers={teacherOptions}
+                            initialClassId={item.classId}
+                            triggerLabel={item.teacherId ? "Reassign teacher" : "Assign teacher"}
+                            triggerVariant="menu"
+                          />
+                        ) : null}
+                      </ActionMenu>
                     </div>
                   </article>
                 );
@@ -322,10 +326,10 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
               key: "actions",
               header: "Actions",
               render: (item) => (
-                <div className="flex flex-wrap gap-3">
-                  <Link href={`/subjects/${id}/scheme-of-work/${item.classId}`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
+                <ActionMenu triggerLabel={`Actions for ${item.className}`}>
+                  <ActionMenuLink href={`/subjects/${id}/scheme-of-work/${item.classId}`}>
                     Open class SOW
-                  </Link>
+                  </ActionMenuLink>
                   {canAssign ? (
                     <AssignSubjectTeacherDialog
                       subjectId={id}
@@ -334,9 +338,10 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
                       teachers={teacherOptions}
                       initialClassId={item.classId}
                       triggerLabel={item.teacherId ? "Reassign teacher" : "Assign teacher"}
+                      triggerVariant="menu"
                     />
                   ) : null}
-                </div>
+                </ActionMenu>
               ),
             },
           ]}

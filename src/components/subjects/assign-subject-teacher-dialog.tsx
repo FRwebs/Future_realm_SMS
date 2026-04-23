@@ -1,9 +1,13 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, UserCheck, X } from "lucide-react";
+import { CircleHelp, Loader2, UserCheck } from "lucide-react";
 
+import { Modal } from "@/components/ui/modal";
+import { Popover } from "@/components/ui/popover";
+import { useToast } from "@/components/ui/toast-provider";
+import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils/cn";
 
 type SubjectAssignmentOption = {
@@ -42,12 +46,13 @@ export function AssignSubjectTeacherDialog({
   teachers: TeacherOption[];
   initialClassId?: string;
   triggerLabel?: string;
-  triggerVariant?: "primary" | "secondary";
+  triggerVariant?: "primary" | "secondary" | "menu";
 }) {
   const router = useRouter();
-  const dialogRef = useRef<HTMLDialogElement>(null);
+  const { showToast } = useToast();
   const defaultClassId = initialClassId ?? assignments[0]?.classId ?? "";
   const initialAssignment = assignments.find((assignment) => assignment.classId === defaultClassId) ?? assignments[0];
+  const [open, setOpen] = useState(false);
   const [classId, setClassId] = useState(defaultClassId);
   const [teacherId, setTeacherId] = useState(initialAssignment?.teacherId ?? "");
   const [applyToAllArms, setApplyToAllArms] = useState(false);
@@ -64,11 +69,7 @@ export function AssignSubjectTeacherDialog({
     setApplyToAllArms(false);
     setReason("");
     setMessage(null);
-    dialogRef.current?.showModal();
-  }
-
-  function closeDialog() {
-    dialogRef.current?.close();
+    setOpen(true);
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -103,14 +104,27 @@ export function AssignSubjectTeacherDialog({
       }
 
       setTone("success");
-      setMessage(body.message ?? "Subject teacher assignment saved.");
+      const successMessage = body.message ?? "Subject teacher assignment saved.";
+      setMessage(successMessage);
+      showToast({
+        variant: "success",
+        title: "Teacher assigned",
+        description: successMessage,
+      });
       router.refresh();
       window.setTimeout(() => {
-        closeDialog();
+        setOpen(false);
       }, 350);
     } catch (error) {
       setTone("danger");
-      setMessage(error instanceof Error ? error.message : "Unable to save subject teacher assignment.");
+      const nextMessage =
+        error instanceof Error ? error.message : "Unable to save subject teacher assignment.";
+      setMessage(nextMessage);
+      showToast({
+        variant: "error",
+        title: "Unable to assign teacher",
+        description: nextMessage,
+      });
     } finally {
       setPending(false);
     }
@@ -119,42 +133,36 @@ export function AssignSubjectTeacherDialog({
   const triggerClassName =
     triggerVariant === "primary"
       ? "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-brand-800"
-      : "inline-flex h-9 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-sm font-semibold text-ink transition hover:bg-sand/60";
+      : triggerVariant === "menu"
+        ? "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-slate-700 transition hover:bg-primary-50 hover:text-primary-700"
+        : "inline-flex h-9 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-sm font-semibold text-ink transition hover:bg-sand/60";
 
   return (
     <>
-      <button type="button" onClick={openDialog} className={triggerClassName}>
-        <UserCheck className="h-4 w-4" />
-        <span>{triggerLabel}</span>
+      <button
+        type="button"
+        onClick={openDialog}
+        data-popover-close={triggerVariant === "menu" ? "true" : undefined}
+        className={triggerClassName}
+      >
+        <Tooltip content="Assign or change the teacher handling this subject in a class.">
+          <span className="inline-flex items-center gap-2">
+            <UserCheck className="h-4 w-4" />
+            <span>{triggerLabel}</span>
+          </span>
+        </Tooltip>
       </button>
 
-      <dialog
-        ref={dialogRef}
-        className="w-[min(42rem,calc(100vw-2rem))] rounded-[2rem] border border-white/60 bg-white p-0 text-ink shadow-[0_30px_80px_rgba(15,23,42,0.25)] backdrop:bg-ink/55 backdrop:backdrop-blur-[3px]"
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        size="md"
+        title="Assign teacher"
+        subtitle={`Update the teaching owner for ${subjectName} in a specific class, or apply the same teacher across every arm of that class level.`}
       >
-        <div className="rounded-[2rem]">
-          <div className="flex items-start justify-between gap-4 border-b border-ink/6 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(255,255,255,0.95),rgba(250,245,235,0.95))] px-6 py-5">
-            <div>
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Subject assignment</p>
-              <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">Assign teacher</h2>
-              <p className="mt-2 text-sm leading-6 text-ink/62">
-                Update the teaching owner for <span className="font-semibold text-ink">{subjectName}</span> in a specific class, or apply the same teacher across every arm of that class level.
-              </p>
-            </div>
-
-            <button
-              type="button"
-              onClick={closeDialog}
-              className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-ink/8 bg-white text-ink shadow-sm transition hover:bg-sand/70"
-              aria-label="Close dialog"
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </div>
-
-          <form onSubmit={handleSubmit} className="grid gap-5 px-6 py-6">
+          <form onSubmit={handleSubmit} className="grid gap-5">
             <label>
-              <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">Class</span>
+              <span className="field-label">Class</span>
               <select
                 value={classId}
                 onChange={(event) => {
@@ -163,7 +171,7 @@ export function AssignSubjectTeacherDialog({
                   const nextAssignment = assignments.find((assignment) => assignment.classId === nextClassId);
                   setTeacherId(nextAssignment?.teacherId ?? "");
                 }}
-                className="mt-2 h-12 w-full rounded-2xl border border-ink/10 bg-white px-4 text-sm font-medium text-ink shadow-sm outline-none transition duration-200 hover:border-ink/15 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+                className="field-select mt-2 h-11 rounded-2xl"
               >
                 <option value="">Select class</option>
                 {assignments.map((assignment) => (
@@ -175,11 +183,11 @@ export function AssignSubjectTeacherDialog({
             </label>
 
             <label>
-              <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">Teacher</span>
+              <span className="field-label">Teacher</span>
               <select
                 value={teacherId}
                 onChange={(event) => setTeacherId(event.target.value)}
-                className="mt-2 h-12 w-full rounded-2xl border border-ink/10 bg-white px-4 text-sm font-medium text-ink shadow-sm outline-none transition duration-200 hover:border-ink/15 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+                className="field-select mt-2 h-11 rounded-2xl"
               >
                 <option value="">Unassign teacher</option>
                 {teachers.map((teacher) => (
@@ -190,71 +198,97 @@ export function AssignSubjectTeacherDialog({
               </select>
             </label>
 
-            <label className="flex items-start gap-3 rounded-[1.4rem] border border-ink/8 bg-sand/45 px-4 py-3">
+            <label className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
               <input
                 type="checkbox"
                 checked={applyToAllArms}
                 onChange={(event) => setApplyToAllArms(event.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-ink/20 text-brand-700 focus:ring-brand-400"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-300"
               />
-              <span className="text-sm leading-6 text-ink/72">
-                Apply to all arms of this class level.
-                <span className="block text-xs text-ink/52">
+              <span className="text-[13px] leading-6 text-slate-600">
+                <span className="inline-flex items-center gap-2">
+                  <span>Apply to all arms of this class level.</span>
+                  <Popover
+                    align="left"
+                    panelClassName="max-w-[280px]"
+                    trigger={({ toggle }) => (
+                      <button
+                        type="button"
+                        onClick={toggle}
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-primary-600"
+                        aria-label="Explain apply to all arms"
+                      >
+                        <CircleHelp className="h-4 w-4" />
+                      </button>
+                    )}
+                  >
+                    {() => (
+                      <div className="space-y-2">
+                        <p className="text-[12px] font-semibold text-slate-800">
+                          Apply to all arms
+                        </p>
+                        <p className="text-[12px] leading-5 text-slate-500">
+                          Use this when the same teacher should handle every arm for the selected level, for example JSS 1 A, JSS 1 B, and JSS 1 C.
+                        </p>
+                      </div>
+                    )}
+                  </Popover>
+                </span>
+                <span className="block text-[12px] text-slate-500">
                   Example: assign the same teacher across JSS 1 A, JSS 1 B, and JSS 1 C.
                 </span>
               </span>
             </label>
 
             <label>
-              <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">Reason</span>
+              <span className="field-label">Reason</span>
               <textarea
                 value={reason}
                 onChange={(event) => setReason(event.target.value)}
                 rows={3}
                 placeholder="Optional note for the audit trail, for example: subject load balancing for the new term."
-                className="mt-2 min-h-[100px] w-full rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm font-medium text-ink shadow-sm outline-none transition duration-200 placeholder:text-ink/35 hover:border-ink/15 focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+                className="field-textarea mt-2 min-h-[100px] rounded-2xl"
               />
             </label>
 
             {activeAssignment ? (
-              <div className="rounded-[1.4rem] border border-ink/8 bg-white px-4 py-3 text-sm text-ink/65">
-                Current teacher: <span className="font-semibold text-ink">{activeAssignment.teacherName ?? "Not assigned"}</span>
+              <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-[13px] text-slate-600">
+                Current teacher: <span className="font-semibold text-slate-900">{activeAssignment.teacherName ?? "Not assigned"}</span>
               </div>
             ) : null}
 
             {message ? (
               <div
                 className={cn(
-                  "rounded-[1.4rem] border px-4 py-3 text-sm font-medium",
+                  "rounded-2xl border px-4 py-3 text-[13px] font-medium",
                   tone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
-                    : "border-rose-200 bg-rose-50 text-rose-800",
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : "border-rose-200 bg-rose-50 text-rose-700",
                 )}
               >
                 {message}
               </div>
             ) : null}
 
-            <div className="flex items-center justify-end gap-3 border-t border-ink/6 pt-4">
+            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
               <button
                 type="button"
-                onClick={closeDialog}
-                className="inline-flex h-11 items-center justify-center rounded-full border border-ink/10 bg-white px-5 text-sm font-semibold text-ink transition hover:bg-sand/60"
+                onClick={() => setOpen(false)}
+                className="btn-secondary px-5"
               >
                 Cancel
               </button>
               <button
                 type="submit"
                 disabled={pending || assignments.length === 0}
-                className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:bg-ink/40"
+                className="btn-primary px-5"
               >
                 {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
                 <span>{pending ? "Saving..." : "Save assignment"}</span>
               </button>
             </div>
           </form>
-        </div>
-      </dialog>
+      </Modal>
     </>
   );
 }

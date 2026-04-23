@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { Route } from "next";
+import { BookOpen, CalendarDays, ClipboardList, CreditCard, Megaphone, Trophy } from "lucide-react";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { StudentPortalView } from "@/lib/domain/types";
@@ -51,40 +53,39 @@ export function StudentPortalDashboard({
   return (
     <div className="grid gap-6 xl:gap-7">
       <DashboardCard>
-        <div className="border-b border-ink/5 bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.96),rgba(255,255,255,0.92),rgba(250,245,235,0.95))] p-6 md:p-7">
-          <p className="text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
-            Student Portal
+        <div className="relative overflow-hidden border-b border-ink/5 bg-gradient-to-br from-primary-900 via-primary-700 to-teal-600 p-6 text-white md:p-7">
+          <div className="absolute right-0 top-0 h-40 w-40 rounded-full bg-white/10 blur-3xl" />
+          <p className="relative text-[0.7rem] font-semibold uppercase tracking-[0.28em] text-white/65">
+            Student command center
           </p>
 
-          <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold tracking-tight text-ink">
+          <h1 className="relative mt-3 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white">
             {portal.headline}
           </h1>
 
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
-            {portal.studentName} can see the school-week timetable, term-by-term
-            result history, finance reminders, announcements, and personal
-            profile context in one secure student-only view.
+          <p className="relative mt-3 max-w-3xl text-sm leading-6 text-white/72">
+            {portal.studentName} can see today’s learning plan, subjects, attendance, assignments, fees, announcements, and published results from one focused student workspace.
           </p>
 
-          <div className="mt-6 grid gap-3 text-sm text-ink/70 md:grid-cols-2 xl:grid-cols-4">
-            <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
-              <span className="font-semibold text-ink">Class:</span>{" "}
+          <div className="relative mt-6 grid gap-3 text-sm text-white/78 md:grid-cols-2 xl:grid-cols-4">
+            <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-sm">
+              <span className="font-semibold text-white">Class:</span>{" "}
               {portal.className}
             </p>
-            <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
-              <span className="font-semibold text-ink">Admission no:</span>{" "}
+            <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-sm">
+              <span className="font-semibold text-white">Admission no:</span>{" "}
               {portal.admissionNumber ?? "Not recorded"}
             </p>
-            <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
-              <span className="font-semibold text-ink">Session:</span>{" "}
+            <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-sm">
+              <span className="font-semibold text-white">Session:</span>{" "}
               {portal.session ?? "Current"}
             </p>
-            <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
-              <span className="font-semibold text-ink">Term:</span>{" "}
+            <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-sm">
+              <span className="font-semibold text-white">Term:</span>{" "}
               {portal.term ?? "Current"}
             </p>
-            <p className="rounded-2xl border border-ink/8 bg-white/70 px-4 py-3 shadow-sm">
-              <span className="font-semibold text-ink">Department / track:</span>{" "}
+            <p className="rounded-2xl border border-white/15 bg-white/10 px-4 py-3 shadow-sm">
+              <span className="font-semibold text-white">Department / track:</span>{" "}
               {portal.departmentTrack ?? "Not applicable"}
             </p>
           </div>
@@ -106,10 +107,31 @@ export function StudentPortalDashboard({
               </article>
             ))}
           </div>
-
-        
         </div>
       </DashboardCard>
+
+      <section className="rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-6">
+          {[
+            { label: "Timetable", href: "/portals/student/timetable", icon: CalendarDays },
+            { label: "Subjects", href: "/my-subjects", icon: BookOpen },
+            { label: "Assignments", href: "/portals/student/assignments", icon: ClipboardList },
+            { label: "Results", href: "/portals/student/results", icon: Trophy },
+            { label: "Fees", href: "/portals/student/fees", icon: CreditCard },
+            { label: "Notices", href: "/portals/student/announcements", icon: Megaphone }
+          ].map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link key={action.href} href={action.href as Route} className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-primary-200 hover:bg-primary-50">
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 group-hover:bg-white">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="text-[13px] font-bold text-slate-900 group-hover:text-primary-800">{action.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
         <DashboardCard>

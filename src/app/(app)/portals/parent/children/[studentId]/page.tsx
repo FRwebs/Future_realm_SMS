@@ -3,6 +3,7 @@ import type { Route } from "next";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
@@ -33,12 +34,14 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
         {child.departmentTrack ? (
           <p className="mt-2 text-sm font-semibold text-brand-700">Senior secondary track: {child.departmentTrack}</p>
         ) : null}
-        <div className="mt-5 flex flex-wrap gap-2">
-          <Link href={`/portals/parent/children/${child.studentId}/attendance` as Route} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">Attendance</Link>
-          <Link href={`/portals/parent/children/${child.studentId}/results` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Results</Link>
-          <Link href={`/portals/parent/children/${child.studentId}/fees` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Fees</Link>
-          <Link href={`/portals/parent/children/${child.studentId}/timetable` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Timetable</Link>
-          <Link href={`/my-children/${child.studentId}/subjects` as Route} className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">Subjects & SOW</Link>
+        <div className="mt-5">
+          <ActionMenu triggerLabel={`Actions for ${child.studentName}`}>
+            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/attendance`}>Attendance</ActionMenuLink>
+            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/results`}>Results</ActionMenuLink>
+            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/fees`}>Fees</ActionMenuLink>
+            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/timetable`}>Timetable</ActionMenuLink>
+            <ActionMenuLink href={`/my-children/${child.studentId}/subjects`}>Subjects & SOW</ActionMenuLink>
+          </ActionMenu>
         </div>
       </section>
 

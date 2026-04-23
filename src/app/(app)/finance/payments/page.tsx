@@ -1,20 +1,23 @@
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { ManualPaymentModal } from "@/components/finance/manual-payment-modal";
 import { ResourceForm } from "@/components/forms/resource-form";
 import { apiGet } from "@/lib/api/server";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import { canAccessServerPath, getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import { PaymentView } from "@/lib/domain/types";
+import { InvoiceView, PaymentView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import Link from "next/link";
 
 export default async function PaymentsPage() {
   const session = await getServerSession();
   if (!session) return null;
   if (!(await canAccessServerPath(session, "/finance"))) return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
 
-  const [payments, permissions] = await Promise.all([
+  const [payments, invoices, permissions] = await Promise.all([
     apiGet<PaymentView[]>("/api/v1/finance/payments"),
+    apiGet<InvoiceView[]>("/api/v1/finance/invoices"),
     getServerPermissions(session),
   ]);
   const canManageFinance = permissions.some((permission) =>
@@ -24,26 +27,19 @@ export default async function PaymentsPage() {
   return (
     <div className="grid gap-6">
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/finance" className="text-sm font-semibold text-brand-700">Back to finance</a>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Payments and adjustments</h1>
+        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          <div>
+            <Link href="/finance" className="text-sm font-semibold text-brand-700">Back to finance</Link>
+            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Payments and adjustments</h1>
+            <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/68">
+              Record cash, bank transfer, POS, cheque, and online collections with receipt generation and audit history.
+            </p>
+          </div>
+          {canManageFinance ? <ManualPaymentModal invoices={invoices} /> : null}
+        </div>
       </section>
 
       {canManageFinance ? <section className="grid gap-6 xl:grid-cols-2">
-        <ResourceForm
-          title="Manual payment"
-          description="For cash, transfer, or POS payments recorded by the bursar. Successful payments allocate to the invoice and issue a receipt."
-          endpoint="/api/v1/finance/payments/manual"
-          submitLabel="Record payment"
-          fields={[
-            { name: "invoiceId", label: "Invoice ID", required: true },
-            { name: "reference", label: "Reference", placeholder: "Bank/POS/cash reference" },
-            { name: "amount", label: "Amount", type: "number", required: true, defaultValue: 50000, min: 1 },
-            { name: "paidAt", label: "Paid at", type: "date" },
-            { name: "method", label: "Method", type: "select", options: [{ label: "Transfer", value: "TRANSFER" }, { label: "Cash", value: "CASH" }, { label: "POS", value: "POS" }] },
-            { name: "provider", label: "Provider record", type: "select", options: [{ label: "Paystack", value: "PAYSTACK" }, { label: "Flutterwave", value: "FLUTTERWAVE" }] },
-            { name: "note", label: "Note", type: "textarea", placeholder: "Bank teller, teller name, or verification note." }
-          ]}
-        />
         <ResourceForm
           title="Verify online payment"
           description="Verify a Paystack/Flutterwave reference, allocate the payment, and issue a receipt."

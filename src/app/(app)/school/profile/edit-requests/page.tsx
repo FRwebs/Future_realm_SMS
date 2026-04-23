@@ -1,6 +1,7 @@
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet } from "@/lib/api/server";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import { canAccessServerPath } from "@/lib/auth/server-access";
@@ -54,7 +55,7 @@ export default async function ProfileEditRequestsPage() {
             header: "Action",
             render: (item) =>
               item.status === "PENDING" ? (
-                <div className="flex flex-wrap gap-2">
+                <ActionMenu triggerLabel={`Review actions for ${item.targetName}`}>
                   <ResourceActionDialog
                     triggerLabel="Approve"
                     title="Approve profile edit"
@@ -62,6 +63,7 @@ export default async function ProfileEditRequestsPage() {
                     endpoint={`/api/v1/profiles/edit-requests/${item.id}/review`}
                     method="PATCH"
                     submitLabel="Approve request"
+                    variant="menu"
                     confirmLabel="Confirm approval"
                     confirmMessage="This will update the official profile record."
                     fields={[
@@ -76,7 +78,7 @@ export default async function ProfileEditRequestsPage() {
                     endpoint={`/api/v1/profiles/edit-requests/${item.id}/review`}
                     method="PATCH"
                     submitLabel="Reject request"
-                    variant="danger"
+                    variant="menuDanger"
                     confirmLabel="Confirm rejection"
                     confirmMessage="This will reject the request without changing the profile."
                     fields={[
@@ -84,7 +86,7 @@ export default async function ProfileEditRequestsPage() {
                       { name: "reviewComment", label: "Review comment", type: "textarea", required: true },
                     ]}
                   />
-                </div>
+                </ActionMenu>
               ) : (
                 item.reviewedBy ?? "Reviewed"
               ),

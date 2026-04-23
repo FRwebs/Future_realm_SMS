@@ -9,6 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { useToast } from "@/components/ui/toast-provider";
 import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
 import { cn } from "@/lib/utils/cn";
 
@@ -63,6 +64,7 @@ export function ResourceForm({
   showHeader = true,
 }: ResourceFormProps) {
   const router = useRouter();
+  const { showToast } = useToast();
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
   const [tone, setTone] = useState<"success" | "warning" | "danger">("success");
@@ -87,6 +89,11 @@ export function ResourceForm({
         offlineQueue.saveDraft(payload);
         setTone("warning");
         setMessage("Saved as an offline draft. Sync when connectivity improves.");
+        showToast({
+          variant: "warning",
+          title: "Saved as offline draft",
+          description: "Your changes were queued locally and can be synced when connectivity improves.",
+        });
         setNeedsConfirmation(false);
         setPendingPayload(null);
         form.reset();
@@ -114,6 +121,11 @@ export function ResourceForm({
 
       setTone("success");
       setMessage("Saved successfully.");
+      showToast({
+        variant: "success",
+        title: "Saved successfully",
+        description: title,
+      });
       setNeedsConfirmation(false);
       setPendingPayload(null);
       form.reset();
@@ -121,7 +133,13 @@ export function ResourceForm({
       onSuccess?.();
     } catch (error) {
       setTone("danger");
-      setMessage(error instanceof Error ? error.message : "Something went wrong");
+      const nextMessage = error instanceof Error ? error.message : "Something went wrong";
+      setMessage(nextMessage);
+      showToast({
+        variant: "error",
+        title: "Unable to save record",
+        description: nextMessage,
+      });
     } finally {
       setPending(false);
     }
@@ -172,6 +190,11 @@ export function ResourceForm({
     const result = await offlineQueue.syncDrafts();
     setTone("success");
     setMessage(`Synced ${result.synced} queued draft(s).`);
+    showToast({
+      variant: "success",
+      title: "Drafts synced",
+      description: `${result.synced} queued draft(s) were uploaded successfully.`,
+    });
     router.refresh();
   }
 
