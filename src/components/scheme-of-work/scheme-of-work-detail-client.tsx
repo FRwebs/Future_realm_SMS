@@ -5,46 +5,14 @@ import { CheckCircle2, Edit3, RefreshCcw, Send, XCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 import { usePermissions } from "@/components/auth/permission-provider";
+import { Modal } from "@/components/ui/modal";
+import { SidePanel } from "@/components/ui/side-panel";
+import { useToast } from "@/components/ui/toast-provider";
 import type { SchemeOfWorkDetailView, SchemeOfWorkTopicView } from "@/lib/domain/types";
 import { cn } from "@/lib/utils/cn";
 import { schemeApi } from "./api";
 import { SchemeOfWorkStatusBadge } from "./status-badge";
 import { SchemeOfWorkTopicList } from "./topic-list";
-
-function ActionDialog({
-  open,
-  title,
-  onClose,
-  children,
-}: {
-  open: boolean;
-  title: string;
-  onClose: () => void;
-  children: React.ReactNode;
-}) {
-  if (!open) return null;
-
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_rgba(18,33,23,0.28)]">
-        <div className="flex items-start justify-between border-b border-ink/8 px-6 py-5">
-          <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Scheme of Work</p>
-            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">{title}</h3>
-          </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-ink/8 bg-white text-ink/55 transition hover:bg-sand/70"
-          >
-            <XCircle className="h-4 w-4" />
-          </button>
-        </div>
-        <div className="max-h-[70vh] overflow-y-auto p-6">{children}</div>
-      </div>
-    </div>
-  );
-}
 
 function ProgressCard({ sow }: { sow: SchemeOfWorkDetailView }) {
   const stats = sow.stats;
@@ -313,12 +281,15 @@ export function SchemeOfWorkDetailClient({
   isAssignedTeacher?: boolean;
 }) {
   const router = useRouter();
+  const { showToast } = useToast();
   const { hasPermission } = usePermissions();
   const [sow, setSow] = useState(initialSow);
   const [pending, setPending] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [coverTopic, setCoverTopic] = useState<SchemeOfWorkTopicView | null>(null);
   const [editTopic, setEditTopic] = useState<SchemeOfWorkTopicView | null>(null);
+  const [confirmAction, setConfirmAction] = useState<"submit" | "return" | null>(null);
+  const [returnReason, setReturnReason] = useState("");
 
   const canSubmit = hasPermission("sow.submit") && isAssignedTeacher;
   const canApprove = hasPermission("sow.approve");
@@ -336,29 +307,45 @@ export function SchemeOfWorkDetailClient({
     }
   }
 
-  async function runAction(action: "submit" | "approve" | "return") {
+  async function runAction(action: "submit" | "approve" | "return", reason?: string) {
     setPending(action);
     setError(null);
     try {
       if (action === "submit") {
         await schemeApi(`/api/v1/scheme-of-work/${sow.id}/submit`, { method: "PATCH", body: JSON.stringify({}) });
       } else {
-        const returnReason = action === "return" ? window.prompt("Why are you returning this scheme of work?") ?? "" : "";
-        if (action === "return" && !returnReason.trim()) {
-          setPending(null);
-          return;
-        }
         await schemeApi(`/api/v1/scheme-of-work/${sow.id}/approve`, {
           method: "PATCH",
           body: JSON.stringify({
             action,
-            returnReason,
+            returnReason: action === "return" ? reason : undefined,
           }),
         });
       }
       await refresh();
+      showToast({
+        variant: "success",
+        title:
+          action === "submit"
+            ? "Scheme submitted"
+            : action === "approve"
+              ? "Scheme approved"
+              : "Returned for revision",
+        description:
+          action === "submit"
+            ? `${sow.className} ${sow.subjectName} was submitted for review.`
+            : action === "approve"
+              ? `${sow.className} ${sow.subjectName} was approved successfully.`
+              : `${sow.className} ${sow.subjectName} was returned to the teacher.`,
+      });
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Unable to complete the action.");
+      const message = err instanceof Error ? err.message : "Unable to complete the action.";
+      setError(message);
+      showToast({
+        variant: "error",
+        title: "Action failed",
+        description: message,
+      });
     } finally {
       setPending(null);
     }
@@ -390,7 +377,7 @@ export function SchemeOfWorkDetailClient({
               <button
                 type="button"
                 disabled={pending === "submit"}
-                onClick={() => void runAction("submit")}
+                onClick={() => setConfirmAction("submit")}
                 className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
               >
                 <Send className="h-4 w-4" />
@@ -411,7 +398,7 @@ export function SchemeOfWorkDetailClient({
                 <button
                   type="button"
                   disabled={pending === "return"}
-                  onClick={() => void runAction("return")}
+                  onClick={() => setConfirmAction("return")}
                   className="inline-flex h-11 items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
                 >
                   <XCircle className="h-4 w-4" />
@@ -488,7 +475,12 @@ export function SchemeOfWorkDetailClient({
         ))}
       </section>
 
-      <ActionDialog open={Boolean(coverTopic)} title="Mark topic as covered" onClose={() => setCoverTopic(null)}>
+      <Modal
+        open={Boolean(coverTopic)}
+        onClose={() => setCoverTopic(null)}
+        title="Mark topic as covered"
+        subtitle="Update the actual coverage date and optional teaching notes for this week."
+      >
         {coverTopic ? (
           <CoverForm
             sowId={sow.id}
@@ -497,9 +489,14 @@ export function SchemeOfWorkDetailClient({
             onSaved={(updated) => setSow(updated)}
           />
         ) : null}
-      </ActionDialog>
+      </Modal>
 
-      <ActionDialog open={Boolean(editTopic)} title="Edit weekly topic" onClose={() => setEditTopic(null)}>
+      <SidePanel
+        open={Boolean(editTopic)}
+        onClose={() => setEditTopic(null)}
+        title="Edit weekly topic"
+        subtitle="Update weekly content, instructional notes, and references without leaving the scheme detail page."
+      >
         {editTopic ? (
           <TopicForm
             sowId={sow.id}
@@ -508,7 +505,84 @@ export function SchemeOfWorkDetailClient({
             onSaved={(updated) => setSow(updated)}
           />
         ) : null}
-      </ActionDialog>
+      </SidePanel>
+
+      <Modal
+        open={confirmAction === "submit"}
+        onClose={() => setConfirmAction(null)}
+        title="Submit scheme for review"
+        subtitle={`Submit ${sow.subjectName} for ${sow.className}. Editing should pause while it is under review.`}
+        footer={
+          <div className="flex justify-end gap-3">
+            <button type="button" onClick={() => setConfirmAction(null)} className="btn-secondary px-5">
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={pending === "submit"}
+              onClick={() => {
+                setConfirmAction(null);
+                void runAction("submit");
+              }}
+              className="btn-primary px-5"
+            >
+              {pending === "submit" ? "Submitting..." : "Submit for review"}
+            </button>
+          </div>
+        }
+      >
+        <p className="text-[13px] leading-6 text-slate-600">
+          Once submitted, this scheme moves into the academic approval flow and should only be changed if it is returned for correction.
+        </p>
+      </Modal>
+
+      <Modal
+        open={confirmAction === "return"}
+        onClose={() => {
+          setConfirmAction(null);
+          setReturnReason("");
+        }}
+        title="Return scheme for revision"
+        subtitle="Provide a clear reason. The teacher will see this note immediately."
+        footer={
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => {
+                setConfirmAction(null);
+                setReturnReason("");
+              }}
+              className="btn-secondary px-5"
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              disabled={pending === "return" || !returnReason.trim()}
+              onClick={() => {
+                const nextReason = returnReason.trim();
+                setConfirmAction(null);
+                setReturnReason("");
+                void runAction("return", nextReason);
+              }}
+              className="btn-destructive px-5"
+            >
+              {pending === "return" ? "Returning..." : "Return for revision"}
+            </button>
+          </div>
+        }
+      >
+        <label className="grid gap-2">
+          <span className="field-label">Reason for return</span>
+          <textarea
+            rows={4}
+            value={returnReason}
+            onChange={(event) => setReturnReason(event.target.value)}
+            className="field-textarea rounded-2xl"
+            placeholder="Explain what needs to be corrected before this scheme can be approved."
+          />
+        </label>
+      </Modal>
     </div>
   );
 }

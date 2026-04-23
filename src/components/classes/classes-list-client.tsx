@@ -3,9 +3,10 @@
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, BookOpen, Eye, Plus, Search, UserCheck, X } from "lucide-react";
+import { AlertCircle, BookOpen, Plus, Search, X } from "lucide-react";
 
 import { CanDo, usePermissions } from "@/components/auth/permission-provider";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
 import { usePagination } from "@/hooks/use-pagination";
 import { cn } from "@/lib/utils/cn";
@@ -160,26 +161,10 @@ function ClassRow({
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={onView}
-            className="inline-flex items-center gap-1.5 rounded-full bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800 transition hover:bg-brand-100"
-          >
-            <Eye className="h-3 w-3" />
-            View
-          </button>
-          {canAssign ? (
-            <button
-              type="button"
-              onClick={onAssign}
-              className="inline-flex items-center gap-1.5 rounded-full bg-sand px-3 py-1.5 text-xs font-semibold text-ink/70 transition hover:bg-white"
-            >
-              <UserCheck className="h-3 w-3" />
-              Assign
-            </button>
-          ) : null}
-        </div>
+        <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+          <ActionMenuButton onClick={onView}>View class</ActionMenuButton>
+          {canAssign ? <ActionMenuButton onClick={onAssign}>Assign teachers</ActionMenuButton> : null}
+        </ActionMenu>
       </td>
     </tr>
   );

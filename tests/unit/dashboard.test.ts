@@ -8,6 +8,7 @@ describe("dashboard domain", () => {
 
   it("shows finance shortcuts to bursars and admission shortcuts to admissions officers", () => {
     expect(getDashboardQuickActions("ACCOUNTANT").map((item) => item.label)).toContain("Create invoice");
-    expect(getDashboardQuickActions("ADMISSIONS_OFFICER").map((item) => item.label)).toEqual(["Review admissions"]);
+    expect(getDashboardQuickActions("BURSAR").map((item) => item.label)).toContain("Create invoice");
+    expect(getDashboardQuickActions("ADMISSIONS_OFFICER").map((item) => item.label)).toEqual(["Review admissions", "Parents directory"]);
   });
 });

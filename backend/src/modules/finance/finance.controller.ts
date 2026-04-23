@@ -1,8 +1,11 @@
-import { Body, Controller, ForbiddenException, Get, Header, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, ForbiddenException, Get, Header, Headers, Param, Post, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
+import type { Request } from "express";
 
 import { hasRole } from "../../../../src/lib/auth/roles";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { verifyFlutterwaveSignature, verifyPaystackSignature } from "../../../../src/lib/integrations/payment-gateways";
+import { env } from "../../../../src/lib/utils/env";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
@@ -144,5 +147,34 @@ export class FinanceController {
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
   async exportReport(@CurrentSession() session: SessionPayload) {
     return this.financeService.exportFinanceReport(session.schoolId);
+  }
+}
+
+@ApiTags("finance-webhooks")
+@Controller("v1/finance/webhooks")
+export class FinanceWebhookController {
+  constructor(private readonly financeService: FinanceService) {}
+
+  @Post("paystack")
+  async paystackWebhook(
+    @Req() req: Request & { rawBody?: Buffer },
+    @Headers("x-paystack-signature") signature: string | undefined,
+    @Body() body: Record<string, unknown>
+  ) {
+    if (!env.DEMO_MODE && !verifyPaystackSignature(req.rawBody ?? Buffer.from(JSON.stringify(body)), signature, env.PAYSTACK_WEBHOOK_SECRET ?? env.PAYSTACK_SECRET_KEY)) {
+      throw new UnauthorizedException("Invalid Paystack webhook signature.");
+    }
+    return { ok: true, data: await this.financeService.handlePaystackWebhook(body) };
+  }
+
+  @Post("flutterwave")
+  async flutterwaveWebhook(
+    @Headers("verif-hash") verifHash: string | undefined,
+    @Body() body: Record<string, unknown>
+  ) {
+    if (!env.DEMO_MODE && !verifyFlutterwaveSignature(verifHash, env.FLUTTERWAVE_WEBHOOK_SECRET)) {
+      throw new UnauthorizedException("Invalid Flutterwave webhook signature.");
+    }
+    return { ok: true, data: await this.financeService.handleFlutterwaveWebhook(body) };
   }
 }

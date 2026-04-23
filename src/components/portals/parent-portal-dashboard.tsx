@@ -1,28 +1,56 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { Bell, CreditCard, GraduationCap, Megaphone, Sparkles, Users } from "lucide-react";
 
 import { TableCard } from "@/components/data-display/table-card";
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { ParentPortalView } from "@/lib/domain/types";
 import { formatCurrency, formatDate, formatPercentage } from "@/lib/utils/formatters";
 
 export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) {
   return (
     <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Parent Portal</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{portal.headline}</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
-          {portal.parentName} can review each child's weekly timetable, term results, attendance, balances, and family-wide notices from one screen.
-        </p>
-        <div className="mt-6 grid gap-4 md:grid-cols-3">
+      <section className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-primary-900 via-primary-700 to-teal-600 p-6 text-white shadow-panel md:p-8">
+        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative">
+          <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/75">
+            <Sparkles className="h-3.5 w-3.5" />
+            Parent family command center
+          </div>
+          <h1 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">{portal.headline}</h1>
+          <p className="mt-3 max-w-3xl text-sm leading-6 text-white/74">
+            {portal.parentName} can review each child's timetable, attendance, results, fee balance, payments, and school notices from one secure family workspace.
+          </p>
+        </div>
+        <div className="relative mt-6 grid gap-4 md:grid-cols-3">
           {portal.familyStats.map((stat) => (
-            <article key={stat.label} className="rounded-[1.5rem] bg-sand/65 p-5">
-              <p className="text-sm text-ink/55">{stat.label}</p>
-              <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{stat.value}</p>
+            <article key={stat.label} className="rounded-[1.5rem] border border-white/15 bg-white/10 p-5 backdrop-blur">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-white/55">{stat.label}</p>
+              <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-white">{stat.value}</p>
             </article>
           ))}
         </div>
-     
+      </section>
+
+      <section className="rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel">
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: "Children", href: "/portals/parent/children", icon: Users },
+            { label: "Announcements", href: "/portals/parent/announcements", icon: Megaphone },
+            { label: "Fees", href: portal.children[0] ? `/portals/parent/children/${portal.children[0].studentId}/fees` : "/portals/parent/children", icon: CreditCard },
+            { label: "Results", href: portal.children[0] ? `/portals/parent/children/${portal.children[0].studentId}/results` : "/portals/parent/children", icon: GraduationCap }
+          ].map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link key={action.label} href={action.href as Route} className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-primary-200 hover:bg-primary-50">
+                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 group-hover:bg-white">
+                  <Icon className="h-4 w-4" />
+                </span>
+                <span className="text-[13px] font-bold text-slate-900 group-hover:text-primary-800">{action.label}</span>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
@@ -42,7 +70,12 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
       </section>
 
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Family notices</h2>
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+            <Bell className="h-4 w-4" />
+          </div>
+          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Family notices</h2>
+        </div>
         <div className="mt-5 grid gap-4">
           {portal.announcements.map((item) => (
             <article key={item.id} className="rounded-[1.5rem] border border-ink/8 bg-sand/55 p-5">
@@ -88,19 +121,13 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 <p className="mt-2 text-sm font-semibold text-ink">{child.notes.join(" · ")}</p>
               </article>
             </div>
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Link href={`/portals/parent/children/${child.studentId}` as Route} className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
-                View overview
-              </Link>
-              <Link href={`/portals/parent/children/${child.studentId}/results` as Route} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
-                Results
-              </Link>
-              <Link href={`/portals/parent/children/${child.studentId}/fees` as Route} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
-                Fees
-              </Link>
-              <Link href={`/portals/parent/children/${child.studentId}/attendance` as Route} className="rounded-full bg-white px-4 py-2 text-sm font-semibold text-ink">
-                Attendance
-              </Link>
+            <div className="mt-5">
+              <ActionMenu triggerLabel={`Actions for ${child.studentName}`}>
+                <ActionMenuLink href={`/portals/parent/children/${child.studentId}`}>View overview</ActionMenuLink>
+                <ActionMenuLink href={`/portals/parent/children/${child.studentId}/results`}>Results</ActionMenuLink>
+                <ActionMenuLink href={`/portals/parent/children/${child.studentId}/fees`}>Fees</ActionMenuLink>
+                <ActionMenuLink href={`/portals/parent/children/${child.studentId}/attendance`}>Attendance</ActionMenuLink>
+              </ActionMenu>
             </div>
           </section>
 

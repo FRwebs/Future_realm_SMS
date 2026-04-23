@@ -224,7 +224,23 @@ export class DashboardService {
               { label: "Teacher lateness", value: String(staffLateToday), change: "Late staff clock-ins today" },
               { label: "Training compliance", value: `${trainingCompliance}%`, change: "Mandatory teacher CPD completion" }
             ]
-          : [])
+          : []),
+        ...this.roleOperationalWidgets({
+          role: session.role,
+          admissionsInProgress,
+          pendingApprovals,
+          studentsCount,
+          staffCount,
+          todayAttendanceTotal: todayAttendance.length,
+          absentToday: todayAttendance.filter((item) => item.status === "ABSENT").length,
+          classCount,
+          subjectCount,
+          pendingLeave,
+          staffLateToday,
+          trainingCompliance,
+          pendingBroadsheets,
+          curriculumCoverage
+        })
       ],
       attendanceTrend: this.buildAttendanceTrend(weekAttendance),
       feeTrend: [{ month: format(today, "MMM"), collected: Number((collected / 1_000_000).toFixed(2)), outstanding: Number((Number(invoiceAgg._sum.balance ?? 0) / 1_000_000).toFixed(2)) }],
@@ -275,6 +291,96 @@ export class DashboardService {
 
   private filterPendingActions(role: SessionPayload["role"], actions: DashboardActionItem[]) {
     return actions.filter((item) => !item.roleScope || hasRole(role, item.roleScope));
+  }
+
+  private roleOperationalWidgets(params: {
+    role: SessionPayload["role"];
+    admissionsInProgress: number;
+    pendingApprovals: number;
+    studentsCount: number;
+    staffCount: number;
+    todayAttendanceTotal: number;
+    absentToday: number;
+    classCount: number;
+    subjectCount: number;
+    pendingLeave: number;
+    staffLateToday: number;
+    trainingCompliance: number;
+    pendingBroadsheets: number;
+    curriculumCoverage: number;
+  }) {
+    const {
+      role,
+      admissionsInProgress,
+      pendingApprovals,
+      studentsCount,
+      staffCount,
+      todayAttendanceTotal,
+      absentToday,
+      classCount,
+      subjectCount,
+      pendingLeave,
+      staffLateToday,
+      trainingCompliance,
+      pendingBroadsheets,
+      curriculumCoverage
+    } = params;
+
+    if (hasRole(role, ["ADMISSIONS_OFFICER"])) {
+      return [
+        { label: "Applicants in pipeline", value: admissionsInProgress.toLocaleString("en-NG"), change: "Applications not yet enrolled" },
+        { label: "Approval-ready files", value: pendingApprovals.toLocaleString("en-NG"), change: "Recommended, approved, or accepted records" },
+        { label: "Active students", value: studentsCount.toLocaleString("en-NG"), change: "Enrollment baseline for conversion planning" },
+        { label: "Classes available", value: classCount.toLocaleString("en-NG"), change: "Placement options for admitted learners" }
+      ];
+    }
+
+    if (hasRole(role, ["GUIDANCE_COUNSELOR", "GUIDANCE_COUNSELLOR", "SCHOOL_NURSE", "NURSE"])) {
+      return [
+        { label: "Active learners", value: studentsCount.toLocaleString("en-NG"), change: "Students in welfare scope" },
+        { label: "Absences today", value: absentToday.toLocaleString("en-NG"), change: "Possible welfare or health follow-up" },
+        { label: "Attendance records", value: todayAttendanceTotal.toLocaleString("en-NG"), change: "Marked records today" },
+        { label: "Classes monitored", value: classCount.toLocaleString("en-NG"), change: "Potential student-support coverage" }
+      ];
+    }
+
+    if (hasRole(role, ["RECEPTIONIST", "TRANSPORT_COORDINATOR", "TRANSPORT_MANAGER", "HOSTEL_MANAGER", "HOSTEL_MASTER", "HOSTEL_MATRON", "HOSTEL_MISTRESS", "STORE_OFFICER", "SECURITY_OFFICER", "MAINTENANCE_OFFICER"])) {
+      return [
+        { label: "Active students", value: studentsCount.toLocaleString("en-NG"), change: "Students in operational scope" },
+        { label: "Classes", value: classCount.toLocaleString("en-NG"), change: "Class groups for routing and support" },
+        { label: "Absences today", value: absentToday.toLocaleString("en-NG"), change: "Operational follow-up signal" },
+        { label: "Announcements", value: todayAttendanceTotal ? "Live" : "Quiet", change: "Use communications for parent-facing updates" }
+      ];
+    }
+
+    if (hasRole(role, ["IT_ADMINISTRATOR", "ICT_CBT_ADMIN"])) {
+      return [
+        { label: "Students", value: studentsCount.toLocaleString("en-NG"), change: "Portal accounts requiring access support" },
+        { label: "Staff", value: staffCount.toLocaleString("en-NG"), change: "Staff accounts and permissions context" },
+        { label: "Classes", value: classCount.toLocaleString("en-NG"), change: "Class-based access and CBT group context" },
+        { label: "Subjects", value: subjectCount.toLocaleString("en-NG"), change: "Learning and assessment setup context" }
+      ];
+    }
+
+    if (hasRole(role, ["VICE_PRINCIPAL_ADMINISTRATION", "VICE_PRINCIPAL_SPECIAL_DUTIES", "ADMINISTRATOR", "ADMIN_OFFICER", "HR_OFFICER"])) {
+      return [
+        { label: "Staff records", value: staffCount.toLocaleString("en-NG"), change: "Administrative staff scope" },
+        { label: "Pending leave", value: pendingLeave.toLocaleString("en-NG"), change: "Leave requests awaiting review" },
+        { label: "Late staff", value: staffLateToday.toLocaleString("en-NG"), change: "Late staff clock-ins today" },
+        { label: "CPD compliance", value: `${trainingCompliance}%`, change: "Mandatory training completion" }
+      ];
+    }
+
+    if (hasRole(role, ["EXAM_OFFICER", "EXAMINATION_OFFICER", "VICE_PRINCIPAL_ACADEMICS", "HEAD_OF_DEPARTMENT"])) {
+      return [
+        { label: "Pending broadsheets", value: pendingBroadsheets.toLocaleString("en-NG"), change: "Draft, review, correction, or approval state" },
+        { label: "Scheme coverage", value: `${curriculumCoverage}%`, change: "Termly topics taught/completed" },
+        { label: "Classes", value: classCount.toLocaleString("en-NG"), change: "Class result and timetable scope" },
+        { label: "Subjects", value: subjectCount.toLocaleString("en-NG"), change: "Active curriculum subjects" }
+      ];
+    }
+
+    return [];
   }
 
   private async sessionContext(schoolId: string) {

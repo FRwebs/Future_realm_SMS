@@ -4,6 +4,7 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -99,15 +100,15 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             key: "actions",
             header: "Actions",
             render: (item) => (
-              <div className="flex flex-wrap gap-2">
-                <Link className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-ink/10" href={`/super-admin/schools/${item.id}`}>View</Link>
+              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+                <ActionMenuLink href={`/super-admin/schools/${item.id}`}>View</ActionMenuLink>
                 <ResourceActionDialog
                   triggerLabel="Edit"
                   title={`Edit ${item.name}`}
                   description="Update school name, plan, or tenant status."
                   endpoint={`/api/super-admin/schools/${item.id}`}
                   method="PATCH"
-                  variant="secondary"
+                  variant="menu"
                   submitLabel="Save changes"
                   fields={[
                     { name: "name", label: "School Name", defaultValue: item.name },
@@ -126,7 +127,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   description="This changes tenant access for all school users."
                   endpoint={`/api/super-admin/schools/${item.id}/${item.status === "SUSPENDED" ? "activate" : "suspend"}`}
                   method="PATCH"
-                  variant={item.status === "SUSPENDED" ? "secondary" : "danger"}
+                  variant={item.status === "SUSPENDED" ? "menu" : "menuDanger"}
                   submitLabel={item.status === "SUSPENDED" ? "Activate" : "Suspend"}
                   confirmLabel="Confirm"
                   confirmMessage="This is an audit-sensitive tenant operation."
@@ -138,13 +139,13 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   description="Soft-deletes the school tenant and disables associated users without hard-deleting records."
                   endpoint={`/api/super-admin/schools/${item.id}`}
                   method="DELETE"
-                  variant="danger"
+                  variant="menuDanger"
                   submitLabel="Delete school"
                   confirmLabel="Confirm Delete"
                   confirmMessage="This will hide the tenant and disable its users. Records remain in the database for audit recovery."
                   fields={[]}
                 />
-              </div>
+              </ActionMenu>
             )
           }
         ]}

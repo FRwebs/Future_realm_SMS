@@ -2,6 +2,7 @@ import { MetricCard } from "@/components/dashboard/metric-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminBillingRow, SuperAdminRevenueView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
@@ -50,14 +51,14 @@ export default async function SuperAdminBillingPage() {
             key: "actions",
             header: "Actions",
             render: (item) => (
-              <div className="flex flex-wrap gap-2">
+              <ActionMenu triggerLabel={`Billing actions for ${item.schoolName}`}>
                 <ResourceActionDialog
                   triggerLabel="Change Plan"
                   title={`Change plan for ${item.schoolName}`}
                   description="Update this school's subscription plan."
                   endpoint={`/api/super-admin/billing/${item.schoolId}`}
                   method="PATCH"
-                  variant="secondary"
+                  variant="menu"
                   submitLabel="Save plan"
                   fields={[{ name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: item.plan }]}
                 />
@@ -67,7 +68,7 @@ export default async function SuperAdminBillingPage() {
                   description="Add trial days and move billing due date forward."
                   endpoint={`/api/super-admin/billing/${item.schoolId}/extend-trial`}
                   method="POST"
-                  variant="secondary"
+                  variant="menu"
                   submitLabel="Extend trial"
                   fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
                 />
@@ -77,12 +78,12 @@ export default async function SuperAdminBillingPage() {
                   description="Marks billing as overdue and restricts school access."
                   endpoint={`/api/super-admin/billing/${item.schoolId}/suspend-billing`}
                   method="PATCH"
-                  variant="danger"
+                  variant="menuDanger"
                   submitLabel="Suspend billing"
                   confirmLabel="Confirm Suspend"
                   fields={[]}
                 />
-              </div>
+              </ActionMenu>
             )
           }
         ]}

@@ -5,6 +5,7 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminUserRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -74,15 +75,15 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
             key: "actions",
             header: "Actions",
             render: (item) => (
-              <div className="flex flex-wrap gap-2">
-                <Link className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-ink ring-1 ring-ink/10" href={`/super-admin/users/${item.id}`}>View Profile</Link>
+              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+                <ActionMenuLink href={`/super-admin/users/${item.id}`}>View profile</ActionMenuLink>
                 <ResourceActionDialog
                   triggerLabel="Reset Password"
                   title={`Reset password for ${item.name}`}
                   description="Generate a temporary password and require the user to change it on next support handoff."
                   endpoint={`/api/super-admin/users/${item.id}/reset-password`}
                   method="PATCH"
-                  variant="secondary"
+                  variant="menu"
                   submitLabel="Reset password"
                   confirmLabel="Confirm Reset"
                   confirmMessage="This audit-sensitive action will invalidate the current password."
@@ -94,7 +95,7 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
                   description="Suspends this user account without deleting school records."
                   endpoint={`/api/super-admin/users/${item.id}/suspend`}
                   method="PATCH"
-                  variant="danger"
+                  variant="menuDanger"
                   submitLabel="Suspend user"
                   confirmLabel="Confirm Suspend"
                   fields={[]}
@@ -105,12 +106,12 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
                   description="Soft-deletes this user account without removing historical school records."
                   endpoint={`/api/super-admin/users/${item.id}`}
                   method="DELETE"
-                  variant="danger"
+                  variant="menuDanger"
                   submitLabel="Delete user"
                   confirmLabel="Confirm Delete"
                   fields={[]}
                 />
-              </div>
+              </ActionMenu>
             )
           }
         ]}

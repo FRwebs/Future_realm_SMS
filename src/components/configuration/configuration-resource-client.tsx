@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ArrowLeft, CheckCircle2, Plus, Search, Trash2, X } from "lucide-react";
 
 import { usePermissions } from "@/components/auth/permission-provider";
+import { ActionMenu, ActionMenuButton } from "@/components/ui/action-menu";
 import { cn } from "@/lib/utils/cn";
 import { configApi } from "./api";
 
@@ -290,10 +291,19 @@ export function ConfigurationResourceClient({ resource }: { resource: string }) 
                     </td>
                     <td className="max-w-sm truncate px-4 py-3 text-ink/55">{inputValue(record.description ?? record.reason ?? record.audience ?? record.startDate ?? record.createdAt ?? "—")}</td>
                     <td className="px-4 py-3">
-                      <div className="flex flex-wrap gap-2">
-                        {!isReadonly && canUpdate ? <button type="button" onClick={() => setEditing(record)} className="rounded-full bg-brand-50 px-3 py-1.5 text-xs font-bold text-brand-800 transition hover:bg-brand-100">Edit</button> : null}
-                        {!isReadonly && canDelete ? <button type="button" onClick={() => void remove(record)} className="rounded-full bg-rose-50 px-3 py-1.5 text-xs font-bold text-rose-700 transition hover:bg-rose-100"><Trash2 className="inline h-3 w-3" /> Remove</button> : null}
-                      </div>
+                      <ActionMenu triggerLabel={`Actions for ${recordTitle(record)}`}>
+                        {!isReadonly && canUpdate ? (
+                          <ActionMenuButton onClick={() => setEditing(record)}>Edit</ActionMenuButton>
+                        ) : null}
+                        {!isReadonly && canDelete ? (
+                          <ActionMenuButton onClick={() => void remove(record)} destructive>
+                            <span className="inline-flex items-center gap-2">
+                              <Trash2 className="h-3.5 w-3.5" />
+                              Remove
+                            </span>
+                          </ActionMenuButton>
+                        ) : null}
+                      </ActionMenu>
                     </td>
                   </tr>
                 ))}

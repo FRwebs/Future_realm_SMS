@@ -14,7 +14,7 @@ export function TrendCard({ title, description, items }: TrendCardProps) {
           Insights
         </div>
 
-        <h3 className="mt-3 text-[20px] font-bold text-slate-900">
+        <h3 className="mt-3 text-[20px] font-bold  text-slate-900">
           {title}
         </h3>
 
@@ -23,7 +23,7 @@ export function TrendCard({ title, description, items }: TrendCardProps) {
         </p>
       </div>
 
-      <div className="p-6">
+      <div className="p-6 ">
         <div className="grid gap-5">
           {items.map((item) => {
             const percentage = (item.value / max) * 100;

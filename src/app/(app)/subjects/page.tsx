@@ -1,5 +1,6 @@
 import Link from "next/link";
 
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
@@ -279,13 +280,11 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
                         </span>
                       </div>
                     </div>
-                    <div className="mt-4 flex flex-wrap gap-3">
-                      <Link href={`/subjects/${subject.id}`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
-                        Open subject
-                      </Link>
-                      <Link href={`/subjects/${subject.id}/scheme-of-work`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
-                        Review SOW
-                      </Link>
+                    <div className="mt-4">
+                      <ActionMenu triggerLabel={`Actions for ${subject.name}`}>
+                        <ActionMenuLink href={`/subjects/${subject.id}`}>Open subject</ActionMenuLink>
+                        <ActionMenuLink href={`/subjects/${subject.id}/scheme-of-work`}>Review SOW</ActionMenuLink>
+                      </ActionMenu>
                     </div>
                   </article>
                 ))
@@ -378,20 +377,16 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
               );
             },
           },
-          {
-            key: "actions",
-            header: "Actions",
-            render: (subject) => (
-              <div className="flex flex-wrap gap-2">
-                <Link href={`/subjects/${subject.id}`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
-                  View subject
-                </Link>
-                <Link href={`/subjects/${subject.id}/scheme-of-work`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
-                  View SOW
-                </Link>
-              </div>
-            ),
-          },
+            {
+              key: "actions",
+              header: "Actions",
+              render: (subject) => (
+                <ActionMenu triggerLabel={`Actions for ${subject.name}`}>
+                  <ActionMenuLink href={`/subjects/${subject.id}`}>View subject</ActionMenuLink>
+                  <ActionMenuLink href={`/subjects/${subject.id}/scheme-of-work`}>View SOW</ActionMenuLink>
+                </ActionMenu>
+              ),
+            },
         ]}
       />
     </div>

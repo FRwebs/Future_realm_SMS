@@ -12,6 +12,7 @@ import { AppModule } from "./app.module";
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, {
+    rawBody: true,
     cors: {
       origin: [env.APP_URL, "http://127.0.0.1:3000"],
       credentials: true
