@@ -9,6 +9,7 @@ import { CommunicationsModule } from "./modules/communications/communications.mo
 import { ConfigurationModule } from "./modules/configuration/configuration.module";
 import { ClassesModule } from "./modules/classes/classes.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
+import { ExamOfficerModule } from "./modules/exam-officer/exam-officer.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { NigeriaOperationsModule } from "./modules/nigeria-operations/nigeria-operations.module";
 import { ParentPortalModule } from "./modules/parent-portal/parent-portal.module";
@@ -19,6 +20,7 @@ import { ReportsModule } from "./modules/reports/reports.module";
 import { RolesManagementModule } from "./modules/roles-management/roles-management.module";
 import { StaffModule } from "./modules/staff/staff.module";
 import { StudentPortalModule } from "./modules/student-portal/student-portal.module";
+import { SupportPortalsModule } from "./modules/support-portals/support-portals.module";
 import { SuperAdminModule } from "./modules/super-admin/super-admin.module";
 import { SchemeOfWorkModule } from "./modules/scheme-of-work/scheme-of-work.module";
 import { TeacherPortalModule } from "./modules/teacher-portal/teacher-portal.module";
@@ -31,6 +33,7 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     AuthModule,
     AuthFeatureModule,
     DashboardModule,
+    ExamOfficerModule,
     AdmissionsModule,
     StudentsModule,
     AttendanceModule,
@@ -49,6 +52,7 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     ParentPortalModule,
     ParentsModule,
     StudentPortalModule,
+    SupportPortalsModule,
     SuperAdminModule,
     TeacherPortalModule,
     TeachersModule,

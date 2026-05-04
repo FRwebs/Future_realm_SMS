@@ -46,18 +46,18 @@ export function SidePanel({
   if (!open || typeof document === "undefined") return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[170]">
+    <div className="fixed inset-0 z-[var(--z-modal)]">
       <button
         type="button"
         aria-label="Close side panel backdrop"
         onClick={onClose}
-        className="absolute inset-0 bg-black/40 backdrop-blur-[1px]"
+        className="overlay-enter absolute inset-0 bg-black/60 backdrop-blur-[8px]"
       />
 
       <div className="absolute inset-y-0 right-0 flex w-full justify-end">
         <section
           className={cn(
-            "flex h-full w-full flex-col border-l border-slate-100 bg-white shadow-[0_20px_70px_rgba(15,23,42,0.18)] transition-transform duration-200",
+            "panel-enter-right flex h-full w-full flex-col border-l border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] text-[var(--color-text-primary)] shadow-[var(--shadow-lg)] transition-transform duration-200",
             "max-md:max-w-full",
             SIDE_PANEL_WIDTH[size],
           )}
@@ -65,11 +65,11 @@ export function SidePanel({
           aria-modal="true"
           aria-label={title}
         >
-          <div className="sticky top-0 z-[1] flex items-start justify-between gap-4 border-b border-slate-100 bg-white px-5 py-4">
+          <div className="sticky top-0 z-[1] flex items-start justify-between gap-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-5 py-4">
             <div className="min-w-0">
-              <h2 className="text-[20px] font-bold text-slate-900">{title}</h2>
+              <h2 className="font-[var(--font-display)] text-[20px] font-bold text-[var(--color-text-primary)]">{title}</h2>
               {subtitle ? (
-                <p className="mt-1 text-[13px] leading-6 text-slate-600">
+                <p className="mt-1 text-[13px] leading-6 text-[var(--color-text-secondary)]">
                   {subtitle}
                 </p>
               ) : null}
@@ -87,7 +87,7 @@ export function SidePanel({
           <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
 
           {footer ? (
-            <div className="sticky bottom-0 border-t border-slate-100 bg-white px-5 py-4">
+            <div className="sticky bottom-0 border-t border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-5 py-4">
               {footer}
             </div>
           ) : null}

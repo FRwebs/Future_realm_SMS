@@ -12,7 +12,7 @@ import { formatDate } from "@/lib/utils/formatters";
 export default async function TeacherStaffAttendancePage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/portals/teacher")) {
+  if (!canAccessPath(session.role, "/portals/teacher/staff-attendance")) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 

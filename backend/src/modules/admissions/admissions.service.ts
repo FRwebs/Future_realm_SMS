@@ -1,11 +1,9 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { ApplicationStatus, Prisma } from "@prisma/client";
 import { addDays, differenceInCalendarDays } from "date-fns";
-import { randomUUID } from "crypto";
 import { z } from "zod";
 
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoStore } from "../../../../src/lib/demo/data";
 import {
   AdmissionApplicationView,
   AdmissionConfigView,
@@ -20,7 +18,6 @@ import {
   getNigeriaClassLookupNames,
   normalizeNigeriaClassValue
 } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const finalStatuses: AdmissionStatus[] = ["REJECTED", "DECLINED", "ENROLLED", "ACTIVE"];
 const decisionStatuses: AdmissionStatus[] = ["APPROVED", "CONDITIONALLY_APPROVED", "REJECTED", "WAITLISTED"];
@@ -368,22 +365,20 @@ export class AdmissionsService {
       body
     });
 
-    if (!env.DEMO_MODE) {
-      await prisma.notificationLog.create({
-        data: {
-          schoolId,
-          channel: application.guardianEmail ? "EMAIL" : "SMS",
-          title,
-          body,
-          status: "MOCK_SENT",
-          sentAt: new Date(),
-          metadata: {
-            applicationId: application.id,
-            applicationNo: application.applicationNo
-          }
+    await prisma.notificationLog.create({
+      data: {
+        schoolId,
+        channel: application.guardianEmail ? "EMAIL" : "SMS",
+        title,
+        body,
+        status: "MOCK_SENT",
+        sentAt: new Date(),
+        metadata: {
+          applicationId: application.id,
+          applicationNo: application.applicationNo
         }
-      });
-    }
+      }
+    });
   }
 
   private async audit(
@@ -393,7 +388,6 @@ export class AdmissionsService {
     applicationId: string,
     metadata: Record<string, unknown>
   ) {
-    if (env.DEMO_MODE) return;
     await prisma.auditLog.create({
       data: {
         schoolId,
@@ -485,10 +479,6 @@ export class AdmissionsService {
   }
 
   async listAdmissions(schoolId: string): Promise<AdmissionApplicationView[]> {
-    if (env.DEMO_MODE) {
-      return getDemoStore().admissions;
-    }
-
     const admissions = await prisma.admissionApplication.findMany({
       where: { schoolId },
       include: {
@@ -523,12 +513,6 @@ export class AdmissionsService {
   }
 
   async getAdmission(schoolId: string, applicationId: string) {
-    if (env.DEMO_MODE) {
-      const application = getDemoStore().admissions.find((item) => item.id === applicationId);
-      if (!application) throw new NotFoundException("Admission application not found");
-      return application;
-    }
-
     return mapAdmission(await this.getAdmissionOrThrow(schoolId, applicationId));
   }
 
@@ -580,26 +564,6 @@ export class AdmissionsService {
   }
 
   async getAdmissionSettings(schoolId: string): Promise<AdmissionConfigView> {
-    if (env.DEMO_MODE) {
-      return {
-        id: "demo-admission-config",
-        name: "2026 O-Level Admissions",
-        academicSession: "2025/2026",
-        term: "Second Term",
-        isActive: true,
-        openClasses: ["JSS 1 - Silver", "SSS 1 - Emerald", "Primary 4 - Blue"],
-        minAge: 9,
-        maxAge: 17,
-        requiredDocuments: ["Birth certificate", "Previous school result", "Passport photograph"],
-        applicationFeeAmount: 10000,
-        applicationFeeRequired: true,
-        screeningRequired: true,
-        principalApprovalRequired: true,
-        bursarClearanceRequired: true,
-        offerExpiryDays: 14
-      };
-    }
-
     const existing = await prisma.admissionConfig.findFirst({
       where: { schoolId, isActive: true },
       include: { academicSession: true, term: true, openClasses: true },
@@ -700,47 +664,6 @@ export class AdmissionsService {
     const desiredClassName = formatNigeriaClassName(parsed.desiredClass);
     const status: AdmissionStatus = parsed.draft ? "DRAFT" : "SUBMITTED";
 
-    if (env.DEMO_MODE) {
-      const duplicates = getDemoStore().admissions.filter(
-        (item) =>
-          item.guardianPhone === parsed.guardianPhone ||
-          item.studentName.toLowerCase() === `${parsed.firstName} ${parsed.lastName}`.toLowerCase()
-      );
-      const record: AdmissionApplicationView = {
-        id: randomUUID(),
-        applicationNo: `ADM-2026-${String(getDemoStore().admissions.length + 15).padStart(4, "0")}`,
-        studentName: `${parsed.firstName} ${parsed.lastName}`,
-        firstName: parsed.firstName,
-        lastName: parsed.lastName,
-        guardianName: parsed.guardianName,
-        guardianPhone: parsed.guardianPhone,
-        guardianEmail: parsed.guardianEmail || undefined,
-        address: parsed.address || undefined,
-        emergencyContactName: parsed.emergencyContactName || undefined,
-        emergencyContactPhone: parsed.emergencyContactPhone || undefined,
-        previousSchool: parsed.previousSchool || undefined,
-        medicalNotes: parsed.medicalNotes || undefined,
-        desiredClass: desiredClassName,
-        status,
-        submittedAt: new Date().toISOString(),
-        applicationFeeStatus: "PENDING",
-        duplicateFlag: duplicates.length > 0,
-        duplicateReason: duplicates.length > 0 ? "Similar name or guardian phone already exists." : undefined,
-        timeline: [
-          {
-            id: randomUUID(),
-            toStatus: status,
-            changedBy: "Admissions Officer",
-            note: status === "DRAFT" ? "Draft saved." : "Application submitted.",
-            createdAt: new Date().toISOString()
-          }
-        ]
-      };
-      getDemoStore().admissions.unshift(record);
-      await this.notify(schoolId, record, "Application received", `We received application ${record.applicationNo}.`);
-      return record;
-    }
-
     const [desiredClass, currentSession, currentTerm, duplicate] = await Promise.all([
       prisma.classRoom.findFirst({
         where: { schoolId, OR: classLookupConditions(desiredClassName) }
@@ -816,25 +739,6 @@ export class AdmissionsService {
   }
 
   private async setStatus(schoolId: string, actorId: string | undefined, applicationId: string, status: AdmissionStatus, note: string, extra: Record<string, unknown> = {}) {
-    if (env.DEMO_MODE) {
-      const application = getDemoStore().admissions.find((item) => item.id === applicationId);
-      if (!application) throw new NotFoundException("Admission application not found");
-      const fromStatus = application.status;
-      application.status = status;
-      application.timeline = [
-        {
-          id: randomUUID(),
-          fromStatus,
-          toStatus: status,
-          note,
-          createdAt: new Date().toISOString()
-        },
-        ...(application.timeline ?? [])
-      ];
-      Object.assign(application, extra);
-      return application;
-    }
-
     await this.transition(schoolId, applicationId, actorId, status, note, extra);
     return this.getAdmission(schoolId, applicationId);
   }
@@ -852,16 +756,6 @@ export class AdmissionsService {
     ]
       .filter(Boolean)
       .join("\n");
-
-    if (env.DEMO_MODE) {
-      const reviewed = await this.setStatus(schoolId, reviewerId, applicationId, "REVIEWING", reviewNotes, {
-        reviewNotes,
-        reviewedBy: reviewerName,
-        reviewedAt: new Date().toISOString(),
-        desiredClass: recommendedClassName || application.desiredClass
-      });
-      return reviewed;
-    }
 
     const recommendedClass = recommendedClassName
       ? await prisma.classRoom.findFirst({
@@ -903,21 +797,19 @@ export class AdmissionsService {
     const status: AdmissionPaymentStatus = parsed.waived ? "WAIVED" : "VERIFIED";
     const note = parsed.waived ? `Application fee waived. ${parsed.note}` : `Application fee verified. ${parsed.reference}`;
 
-    if (!env.DEMO_MODE) {
-      await prisma.admissionPaymentLink.create({
-        data: {
-          schoolId,
-          applicationId,
-          verifiedById: actorId,
-          reference: parsed.reference || `ADM-FEE-${Date.now().toString().slice(-8)}`,
-          amount: parsed.amount,
-          status,
-          waived: parsed.waived,
-          verifiedAt: new Date(),
-          metadata: { note: parsed.note }
-        }
-      });
-    }
+    await prisma.admissionPaymentLink.create({
+      data: {
+        schoolId,
+        applicationId,
+        verifiedById: actorId,
+        reference: parsed.reference || `ADM-FEE-${Date.now().toString().slice(-8)}`,
+        amount: parsed.amount,
+        status,
+        waived: parsed.waived,
+        verifiedAt: new Date(),
+        metadata: { note: parsed.note }
+      }
+    });
 
     const updated = await this.setStatus(schoolId, actorId, applicationId, "PAYMENT_PENDING", note, {
       applicationFeeStatus: status,
@@ -933,19 +825,6 @@ export class AdmissionsService {
     ensureStatus(application, ["REVIEWING", "PAYMENT_PENDING"], "Schedule screening");
     if (!isFeeCleared(application)) {
       throw new BadRequestException("Application fee must be verified or waived before screening.");
-    }
-
-    if (env.DEMO_MODE) {
-      const updated = await this.setStatus(schoolId, actorId, applicationId, "SCREENING_SCHEDULED", parsed.note || "Screening scheduled.", {
-        latestScreening: {
-          id: randomUUID(),
-          scheduledAt: new Date(parsed.scheduledAt).toISOString(),
-          venue: parsed.venue || undefined,
-          maxScore: 100
-        }
-      });
-      await this.notify(schoolId, updated, "Screening scheduled", `Screening is scheduled for ${new Date(parsed.scheduledAt).toLocaleString("en-NG")}.`);
-      return updated;
     }
 
     await prisma.admissionScreening.create({
@@ -966,21 +845,6 @@ export class AdmissionsService {
     const parsed = screeningResultSchema.parse(payload);
     const application = await this.getAdmission(schoolId, applicationId);
     ensureStatus(application, ["SCREENING_SCHEDULED"], "Record screening result");
-
-    if (env.DEMO_MODE) {
-      return this.setStatus(schoolId, actorId, applicationId, "SCREENING_COMPLETED", parsed.remarks, {
-        latestScreening: {
-          id: application.latestScreening?.id ?? randomUUID(),
-          scheduledAt: application.latestScreening?.scheduledAt ?? new Date().toISOString(),
-          score: parsed.score,
-          maxScore: parsed.maxScore,
-          result: parsed.result,
-          recommendation: parsed.recommendation,
-          remarks: parsed.remarks,
-          completedAt: new Date().toISOString()
-        }
-      });
-    }
 
     const screening = await prisma.admissionScreening.findFirst({
       where: { schoolId, applicationId },
@@ -1018,16 +882,14 @@ export class AdmissionsService {
     const application = await this.getAdmission(schoolId, applicationId);
     ensureStatus(application, ["RECOMMENDED"], "Make final admission decision");
 
-    if (!env.DEMO_MODE) {
-      await prisma.admissionReview.create({
-        data: {
-          applicationId,
-          reviewerId,
-          decision: parsed.decision,
-          notes: [parsed.notes, parsed.conditions ? `Conditions: ${parsed.conditions}` : null].filter(Boolean).join("\n")
-        }
-      });
-    }
+    await prisma.admissionReview.create({
+      data: {
+        applicationId,
+        reviewerId,
+        decision: parsed.decision,
+        notes: [parsed.notes, parsed.conditions ? `Conditions: ${parsed.conditions}` : null].filter(Boolean).join("\n")
+      }
+    });
 
     const updated = await this.setStatus(schoolId, reviewerId, applicationId, parsed.decision, parsed.notes, {
       decidedAt: new Date(),
@@ -1046,21 +908,19 @@ export class AdmissionsService {
     const settings = await this.getAdmissionSettings(schoolId);
     const expiresAt = addDays(new Date(), parsed.expiryDays ?? settings.offerExpiryDays);
 
-    if (!env.DEMO_MODE) {
-      await prisma.admissionOffer.create({
-        data: {
-          schoolId,
-          applicationId,
-          issuedById: actorId,
-          offerNumber: `OFFER-${Date.now().toString().slice(-8)}`,
-          status: "SENT",
-          conditions: parsed.conditions || null,
-          checklist: parseCsv(parsed.checklist),
-          sentAt: new Date(),
-          expiresAt
-        }
-      });
-    }
+    await prisma.admissionOffer.create({
+      data: {
+        schoolId,
+        applicationId,
+        issuedById: actorId,
+        offerNumber: `OFFER-${Date.now().toString().slice(-8)}`,
+        status: "SENT",
+        conditions: parsed.conditions || null,
+        checklist: parseCsv(parsed.checklist),
+        sentAt: new Date(),
+        expiresAt
+      }
+    });
 
     const updated = await this.setStatus(schoolId, actorId, applicationId, "OFFER_SENT", "Admission offer sent.", {
       notes: parsed.conditions || null
@@ -1075,15 +935,13 @@ export class AdmissionsService {
     const parsed = offerResponseSchema.parse(payload);
     const application = await this.getAdmission(schoolId, applicationId);
     ensureStatus(application, ["OFFER_SENT"], "Accept offer");
-    if (!env.DEMO_MODE) {
-      const offer = await prisma.admissionOffer.findFirst({ where: { schoolId, applicationId }, orderBy: { createdAt: "desc" } });
-      if (offer && offer.expiresAt < new Date()) throw new BadRequestException("This offer has expired.");
-      if (offer) {
-        await prisma.admissionOffer.update({
-          where: { id: offer.id },
-          data: { status: "ACCEPTED", acceptedAt: new Date() }
-        });
-      }
+    const offer = await prisma.admissionOffer.findFirst({ where: { schoolId, applicationId }, orderBy: { createdAt: "desc" } });
+    if (offer && offer.expiresAt < new Date()) throw new BadRequestException("This offer has expired.");
+    if (offer) {
+      await prisma.admissionOffer.update({
+        where: { id: offer.id },
+        data: { status: "ACCEPTED", acceptedAt: new Date() }
+      });
     }
     const updated = await this.setStatus(schoolId, undefined, applicationId, "ACCEPTED", parsed.note || "Offer accepted.", {
       acceptedAt: new Date()
@@ -1096,10 +954,8 @@ export class AdmissionsService {
     const parsed = offerResponseSchema.parse(payload);
     const application = await this.getAdmission(schoolId, applicationId);
     ensureStatus(application, ["OFFER_SENT"], "Decline offer");
-    if (!env.DEMO_MODE) {
-      const offer = await prisma.admissionOffer.findFirst({ where: { schoolId, applicationId }, orderBy: { createdAt: "desc" } });
-      if (offer) await prisma.admissionOffer.update({ where: { id: offer.id }, data: { status: "DECLINED", declinedAt: new Date() } });
-    }
+    const offer = await prisma.admissionOffer.findFirst({ where: { schoolId, applicationId }, orderBy: { createdAt: "desc" } });
+    if (offer) await prisma.admissionOffer.update({ where: { id: offer.id }, data: { status: "DECLINED", declinedAt: new Date() } });
     return this.setStatus(schoolId, undefined, applicationId, "DECLINED", parsed.note || "Offer declined.");
   }
 
@@ -1110,34 +966,32 @@ export class AdmissionsService {
     if (!parsed.waived && parsed.amount <= 0 && !isFeeCleared(application)) {
       throw new BadRequestException("Financial clearance requires payment verification or an approved waiver.");
     }
-    if (!env.DEMO_MODE) {
-      await prisma.$transaction(async (tx) => {
-        await tx.admissionPaymentLink.create({
-          data: {
-            schoolId,
-            applicationId,
-            verifiedById: actorId,
-            reference: parsed.reference || `ADM-CLEAR-${Date.now().toString().slice(-8)}`,
-            amount: parsed.amount,
-            status: parsed.waived ? "WAIVED" : "VERIFIED",
-            waived: parsed.waived,
-            verifiedAt: new Date(),
-            metadata: { note: parsed.note }
-          }
-        });
-        await tx.financialClearance.create({
-          data: {
-            schoolId,
-            admissionApplicationId: applicationId,
-            clearedById: actorId,
-            status: parsed.waived ? "WAIVED" : "CLEARED",
-            reason: parsed.note || (parsed.waived ? "Admission fee waived." : "Admission payment verified."),
-            clearedAt: new Date(),
-            metadata: { reference: parsed.reference || null, amount: parsed.amount }
-          }
-        });
+    await prisma.$transaction(async (tx) => {
+      await tx.admissionPaymentLink.create({
+        data: {
+          schoolId,
+          applicationId,
+          verifiedById: actorId,
+          reference: parsed.reference || `ADM-CLEAR-${Date.now().toString().slice(-8)}`,
+          amount: parsed.amount,
+          status: parsed.waived ? "WAIVED" : "VERIFIED",
+          waived: parsed.waived,
+          verifiedAt: new Date(),
+          metadata: { note: parsed.note }
+        }
       });
-    }
+      await tx.financialClearance.create({
+        data: {
+          schoolId,
+          admissionApplicationId: applicationId,
+          clearedById: actorId,
+          status: parsed.waived ? "WAIVED" : "CLEARED",
+          reason: parsed.note || (parsed.waived ? "Admission fee waived." : "Admission payment verified."),
+          clearedAt: new Date(),
+          metadata: { reference: parsed.reference || null, amount: parsed.amount }
+        }
+      });
+    });
     const updated = await this.setStatus(schoolId, actorId, applicationId, "FINANCIALLY_CLEARED", parsed.note || "Financially cleared.", {
       applicationFeeStatus: parsed.waived ? "WAIVED" : "VERIFIED",
       feeWaived: parsed.waived
@@ -1157,26 +1011,6 @@ export class AdmissionsService {
     ensureStatus(application, ["FINANCIALLY_CLEARED"], "Enroll applicant");
     if (application.registeredStudentId) {
       throw new BadRequestException("This application has already been enrolled.");
-    }
-
-    if (env.DEMO_MODE) {
-      const store = getDemoStore();
-      const record: StudentRecordView = {
-        id: randomUUID(),
-        admissionNumber: parsed.admissionNumber || `GFC/26/${String(store.students.length + 1).padStart(4, "0")}`,
-        fullName: application.studentName,
-        className,
-        guardianName: application.guardianName,
-        status: "ACTIVE",
-        attendanceRate: 0,
-        averageScore: 0,
-        outstandingBalance: 0
-      };
-      store.students.unshift(record);
-      application.registeredStudentId = record.id;
-      application.registeredAdmissionNumber = record.admissionNumber;
-      application.status = "ENROLLED";
-      return record;
     }
 
     const dbApplication = await prisma.admissionApplication.findFirstOrThrow({
@@ -1278,14 +1112,6 @@ export class AdmissionsService {
   async addComment(schoolId: string, actorId: string, applicationId: string, payload: unknown) {
     const parsed = commentSchema.parse(payload);
     await this.getAdmission(schoolId, applicationId);
-    if (env.DEMO_MODE) {
-      const application = getDemoStore().admissions.find((item) => item.id === applicationId)!;
-      application.comments = [
-        { id: randomUUID(), body: parsed.body, isInternal: parsed.isInternal, createdAt: new Date().toISOString() },
-        ...(application.comments ?? [])
-      ];
-      return application;
-    }
     await prisma.admissionComment.create({
       data: { schoolId, applicationId, authorId: actorId, body: parsed.body, isInternal: parsed.isInternal }
     });

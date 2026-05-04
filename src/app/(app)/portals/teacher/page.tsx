@@ -2,6 +2,7 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { TeacherPortalDashboard } from "@/components/portals/teacher-portal-dashboard";
 import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
+import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { TeacherPortalView } from "@/lib/domain/types";
 
@@ -12,7 +13,16 @@ export default async function TeacherPortalPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const portal = await apiGet<TeacherPortalView>("/api/v1/teacher-portal/dashboard");
+  const [portal, permissions] = await Promise.all([
+    apiGet<TeacherPortalView>("/api/v1/teacher-portal/dashboard"),
+    getServerPermissions(session),
+  ]);
 
-  return <TeacherPortalDashboard portal={portal} />;
+  return (
+    <TeacherPortalDashboard
+      portal={portal}
+      role={session.role as "TEACHER" | "CLASS_TEACHER" | "SUBJECT_TEACHER"}
+      permissions={permissions}
+    />
+  );
 }

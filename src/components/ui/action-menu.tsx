@@ -31,8 +31,8 @@ export function ActionMenu({
             aria-label={triggerLabel}
             aria-expanded={open}
             className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 shadow-sm transition",
-              "hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700",
+              "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)] transition",
+              "hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
             )}
           >
             <MoreVertical className="h-4 w-4" />
@@ -61,7 +61,7 @@ export function ActionMenuLink({
     <Link
       href={href as Route}
       data-popover-close="true"
-      className={cn(itemClassName, "text-slate-700 hover:bg-primary-50 hover:text-primary-700", className)}
+      className={cn(itemClassName, "text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]", className)}
     >
       {children}
     </Link>
@@ -88,7 +88,7 @@ export function ActionMenuButton({
         itemClassName,
         destructive
           ? "text-rose-700 hover:bg-rose-50"
-          : "text-slate-700 hover:bg-primary-50 hover:text-primary-700",
+          : "text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
         className,
       )}
     >

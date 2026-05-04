@@ -53,30 +53,30 @@ export function AccordionItem({
   children: React.ReactNode;
 }) {
   return (
-    <article className="overflow-hidden rounded-2xl border border-slate-100 bg-white shadow-sm">
+    <article className="overflow-hidden rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-sm)]">
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-slate-50"
+        className="flex w-full items-center justify-between gap-4 px-4 py-4 text-left transition hover:bg-[var(--color-bg-elevated)]"
         aria-expanded={open}
       >
         <div className="min-w-0">
-          <div className="text-[14px] font-semibold text-slate-900">{title}</div>
+          <div className="text-[14px] font-semibold text-[var(--color-text-primary)]">{title}</div>
           {summary ? (
-            <div className="mt-1 text-[12px] text-slate-500">{summary}</div>
+            <div className="mt-1 text-[12px] text-[var(--color-text-secondary)]">{summary}</div>
           ) : null}
         </div>
 
         <ChevronDown
           className={cn(
-            "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200",
+            "h-4 w-4 shrink-0 text-[var(--color-text-muted)] transition-transform duration-200",
             open && "rotate-180",
           )}
         />
       </button>
 
       {open ? (
-        <div className="border-t border-slate-100 px-4 py-4">{children}</div>
+        <div className="border-t border-[var(--color-border-default)] px-4 py-4">{children}</div>
       ) : null}
     </article>
   );

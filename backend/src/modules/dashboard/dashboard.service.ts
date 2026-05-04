@@ -4,11 +4,9 @@ import { endOfDay, format, startOfDay, subDays } from "date-fns";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { hasRole } from "../../../../src/lib/auth/roles";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { demoDashboardSummary } from "../../../../src/lib/demo/data";
 import { canSeeDashboardWidget, getDashboardQuickActions } from "../../../../src/lib/domain/dashboard";
-import { DashboardActionItem, DashboardSummary } from "../../../../src/lib/domain/types";
+import { DashboardActionItem, DashboardSummary, SchoolContextView } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 import { formatCurrency } from "../../../../src/lib/utils/formatters";
 
 function className(classRoom?: { name: string; arm: string | null } | null) {
@@ -26,21 +24,27 @@ function isSchemaDriftError(error: unknown) {
 
 @Injectable()
 export class DashboardService {
-  async getOverview(session: SessionPayload): Promise<DashboardSummary> {
-    if (env.DEMO_MODE) {
-      const quickActions = getDashboardQuickActions(session.role);
-      const roleWidgets = (demoDashboardSummary.roleWidgets ?? []).filter((widget) => {
-        if (widget.label.toLowerCase().includes("payment")) return canSeeDashboardWidget(session.role, "finance");
-        return true;
-      });
-      return {
-        ...demoDashboardSummary,
-        quickActions,
-        roleWidgets,
-        pendingActions: this.filterPendingActions(session.role, demoDashboardSummary.pendingActions ?? [])
-      };
-    }
+  async getSchoolContext(session: SessionPayload): Promise<SchoolContextView> {
+    const school = await prisma.school.findUniqueOrThrow({
+      where: { id: session.schoolId },
+      include: {
+        academicSessions: {
+          where: { isCurrent: true },
+          include: { terms: { where: { isCurrent: true } } },
+          orderBy: { startDate: "desc" },
+          take: 1,
+        },
+      },
+    });
 
+    return {
+      schoolName: school.name,
+      currentSession: school.academicSessions[0]?.name ?? "No active session",
+      currentTerm: school.academicSessions[0]?.terms[0]?.name ?? "No active term",
+    };
+  }
+
+  async getOverview(session: SessionPayload): Promise<DashboardSummary> {
     if (session.role === "PARENT") {
       return this.getParentOverview(session);
     }

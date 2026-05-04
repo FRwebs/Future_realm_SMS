@@ -27,7 +27,7 @@ export function PaginatedTable({
 
   return (
     <>
-      <div className="overflow-hidden rounded-xl border border-slate-100">
+      <div className="overflow-hidden rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
         <div className="overflow-x-auto">
           <table className="min-w-full border-collapse text-left">
             {header}
@@ -44,7 +44,7 @@ export function PaginatedTable({
           setPageSize(size);
           setCurrentPage(1);
         }}
-        className="border-x border-b border-slate-100 bg-white px-4 py-3"
+        className="border-x border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3"
       />
     </>
   );

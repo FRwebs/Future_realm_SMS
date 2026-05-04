@@ -15,6 +15,14 @@ import { DashboardService } from "./dashboard.service";
 export class DashboardController {
   constructor(private readonly dashboardService: DashboardService) {}
 
+  @Get("context")
+  async context(@CurrentSession() session: SessionPayload) {
+    return {
+      ok: true,
+      data: await this.dashboardService.getSchoolContext(session)
+    };
+  }
+
   @Get("overview")
   @Roles(...adminDashboardRoles)
   async overview(@CurrentSession() session: SessionPayload) {

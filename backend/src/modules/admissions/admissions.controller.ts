@@ -18,7 +18,9 @@ type AdmissionWorkflowRole =
   | "ADMISSIONS_OFFICER"
   | "PRINCIPAL"
   | "ADMIN_OFFICER"
+  | "BURSAR"
   | "ACCOUNTANT"
+  | "ACCOUNT_OFFICER"
   | "TEACHER"
   | "PARENT";
 
@@ -44,7 +46,7 @@ export class AdmissionsController {
   constructor(private readonly admissionsService: AdmissionsService) {}
 
   @Get()
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "ACCOUNTANT", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "TEACHER")
   async list(@CurrentSession() session: SessionPayload) {
     return {
       ok: true,
@@ -53,7 +55,7 @@ export class AdmissionsController {
   }
 
   @Get("metrics")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "ACCOUNTANT")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER")
   async metrics(@CurrentSession() session: SessionPayload) {
     return {
       ok: true,
@@ -82,7 +84,7 @@ export class AdmissionsController {
   }
 
   @Get(":applicationId")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "ACCOUNTANT", "TEACHER", "PARENT")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "TEACHER", "PARENT")
   async get(@CurrentSession() session: SessionPayload, @Param("applicationId") applicationId: string) {
     const application = await this.admissionsService.getAdmission(session.schoolId, applicationId);
     assertParentOwnsAdmission(session, application);
@@ -152,13 +154,13 @@ export class AdmissionsController {
 
   @Post(":applicationId/verify-fee")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ACCOUNTANT", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER", "ADMIN_OFFICER")
   async verifyFee(
     @CurrentSession() session: SessionPayload,
     @Param("applicationId") applicationId: string,
     @Body() body: Record<string, unknown>
   ) {
-    assertAdmissionWorkflowRole(session, ["ACCOUNTANT", "ADMIN_OFFICER"]);
+    assertAdmissionWorkflowRole(session, ["BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER", "ADMIN_OFFICER"]);
     return {
       ok: true,
       data: await this.admissionsService.verifyApplicationFee(session.schoolId, session.userId, applicationId, body)
@@ -276,13 +278,13 @@ export class AdmissionsController {
 
   @Post(":applicationId/financial-clearance")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ACCOUNTANT", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER", "ADMIN_OFFICER")
   async financialClearance(
     @CurrentSession() session: SessionPayload,
     @Param("applicationId") applicationId: string,
     @Body() body: Record<string, unknown>
   ) {
-    assertAdmissionWorkflowRole(session, ["ACCOUNTANT", "ADMIN_OFFICER"]);
+    assertAdmissionWorkflowRole(session, ["BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER", "ADMIN_OFFICER"]);
     return {
       ok: true,
       data: await this.admissionsService.markFinanciallyCleared(session.schoolId, session.userId, applicationId, body)
@@ -291,13 +293,13 @@ export class AdmissionsController {
 
   @Post(":applicationId/register")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ADMISSIONS_OFFICER")
   async register(
     @CurrentSession() session: SessionPayload,
     @Param("applicationId") applicationId: string,
     @Body() body: Record<string, unknown>
   ) {
-    assertAdmissionWorkflowRole(session, ["ADMIN_OFFICER"]);
+    assertAdmissionWorkflowRole(session, ["ADMIN_OFFICER", "ADMISSIONS_OFFICER"]);
     return {
       ok: true,
       data: await this.admissionsService.enrollApplicant(session.schoolId, session.userId, applicationId, body)
@@ -306,13 +308,13 @@ export class AdmissionsController {
 
   @Post(":applicationId/enroll")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ADMISSIONS_OFFICER")
   async enroll(
     @CurrentSession() session: SessionPayload,
     @Param("applicationId") applicationId: string,
     @Body() body: Record<string, unknown>
   ) {
-    assertAdmissionWorkflowRole(session, ["ADMIN_OFFICER"]);
+    assertAdmissionWorkflowRole(session, ["ADMIN_OFFICER", "ADMISSIONS_OFFICER"]);
     return {
       ok: true,
       data: await this.admissionsService.enrollApplicant(session.schoolId, session.userId, applicationId, body)
@@ -321,7 +323,7 @@ export class AdmissionsController {
 
   @Post(":applicationId/comments")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "ACCOUNTANT", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER", "TEACHER")
   async comment(
     @CurrentSession() session: SessionPayload,
     @Param("applicationId") applicationId: string,

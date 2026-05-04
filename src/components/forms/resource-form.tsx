@@ -28,6 +28,7 @@ export interface ResourceField {
 }
 
 interface ResourceFormProps {
+  formId?: string;
   title: string;
   description: string;
   endpoint: string;
@@ -50,6 +51,7 @@ function getCookie(name: string) {
 }
 
 export function ResourceForm({
+  formId,
   title,
   description,
   endpoint,
@@ -259,7 +261,7 @@ export function ResourceForm({
         </div>
       ) : null}
 
-      <form onSubmit={handleSubmit} className="grid gap-5">
+      <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
         <div className="grid gap-4 md:grid-cols-2">
           {fields.map((field) => {
             const wrapperClass =

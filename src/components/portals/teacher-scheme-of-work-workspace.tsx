@@ -1,0 +1,373 @@
+import Link from "next/link";
+import {
+  ArrowLeft,
+  BookMarked,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  Layers3,
+  Sparkles,
+  Target,
+} from "lucide-react";
+
+import { InitializeSchemeButton } from "@/components/scheme-of-work/initialize-button";
+import { SchemeOfWorkDetailClient } from "@/components/scheme-of-work/scheme-of-work-detail-client";
+import { SchemeOfWorkStatusBadge } from "@/components/scheme-of-work/status-badge";
+import type {
+  SchemeOfWorkDetailView,
+  SchemeOfWorkSummaryView,
+  TeacherPortalView,
+} from "@/lib/domain/types";
+
+type TeachingLane = {
+  key: string;
+  subjectId: string;
+  classId: string;
+  subject: string;
+  className: string;
+  learners: number;
+  pendingScores: number;
+  nextAction: string;
+};
+
+function buildTeachingLanes(portal: TeacherPortalView): TeachingLane[] {
+  return Array.from(
+    new Map(
+      portal.assignedClasses
+        .filter((item): item is typeof item & { subjectId: string; classId: string } => Boolean(item.subjectId && item.classId))
+        .map((item) => [
+          `${item.subjectId}:${item.classId}`,
+          {
+            key: `${item.subjectId}:${item.classId}`,
+            subjectId: item.subjectId,
+            classId: item.classId,
+            subject: item.subject,
+            className: item.className,
+            learners: item.learners,
+            pendingScores: item.pendingScores,
+            nextAction: item.nextAction,
+          },
+        ]),
+    ).values(),
+  ).sort((left, right) =>
+    `${left.subject} ${left.className}`.localeCompare(`${right.subject} ${right.className}`),
+  );
+}
+
+function coverageTone(percent: number) {
+  if (percent >= 80) return "text-emerald-700";
+  if (percent >= 50) return "text-amber-700";
+  return "text-rose-700";
+}
+
+export function TeacherSchemeOfWorkWorkspace({
+  portal,
+  summaries,
+  activeSummary,
+  detail,
+  requestedSubjectId,
+  requestedClassId,
+}: {
+  portal: TeacherPortalView;
+  summaries: SchemeOfWorkSummaryView[];
+  activeSummary: SchemeOfWorkSummaryView | null;
+  detail: SchemeOfWorkDetailView | null;
+  requestedSubjectId?: string;
+  requestedClassId?: string;
+}) {
+  const lanes = buildTeachingLanes(portal);
+  const existingLaneKeys = new Set(summaries.map((item) => `${item.subjectId}:${item.classId}`));
+  const missingLanes = lanes.filter((lane) => !existingLaneKeys.has(lane.key));
+  const requestedLane =
+    lanes.find((lane) => lane.subjectId === requestedSubjectId && lane.classId === requestedClassId) ??
+    null;
+
+  const approvedCount = summaries.filter((item) => item.status === "APPROVED").length;
+  const submittedCount = summaries.filter((item) => item.status === "SUBMITTED").length;
+  const averageCoverage = summaries.length
+    ? Math.round(summaries.reduce((sum, item) => sum + item.coveragePercent, 0) / summaries.length)
+    : 0;
+
+  return (
+    <div className="grid gap-6">
+      <section className="relative overflow-hidden rounded-[2rem] border border-[rgba(18,33,23,0.12)] bg-gradient-to-br from-[rgb(18,33,23)] via-[#183a2d] to-[#18695a] p-6 text-white shadow-panel">
+        <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
+        <div className="relative grid gap-6 xl:grid-cols-[1.25fr_0.75fr] xl:items-end">
+          <div>
+            <Link
+              href="/portals/teacher"
+              className="inline-flex items-center gap-2 text-sm font-semibold text-white/92"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to teacher portal
+            </Link>
+            <div className="mt-5 inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/85">
+              <Sparkles className="h-3.5 w-3.5" />
+              Coverage command center
+            </div>
+            <h1 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white">
+              Scheme of Work
+            </h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/92">
+              Review term coverage lane by lane, mark taught weeks, submit for approval, and keep
+              curriculum delivery anchored to the real classroom workload.
+            </p>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
+            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+                Active schemes
+              </p>
+              <p className="mt-2 text-3xl font-black text-white">{summaries.length}</p>
+              <p className="mt-1 text-xs text-white/90">Live subject-class lanes</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+                Avg coverage
+              </p>
+              <p className="mt-2 text-3xl font-black text-white">{averageCoverage}%</p>
+              <p className="mt-1 text-xs text-white/90">Across all teaching lanes</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+                Approved
+              </p>
+              <p className="mt-2 text-3xl font-black text-white">{approvedCount}</p>
+              <p className="mt-1 text-xs text-white/90">Submitted lanes cleared</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+              Scheme lanes
+            </p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">
+              Every subject-class track in one board
+            </h2>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+              {submittedCount} awaiting review
+            </span>
+            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+              {missingLanes.length} not initialized
+            </span>
+          </div>
+        </div>
+
+        {summaries.length ? (
+          <div className="mt-4 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            {summaries.map((summary) => {
+              const active = activeSummary?.id === summary.id;
+              return (
+                <Link
+                  key={summary.id}
+                  href={`/portals/teacher/content/scheme-of-work?sow=${summary.id}`}
+                  className={
+                    active
+                      ? "rounded-[1.6rem] bg-[rgb(18,33,23)] p-4 text-white shadow-sm"
+                      : "rounded-[1.6rem] border border-slate-200 bg-white p-4 text-slate-900 transition hover:border-primary-200 hover:bg-primary-50"
+                  }
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-inherit/70">
+                        {summary.className}
+                      </p>
+                      <h3 className="mt-2 text-lg font-bold">{summary.subjectName}</h3>
+                    </div>
+                    <SchemeOfWorkStatusBadge status={summary.status} size="sm" />
+                  </div>
+                  <div className="mt-4 grid grid-cols-3 gap-3">
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-inherit/60">
+                        Coverage
+                      </p>
+                      <p className="mt-2 text-xl font-black">{summary.coveragePercent}%</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-inherit/60">
+                        Weeks
+                      </p>
+                      <p className="mt-2 text-xl font-black">{summary.coveredWeeks}/{summary.teachingWeeks}</p>
+                    </div>
+                    <div>
+                      <p className="text-[11px] uppercase tracking-[0.16em] text-inherit/60">
+                        Next
+                      </p>
+                      <p className="mt-2 text-xl font-black">{summary.nextWeek ?? "-"}</p>
+                    </div>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="mt-4 rounded-[1.7rem] border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center">
+            <BookMarked className="mx-auto h-10 w-10 text-brand-500" />
+            <p className="mt-4 text-lg font-semibold text-ink">No scheme has been initialized yet</p>
+            <p className="mt-2 text-sm leading-6 text-ink/60">
+              Start one from any teaching lane below to turn your timetable into a properly tracked
+              weekly teaching plan.
+            </p>
+          </div>
+        )}
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
+        <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
+          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+            <div className="flex items-center gap-2">
+              <Target className="h-4 w-4 text-emerald-600" />
+              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+                Coverage snapshot
+              </h2>
+            </div>
+            {activeSummary ? (
+              <div className="mt-4 grid gap-3">
+                <article className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Current lane
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {activeSummary.subjectName} · {activeSummary.className}
+                  </p>
+                </article>
+                <article className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+                    Coverage pace
+                  </p>
+                  <p className={`mt-2 text-2xl font-black ${coverageTone(activeSummary.coveragePercent)}`}>
+                    {activeSummary.coveragePercent}%
+                  </p>
+                </article>
+                <article className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    Next action
+                  </p>
+                  <p className="mt-2 text-sm font-semibold text-slate-900">
+                    {lanes.find((lane) => lane.subjectId === activeSummary.subjectId && lane.classId === activeSummary.classId)?.nextAction ??
+                      "Keep weekly coverage moving."}
+                  </p>
+                </article>
+              </div>
+            ) : (
+              <p className="mt-4 text-sm leading-6 text-ink/60">
+                Pick a lane to view its detailed weekly scheme, coverage log, and approval state.
+              </p>
+            )}
+          </section>
+
+          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+            <div className="flex items-center gap-2">
+              <Layers3 className="h-4 w-4 text-primary-700" />
+              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+                Uninitialized lanes
+              </h2>
+            </div>
+            <div className="mt-4 grid gap-3">
+              {requestedLane && !existingLaneKeys.has(requestedLane.key) ? (
+                <article className="rounded-[1.4rem] border border-brand-100 bg-brand-50/70 p-4">
+                  <p className="text-sm font-bold text-ink">
+                    {requestedLane.subject} · {requestedLane.className}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-ink/62">
+                    This teaching lane has not been initialized yet. Start the scheme shell and it
+                    will appear in your main coverage board immediately.
+                  </p>
+                  <div className="mt-4">
+                    <InitializeSchemeButton
+                      subjectId={requestedLane.subjectId}
+                      classId={requestedLane.classId}
+                      label="Initialize this lane"
+                    />
+                  </div>
+                </article>
+              ) : null}
+
+              {missingLanes.length === 0 && !requestedLane ? (
+                <div className="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500">
+                  Every teaching lane already has a live scheme.
+                </div>
+              ) : null}
+
+              {missingLanes
+                .filter((lane) => lane.key !== requestedLane?.key)
+                .slice(0, 4)
+                .map((lane) => (
+                  <article
+                    key={lane.key}
+                    className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 px-4 py-4"
+                  >
+                    <p className="text-sm font-semibold text-slate-900">
+                      {lane.subject} · {lane.className}
+                    </p>
+                    <p className="mt-1 text-xs text-slate-500">{lane.learners} learners</p>
+                    <div className="mt-4">
+                      <InitializeSchemeButton
+                        subjectId={lane.subjectId}
+                        classId={lane.classId}
+                        label="Initialize"
+                      />
+                    </div>
+                  </article>
+                ))}
+            </div>
+          </section>
+
+          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+            <div className="flex items-center gap-2">
+              <CalendarDays className="h-4 w-4 text-amber-600" />
+              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+                Teaching links
+              </h2>
+            </div>
+            <div className="mt-4 grid gap-3">
+              <Link
+                href="/portals/teacher/content/lesson-notes"
+                className="flex items-center justify-between rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:border-primary-200 hover:bg-primary-50"
+              >
+                Open lesson notes
+                <ChevronRight className="h-4 w-4 text-slate-400" />
+              </Link>
+              <Link
+                href="/portals/teacher/timetable"
+                className="flex items-center justify-between rounded-[1.2rem] border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:border-primary-200 hover:bg-primary-50"
+              >
+                Return to timetable
+                <ChevronRight className="h-4 w-4 text-slate-400" />
+              </Link>
+            </div>
+          </section>
+        </aside>
+
+        <article className="min-w-0">
+          {detail ? (
+            <SchemeOfWorkDetailClient
+              initialSow={detail}
+              isAssignedTeacher={Boolean(portal.teacherId) && detail.teacherId === portal.teacherId}
+            />
+          ) : (
+            <section className="rounded-[1.9rem] border border-white/65 bg-white/92 p-8 shadow-panel">
+              <div className="mx-auto max-w-2xl text-center">
+                <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-600" />
+                <h2 className="mt-4 font-[var(--font-heading)] text-3xl font-bold text-ink">
+                  Pick a scheme lane to continue
+                </h2>
+                <p className="mt-3 text-sm leading-6 text-ink/62">
+                  Once you choose a lane above, this panel turns into your live weekly scheme editor
+                  with topic coverage, submission, and approval controls.
+                </p>
+              </div>
+            </section>
+          )}
+        </article>
+      </section>
+    </div>
+  );
+}

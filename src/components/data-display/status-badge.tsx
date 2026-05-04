@@ -4,24 +4,24 @@ type StatusTone = "neutral" | "success" | "warning" | "danger" | "brand";
 
 const toneStyles: Record<StatusTone, { shell: string; dot: string }> = {
   neutral: {
-    shell: "border-slate-200 bg-slate-100 text-slate-600",
-    dot: "bg-slate-400",
+    shell: "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]",
+    dot: "bg-[var(--color-text-muted)]",
   },
   success: {
-    shell: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    dot: "bg-emerald-500",
+    shell: "border-[var(--color-success-dim)] bg-[var(--color-success-dim)] text-[var(--color-success)]",
+    dot: "bg-[var(--color-success)]",
   },
   warning: {
-    shell: "border-amber-200 bg-amber-100 text-amber-700",
-    dot: "bg-amber-500",
+    shell: "border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] text-[var(--color-warning)]",
+    dot: "bg-[var(--color-warning)]",
   },
   danger: {
-    shell: "border-rose-200 bg-rose-50 text-rose-700",
-    dot: "bg-rose-500",
+    shell: "border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] text-[var(--color-danger)]",
+    dot: "bg-[var(--color-danger)]",
   },
   brand: {
-    shell: "border-primary-200 bg-primary-50 text-primary-700",
-    dot: "bg-primary-500",
+    shell: "border-[var(--color-accent-primary-dim)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
+    dot: "bg-[var(--color-accent-primary)]",
   },
 };
 

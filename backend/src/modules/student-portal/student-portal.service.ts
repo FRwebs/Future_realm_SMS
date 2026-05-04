@@ -2,7 +2,6 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoStudentPortalByEmail } from "../../../../src/lib/demo/data";
 import { buildPortalSubjectResults, resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import {
   PortalFinanceItem,
@@ -22,7 +21,6 @@ import {
   StudentPortalView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -341,21 +339,6 @@ export class StudentPortalService {
 
   async getStudentProfile(session: SessionPayload): Promise<StudentPortalProfileView> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      const portal = getDemoStudentPortalByEmail(session.email);
-      return {
-        studentId: portal.studentId ?? "demo-student",
-        studentName: portal.studentName,
-        admissionNumber: portal.admissionNumber ?? "GFC/25/0001",
-        className: portal.className,
-        session: portal.session ?? "2025/2026",
-        term: portal.term ?? "Second Term",
-        status: "ACTIVE",
-        guardianSummary: { name: "Primary guardian", relationship: "Parent" },
-        subjects: Array.from(new Set(portal.weeklyTimetable.map((item) => item.subject)))
-      };
-    }
-
     const [student, term] = await Promise.all([this.getStudentContext(session), this.currentTerm(session.schoolId)]);
     const subjectDetails = await this.getSubjectOfferings(session, student.currentClassId);
     const primaryGuardian = student.guardians.find((item) => item.isPrimary)?.guardian ?? student.guardians[0]?.guardian;
@@ -400,27 +383,6 @@ export class StudentPortalService {
 
   async getStudentAttendance(session: SessionPayload): Promise<StudentPortalAttendanceView> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      const portal = getDemoStudentPortalByEmail(session.email);
-      const rate = Number(portal.stats.find((item) => item.label === "Attendance")?.value.replace("%", "") ?? 0);
-      return {
-        summary: {
-          totalDays: 20,
-          present: Math.round((rate / 100) * 20),
-          absent: Math.max(20 - Math.round((rate / 100) * 20), 0),
-          late: rate < 90 ? 2 : 1,
-          excused: 0,
-          attendanceRate: rate,
-          lowAttendanceWarning: rate < 90 ? "Attendance is below the 90% watch threshold." : undefined
-        },
-        records: [],
-        chart: [
-          { label: "Present", value: Math.round((rate / 100) * 20) },
-          { label: "Absent", value: Math.max(20 - Math.round((rate / 100) * 20), 0) }
-        ]
-      };
-    }
-
     const student = await this.getStudentContext(session);
     const records = await prisma.studentAttendance.findMany({
       where: { schoolId: session.schoolId, studentId: student.id },
@@ -433,10 +395,6 @@ export class StudentPortalService {
 
   async getStudentResults(session: SessionPayload): Promise<PortalResultHistory[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoStudentPortalByEmail(session.email).resultHistory;
-    }
-
     const student = await this.getStudentContext(session);
     const sheets = await prisma.resultSheet.findMany({
       where: {
@@ -476,18 +434,6 @@ export class StudentPortalService {
 
   async getStudentTimetable(session: SessionPayload) {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      const portal = getDemoStudentPortalByEmail(session.email);
-      return {
-        weeklyTimetable: portal.weeklyTimetable,
-        examTimetable: portal.examTimetable ?? [],
-        calendar: portal.calendar ?? [],
-        subjects: portal.profile?.subjectDetails ?? Array.from(new Set(portal.weeklyTimetable.map((item) => item.subject))).map((subject) => ({ id: subject, name: subject })),
-        curriculumTopics: portal.curriculumTopics ?? [],
-        departmentTrack: portal.departmentTrack
-      };
-    }
-
     const student = await this.getStudentContext(session);
     if (!student.currentClassId) {
       return { weeklyTimetable: [], examTimetable: [], calendar: [], subjects: [], curriculumTopics: [], departmentTrack: undefined };
@@ -582,10 +528,6 @@ export class StudentPortalService {
 
   async getStudentAssignments(session: SessionPayload): Promise<StudentPortalAssignmentView[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoStudentPortalByEmail(session.email).assignments ?? [];
-    }
-
     const student = await this.getStudentContext(session);
     if (!student.currentClassId) return [];
 
@@ -631,10 +573,6 @@ export class StudentPortalService {
 
   async getStudentFees(session: SessionPayload): Promise<PortalFinanceItem[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoStudentPortalByEmail(session.email).finance;
-    }
-
     const student = await this.getStudentContext(session);
     const invoices = await prisma.invoice.findMany({
       where: { schoolId: session.schoolId, studentId: student.id },
@@ -665,10 +603,6 @@ export class StudentPortalService {
 
   async getStudentAnnouncements(session: SessionPayload) {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoStudentPortalByEmail(session.email).announcements;
-    }
-
     const student = await this.getStudentContext(session);
     const className = formatClassName(student.currentClass?.name, student.currentClass?.arm);
     const announcements = await prisma.announcement.findMany({
@@ -691,10 +625,6 @@ export class StudentPortalService {
 
   async getStudentNotifications(session: SessionPayload): Promise<StudentPortalNotificationView[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoStudentPortalByEmail(session.email).notifications ?? [];
-    }
-
     await this.getStudentContext(session);
     const notifications = await prisma.notificationLog.findMany({
       where: {
@@ -717,8 +647,6 @@ export class StudentPortalService {
 
   async getStudentLibrary(session: SessionPayload): Promise<StudentPortalLibraryLoanView[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) return getDemoStudentPortalByEmail(session.email).library ?? [];
-
     const student = await this.getStudentContext(session);
     const loans = await prisma.libraryLoan.findMany({
       where: { schoolId: session.schoolId, studentId: student.id },
@@ -739,8 +667,6 @@ export class StudentPortalService {
 
   async getStudentHostel(session: SessionPayload): Promise<StudentPortalHostelView[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) return getDemoStudentPortalByEmail(session.email).hostel ?? [];
-
     const student = await this.getStudentContext(session);
     const allocations = await prisma.hostelAllocation.findMany({
       where: { schoolId: session.schoolId, studentId: student.id },
@@ -758,8 +684,6 @@ export class StudentPortalService {
 
   async getStudentTransport(session: SessionPayload): Promise<StudentPortalTransportView[]> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) return getDemoStudentPortalByEmail(session.email).transport ?? [];
-
     const student = await this.getStudentContext(session);
     const assignments = await prisma.transportAssignment.findMany({
       where: { schoolId: session.schoolId, studentId: student.id },
@@ -790,8 +714,6 @@ export class StudentPortalService {
 
   async getStudentDashboard(session: SessionPayload): Promise<StudentPortalView> {
     this.assertStudentSession(session);
-    if (env.DEMO_MODE) return getDemoStudentPortalByEmail(session.email);
-
     const [profile, attendance, results, timetable, assignments, finance, announcements, notifications, library, hostel, transport] =
       await Promise.all([
         this.getStudentProfile(session),

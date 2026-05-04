@@ -2,6 +2,9 @@
 node_modules
 .env
 .env.local
+.env.db.local
+.env.db.remote
+.env.active
 coverage
 playwright-report
 test-results

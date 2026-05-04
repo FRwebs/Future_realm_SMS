@@ -17,6 +17,7 @@ type SidebarProps = {
   onToggleCollapse: () => void;
   onCloseMobile: () => void;
   portalType?: PortalType;
+  theme?: "default" | "finance-dark" | "finance-light";
 };
 
 function normalizePath(path: string) {
@@ -31,6 +32,7 @@ function SidebarContent({
   onToggleCollapse,
   onCloseMobile,
   portalType = "school",
+  theme = "default",
   isMobile = false,
 }: {
   session: SessionUser;
@@ -40,8 +42,10 @@ function SidebarContent({
   onToggleCollapse: () => void;
   onCloseMobile: () => void;
   portalType?: PortalType;
+  theme?: "default" | "finance-dark" | "finance-light";
   isMobile?: boolean;
 }) {
+  const isFinanceLight = theme === "finance-light";
   const visibleGroups = getVisibleWorkflowNavGroups(
     session.role,
     permissions,
@@ -63,10 +67,20 @@ function SidebarContent({
       .sort((a, b) => b.length - a.length)[0] ?? null;
 
   return (
-    <div className="flex h-full flex-col overflow-hidden rounded-[2rem] border border-brand-100/80 bg-[linear-gradient(180deg,rgba(246,250,247,0.98),rgba(235,244,238,0.96),rgba(255,255,255,0.94))] text-ink shadow-[0_20px_48px_rgba(37,89,63,0.12)] backdrop-blur-xl">
+    <div
+      className={cn(
+        "flex h-full flex-col rounded-[2rem] backdrop-blur-xl",
+        collapsed && !isMobile ? "overflow-visible" : "overflow-hidden",
+        isFinanceLight
+          ? "finance-sidebar-card border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,250,248,0.98),rgba(240,245,241,0.96))] text-[var(--finance-text-primary)] shadow-[0_18px_38px_rgba(15,23,42,0.10)]"
+          : "finance-sidebar-card border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(18,33,23,0.98),rgba(26,46,32,0.98),rgba(15,28,19,0.98))] text-[var(--finance-text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.45)]",
+      )}
+    >
       <div
         className={cn(
-          "border-b border-brand-100/80 bg-[radial-gradient(circle_at_top_left,rgba(116,176,141,0.18),rgba(255,255,255,0.72),rgba(235,244,238,0.85))]",
+          isFinanceLight
+            ? "border-b border-[var(--finance-border)] bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.14),rgba(255,255,255,0.94),rgba(240,245,241,0.98))]"
+            : "border-b border-[var(--finance-border)] bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.12),rgba(18,33,23,0.98),rgba(15,28,19,0.98))]",
           collapsed ? "px-3 py-4" : "px-5 py-5",
         )}
       >
@@ -74,26 +88,37 @@ function SidebarContent({
           <div className="flex flex-col items-center gap-3">
             <div
               className={cn(
-                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 font-bold text-white shadow-[0_16px_34px_rgba(37,89,63,0.26)]",
+                "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-white",
+                isFinanceLight
+                  ? "bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#122117] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+                  : "bg-gradient-to-br from-[#2dd4bf] via-[#0f766e] to-[#122117] shadow-[0_16px_34px_rgba(0,0,0,0.28)]",
               )}
             >
               {portalType === "super_admin" ? "SA" : "FR"}
             </div>
 
             <button
-              type="button"
-              onClick={onToggleCollapse}
-              aria-label="Expand sidebar"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-100 bg-white/92 text-brand-700 transition hover:bg-brand-50 hover:text-brand-800"
-            >
-              <PanelLeftOpen className="h-4 w-4" />
-            </button>
+                type="button"
+                onClick={onToggleCollapse}
+                aria-label="Expand sidebar"
+                className={cn(
+                  "inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition",
+                  isFinanceLight
+                    ? "border-[var(--finance-border)] bg-white/85 text-[var(--finance-text-secondary)] hover:bg-white hover:text-[var(--finance-text-primary)]"
+                    : "border-[var(--finance-border)] bg-[var(--finance-surface-soft)] text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft-hover)] hover:text-[var(--finance-text-primary)]",
+                )}
+              >
+                <PanelLeftOpen className="h-4 w-4" />
+              </button>
           </div>
         ) : (
           <div className="flex items-center gap-3">
             <div
               className={cn(
-                "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-700 via-brand-500 to-emerald-400 font-bold text-white shadow-[0_16px_34px_rgba(37,89,63,0.26)]",
+                "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-bold text-white",
+                isFinanceLight
+                  ? "bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#122117] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+                  : "bg-gradient-to-br from-[#2dd4bf] via-[#0f766e] to-[#122117] shadow-[0_18px_34px_rgba(45,212,191,0.18)]",
               )}
             >
               {portalType === "super_admin" ? "SA" : "FR"}
@@ -103,13 +128,13 @@ function SidebarContent({
               <p className="truncate font-[var(--font-heading)] text-lg font-bold">
                 FutureRealm SMS
               </p>
-              <p className="text-sm text-ink/55">
+              <p className="text-sm text-[var(--finance-text-secondary)]">
                 {portalType === "super_admin"
                   ? "Platform control"
                   : "Smart school operations"}
               </p>
               {portalType === "super_admin" && (
-                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-ink/45">
+                <p className="mt-1 text-xs font-semibold uppercase tracking-[0.18em] text-[var(--finance-text-muted)]">
                   Super Admin
                 </p>
               )}
@@ -121,7 +146,12 @@ function SidebarContent({
                   type="button"
                   onClick={onToggleCollapse}
                   aria-label="Collapse sidebar"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-100 bg-white/92 text-brand-700 transition hover:bg-brand-50 hover:text-brand-800"
+                  className={cn(
+                    "inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition",
+                    isFinanceLight
+                      ? "border-[var(--finance-border)] bg-white/85 text-[var(--finance-text-secondary)] hover:bg-white hover:text-[var(--finance-text-primary)]"
+                      : "border-[var(--finance-border)] bg-[var(--finance-surface-soft)] text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft-hover)] hover:text-[var(--finance-text-primary)]",
+                  )}
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
@@ -132,7 +162,12 @@ function SidebarContent({
                   type="button"
                   onClick={onCloseMobile}
                   aria-label="Close mobile sidebar"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-brand-100 bg-white/92 text-brand-700 transition hover:bg-brand-50 hover:text-brand-800"
+                  className={cn(
+                    "inline-flex h-10 w-10 items-center justify-center rounded-2xl border transition",
+                    isFinanceLight
+                      ? "border-[var(--finance-border)] bg-white/85 text-[var(--finance-text-secondary)] hover:bg-white hover:text-[var(--finance-text-primary)]"
+                      : "border-[var(--finance-border)] bg-[var(--finance-surface-soft)] text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft-hover)] hover:text-[var(--finance-text-primary)]",
+                  )}
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -143,12 +178,19 @@ function SidebarContent({
       </div>
 
       {!collapsed && (
-        <div className="border-b border-brand-100/70 px-5 py-4">
-          <div className="rounded-2xl bg-white/88 px-4 py-3 ring-1 ring-brand-100 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
-            <p className="mt-1 truncate text-sm font-semibold text-ink">
+        <div className="border-b border-[var(--finance-border)] px-5 py-4">
+          <div
+            className={cn(
+              "rounded-2xl px-4 py-3",
+              isFinanceLight
+                ? "bg-white/85 ring-1 ring-[var(--finance-border)] shadow-[inset_0_1px_0_rgba(255,255,255,0.8)]"
+                : "bg-[var(--finance-surface-soft)] ring-1 ring-[var(--finance-border)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]",
+            )}
+          >
+            <p className="mt-1 truncate text-sm font-semibold text-[var(--finance-text-primary)]">
               {session.name}
             </p>
-            <p className="mt-1 truncate text-xs font-semibold uppercase tracking-[0.16em] text-ink/45">
+            <p className="mt-1 truncate text-xs font-semibold uppercase tracking-[0.16em] text-[var(--finance-text-muted)]">
               {portalType === "super_admin"
                 ? "Super Admin Team"
                 : "School Portal"}
@@ -160,19 +202,26 @@ function SidebarContent({
       <div
         className={cn(
           "relative min-h-0 flex-1 py-4",
-          collapsed ? "px-2" : "px-3",
+          collapsed ? "px-1.5" : "px-3",
         )}
       >
-        <div className="pointer-events-none absolute inset-x-3 top-4 z-10 h-6 bg-gradient-to-b from-brand-50/95 to-transparent" />
-        <div className="pointer-events-none absolute inset-x-3 bottom-4 z-10 h-6 bg-gradient-to-t from-brand-50/95 to-transparent" />
+        <div className={cn("pointer-events-none absolute inset-x-3 top-4 z-10 h-6", isFinanceLight ? "bg-gradient-to-b from-[rgba(255,255,255,0.96)] to-transparent" : "bg-gradient-to-b from-[#122117] to-transparent")} />
+        <div className={cn("pointer-events-none absolute inset-x-3 bottom-4 z-10 h-6", isFinanceLight ? "bg-gradient-to-t from-[rgba(255,255,255,0.96)] to-transparent" : "bg-gradient-to-t from-[#122117] to-transparent")} />
 
-        <nav className="sidebar-scroll h-full overflow-y-auto pr-1">
+        <nav
+          className={cn(
+            "sidebar-scroll h-full",
+            collapsed && !isMobile
+              ? "overflow-x-visible overflow-y-auto pr-0"
+              : "overflow-y-auto pr-1",
+          )}
+        >
           <div className="grid gap-5 pb-4">
             {visibleGroups.map((group) => (
               <section key={group.title} className="grid gap-2">
                 {!collapsed && (
                   <div className="px-3">
-                    <p className="text-[0.67rem] font-semibold uppercase tracking-[0.24em] text-brand-700/70">
+                    <p className="text-[0.67rem] font-semibold uppercase tracking-[0.24em] text-[var(--finance-text-muted)]">
                       {group.title}
                     </p>
                   </div>
@@ -196,8 +245,12 @@ function SidebarContent({
                               ? "mx-auto h-12 w-12 justify-center p-0"
                               : "gap-3 px-4 py-3",
                             active
-                              ? "border border-brand-100 bg-gradient-to-r from-brand-50 via-emerald-50 to-white text-brand-900 ring-1 ring-white/70 shadow-[0_14px_30px_rgba(37,89,63,0.14)]"
-                              : "text-ink/65 hover:bg-brand-50/75 hover:text-brand-900 hover:shadow-[0_8px_20px_rgba(37,89,63,0.08)]",
+                              ? isFinanceLight
+                                ? "border border-[#a7ece1] bg-[linear-gradient(135deg,rgba(45,212,191,0.18),rgba(255,255,255,0.98))] text-[var(--finance-text-primary)] shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+                                : "border border-[var(--finance-border)] bg-[linear-gradient(135deg,rgba(45,212,191,0.18),rgba(18,33,23,0.98))] text-[var(--finance-text-primary)] shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+                              : isFinanceLight
+                                ? "text-[var(--finance-text-secondary)] hover:bg-black/[0.03] hover:text-[var(--finance-text-primary)] hover:shadow-[0_8px_20px_rgba(15,23,42,0.06)]"
+                                : "text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)] hover:shadow-[0_10px_22px_rgba(0,0,0,0.22)]",
                           )}
                         >
                           <span
@@ -206,14 +259,14 @@ function SidebarContent({
                               collapsed
                                 ? "bottom-1.5 left-1/2 h-1.5 w-6 -translate-x-1/2"
                                 : "left-1 top-1/2 h-8 w-1 -translate-y-1/2",
-                              active ? "bg-brand-600" : "bg-transparent",
+                              active ? "bg-[var(--finance-accent-primary)]" : "bg-transparent",
                             )}
                           />
 
                           <span
                             className={cn(
                               "absolute inset-0 rounded-2xl opacity-0 blur-xl transition-opacity duration-200",
-                              active && "bg-brand-200/35 opacity-100",
+                              active && "bg-[var(--finance-accent-primary)]/20 opacity-100",
                             )}
                           />
 
@@ -234,9 +287,21 @@ function SidebarContent({
 
                         {collapsed && !isMobile && (
                           <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 opacity-0 transition-all duration-200 group-hover/item:translate-x-0 group-hover/item:opacity-100">
-                            <div className="relative whitespace-nowrap rounded-xl border border-brand-100 bg-white px-3 py-2 text-xs font-medium text-ink shadow-[0_12px_30px_rgba(37,89,63,0.14)]">
+                            <div
+                              className={cn(
+                                "relative whitespace-nowrap rounded-xl border px-3 py-2 text-xs font-medium shadow-[0_12px_30px_rgba(37,89,63,0.14)]",
+                                isFinanceLight
+                                  ? "border-[var(--finance-border)] bg-white text-[var(--finance-text-primary)] shadow-[0_12px_24px_rgba(15,23,42,0.08)]"
+                                  : "border-[var(--finance-border)] bg-[var(--color-bg-overlay)] text-[var(--finance-text-primary)] shadow-[0_18px_34px_rgba(0,0,0,0.38)]",
+                              )}
+                            >
                               {item.label}
-                              <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-brand-100 bg-white" />
+                              <span
+                                className={cn(
+                                  "absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l",
+                                  isFinanceLight ? "border-[var(--finance-border)] bg-white" : "border-[var(--finance-border)] bg-[var(--color-bg-overlay)]",
+                                )}
+                              />
                             </div>
                           </div>
                         )}
@@ -261,6 +326,7 @@ export function Sidebar({
   onToggleCollapse,
   onCloseMobile,
   portalType = "school",
+  theme = "default",
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -268,13 +334,15 @@ export function Sidebar({
     <>
       <aside
         className={cn(
-          "sticky top-0 z-40 hidden h-screen shrink-0 overflow-hidden bg-white p-0 transition-all duration-200 md:block",
+          "sticky top-0 z-40 hidden h-screen shrink-0 p-0 transition-all duration-200 md:block",
+          collapsed ? "overflow-visible" : "overflow-hidden",
+          "bg-transparent",
           collapsed
             ? "w-[var(--layout-sidebar-collapsed)] min-w-[var(--layout-sidebar-collapsed)]"
             : "w-[var(--layout-sidebar-width)] min-w-[var(--layout-sidebar-width)]",
         )}
       >
-        <div className="h-full border-l-[3px] border-primary-500 p-3">
+        <div className={cn("h-full", collapsed ? "px-2 py-3" : "p-3")}>
           <SidebarContent
             session={session}
             permissions={permissions}
@@ -283,6 +351,7 @@ export function Sidebar({
             onToggleCollapse={onToggleCollapse}
             onCloseMobile={onCloseMobile}
             portalType={portalType}
+            theme={theme}
           />
         </div>
       </aside>
@@ -297,6 +366,7 @@ export function Sidebar({
             onToggleCollapse={onToggleCollapse}
             onCloseMobile={onCloseMobile}
             portalType={portalType}
+            theme={theme}
             isMobile
           />
         </aside>

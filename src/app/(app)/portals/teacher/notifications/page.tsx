@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
@@ -9,7 +11,7 @@ import { formatDate } from "@/lib/utils/formatters";
 export default async function TeacherNotificationsPage() {
   const session = await getServerSession();
   if (!session) return null;
-  if (!canAccessPath(session.role, "/portals/teacher")) {
+  if (!canAccessPath(session.role, "/portals/teacher/notifications")) {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
@@ -18,7 +20,7 @@ export default async function TeacherNotificationsPage() {
   return (
     <div className="grid gap-6">
       <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/portals/teacher" className="text-sm font-semibold text-brand-700">Back to teacher portal</a>
+        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">Back to teacher portal</Link>
         <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Teacher notifications</h1>
         <p className="mt-3 text-sm leading-6 text-ink/68">
           In-app, SMS, email, and push records visible to your teacher account.

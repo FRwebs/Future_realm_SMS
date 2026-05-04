@@ -3,9 +3,11 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { AlertCircle, ArrowLeft, CheckCircle2, Clock, DoorOpen, EyeOff, Plus, Send, Sparkles, Trash2, X } from "lucide-react";
+import { AlertCircle, ArrowLeft, CheckCircle2, Clock, DoorOpen, EyeOff, Plus, Send, Sparkles, Trash2 } from "lucide-react";
 
 import { usePermissions } from "@/components/auth/permission-provider";
+import { useToast } from "@/components/ui/toast-provider";
+import { SidePanel } from "@/components/ui/side-panel";
 import { cn } from "@/lib/utils/cn";
 import { apiJson, formatTime, getCookie } from "./api";
 
@@ -200,7 +202,8 @@ function TimetableGrid({ data, canEdit, canDelete, onEdit, onDelete }: { data: T
   );
 }
 
-function SlotEditModal({ classId, className, slot, onClose, onSaved }: { classId: string; className: string; slot: ActiveSlot; onClose: () => void; onSaved: () => void }) {
+function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId: string; className: string; slot: ActiveSlot; onClose: () => void; onSaved: () => void }) {
+  const { showToast } = useToast();
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [form, setForm] = useState({
@@ -232,6 +235,17 @@ function SlotEditModal({ classId, className, slot, onClose, onSaved }: { classId
   }
 
   async function save() {
+    if (form.slot_type === "lesson" && !form.subject_id) {
+      const message = "Select a subject before saving this lesson slot.";
+      setError(message);
+      showToast({
+        variant: "warning",
+        title: "Subject required",
+        description: message,
+      });
+      return;
+    }
+
     setSaving(true);
     setError(null);
     try {
@@ -255,66 +269,111 @@ function SlotEditModal({ classId, className, slot, onClose, onSaved }: { classId
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_rgba(18,33,23,0.28)]">
-        <div className="flex items-start justify-between gap-4 border-b border-ink/8 bg-sand/50 px-6 py-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-700">{slot.dayName} · {slot.periodLabel}</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ink">Edit Slot</h2>
-            <p className="mt-1 text-sm text-ink/58">{className} · {formatTime(slot.startTime)} - {formatTime(slot.endTime)}</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-ink/10 bg-white p-3 text-ink/55 transition hover:bg-white/70"><X className="h-4 w-4" /></button>
+    <SidePanel
+      open
+      onClose={onClose}
+      size="lg"
+      title="Edit timetable slot"
+      subtitle={`${className} · ${slot.dayName} · ${slot.periodLabel} · ${formatTime(slot.startTime)} - ${formatTime(slot.endTime)}`}
+      footer={(
+        <div className="flex items-center justify-end gap-3">
+          <button type="button" onClick={onClose} className="btn-secondary px-5">
+            Cancel
+          </button>
+          <button
+            type="button"
+            disabled={saving}
+            onClick={save}
+            className="btn-primary px-5 disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save slot"}
+          </button>
         </div>
-        <div className="grid gap-4 p-6">
-          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div> : null}
-          <div className="grid gap-2 sm:grid-cols-3">
-            {["lesson", "free", "sports"].map((type) => (
-              <button key={type} type="button" onClick={() => setForm((current) => ({ ...current, slot_type: type }))} className={cn("rounded-2xl border px-4 py-3 text-sm font-black capitalize transition", form.slot_type === type ? "border-brand-600 bg-brand-700 text-white" : "border-ink/10 bg-white text-ink/58 hover:bg-sand")}>
-                {type === "sports" ? "Sports / PE" : type}
-              </button>
-            ))}
+      )}
+    >
+      <div className="grid gap-5">
+        <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-700">
+            Teaching window
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-700">
+            <span className="rounded-full bg-white px-3 py-1 font-medium">{slot.dayName}</span>
+            <span className="rounded-full bg-white px-3 py-1 font-medium">{slot.periodLabel}</span>
+            <span className="rounded-full bg-white px-3 py-1 font-medium">
+              {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
+            </span>
+            {slot.existingSlot?.is_published ? (
+              <span className="rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-700">
+                Published
+              </span>
+            ) : (
+              <span className="rounded-full bg-amber-100 px-3 py-1 font-medium text-amber-700">
+                Draft
+              </span>
+            )}
           </div>
-          {form.slot_type === "lesson" ? (
+        </div>
+
+        {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div> : null}
+        <div className="grid gap-2 sm:grid-cols-3">
+          {["lesson", "free", "sports"].map((type) => (
+            <button key={type} type="button" onClick={() => setForm((current) => ({ ...current, slot_type: type }))} className={cn("rounded-2xl border px-4 py-3 text-sm font-black capitalize transition", form.slot_type === type ? "border-primary-600 bg-primary-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}>
+              {type === "sports" ? "Sports / PE" : type}
+            </button>
+          ))}
+        </div>
+
+        {form.slot_type === "lesson" ? (
+          <div className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+              <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
                 Subject
-                <select value={form.subject_id} onChange={(event) => selectSubject(event.target.value)} className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100">
+                <select value={form.subject_id} onChange={(event) => selectSubject(event.target.value)} className="field-select h-11 rounded-2xl">
                   <option value="">Select subject</option>
                   {subjects.map((subject) => <option key={subject.subject_id} value={subject.subject_id}>{subject.name} ({subject.code})</option>)}
                 </select>
               </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+              <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
                 Teacher
-                <select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))} className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100">
+                <select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))} className="field-select h-11 rounded-2xl">
                   <option value="">No teacher</option>
                   {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
                 </select>
               </label>
             </div>
-          ) : null}
-          <div className="grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
-              Room
-              <input value={form.room} onChange={(event) => setForm((current) => ({ ...current, room: event.target.value }))} placeholder="Room 7, Lab, Field" className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
-            </label>
-            <label className="flex items-center gap-3 rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm font-semibold text-ink/70">
-              <input type="checkbox" checked={form.is_double_period} onChange={(event) => setForm((current) => ({ ...current, is_double_period: event.target.checked }))} className="h-4 w-4 rounded border-ink/20 text-brand-700" />
-              Double period
-            </label>
+
+            {form.subject_id ? (
+              <div className="rounded-[1.25rem] border border-slate-100 bg-slate-50 p-4 text-[13px] text-slate-600">
+                <p className="font-semibold text-slate-900">
+                  {subjects.find((subject) => subject.subject_id === form.subject_id)?.name ?? "Selected subject"}
+                </p>
+                <p className="mt-1">
+                  {form.teacher_id
+                    ? `Assigned teacher: ${teachers.find((teacher) => teacher.id === form.teacher_id)?.name ?? "Chosen teacher"}`
+                    : "No teacher linked yet. You can still save the slot and assign a teacher later."}
+                </p>
+              </div>
+            ) : null}
           </div>
-          <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
-            Notes
-            <textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={3} className="rounded-2xl border border-ink/10 bg-white px-3 py-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+        ) : null}
+
+        <div className="grid gap-4 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+            Room
+            <input value={form.room} onChange={(event) => setForm((current) => ({ ...current, room: event.target.value }))} placeholder="Room 7, Lab, Field" className="field-input h-11 rounded-2xl" />
+          </label>
+          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
+            <input type="checkbox" checked={form.is_double_period} onChange={(event) => setForm((current) => ({ ...current, is_double_period: event.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+            Double period
           </label>
         </div>
-        <div className="flex justify-end gap-3 border-t border-ink/8 px-6 py-4">
-          <button type="button" onClick={onClose} className="rounded-full px-5 py-2 text-sm font-semibold text-ink/60 transition hover:bg-sand">Cancel</button>
-          <button type="button" disabled={saving || (form.slot_type === "lesson" && !form.subject_id)} onClick={save} className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-50">
-            {saving ? "Saving..." : "Save Slot"}
-          </button>
-        </div>
+
+        <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+          Notes
+          <textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={4} className="field-textarea min-h-[120px] rounded-2xl" placeholder="Add any context for timetable managers, for example practical grouping or room constraints." />
+        </label>
       </div>
-    </div>
+    </SidePanel>
   );
 }
 
@@ -426,7 +485,7 @@ export function ClassTimetableClient({ classId }: { classId: string }) {
       <TimetableGrid data={data} canEdit={canEdit} canDelete={canDelete} onEdit={setActiveSlot} onDelete={clearSlot} />
 
       {activeSlot ? (
-        <SlotEditModal
+        <SlotEditPanel
           classId={classId}
           className={data.class.name}
           slot={activeSlot}

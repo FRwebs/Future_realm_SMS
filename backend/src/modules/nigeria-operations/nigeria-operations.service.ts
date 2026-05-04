@@ -281,44 +281,6 @@ export class NigeriaOperationsService {
   }
 
   async getDashboard(session: SessionPayload): Promise<NigeriaOperationsDashboardView> {
-    if (env.DEMO_MODE) {
-      return {
-        academicDefaults: this.academicDefaults(),
-        curriculum: {
-          totalTopics: 12,
-          completionRate: 58.3,
-          overdueTopics: 2,
-          bySubject: [
-            { subject: "Mathematics", className: "JSS 2 - Gold", totalTopics: 6, completionRate: 66.7 },
-            { subject: "Biology", className: "SSS 1 - Emerald", totalTopics: 6, completionRate: 50 }
-          ]
-        },
-        staffAttendance: {
-          policy: { resumptionTime: "07:45", closingTime: "15:30", graceMinutes: 10, timezone: "Africa/Lagos" },
-          totalMarkedToday: 24,
-          lateToday: 3,
-          absentToday: 1,
-          records: []
-        },
-        training: {
-          upcoming: [
-            {
-              id: "demo-training-1",
-              title: "Second Term Scheme of Work Orientation",
-              category: "CURRICULUM_ORIENTATION",
-              trainingType: "INTERNAL",
-              startsAt: "2026-04-18T09:00:00.000Z",
-              mandatory: true,
-              invitedCount: 18,
-              completedCount: 9
-            }
-          ],
-          complianceRate: 50,
-          pendingMandatory: 9
-        }
-      };
-    }
-
     const [curriculum, policy, todayRecords, trainings] = await Promise.all([
       this.listCurriculum(session).catch((error: unknown) => {
         if (isSchemaDriftError(error)) return [];
@@ -364,29 +326,6 @@ export class NigeriaOperationsService {
   }
 
   async listCurriculum(session: SessionPayload): Promise<CurriculumTopicView[]> {
-    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
-      return [
-        {
-          id: "demo-curriculum-1",
-          academicSession: "2025/2026",
-          term: "Second Term",
-          classId: "cls_jss2_gold",
-          className: "JSS 2 - Gold",
-          subjectId: "sub_math",
-          subject: "Mathematics",
-          weekNumber: 4,
-          topic: "Simultaneous equations",
-          subTopic: "Elimination method",
-          learningObjectives: "Learners solve two-variable equations using elimination.",
-          recommendedResources: "NERDC Basic Mathematics JSS2, pages 84-91.",
-          assignmentNote: "Exercise 4A, questions 1-10.",
-          status: "ACTIVE",
-          progressStatus: "IN_PROGRESS",
-          teacherName: "Boma Hart"
-        }
-      ];
-    }
-
     let classIds: string[] | undefined;
     if (session.role === "STUDENT") {
       const student = await prisma.student.findFirst({
@@ -563,44 +502,6 @@ export class NigeriaOperationsService {
   }
 
   async listStaffAttendance(session: SessionPayload) {
-    if (env.DEMO_MODE) {
-      const records: StaffClockView[] = [
-        {
-          id: "demo-staff-attendance-1",
-          teacherName: "Boma Hart",
-          userId: "user_teacher",
-          date: "2026-04-18T00:00:00.000Z",
-          status: "PRESENT",
-          checkInAt: "2026-04-18T06:42:00.000Z",
-          checkOutAt: "2026-04-18T14:38:00.000Z",
-          totalMinutes: 476,
-          notes: "Teacher self-service clock record."
-        },
-        {
-          id: "demo-staff-attendance-2",
-          teacherName: "Adaeze Okafor",
-          userId: "user_teacher_english",
-          date: "2026-04-18T00:00:00.000Z",
-          status: "LATE",
-          checkInAt: "2026-04-18T07:08:00.000Z",
-          checkOutAt: "2026-04-18T14:35:00.000Z",
-          totalMinutes: 447,
-          notes: "Late after resumption grace period."
-        },
-        {
-          id: "demo-staff-attendance-3",
-          teacherName: "Ibrahim Musa",
-          userId: "user_teacher_science",
-          date: "2026-04-18T00:00:00.000Z",
-          status: "OFFICIAL_DUTY",
-          checkInAt: "2026-04-18T06:55:00.000Z",
-          totalMinutes: 0,
-          notes: "Represented the school at a science fair."
-        }
-      ];
-      return session.role === "TEACHER" ? records.filter((record) => record.userId === session.userId) : records;
-    }
-
     if (session.role === "TEACHER") {
       const records = await prisma.staffAttendance.findMany({
         where: { schoolId: session.schoolId, userId: session.userId },
@@ -643,7 +544,6 @@ export class NigeriaOperationsService {
   }
 
   async listTrainingPrograms(session: SessionPayload): Promise<TrainingProgramView[]> {
-    if (env.DEMO_MODE) return (await this.getDashboard(session)).training.upcoming;
     const where = session.role === "TEACHER"
       ? { schoolId: session.schoolId, participants: { some: { userId: session.userId } } }
       : { schoolId: session.schoolId };
@@ -697,33 +597,6 @@ export class NigeriaOperationsService {
   }
 
   async listTrainingParticipants(session: SessionPayload): Promise<TrainingParticipantView[]> {
-    if (env.DEMO_MODE) {
-      const participants: TrainingParticipantView[] = [
-        {
-          id: "demo-training-participant-1",
-          trainingProgramId: "demo-training-1",
-          title: "Second Term Scheme of Work Orientation",
-          teacherName: "Boma Hart",
-          status: "INVITED",
-          startsAt: "2026-04-18T09:00:00.000Z",
-          cpdPoints: 0,
-          notes: "Mandatory for class and subject teachers."
-        },
-        {
-          id: "demo-training-participant-2",
-          trainingProgramId: "demo-training-1",
-          title: "Second Term Scheme of Work Orientation",
-          teacherName: "Adaeze Okafor",
-          status: "COMPLETED",
-          startsAt: "2026-04-18T09:00:00.000Z",
-          completedAt: "2026-04-18T12:00:00.000Z",
-          cpdPoints: 2,
-          notes: "Certificate pending upload."
-        }
-      ];
-      return session.role === "TEACHER" ? participants.filter((participant) => participant.teacherName === "Boma Hart") : participants;
-    }
-
     const where = session.role === "TEACHER" ? { schoolId: session.schoolId, userId: session.userId } : { schoolId: session.schoolId };
     if (session.role !== "TEACHER") assertTrainingAdmin(session);
     const participants = await prisma.trainingParticipant.findMany({

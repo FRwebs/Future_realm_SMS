@@ -9,16 +9,16 @@ export function TrendCard({ title, description, items }: TrendCardProps) {
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,rgba(235,244,238,0.85),rgba(255,255,255,0.98),rgba(246,250,247,0.9))] p-6">
-        <div className="inline-flex items-center gap-2 rounded-full border border-primary-100 bg-primary-50 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-primary-700">
+      <div className="border-b border-[var(--color-border-default)] bg-[radial-gradient(circle_at_top_left,var(--color-accent-primary-dim),transparent_48%),linear-gradient(180deg,color-mix(in_srgb,var(--color-bg-surface)_96%,transparent),color-mix(in_srgb,var(--color-bg-elevated)_88%,transparent))] p-6">
+        <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-accent)]">
           Insights
         </div>
 
-        <h3 className="mt-3 text-[20px] font-bold  text-slate-900">
+        <h3 className="mt-3 text-[20px] font-bold text-[var(--color-text-primary)]">
           {title}
         </h3>
 
-        <p className="mt-2 max-w-md text-[13px] leading-6 text-slate-600">
+        <p className="mt-2 max-w-md text-[13px] leading-6 text-[var(--color-text-secondary)]">
           {description}
         </p>
       </div>
@@ -31,20 +31,20 @@ export function TrendCard({ title, description, items }: TrendCardProps) {
             return (
               <div
                 key={item.label}
-                className="group rounded-xl px-2 py-2 transition hover:bg-slate-50"
+                className="group rounded-xl px-2 py-2 transition hover:bg-[var(--color-bg-elevated)]"
               >
                 <div className="flex items-center justify-between text-[13px]">
-                  <span className="font-medium text-slate-600 transition group-hover:text-slate-900">
+                  <span className="font-medium text-[var(--color-text-secondary)] transition group-hover:text-[var(--color-text-primary)]">
                     {item.label}
                   </span>
 
-                  <span className="font-semibold text-slate-900">
+                  <span className="font-semibold text-[var(--color-text-primary)]">
                     {item.value}
                     {item.suffix ?? ""}
                   </span>
                 </div>
 
-                <div className="relative mt-2 h-3 overflow-hidden rounded-full bg-slate-100">
+                <div className="relative mt-2 h-3 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                   <div
                     className="relative h-3 rounded-full bg-gradient-to-r from-primary-600 via-primary-500 to-teal-400 transition-all duration-500 ease-out"
                     style={{ width: `${percentage}%` }}
@@ -56,7 +56,7 @@ export function TrendCard({ title, description, items }: TrendCardProps) {
                   />
                 </div>
 
-                <div className="mt-1 text-[11px] text-slate-400">
+                <div className="mt-1 text-[11px] text-[var(--color-text-muted)]">
                   {percentage.toFixed(0)}% of max
                 </div>
               </div>

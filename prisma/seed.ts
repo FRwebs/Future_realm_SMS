@@ -99,6 +99,143 @@ const cohortNames = [
   ["David", "Ibe", "MALE"],
 ] as const;
 
+const secondaryCohortProfiles = [
+  ["Ayomide", "MALE"],
+  ["Ebunoluwa", "FEMALE"],
+  ["Chinonso", "MALE"],
+  ["Temiloluwa", "FEMALE"],
+  ["Oluwaseun", "MALE"],
+  ["Somtochukwu", "FEMALE"],
+  ["Kehinde", "MALE"],
+  ["Ifeoluwa", "FEMALE"],
+  ["Daniel", "MALE"],
+  ["Adaobi", "FEMALE"],
+  ["Timilehin", "MALE"],
+  ["Opeyemi", "FEMALE"],
+  ["Ayobami", "MALE"],
+  ["Mmesoma", "FEMALE"],
+  ["Fiyinfoluwa", "MALE"],
+  ["Chisom", "FEMALE"],
+  ["Abdulrahman", "MALE"],
+  ["Onyinyechi", "FEMALE"],
+  ["Tobechukwu", "MALE"],
+  ["Anjolaoluwa", "FEMALE"],
+  ["Victory", "MALE"],
+  ["Damilola", "FEMALE"],
+  ["Imoleayo", "MALE"],
+  ["Amarachi", "FEMALE"],
+  ["Pelumi", "MALE"],
+  ["Mariam", "FEMALE"],
+  ["Toluwanimi", "MALE"],
+  ["Oluwatamilore", "FEMALE"],
+  ["Michael", "MALE"],
+  ["Olaitan", "FEMALE"],
+  ["Samuel", "MALE"],
+  ["Praise", "FEMALE"],
+  ["Joshua", "MALE"],
+  ["Mercy", "FEMALE"],
+  ["Tobi", "MALE"],
+  ["Favour", "FEMALE"],
+  ["Godwin", "MALE"],
+  ["Deborah", "FEMALE"],
+  ["Emmanuel", "MALE"],
+  ["Esther", "FEMALE"],
+  ["Azeez", "MALE"],
+  ["Hadassah", "FEMALE"],
+  ["Bright", "MALE"],
+  ["Olufunke", "FEMALE"],
+  ["Davidson", "MALE"],
+  ["Happiness", "FEMALE"],
+  ["Elijah", "MALE"],
+  ["Winifred", "FEMALE"],
+  ["Jonathan", "MALE"],
+  ["Simi", "FEMALE"],
+] as const;
+
+const secondaryCohortLastNames = [
+  "Adeyemi",
+  "Okonkwo",
+  "Bassey",
+  "Adebayo",
+  "Nwachukwu",
+  "Bakare",
+  "Ekanem",
+  "Ogunleye",
+  "Mohammed",
+  "Ibeh",
+] as const;
+
+const guardianMotherNames = [
+  "Kemi",
+  "Amina",
+  "Chinwe",
+  "Bisi",
+  "Ngozi",
+  "Hauwa",
+  "Funmilayo",
+  "Ifeoma",
+  "Ruth",
+  "Zainab",
+] as const;
+
+const guardianFatherNames = [
+  "Adewale",
+  "Musa",
+  "Chinedu",
+  "Tunde",
+  "Ibrahim",
+  "Emeka",
+  "Segun",
+  "Sani",
+  "Paul",
+  "Kunle",
+] as const;
+
+function buildSecondaryCohortNames(size: number) {
+  return Array.from({ length: size }, (_, index) => {
+    const [firstName, gender] = secondaryCohortProfiles[index % secondaryCohortProfiles.length];
+    const lastName =
+      secondaryCohortLastNames[
+        Math.floor(index / secondaryCohortProfiles.length) % secondaryCohortLastNames.length
+      ];
+    return [firstName, lastName, gender] as const;
+  });
+}
+
+function normalizeForEmail(value: string) {
+  return value
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+function buildStudentPortalEmail(student: {
+  admissionNumber: string;
+  studentNumber: string | null;
+}) {
+  const base = normalizeForEmail(student.studentNumber ?? student.admissionNumber);
+  return `${base}@students.greenfieldcollege.ng`;
+}
+
+function buildGuardianPortalEmail(guardian: {
+  firstName: string;
+  lastName: string;
+  phone: string;
+}) {
+  const namePart = normalizeForEmail(`${guardian.firstName}-${guardian.lastName}`);
+  const phoneTail = guardian.phone.replace(/\D/g, "").slice(-4) || "0000";
+  return `${namePart}-${phoneTail}@parents.greenfieldcollege.ng`;
+}
+
+function printCredentialGroup(title: string, entries: string[], password = "FutureRealm123!") {
+  console.log(`\n${title}`);
+  for (const entry of entries) {
+    console.log(`  - ${entry}`);
+  }
+  console.log(`  Password: ${password}`);
+}
+
 type SeedSchemeTopic = {
   topic: string;
   subtopics?: string[];
@@ -409,6 +546,184 @@ async function assignSystemRole(
   });
 }
 
+async function provisionStudentPortalAccounts({
+  schoolId,
+  passwordHash,
+  assignedById,
+}: {
+  schoolId: string;
+  passwordHash: string;
+  assignedById: string;
+}) {
+  const studentsWithoutUsers = await prisma.student.findMany({
+    where: {
+      schoolId,
+      userId: null,
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      admissionNumber: true,
+      studentNumber: true,
+    },
+    orderBy: [{ admissionNumber: "asc" }],
+  });
+
+  for (const student of studentsWithoutUsers) {
+    const user = await prisma.user.create({
+      data: {
+        schoolId,
+        email: buildStudentPortalEmail(student),
+        firstName: student.firstName,
+        lastName: student.lastName,
+        passwordHash,
+        role: "STUDENT",
+      },
+    });
+
+    await prisma.student.update({
+      where: { id: student.id },
+      data: { userId: user.id },
+    });
+
+    await assignSystemRole(schoolId, user.id, "STUDENT", assignedById);
+  }
+}
+
+async function resetStudentPortalPasswords({
+  schoolId,
+  passwordHash,
+}: {
+  schoolId: string;
+  passwordHash: string;
+}) {
+  const linkedStudentUsers = await prisma.student.findMany({
+    where: {
+      schoolId,
+      userId: { not: null },
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  const userIds = linkedStudentUsers
+    .map((item) => item.userId)
+    .filter((item): item is string => Boolean(item));
+
+  if (userIds.length === 0) return;
+
+  await prisma.user.updateMany({
+    where: { schoolId, id: { in: userIds } },
+    data: { passwordHash },
+  });
+}
+
+async function provisionGuardianPortalAccounts({
+  schoolId,
+  passwordHash,
+  assignedById,
+}: {
+  schoolId: string;
+  passwordHash: string;
+  assignedById: string;
+}) {
+  const guardiansWithoutUsers = await prisma.guardian.findMany({
+    where: {
+      schoolId,
+      userId: null,
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      phone: true,
+    },
+    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+  });
+
+  for (const guardian of guardiansWithoutUsers) {
+    const user = await prisma.user.create({
+      data: {
+        schoolId,
+        email: buildGuardianPortalEmail(guardian),
+        firstName: guardian.firstName,
+        lastName: guardian.lastName,
+        passwordHash,
+        role: "PARENT",
+      },
+    });
+
+    await prisma.guardian.update({
+      where: { id: guardian.id },
+      data: { userId: user.id },
+    });
+
+    await assignSystemRole(schoolId, user.id, "PARENT", assignedById);
+  }
+}
+
+async function provisionStudentGuardians({
+  schoolId,
+  assignedById,
+  passwordHash,
+}: {
+  schoolId: string;
+  assignedById: string;
+  passwordHash: string;
+}) {
+  const studentsWithoutGuardians = await prisma.student.findMany({
+    where: {
+      schoolId,
+      guardians: {
+        none: {},
+      },
+    },
+    select: {
+      id: true,
+      firstName: true,
+      lastName: true,
+      admissionNumber: true,
+      gender: true,
+      stateOfOrigin: true,
+    },
+    orderBy: [{ admissionNumber: "asc" }],
+  });
+
+  for (const [index, student] of studentsWithoutGuardians.entries()) {
+    const relationship = index % 2 === 0 ? "Mother" : "Father";
+    const guardianFirstName =
+      relationship === "Mother"
+        ? guardianMotherNames[index % guardianMotherNames.length]
+        : guardianFatherNames[index % guardianFatherNames.length];
+    const phone = `0805${String(index + 1).padStart(7, "0")}`;
+    const guardian = await prisma.guardian.create({
+      data: {
+        schoolId,
+        firstName: guardianFirstName,
+        lastName: student.lastName,
+        phone,
+        email: `${normalizeForEmail(student.admissionNumber)}@parents.greenfieldcollege.ng`,
+        relationship,
+        occupation:
+          relationship === "Mother" ? "Business Owner" : "Civil Servant",
+        address: `${student.stateOfOrigin ?? "Oyo"} Residence, Ibadan`,
+      },
+    });
+
+    await prisma.studentGuardian.create({
+      data: {
+        studentId: student.id,
+        guardianId: guardian.id,
+        isPrimary: true,
+      },
+    });
+  }
+
+  await provisionGuardianPortalAccounts({ schoolId, passwordHash, assignedById });
+}
+
 async function main() {
   await clearDatabase();
 
@@ -621,7 +936,7 @@ async function main() {
     },
   });
 
-  await prisma.term.create({
+  const thirdTerm = await prisma.term.create({
     data: {
       schoolId: school.id,
       academicSessionId: session.id,
@@ -630,6 +945,48 @@ async function main() {
       startDate: new Date("2026-05-08"),
       endDate: new Date("2026-07-31"),
       isCurrent: false,
+    },
+  });
+
+  await prisma.academicSession.updateMany({
+    where: { schoolId: school.id },
+    data: { isCurrent: false },
+  });
+  await prisma.academicSession.update({
+    where: { id: session.id },
+    data: { isCurrent: true },
+  });
+
+  await prisma.term.updateMany({
+    where: { schoolId: school.id },
+    data: { isCurrent: false },
+  });
+  await prisma.term.update({
+    where: { id: secondTerm.id },
+    data: { isCurrent: true },
+  });
+
+  await prisma.configurationItem.create({
+    data: {
+      schoolId: school.id,
+      resource: "academic-context",
+      name: "Current Academic Context",
+      code: "CURRENT_ACADEMIC_CONTEXT",
+      description:
+        "Tracks the active academic session and term used across dashboards, attendance, results, and timetable workflows.",
+      isDefault: true,
+      displayOrder: 1,
+      data: {
+        academicSessionId: session.id,
+        academicSessionName: session.name,
+        activeTermId: secondTerm.id,
+        activeTermName: secondTerm.name,
+        availableTerms: [
+          { id: firstTerm.id, name: firstTerm.name, order: firstTerm.order, isCurrent: false },
+          { id: secondTerm.id, name: secondTerm.name, order: secondTerm.order, isCurrent: true },
+          { id: thirdTerm.id, name: thirdTerm.name, order: thirdTerm.order, isCurrent: false },
+        ],
+      },
     },
   });
   const scienceDepartment = await prisma.department.create({
@@ -772,7 +1129,7 @@ async function main() {
       departmentId: scienceDepartment.id,
       name: "JSS 2",
       arm: "Gold",
-      capacity: 35,
+      capacity: 60,
     },
   });
 
@@ -784,7 +1141,7 @@ async function main() {
       departmentId: scienceDepartment.id,
       name: "SS 1",
       arm: "Emerald",
-      capacity: 40,
+      capacity: 60,
     },
   });
 
@@ -795,7 +1152,7 @@ async function main() {
       classLevelId: primaryLevel.id,
       name: "Primary 6",
       arm: "Coral",
-      capacity: 30,
+      capacity: 50,
     },
   });
 
@@ -806,7 +1163,7 @@ async function main() {
       classLevelId: primary4Level.id,
       name: "Primary 4",
       arm: "Blue",
-      capacity: 28,
+      capacity: 50,
     },
   });
 
@@ -818,7 +1175,7 @@ async function main() {
       departmentId: scienceDepartment.id,
       name: "JSS 1",
       arm: "Silver",
-      capacity: 34,
+      capacity: 60,
     },
   });
 
@@ -830,7 +1187,7 @@ async function main() {
       departmentId: scienceDepartment.id,
       name: "SS 2",
       arm: "Topaz",
-      capacity: 38,
+      capacity: 60,
     },
   });
 
@@ -842,7 +1199,7 @@ async function main() {
         classLevelId: classLevelByValue.get("CRECHE")!.id,
         name: "Crèche",
         arm: "A",
-        capacity: 18,
+        capacity: 50,
       },
       {
         schoolId: school.id,
@@ -850,7 +1207,7 @@ async function main() {
         classLevelId: classLevelByValue.get("NURSERY_1")!.id,
         name: "Nursery 1",
         arm: "A",
-        capacity: 22,
+        capacity: 50,
       },
       {
         schoolId: school.id,
@@ -858,7 +1215,7 @@ async function main() {
         classLevelId: classLevelByValue.get("NURSERY_2")!.id,
         name: "Nursery 2",
         arm: "B",
-        capacity: 22,
+        capacity: 50,
       },
       {
         schoolId: school.id,
@@ -866,7 +1223,7 @@ async function main() {
         classLevelId: classLevelByValue.get("KG_RECEPTION")!.id,
         name: "KG / Reception",
         arm: "C",
-        capacity: 24,
+        capacity: 50,
       },
       {
         schoolId: school.id,
@@ -874,7 +1231,7 @@ async function main() {
         classLevelId: classLevelByValue.get("PRIMARY_1")!.id,
         name: "Primary 1",
         arm: "A",
-        capacity: 28,
+        capacity: 50,
       },
       {
         schoolId: school.id,
@@ -883,7 +1240,7 @@ async function main() {
         departmentId: scienceDepartment.id,
         name: "JSS 3",
         arm: "B",
-        capacity: 36,
+        capacity: 60,
       },
       {
         schoolId: school.id,
@@ -892,9 +1249,37 @@ async function main() {
         departmentId: scienceDepartment.id,
         name: "SSS 3",
         arm: "C",
-        capacity: 38,
+        capacity: 60,
       },
     ],
+  });
+
+  const jss3Bronze = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "JSS 3", arm: "B" },
+  });
+
+  const ss3Crimson = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "SSS 3", arm: "C" },
+  });
+
+  const crecheA = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "Crèche", arm: "A" },
+  });
+
+  const nursery1A = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "Nursery 1", arm: "A" },
+  });
+
+  const nursery2B = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "Nursery 2", arm: "B" },
+  });
+
+  const receptionC = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "KG / Reception", arm: "C" },
+  });
+
+  const primary1A = await prisma.classRoom.findFirstOrThrow({
+    where: { schoolId: school.id, name: "Primary 1", arm: "A" },
   });
 
   const passwordHash = hashPassword("FutureRealm123!");
@@ -1675,11 +2060,11 @@ async function main() {
     }),
     prisma.classRoom.update({
       where: { id: jss1Silver.id },
-      data: { classTeacherId: classTeacherUser.id },
+      data: { classTeacherId: subjectTeacherUser.id },
     }),
     prisma.classRoom.update({
       where: { id: primary4Blue.id },
-      data: { classTeacherId: headTeacherUser.id },
+      data: { classTeacherId: teacherPrimaryUser.id },
     }),
     prisma.classRoom.update({
       where: { id: primary6Coral.id },
@@ -1687,13 +2072,83 @@ async function main() {
     }),
     prisma.classRoom.update({
       where: { id: ss1Emerald.id },
-      data: { classTeacherId: vpAcademicsUser.id },
+      data: { classTeacherId: teacherUser.id },
     }),
     prisma.classRoom.update({
       where: { id: ss2Topaz.id },
       data: { classTeacherId: teacherEnglishUser.id },
     }),
+    prisma.classRoom.update({
+      where: { id: jss3Bronze.id },
+      data: { classTeacherId: classTeacherUser.id },
+    }),
+    prisma.classRoom.update({
+      where: { id: ss3Crimson.id },
+      data: { classTeacherId: teacherUser.id },
+    }),
   ]);
+
+  await prisma.classAcademicAssignment.createMany({
+    data: [
+      {
+        schoolId: school.id,
+        classId: primary4Blue.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: teacherPrimaryUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: primary6Coral.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: teacherPrimaryUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: jss1Silver.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: subjectTeacherUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: jss2Gold.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: classTeacherUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: ss1Emerald.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: teacherUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: ss2Topaz.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: teacherEnglishUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: jss3Bronze.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: classTeacherUser.id,
+      },
+      {
+        schoolId: school.id,
+        classId: ss3Crimson.id,
+        academicSessionId: session.id,
+        termId: secondTerm.id,
+        classTeacherId: teacherUser.id,
+      },
+    ],
+    skipDuplicates: true,
+  });
 
   const guardian = await prisma.guardian.create({
     data: {
@@ -1867,18 +2322,22 @@ async function main() {
     },
   });
 
-  const cohortPlans = [
-    { classRoom: primary4Blue, prefix: "PRI4", birthYear: 2016 },
-    { classRoom: primary6Coral, prefix: "PRI6", birthYear: 2014 },
-    { classRoom: jss1Silver, prefix: "JSS1", birthYear: 2013 },
-    { classRoom: jss2Gold, prefix: "JSS2", birthYear: 2012 },
-    { classRoom: ss1Emerald, prefix: "SS1", birthYear: 2010 },
-    { classRoom: ss2Topaz, prefix: "SS2", birthYear: 2009 },
+  const primaryCohortPlans = [
+    { classRoom: crecheA, prefix: "CRE", birthYear: 2021, target: 50, manualCount: 0 },
+    { classRoom: nursery1A, prefix: "NUR1", birthYear: 2020, target: 50, manualCount: 0 },
+    { classRoom: nursery2B, prefix: "NUR2", birthYear: 2019, target: 50, manualCount: 0 },
+    { classRoom: receptionC, prefix: "KGR", birthYear: 2018, target: 50, manualCount: 0 },
+    { classRoom: primary1A, prefix: "PRI1", birthYear: 2017, target: 50, manualCount: 0 },
+    { classRoom: primary4Blue, prefix: "PRI4", birthYear: 2014, target: 50, manualCount: 1 },
+    { classRoom: primary6Coral, prefix: "PRI6", birthYear: 2012, target: 50, manualCount: 1 },
   ];
 
-  for (const plan of cohortPlans) {
+  for (const plan of primaryCohortPlans) {
+    const additionalCount = Math.max(plan.target - plan.manualCount, 0);
+    const generatedNames = buildSecondaryCohortNames(additionalCount);
+
     await prisma.student.createMany({
-      data: cohortNames.map(([firstName, lastName, gender], index) => ({
+      data: generatedNames.map(([firstName, lastName, gender], index) => ({
         schoolId: school.id,
         campusId: campus.id,
         currentClassId: plan.classRoom.id,
@@ -1900,10 +2359,70 @@ async function main() {
           "Kaduna",
           "Rivers",
           "Akwa Ibom",
-        ][index % 6],
+          "Osun",
+          "Enugu",
+          "Kano",
+          "Ogun",
+        ][index % 10],
       })),
     });
   }
+
+  const secondaryCohortPlans = [
+    { classRoom: jss1Silver, prefix: "JSS1", birthYear: 2013, target: 50, manualCount: 1 },
+    { classRoom: jss2Gold, prefix: "JSS2", birthYear: 2012, target: 50, manualCount: 1 },
+    { classRoom: jss3Bronze, prefix: "JSS3", birthYear: 2011, target: 50, manualCount: 0 },
+    { classRoom: ss1Emerald, prefix: "SS1", birthYear: 2010, target: 50, manualCount: 1 },
+    { classRoom: ss2Topaz, prefix: "SS2", birthYear: 2009, target: 50, manualCount: 1 },
+    { classRoom: ss3Crimson, prefix: "SS3", birthYear: 2008, target: 50, manualCount: 0 },
+  ];
+
+  for (const plan of secondaryCohortPlans) {
+    const additionalCount = Math.max(plan.target - plan.manualCount, 0);
+    const generatedNames = buildSecondaryCohortNames(additionalCount);
+
+    await prisma.student.createMany({
+      data: generatedNames.map(([firstName, lastName, gender], index) => ({
+        schoolId: school.id,
+        campusId: campus.id,
+        currentClassId: plan.classRoom.id,
+        currentSessionId: session.id,
+        admissionNumber: `GFC/25/${plan.prefix}-${String(index + 1).padStart(2, "0")}`,
+        studentNumber: `STD-${plan.prefix}-${String(index + 1).padStart(2, "0")}`,
+        firstName,
+        lastName,
+        gender,
+        dateOfBirth: new Date(
+          `${plan.birthYear}-${String((index % 9) + 1).padStart(2, "0")}-12`,
+        ),
+        admissionDate: new Date("2025-09-05"),
+        nationality: "Nigerian",
+        stateOfOrigin: [
+          "Oyo",
+          "Lagos",
+          "Anambra",
+          "Kaduna",
+          "Rivers",
+          "Akwa Ibom",
+          "Osun",
+          "Enugu",
+          "Kano",
+          "Ogun",
+        ][index % 10],
+      })),
+    });
+  }
+
+  await provisionStudentPortalAccounts({
+    schoolId: school.id,
+    passwordHash,
+    assignedById: admin.id,
+  });
+
+  await resetStudentPortalPasswords({
+    schoolId: school.id,
+    passwordHash,
+  });
 
   await prisma.studentGuardian.createMany({
     data: [
@@ -1938,6 +2457,12 @@ async function main() {
         isPrimary: true,
       },
     ],
+  });
+
+  await provisionStudentGuardians({
+    schoolId: school.id,
+    assignedById: admin.id,
+    passwordHash,
   });
 
   await prisma.medicalRecord.createMany({
@@ -2066,97 +2591,107 @@ async function main() {
     data: { subjectCategoryId: subjectCategoryByName.get("Commercial Studies")?.id },
   });
 
+  const subjectOrThrow = (code: string) => {
+    const subject = subjectByCode.get(code);
+    if (!subject) {
+      throw new Error(`Missing seeded subject with code ${code}`);
+    }
+    return subject;
+  };
+
+  const classSubjectPlan = [
+    { classId: primary4Blue.id, code: "UP1", teacherId: teacherPrimaryUser.id },
+    { classId: primary4Blue.id, code: "UP2", teacherId: teacherPrimaryUser.id },
+    { classId: primary4Blue.id, code: "UP4", teacherId: subjectTeacherUser.id },
+    { classId: primary4Blue.id, code: "UP5", teacherId: teacherPrimaryUser.id },
+    { classId: primary4Blue.id, code: "UP6", teacherId: subjectTeacherUser.id },
+    { classId: primary4Blue.id, code: "UP7", teacherId: teacherPrimaryUser.id },
+    { classId: primary4Blue.id, code: "UP8", teacherId: teacherEnglishUser.id },
+    { classId: primary4Blue.id, code: "UP9", teacherId: teacherEnglishUser.id },
+    { classId: primary4Blue.id, code: "UP10", teacherId: teacherEnglishUser.id },
+    { classId: primary4Blue.id, code: "UP11", teacherId: subjectTeacherUser.id },
+    { classId: primary6Coral.id, code: "UP1", teacherId: teacherPrimaryUser.id },
+    { classId: primary6Coral.id, code: "UP2", teacherId: teacherPrimaryUser.id },
+    { classId: primary6Coral.id, code: "UP4", teacherId: subjectTeacherUser.id },
+    { classId: primary6Coral.id, code: "UP5", teacherId: teacherPrimaryUser.id },
+    { classId: primary6Coral.id, code: "UP6", teacherId: subjectTeacherUser.id },
+    { classId: primary6Coral.id, code: "UP7", teacherId: teacherPrimaryUser.id },
+    { classId: primary6Coral.id, code: "UP8", teacherId: teacherEnglishUser.id },
+    { classId: primary6Coral.id, code: "UP9", teacherId: teacherEnglishUser.id },
+    { classId: primary6Coral.id, code: "UP10", teacherId: teacherEnglishUser.id },
+    { classId: primary6Coral.id, code: "UP11", teacherId: subjectTeacherUser.id },
+    { classId: jss1Silver.id, code: "JSS1", teacherId: teacherEnglishUser.id },
+    { classId: jss1Silver.id, code: "JSS2", teacherId: teacherUser.id },
+    { classId: jss1Silver.id, code: "JSS4", teacherId: teacherUser.id },
+    { classId: jss1Silver.id, code: "JSS5", teacherId: subjectTeacherUser.id },
+    { classId: jss1Silver.id, code: "JSS6", teacherId: subjectTeacherUser.id },
+    { classId: jss1Silver.id, code: "JSS7", teacherId: subjectTeacherUser.id },
+    { classId: jss1Silver.id, code: "JSS8", teacherId: teacherEnglishUser.id },
+    { classId: jss1Silver.id, code: "JSS9", teacherId: subjectTeacherUser.id },
+    { classId: jss1Silver.id, code: "JSS10", teacherId: teacherEnglishUser.id },
+    { classId: jss1Silver.id, code: "JSS11", teacherId: subjectTeacherUser.id },
+    { classId: jss1Silver.id, code: "JSS12", teacherId: subjectTeacherUser.id },
+    { classId: jss2Gold.id, code: "JSS1", teacherId: teacherEnglishUser.id },
+    { classId: jss2Gold.id, code: "JSS2", teacherId: teacherUser.id },
+    { classId: jss2Gold.id, code: "JSS4", teacherId: teacherUser.id },
+    { classId: jss2Gold.id, code: "JSS5", teacherId: classTeacherUser.id },
+    { classId: jss2Gold.id, code: "JSS6", teacherId: subjectTeacherUser.id },
+    { classId: jss2Gold.id, code: "JSS7", teacherId: classTeacherUser.id },
+    { classId: jss2Gold.id, code: "JSS8", teacherId: teacherEnglishUser.id },
+    { classId: jss2Gold.id, code: "JSS9", teacherId: classTeacherUser.id },
+    { classId: jss2Gold.id, code: "JSS10", teacherId: teacherEnglishUser.id },
+    { classId: jss2Gold.id, code: "JSS11", teacherId: classTeacherUser.id },
+    { classId: jss2Gold.id, code: "JSS12", teacherId: subjectTeacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS1", teacherId: teacherEnglishUser.id },
+    { classId: jss3Bronze.id, code: "JSS2", teacherId: teacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS4", teacherId: teacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS5", teacherId: classTeacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS6", teacherId: subjectTeacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS7", teacherId: classTeacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS8", teacherId: teacherEnglishUser.id },
+    { classId: jss3Bronze.id, code: "JSS9", teacherId: classTeacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS10", teacherId: teacherEnglishUser.id },
+    { classId: jss3Bronze.id, code: "JSS11", teacherId: classTeacherUser.id },
+    { classId: jss3Bronze.id, code: "JSS12", teacherId: subjectTeacherUser.id },
+    { classId: ss1Emerald.id, code: "SSCORE1", teacherId: teacherEnglishUser.id },
+    { classId: ss1Emerald.id, code: "SSCORE2", teacherId: teacherUser.id },
+    { classId: ss1Emerald.id, code: "SSCORE3", teacherId: teacherEnglishUser.id },
+    { classId: ss1Emerald.id, code: "SSCORE4", teacherId: subjectTeacherUser.id },
+    { classId: ss1Emerald.id, code: "SSCORE5", teacherId: subjectTeacherUser.id },
+    { classId: ss1Emerald.id, code: "SSSCI1", teacherId: teacherUser.id },
+    { classId: ss1Emerald.id, code: "SSSCI2", teacherId: subjectTeacherUser.id },
+    { classId: ss1Emerald.id, code: "SSSCI3", teacherId: subjectTeacherUser.id },
+    { classId: ss1Emerald.id, code: "SSSCI9", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSCORE1", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSCORE2", teacherId: teacherUser.id },
+    { classId: ss2Topaz.id, code: "SSCORE3", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSCORE4", teacherId: subjectTeacherUser.id },
+    { classId: ss2Topaz.id, code: "SSCORE5", teacherId: subjectTeacherUser.id },
+    { classId: ss2Topaz.id, code: "SSBUS1", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSBUS2", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSBUS4", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSHUM2", teacherId: teacherEnglishUser.id },
+    { classId: ss2Topaz.id, code: "SSHUM10", teacherId: teacherEnglishUser.id },
+    { classId: ss3Crimson.id, code: "SSCORE1", teacherId: teacherEnglishUser.id },
+    { classId: ss3Crimson.id, code: "SSCORE2", teacherId: teacherUser.id },
+    { classId: ss3Crimson.id, code: "SSCORE3", teacherId: teacherEnglishUser.id },
+    { classId: ss3Crimson.id, code: "SSCORE4", teacherId: subjectTeacherUser.id },
+    { classId: ss3Crimson.id, code: "SSCORE5", teacherId: subjectTeacherUser.id },
+    { classId: ss3Crimson.id, code: "SSSCI1", teacherId: teacherUser.id },
+    { classId: ss3Crimson.id, code: "SSSCI2", teacherId: subjectTeacherUser.id },
+    { classId: ss3Crimson.id, code: "SSSCI3", teacherId: subjectTeacherUser.id },
+    { classId: ss3Crimson.id, code: "SSSCI9", teacherId: teacherEnglishUser.id },
+  ] as const;
+
   await prisma.classSubject.createMany({
-    data: [
-      {
-        schoolId: school.id,
-        classId: jss2Gold.id,
-        subjectId: math.id,
-        teacherId: teacherUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: jss2Gold.id,
-        subjectId: jssEnglish.id,
-        teacherId: teacherEnglishUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: ss1Emerald.id,
-        subjectId: biology.id,
-        teacherId: teacherUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: ss1Emerald.id,
-        subjectId: english.id,
-        teacherId: teacherEnglishUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: primary6Coral.id,
-        subjectId: basicScience.id,
-        teacherId: teacherUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: primary6Coral.id,
-        subjectId: primaryEnglish.id,
-        teacherId: teacherPrimaryUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: primary4Blue.id,
-        subjectId: primaryEnglish.id,
-        teacherId: teacherPrimaryUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: primary4Blue.id,
-        subjectId: primaryMath.id,
-        teacherId: teacherPrimaryUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: jss1Silver.id,
-        subjectId: math.id,
-        teacherId: teacherUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: jss1Silver.id,
-        subjectId: jssEnglish.id,
-        teacherId: teacherEnglishUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: ss2Topaz.id,
-        subjectId: english.id,
-        teacherId: teacherEnglishUser.id,
-      },
-      {
-        schoolId: school.id,
-        classId: ss2Topaz.id,
-        subjectId: economics.id,
-        teacherId: teacherEnglishUser.id,
-      },
-    ],
+    data: classSubjectPlan.map((item) => ({
+      schoolId: school.id,
+      classId: item.classId,
+      subjectId: subjectOrThrow(item.code).id,
+      teacherId: item.teacherId,
+    })),
+    skipDuplicates: true,
   });
-
-  const jss3Bronze = await prisma.classRoom.findFirst({
-    where: { schoolId: school.id, name: "JSS 3", arm: "B" },
-  });
-
-  if (jss3Bronze) {
-    await prisma.classSubject.create({
-      data: {
-        schoolId: school.id,
-        classId: jss3Bronze.id,
-        subjectId: jssEnglish.id,
-        teacherId: teacherEnglishUser.id,
-      },
-    });
-  }
 
   const timetablePeriods = [
     { startsAt: "07:45", endsAt: "08:25", venue: "Main classroom" },
@@ -2277,132 +2812,6 @@ async function main() {
     ),
   });
 
-  const danielSheet = await prisma.resultSheet.create({
-    data: {
-      schoolId: school.id,
-      studentId: studentDaniel.id,
-      termId: secondTerm.id,
-      classId: jss2Gold.id,
-      createdById: teacherUser.id,
-      totalScore: 76,
-      averageScore: 76,
-      grade: "A",
-      position: 4,
-      teacherComment: "Steady progress.",
-      principalComment: "Can push higher with more revision.",
-      status: "PUBLISHED",
-      gradingSchemeId: gradingScheme.id,
-      approvedAt: new Date("2026-04-07"),
-      lockedAt: new Date("2026-04-08"),
-      publishedAt: new Date("2026-04-08"),
-    },
-  });
-
-  const amarachiSheet = await prisma.resultSheet.create({
-    data: {
-      schoolId: school.id,
-      studentId: studentAmarachi.id,
-      termId: secondTerm.id,
-      classId: ss1Emerald.id,
-      createdById: teacherUser.id,
-      totalScore: 84.5,
-      averageScore: 84.5,
-      grade: "A",
-      position: 2,
-      teacherComment: "Excellent science performance.",
-      principalComment: "Maintain consistency across all subjects.",
-      status: "PUBLISHED",
-      gradingSchemeId: gradingScheme.id,
-      approvedAt: new Date("2026-04-07"),
-      lockedAt: new Date("2026-04-08"),
-      publishedAt: new Date("2026-04-08"),
-    },
-  });
-
-  const ibrahimSheet = await prisma.resultSheet.create({
-    data: {
-      schoolId: school.id,
-      studentId: studentIbrahim.id,
-      termId: secondTerm.id,
-      classId: primary6Coral.id,
-      createdById: teacherPrimaryUser.id,
-      totalScore: 69.1,
-      averageScore: 69.1,
-      grade: "B",
-      position: 9,
-      teacherComment: "Needs attendance stability.",
-      principalComment: "Support plan recommended.",
-      status: "PUBLISHED",
-      gradingSchemeId: gradingScheme.id,
-      approvedAt: new Date("2026-04-07"),
-      lockedAt: new Date("2026-04-08"),
-      publishedAt: new Date("2026-04-08"),
-    },
-  });
-
-  const maryamSheet = await prisma.resultSheet.create({
-    data: {
-      schoolId: school.id,
-      studentId: studentMaryam.id,
-      termId: secondTerm.id,
-      classId: primary4Blue.id,
-      createdById: teacherPrimaryUser.id,
-      totalScore: 82.3,
-      averageScore: 82.3,
-      grade: "A",
-      position: 3,
-      teacherComment: "Strong reading and writing growth.",
-      principalComment: "Keep nurturing the momentum.",
-      status: "PUBLISHED",
-      gradingSchemeId: gradingScheme.id,
-      approvedAt: new Date("2026-04-07"),
-      lockedAt: new Date("2026-04-08"),
-      publishedAt: new Date("2026-04-08"),
-    },
-  });
-
-  const estherSheet = await prisma.resultSheet.create({
-    data: {
-      schoolId: school.id,
-      studentId: studentEsther.id,
-      termId: secondTerm.id,
-      classId: jss1Silver.id,
-      createdById: teacherEnglishUser.id,
-      totalScore: 75.4,
-      averageScore: 75.4,
-      grade: "A",
-      position: 7,
-      teacherComment: "Good foundational performance.",
-      principalComment: "Can improve with homework consistency.",
-      status: "PUBLISHED",
-      gradingSchemeId: gradingScheme.id,
-      approvedAt: new Date("2026-04-07"),
-      lockedAt: new Date("2026-04-08"),
-      publishedAt: new Date("2026-04-08"),
-    },
-  });
-
-  const chisomSheet = await prisma.resultSheet.create({
-    data: {
-      schoolId: school.id,
-      studentId: studentChisom.id,
-      termId: secondTerm.id,
-      classId: ss2Topaz.id,
-      createdById: teacherEnglishUser.id,
-      totalScore: 88.2,
-      averageScore: 88.2,
-      grade: "A",
-      position: 1,
-      teacherComment: "Leadership and academics remain strong.",
-      principalComment: "Outstanding performance.",
-      status: "PUBLISHED",
-      gradingSchemeId: gradingScheme.id,
-      approvedAt: new Date("2026-04-07"),
-      lockedAt: new Date("2026-04-08"),
-      publishedAt: new Date("2026-04-08"),
-    },
-  });
-
   await prisma.resultSheet.create({
     data: {
       schoolId: school.id,
@@ -2423,302 +2832,265 @@ async function main() {
       publishedAt: new Date("2025-12-18"),
     },
   });
+  const secondTermResultPlans = [
+    {
+      classRoom: primary4Blue,
+      createdById: teacherPrimaryUser.id,
+      subjectCodes: ["UP1", "UP2", "UP4", "UP5", "UP6", "UP7", "UP8", "UP9", "UP10", "UP11"],
+    },
+    {
+      classRoom: primary6Coral,
+      createdById: teacherPrimaryUser.id,
+      subjectCodes: ["UP1", "UP2", "UP4", "UP5", "UP6", "UP7", "UP8", "UP9", "UP10", "UP11"],
+    },
+    {
+      classRoom: jss1Silver,
+      createdById: subjectTeacherUser.id,
+      subjectCodes: ["JSS1", "JSS2", "JSS4", "JSS5", "JSS6", "JSS7", "JSS8", "JSS9", "JSS10", "JSS11", "JSS12"],
+    },
+    {
+      classRoom: jss2Gold,
+      createdById: classTeacherUser.id,
+      subjectCodes: ["JSS1", "JSS2", "JSS4", "JSS5", "JSS6", "JSS7", "JSS8", "JSS9", "JSS10", "JSS11", "JSS12"],
+    },
+    {
+      classRoom: jss3Bronze,
+      createdById: classTeacherUser.id,
+      subjectCodes: ["JSS1", "JSS2", "JSS4", "JSS5", "JSS6", "JSS7", "JSS8", "JSS9", "JSS10", "JSS11", "JSS12"],
+    },
+    {
+      classRoom: ss1Emerald,
+      createdById: teacherUser.id,
+      subjectCodes: ["SSCORE1", "SSCORE2", "SSCORE3", "SSCORE4", "SSCORE5", "SSSCI1", "SSSCI2", "SSSCI3", "SSSCI9"],
+    },
+    {
+      classRoom: ss2Topaz,
+      createdById: teacherEnglishUser.id,
+      subjectCodes: ["SSCORE1", "SSCORE2", "SSCORE3", "SSCORE4", "SSCORE5", "SSBUS1", "SSBUS2", "SSBUS4", "SSHUM2", "SSHUM10"],
+    },
+    {
+      classRoom: ss3Crimson,
+      createdById: teacherUser.id,
+      subjectCodes: ["SSCORE1", "SSCORE2", "SSCORE3", "SSCORE4", "SSCORE5", "SSSCI1", "SSSCI2", "SSSCI3", "SSSCI9"],
+    },
+  ] as const;
 
-  await prisma.scoreEntry.createMany({
-    data: [
-      {
-        schoolId: school.id,
-        studentId: studentDaniel.id,
-        resultSheetId: danielSheet.id,
-        subjectId: math.id,
-        assessmentComponentId: ca.id,
-        enteredById: teacherUser.id,
-        score: 28,
-        maxScore: 40,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentDaniel.id,
-        resultSheetId: danielSheet.id,
-        subjectId: math.id,
-        assessmentComponentId: exam.id,
-        enteredById: teacherUser.id,
-        score: 46,
-        maxScore: 60,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentAmarachi.id,
-        resultSheetId: amarachiSheet.id,
-        subjectId: biology.id,
-        assessmentComponentId: ca.id,
-        enteredById: teacherUser.id,
-        score: 29,
-        maxScore: 40,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentAmarachi.id,
-        resultSheetId: amarachiSheet.id,
-        subjectId: biology.id,
-        assessmentComponentId: exam.id,
-        enteredById: teacherUser.id,
-        score: 52,
-        maxScore: 60,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentIbrahim.id,
-        resultSheetId: ibrahimSheet.id,
-        subjectId: basicScience.id,
-        assessmentComponentId: ca.id,
-        enteredById: teacherPrimaryUser.id,
-        score: 23,
-        maxScore: 40,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentIbrahim.id,
-        resultSheetId: ibrahimSheet.id,
-        subjectId: basicScience.id,
-        assessmentComponentId: exam.id,
-        enteredById: teacherPrimaryUser.id,
-        score: 38,
-        maxScore: 60,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentMaryam.id,
-        resultSheetId: maryamSheet.id,
-        subjectId: english.id,
-        assessmentComponentId: ca.id,
-        enteredById: teacherPrimaryUser.id,
-        score: 34,
-        maxScore: 40,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentMaryam.id,
-        resultSheetId: maryamSheet.id,
-        subjectId: english.id,
-        assessmentComponentId: exam.id,
-        enteredById: teacherPrimaryUser.id,
-        score: 48.3,
-        maxScore: 60,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentEsther.id,
-        resultSheetId: estherSheet.id,
-        subjectId: english.id,
-        assessmentComponentId: ca.id,
-        enteredById: teacherEnglishUser.id,
-        score: 31,
-        maxScore: 40,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentEsther.id,
-        resultSheetId: estherSheet.id,
-        subjectId: english.id,
-        assessmentComponentId: exam.id,
-        enteredById: teacherEnglishUser.id,
-        score: 44.4,
-        maxScore: 60,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentChisom.id,
-        resultSheetId: chisomSheet.id,
-        subjectId: economics.id,
-        assessmentComponentId: ca.id,
-        enteredById: teacherEnglishUser.id,
-        score: 35,
-        maxScore: 40,
-      },
-      {
-        schoolId: school.id,
-        studentId: studentChisom.id,
-        resultSheetId: chisomSheet.id,
-        subjectId: economics.id,
-        assessmentComponentId: exam.id,
-        enteredById: teacherEnglishUser.id,
-        score: 53.2,
-        maxScore: 60,
-      },
-    ],
-  });
-
-  const jss2StudentsForResults = await prisma.student.findMany({
+  const scoringPlanByClass = new Map(
+    secondTermResultPlans.map((plan) => [plan.classRoom.id, plan]),
+  );
+  const secondTermStudents = await prisma.student.findMany({
     where: {
       schoolId: school.id,
-      currentClassId: jss2Gold.id,
+      currentClassId: { in: secondTermResultPlans.map((plan) => plan.classRoom.id) },
       status: "ACTIVE",
     },
-    orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+    orderBy: [{ currentClassId: "asc" }, { lastName: "asc" }, { firstName: "asc" }],
   });
-  const jss2RawRows = [];
+  const studentsByClass = new Map<string, typeof secondTermStudents>();
 
-  for (const [index, student] of jss2StudentsForResults.entries()) {
-    const isDaniel = student.id === studentDaniel.id;
-    const mathCa = isDaniel ? 28 : 24 + (index % 9);
-    const mathExam = isDaniel ? 46 : 38 + (index % 15);
-    const englishCa = isDaniel ? 30 : 23 + (index % 10);
-    const englishExam = isDaniel ? 48 : 37 + (index % 16);
-    const mathTotal = mathCa + mathExam;
-    const englishTotal = englishCa + englishExam;
-    const average = Number(((mathTotal + englishTotal) / 2).toFixed(2));
-    const band = resolveGradeLabel(average, nigerianTermGradeBands);
-
-    const sheet = isDaniel
-      ? await prisma.resultSheet.update({
-          where: { id: danielSheet.id },
-          data: {
-            totalScore: Number((mathTotal + englishTotal).toFixed(2)),
-            averageScore: average,
-            grade: band.label,
-            teacherComment: "Steady progress across Mathematics and English.",
-            principalComment: "Can push higher with more revision.",
-          },
-        })
-      : await prisma.resultSheet.create({
-          data: {
-            schoolId: school.id,
-            studentId: student.id,
-            termId: secondTerm.id,
-            classId: jss2Gold.id,
-            createdById: teacherUser.id,
-            totalScore: Number((mathTotal + englishTotal).toFixed(2)),
-            averageScore: average,
-            grade: band.label,
-            teacherComment:
-              average >= 70
-                ? "Strong class participation and homework consistency."
-                : "Good effort; continue targeted revision.",
-            principalComment:
-              average >= 70
-                ? "Excellent progress this term."
-                : "Keep improving with class teacher support.",
-            status: "PUBLISHED",
-            gradingSchemeId: gradingScheme.id,
-            approvedAt: new Date("2026-04-07"),
-            lockedAt: new Date("2026-04-08"),
-            publishedAt: new Date("2026-04-08"),
-          },
-        });
-
-    const entries = isDaniel
-      ? [
-          {
-            schoolId: school.id,
-            studentId: student.id,
-            resultSheetId: sheet.id,
-            subjectId: jssEnglish.id,
-            assessmentComponentId: ca.id,
-            enteredById: teacherEnglishUser.id,
-            score: englishCa,
-            maxScore: 40,
-          },
-          {
-            schoolId: school.id,
-            studentId: student.id,
-            resultSheetId: sheet.id,
-            subjectId: jssEnglish.id,
-            assessmentComponentId: exam.id,
-            enteredById: teacherEnglishUser.id,
-            score: englishExam,
-            maxScore: 60,
-          },
-        ]
-      : [
-          {
-            schoolId: school.id,
-            studentId: student.id,
-            resultSheetId: sheet.id,
-            subjectId: math.id,
-            assessmentComponentId: ca.id,
-            enteredById: teacherUser.id,
-            score: mathCa,
-            maxScore: 40,
-          },
-          {
-            schoolId: school.id,
-            studentId: student.id,
-            resultSheetId: sheet.id,
-            subjectId: math.id,
-            assessmentComponentId: exam.id,
-            enteredById: teacherUser.id,
-            score: mathExam,
-            maxScore: 60,
-          },
-          {
-            schoolId: school.id,
-            studentId: student.id,
-            resultSheetId: sheet.id,
-            subjectId: jssEnglish.id,
-            assessmentComponentId: ca.id,
-            enteredById: teacherEnglishUser.id,
-            score: englishCa,
-            maxScore: 40,
-          },
-          {
-            schoolId: school.id,
-            studentId: student.id,
-            resultSheetId: sheet.id,
-            subjectId: jssEnglish.id,
-            assessmentComponentId: exam.id,
-            enteredById: teacherEnglishUser.id,
-            score: englishExam,
-            maxScore: 60,
-          },
-        ];
-
-    await prisma.scoreEntry.createMany({ data: entries });
-
-    jss2RawRows.push({
-      studentId: student.id,
-      studentName: [student.firstName, student.middleName, student.lastName]
-        .filter(Boolean)
-        .join(" "),
-      admissionNumber: student.admissionNumber,
-      subjects: [
-        {
-          subject: math.name,
-          caTotal: mathCa,
-          examTotal: mathExam,
-          total: mathTotal,
-          grade: resolveGradeLabel(mathTotal, nigerianTermGradeBands).label,
-          remark: resolveGradeLabel(mathTotal, nigerianTermGradeBands).remark,
-        },
-        {
-          subject: jssEnglish.name,
-          caTotal: englishCa,
-          examTotal: englishExam,
-          total: englishTotal,
-          grade: resolveGradeLabel(englishTotal, nigerianTermGradeBands).label,
-          remark: resolveGradeLabel(englishTotal, nigerianTermGradeBands)
-            .remark,
-        },
-      ],
-      total: Number((mathTotal + englishTotal).toFixed(2)),
-      average,
-      attendance: "95%",
-      classTeacherRemark:
-        average >= 70
-          ? "Consistent classwork and positive participation."
-          : "Improving; needs steady revision.",
-      principalRemark:
-        average >= 70
-          ? "Excellent work. Keep it up."
-          : "Good effort; keep improving.",
-      promotionStatus:
-        average >= 40 ? "Promoted / Good standing" : "Review required",
-    });
+  for (const student of secondTermStudents) {
+    const existing = studentsByClass.get(student.currentClassId ?? "") ?? [];
+    existing.push(student);
+    studentsByClass.set(student.currentClassId ?? "", existing);
   }
 
-  const jss2BroadsheetRows = [...jss2RawRows]
-    .sort((left, right) => right.average - left.average)
-    .map((row, index) => ({ ...row, position: index + 1 }));
+  const assignmentRows = await prisma.classSubject.findMany({
+    where: {
+      schoolId: school.id,
+      classId: { in: secondTermResultPlans.map((plan) => plan.classRoom.id) },
+    },
+    include: { subject: true },
+  });
+  const resultAssignmentsByClass = new Map<string, typeof assignmentRows>();
+
+  for (const assignment of assignmentRows) {
+    const existing = resultAssignmentsByClass.get(assignment.classId) ?? [];
+    existing.push(assignment);
+    resultAssignmentsByClass.set(assignment.classId, existing);
+  }
+
+  const generatedRowsByClass = new Map<
+    string,
+    Array<{
+      studentId: string;
+      studentName: string;
+      admissionNumber: string;
+      subjects: Array<{
+        subject: string;
+        caTotal: number;
+        examTotal: number;
+        total: number;
+        grade: string;
+        remark: string;
+      }>;
+      total: number;
+      average: number;
+      attendance: string;
+      classTeacherRemark: string;
+      principalRemark: string;
+      promotionStatus: string;
+      position: number;
+    }>
+  >();
+
+  for (const [classIndex, plan] of secondTermResultPlans.entries()) {
+    const classStudents = studentsByClass.get(plan.classRoom.id) ?? [];
+    const planCodes: string[] = [...plan.subjectCodes];
+    const classAssignments = (resultAssignmentsByClass.get(plan.classRoom.id) ?? [])
+      .filter((assignment) => planCodes.includes(assignment.subject.code))
+      .sort(
+        (left, right) =>
+          planCodes.indexOf(left.subject.code) -
+          planCodes.indexOf(right.subject.code),
+      );
+
+    const rows = [];
+
+    for (const [studentIndex, student] of classStudents.entries()) {
+      const subjectRows = classAssignments.map((assignment, subjectIndex) => {
+        const seed = (classIndex + 3) * 17 + (studentIndex + 5) * 11 + (subjectIndex + 7) * 5;
+        const caScore = Math.max(14, Math.min(38, 18 + (seed % 19)));
+        const examScore = Math.max(24, Math.min(57, 28 + ((seed * 2) % 30)));
+        const total = Number((caScore + examScore).toFixed(1));
+        const band = resolveGradeLabel(total, nigerianTermGradeBands);
+
+        return {
+          assignment,
+          caScore,
+          examScore,
+          total,
+          band,
+        };
+      });
+
+      const totalScore = Number(
+        subjectRows.reduce((sum, item) => sum + item.total, 0).toFixed(2),
+      );
+      const averageScore = Number((totalScore / subjectRows.length).toFixed(2));
+      const band = resolveGradeLabel(averageScore, nigerianTermGradeBands);
+      const teacherComment =
+        averageScore >= 75
+          ? "Strong class participation, steady homework completion, and confident subject delivery."
+          : averageScore >= 60
+            ? "Good effort across subjects. Keep revising class notes and tests."
+            : "Needs closer revision support and steadier daily practice.";
+      const principalComment =
+        averageScore >= 75
+          ? "Excellent progress this term. Maintain the standard."
+          : averageScore >= 60
+            ? "Satisfactory progress. Keep building consistency."
+            : "More support and structured follow-up are advised.";
+
+      const sheet = await prisma.resultSheet.upsert({
+        where: {
+          studentId_termId: {
+            studentId: student.id,
+            termId: secondTerm.id,
+          },
+        },
+        update: {
+          classId: plan.classRoom.id,
+          totalScore,
+          averageScore,
+          grade: band.label,
+          teacherComment,
+          principalComment,
+          status: "PUBLISHED",
+          gradingSchemeId: gradingScheme.id,
+          approvedAt: new Date("2026-04-07"),
+          lockedAt: new Date("2026-04-08"),
+          publishedAt: new Date("2026-04-08"),
+        },
+        create: {
+          schoolId: school.id,
+          studentId: student.id,
+          termId: secondTerm.id,
+          classId: plan.classRoom.id,
+          createdById: plan.createdById,
+          totalScore,
+          averageScore,
+          grade: band.label,
+          teacherComment,
+          principalComment,
+          status: "PUBLISHED",
+          gradingSchemeId: gradingScheme.id,
+          approvedAt: new Date("2026-04-07"),
+          lockedAt: new Date("2026-04-08"),
+          publishedAt: new Date("2026-04-08"),
+        },
+      });
+
+      await prisma.scoreEntry.deleteMany({
+        where: { schoolId: school.id, resultSheetId: sheet.id },
+      });
+
+      await prisma.scoreEntry.createMany({
+        data: subjectRows.flatMap((item) => [
+          {
+            schoolId: school.id,
+            studentId: student.id,
+            resultSheetId: sheet.id,
+            subjectId: item.assignment.subjectId,
+            assessmentComponentId: ca.id,
+            enteredById: item.assignment.teacherId ?? plan.createdById,
+            score: item.caScore,
+            maxScore: 40,
+          },
+          {
+            schoolId: school.id,
+            studentId: student.id,
+            resultSheetId: sheet.id,
+            subjectId: item.assignment.subjectId,
+            assessmentComponentId: exam.id,
+            enteredById: item.assignment.teacherId ?? plan.createdById,
+            score: item.examScore,
+            maxScore: 60,
+          },
+        ]),
+      });
+
+      rows.push({
+        studentId: student.id,
+        studentName: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
+        admissionNumber: student.admissionNumber,
+        subjects: subjectRows.map((item) => ({
+          subject: item.assignment.subject.name,
+          caTotal: item.caScore,
+          examTotal: item.examScore,
+          total: item.total,
+          grade: item.band.label,
+          remark: item.band.remark,
+        })),
+        total: totalScore,
+        average: averageScore,
+        attendance: `${Math.max(86, 97 - ((studentIndex + classIndex) % 8))}%`,
+        classTeacherRemark: teacherComment,
+        principalRemark: principalComment,
+        promotionStatus: averageScore >= 40 ? "Promoted / Good standing" : "Review required",
+        position: 0,
+      });
+    }
+
+    const rankedRows = [...rows]
+      .sort((left, right) => right.average - left.average || left.studentName.localeCompare(right.studentName))
+      .map((row, index) => ({ ...row, position: index + 1 }));
+
+    await Promise.all(
+      rankedRows.map((row) =>
+        prisma.resultSheet.update({
+          where: {
+            studentId_termId: { studentId: row.studentId, termId: secondTerm.id },
+          },
+          data: { position: row.position },
+        }),
+      ),
+    );
+
+    generatedRowsByClass.set(plan.classRoom.id, rankedRows);
+  }
+
+  const jss2StudentsForResults = studentsByClass.get(jss2Gold.id) ?? [];
+  const jss2BroadsheetRows = generatedRowsByClass.get(jss2Gold.id) ?? [];
 
   await prisma.scoreEntry.updateMany({
     where: { schoolId: school.id },
@@ -2837,7 +3209,7 @@ async function main() {
       actorId: teacherUser.id,
       newScore: 18,
       action: "SCORE_ENTERED",
-      note: "Seeded test score for demo moderation workflow.",
+      note: "Seeded test score for moderation workflow.",
     },
   });
 
@@ -2973,7 +3345,7 @@ async function main() {
         studentId: studentDaniel.id,
         classId: jss2Gold.id,
         termId: secondTerm.id,
-        markedById: teacherUser.id,
+        markedById: classTeacherUser.id,
         date: new Date("2026-04-08"),
         status: "PRESENT",
       },
@@ -3011,7 +3383,7 @@ async function main() {
         studentId: studentEsther.id,
         classId: jss1Silver.id,
         termId: secondTerm.id,
-        markedById: teacherEnglishUser.id,
+        markedById: subjectTeacherUser.id,
         date: new Date("2026-04-08"),
         status: "PRESENT",
       },
@@ -3030,16 +3402,19 @@ async function main() {
     where: { schoolId: school.id, currentClassId: { not: null } },
     select: { id: true, currentClassId: true },
   });
-  const attendanceAssignments = await prisma.classSubject.findMany({
-    where: { schoolId: school.id },
-    select: { classId: true, teacherId: true },
+  const attendanceAssignments = await prisma.classRoom.findMany({
+    where: {
+      schoolId: school.id,
+      id: { in: [...primaryCohortPlans, ...secondaryCohortPlans].map((plan) => plan.classRoom.id) },
+    },
+    select: { id: true, classTeacherId: true, assistantClassTeacherId: true },
   });
   const attendanceMarkerByClass = new Map(
     attendanceAssignments
-      .filter((assignment) => assignment.teacherId)
+      .filter((assignment) => assignment.classTeacherId || assignment.assistantClassTeacherId)
       .map((assignment) => [
-        assignment.classId,
-        assignment.teacherId as string,
+        assignment.id,
+        (assignment.classTeacherId ?? assignment.assistantClassTeacherId) as string,
       ]),
   );
   const schoolDays = Array.from({ length: 28 }, (_, index) => {
@@ -5153,40 +5528,132 @@ async function main() {
       action: "CREATE",
       entityType: "seed",
       entityId: school.id,
-      metadata: { note: "Initial demo seed completed" },
+      metadata: { note: "Initial school seed completed" },
     },
   });
 
-  console.log("Seed complete.");
-  console.log("Demo super admin: admin@futurerealm.sms / FutureRealm123!");
+  const [
+    userCount,
+    studentCount,
+    parentCount,
+    guardianCount,
+    classCount,
+    activeAcademicSession,
+    activeTerm,
+    sampleGeneratedStudentUsers,
+    sampleGeneratedParentUsers,
+  ] = await Promise.all([
+    prisma.user.count({ where: { schoolId: school.id } }),
+    prisma.student.count({ where: { schoolId: school.id } }),
+    prisma.user.count({ where: { schoolId: school.id, role: "PARENT" } }),
+    prisma.guardian.count({ where: { schoolId: school.id } }),
+    prisma.classRoom.count({ where: { schoolId: school.id } }),
+    prisma.academicSession.findFirst({
+      where: { schoolId: school.id, isCurrent: true },
+      select: { name: true },
+    }),
+    prisma.term.findFirst({
+      where: { schoolId: school.id, isCurrent: true },
+      select: { name: true },
+    }),
+    prisma.user.findMany({
+      where: {
+        schoolId: school.id,
+        role: "STUDENT",
+        email: { contains: "@students.greenfieldcollege.ng" },
+      },
+      select: { email: true },
+      orderBy: { email: "asc" },
+      take: 5,
+    }),
+    prisma.user.findMany({
+      where: {
+        schoolId: school.id,
+        role: "PARENT",
+        email: { contains: "@parents.greenfieldcollege.ng" },
+      },
+      select: { email: true },
+      orderBy: { email: "asc" },
+      take: 5,
+    }),
+  ]);
+
+  console.log("\n================ SEED COMPLETE ================");
   console.log(
-    "Demo platform team: platform.admin@futurerealm.sms, support@futurerealm.sms, sales@futurerealm.sms, finance@futurerealm.sms, developer@futurerealm.sms / FutureRealm123!",
+    `School: ${school.name}`,
   );
   console.log(
-    "Demo principal: principal@greenfieldcollege.ng / FutureRealm123!",
+    `Active academic context: ${activeAcademicSession?.name ?? "Not set"} · ${activeTerm?.name ?? "Not set"}`,
   );
   console.log(
-    "Demo leadership: proprietor@greenfieldcollege.ng, administrator@greenfieldcollege.ng, head.teacher@greenfieldcollege.ng, vp.academics@greenfieldcollege.ng, vp.admin@greenfieldcollege.ng, vp.special@greenfieldcollege.ng / FutureRealm123!",
+    `Totals: ${classCount} classes · ${studentCount} students · ${guardianCount} guardians · ${parentCount} parent users · ${userCount} total users`,
   );
-  console.log(
-    "Demo admin officer: admin.officer@greenfieldcollege.ng / FutureRealm123!",
+
+  printCredentialGroup("Platform Access", [
+    "admin@futurerealm.sms",
+    "platform.admin@futurerealm.sms",
+    "support@futurerealm.sms",
+    "sales@futurerealm.sms",
+    "finance@futurerealm.sms",
+    "developer@futurerealm.sms",
+  ]);
+
+  printCredentialGroup("School Leadership", [
+    "principal@greenfieldcollege.ng",
+    "proprietor@greenfieldcollege.ng",
+    "administrator@greenfieldcollege.ng",
+    "head.teacher@greenfieldcollege.ng",
+    "vp.academics@greenfieldcollege.ng",
+    "vp.admin@greenfieldcollege.ng",
+    "vp.special@greenfieldcollege.ng",
+  ]);
+
+  printCredentialGroup("School Operations", [
+    "admin.officer@greenfieldcollege.ng",
+    "admissions@greenfieldcollege.ng",
+    "bursar@greenfieldcollege.ng",
+    "counsellor@greenfieldcollege.ng",
+    "nurse@greenfieldcollege.ng",
+    "frontdesk@greenfieldcollege.ng",
+    "librarian@greenfieldcollege.ng",
+    "transport@greenfieldcollege.ng",
+    "hostel@greenfieldcollege.ng",
+    "ict@greenfieldcollege.ng",
+  ]);
+
+  printCredentialGroup("Teaching Accounts", [
+    "teacher@greenfieldcollege.ng",
+    "teacher.primary@greenfieldcollege.ng",
+    "teacher.english@greenfieldcollege.ng",
+    "class.teacher@greenfieldcollege.ng",
+    "subject.teacher@greenfieldcollege.ng",
+  ]);
+
+  printCredentialGroup("Named Parent Accounts", [
+    "parent@greenfieldcollege.ng",
+    "chinelo.obi@greenfieldcollege.ng",
+    "salisu.mohammed@greenfieldcollege.ng",
+  ]);
+
+  printCredentialGroup("Named Student Accounts", [
+    "student@greenfieldcollege.ng",
+    "maryam.yusuf@greenfieldcollege.ng",
+    "amarachi.obi@greenfieldcollege.ng",
+    "ibrahim.salisu@greenfieldcollege.ng",
+    "esther.adewale@greenfieldcollege.ng",
+  ]);
+
+  printCredentialGroup(
+    "Sample Generated Parent Accounts",
+    sampleGeneratedParentUsers.map((item) => item.email),
   );
-  console.log(
-    "Demo admissions officer: admissions@greenfieldcollege.ng / FutureRealm123!",
+
+  printCredentialGroup(
+    "Sample Generated Student Accounts",
+    sampleGeneratedStudentUsers.map((item) => item.email),
   );
-  console.log(
-    "Demo teachers: teacher@greenfieldcollege.ng, teacher.primary@greenfieldcollege.ng, teacher.english@greenfieldcollege.ng, class.teacher@greenfieldcollege.ng, subject.teacher@greenfieldcollege.ng / FutureRealm123!",
-  );
-  console.log("Demo bursar: bursar@greenfieldcollege.ng / FutureRealm123!");
-  console.log(
-    "Demo operations staff: counsellor@greenfieldcollege.ng, nurse@greenfieldcollege.ng, frontdesk@greenfieldcollege.ng, librarian@greenfieldcollege.ng, transport@greenfieldcollege.ng, hostel@greenfieldcollege.ng, ict@greenfieldcollege.ng / FutureRealm123!",
-  );
-  console.log(
-    "Demo parents: parent@greenfieldcollege.ng, chinelo.obi@greenfieldcollege.ng, salisu.mohammed@greenfieldcollege.ng / FutureRealm123!",
-  );
-  console.log(
-    "Demo students: student@greenfieldcollege.ng, maryam.yusuf@greenfieldcollege.ng, amarachi.obi@greenfieldcollege.ng, ibrahim.salisu@greenfieldcollege.ng, esther.adewale@greenfieldcollege.ng / FutureRealm123!",
-  );
+
+  console.log("==============================================\n");
 }
 
 main()

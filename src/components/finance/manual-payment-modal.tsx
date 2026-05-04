@@ -62,8 +62,52 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
     setQuery(`${invoice.studentName} · ${invoice.invoiceNumber}`);
   }
 
+  function openModal() {
+    if (openInvoices.length === 0) {
+      showToast({
+        variant: "info",
+        title: "No open invoices available",
+        description: "All visible invoices are settled already, so there is nothing to record right now.",
+      });
+      return;
+    }
+    setOpen(true);
+  }
+
   async function submitPayment() {
-    if (!selectedInvoice) return;
+    if (!selectedInvoice) {
+      showToast({
+        variant: "warning",
+        title: "Select an invoice first",
+        description: "Choose the learner's open invoice before recording payment.",
+      });
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast({
+        variant: "warning",
+        title: "Enter a valid amount",
+        description: "Payment amount must be greater than zero.",
+      });
+      return;
+    }
+    if (amount > selectedInvoice.balance) {
+      showToast({
+        variant: "warning",
+        title: "Amount is above outstanding balance",
+        description: `This invoice has only ${formatCurrency(selectedInvoice.balance)} outstanding.`,
+      });
+      return;
+    }
+    if (method !== "CASH" && !reference.trim()) {
+      showToast({
+        variant: "warning",
+        title: "Reference required",
+        description: "Add the transfer, POS, or cheque reference before recording this payment.",
+      });
+      return;
+    }
+
     setPending(true);
     try {
       const response = await fetch("/api/v1/finance/payments/manual", {
@@ -108,7 +152,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-primary">
+      <button type="button" onClick={openModal} className="btn-primary">
         <Banknote className="h-4 w-4" />
         Record payment
       </button>
@@ -131,7 +175,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
               <button
                 type="button"
                 onClick={submitPayment}
-                disabled={!selectedInvoice || pending || amount <= 0 || amount > (selectedInvoice?.balance ?? 0)}
+                disabled={pending}
                 className="btn-primary disabled:opacity-60"
               >
                 <CheckCircle2 className="h-4 w-4" />

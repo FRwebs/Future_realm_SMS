@@ -44,27 +44,27 @@ export class AcademicsController {
   }
 
   @Get("grading-schemes")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async gradingSchemes(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listGradingSchemes(session) };
   }
 
   @Post("grading-schemes")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async createGradingScheme(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.createGradingScheme(session, body) };
   }
 
   @Get("assessments")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async assessments(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listAssessmentComponents(session) };
   }
 
   @Post("assessments")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async createAssessment(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.createAssessmentComponent(session, body) };
   }
@@ -119,47 +119,47 @@ export class AcademicsController {
   }
 
   @Get("section-assessment-components")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
   async sectionAssessmentComponents(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listSectionAssessmentComponents(session) };
   }
 
   @Post("section-assessment-components")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async createSectionAssessmentComponent(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.createSectionAssessmentComponent(session, body) };
   }
 
   @Get("academic-assessments")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
   async academicAssessments(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.listAcademicAssessments(session) };
   }
 
   @Post("academic-assessments")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER", "HEAD_OF_DEPARTMENT")
   async createAcademicAssessment(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.createAcademicAssessment(session, body) };
   }
 
   @Get("academic-assessments/:assessmentId")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
   async academicAssessment(@CurrentSession() session: SessionPayload, @Param("assessmentId") assessmentId: string) {
     return { ok: true, data: await this.academicsService.getAcademicAssessment(session, assessmentId) };
   }
 
   @Post("academic-assessments/:assessmentId/candidates")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async generateCandidates(@CurrentSession() session: SessionPayload, @Param("assessmentId") assessmentId: string) {
     return { ok: true, data: await this.academicsService.generateAssessmentCandidates(session, assessmentId) };
   }
 
   @Post("academic-assessments/scores")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER", "HEAD_OF_DEPARTMENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
   async recordAssessmentScores(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.recordAssessmentScores(session, body) };
   }
@@ -208,48 +208,48 @@ export class AcademicsController {
 
   @Post("score-sheets/submit")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async submit(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.submitScoreSheet(session, body) };
   }
 
   @Post("score-sheets/approve")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async approve(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.approveScoreSheet(session, body) };
   }
 
   @Post("score-sheets/reject")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async reject(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.rejectScoreSheet(session, body) };
   }
 
   @Post("compile")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async compile(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.compileResults(session, body) };
   }
 
   @Post("publish")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async publish(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.publishResults(session, body) };
   }
 
   @Post("unpublish")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async unpublish(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.academicsService.unpublishResults(session, body) };
   }
 
   @Get("analytics")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
   async analytics(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.academicsService.getResultAnalytics(session) };
   }

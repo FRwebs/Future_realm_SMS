@@ -20,7 +20,10 @@
     "test:e2e": "playwright test",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
-    "prisma:seed": "tsx prisma/seed.ts"
+    "prisma:seed": "tsx prisma/seed.ts",
+    "db:use:local": "node scripts/switch-db-profile.mjs local",
+    "db:use:remote": "node scripts/switch-db-profile.mjs remote",
+    "db:which": "node scripts/switch-db-profile.mjs status"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

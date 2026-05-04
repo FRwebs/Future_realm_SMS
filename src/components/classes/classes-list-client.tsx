@@ -3,11 +3,12 @@
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AlertCircle, BookOpen, Plus, Search, X } from "lucide-react";
+import { AlertCircle, BookOpen, Plus, Search } from "lucide-react";
 
 import { CanDo, usePermissions } from "@/components/auth/permission-provider";
 import { ActionMenu, ActionMenuButton } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
+import { SidePanel } from "@/components/ui/side-panel";
 import { usePagination } from "@/hooks/use-pagination";
 import { cn } from "@/lib/utils/cn";
 
@@ -387,6 +388,7 @@ export function ClassesListClient() {
 function CreateClassModal({ onClose, onSaved }: { onClose: () => void; onSaved: () => void }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formId = "create-class-form";
 
   async function submit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -418,19 +420,28 @@ function CreateClassModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
-      <form onSubmit={submit} className="w-full max-w-xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_rgba(18,33,23,0.28)]">
-        <div className="flex items-start justify-between gap-4 border-b border-ink/8 bg-sand/50 px-6 py-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-700">New Nigerian class</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ink">Create Class Arm</h2>
-            <p className="mt-1 text-sm text-ink/58">Create a class such as JSS 1 A, Primary 4 B, or SS 2 Science.</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-ink/10 bg-white p-3 text-ink/55 transition hover:bg-white/70">
-            <X className="h-4 w-4" />
+    <SidePanel
+      open
+      onClose={onClose}
+      size="md"
+      title="Create class arm"
+      subtitle="Set up a class such as JSS 1 A, Primary 4 B, or SS 2 Science without leaving the class registry."
+      footer={(
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="btn-secondary px-5">
+            Cancel
+          </button>
+          <button form={formId} disabled={saving} className="btn-primary px-5">
+            {saving ? "Creating..." : "Create class"}
           </button>
         </div>
-        <div className="grid gap-4 p-6">
+      )}
+    >
+      <form id={formId} onSubmit={submit} className="grid gap-4">
+        <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4 text-[13px] text-slate-600">
+          <p className="font-semibold text-slate-900">Class setup</p>
+          <p className="mt-1">Create the class identity first, then assign teachers and timetable ownership from the class workspace.</p>
+        </div>
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
           <div className="grid gap-4 sm:grid-cols-2">
             <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
@@ -464,15 +475,8 @@ function CreateClassModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
               <input name="room" placeholder="Block B Room 3" className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
             </label>
           </div>
-        </div>
-        <div className="flex justify-end gap-3 border-t border-ink/8 px-6 py-4">
-          <button type="button" onClick={onClose} className="rounded-full px-5 py-2 text-sm font-semibold text-ink/60 transition hover:bg-sand">Cancel</button>
-          <button disabled={saving} className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-50">
-            {saving ? "Creating..." : "Create Class"}
-          </button>
-        </div>
       </form>
-    </div>
+    </SidePanel>
   );
 }
 
@@ -498,6 +502,7 @@ function AssignTeacherModal({
   const [assistantId, setAssistantId] = useState((classItem.assistantClassTeacher ?? classItem.assistant_class_teacher)?.id ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const formId = `assign-class-teacher-${classItem.id}`;
 
   useEffect(() => {
     apiJson<Array<{ id: string; firstName: string; lastName: string; email: string; currentClassName?: string | null }>>("/api/v1/classes/teacher-options")
@@ -524,19 +529,40 @@ function AssignTeacherModal({
   }
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_rgba(18,33,23,0.28)]">
-        <div className="flex items-start justify-between gap-4 border-b border-ink/8 bg-sand/50 px-6 py-5">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-700">Form teacher assignment</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ink">{classItem.name}</h2>
-            <p className="mt-1 text-sm text-ink/58">Assign the Nigerian form teacher and optional assistant form teacher.</p>
-          </div>
-          <button type="button" onClick={onClose} className="rounded-2xl border border-ink/10 bg-white p-3 text-ink/55 transition hover:bg-white/70">
-            <X className="h-4 w-4" />
+    <SidePanel
+      open
+      onClose={onClose}
+      size="lg"
+      title={classItem.name}
+      subtitle="Assign the form teacher and assistant without losing your place in the class list."
+      footer={(
+        <div className="flex justify-end gap-3">
+          <button type="button" onClick={onClose} className="btn-secondary px-5">
+            Cancel
+          </button>
+          <button
+            type="submit"
+            form={formId}
+            disabled={saving}
+            className="btn-primary px-5 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {saving ? "Saving..." : "Save assignment"}
           </button>
         </div>
-        <div className="grid max-h-[70vh] gap-5 overflow-y-auto p-6">
+      )}
+    >
+      <form
+        id={formId}
+        onSubmit={(event) => {
+          event.preventDefault();
+          void save();
+        }}
+        className="grid gap-5"
+      >
+          <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4 text-[13px] text-slate-600">
+            <p className="font-semibold text-slate-900">Class ownership</p>
+            <p className="mt-1">Form teachers own morning attendance, parent follow-up, and class welfare. Assistant teachers provide continuity when the class teacher is unavailable.</p>
+          </div>
           {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
           <label className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
@@ -549,22 +575,8 @@ function AssignTeacherModal({
           </label>
           <TeacherSelect label="Form Teacher" teachers={filteredTeachers} value={teacherId} onChange={(value) => { setTeacherId(value); if (assistantId === value) setAssistantId(""); }} />
           <TeacherSelect label="Assistant Form Teacher" optional teachers={filteredTeachers.filter((teacher) => teacher.id !== teacherId)} value={assistantId} onChange={setAssistantId} />
-        </div>
-        <div className="flex justify-end gap-3 border-t border-ink/8 px-6 py-4">
-          <button type="button" onClick={onClose} className="rounded-full px-5 py-2 text-sm font-semibold text-ink/60 transition hover:bg-sand">
-            Cancel
-          </button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving}
-            className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {saving ? "Saving..." : "Save Assignment"}
-          </button>
-        </div>
-      </div>
-    </div>
+      </form>
+    </SidePanel>
   );
 }
 

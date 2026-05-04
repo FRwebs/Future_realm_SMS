@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-import { getDefaultPathForRole, isPlatformRole, normalizeRole } from "@/lib/auth/roles";
+import { canAccessPath, getDefaultPathForRole, isPlatformRole, normalizeRole } from "@/lib/auth/roles";
 import type { Role } from "@/lib/domain/types";
 
 const protectedPrefixes = ["/super-admin", "/dashboard", "/admissions", "/students", "/parents", "/teachers", "/attendance", "/academics", "/finance", "/communications", "/analytics", "/operations", "/settings", "/school", "/portals"];
@@ -44,6 +44,18 @@ async function verifySession(token?: string) {
   }
 }
 
+function redirectWithNotice(request: NextRequest, role: Role, pathname: string) {
+  const targetPath = getDefaultPathForRole(role);
+  if (pathname === targetPath) {
+    return NextResponse.next();
+  }
+
+  const target = new URL(targetPath, request.url);
+  target.searchParams.set("notice", "not-authorized");
+  target.searchParams.set("from", pathname);
+  return NextResponse.redirect(target);
+}
+
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
@@ -63,23 +75,27 @@ export async function middleware(request: NextRequest) {
   const platformUser = isPlatformRole(session.role);
 
   if (isSuperAdmin && !platformUser) {
-    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+    return redirectWithNotice(request, session.role, pathname);
   }
 
   if (!isSuperAdmin && platformUser) {
-    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+    return redirectWithNotice(request, session.role, pathname);
   }
 
   if (isParentPortal && session.role !== "PARENT") {
-    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+    return redirectWithNotice(request, session.role, pathname);
   }
 
   if (isStudentPortal && session.role !== "STUDENT") {
-    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+    return redirectWithNotice(request, session.role, pathname);
   }
 
   if (isTeacherPortal && !["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(session.role)) {
-    return NextResponse.redirect(new URL(getDefaultPathForRole(session.role), request.url));
+    return redirectWithNotice(request, session.role, pathname);
+  }
+
+  if (!canAccessPath(session.role, pathname)) {
+    return redirectWithNotice(request, session.role, pathname);
   }
 
   return NextResponse.next();

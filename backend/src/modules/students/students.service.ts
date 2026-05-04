@@ -1,9 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import { randomUUID } from "crypto";
 import { z } from "zod";
 
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoStore } from "../../../../src/lib/demo/data";
 import {
   StudentBehaviorLogView,
   StudentProfileView,
@@ -15,7 +13,6 @@ import {
   getNigeriaClassLookupNames,
   normalizeNigeriaClassValue
 } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const nigeriaClassInputSchema = z
   .string()
@@ -104,10 +101,6 @@ function classLookupConditions(value: string) {
 @Injectable()
 export class StudentsService {
   async listStudents(schoolId: string) {
-    if (env.DEMO_MODE) {
-      return getDemoStore().students;
-    }
-
     const students = await prisma.student.findMany({
       where: { schoolId },
       include: {
@@ -163,15 +156,6 @@ export class StudentsService {
   }
 
   async getStudentProfile(schoolId: string, studentId: string): Promise<StudentProfileView> {
-    if (env.DEMO_MODE) {
-      const profile = getDemoStore().studentProfiles.find((item) => item.id === studentId);
-      if (!profile) {
-        throw new Error("Student not found");
-      }
-
-      return profile;
-    }
-
     const student = await prisma.student.findFirstOrThrow({
       where: { id: studentId, schoolId },
       include: {
@@ -298,51 +282,6 @@ export class StudentsService {
     const parsed = createStudentSchema.parse(payload);
     const className = formatNigeriaClassName(parsed.className);
 
-    if (env.DEMO_MODE) {
-      const record: StudentRecordView = {
-        id: randomUUID(),
-        admissionNumber: `GFC/26/${String(getDemoStore().students.length + 1).padStart(4, "0")}`,
-        fullName: `${parsed.firstName} ${parsed.lastName}`,
-        className,
-        guardianName: parsed.guardianName,
-        status: "ACTIVE",
-        attendanceRate: 0,
-        averageScore: 0,
-        outstandingBalance: 0
-      };
-      getDemoStore().students.unshift(record);
-      getDemoStore().studentProfiles.unshift({
-        id: record.id,
-        admissionNumber: record.admissionNumber,
-        fullName: record.fullName,
-        className: record.className,
-        guardianName: parsed.guardianName,
-        guardianPhone: parsed.guardianPhone,
-        guardianEmail: parsed.guardianEmail || undefined,
-        status: record.status,
-        gender: parsed.gender,
-        dateOfBirth: new Date(parsed.dateOfBirth).toISOString(),
-        admissionDate: new Date().toISOString(),
-        nationality: "Nigerian",
-        stateOfOrigin: parsed.stateOfOrigin || undefined,
-        religion: parsed.religion || undefined,
-        attendanceRate: 0,
-        averageScore: 0,
-        outstandingBalance: 0,
-        riskFlags: [],
-        medical: {
-          bloodGroup: parsed.bloodGroup || undefined,
-          genotype: parsed.genotype || undefined,
-          allergies: parsed.allergies || undefined,
-          conditions: parsed.conditions || undefined
-        },
-        documents: [],
-        behaviorLogs: [],
-        promotions: []
-      });
-      return record;
-    }
-
     const [currentClass, currentSession] = await Promise.all([
       prisma.classRoom.findFirst({
         where: {
@@ -413,24 +352,6 @@ export class StudentsService {
   async createBehaviorLog(schoolId: string, studentId: string, payload: unknown): Promise<StudentBehaviorLogView> {
     const parsed = behaviorLogSchema.parse(payload);
 
-    if (env.DEMO_MODE) {
-      const profile = getDemoStore().studentProfiles.find((item) => item.id === studentId);
-      if (!profile) {
-        throw new Error("Student not found");
-      }
-
-      const log: StudentBehaviorLogView = {
-        id: randomUUID(),
-        category: parsed.category,
-        description: parsed.description,
-        severity: parsed.severity,
-        loggedAt: new Date().toISOString()
-      };
-      profile.behaviorLogs.unshift(log);
-      profile.riskFlags = resolveRiskFlags(profile);
-      return log;
-    }
-
     await prisma.student.findFirstOrThrow({
       where: { id: studentId, schoolId },
       select: { id: true }
@@ -457,31 +378,6 @@ export class StudentsService {
   async createPromotion(schoolId: string, studentId: string, payload: unknown): Promise<StudentPromotionView> {
     const parsed = promotionSchema.parse(payload);
     const toClassName = formatNigeriaClassName(parsed.toClassName);
-
-    if (env.DEMO_MODE) {
-      const store = getDemoStore();
-      const profile = store.studentProfiles.find((item) => item.id === studentId);
-      const student = store.students.find((item) => item.id === studentId);
-      if (!profile || !student) {
-        throw new Error("Student not found");
-      }
-
-      const promotion: StudentPromotionView = {
-        id: randomUUID(),
-        decision: parsed.decision,
-        fromClassName: profile.className,
-        toClassName,
-        fromSessionName: "2025/2026",
-        toSessionName: parsed.toSessionName || "2025/2026",
-        promotedAt: new Date().toISOString()
-      };
-
-      profile.promotions.unshift(promotion);
-      profile.className = toClassName;
-      student.className = toClassName;
-
-      return promotion;
-    }
 
     const student = await prisma.student.findFirstOrThrow({
       where: { id: studentId, schoolId },

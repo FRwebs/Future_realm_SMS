@@ -16,7 +16,7 @@ export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
 
   @Get()
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "ACCOUNTANT", "EXAM_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
   async list(@CurrentSession() session: SessionPayload) {
     return {
       ok: true,
@@ -25,7 +25,7 @@ export class StudentsController {
   }
 
   @Get(":studentId")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "ACCOUNTANT", "EXAM_OFFICER")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
   async getProfile(@CurrentSession() session: SessionPayload, @Param("studentId") studentId: string) {
     return {
       ok: true,

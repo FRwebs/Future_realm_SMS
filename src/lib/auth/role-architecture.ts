@@ -67,13 +67,6 @@ const nonAcademicRoleSet = new Set<Role>([
 export const roleCompatibilityAliases: Partial<Record<string, Role>> = {
   EXAM_OFFICER: "EXAMINATION_OFFICER",
   GUIDANCE_COUNSELLOR: "GUIDANCE_COUNSELOR",
-  ACCOUNTANT: "BURSAR",
-  ICT_CBT_ADMIN: "IT_ADMINISTRATOR",
-  NURSE: "SCHOOL_NURSE",
-  TRANSPORT_MANAGER: "TRANSPORT_COORDINATOR",
-  HOSTEL_MISTRESS: "HOSTEL_MATRON",
-  LABORATORY_STAFF: "LABORATORY_ASSISTANT",
-  SUPER_ADMIN: "PLATFORM_ADMIN"
 };
 
 export function getCanonicalRole(role: Role | string | null | undefined): Role | null {

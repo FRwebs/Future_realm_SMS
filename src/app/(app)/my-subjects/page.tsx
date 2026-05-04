@@ -1,7 +1,8 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { BookOpen, ClipboardCheck, FileStack, GraduationCap, UploadCloud } from "lucide-react";
 
-import { TableCard } from "@/components/data-display/table-card";
+import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { SchemeOfWorkStatusBadge } from "@/components/scheme-of-work/status-badge";
 import { SchemeOfWorkTopicList } from "@/components/scheme-of-work/topic-list";
@@ -11,10 +12,9 @@ import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type {
   PortalSubjectOffering,
-  PortalTimetableEntry,
   SchemeOfWorkDetailView,
-  SchemeOfWorkSummaryView,
   StudentPortalView,
+  TeacherPortalView,
 } from "@/lib/domain/types";
 
 type PageProps = {
@@ -33,43 +33,100 @@ function progressTone(percent?: number) {
 }
 
 function TeacherMySubjectsPage({
-  sows,
-  timetable,
+  portal,
 }: {
-  sows: SchemeOfWorkSummaryView[];
-  timetable: PortalTimetableEntry[];
+  portal: TeacherPortalView;
 }) {
+  const timetable = portal.weeklyTimetable;
   const weekday = new Intl.DateTimeFormat("en-NG", { weekday: "long" }).format(new Date());
   const todaysClasses = timetable.filter((entry) => entry.day.toLowerCase() === weekday.toLowerCase());
   const grouped = new Map<
     string,
-    { subjectId: string; subjectName: string; subjectCode?: string; rows: SchemeOfWorkSummaryView[] }
+    {
+      subjectId: string;
+      subjectName: string;
+      rows: Array<{
+        classId: string;
+        className: string;
+        learners: number;
+        pendingScores: number;
+        nextAction: string;
+      }>;
+    }
   >();
 
-  for (const row of sows) {
-    const existing = grouped.get(row.subjectId);
+  for (const row of portal.assignedClasses.filter((item) => item.subjectId && item.classId)) {
+    const existing = grouped.get(row.subjectId as string);
     if (existing) {
-      existing.rows.push(row);
+      existing.rows.push({
+        classId: row.classId as string,
+        className: row.className,
+        learners: row.learners,
+        pendingScores: row.pendingScores,
+        nextAction: row.nextAction,
+      });
       continue;
     }
-    grouped.set(row.subjectId, {
-      subjectId: row.subjectId,
-      subjectName: row.subjectName,
-      subjectCode: row.subjectCode,
-      rows: [row],
+    grouped.set(row.subjectId as string, {
+      subjectId: row.subjectId as string,
+      subjectName: row.subject,
+      rows: [
+        {
+          classId: row.classId as string,
+          className: row.className,
+          learners: row.learners,
+          pendingScores: row.pendingScores,
+          nextAction: row.nextAction,
+        },
+      ],
     });
   }
 
-  const subjects = Array.from(grouped.values());
+  const subjects = Array.from(grouped.values()).sort((left, right) => left.subjectName.localeCompare(right.subjectName));
+  const totalAssignments = subjects.reduce((sum, subject) => sum + subject.rows.length, 0);
+  const totalLearners = subjects.reduce(
+    (sum, subject) => sum + subject.rows.reduce((subjectSum, row) => subjectSum + row.learners, 0),
+    0,
+  );
+  const totalPendingScores = subjects.reduce(
+    (sum, subject) =>
+      sum + subject.rows.reduce((subjectSum, row) => subjectSum + row.pendingScores, 0),
+    0,
+  );
 
   return (
     <div className="grid gap-6">
       <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel md:p-8">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Teacher portal</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">My Subjects</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
-          Review your current class assignments, follow scheme-of-work coverage, and jump straight into weekly plans for each subject-class combination.
-        </p>
+        <Link href={"/portals/teacher" as Route} className="text-sm font-semibold text-brand-700">
+          Back to teacher portal
+        </Link>
+        <p className="mt-5 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Teacher portal</p>
+        <div className="mt-3 flex flex-col gap-5 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <h1 className="font-[var(--font-heading)] text-4xl font-bold text-ink">My Subjects</h1>
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
+              This page is for your teaching workload. See every subject you handle, the classes attached to each subject, and move straight into score entry or assignment work without mixing it with form-class administration.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:min-w-[320px]">
+            <article className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-700">Subjects</p>
+              <p className="mt-2 text-2xl font-black text-ink">{subjects.length}</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-emerald-700">Assignments</p>
+              <p className="mt-2 text-2xl font-black text-ink">{totalAssignments}</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-amber-700">Pending scores</p>
+              <p className="mt-2 text-2xl font-black text-ink">{totalPendingScores}</p>
+            </article>
+            <article className="rounded-[1.5rem] border border-slate-200 bg-slate-50/80 px-4 py-3">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Learners</p>
+              <p className="mt-2 text-2xl font-black text-ink">{totalLearners}</p>
+            </article>
+          </div>
+        </div>
       </section>
 
       {todaysClasses.length ? (
@@ -88,75 +145,99 @@ function TeacherMySubjectsPage({
         </section>
       ) : null}
 
-      {subjects.map((subject) => {
-        const averageCoverage =
-          subject.rows.length === 0
-            ? 0
-            : Math.round(subject.rows.reduce((sum, row) => sum + row.coveragePercent, 0) / subject.rows.length);
-        return (
-          <section key={subject.subjectId} className="overflow-hidden rounded-[1.8rem] border border-white/70 bg-white/92 shadow-panel">
-            <div className="flex flex-col gap-4 border-b border-ink/8 bg-sand/50 px-6 py-5 md:flex-row md:items-center md:justify-between">
-              <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-brand-700">Subject</p>
-                <h2 className="mt-2 text-2xl font-bold text-ink">
-                  {subject.subjectName}
-                  {subject.subjectCode ? <span className="ml-2 text-sm font-semibold text-ink/45">{subject.subjectCode}</span> : null}
-                </h2>
-                <p className="mt-2 text-sm text-ink/58">{subject.rows.length} class assignment{subject.rows.length === 1 ? "" : "s"} this term.</p>
+      <section className="grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
+        {subjects.map((subject) => {
+          const leadingClass = subject.rows[0];
+          return (
+            <article
+              key={subject.subjectId}
+              className="flex h-full flex-col rounded-[1.8rem] border border-white/70 bg-white/95 p-5 shadow-panel"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="min-w-0">
+                  <div className="inline-flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+                    <BookOpen className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-brand-700">Teaching subject</p>
+                  <h2 className="mt-2 text-xl font-bold text-ink">{subject.subjectName}</h2>
+                  <p className="mt-2 text-sm text-ink/58">
+                    {subject.rows.length} class assignment{subject.rows.length === 1 ? "" : "s"} this term.
+                  </p>
+                </div>
+                <ActionMenu triggerLabel={`Quick actions for ${subject.subjectName}`}>
+                  <ActionMenuLink href="/portals/teacher/assignments">
+                    <span className="inline-flex items-center gap-2">
+                      <UploadCloud className="h-4 w-4" />
+                      Create assignment
+                    </span>
+                  </ActionMenuLink>
+                  <ActionMenuLink href="/portals/teacher/classes">
+                    <span className="inline-flex items-center gap-2">
+                      <GraduationCap className="h-4 w-4" />
+                      View class groups
+                    </span>
+                  </ActionMenuLink>
+                  <ActionMenuLink href={`/portals/teacher/scores?subjectId=${subject.subjectId}${leadingClass?.classId ? `&classId=${leadingClass.classId}` : ""}`}>
+                    <span className="inline-flex items-center gap-2">
+                      <ClipboardCheck className="h-4 w-4" />
+                      Record assessment
+                    </span>
+                  </ActionMenuLink>
+                </ActionMenu>
               </div>
-              <div className="text-right">
-                <p className={`font-[var(--font-heading)] text-3xl font-black ${progressTone(averageCoverage)}`}>{averageCoverage}%</p>
-                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/42">average coverage</p>
-              </div>
-            </div>
 
-            <TableCard
-              title="Class schemes"
-              description="Each class opens into the detailed weekly scheme-of-work workspace."
-              items={subject.rows}
-              columns={[
-                {
-                  key: "class",
-                  header: "Class",
-                  render: (row) => (
-                    <div>
-                      <p className="font-semibold text-ink">{row.className}</p>
-                      <p className="text-xs text-ink/52">{row.level ?? "Class"}{row.arm ? ` · ${row.arm}` : ""}</p>
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <div className="rounded-[1.3rem] border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Learners</p>
+                  <p className="mt-2 text-2xl font-black text-ink">
+                    {subject.rows.reduce((sum, row) => sum + row.learners, 0)}
+                  </p>
+                </div>
+                <div className="rounded-[1.3rem] border border-slate-100 bg-slate-50 px-4 py-3">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">Pending scores</p>
+                  <p className="mt-2 text-2xl font-black text-ink">
+                    {subject.rows.reduce((sum, row) => sum + row.pendingScores, 0)}
+                  </p>
+                </div>
+              </div>
+
+              <div className="mt-5 flex-1 rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-4">
+                <div className="flex items-center gap-2">
+                  <FileStack className="h-4 w-4 text-slate-500" />
+                  <p className="text-sm font-semibold text-ink">Classes taking this subject</p>
+                </div>
+                <div className="mt-3 grid gap-3">
+                  {subject.rows.map((row) => (
+                    <div key={row.classId} className="rounded-[1.2rem] border border-white bg-white px-4 py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div>
+                          <p className="font-semibold text-ink">{row.className}</p>
+                          <p className="mt-1 text-xs text-ink/52">{row.learners} learners</p>
+                        </div>
+                        <span className="rounded-full border border-amber-100 bg-amber-50 px-3 py-1 text-[11px] font-semibold text-amber-700">
+                          {row.pendingScores} pending
+                        </span>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-slate-900">{row.nextAction}</p>
+                          <p className="text-xs text-ink/52">Use score entry and assignments from this subject workspace.</p>
+                        </div>
+                        <Link
+                          href={`/portals/teacher/scores?subjectId=${subject.subjectId}&classId=${row.classId}` as Route}
+                          className="text-sm font-semibold text-brand-700 hover:text-brand-900"
+                        >
+                          Open scores
+                        </Link>
+                      </div>
                     </div>
-                  ),
-                },
-                {
-                  key: "status",
-                  header: "Status",
-                  render: (row) => <SchemeOfWorkStatusBadge status={row.status} size="sm" />,
-                },
-                {
-                  key: "coverage",
-                  header: "Coverage",
-                  render: (row) => (
-                    <div>
-                      <p className={`text-sm font-bold ${progressTone(row.coveragePercent)}`}>{row.coveragePercent}%</p>
-                      <p className="text-xs text-ink/52">{row.coveredWeeks}/{row.teachingWeeks} teaching weeks</p>
-                    </div>
-                  ),
-                },
-                {
-                  key: "actions",
-                  header: "Actions",
-                  render: (row) => (
-                    <Link
-                      href={`/my-subjects/${subject.subjectId}/classes/${row.classId}/scheme-of-work` as Route}
-                      className="text-sm font-semibold text-brand-700 hover:text-brand-900"
-                    >
-                      Open SOW
-                    </Link>
-                  ),
-                },
-              ]}
-            />
-          </section>
-        );
-      })}
+                  ))}
+                </div>
+              </div>
+            </article>
+          );
+        })}
+      </section>
     </div>
   );
 }
@@ -296,10 +377,6 @@ export default async function MySubjectsPage({ searchParams }: PageProps) {
     );
   }
 
-  const [sows, timetable] = await Promise.all([
-    apiGet<SchemeOfWorkSummaryView[]>("/api/v1/scheme-of-work/my").catch(() => []),
-    apiGet<PortalTimetableEntry[]>("/api/v1/teacher-portal/timetable").catch(() => []),
-  ]);
-
-  return <TeacherMySubjectsPage sows={sows} timetable={timetable} />;
+  const portal = await apiGet<TeacherPortalView>("/api/v1/teacher-portal/dashboard");
+  return <TeacherMySubjectsPage portal={portal} />;
 }

@@ -16,7 +16,7 @@ export class CommunicationsController {
   constructor(private readonly communicationsService: CommunicationsService) {}
 
   @Get("announcements")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "ACCOUNTANT", "PARENT", "STUDENT")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "PARENT", "STUDENT")
   async list(@CurrentSession() session: SessionPayload) {
     return {
       ok: true,
