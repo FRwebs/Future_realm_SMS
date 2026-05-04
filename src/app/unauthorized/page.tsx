@@ -33,6 +33,7 @@ export default async function UnauthorizedPage({
           backHref={backHref}
           backLabel={backLabel}
           showHomeLink={!session}
+          autoRedirect={false}
         />
       </div>
     </main>

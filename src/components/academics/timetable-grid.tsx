@@ -39,9 +39,11 @@ type TimetableGridProps = {
   entries: PortalTimetableEntry[];
   emptyState: string;
   compact?: boolean;
+  onSelectEntry?: (entry: PortalTimetableEntry) => void;
+  selectedEntryId?: string | null;
 };
 
-export function TimetableGrid({ title, description, entries, emptyState, compact = false }: TimetableGridProps) {
+export function TimetableGrid({ title, description, entries, emptyState, compact = false, onSelectEntry, selectedEntryId }: TimetableGridProps) {
   const byDayTime = new Map(entries.map((entry) => [`${entry.day}:${normalize(entry.time)}`, entry]));
 
   return (
@@ -83,12 +85,30 @@ export function TimetableGrid({ title, description, entries, emptyState, compact
                     return (
                       <div key={`${day}-${row.time}`} className="min-h-28 border-l border-ink/6 p-2">
                         {slot ? (
-                          <div className={cn("h-full rounded-2xl border p-3", subjectTone(slot.subject), compact ? "text-xs" : "text-sm")}>
-                            <p className="font-bold">{slot.subject}</p>
-                            {slot.className ? <p className="mt-1 opacity-75">{slot.className}</p> : null}
-                            {slot.teacherName ? <p className="mt-1 opacity-75">{slot.teacherName}</p> : null}
-                            <p className="mt-2 text-xs opacity-70">{slot.venue}</p>
-                          </div>
+                          onSelectEntry ? (
+                            <button
+                              type="button"
+                              onClick={() => onSelectEntry(slot)}
+                              className={cn(
+                                "h-full w-full rounded-2xl border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md",
+                                selectedEntryId === slot.id ? "ring-2 ring-primary-300" : "",
+                                subjectTone(slot.subject),
+                                compact ? "text-xs" : "text-sm",
+                              )}
+                            >
+                              <p className="font-bold">{slot.subject}</p>
+                              {slot.className ? <p className="mt-1 opacity-75">{slot.className}</p> : null}
+                              {slot.teacherName ? <p className="mt-1 opacity-75">{slot.teacherName}</p> : null}
+                              <p className="mt-2 text-xs opacity-70">{slot.venue}</p>
+                            </button>
+                          ) : (
+                            <div className={cn("h-full rounded-2xl border p-3", subjectTone(slot.subject), compact ? "text-xs" : "text-sm")}>
+                              <p className="font-bold">{slot.subject}</p>
+                              {slot.className ? <p className="mt-1 opacity-75">{slot.className}</p> : null}
+                              {slot.teacherName ? <p className="mt-1 opacity-75">{slot.teacherName}</p> : null}
+                              <p className="mt-2 text-xs opacity-70">{slot.venue}</p>
+                            </div>
+                          )
                         ) : (
                           <div className="flex h-full items-center justify-center rounded-2xl border border-dashed border-ink/8 bg-white/45 text-xs text-ink/35">
                             Free

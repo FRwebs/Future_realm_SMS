@@ -1,35 +1,47 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
-import { randomUUID } from "crypto";
 import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoTeacherPortalByEmail } from "../../../../src/lib/demo/data";
 import { calculateSubjectTotals, resolveGradeLabel } from "../../../../src/lib/domain/grading";
-import { canTeacherManageAssignedSubject } from "../../../../src/lib/domain/teacher-portal";
+import { canTeacherManageAssignedSubject, canUseTeacherPortal } from "../../../../src/lib/domain/teacher-portal";
 import {
   AnnouncementView,
   PortalTimetableEntry,
+  SchoolContextView,
   StudentPortalNotificationView,
   TeacherAssignmentTaskView,
   TeacherAttendanceEntryView,
+  TeacherAttendanceWorkspaceView,
   TeacherClassPortalView,
   TeacherClassStudentView,
   TeacherPortalView,
   TeacherScoreEntryView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const teacherAttendanceSchema = z.object({
   classId: z.string().min(1),
-  subjectId: z.string().min(1),
+  subjectId: z.string().min(1).optional(),
   studentId: z.string().min(1),
   date: z.coerce.date().default(() => new Date()),
   status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
   reason: z.string().max(500).optional()
+});
+
+const teacherDailyRegisterSchema = z.object({
+  classId: z.string().min(1),
+  subjectId: z.string().min(1).optional(),
+  date: z.coerce.date().default(() => new Date()),
+  entries: z.array(
+    z.object({
+      studentId: z.string().min(1),
+      status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
+      reason: z.string().max(500).optional(),
+    }),
+  ).min(1),
 });
 
 const teacherScoreSchema = z.object({
@@ -64,6 +76,15 @@ function normalizeAttendanceDate(date: Date) {
   return new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
 }
 
+function ensureAttendanceDateIsNotFuture(date: Date) {
+  const normalized = normalizeAttendanceDate(date);
+  const today = normalizeAttendanceDate(new Date());
+  if (normalized.getTime() > today.getTime()) {
+    throw new BadRequestException("Attendance can only be marked for today or an earlier date.");
+  }
+  return normalized;
+}
+
 function isTeacherAudience(audience: string) {
   const normalized = audience.toLowerCase();
   return (
@@ -78,10 +99,28 @@ function isSchemaDriftError(error: unknown) {
   return error instanceof Error && /does not exist in the current database|column .* does not exist/i.test(error.message);
 }
 
+function formatDashboardError(error: unknown) {
+  if (error instanceof Error) return error.message;
+  return String(error);
+}
+
 @Injectable()
 export class TeacherPortalService {
+  private async resolveDashboardSection<T>(
+    label: string,
+    task: Promise<T>,
+    fallback: T,
+  ): Promise<T> {
+    try {
+      return await task;
+    } catch (error) {
+      console.error(`[teacher-portal.dashboard] ${label} fallback: ${formatDashboardError(error)}`);
+      return fallback;
+    }
+  }
+
   private assertTeacherSession(session: SessionPayload) {
-    if (session.role !== "TEACHER") {
+    if (!canUseTeacherPortal(session.role)) {
       throw new ForbiddenException("Teacher portal data is only available to teacher accounts.");
     }
   }
@@ -95,6 +134,26 @@ export class TeacherPortalService {
       throw new NotFoundException("No active term is configured for this school.");
     }
     return term;
+  }
+
+  private async getSchoolContext(session: SessionPayload): Promise<SchoolContextView> {
+    const school = await prisma.school.findUniqueOrThrow({
+      where: { id: session.schoolId },
+      include: {
+        academicSessions: {
+          where: { isCurrent: true },
+          include: { terms: { where: { isCurrent: true } } },
+          orderBy: { startDate: "desc" },
+          take: 1,
+        },
+      },
+    });
+
+    return {
+      schoolName: school.name,
+      currentSession: school.academicSessions[0]?.name ?? "No active session",
+      currentTerm: school.academicSessions[0]?.terms[0]?.name ?? "No active term",
+    };
   }
 
   private async assertAssignedClassSubject(session: SessionPayload, classId: string, subjectId: string) {
@@ -118,6 +177,47 @@ export class TeacherPortalService {
     return assignment;
   }
 
+  private async assertAssignedClassTeacher(session: SessionPayload, classId: string) {
+    this.assertTeacherSession(session);
+    const classRoom = await prisma.classRoom.findFirst({
+      where: {
+        schoolId: session.schoolId,
+        id: classId,
+        deletedAt: null,
+        isActive: true,
+      },
+    });
+
+    if (
+      !classRoom ||
+      (classRoom.classTeacherId !== session.userId &&
+        classRoom.assistantClassTeacherId !== session.userId)
+    ) {
+      throw new ForbiddenException("You can only submit attendance for classes assigned to you.");
+    }
+
+    return classRoom;
+  }
+
+  private async getClassTeacherClasses(session: SessionPayload) {
+    this.assertTeacherSession(session);
+
+    return prisma.classRoom.findMany({
+      where: {
+        schoolId: session.schoolId,
+        OR: [{ classTeacherId: session.userId }, { assistantClassTeacherId: session.userId }],
+        deletedAt: null,
+        isActive: true,
+      },
+      include: {
+        students: {
+          orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+        },
+      },
+      orderBy: [{ name: "asc" }, { arm: "asc" }],
+    });
+  }
+
   private async getTeacherAssignments(session: SessionPayload) {
     this.assertTeacherSession(session);
     return prisma.classSubject.findMany({
@@ -131,7 +231,10 @@ export class TeacherPortalService {
   }
 
   private async getAssignmentStudentList(session: SessionPayload): Promise<TeacherClassStudentView[]> {
-    const assignments = await this.getTeacherAssignments(session);
+    const [assignments, classTeacherClasses] = await Promise.all([
+      this.getTeacherAssignments(session),
+      this.getClassTeacherClasses(session),
+    ]);
     const studentsByClass = new Map<string, TeacherClassStudentView>();
 
     for (const assignment of assignments) {
@@ -147,6 +250,19 @@ export class TeacherPortalService {
       }
     }
 
+    for (const classRoom of classTeacherClasses) {
+      const className = formatClassName(classRoom);
+      for (const student of classRoom.students) {
+        studentsByClass.set(`${student.id}:${classRoom.id}`, {
+          studentId: student.id,
+          admissionNumber: student.admissionNumber,
+          studentName: formatStudentName(student),
+          classId: classRoom.id,
+          className,
+        });
+      }
+    }
+
     return Array.from(studentsByClass.values());
   }
 
@@ -158,16 +274,18 @@ export class TeacherPortalService {
     status: string;
     date: Date;
     reason?: string | null;
-    student: { firstName: string; middleName?: string | null; lastName: string };
-    classRoom: { name: string; arm?: string | null };
+    student: { firstName: string; middleName?: string | null; lastName: string; admissionNumber?: string };
+    classRoom: { name: string; arm?: string | null; classLevel?: { name: string } | null };
     subject?: { name: string } | null;
   }): TeacherAttendanceEntryView {
     return {
       id: record.id,
       studentId: record.studentId,
       studentName: formatStudentName(record.student),
+      admissionNumber: record.student.admissionNumber,
       classId: record.classId,
       className: formatClassName(record.classRoom),
+      classLevel: record.classRoom.classLevel?.name,
       subjectId: record.subjectId ?? undefined,
       subject: record.subject?.name,
       status: record.status as TeacherAttendanceEntryView["status"],
@@ -206,11 +324,12 @@ export class TeacherPortalService {
 
   async listTeacherAssignments(session: SessionPayload): Promise<TeacherClassPortalView[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoTeacherPortalByEmail(session.email).assignedClasses;
-    }
 
-    const [assignments, term] = await Promise.all([this.getTeacherAssignments(session), this.currentTerm(session.schoolId)]);
+    const [assignments, classTeacherClasses, term] = await Promise.all([
+      this.getTeacherAssignments(session),
+      this.getClassTeacherClasses(session),
+      this.currentTerm(session.schoolId),
+    ]);
     const publishedSheets = await prisma.resultSheet.findMany({
       where: {
         schoolId: session.schoolId,
@@ -223,7 +342,7 @@ export class TeacherPortalService {
     });
     const publishedKeys = new Set(publishedSheets.map((item) => `${item.classId}:${item.studentId}`));
 
-    return assignments.map((assignment) => {
+    const subjectAssignments = assignments.map((assignment) => {
       const learners = assignment.classRoom.students.length;
       const publishedCount = assignment.classRoom.students.filter((student) =>
         publishedKeys.has(`${assignment.classId}:${student.id}`)
@@ -239,13 +358,21 @@ export class TeacherPortalService {
         nextAction: learners === publishedCount ? "Review published score sheet" : "Complete attendance and score entry"
       };
     });
+
+    const classTeacherAssignments = classTeacherClasses.map((classRoom) => ({
+        classId: classRoom.id,
+        className: formatClassName(classRoom),
+        subject: "Class register",
+        learners: classRoom.students.length,
+        pendingScores: 0,
+        nextAction: "Take daily class attendance",
+      } satisfies TeacherClassPortalView));
+
+    return [...subjectAssignments, ...classTeacherAssignments];
   }
 
   async getTeacherTimetable(session: SessionPayload): Promise<PortalTimetableEntry[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
-      return getDemoTeacherPortalByEmail(session.email).weeklyTimetable;
-    }
 
     const timetable = await prisma.timetableEntry.findMany({
       where: { schoolId: session.schoolId, teacherId: session.userId },
@@ -257,6 +384,10 @@ export class TeacherPortalService {
       id: item.id,
       day: dayNames[item.dayOfWeek] ?? `Day ${item.dayOfWeek}`,
       time: `${item.startsAt} - ${item.endsAt}`,
+      startsAt: item.startsAt,
+      endsAt: item.endsAt,
+      classId: item.classId,
+      subjectId: item.subjectId ?? undefined,
       subject: item.subject?.name ?? "Free Period",
       venue: item.venue ?? "Classroom",
       className: formatClassName(item.classRoom),
@@ -264,74 +395,119 @@ export class TeacherPortalService {
     }));
   }
 
-  async listAttendance(session: SessionPayload): Promise<TeacherAttendanceEntryView[]> {
+  async getAttendanceWorkspace(session: SessionPayload): Promise<TeacherAttendanceWorkspaceView> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
-      const portal = getDemoTeacherPortalByEmail(session.email);
-      return portal.assignedClasses.slice(0, 3).map((assignment, index) => ({
-        id: `demo-att-${index + 1}`,
-        studentId: `demo-student-${index + 1}`,
-        studentName: ["Daniel Yusuf", "Amarachi Obi", "Ibrahim Salisu"][index] ?? "Demo Student",
-        classId: assignment.classId ?? `demo-class-${index + 1}`,
-        className: assignment.className,
-        subjectId: assignment.subjectId ?? `demo-subject-${index + 1}`,
-        subject: assignment.subject,
-        status: index === 2 ? "ABSENT" : "PRESENT",
-        date: new Date().toISOString(),
-        reason: index === 2 ? "Parent reported illness" : undefined
-      }));
-    }
-
-    const assignments = await this.getTeacherAssignments(session);
-    const assignedPairs = new Set(assignments.map((item) => `${item.classId}:${item.subjectId}`));
+    const [classTeacherClasses, teachingAssignments, term, schoolContext] = await Promise.all([
+      this.getClassTeacherClasses(session),
+      this.getTeacherAssignments(session),
+      this.currentTerm(session.schoolId),
+      this.getSchoolContext(session),
+    ]);
+    const classTeacherIds = new Set(classTeacherClasses.map((item) => item.id));
+    const assignmentPairs = new Set(
+      teachingAssignments.map((item) => `${item.classId}:${item.subjectId}`),
+    );
+    const subjectNameById = new Map(
+      teachingAssignments.map((item) => [item.subjectId, item.subject.name]),
+    );
+    const classIds = new Set([
+      ...classTeacherClasses.map((item) => item.id),
+      ...teachingAssignments.map((item) => item.classId),
+    ]);
+    const subjectIds = [...new Set(teachingAssignments.map((item) => item.subjectId))];
     const records = await prisma.studentAttendance.findMany({
       where: {
         schoolId: session.schoolId,
-        markedById: session.userId,
-        classId: { in: assignments.map((item) => item.classId) }
+        classId: { in: [...classIds] },
+        termId: term.id,
+        OR: [
+          { subjectId: null, classId: { in: [...classTeacherIds] } },
+          ...(subjectIds.length ? [{ subjectId: { in: subjectIds } }] : []),
+        ],
       },
-      include: { student: true, classRoom: true },
-      orderBy: { date: "desc" },
-      take: 100
+      include: { student: true, classRoom: { include: { classLevel: true } } },
+      orderBy: [{ date: "desc" }, { student: { lastName: "asc" } }],
     });
-    const subjects = await prisma.subject.findMany({
-      where: { schoolId: session.schoolId, id: { in: records.flatMap((item) => (item.subjectId ? [item.subjectId] : [])) } }
-    });
-    const subjectsById = new Map(subjects.map((subject) => [subject.id, subject]));
 
-    return records
-      .filter((record) => !record.subjectId || assignedPairs.has(`${record.classId}:${record.subjectId}`))
-      .map((record) => this.mapAttendanceRecord({ ...record, subject: record.subjectId ? subjectsById.get(record.subjectId) : null }));
+    return {
+      ...schoolContext,
+      records: records
+        .filter((record) => {
+          if (!record.subjectId) return classTeacherIds.has(record.classId);
+          return assignmentPairs.has(`${record.classId}:${record.subjectId}`);
+        })
+        .map((record) =>
+          this.mapAttendanceRecord({
+            ...record,
+            subject: record.subjectId
+              ? { name: subjectNameById.get(record.subjectId) ?? "Assigned subject" }
+              : null,
+          }),
+        ),
+    };
   }
 
   async markAttendance(session: SessionPayload, payload: unknown): Promise<TeacherAttendanceEntryView> {
     this.assertTeacherSession(session);
     const parsed = teacherAttendanceSchema.parse(payload);
-    if (env.DEMO_MODE && process.env.NODE_ENV === "test") {
-      const portal = getDemoTeacherPortalByEmail(session.email);
-      const assignment = portal.assignedClasses.find((item) => item.classId === parsed.classId || item.subjectId === parsed.subjectId);
-      return {
-        id: randomUUID(),
-        studentId: parsed.studentId,
-        studentName: "Demo learner",
-        classId: parsed.classId,
-        className: assignment?.className ?? "Demo class",
-        subjectId: parsed.subjectId,
-        subject: assignment?.subject ?? "Demo subject",
-        status: parsed.status,
-        date: normalizeAttendanceDate(parsed.date).toISOString(),
-        reason: parsed.reason
-      };
-    }
 
-    const [assignment, term, student] = await Promise.all([
-      this.assertAssignedClassSubject(session, parsed.classId, parsed.subjectId),
+    const [term, student] = await Promise.all([
       this.currentTerm(session.schoolId),
       prisma.student.findFirst({ where: { id: parsed.studentId, schoolId: session.schoolId, currentClassId: parsed.classId } })
     ]);
 
+    const subjectAssignment = parsed.subjectId
+      ? await this.assertAssignedClassSubject(session, parsed.classId, parsed.subjectId)
+      : null;
+
+    if (!parsed.subjectId) {
+      await this.assertAssignedClassTeacher(session, parsed.classId);
+    }
+
     if (!student) {
       throw new BadRequestException("Selected student is not enrolled in the selected class.");
+    }
+
+    const normalizedDate = ensureAttendanceDateIsNotFuture(parsed.date);
+
+    if (!parsed.subjectId) {
+      const existing = await prisma.studentAttendance.findFirst({
+        where: {
+          schoolId: session.schoolId,
+          studentId: parsed.studentId,
+          classId: parsed.classId,
+          termId: term.id,
+          date: normalizedDate,
+          subjectId: null,
+        },
+      });
+
+      const record = existing
+        ? await prisma.studentAttendance.update({
+            where: { id: existing.id },
+            data: {
+              markedById: session.userId,
+              status: parsed.status,
+              reason: parsed.reason,
+            },
+            include: { student: true, classRoom: true },
+          })
+        : await prisma.studentAttendance.create({
+            data: {
+              schoolId: session.schoolId,
+              studentId: parsed.studentId,
+              classId: parsed.classId,
+              termId: term.id,
+              markedById: session.userId,
+              subjectId: null,
+              date: normalizedDate,
+              status: parsed.status,
+              reason: parsed.reason,
+            },
+            include: { student: true, classRoom: true },
+          });
+
+      return this.mapAttendanceRecord({ ...record, subject: null });
     }
 
     const record = await prisma.studentAttendance.upsert({
@@ -339,7 +515,7 @@ export class TeacherPortalService {
         studentId_termId_date_subjectId: {
           studentId: parsed.studentId,
           termId: term.id,
-          date: normalizeAttendanceDate(parsed.date),
+          date: normalizedDate,
           subjectId: parsed.subjectId
         }
       },
@@ -355,60 +531,131 @@ export class TeacherPortalService {
         termId: term.id,
         markedById: session.userId,
         subjectId: parsed.subjectId,
-        date: normalizeAttendanceDate(parsed.date),
+        date: normalizedDate,
         status: parsed.status,
         reason: parsed.reason
       },
       include: { student: true, classRoom: true }
     });
 
-    return this.mapAttendanceRecord({ ...record, subject: assignment.subject });
+    return this.mapAttendanceRecord({ ...record, subject: subjectAssignment?.subject ?? null });
+  }
+
+  async submitDailyRegister(session: SessionPayload, payload: unknown): Promise<TeacherAttendanceEntryView[]> {
+    this.assertTeacherSession(session);
+    const parsed = teacherDailyRegisterSchema.parse(payload);
+    const normalizedDate = ensureAttendanceDateIsNotFuture(parsed.date);
+    const [term, students] = await Promise.all([
+      this.currentTerm(session.schoolId),
+      prisma.student.findMany({
+        where: {
+          schoolId: session.schoolId,
+          currentClassId: parsed.classId,
+          id: { in: parsed.entries.map((entry) => entry.studentId) },
+        },
+        orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
+      }),
+    ]);
+
+    const subjectAssignment = parsed.subjectId
+      ? await this.assertAssignedClassSubject(session, parsed.classId, parsed.subjectId)
+      : null;
+
+    const classRoom = subjectAssignment
+      ? subjectAssignment.classRoom
+      : await this.assertAssignedClassTeacher(session, parsed.classId);
+
+    if (students.length !== parsed.entries.length) {
+      throw new BadRequestException("One or more selected students are not enrolled in the assigned class.");
+    }
+    const studentById = new Map(students.map((student) => [student.id, student]));
+    const saved: TeacherAttendanceEntryView[] = [];
+
+    for (const entry of parsed.entries) {
+      const existing = await prisma.studentAttendance.findFirst({
+        where: {
+          schoolId: session.schoolId,
+          studentId: entry.studentId,
+          classId: parsed.classId,
+          termId: term.id,
+          date: normalizedDate,
+          subjectId: parsed.subjectId ?? null,
+        },
+      });
+
+      const record = existing
+        ? await prisma.studentAttendance.update({
+            where: { id: existing.id },
+            data: {
+              markedById: session.userId,
+              status: entry.status,
+              reason: entry.reason,
+            },
+            include: { student: true, classRoom: true },
+          })
+        : await prisma.studentAttendance.create({
+            data: {
+              schoolId: session.schoolId,
+              studentId: entry.studentId,
+              classId: parsed.classId,
+              termId: term.id,
+              markedById: session.userId,
+              subjectId: parsed.subjectId ?? null,
+              date: normalizedDate,
+              status: entry.status,
+              reason: entry.reason,
+            },
+            include: { student: true, classRoom: true },
+          });
+
+      saved.push(
+        this.mapAttendanceRecord({
+          ...record,
+          student: studentById.get(entry.studentId) ?? record.student,
+          classRoom,
+          subject: subjectAssignment?.subject ?? null,
+        }),
+      );
+    }
+
+    return saved;
   }
 
   async listScores(session: SessionPayload): Promise<TeacherScoreEntryView[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoTeacherPortalByEmail(session.email).assignedClasses.map((assignment, index) => {
-        const ca = 28 + index;
-        const exam = 44 + index;
-        const total = ca + exam;
-        return {
-          id: `demo-score-${index + 1}`,
-          studentId: `demo-student-${index + 1}`,
-          studentName: ["Daniel Yusuf", "Amarachi Obi", "Ibrahim Salisu"][index] ?? "Demo Student",
-          classId: assignment.classId ?? `demo-class-${index + 1}`,
-          className: assignment.className,
-          subjectId: assignment.subjectId ?? `demo-subject-${index + 1}`,
-          subject: assignment.subject,
-          continuousAssessment: ca,
-          exam,
-          total,
-          grade: resolveGradeLabel(total).label,
-          published: false,
-          recordedAt: new Date().toISOString()
-        };
-      });
-    }
 
-    const assignments = await this.getTeacherAssignments(session);
+    const [assignments, term] = await Promise.all([
+      this.getTeacherAssignments(session),
+      this.currentTerm(session.schoolId),
+    ]);
+    if (assignments.length === 0) return [];
+
     const assignedPairs = new Set(assignments.map((item) => `${item.classId}:${item.subjectId}`));
-    const scores = await prisma.scoreEntry.findMany({
-      where: { schoolId: session.schoolId, enteredById: session.userId },
+    const classIds = [...new Set(assignments.map((item) => item.classId))];
+    const subjectIds = [...new Set(assignments.map((item) => item.subjectId))];
+    const scoreEntries = await prisma.scoreEntry.findMany({
+      where: {
+        schoolId: session.schoolId,
+        subjectId: { in: subjectIds },
+        resultSheet: {
+          classId: { in: classIds },
+          termId: term.id,
+        },
+      },
       include: {
         student: true,
         subject: true,
         assessmentComponent: true,
-        resultSheet: { include: { classRoom: true } }
+        resultSheet: { include: { classRoom: true } },
       },
-      orderBy: { recordedAt: "desc" },
-      take: 200
+      orderBy: [{ resultSheet: { classId: "asc" } }, { subjectId: "asc" }, { student: { lastName: "asc" } }, { recordedAt: "desc" }],
     });
 
     const grouped = new Map<string, TeacherScoreEntryView>();
-    for (const score of scores) {
+    for (const score of scoreEntries) {
       const pair = `${score.resultSheet.classId}:${score.subjectId}`;
       if (!assignedPairs.has(pair)) continue;
-      const key = `${score.resultSheetId}:${score.subjectId}`;
+      const key = `${score.studentId}:${score.resultSheet.classId}:${score.subjectId}`;
       const entry =
         grouped.get(key) ??
         ({
@@ -435,7 +682,29 @@ export class TeacherPortalService {
       grouped.set(key, entry);
     }
 
-    return Array.from(grouped.values());
+    return assignments.flatMap((assignment) =>
+      assignment.classRoom.students.map((student) => {
+        const key = `${student.id}:${assignment.classId}:${assignment.subjectId}`;
+        return (
+          grouped.get(key) ??
+          ({
+            id: key,
+            studentId: student.id,
+            studentName: formatStudentName(student),
+            classId: assignment.classId,
+            className: formatClassName(assignment.classRoom),
+            subjectId: assignment.subjectId,
+            subject: assignment.subject.name,
+            continuousAssessment: 0,
+            exam: 0,
+            total: 0,
+            grade: resolveGradeLabel(0).label,
+            published: false,
+            teacherComment: undefined,
+          } satisfies TeacherScoreEntryView)
+        );
+      }),
+    );
   }
 
   async enterAssessmentScores(session: SessionPayload, payload: unknown): Promise<TeacherScoreEntryView> {
@@ -443,27 +712,6 @@ export class TeacherPortalService {
     const parsed = teacherScoreSchema.parse(payload);
     const total = parsed.continuousAssessment + parsed.exam;
     const grade = resolveGradeLabel(total).label;
-
-    if (env.DEMO_MODE) {
-      const portal = getDemoTeacherPortalByEmail(session.email);
-      const assignment = portal.assignedClasses.find((item) => item.classId === parsed.classId || item.subjectId === parsed.subjectId);
-      return {
-        id: randomUUID(),
-        studentId: parsed.studentId,
-        studentName: "Demo learner",
-        classId: parsed.classId,
-        className: assignment?.className ?? "Demo class",
-        subjectId: parsed.subjectId,
-        subject: assignment?.subject ?? "Demo subject",
-        continuousAssessment: parsed.continuousAssessment,
-        exam: parsed.exam,
-        total,
-        grade,
-        published: false,
-        recordedAt: new Date().toISOString(),
-        teacherComment: parsed.teacherComment
-      };
-    }
 
     const [assignment, term, student] = await Promise.all([
       this.assertAssignedClassSubject(session, parsed.classId, parsed.subjectId),
@@ -609,20 +857,6 @@ export class TeacherPortalService {
 
   async listTeacherAssignmentTasks(session: SessionPayload): Promise<TeacherAssignmentTaskView[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoTeacherPortalByEmail(session.email).assignedClasses.map((assignment, index) => ({
-        id: `demo-task-${index + 1}`,
-        classId: assignment.classId ?? `demo-class-${index + 1}`,
-        className: assignment.className,
-        subjectId: assignment.subjectId ?? `demo-subject-${index + 1}`,
-        subject: assignment.subject,
-        title: `${assignment.subject} weekly practice`,
-        description: assignment.nextAction,
-        dueAt: new Date(Date.now() + (index + 1) * 86400000).toISOString(),
-        status: "PUBLISHED",
-        submissionsCount: Math.max(assignment.learners - assignment.pendingScores, 0)
-      }));
-    }
 
     const tasks = await prisma.assignment.findMany({
       where: { schoolId: session.schoolId, teacherId: session.userId },
@@ -640,24 +874,6 @@ export class TeacherPortalService {
 
     if (parsed.dueAt.getTime() < Date.now() - 86400000) {
       throw new BadRequestException("Assignment due date cannot be in the past.");
-    }
-
-    if (env.DEMO_MODE) {
-      const portal = getDemoTeacherPortalByEmail(session.email);
-      const assignment = portal.assignedClasses.find((item) => item.classId === parsed.classId || item.subjectId === parsed.subjectId);
-      return {
-        id: randomUUID(),
-        classId: parsed.classId,
-        className: assignment?.className ?? "Demo class",
-        subjectId: parsed.subjectId,
-        subject: assignment?.subject ?? "Demo subject",
-        title: parsed.title,
-        description: parsed.description,
-        dueAt: parsed.dueAt.toISOString(),
-        status: parsed.status,
-        attachmentUrl: parsed.attachmentUrl || undefined,
-        submissionsCount: 0
-      };
     }
 
     const assignment = await this.assertAssignedClassSubject(session, parsed.classId, parsed.subjectId);
@@ -685,21 +901,14 @@ export class TeacherPortalService {
 
   async listTeacherAnnouncements(session: SessionPayload): Promise<AnnouncementView[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoTeacherPortalByEmail(session.email).recentActivity.map((item) => ({
-        id: item.id,
-        title: item.title,
-        body: item.detail,
-        audience: "Teachers",
-        channel: "IN_APP",
-        publishedAt: new Date().toISOString()
-      }));
-    }
 
     const announcements = await prisma.announcement.findMany({
       where: { schoolId: session.schoolId },
       orderBy: { publishedAt: "desc" },
       take: 50
+    }).catch((error: unknown) => {
+      if (isSchemaDriftError(error)) return [];
+      throw error;
     });
 
     return announcements.filter((item) => isTeacherAudience(item.audience)).map((item) => ({
@@ -714,16 +923,6 @@ export class TeacherPortalService {
 
   async listTeacherNotifications(session: SessionPayload): Promise<StudentPortalNotificationView[]> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoTeacherPortalByEmail(session.email).recentActivity.map((item) => ({
-        id: item.id,
-        title: item.title,
-        body: item.detail,
-        channel: "IN_APP",
-        status: "SENT",
-        sentAt: new Date().toISOString()
-      }));
-    }
 
     const notifications = await prisma.notificationLog.findMany({
       where: {
@@ -732,6 +931,9 @@ export class TeacherPortalService {
       },
       orderBy: { sentAt: "desc" },
       take: 50
+    }).catch((error: unknown) => {
+      if (isSchemaDriftError(error)) return [];
+      throw error;
     });
 
     return notifications.map((item) => ({
@@ -746,62 +948,65 @@ export class TeacherPortalService {
 
   async getTeacherDashboard(session: SessionPayload): Promise<TeacherPortalView> {
     this.assertTeacherSession(session);
-    if (env.DEMO_MODE) {
-      const portal = getDemoTeacherPortalByEmail(session.email);
-      return {
-        ...portal,
-        students: portal.assignedClasses.map((assignment, index) => ({
-          studentId: `demo-student-${index + 1}`,
-          admissionNumber: `DEMO/2026/${String(index + 1).padStart(4, "0")}`,
-          studentName: ["Daniel Yusuf", "Amarachi Obi", "Ibrahim Salisu"][index] ?? "Demo Student",
-          classId: assignment.classId ?? `demo-class-${index + 1}`,
-          className: assignment.className
-        })),
-        attendanceHistory: await this.listAttendance(session),
-        scoreSheets: await this.listScores(session),
-        assignments: await this.listTeacherAssignmentTasks(session),
-        announcements: portal.recentActivity.map((item) => ({ id: item.id, title: item.title, detail: item.detail, time: item.time })),
-        notifications: await this.listTeacherNotifications(session)
-      };
-    }
-
-    const [assignments, timetable, attendanceHistory, scoreSheets, tasks, announcements, notifications, students] = await Promise.all([
-      this.listTeacherAssignments(session),
-      this.getTeacherTimetable(session),
-      this.listAttendance(session),
-      this.listScores(session),
-      this.listTeacherAssignmentTasks(session),
-      this.listTeacherAnnouncements(session),
-      this.listTeacherNotifications(session),
-      this.getAssignmentStudentList(session)
+    const [assignments, timetable, attendanceWorkspace, scoreSheets, tasks, announcements, notifications, students] = await Promise.all([
+      this.resolveDashboardSection("assignedClasses", this.listTeacherAssignments(session), [] as TeacherClassPortalView[]),
+      this.resolveDashboardSection("weeklyTimetable", this.getTeacherTimetable(session), [] as PortalTimetableEntry[]),
+      this.resolveDashboardSection(
+        "attendanceWorkspace",
+        this.getAttendanceWorkspace(session),
+        {
+          schoolName: "",
+          currentSession: "",
+          currentTerm: "",
+          records: [],
+        } as TeacherAttendanceWorkspaceView,
+      ),
+      this.resolveDashboardSection("scoreSheets", this.listScores(session), [] as TeacherScoreEntryView[]),
+      this.resolveDashboardSection("assignmentTasks", this.listTeacherAssignmentTasks(session), [] as TeacherAssignmentTaskView[]),
+      this.resolveDashboardSection("announcements", this.listTeacherAnnouncements(session), [] as AnnouncementView[]),
+      this.resolveDashboardSection("notifications", this.listTeacherNotifications(session), [] as StudentPortalNotificationView[]),
+      this.resolveDashboardSection("students", this.getAssignmentStudentList(session), [] as TeacherClassStudentView[]),
     ]);
-    const subjectCount = new Set(assignments.map((item) => item.subjectId)).size;
+    const attendanceHistory = attendanceWorkspace.records;
+    const subjectCount = new Set(assignments.map((item) => item.subjectId).filter(Boolean)).size;
     const classCount = new Set(assignments.map((item) => item.classId)).size;
-    const pendingScores = assignments.reduce((sum, item) => sum + item.pendingScores, 0);
+    const pendingScores = assignments.reduce((sum: number, item: TeacherClassPortalView) => sum + item.pendingScores, 0);
     const today = normalizeAttendanceDate(new Date());
     const [curriculumTopics, staffAttendanceToday, pendingTraining] = await Promise.all([
-      prisma.curriculumTopic.findMany({
-        where: {
-          schoolId: session.schoolId,
-          OR: [
-            { teacherId: session.userId },
-            { classRoom: { classSubjects: { some: { teacherId: session.userId } } } }
-          ]
-        },
-        select: { progressStatus: true }
-      }),
-      prisma.staffAttendance.findUnique({
-        where: { schoolId_userId_date: { schoolId: session.schoolId, userId: session.userId, date: today } },
-        select: { checkInAt: true, status: true }
-      }),
-      prisma.trainingParticipant.count({
-        where: { schoolId: session.schoolId, userId: session.userId, status: { not: "COMPLETED" }, trainingProgram: { mandatory: true, archivedAt: null } }
-      }).catch((error: unknown) => {
-        if (isSchemaDriftError(error)) return 0;
-        throw error;
-      })
+      this.resolveDashboardSection(
+        "curriculumTopics",
+        prisma.curriculumTopic.findMany({
+          where: {
+            schoolId: session.schoolId,
+            OR: [
+              { teacherId: session.userId },
+              { classRoom: { classSubjects: { some: { teacherId: session.userId } } } }
+            ]
+          },
+          select: { progressStatus: true }
+        }),
+        [] as Array<{ progressStatus: string }>,
+      ),
+      this.resolveDashboardSection(
+        "staffAttendanceToday",
+        prisma.staffAttendance.findUnique({
+          where: { schoolId_userId_date: { schoolId: session.schoolId, userId: session.userId, date: today } },
+          select: { checkInAt: true, status: true }
+        }),
+        null as { checkInAt: Date | null; status: string } | null,
+      ),
+      this.resolveDashboardSection(
+        "pendingTraining",
+        prisma.trainingParticipant.count({
+          where: { schoolId: session.schoolId, userId: session.userId, status: { not: "COMPLETED" }, trainingProgram: { mandatory: true, archivedAt: null } }
+        }).catch((error: unknown) => {
+          if (isSchemaDriftError(error)) return 0;
+          throw error;
+        }),
+        0,
+      ),
     ]);
-    const curriculumComplete = curriculumTopics.filter((item) => item.progressStatus === "COMPLETED" || item.progressStatus === "TAUGHT").length;
+    const curriculumComplete = curriculumTopics.filter((item: { progressStatus: string }) => item.progressStatus === "COMPLETED" || item.progressStatus === "TAUGHT").length;
     const curriculumCoverage = curriculumTopics.length === 0 ? 0 : Number(((curriculumComplete / curriculumTopics.length) * 100).toFixed(1));
 
     return {
@@ -830,13 +1035,13 @@ export class TeacherPortalService {
       })),
       notifications,
       recentActivity: [
-        ...attendanceHistory.slice(0, 3).map((item) => ({
+        ...attendanceHistory.slice(0, 3).map((item: TeacherAttendanceEntryView) => ({
           id: item.id,
           title: `${item.status} attendance recorded`,
           detail: `${item.studentName} in ${item.className}${item.subject ? ` (${item.subject})` : ""}.`,
           time: item.date
         })),
-        ...scoreSheets.slice(0, 3).map((item) => ({
+        ...scoreSheets.slice(0, 3).map((item: TeacherScoreEntryView) => ({
           id: item.id,
           title: `${item.subject} score entry`,
           detail: `${item.studentName} scored ${item.total} (${item.grade}).`,

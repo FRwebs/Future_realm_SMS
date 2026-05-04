@@ -11,7 +11,7 @@ import { TeacherPortalService } from "./teacher-portal.service";
 @ApiTags("teacher-portal")
 @Controller("v1/teacher-portal")
 @UseGuards(SessionGuard, RolesGuard)
-@Roles("TEACHER")
+@Roles("TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER")
 export class TeacherPortalController {
   constructor(private readonly teacherPortalService: TeacherPortalService) {}
 
@@ -32,12 +32,17 @@ export class TeacherPortalController {
 
   @Get("attendance")
   async attendance(@CurrentSession() session: SessionPayload) {
-    return { ok: true, data: await this.teacherPortalService.listAttendance(session) };
+    return { ok: true, data: await this.teacherPortalService.getAttendanceWorkspace(session) };
   }
 
   @Post("attendance")
   async markAttendance(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return { ok: true, data: await this.teacherPortalService.markAttendance(session, body) };
+  }
+
+  @Post("attendance/register")
+  async submitDailyRegister(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return { ok: true, data: await this.teacherPortalService.submitDailyRegister(session, body) };
   }
 
   @Get("scores")

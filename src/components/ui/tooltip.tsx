@@ -47,7 +47,7 @@ export function Tooltip({
     >
       {children}
       {open ? (
-        <span className="pointer-events-none absolute bottom-[calc(100%+0.55rem)] left-1/2 z-[180] w-max max-w-[200px] -translate-x-1/2 rounded-xl bg-slate-900 px-3 py-2 text-[11px] font-medium leading-5 text-white shadow-lg">
+        <span className="pointer-events-none absolute bottom-[calc(100%+0.55rem)] left-1/2 z-[var(--z-tooltip)] w-max max-w-[200px] -translate-x-1/2 rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] px-3 py-2 text-[11px] font-medium leading-5 text-[var(--color-text-primary)] shadow-[var(--shadow-md)]">
           {content}
         </span>
       ) : null}

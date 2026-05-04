@@ -62,7 +62,27 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
   const [selectedOption, setSelectedOption] = useState<(typeof paymentOptions)[number]>(paymentOptions[0]);
   const [pending, setPending] = useState(false);
 
+  function openPayment() {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast({
+        variant: "warning",
+        title: "Payment amount unavailable",
+        description: "This invoice does not have a payable balance yet.",
+      });
+      return;
+    }
+    setOpen(true);
+  }
+
   async function handlePay() {
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast({
+        variant: "warning",
+        title: "Payment amount unavailable",
+        description: "This invoice does not have a payable balance yet.",
+      });
+      return;
+    }
     setPending(true);
     try {
       const response = await fetch("/api/v1/finance/payments", {
@@ -107,8 +127,7 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
     <>
       <button
         type="button"
-        onClick={() => setOpen(true)}
-        disabled={amount <= 0}
+        onClick={openPayment}
         className="btn-primary h-9 px-3 text-[12px]"
       >
         {label}

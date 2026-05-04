@@ -58,6 +58,12 @@ export interface SessionUser {
   csrfToken: string;
 }
 
+export interface SchoolContextView {
+  schoolName: string;
+  currentSession: string;
+  currentTerm: string;
+}
+
 export interface DashboardMetric {
   label: string;
   value: string;
@@ -988,12 +994,128 @@ export interface ResultAnalyticsView {
   missingScores: Array<{ studentName: string; className: string; subject: string }>;
 }
 
+export interface ExamOfficerExamView {
+  id: string;
+  title: string;
+  subject: string;
+  className: string;
+  session?: string;
+  term: string;
+  assessmentDate: string;
+  status: string;
+  submissionMode: string;
+  candidateCount: number;
+  enteredCount: number;
+  completionRate: number;
+  teacherName?: string;
+}
+
+export interface ExamOfficerScoreStatusView {
+  assessmentId: string;
+  examTitle: string;
+  subject: string;
+  className: string;
+  session?: string;
+  term: string;
+  entered: number;
+  total: number;
+  completionRate: number;
+  status: "COMPLETE" | "IN_PROGRESS" | "NOT_STARTED";
+  assessmentDate: string;
+}
+
+export interface ExamOfficerTimetableEntryView {
+  id: string;
+  classId: string;
+  className: string;
+  subjectId: string;
+  subject: string;
+  session?: string;
+  term?: string;
+  examDate: string;
+  startsAt: string;
+  endsAt: string;
+  venue?: string;
+  candidateCount: number;
+  invigilators: Array<{
+    id: string;
+    staffId: string;
+    staffName: string;
+    hall?: string;
+    status: string;
+  }>;
+}
+
+export interface ExamOfficerPublicationView {
+  broadsheetId: string;
+  classId?: string;
+  className: string;
+  session?: string;
+  term: string;
+  status: string;
+  approvalStage: string;
+  publishedAt?: string;
+  lockedAt?: string;
+  missingWarnings: number;
+  studentCount: number;
+  completeStudents: number;
+  commentsReady: number;
+  metrics?: {
+    classAverage?: number;
+  };
+}
+
+export interface ExamOfficerQuestionBankView {
+  id: string;
+  subject: string;
+  className?: string;
+  assessmentType: string;
+  difficulty: string;
+  status: string;
+  questionPreview: string;
+  createdAt: string;
+  teacherName?: string;
+}
+
+export interface ExamOfficerDashboardView {
+  currentSession?: string;
+  currentTerm?: string;
+  metrics: {
+    activeExams: number;
+    totalScoresEntered: number;
+    totalScoresExpected: number;
+    publishedClasses: number;
+    totalPublicationTargets: number;
+    upcomingExams: number;
+  };
+  scoreEntryStatus: ExamOfficerScoreStatusView[];
+  upcomingTimetable: ExamOfficerTimetableEntryView[];
+  recentActivity: Array<{
+    id: string;
+    action: string;
+    entityType: string;
+    detail: string;
+    createdAt: string;
+  }>;
+  quickLinks: Array<{
+    label: string;
+    href: string;
+  }>;
+}
+
 export interface InvoiceView {
   id: string;
   invoiceNumber: string;
   studentId?: string;
   studentName: string;
+  admissionNumber?: string;
+  classId?: string;
   className: string;
+  classLevel?: string;
+  sessionId?: string;
+  session?: string;
+  termId?: string;
+  term?: string;
   subtotal?: number;
   discount?: number;
   fine?: number;
@@ -1004,11 +1126,14 @@ export interface InvoiceView {
   issuedOn?: string;
   dueOn: string;
   receiptNumber?: string;
+  paymentCount?: number;
+  lastPaymentAt?: string;
 }
 
 export interface FeeStructureView {
   id: string;
   name: string;
+  currency?: string;
   session?: string;
   term?: string;
   className?: string;
@@ -1021,17 +1146,63 @@ export interface FeeStructureView {
   items: Array<{ id: string; label: string; componentType: string; amount: number; isOptional: boolean; isActive: boolean }>;
 }
 
+export interface FeeAssignmentView {
+  id: string;
+  studentId: string;
+  studentName: string;
+  admissionNumber?: string;
+  className?: string;
+  classLevel?: string;
+  feeStructureId: string;
+  feeStructureName: string;
+  sessionId?: string;
+  session?: string;
+  termId?: string;
+  term?: string;
+  amountDue: number;
+  discount: number;
+  finalAmount: number;
+  dueDate?: string;
+  status: string;
+  discountReason?: string;
+  approvalStatus?: string;
+  invoiceId?: string;
+  invoiceNumber?: string;
+  createdAt: string;
+}
+
 export interface PaymentView {
   id: string;
   reference: string;
+  studentId?: string;
   studentName: string;
+  admissionNumber?: string;
+  classId?: string;
+  className?: string;
+  classLevel?: string;
+  sessionId?: string;
+  session?: string;
+  termId?: string;
+  term?: string;
+  invoiceId?: string;
   invoiceNumber?: string;
   receiptNumber?: string;
   amount: number;
   status: string;
   method: string;
+  paymentMethod?: string;
   provider?: string;
+  paymentNumber?: string;
+  paymentChannel?: string;
+  schoolBankReference?: string;
+  gatewayStatus?: string;
+  recordedByName?: string;
+  isReversed?: boolean;
+  reversalReason?: string;
+  reversedAt?: string;
   paidAt?: string;
+  paymentDate?: string;
+  createdAt?: string;
 }
 
 export interface ReceiptView {
@@ -1049,21 +1220,176 @@ export interface ReceiptView {
 export interface InstallmentPlanView {
   id: string;
   planNumber: string;
+  studentId?: string;
   studentName: string;
+  className?: string;
+  classLevel?: string;
+  sessionId?: string;
+  session?: string;
+  termId?: string;
+  term?: string;
   invoiceNumber?: string;
   totalAmount: number;
   balance: number;
   status: string;
+  notes?: string;
   items: Array<{ id: string; dueOn: string; amount: number; paidAmount: number; status: string }>;
 }
 
 export interface FinanceDashboardView {
   metrics: Array<{ label: string; value: string; tone: string }>;
   feeStructures: FeeStructureView[];
+  feeAssignments?: FeeAssignmentView[];
   invoices: InvoiceView[];
   payments: PaymentView[];
   installmentPlans: InstallmentPlanView[];
+  expenditures?: ExpenditureView[];
+  payrollRuns?: PayrollRunView[];
   auditTrail: Array<{ id: string; action: string; entityType: string; entityId: string; createdAt: string; detail: string }>;
+}
+
+export interface ExpenditureView {
+  id: string;
+  category: string;
+  description: string;
+  amount: number;
+  paymentMethod?: string;
+  paidTo?: string;
+  receiptUrl?: string;
+  recordedById?: string;
+  recordedByName?: string;
+  expenditureDate: string;
+  notes?: string;
+}
+
+export interface PayrollItemView {
+  id: string;
+  staffId: string;
+  staffName: string;
+  employeeNo?: string;
+  designation?: string;
+  departmentName?: string;
+  basicSalary: number;
+  allowances: Record<string, number>;
+  deductions: Record<string, number>;
+  netSalary: number;
+  payslipSent: boolean;
+  paidAt?: string;
+}
+
+export interface PayrollRunView {
+  id: string;
+  sessionId?: string;
+  session?: string;
+  month: number;
+  year: number;
+  status: string;
+  processedById?: string;
+  processedByName?: string;
+  processedAt?: string;
+  publishedAt?: string;
+  totalNetSalary: number;
+  staffCount: number;
+  items: PayrollItemView[];
+}
+
+export interface PayrollStaffMemberView {
+  id: string;
+  userId?: string;
+  staffName: string;
+  employeeNo: string;
+  departmentName?: string;
+  designation: string;
+  employmentType?: string;
+  salaryBand?: string;
+  accountStatus?: string;
+  isActive: boolean;
+  lastBasicSalary?: number;
+  lastNetSalary?: number;
+  lastPayrollMonth?: number;
+  lastPayrollYear?: number;
+}
+
+export interface PayrollWorkspaceView {
+  currentSessionId?: string;
+  currentSessionName?: string;
+  sessions: Array<{ id: string; name: string }>;
+  staff: PayrollStaffMemberView[];
+  payrollRuns: PayrollRunView[];
+}
+
+export interface BudgetAllocationView {
+  id: string;
+  department: string;
+  sessionId?: string;
+  session?: string;
+  allocatedAmount: number;
+  spentAmount: number;
+}
+
+export interface AuditLogView {
+  id: string;
+  userId?: string;
+  userName?: string;
+  action: string;
+  entityType: string;
+  entityId: string;
+  oldValue?: Record<string, unknown> | null;
+  newValue?: Record<string, unknown> | null;
+  ipAddress?: string;
+  detail?: string;
+  timestamp: string;
+}
+
+export interface FinanceSettingsView {
+  currency: string;
+  paymentMethods: string[];
+  sessionConfig?: {
+    currentSession?: string;
+    currentTerm?: string;
+  };
+  allowOverpayment: boolean;
+  reminderScheduleDays: number[];
+  receiptPrefix: string;
+}
+
+export interface StudentFinanceAdjustmentView {
+  id: string;
+  type: string;
+  valueType: string;
+  value: number;
+  amount: number;
+  reason: string;
+  createdAt: string;
+  approvedByName?: string;
+  invoiceNumber?: string;
+  session?: string;
+  term?: string;
+}
+
+export interface StudentFinanceLedgerView {
+  studentId: string;
+  studentName: string;
+  admissionNumber: string;
+  status: string;
+  className: string;
+  classLevel?: string;
+  currentSession?: string;
+  guardianName?: string;
+  guardianPhone?: string;
+  guardianEmail?: string;
+  metrics: {
+    totalBilled: number;
+    totalPaid: number;
+    outstanding: number;
+    overdueInvoices: number;
+    activeInstallmentPlans: number;
+    lastPaymentAt?: string;
+  };
+  invoices: InvoiceView[];
+  payments: PaymentView[];
+  installmentPlans: InstallmentPlanView[];
+  adjustments: StudentFinanceAdjustmentView[];
 }
 
 export interface AnnouncementView {
@@ -1088,6 +1414,10 @@ export interface PortalTimetableEntry {
   time: string;
   subject: string;
   venue: string;
+  classId?: string;
+  subjectId?: string;
+  startsAt?: string;
+  endsAt?: string;
   teacherName?: string;
   className?: string;
 }
@@ -1379,13 +1709,19 @@ export interface TeacherAttendanceEntryView {
   id: string;
   studentId: string;
   studentName: string;
+  admissionNumber?: string;
   classId: string;
   className: string;
+  classLevel?: string;
   subjectId?: string;
   subject?: string;
   status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED";
   date: string;
   reason?: string;
+}
+
+export interface TeacherAttendanceWorkspaceView extends SchoolContextView {
+  records: TeacherAttendanceEntryView[];
 }
 
 export interface TeacherScoreEntryView {

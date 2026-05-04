@@ -1,5 +1,9 @@
+"use client";
+
 import type { Route } from "next";
 import Link from "next/link";
+import { useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { ArrowLeft, Home, LockKeyhole, ShieldAlert } from "lucide-react";
 
 export function AccessDenied({
@@ -8,13 +12,23 @@ export function AccessDenied({
   backHref = "/dashboard",
   backLabel = "Go to allowed workspace",
   showHomeLink = true,
+  autoRedirect = true,
 }: {
   title?: string;
   detail?: string;
   backHref?: string;
   backLabel?: string;
   showHomeLink?: boolean;
+  autoRedirect?: boolean;
 }) {
+  const pathname = usePathname();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (!autoRedirect) return;
+    router.replace(`${backHref}?notice=not-authorized&from=${encodeURIComponent(pathname)}` as Route);
+  }, [autoRedirect, backHref, pathname, router]);
+
   return (
     <section className="surface-hero relative overflow-hidden p-8 md:p-10">
       <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-primary-200/40 blur-3xl" />

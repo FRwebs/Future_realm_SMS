@@ -7,8 +7,8 @@ export function MetricCard({ metric }: { metric: DashboardMetric }) {
     metric.change.trim().startsWith("+");
 
   return (
-    <article className="group surface-card relative overflow-hidden p-5 transition-all duration-200 hover:border-primary-200 hover:shadow-md">
-      <div className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-2xl bg-primary-100 text-primary-600">
+    <article className="group surface-card relative overflow-hidden p-5 transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-md">
+      <div className="absolute right-5 top-5 flex h-9 w-9 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-accent-primary)]">
         {isPositive ? (
           <ArrowUpRight className="h-4 w-4" />
         ) : (
@@ -16,11 +16,11 @@ export function MetricCard({ metric }: { metric: DashboardMetric }) {
         )}
       </div>
 
-      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">
+      <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-secondary)]">
         {metric.label}
       </p>
 
-      <p className="mt-4 text-[28px] font-extrabold leading-none tracking-tight text-slate-900">
+      <p className="mt-4 text-[28px] font-extrabold leading-none tracking-tight text-[var(--color-text-primary)]">
         {metric.value}
       </p>
 
@@ -29,8 +29,8 @@ export function MetricCard({ metric }: { metric: DashboardMetric }) {
           <span
             className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-semibold ${
               isPositive
-                ? "bg-emerald-100 text-emerald-700"
-                : "bg-rose-100 text-rose-700"
+                ? "bg-[var(--color-success-dim)] text-[var(--color-success)]"
+                : "bg-[var(--color-danger-dim)] text-[var(--color-danger)]"
             }`}
           >
             {isPositive ? (
@@ -41,7 +41,7 @@ export function MetricCard({ metric }: { metric: DashboardMetric }) {
             {metric.change}
           </span>
 
-          <span className="text-[12px] text-slate-400">vs last period</span>
+          <span className="text-[12px] text-[var(--color-text-secondary)]">vs last period</span>
         </div>
       ) : null}
     </article>

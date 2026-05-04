@@ -4,11 +4,36 @@ import { BookOpen, CalendarDays, ClipboardCheck, Send, Sparkles } from "lucide-r
 
 import { TableCard } from "@/components/data-display/table-card";
 import { TeacherPortalView } from "@/lib/domain/types";
+import { canAccessPathWithPermissions } from "@/lib/navigation/registry";
 import { formatDate } from "@/lib/utils/formatters";
 
-export function TeacherPortalDashboard({ portal }: { portal: TeacherPortalView }) {
+export function TeacherPortalDashboard({
+  portal,
+  role,
+  permissions,
+}: {
+  portal: TeacherPortalView;
+  role: "TEACHER" | "CLASS_TEACHER" | "SUBJECT_TEACHER";
+  permissions: string[];
+}) {
   const weekday = new Intl.DateTimeFormat("en-NG", { weekday: "long" }).format(new Date());
   const todaysClasses = portal.weeklyTimetable.filter((item) => item.day.toLowerCase() === weekday.toLowerCase());
+  const ledClasses = Array.from(
+    new Map(
+      portal.assignedClasses
+        .filter((item) => item.classId && !item.subjectId)
+        .map((item) => [item.classId, item.className]),
+    ).values(),
+  );
+  const hasClassLeadership = ledClasses.length > 0;
+  const quickActions = [
+    ...(hasClassLeadership
+      ? [{ label: "Mark attendance", href: "/portals/teacher/attendance", icon: ClipboardCheck }]
+      : []),
+    { label: "Open gradebook", href: "/portals/teacher/gradebook", icon: Send },
+    { label: "Lesson notes", href: "/portals/teacher/content/lesson-notes/planning", icon: BookOpen },
+    { label: "Timetable", href: "/portals/teacher/timetable", icon: CalendarDays },
+  ].filter((action) => canAccessPathWithPermissions(role, action.href, permissions));
 
   return (
     <div className="grid gap-6 xl:gap-7">
@@ -20,6 +45,22 @@ export function TeacherPortalDashboard({ portal }: { portal: TeacherPortalView }
               <Sparkles className="h-3.5 w-3.5" />
               Teacher command center
             </div>
+            {hasClassLeadership ? (
+              <div className="mt-3 flex flex-wrap gap-2">
+                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200/40 bg-emerald-300/15 px-3 py-1 text-[11px] font-semibold text-white">
+                  <ClipboardCheck className="h-3.5 w-3.5" />
+                  Form / Class Teacher
+                </span>
+                {ledClasses.map((className) => (
+                  <span
+                    key={className}
+                    className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/80"
+                  >
+                    {className}
+                  </span>
+                ))}
+              </div>
+            ) : null}
             <h1 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">{portal.headline}</h1>
             <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75">
               {portal.teacherName} can track today’s lessons, assigned classes, attendance, scores, assignments, and classroom activity from one focused workspace.
@@ -44,12 +85,7 @@ export function TeacherPortalDashboard({ portal }: { portal: TeacherPortalView }
 
       <section className="rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel">
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {[
-            { label: "Mark attendance", href: "/portals/teacher/attendance", icon: ClipboardCheck },
-            { label: "Enter scores", href: "/portals/teacher/scores", icon: Send },
-            { label: "My subjects", href: "/my-subjects", icon: BookOpen },
-            { label: "Timetable", href: "/portals/teacher/timetable", icon: CalendarDays }
-          ].map((action) => {
+          {quickActions.map((action) => {
             const Icon = action.icon;
             return (
               <Link key={action.href} href={action.href as Route} className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-primary-200 hover:bg-primary-50">
@@ -100,8 +136,8 @@ export function TeacherPortalDashboard({ portal }: { portal: TeacherPortalView }
           ]}
         />
         <TableCard
-          title="Assigned classes"
-          description="Operational overview for classes, pending scores, and next actions."
+          title={hasClassLeadership ? "Teaching and class leadership" : "Teaching assignments"}
+          description={hasClassLeadership ? "See where you lead a class and where you teach subjects." : "Operational overview for your subject teaching load."}
           items={portal.assignedClasses}
           columns={[
             {
@@ -110,7 +146,7 @@ export function TeacherPortalDashboard({ portal }: { portal: TeacherPortalView }
               render: (item) => (
                 <div>
                   <p className="font-semibold text-ink">{item.className}</p>
-                  <p className="text-xs text-ink/55">{item.subject}</p>
+                  <p className="text-xs text-ink/55">{item.subjectId ? item.subject : "Form / class leadership"}</p>
                 </div>
               )
             },

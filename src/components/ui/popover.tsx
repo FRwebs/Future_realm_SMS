@@ -58,7 +58,7 @@ export function Popover({
       {open ? (
         <div
           className={cn(
-            "absolute top-[calc(100%+0.5rem)] z-[170] min-w-[240px] rounded-2xl border border-slate-100 bg-white p-4 shadow-[0_20px_50px_rgba(15,23,42,0.16)]",
+            "popover-enter absolute top-[calc(100%+0.5rem)] z-[var(--z-dropdown)] min-w-[240px] rounded-2xl border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] p-4 text-[var(--color-text-primary)] shadow-[var(--shadow-lg)]",
             align === "right" ? "right-0" : "left-0",
             panelClassName,
           )}

@@ -1,0 +1,321 @@
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans)}
+.page{padding:1.5rem 0}
+.top-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:1.5rem}
+.back-link{font-size:13px;color:var(--color-text-secondary);text-decoration:none;display:flex;align-items:center;gap:4px;padding:6px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md)}
+.back-link:hover{background:var(--color-background-secondary)}
+.page-title{font-size:22px;font-weight:500;flex:1;min-width:200px}
+.date-badge{font-size:13px;color:var(--color-text-secondary);padding:6px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-secondary)}
+.summary-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px;margin-bottom:1.5rem}
+.stat{background:var(--color-background-secondary);border-radius:var(--border-radius-md);padding:14px 16px}
+.stat-num{font-size:22px;font-weight:500;margin-bottom:2px}
+.stat-label{font-size:12px;color:var(--color-text-secondary)}
+.stat-num.present{color:#0F6E56}
+.stat-num.late{color:#BA7517}
+.stat-num.absent{color:#A32D2D}
+.stat-num.excused{color:#185FA5}
+.stat-num.total{color:var(--color-text-primary)}
+.filter-bar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-bottom:1.25rem}
+.filter-bar select{flex:1;min-width:160px;max-width:260px;font-size:13px;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.filter-bar input[type=text]{flex:1;min-width:140px;max-width:220px;font-size:13px;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.filter-bar input[type=date]{font-size:13px;padding:7px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-primary);color:var(--color-text-primary)}
+.filter-label{font-size:12px;color:var(--color-text-secondary);white-space:nowrap}
+.roster-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:.75rem}
+.roster-count{font-size:13px;color:var(--color-text-secondary)}
+.bulk-bar{display:flex;gap:8px;flex-wrap:wrap}
+.bulk-btn{font-size:12px;padding:5px 12px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);cursor:pointer;background:var(--color-background-secondary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.bulk-btn:hover{background:var(--color-background-primary)}
+.student-grid{display:grid;gap:10px}
+.student-card{background:var(--color-background-primary);border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);padding:14px 16px;display:grid;grid-template-columns:40px 1fr auto;gap:12px;align-items:center;transition:border-color .15s}
+.student-card:hover{border-color:var(--color-border-secondary)}
+.student-card.marked-PRESENT{border-left:3px solid #1D9E75}
+.student-card.marked-LATE{border-left:3px solid #EF9F27}
+.student-card.marked-ABSENT{border-left:3px solid #E24B4A}
+.student-card.marked-EXCUSED{border-left:3px solid #378ADD}
+.avatar{width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:500;flex-shrink:0}
+.avatar.av-a{background:#E1F5EE;color:#085041}
+.avatar.av-b{background:#EEEDFE;color:#3C3489}
+.avatar.av-c{background:#FAECE7;color:#712B13}
+.avatar.av-d{background:#FAEEDA;color:#633806}
+.avatar.av-e{background:#E6F1FB;color:#0C447C}
+.avatar.av-f{background:#FBEAF0;color:#72243E}
+.student-info{min-width:0}
+.student-name{font-size:14px;font-weight:500;color:var(--color-text-primary);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.student-meta{font-size:12px;color:var(--color-text-secondary);margin-top:1px}
+.action-group{display:flex;gap:6px;align-items:center;flex-shrink:0}
+.att-btn{font-size:12px;padding:5px 10px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);cursor:pointer;font-family:var(--font-sans);background:var(--color-background-secondary);color:var(--color-text-secondary);transition:all .12s;white-space:nowrap}
+.att-btn:hover{background:var(--color-background-primary)}
+.att-btn.active-PRESENT{background:#EAF3DE;color:#3B6D11;border-color:#97C459}
+.att-btn.active-LATE{background:#FAEEDA;color:#854F0B;border-color:#EF9F27}
+.att-btn.active-ABSENT{background:#FCEBEB;color:#A32D2D;border-color:#F09595}
+.att-btn.active-EXCUSED{background:#E6F1FB;color:#185FA5;border-color:#85B7EB}
+.note-area{display:none;grid-column:1/-1;margin-top:8px}
+.note-area.open{display:block}
+.note-area textarea{width:100%;font-size:13px;padding:8px 10px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:var(--color-background-secondary);color:var(--color-text-primary);resize:none;height:60px;font-family:var(--font-sans)}
+.note-toggle{font-size:11px;color:var(--color-text-secondary);cursor:pointer;margin-left:4px;padding:5px 8px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-md);background:transparent;font-family:var(--font-sans)}
+.note-toggle:hover{background:var(--color-background-secondary)}
+.save-bar{margin-top:1.5rem;display:flex;gap:10px;align-items:center;justify-content:flex-end;flex-wrap:wrap}
+.save-hint{font-size:12px;color:var(--color-text-secondary);flex:1}
+.save-btn{font-size:13px;font-weight:500;padding:9px 22px;border-radius:var(--border-radius-md);border:0.5px solid var(--color-border-tertiary);cursor:pointer;background:var(--color-background-primary);color:var(--color-text-primary);font-family:var(--font-sans)}
+.save-btn:hover{background:var(--color-background-secondary)}
+.save-btn.primary{background:#0F6E56;color:#E1F5EE;border-color:#0F6E56}
+.save-btn.primary:hover{background:#085041}
+.empty-state{text-align:center;padding:3rem 1rem;color:var(--color-text-secondary);font-size:14px;border:0.5px solid var(--color-border-tertiary);border-radius:var(--border-radius-lg);background:var(--color-background-secondary)}
+.history-section{margin-top:2rem}
+.section-title{font-size:16px;font-weight:500;margin-bottom:.75rem;color:var(--color-text-primary)}
+.history-table{width:100%;border-collapse:collapse;font-size:13px;table-layout:fixed}
+.history-table th{text-align:left;padding:8px 10px;font-size:12px;color:var(--color-text-secondary);font-weight:400;border-bottom:0.5px solid var(--color-border-tertiary)}
+.history-table td{padding:9px 10px;border-bottom:0.5px solid var(--color-border-tertiary);color:var(--color-text-primary);vertical-align:top;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.history-table tr:last-child td{border-bottom:none}
+.pill{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500}
+.pill-P{background:#EAF3DE;color:#3B6D11}
+.pill-L{background:#FAEEDA;color:#854F0B}
+.pill-A{background:#FCEBEB;color:#A32D2D}
+.pill-E{background:#E6F1FB;color:#185FA5}
+.toast{position:fixed;bottom:24px;right:24px;background:#0F6E56;color:#E1F5EE;font-size:13px;padding:10px 18px;border-radius:var(--border-radius-md);opacity:0;transition:opacity .25s;pointer-events:none;z-index:99}
+.toast.show{opacity:1}
+.divider{height:0.5px;background:var(--color-border-tertiary);margin:1.5rem 0}
+</style>
+
+<h2 class="sr-only">Teacher attendance dashboard — mark and review student attendance by class and subject</h2>
+
+<div class="page">
+  <div class="top-bar">
+    <a href="#" class="back-link">← Teacher portal</a>
+    <span class="page-title">Attendance</span>
+    <span class="date-badge" id="today-badge"></span>
+  </div>
+
+  <div class="summary-strip" id="summary-strip">
+    <div class="stat"><div class="stat-num total" id="s-total">0</div><div class="stat-label">Total students</div></div>
+    <div class="stat"><div class="stat-num present" id="s-present">0</div><div class="stat-label">Present</div></div>
+    <div class="stat"><div class="stat-num late" id="s-late">0</div><div class="stat-label">Late</div></div>
+    <div class="stat"><div class="stat-num absent" id="s-absent">0</div><div class="stat-label">Absent</div></div>
+    <div class="stat"><div class="stat-num excused" id="s-excused">0</div><div class="stat-label">Excused</div></div>
+    <div class="stat"><div class="stat-num total" id="s-unmarked" style="color:var(--color-text-secondary)">0</div><div class="stat-label">Not marked</div></div>
+  </div>
+
+  <div class="filter-bar">
+    <span class="filter-label">Class</span>
+    <select id="class-filter" onchange="applyFilters()">
+      <option value="">All classes</option>
+      <option value="JSS1">JSS 1</option>
+      <option value="JSS2">JSS 2</option>
+      <option value="SS1">SS 1</option>
+      <option value="SS2">SS 2</option>
+    </select>
+    <span class="filter-label">Subject</span>
+    <select id="subject-filter" onchange="applyFilters()">
+      <option value="">All subjects</option>
+      <option value="Mathematics">Mathematics</option>
+      <option value="English">English</option>
+      <option value="Biology">Biology</option>
+      <option value="Physics">Physics</option>
+    </select>
+    <input type="text" id="search-input" placeholder="Search student..." oninput="applyFilters()" style="flex:1;min-width:140px;max-width:220px">
+    <input type="date" id="date-input">
+  </div>
+
+  <div class="roster-header">
+    <span class="roster-count" id="roster-count">Loading…</span>
+    <div class="bulk-bar">
+      <span class="filter-label">Mark all visible:</span>
+      <button class="bulk-btn" onclick="bulkMark('PRESENT')">✓ Present</button>
+      <button class="bulk-btn" onclick="bulkMark('LATE')">⏱ Late</button>
+      <button class="bulk-btn" onclick="bulkMark('ABSENT')">✗ Absent</button>
+    </div>
+  </div>
+
+  <div class="student-grid" id="student-grid"></div>
+
+  <div class="save-bar">
+    <span class="save-hint" id="save-hint">No changes yet</span>
+    <button class="save-btn" onclick="clearAll()">Clear all marks</button>
+    <button class="save-btn primary" onclick="saveAttendance()">Save attendance ↗</button>
+  </div>
+
+  <div class="divider"></div>
+
+  <div class="history-section">
+    <div class="section-title">Recent history</div>
+    <table class="history-table">
+      <thead><tr>
+        <th style="width:26%">Student</th>
+        <th style="width:16%">Class</th>
+        <th style="width:18%">Subject</th>
+        <th style="width:12%">Status</th>
+        <th style="width:14%">Date</th>
+        <th style="width:14%">Reason</th>
+      </tr></thead>
+      <tbody id="history-body"></tbody>
+    </table>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const STUDENTS = [
+  {id:'s1',name:'Adaeze Okonkwo',cls:'JSS1',subject:'Mathematics',subjectId:'math',avatarCls:'av-a'},
+  {id:'s2',name:'Babatunde Lawal',cls:'JSS1',subject:'Mathematics',subjectId:'math',avatarCls:'av-b'},
+  {id:'s3',name:'Chisom Eze',cls:'JSS1',subject:'Mathematics',subjectId:'math',avatarCls:'av-c'},
+  {id:'s4',name:'Damilola Fashola',cls:'JSS2',subject:'English',subjectId:'eng',avatarCls:'av-d'},
+  {id:'s5',name:'Emeka Nwosu',cls:'JSS2',subject:'English',subjectId:'eng',avatarCls:'av-e'},
+  {id:'s6',name:'Funmilayo Adeyemi',cls:'JSS2',subject:'English',subjectId:'eng',avatarCls:'av-f'},
+  {id:'s7',name:'Gbenga Olumide',cls:'SS1',subject:'Biology',subjectId:'bio',avatarCls:'av-a'},
+  {id:'s8',name:'Hauwa Musa',cls:'SS1',subject:'Biology',subjectId:'bio',avatarCls:'av-b'},
+  {id:'s9',name:'Ikenna Okafor',cls:'SS1',subject:'Biology',subjectId:'bio',avatarCls:'av-c'},
+  {id:'s10',name:'Jumoke Adeleke',cls:'SS2',subject:'Physics',subjectId:'phy',avatarCls:'av-d'},
+  {id:'s11',name:'Kola Adesanya',cls:'SS2',subject:'Physics',subjectId:'phy',avatarCls:'av-e'},
+  {id:'s12',name:'Lara Balogun',cls:'SS2',subject:'Physics',subjectId:'phy',avatarCls:'av-f'},
+  {id:'s13',name:'Musa Ibrahim',cls:'JSS1',subject:'Mathematics',subjectId:'math',avatarCls:'av-d'},
+  {id:'s14',name:'Ngozi Uche',cls:'SS1',subject:'Biology',subjectId:'bio',avatarCls:'av-e'},
+  {id:'s15',name:'Olumide Akintola',cls:'JSS2',subject:'English',subjectId:'eng',avatarCls:'av-a'},
+];
+const HISTORY = [
+  {name:'Adaeze Okonkwo',cls:'JSS1',subject:'Mathematics',status:'PRESENT',date:'2025-04-24',reason:'—'},
+  {name:'Babatunde Lawal',cls:'JSS1',subject:'Mathematics',status:'LATE',date:'2025-04-24',reason:'Traffic'},
+  {name:'Emeka Nwosu',cls:'JSS2',subject:'English',status:'ABSENT',date:'2025-04-24',reason:'Sick'},
+  {name:'Jumoke Adeleke',cls:'SS2',subject:'Physics',status:'EXCUSED',date:'2025-04-24',reason:'School trip'},
+  {name:'Gbenga Olumide',cls:'SS1',subject:'Biology',status:'PRESENT',date:'2025-04-23',reason:'—'},
+];
+let marks = {};
+let notes = {};
+let visibleIds = STUDENTS.map(s=>s.id);
+
+const today = new Date();
+document.getElementById('today-badge').textContent = today.toLocaleDateString('en-NG',{weekday:'short',day:'numeric',month:'short',year:'numeric'});
+document.getElementById('date-input').value = today.toISOString().slice(0,10);
+
+function initials(name){return name.split(' ').map(w=>w[0]).slice(0,2).join('')}
+
+function renderHistory(){
+  const tb = document.getElementById('history-body');
+  tb.innerHTML = HISTORY.map(h=>`<tr>
+    <td>${h.name}</td><td>${fmtCls(h.cls)}</td><td>${h.subject}</td>
+    <td><span class="pill pill-${h.status[0]}">${h.status[0]+h.status.slice(1).toLowerCase()}</span></td>
+    <td>${h.date}</td><td style="color:var(--color-text-secondary)">${h.reason}</td>
+  </tr>`).join('');
+}
+
+function fmtCls(c){return c.replace('JSS','JSS ').replace('SS','SS ')}
+
+function renderGrid(ids){
+  const grid = document.getElementById('student-grid');
+  if(!ids.length){grid.innerHTML='<div class="empty-state">No students match the current filter</div>';return;}
+  grid.innerHTML = ids.map(id=>{
+    const s = STUDENTS.find(x=>x.id===id);
+    const m = marks[id]||'';
+    const n = notes[id]||'';
+    return `<div class="student-card${m?' marked-'+m:''}" id="card-${s.id}">
+      <div class="avatar ${s.avatarCls}">${initials(s.name)}</div>
+      <div class="student-info">
+        <div class="student-name">${s.name}</div>
+        <div class="student-meta">${fmtCls(s.cls)} · ${s.subject}</div>
+      </div>
+      <div class="action-group">
+        <button class="att-btn${m==='PRESENT'?' active-PRESENT':''}" onclick="mark('${s.id}','PRESENT')">✓ Present</button>
+        <button class="att-btn${m==='LATE'?' active-LATE':''}" onclick="mark('${s.id}','LATE')">⏱ Late</button>
+        <button class="att-btn${m==='ABSENT'?' active-ABSENT':''}" onclick="mark('${s.id}','ABSENT')">✗ Absent</button>
+        <button class="att-btn${m==='EXCUSED'?' active-EXCUSED':''}" onclick="mark('${s.id}','EXCUSED')">Excused</button>
+        <button class="note-toggle" onclick="toggleNote('${s.id}')">${n?'📝':'+ note'}</button>
+      </div>
+      <div class="note-area${n?' open':''}" id="note-${s.id}">
+        <textarea placeholder="Add a reason or note…" oninput="saveNote('${s.id}',this.value)">${n}</textarea>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function applyFilters(){
+  const cls = document.getElementById('class-filter').value;
+  const sub = document.getElementById('subject-filter').value;
+  const q = document.getElementById('search-input').value.toLowerCase();
+  visibleIds = STUDENTS.filter(s=>{
+    if(cls && s.cls!==cls) return false;
+    if(sub && s.subject!==sub) return false;
+    if(q && !s.name.toLowerCase().includes(q)) return false;
+    return true;
+  }).map(s=>s.id);
+  renderGrid(visibleIds);
+  updateCount();
+}
+
+function mark(id,status){
+  marks[id] = marks[id]===status ? '' : status;
+  updateStats();
+  updateSaveHint();
+  const card = document.getElementById('card-'+id);
+  if(!card) return;
+  card.className = 'student-card'+(marks[id]?' marked-'+marks[id]:'');
+  card.querySelectorAll('.att-btn').forEach(b=>{
+    b.className='att-btn'+(b.textContent.includes('Present')&&marks[id]==='PRESENT'?' active-PRESENT':b.textContent.includes('Late')&&marks[id]==='LATE'?' active-LATE':b.textContent.includes('Absent')&&marks[id]==='ABSENT'?' active-ABSENT':b.textContent.includes('Excused')&&marks[id]==='EXCUSED'?' active-EXCUSED':'');
+  });
+}
+
+function toggleNote(id){
+  const area = document.getElementById('note-'+id);
+  area.classList.toggle('open');
+  if(area.classList.contains('open')) area.querySelector('textarea').focus();
+}
+
+function saveNote(id,val){notes[id]=val;}
+
+function bulkMark(status){
+  visibleIds.forEach(id=>{ marks[id]=status; });
+  renderGrid(visibleIds);
+  updateStats();
+  updateSaveHint();
+}
+
+function clearAll(){
+  marks={};notes={};
+  renderGrid(visibleIds);
+  updateStats();
+  document.getElementById('save-hint').textContent='No changes yet';
+}
+
+function updateCount(){
+  document.getElementById('roster-count').textContent = `Showing ${visibleIds.length} of ${STUDENTS.length} students`;
+}
+
+function updateStats(){
+  const ids = STUDENTS.map(s=>s.id);
+  const p = ids.filter(id=>marks[id]==='PRESENT').length;
+  const l = ids.filter(id=>marks[id]==='LATE').length;
+  const a = ids.filter(id=>marks[id]==='ABSENT').length;
+  const e = ids.filter(id=>marks[id]==='EXCUSED').length;
+  const u = ids.filter(id=>!marks[id]).length;
+  document.getElementById('s-total').textContent=STUDENTS.length;
+  document.getElementById('s-present').textContent=p;
+  document.getElementById('s-late').textContent=l;
+  document.getElementById('s-absent').textContent=a;
+  document.getElementById('s-excused').textContent=e;
+  document.getElementById('s-unmarked').textContent=u;
+}
+
+function updateSaveHint(){
+  const marked = Object.values(marks).filter(Boolean).length;
+  const total = STUDENTS.length;
+  document.getElementById('save-hint').textContent = marked===0?'No changes yet':`${marked} of ${total} students marked`;
+}
+
+function saveAttendance(){
+  const marked = Object.values(marks).filter(Boolean).length;
+  if(!marked){showToast('Nothing to save — mark at least one student first');return;}
+  showToast(`Saved attendance for ${marked} student${marked!==1?'s':''}!`);
+}
+
+function showToast(msg){
+  const t = document.getElementById('toast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),3000);
+}
+
+applyFilters();
+updateStats();
+updateCount();
+renderHistory();
+</script>

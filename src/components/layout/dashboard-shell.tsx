@@ -4,7 +4,10 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
+import { NavigationNoticeListener } from "@/components/layout/navigation-notice-listener";
+import { useTheme } from "@/components/theme/theme-provider";
 import { SessionUser } from "@/lib/domain/types";
+import { getDefaultPathForRole } from "@/lib/auth/roles";
 import type { PortalType } from "@/lib/navigation/registry";
 import { canAccessPathWithPermissions } from "@/lib/navigation/registry";
 
@@ -16,25 +19,31 @@ export function DashboardShell({
   permissions = [],
   portalType = "school",
   schoolName,
+  currentSessionName,
+  currentTermName,
   children,
 }: {
   session: SessionUser;
   permissions?: string[];
   portalType?: PortalType;
   schoolName?: string;
+  currentSessionName?: string;
+  currentTermName?: string;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
+  const { theme: activeTheme, toggleTheme } = useTheme();
   const canOpenRoute = canAccessPathWithPermissions(session.role, pathname, permissions);
+  const theme = activeTheme === "light" ? "finance-light" : "finance-dark";
 
   useEffect(() => {
     if (!canOpenRoute && portalType === "school") {
-      router.replace(`/unauthorized?from=${encodeURIComponent(pathname)}`);
+      router.replace(`${getDefaultPathForRole(session.role)}?notice=not-authorized&from=${encodeURIComponent(pathname)}`);
     }
-  }, [canOpenRoute, pathname, portalType, router]);
+  }, [canOpenRoute, pathname, portalType, router, session.role]);
 
   if (!canOpenRoute && portalType === "super_admin") {
     return (
@@ -60,13 +69,17 @@ export function DashboardShell({
 
   return (
     <PermissionProvider permissions={permissions}>
-      <div className="flex h-screen overflow-hidden bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))]">
+      <NavigationNoticeListener />
+      <div
+        data-shell-theme={theme}
+        className="finance-shell flex h-screen overflow-hidden"
+      >
         {mobileSidebarOpen && (
           <button
             type="button"
             aria-label="Close sidebar overlay"
             onClick={() => setMobileSidebarOpen(false)}
-            className="fixed inset-0 z-40 bg-black/50 backdrop-blur-[2px] md:hidden"
+            className="fixed inset-0 z-40 bg-black/60 backdrop-blur-md md:hidden"
           />
         )}
 
@@ -78,6 +91,7 @@ export function DashboardShell({
           onToggleCollapse={() => setCollapsed((prev) => !prev)}
           onCloseMobile={() => setMobileSidebarOpen(false)}
           portalType={portalType}
+          theme={theme}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
@@ -87,9 +101,18 @@ export function DashboardShell({
             permissions={permissions}
             portalType={portalType}
             schoolName={schoolName}
+            currentSessionName={currentSessionName}
+            currentTermName={currentTermName}
+            theme={theme}
+            onToggleTheme={toggleTheme}
+            currentThemeMode={activeTheme}
           />
-          <main className="min-w-0 flex-1 overflow-y-auto px-4 pb-4 pt-3 md:px-6 md:pb-6 md:pt-4">
-            {children}
+          <main
+            className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5"
+          >
+            <div key={pathname} className="page-shell-enter">
+              {children}
+            </div>
           </main>
         </div>
       </div>

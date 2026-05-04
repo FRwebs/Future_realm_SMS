@@ -13,6 +13,9 @@ import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { FinanceService } from "./finance.service";
 
+const financeOversightRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
+const financeManagerRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
+
 @ApiTags("finance")
 @Controller("v1/finance")
 @UseGuards(SessionGuard, RolesGuard)
@@ -20,33 +23,33 @@ export class FinanceController {
   constructor(private readonly financeService: FinanceService) {}
 
   private assertFinanceManager(session: SessionPayload) {
-    if (!hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT"])) {
+    if (!hasRole(session.role, [...financeManagerRoles])) {
       throw new ForbiddenException("Only finance managers can perform this action.");
     }
   }
 
   @Get("dashboard")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async dashboard(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.financeService.getFinanceDashboard(session.schoolId) };
   }
 
   @Get("fee-structures")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async listFeeStructures(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.financeService.listFeeStructures(session.schoolId) };
   }
 
   @Post("fee-structures")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async createFeeStructure(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.createFeeStructure(session.schoolId, body) };
   }
 
   @Get("invoices")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async listInvoices(@CurrentSession() session: SessionPayload) {
     return {
       ok: true,
@@ -55,14 +58,20 @@ export class FinanceController {
   }
 
   @Get("invoices/:invoiceId")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async getInvoice(@CurrentSession() session: SessionPayload, @Param("invoiceId") invoiceId: string) {
     return { ok: true, data: await this.financeService.getInvoice(session.schoolId, invoiceId) };
   }
 
+  @Get("students/:studentId")
+  @Roles(...financeOversightRoles)
+  async getStudentFinanceLedger(@CurrentSession() session: SessionPayload, @Param("studentId") studentId: string) {
+    return { ok: true, data: await this.financeService.getStudentFinanceLedger(session.schoolId, studentId) };
+  }
+
   @Post("invoices")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async createInvoice(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return {
@@ -73,7 +82,7 @@ export class FinanceController {
 
   @Post("invoices/generate")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async generateInvoices(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.generateInvoices(session.schoolId, session.userId, body) };
@@ -81,7 +90,7 @@ export class FinanceController {
 
   @Post("payments")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT", "PARENT")
+  @Roles(...financeOversightRoles, "PARENT")
   async initializePayment(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     if (session.role !== "PARENT") this.assertFinanceManager(session);
     return {
@@ -91,14 +100,14 @@ export class FinanceController {
   }
 
   @Get("payments")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async listPayments(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.financeService.listPayments(session.schoolId) };
   }
 
   @Post("payments/manual")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async recordManualPayment(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.recordManualPayment(session.schoolId, session.userId, body) };
@@ -106,7 +115,7 @@ export class FinanceController {
 
   @Post("payments/verify")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async verifyOnlinePayment(@CurrentSession() session: SessionPayload, @Body() body: { reference?: string }) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.verifyOnlinePayment(session.schoolId, session.userId, body.reference ?? "") };
@@ -114,7 +123,7 @@ export class FinanceController {
 
   @Post("discounts")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async applyDiscount(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.applyDiscount(session.schoolId, session.userId, body) };
@@ -122,21 +131,21 @@ export class FinanceController {
 
   @Post("waivers")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async applyWaiver(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.applyWaiver(session.schoolId, session.userId, body) };
   }
 
   @Get("installment-plans")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async listInstallmentPlans(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.financeService.listInstallmentPlans(session.schoolId) };
   }
 
   @Post("installment-plans")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeManagerRoles)
   async createInstallmentPlan(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.createInstallmentPlan(session.schoolId, session.userId, body) };
@@ -144,7 +153,7 @@ export class FinanceController {
 
   @Get("reports/export")
   @Header("Content-Type", "text/csv")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT")
+  @Roles(...financeOversightRoles)
   async exportReport(@CurrentSession() session: SessionPayload) {
     return this.financeService.exportFinanceReport(session.schoolId);
   }

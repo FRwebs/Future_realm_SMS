@@ -35,8 +35,8 @@ function PageButton({
       className={cn(
         "flex h-9 min-w-9 items-center justify-center rounded-xl border px-2 text-[12px] font-semibold transition",
         active
-          ? "border-primary-500 bg-primary-500 text-white shadow-sm"
-          : "border-transparent text-slate-600 hover:border-slate-200 hover:bg-slate-50",
+          ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)] shadow-[var(--shadow-sm)]"
+          : "border-transparent text-[var(--color-text-secondary)] hover:border-[var(--color-border-default)] hover:bg-[var(--color-bg-elevated)]",
         props.disabled && "cursor-not-allowed opacity-40 hover:bg-transparent",
         className
       )}
@@ -67,11 +67,11 @@ export function Pagination({
 
   return (
     <div className={cn("flex flex-col items-center justify-between gap-3 sm:flex-row", className)}>
-      <div className="flex flex-wrap items-center gap-3 text-[12px] text-slate-500">
+      <div className="flex flex-wrap items-center gap-3 text-[12px] text-[var(--color-text-secondary)]">
         {showItemCount ? (
           <span>
-            Showing <span className="font-semibold text-slate-700">{startItem}-{endItem}</span> of{" "}
-            <span className="font-semibold text-slate-700">{totalItems.toLocaleString()}</span> results
+            Showing <span className="font-semibold text-[var(--color-text-primary)]">{startItem}-{endItem}</span> of{" "}
+            <span className="font-semibold text-[var(--color-text-primary)]">{totalItems.toLocaleString()}</span> results
           </span>
         ) : null}
         {showPageSizeSelector ? (
@@ -80,7 +80,7 @@ export function Pagination({
             <select
               value={pageSize}
               onChange={(event) => onPageSizeChange(Number(event.target.value))}
-              className="h-9 rounded-xl border border-slate-200 bg-white px-3 text-[12px] font-semibold text-slate-700 outline-none transition focus:border-primary-500 focus:ring-4 focus:ring-primary-100"
+              className="h-9 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 text-[12px] font-semibold text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-border-focus)] focus:ring-4 focus:ring-[var(--color-accent-primary-dim)]"
             >
               {pageSizeOptions.map((option) => (
                 <option key={option} value={option}>
@@ -101,7 +101,7 @@ export function Pagination({
         </PageButton>
         {pageNumbers(safePage, totalPages).map((page, index) =>
           page === "..." ? (
-            <span key={`ellipsis-${index}`} className="w-8 text-center text-[0.8rem] text-slate-400">
+            <span key={`ellipsis-${index}`} className="w-8 text-center text-[0.8rem] text-[var(--color-text-muted)]">
               ...
             </span>
           ) : (

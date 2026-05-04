@@ -484,9 +484,9 @@ export function getDashboardQuickActions(role: Role): DashboardQuickAction[] {
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "HEAD_OF_DEPARTMENT", "ADMIN_OFFICER"]
     },
     {
-      label: "My subjects",
-      href: "/my-subjects",
-      description: "Open assigned subjects and class-specific scheme-of-work progress.",
+      label: "Lesson notes",
+      href: "/portals/teacher/content/lesson-notes/planning",
+      description: "Open teaching lanes, planning notes, and curriculum-linked lesson flow.",
       roleScope: ["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"]
     },
     {

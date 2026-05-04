@@ -1,11 +1,12 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { z } from "zod";
 
+import { verifyPassword } from "../../../../src/lib/auth/password";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoStore } from "../../../../src/lib/demo/data";
 import {
   allocatePaymentAcrossInvoices,
   calculateInvoiceTotals,
@@ -14,16 +15,25 @@ import {
   toMoney
 } from "../../../../src/lib/domain/finance";
 import {
+  AuditLogView,
+  BudgetAllocationView,
+  ExpenditureView,
+  FeeAssignmentView,
   FeeStructureView,
   FinanceDashboardView,
+  FinanceSettingsView,
   InstallmentPlanView,
   InvoiceView,
   PaymentView,
-  ReceiptView
+  PayrollStaffMemberView,
+  PayrollItemView,
+  PayrollRunView,
+  PayrollWorkspaceView,
+  ReceiptView,
+  StudentFinanceLedgerView
 } from "../../../../src/lib/domain/types";
 import { getPaymentGateway } from "../../../../src/lib/integrations/payment-gateways";
 import { formatNigeriaClassName, normalizeNigeriaClassValue } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const moneySchema = z.coerce.number().min(0);
 const dateStringSchema = z.string().min(4).refine((value) => !Number.isNaN(new Date(value).getTime()), "Invalid date");
@@ -78,6 +88,7 @@ export const paymentSchema = z.object({
   invoiceId: z.string(),
   email: z.string().email().optional().or(z.literal("")),
   amount: z.coerce.number().min(1),
+  allowOverpayment: z.coerce.boolean().default(false),
   method: z.enum(["CASH", "TRANSFER", "BANK_TRANSFER", "POS", "CHEQUE", "ONLINE", "USSD"]).default("ONLINE"),
   provider: z.enum(["PAYSTACK", "FLUTTERWAVE"]).optional(),
   reference: z.string().optional().or(z.literal("")),
@@ -104,6 +115,65 @@ export const installmentPlanSchema = z.object({
   installments: z.array(z.object({ dueOn: dateStringSchema, amount: z.coerce.number().min(1) })).min(1)
 });
 
+export const feeAssignmentSchema = z.object({
+  studentId: z.string(),
+  feeStructureId: z.string(),
+  dueDate: dateStringSchema.optional().or(z.literal("")),
+});
+
+export const bulkFeeAssignmentSchema = z.object({
+  classId: z.string(),
+  feeStructureId: z.string(),
+  studentIds: z.array(z.string()).optional(),
+  dueDate: dateStringSchema.optional().or(z.literal("")),
+});
+
+export const feeAssignmentDiscountSchema = z.object({
+  discountType: z.enum(["FIXED", "PERCENTAGE"]).default("FIXED"),
+  value: z.coerce.number().min(0.01),
+  reason: z.string().min(3),
+  approvalStatus: z.string().optional().or(z.literal("")),
+});
+
+export const reversePaymentSchema = z.object({
+  reason: z.string().min(20),
+  password: z.string().min(8),
+});
+
+export const expenditureSchema = z.object({
+  category: z.string().min(2),
+  description: z.string().min(3),
+  amount: z.coerce.number().min(0.01),
+  paymentMethod: z.string().min(2),
+  paidTo: z.string().min(2),
+  receiptUrl: z.string().url().optional().or(z.literal("")),
+  expenditureDate: dateStringSchema,
+  notes: z.string().optional().or(z.literal("")),
+});
+
+export const payrollRunSchema = z.object({
+  academicSessionId: z.string().optional().or(z.literal("")),
+  month: z.coerce.number().int().min(1).max(12),
+  year: z.coerce.number().int().min(2000).max(2100),
+  staffItems: z.array(z.object({
+    staffId: z.string(),
+    basicSalary: z.coerce.number().min(0),
+    allowances: z.record(z.coerce.number().min(0)).optional(),
+    deductions: z.record(z.coerce.number().min(0)).optional(),
+  })).min(1),
+});
+
+export const sensitiveActionSchema = z.object({
+  password: z.string().min(8),
+});
+
+export const financeSettingsSchema = z.object({
+  paymentMethods: z.array(z.string()).default(["CASH", "BANK_TRANSFER", "POS", "ONLINE"]),
+  allowOverpayment: z.coerce.boolean().default(false),
+  reminderScheduleDays: z.array(z.coerce.number().int().min(0)).default([3, 0]),
+  receiptPrefix: z.string().min(2).max(6).default("RCT"),
+});
+
 function className(classRoom?: { name: string; arm: string | null } | null) {
   if (!classRoom) return "Unassigned";
   return formatNigeriaClassName(classRoom.arm ? `${classRoom.name} - ${classRoom.arm}` : classRoom.name);
@@ -121,21 +191,31 @@ function jsonValue(value: Record<string, unknown>): Prisma.InputJsonValue {
   return JSON.parse(JSON.stringify(value)) as Prisma.InputJsonValue;
 }
 
+function sumJsonAmounts(payload: Prisma.JsonValue | null | undefined) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) return 0;
+  return Object.values(payload as Record<string, unknown>).reduce<number>((sum, value) => sum + Number(value ?? 0), 0);
+}
+
+function normalizeName(value: string) {
+  return value.trim().toLowerCase().replace(/\s+/g, " ");
+}
+
 @Injectable()
 export class FinanceService {
   async getFinanceDashboard(schoolId: string): Promise<FinanceDashboardView> {
-    const [invoices, feeStructures, payments, installmentPlans, auditTrail] = await Promise.all([
+    const [invoices, feeStructures, feeAssignments, payments, installmentPlans, expenditures, payrollRuns, auditTrail] = await Promise.all([
       this.listInvoices(schoolId),
       this.listFeeStructures(schoolId),
+      this.listFeeAssignments(schoolId),
       this.listPayments(schoolId),
       this.listInstallmentPlans(schoolId),
-      env.DEMO_MODE
-        ? []
-        : prisma.auditLog.findMany({
-            where: { schoolId, entityType: { in: ["Invoice", "Payment", "Receipt", "InvoiceAdjustment", "InstallmentPlan"] } },
-            orderBy: { createdAt: "desc" },
-            take: 20
-          })
+      this.listExpenditures(schoolId),
+      this.listPayrollRuns(schoolId),
+      prisma.auditLog.findMany({
+        where: { schoolId, entityType: { in: ["Invoice", "Payment", "Receipt", "InvoiceAdjustment", "InstallmentPlan"] } },
+        orderBy: { createdAt: "desc" },
+        take: 20
+      })
     ]);
 
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
@@ -151,9 +231,12 @@ export class FinanceService {
         { label: "Collection rate", value: `${collectionRate}%`, tone: "ink" }
       ],
       feeStructures,
+      feeAssignments,
       invoices,
       payments,
       installmentPlans,
+      expenditures,
+      payrollRuns,
       auditTrail: auditTrail.map((item) => ({
         id: item.id,
         action: item.action,
@@ -166,35 +249,15 @@ export class FinanceService {
   }
 
   async listFeeStructures(schoolId: string): Promise<FeeStructureView[]> {
-    if (env.DEMO_MODE) {
-      return [
-        {
-          id: "fees_jss2_second_term",
-          name: "JSS 2 Second Term Fees",
-          session: "2025/2026",
-          term: "Second Term",
-          className: "JSS 2 - Gold",
-          recurrence: "TERM",
-          isOneTime: false,
-          isActive: true,
-          total: 285000,
-          items: [
-            { id: "fsi_1", label: "Tuition", componentType: "TUITION", amount: 200000, isOptional: false, isActive: true },
-            { id: "fsi_2", label: "Transport", componentType: "TRANSPORT", amount: 60000, isOptional: true, isActive: true },
-            { id: "fsi_3", label: "Development Levy", componentType: "DEVELOPMENT_LEVY", amount: 25000, isOptional: false, isActive: true }
-          ]
-        }
-      ];
-    }
-
     const structures = await prisma.feeStructure.findMany({
-      where: { schoolId },
+      where: { schoolId, deletedAt: null },
       include: { academicSession: true, term: true, classRoom: true, items: true },
       orderBy: { createdAt: "desc" }
     });
     return structures.map((structure) => ({
       id: structure.id,
       name: structure.name,
+      currency: structure.currency,
       session: structure.academicSession?.name,
       term: structure.term?.name,
       className: structure.classRoom ? className(structure.classRoom) : undefined,
@@ -233,7 +296,6 @@ export class FinanceService {
           }
         : payload;
     const parsed = feeStructureSchema.parse(normalized);
-    if (env.DEMO_MODE) return (await this.listFeeStructures(schoolId))[0];
 
     const structure = await prisma.feeStructure.create({
       data: {
@@ -261,17 +323,99 @@ export class FinanceService {
     return (await this.listFeeStructures(schoolId)).find((item) => item.id === structure.id);
   }
 
-  async listInvoices(schoolId: string) {
-    if (env.DEMO_MODE) {
-      return getDemoStore().invoices;
-    }
+  async updateFeeStructure(schoolId: string, feeStructureId: string, actorId: string, payload: unknown) {
+    const parsed = feeStructureSchema.partial().parse(payload);
+    const existing = await prisma.feeStructure.findFirst({
+      where: { schoolId, id: feeStructureId, deletedAt: null },
+      include: { items: true, invoices: { select: { id: true } } },
+    });
+    if (!existing) throw new NotFoundException("Fee structure not found.");
 
+    const nextItems = parsed.items
+      ? {
+          deleteMany: {},
+          create: parsed.items.map((item) => ({
+            label: item.label,
+            componentType: item.componentType,
+            amount: item.amount,
+            isOptional: item.isOptional,
+          })),
+        }
+      : undefined;
+
+    const updated = await prisma.feeStructure.update({
+      where: { id: feeStructureId },
+      data: {
+        name: parsed.name ?? undefined,
+        academicSessionId: parsed.academicSessionId === "" ? null : parsed.academicSessionId ?? undefined,
+        termId: parsed.termId === "" ? null : parsed.termId ?? undefined,
+        classId: parsed.classId === "" ? null : parsed.classId ?? undefined,
+        studentCategory: parsed.studentCategory === "" ? null : parsed.studentCategory ?? undefined,
+        recurrence: parsed.recurrence ?? undefined,
+        isOneTime: parsed.isOneTime ?? undefined,
+        dueDate: parsed.dueDate === "" ? null : parsed.dueDate ? new Date(parsed.dueDate) : undefined,
+        items: nextItems,
+      },
+      include: { academicSession: true, term: true, classRoom: true, items: true },
+    });
+
+    await this.audit(
+      schoolId,
+      actorId,
+      "UPDATE",
+      "FeeStructure",
+      feeStructureId,
+      { name: updated.name },
+      {
+        oldValue: { name: existing.name, totalItems: existing.items.length },
+        newValue: { name: updated.name, totalItems: updated.items.length },
+      },
+    );
+    return (await this.listFeeStructures(schoolId)).find((item) => item.id === updated.id);
+  }
+
+  async archiveFeeStructure(schoolId: string, feeStructureId: string, actorId: string) {
+    const structure = await prisma.feeStructure.findFirst({
+      where: { schoolId, id: feeStructureId, deletedAt: null },
+      include: { invoices: { select: { id: true } } },
+    });
+    if (!structure) throw new NotFoundException("Fee structure not found.");
+    const hadPayments = await prisma.payment.count({
+      where: { schoolId, invoice: { feeStructureId: feeStructureId } },
+    });
+    await prisma.feeStructure.update({
+      where: { id: feeStructureId },
+      data: { isActive: false, deletedAt: new Date() },
+    });
+    await this.audit(
+      schoolId,
+      actorId,
+      "DELETE",
+      "FeeStructure",
+      feeStructureId,
+      { softDeleted: true, hadLinkedPayments: hadPayments > 0 },
+      {
+        oldValue: { isActive: structure.isActive, deletedAt: null },
+        newValue: { isActive: false, deletedAt: new Date().toISOString() },
+      },
+    );
+    return { id: feeStructureId, softDeleted: true, hadLinkedPayments: hadPayments > 0 };
+  }
+
+  async listInvoices(schoolId: string) {
     const invoices = await prisma.invoice.findMany({
       where: { schoolId },
       include: {
-        student: { include: { currentClass: true } },
-        payments: true,
-        receipts: true
+        student: {
+          include: {
+            currentClass: { include: { classLevel: true } },
+          },
+        },
+        classRoom: { include: { classLevel: true } },
+        academicSession: true,
+        term: true,
+        payments: { orderBy: { paidAt: "desc" } },
+        receipts: true,
       },
       orderBy: { issuedOn: "desc" }
     });
@@ -296,6 +440,190 @@ export class FinanceService {
     return invoice;
   }
 
+  async listFeeAssignments(schoolId: string): Promise<FeeAssignmentView[]> {
+    const assignments = await prisma.feeAssignment.findMany({
+      where: { schoolId },
+      include: {
+        student: { include: { currentClass: { include: { classLevel: true } } } },
+        feeStructure: true,
+        academicSession: true,
+        term: true,
+        invoice: true,
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return assignments.map((assignment) => this.mapFeeAssignment(assignment));
+  }
+
+  async assignFeeToStudent(schoolId: string, createdById: string, payload: unknown) {
+    const parsed = feeAssignmentSchema.parse(payload);
+    const [student, feeStructure] = await Promise.all([
+      prisma.student.findFirst({
+        where: { schoolId, id: parsed.studentId },
+        include: { currentClass: { include: { classLevel: true } } },
+      }),
+      prisma.feeStructure.findFirst({
+        where: { schoolId, id: parsed.feeStructureId, deletedAt: null, isActive: true },
+        include: { items: true, academicSession: true, term: true },
+      }),
+    ]);
+    if (!student) throw new NotFoundException("Student not found.");
+    if (!feeStructure) throw new NotFoundException("Fee structure not found.");
+
+    const amountDue = toMoney(feeStructure.items.filter((item) => item.isActive).reduce((sum, item) => sum + Number(item.amount), 0));
+    const assignment = await prisma.feeAssignment.create({
+      data: {
+        schoolId,
+        studentId: student.id,
+        feeStructureId: feeStructure.id,
+        academicSessionId: feeStructure.academicSessionId ?? student.currentSessionId ?? null,
+        termId: feeStructure.termId ?? null,
+        amountDue,
+        finalAmount: amountDue,
+        dueDate: parsed.dueDate ? new Date(parsed.dueDate) : feeStructure.dueDate ?? null,
+        createdById,
+      },
+      include: {
+        student: { include: { currentClass: { include: { classLevel: true } } } },
+        feeStructure: true,
+        academicSession: true,
+        term: true,
+        invoice: true,
+      },
+    });
+
+    await this.audit(schoolId, createdById, "CREATE", "FeeAssignment", assignment.id, {
+      studentId: student.id,
+      feeStructureId: feeStructure.id,
+      amountDue,
+    });
+    return this.mapFeeAssignment(assignment);
+  }
+
+  async assignFeeToClass(schoolId: string, createdById: string, payload: unknown) {
+    const parsed = bulkFeeAssignmentSchema.parse(payload);
+    const feeStructure = await prisma.feeStructure.findFirst({
+      where: { schoolId, id: parsed.feeStructureId, deletedAt: null, isActive: true },
+      include: { items: true },
+    });
+    if (!feeStructure) throw new NotFoundException("Fee structure not found.");
+
+    const students = await prisma.student.findMany({
+      where: {
+        schoolId,
+        currentClassId: parsed.classId,
+        status: "ACTIVE",
+        ...(parsed.studentIds?.length ? { id: { in: parsed.studentIds } } : {}),
+      },
+      include: { currentClass: { include: { classLevel: true } } },
+    });
+    const amountDue = toMoney(feeStructure.items.filter((item) => item.isActive).reduce((sum, item) => sum + Number(item.amount), 0));
+    const createdAssignments: FeeAssignmentView[] = [];
+
+    for (const student of students) {
+      const exists = await prisma.feeAssignment.findFirst({
+        where: {
+          schoolId,
+          studentId: student.id,
+          feeStructureId: feeStructure.id,
+          status: { not: "CANCELLED" },
+        },
+      });
+      if (exists) continue;
+      const assignment = await prisma.feeAssignment.create({
+        data: {
+          schoolId,
+          studentId: student.id,
+          feeStructureId: feeStructure.id,
+          academicSessionId: feeStructure.academicSessionId ?? student.currentSessionId ?? null,
+          termId: feeStructure.termId ?? null,
+          amountDue,
+          finalAmount: amountDue,
+          dueDate: parsed.dueDate ? new Date(parsed.dueDate) : feeStructure.dueDate ?? null,
+          createdById,
+        },
+        include: {
+          student: { include: { currentClass: { include: { classLevel: true } } } },
+          feeStructure: true,
+          academicSession: true,
+          term: true,
+          invoice: true,
+        },
+      });
+      createdAssignments.push(this.mapFeeAssignment(assignment));
+    }
+
+    await this.audit(schoolId, createdById, "CREATE", "FeeAssignment", parsed.classId, {
+      classId: parsed.classId,
+      feeStructureId: parsed.feeStructureId,
+      created: createdAssignments.length,
+    });
+    return createdAssignments;
+  }
+
+  async applyFeeAssignmentDiscount(schoolId: string, assignmentId: string, actorId: string, payload: unknown) {
+    const parsed = feeAssignmentDiscountSchema.parse(payload);
+    const assignment = await prisma.feeAssignment.findFirst({
+      where: { schoolId, id: assignmentId },
+      include: { invoice: true, feeStructure: true },
+    });
+    if (!assignment) throw new NotFoundException("Fee assignment not found.");
+
+    const discountAmount =
+      parsed.discountType === "PERCENTAGE"
+        ? toMoney((Number(assignment.amountDue) * parsed.value) / 100)
+        : toMoney(parsed.value);
+    const finalAmount = toMoney(Math.max(Number(assignment.amountDue) - discountAmount, 0));
+
+    const updated = await prisma.feeAssignment.update({
+      where: { id: assignmentId },
+      data: {
+        discount: discountAmount,
+        finalAmount,
+        discountReason: parsed.reason,
+        approvalStatus: parsed.approvalStatus || (parsed.discountType === "PERCENTAGE" && parsed.value > 20 ? "PENDING_APPROVAL" : "APPROVED"),
+      },
+      include: {
+        student: { include: { currentClass: { include: { classLevel: true } } } },
+        feeStructure: true,
+        academicSession: true,
+        term: true,
+        invoice: true,
+      },
+    });
+
+    if (assignment.invoiceId) {
+      const currentInvoice = assignment.invoice;
+      if (currentInvoice) {
+        const nextTotal = toMoney(Number(currentInvoice.total) - discountAmount);
+        const nextBalance = toMoney(Math.max(Number(currentInvoice.balance) - discountAmount, 0));
+        await prisma.invoice.update({
+          where: { id: currentInvoice.id },
+          data: {
+            discount: toMoney(Number(currentInvoice.discount) + discountAmount),
+            total: nextTotal,
+            balance: nextBalance,
+            status: getInvoiceStatus(nextTotal, nextBalance, currentInvoice.dueOn),
+          },
+        });
+      }
+    }
+
+    await this.audit(
+      schoolId,
+      actorId,
+      "APPROVE",
+      "FeeAssignment",
+      assignmentId,
+      { discountAmount, reason: parsed.reason },
+      {
+        oldValue: { discount: Number(assignment.discount), finalAmount: Number(assignment.finalAmount) },
+        newValue: { discount: discountAmount, finalAmount },
+      },
+    );
+    return this.mapFeeAssignment(updated);
+  }
+
   async createInvoice(schoolId: string, createdById: string, payload: unknown) {
     const parsed = createInvoiceSchema.parse(payload);
     const normalizedClassName = formatNigeriaClassName(parsed.className);
@@ -306,27 +634,7 @@ export class FinanceService {
     ].filter((item) => item.amount > 0);
     if (items.length === 0) throw new BadRequestException("At least one invoice item amount is required.");
     const totals = calculateInvoiceTotals({ items, discount: parsed.discount, fine: parsed.fine });
-
-    if (env.DEMO_MODE) {
-      const invoice: InvoiceView = {
-        id: randomUUID(),
-        invoiceNumber: `INV-2026-${String(getDemoStore().invoices.length + 1).padStart(3, "0")}`,
-        studentName: parsed.studentName,
-        className: normalizedClassName,
-        subtotal: totals.subtotal,
-        discount: totals.discount,
-        fine: totals.fine,
-        total: totals.total,
-        paid: 0,
-        balance: totals.balance,
-        status: parsed.issueAsDraft ? "DRAFT" : totals.status,
-        dueOn: new Date(parsed.dueOn).toISOString()
-      };
-      getDemoStore().invoices.unshift(invoice);
-      return invoice;
-    }
-
-    if (!parsed.studentId) throw new BadRequestException("studentId is required outside demo mode.");
+    if (!parsed.studentId) throw new BadRequestException("studentId is required.");
     const student = await prisma.student.findFirst({ where: { schoolId, id: parsed.studentId }, include: { currentClass: true } });
     if (!student) throw new NotFoundException("Student not found.");
 
@@ -334,6 +642,8 @@ export class FinanceService {
       data: {
         schoolId,
         studentId: parsed.studentId,
+        classId: student.currentClassId ?? null,
+        academicSessionId: student.currentSessionId ?? null,
         feeStructureId: parsed.feeStructureId || null,
         createdById,
         invoiceNumber: nextCode("INV"),
@@ -347,7 +657,14 @@ export class FinanceService {
         status: parsed.issueAsDraft ? "DRAFT" : "ISSUED",
         items: { create: items.map((item) => ({ description: item.description, amount: item.amount, quantity: 1 })) }
       },
-      include: { student: { include: { currentClass: true } }, payments: true, receipts: true }
+      include: {
+        student: { include: { currentClass: { include: { classLevel: true } } } },
+        classRoom: { include: { classLevel: true } },
+        academicSession: true,
+        term: true,
+        payments: true,
+        receipts: true,
+      }
     });
     await this.audit(schoolId, createdById, "CREATE", "Invoice", invoice.id, { total: totals.total, studentId: parsed.studentId });
     await this.notifyStudentGuardians(schoolId, parsed.studentId, "Invoice issued", `${invoice.invoiceNumber} has been issued for ${formatMoneyForAudit(totals.total)}.`);
@@ -385,6 +702,9 @@ export class FinanceService {
         data: {
           schoolId,
           studentId: student.id,
+          classId: student.currentClassId ?? null,
+          academicSessionId: student.currentSessionId ?? null,
+          termId: structure.termId ?? null,
           feeStructureId: structure.id,
           createdById,
           invoiceNumber: nextCode("INV"),
@@ -398,7 +718,14 @@ export class FinanceService {
           status: "ISSUED",
           items: { create: items.map((item) => ({ description: item.description, amount: item.amount, quantity: 1 })) }
         },
-        include: { student: { include: { currentClass: true } }, payments: true, receipts: true }
+        include: {
+          student: { include: { currentClass: { include: { classLevel: true } } } },
+          classRoom: { include: { classLevel: true } },
+          academicSession: true,
+          term: true,
+          payments: true,
+          receipts: true,
+        }
       });
       created.push(this.mapInvoice(invoice));
       await this.notifyStudentGuardians(schoolId, student.id, "Invoice issued", `${invoice.invoiceNumber} has been issued for ${formatMoneyForAudit(totals.total)}.`);
@@ -412,34 +739,9 @@ export class FinanceService {
     const reference = parsed.reference || nextCode("PAY");
     const provider = parsed.provider ?? "PAYSTACK";
 
-    if (env.DEMO_MODE) {
-      const demoInvoice = getDemoStore().invoices.find((item) => item.id === parsed.invoiceId);
-      if (!demoInvoice) throw new NotFoundException("Open invoice not found.");
-      if (parsed.amount > demoInvoice.balance) {
-        throw new BadRequestException("Payment amount cannot exceed the outstanding invoice balance.");
-      }
-      const checkout = await getPaymentGateway(provider).initializePayment({
-        amount: parsed.amount,
-        email: parsed.email || "accounts@greenfieldcollege.ng",
-        reference,
-        callbackUrl: `${process.env.APP_URL ?? "http://localhost:3000"}/finance/payments`,
-        metadata: {
-          school_id: schoolId,
-          invoice_id: parsed.invoiceId,
-          student_name: demoInvoice.studentName,
-          class_name: demoInvoice.className,
-          invoice_number: demoInvoice.invoiceNumber
-        }
-      });
-      demoInvoice.balance = Math.max(demoInvoice.balance - parsed.amount, 0);
-      demoInvoice.status = demoInvoice.balance === 0 ? "PAID" : "PARTIALLY_PAID";
-      demoInvoice.receiptNumber = nextCode("RCT");
-      return checkout;
-    }
-
     const invoice = await this.ensureInvoiceForPayment(schoolId, parsed.invoiceId, session);
-    if (parsed.amount > Number(invoice.balance)) {
-      throw new BadRequestException("Payment amount cannot exceed the outstanding invoice balance.");
+    if (parsed.amount > Number(invoice.balance) && !parsed.allowOverpayment) {
+      throw new BadRequestException("Payment amount exceeds the outstanding balance. Re-submit with overpayment confirmation if intentional.");
     }
     const gateway = getPaymentGateway(provider);
     const studentFullName = studentName(invoice.student);
@@ -498,8 +800,8 @@ export class FinanceService {
     const parsed = paymentSchema.parse(payload);
     if (parsed.method === "ONLINE") throw new BadRequestException("Use online verification for ONLINE payments.");
     const invoice = await this.ensureInvoiceForPayment(schoolId, parsed.invoiceId);
-    if (parsed.amount > Number(invoice.balance)) {
-      throw new BadRequestException("Payment amount cannot exceed the outstanding invoice balance.");
+    if (parsed.amount > Number(invoice.balance) && !parsed.allowOverpayment) {
+      throw new BadRequestException("Payment amount exceeds the outstanding balance. Re-submit with overpayment confirmation if intentional.");
     }
     return this.createSuccessfulPayment(schoolId, recordedById, invoice, {
       amount: parsed.amount,
@@ -601,7 +903,7 @@ export class FinanceService {
         invoiceId: payment.invoice.id,
         paymentId: payment.id,
         issuedById,
-        receiptNumber: nextCode("RCT"),
+        receiptNumber: await this.nextReceiptNumber(schoolId, payment.invoice.termId ?? undefined),
         amount: payment.amount,
         currency: payment.currency,
         metadata: { paymentReference: payment.reference }
@@ -694,35 +996,147 @@ export class FinanceService {
   }
 
   async listPayments(schoolId: string): Promise<PaymentView[]> {
-    if (env.DEMO_MODE) return [];
     const payments = await prisma.payment.findMany({
       where: { schoolId },
-      include: { student: true, invoice: true, receipts: true },
+      include: {
+        student: { include: { currentClass: { include: { classLevel: true } } } },
+        invoice: {
+          include: {
+            academicSession: true,
+            term: true,
+            classRoom: { include: { classLevel: true } },
+          },
+        },
+        receipts: true,
+        recordedBy: true,
+      },
       orderBy: { paidAt: "desc" },
-      take: 100
     });
-    return payments.map((payment) => ({
-      id: payment.id,
-      reference: payment.reference,
-      studentName: studentName(payment.student),
-      invoiceNumber: payment.invoice?.invoiceNumber,
-      receiptNumber: payment.receipts[0]?.receiptNumber,
-      amount: Number(payment.amount),
-      status: payment.status,
-      method: payment.method,
-      provider: payment.provider ?? undefined,
-      paidAt: payment.paidAt?.toISOString()
-    }));
+    return payments.map((payment) => this.mapPayment(payment));
   }
 
   async listInstallmentPlans(schoolId: string): Promise<InstallmentPlanView[]> {
-    if (env.DEMO_MODE) return [];
     const plans = await prisma.installmentPlan.findMany({
       where: { schoolId },
-      include: { student: { include: { currentClass: true } }, invoice: true, items: true },
+      include: {
+        student: { include: { currentClass: { include: { classLevel: true } } } },
+        invoice: {
+          include: {
+            academicSession: true,
+            term: true,
+            classRoom: { include: { classLevel: true } },
+          },
+        },
+        items: true,
+      },
       orderBy: { createdAt: "desc" }
     });
     return plans.map((plan) => this.mapInstallmentPlan(plan));
+  }
+
+  async getStudentFinanceLedger(schoolId: string, studentId: string): Promise<StudentFinanceLedgerView> {
+    const student = await prisma.student.findFirst({
+      where: { schoolId, id: studentId },
+      include: {
+        currentClass: { include: { classLevel: true } },
+        currentSession: true,
+        guardians: { include: { guardian: true } },
+      },
+    });
+    if (!student) throw new NotFoundException("Student not found.");
+
+    const [invoicesRaw, paymentsRaw, plansRaw] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { schoolId, studentId },
+        include: {
+          student: { include: { currentClass: { include: { classLevel: true } } } },
+          classRoom: { include: { classLevel: true } },
+          academicSession: true,
+          term: true,
+          payments: { orderBy: { paidAt: "desc" } },
+          receipts: true,
+          adjustments: { orderBy: { createdAt: "desc" } },
+        },
+        orderBy: { issuedOn: "desc" },
+      }),
+      prisma.payment.findMany({
+        where: { schoolId, studentId },
+        include: {
+          student: { include: { currentClass: { include: { classLevel: true } } } },
+          invoice: {
+            include: {
+              academicSession: true,
+              term: true,
+              classRoom: { include: { classLevel: true } },
+            },
+          },
+          receipts: true,
+          recordedBy: true,
+        },
+        orderBy: { paidAt: "desc" },
+      }),
+      prisma.installmentPlan.findMany({
+        where: { schoolId, studentId },
+        include: {
+          student: { include: { currentClass: { include: { classLevel: true } } } },
+          invoice: {
+            include: {
+              academicSession: true,
+              term: true,
+              classRoom: { include: { classLevel: true } },
+            },
+          },
+          items: true,
+        },
+        orderBy: { createdAt: "desc" },
+      }),
+    ]);
+
+    const invoices = invoicesRaw.map((invoice) => this.mapInvoice(invoice));
+    const payments = paymentsRaw.map((payment) => this.mapPayment(payment));
+    const installmentPlans = plansRaw.map((plan) => this.mapInstallmentPlan(plan));
+    const adjustments = invoicesRaw.flatMap((invoice) =>
+      invoice.adjustments.map((adjustment) => ({
+        id: adjustment.id,
+        type: adjustment.type,
+        valueType: adjustment.valueType,
+        value: Number(adjustment.value),
+        amount: Number(adjustment.amount),
+        reason: adjustment.reason,
+        createdAt: adjustment.createdAt.toISOString(),
+        invoiceNumber: invoice.invoiceNumber,
+        session: invoice.academicSession?.name ?? undefined,
+        term: invoice.term?.name ?? undefined,
+      })),
+    );
+
+    const primaryGuardian =
+      student.guardians.find((item) => item.isPrimary)?.guardian ?? student.guardians[0]?.guardian;
+
+    return {
+      studentId: student.id,
+      studentName: studentName(student),
+      admissionNumber: student.admissionNumber,
+      status: student.status,
+      className: className(student.currentClass),
+      classLevel: student.currentClass?.classLevel?.name ?? undefined,
+      currentSession: student.currentSession?.name ?? undefined,
+      guardianName: primaryGuardian ? `${primaryGuardian.firstName} ${primaryGuardian.lastName}` : undefined,
+      guardianPhone: primaryGuardian?.phone ?? undefined,
+      guardianEmail: primaryGuardian?.email ?? undefined,
+      metrics: {
+        totalBilled: invoices.reduce((sum, item) => sum + item.total, 0),
+        totalPaid: invoices.reduce((sum, item) => sum + (item.paid ?? 0), 0),
+        outstanding: invoices.reduce((sum, item) => sum + item.balance, 0),
+        overdueInvoices: invoices.filter((item) => item.status === "OVERDUE").length,
+        activeInstallmentPlans: installmentPlans.filter((item) => item.status !== "COMPLETED").length,
+        lastPaymentAt: payments.find((item) => item.paidAt)?.paidAt,
+      },
+      invoices,
+      payments,
+      installmentPlans,
+      adjustments,
+    };
   }
 
   async exportFinanceReport(schoolId: string) {
@@ -739,6 +1153,593 @@ export class FinanceService {
       invoice.dueOn
     ]);
     return [header, ...rows].map((row) => row.map((cell) => `"${cell.replaceAll("\"", "\"\"")}"`).join(",")).join("\n");
+  }
+
+  async reversePayment(schoolId: string, actorId: string, paymentId: string, payload: unknown, ipAddress?: string) {
+    const parsed = reversePaymentSchema.parse(payload);
+    await this.assertPassword(actorId, parsed.password);
+    const payment = await prisma.payment.findFirst({
+      where: { schoolId, id: paymentId },
+      include: { invoice: true, allocations: true, student: true },
+    });
+    if (!payment || !payment.invoice) throw new NotFoundException("Payment not found.");
+    if (payment.isReversed || payment.status === "REVERSED") {
+      throw new BadRequestException("Payment has already been reversed.");
+    }
+    const currentBalance = Number(payment.invoice.balance);
+    const restoredBalance = toMoney(currentBalance + Number(payment.amount));
+
+    await prisma.$transaction([
+      prisma.payment.update({
+        where: { id: payment.id },
+        data: {
+          status: "REVERSED",
+          isReversed: true,
+          reversalReason: parsed.reason,
+          reversedById: actorId,
+          reversedAt: new Date(),
+          gatewayStatus: payment.gateway ? "REVERSED" : payment.gatewayStatus,
+        },
+      }),
+      prisma.invoice.update({
+        where: { id: payment.invoice.id },
+        data: {
+          balance: restoredBalance,
+          status: getInvoiceStatus(Number(payment.invoice.total), restoredBalance, payment.invoice.dueOn),
+        },
+      }),
+      prisma.invoiceAdjustment.create({
+        data: {
+          schoolId,
+          invoiceId: payment.invoice.id,
+          appliedById: actorId,
+          approvedById: actorId,
+          type: "REVERSAL",
+          valueType: "FIXED",
+          value: Number(payment.amount),
+          amount: Number(payment.amount),
+          reason: parsed.reason,
+          metadata: jsonValue({ paymentId: payment.id, paymentReference: payment.reference }),
+        },
+      }),
+    ]);
+
+    await this.audit(
+      schoolId,
+      actorId,
+      "UPDATE",
+      "Payment",
+      payment.id,
+      { reversed: true, reason: parsed.reason },
+      {
+        oldValue: {
+          status: payment.status,
+          isReversed: payment.isReversed,
+          balance: currentBalance,
+        },
+        newValue: {
+          status: "REVERSED",
+          isReversed: true,
+          balance: restoredBalance,
+        },
+        ipAddress,
+      },
+    );
+    return { ok: true, paymentId: payment.id, invoiceId: payment.invoice.id };
+  }
+
+  async buildReceiptPdf(schoolId: string, paymentId: string) {
+    const payment = await prisma.payment.findFirst({
+      where: { schoolId, id: paymentId },
+      include: {
+        student: { include: { currentClass: true } },
+        invoice: { include: { items: true, term: true, academicSession: true } },
+        recordedBy: true,
+        receipts: true,
+      },
+    });
+    if (!payment?.invoice) throw new NotFoundException("Payment not found.");
+    const receipt = payment.receipts[0] ?? await this.generateReceipt(schoolId, payment.recordedById ?? undefined, payment.id);
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException("School not found.");
+
+    const pdf = await PDFDocument.create();
+    const page = pdf.addPage([595, 842]);
+    const regular = await pdf.embedFont(StandardFonts.Helvetica);
+    const bold = await pdf.embedFont(StandardFonts.HelveticaBold);
+    const { width, height } = page.getSize();
+
+    page.drawRectangle({ x: 32, y: height - 110, width: width - 64, height: 78, color: rgb(0.96, 0.98, 0.97) });
+    page.drawText(school.name, { x: 48, y: height - 62, size: 20, font: bold, color: rgb(0.07, 0.13, 0.09) });
+    page.drawText([school.address, school.city, school.state].filter(Boolean).join(", ") || "School address", {
+      x: 48, y: height - 82, size: 10, font: regular, color: rgb(0.33, 0.39, 0.36),
+    });
+    page.drawText("OFFICIAL RECEIPT", { x: 48, y: height - 136, size: 16, font: bold, color: rgb(0.07, 0.13, 0.09) });
+
+    const topMetaY = height - 170;
+    const lineGap = 18;
+    const metaRows = [
+      ["Receipt Number", typeof receipt === "string" ? receipt : receipt.receiptNumber],
+      ["Date", new Date(payment.paidAt ?? new Date()).toLocaleDateString("en-NG")],
+      ["Student", studentName(payment.student)],
+      ["Class", className(payment.student.currentClass)],
+      ["Session / Term", `${payment.invoice.academicSession?.name ?? "-"} / ${payment.invoice.term?.name ?? "-"}`],
+      ["Reference", payment.reference],
+      ["Payment Method", payment.method],
+      ["Cashier", payment.recordedBy ? `${payment.recordedBy.firstName} ${payment.recordedBy.lastName}` : "Bursary Desk"],
+    ];
+    metaRows.forEach(([label, value], index) => {
+      const y = topMetaY - index * lineGap;
+      page.drawText(`${label}:`, { x: 48, y, size: 10, font: bold, color: rgb(0.25, 0.3, 0.28) });
+      page.drawText(String(value), { x: 170, y, size: 10, font: regular, color: rgb(0.07, 0.13, 0.09) });
+    });
+
+    const tableTop = height - 360;
+    page.drawRectangle({ x: 48, y: tableTop, width: width - 96, height: 24, color: rgb(0.11, 0.2, 0.14) });
+    page.drawText("Fee description", { x: 56, y: tableTop + 8, size: 10, font: bold, color: rgb(1, 1, 1) });
+    page.drawText("Amount", { x: width - 140, y: tableTop + 8, size: 10, font: bold, color: rgb(1, 1, 1) });
+
+    payment.invoice.items.forEach((item, index) => {
+      const y = tableTop - 26 - index * 20;
+      page.drawText(item.description, { x: 56, y, size: 10, font: regular, color: rgb(0.07, 0.13, 0.09) });
+      page.drawText(formatMoneyForAudit(Number(item.amount), payment.currency), { x: width - 180, y, size: 10, font: regular, color: rgb(0.07, 0.13, 0.09) });
+    });
+
+    const amountY = tableTop - 26 - payment.invoice.items.length * 20 - 24;
+    page.drawText(`Amount Paid: ${formatMoneyForAudit(Number(payment.amount), payment.currency)}`, {
+      x: 48, y: amountY, size: 14, font: bold, color: rgb(0.07, 0.13, 0.09),
+    });
+    page.drawText(`Outstanding Balance: ${formatMoneyForAudit(Number(payment.invoice.balance), payment.currency)}`, {
+      x: 48, y: amountY - 24, size: 11, font: regular, color: rgb(0.57, 0.11, 0.11),
+    });
+    page.drawRectangle({ x: width - 180, y: amountY - 46, width: 116, height: 48, borderWidth: 1, borderColor: rgb(0.82, 0.84, 0.83) });
+    page.drawText("Official Stamp", { x: width - 155, y: amountY - 22, size: 10, font: regular, color: rgb(0.45, 0.49, 0.47) });
+    page.drawText("This receipt is computer-generated and valid without a signature.", {
+      x: 48, y: 72, size: 9, font: regular, color: rgb(0.42, 0.46, 0.44),
+    });
+
+    return Buffer.from(await pdf.save());
+  }
+
+  async listExpenditures(schoolId: string): Promise<ExpenditureView[]> {
+    const expenses = await prisma.expense.findMany({
+      where: { schoolId, deletedAt: null },
+      orderBy: { expenseDate: "desc" },
+    });
+    return expenses.map((expense) => ({
+      id: expense.id,
+      category: expense.category,
+      description: expense.title,
+      amount: Number(expense.amount),
+      paymentMethod: expense.paymentMethod ?? undefined,
+      paidTo: expense.paidTo ?? undefined,
+      receiptUrl: expense.receiptUrl ?? undefined,
+      recordedById: expense.recordedById ?? undefined,
+      expenditureDate: expense.expenseDate.toISOString(),
+      notes: expense.notes ?? undefined,
+    }));
+  }
+
+  async createExpenditure(schoolId: string, actorId: string, payload: unknown, ipAddress?: string) {
+    const parsed = expenditureSchema.parse(payload);
+    const expense = await prisma.expense.create({
+      data: {
+        schoolId,
+        title: parsed.description,
+        category: parsed.category,
+        amount: parsed.amount,
+        paymentMethod: parsed.paymentMethod,
+        paidTo: parsed.paidTo,
+        receiptUrl: parsed.receiptUrl || null,
+        recordedById: actorId,
+        expenseDate: new Date(parsed.expenditureDate),
+        notes: parsed.notes || null,
+      },
+    });
+    await this.audit(
+      schoolId,
+      actorId,
+      "CREATE",
+      "Expense",
+      expense.id,
+      { category: expense.category, amount: Number(expense.amount) },
+      { newValue: { description: expense.title, paidTo: expense.paidTo }, ipAddress },
+    );
+    return this.listExpenditures(schoolId);
+  }
+
+  async listPayrollRuns(schoolId: string): Promise<PayrollRunView[]> {
+    const runs = await prisma.payrollRun.findMany({
+      where: { schoolId },
+      include: {
+        academicSession: true,
+        items: { include: { staff: { include: { user: true, department: true } } } },
+      },
+      orderBy: [{ year: "desc" }, { month: "desc" }],
+    });
+    return runs.map((run) => this.mapPayrollRun(run));
+  }
+
+  async listPayrollStaffRoster(schoolId: string): Promise<PayrollStaffMemberView[]> {
+    const staffProfiles = await prisma.staffProfile.findMany({
+      where: {
+        schoolId,
+        user: {
+          deletedAt: null,
+        },
+      },
+      include: {
+        user: true,
+        department: true,
+        payrollItems: {
+          orderBy: [{ paidAt: "desc" }, { createdAt: "desc" }],
+          take: 1,
+          include: { payrollRun: true },
+        },
+      },
+      orderBy: [{ department: { name: "asc" } }, { employeeNo: "asc" }],
+    });
+
+    return staffProfiles.map((profile) => {
+      const latestPayroll = profile.payrollItems[0];
+      return {
+        id: profile.id,
+        userId: profile.userId,
+        staffName: `${profile.user.firstName} ${profile.user.lastName}`.trim(),
+        employeeNo: profile.employeeNo,
+        departmentName: profile.department?.name ?? undefined,
+        designation: profile.designation,
+        employmentType: profile.employmentType ?? undefined,
+        salaryBand: profile.salaryBand ?? undefined,
+        accountStatus: profile.user.accountStatus,
+        isActive: profile.user.isActive,
+        lastBasicSalary: latestPayroll ? Number(latestPayroll.basicSalary) : undefined,
+        lastNetSalary: latestPayroll ? Number(latestPayroll.netSalary) : undefined,
+        lastPayrollMonth: latestPayroll?.payrollRun.month,
+        lastPayrollYear: latestPayroll?.payrollRun.year,
+      };
+    });
+  }
+
+  async getPayrollWorkspace(schoolId: string): Promise<PayrollWorkspaceView> {
+    const [currentSession, sessions, staff, payrollRuns] = await Promise.all([
+      prisma.academicSession.findFirst({
+        where: { schoolId, isCurrent: true },
+        select: { id: true, name: true },
+      }),
+      prisma.academicSession.findMany({
+        where: { schoolId },
+        select: { id: true, name: true, isCurrent: true, startDate: true },
+        orderBy: [{ isCurrent: "desc" }, { startDate: "desc" }],
+      }),
+      this.listPayrollStaffRoster(schoolId),
+      this.listPayrollRuns(schoolId),
+    ]);
+
+    return {
+      currentSessionId: currentSession?.id,
+      currentSessionName: currentSession?.name,
+      sessions: sessions.map((session) => ({ id: session.id, name: session.name })),
+      staff,
+      payrollRuns,
+    };
+  }
+
+  async processPayrollRun(schoolId: string, actorId: string, payload: unknown, ipAddress?: string) {
+    const normalized =
+      payload && typeof payload === "object" && !Array.isArray(payload) && "staffItemsJson" in payload
+        ? {
+            ...payload,
+            staffItems: (() => {
+              const raw = (payload as Record<string, unknown>).staffItemsJson;
+              if (typeof raw !== "string" || !raw.trim()) return [];
+              try {
+                return JSON.parse(raw);
+              } catch {
+                return [];
+              }
+            })(),
+          }
+        : payload;
+    const parsed = payrollRunSchema.parse(normalized);
+    const existing = await prisma.payrollRun.findFirst({
+      where: { schoolId, month: parsed.month, year: parsed.year },
+    });
+    if (existing?.status === "PUBLISHED") {
+      throw new BadRequestException("Payroll has already been published for that month.");
+    }
+
+    if (existing) {
+      await prisma.payrollItem.deleteMany({ where: { payrollRunId: existing.id } });
+    }
+
+    const run = existing
+      ? await prisma.payrollRun.update({
+          where: { id: existing.id },
+          data: {
+            academicSessionId: parsed.academicSessionId || null,
+            status: "PROCESSED",
+            processedById: actorId,
+            processedAt: new Date(),
+          },
+        })
+      : await prisma.payrollRun.create({
+          data: {
+            schoolId,
+            academicSessionId: parsed.academicSessionId || null,
+            month: parsed.month,
+            year: parsed.year,
+            status: "PROCESSED",
+            processedById: actorId,
+            processedAt: new Date(),
+          },
+        });
+
+    for (const item of parsed.staffItems) {
+      const allowances = (item.allowances ?? {}) as Record<string, number>;
+      const deductions = (item.deductions ?? {}) as Record<string, number>;
+      const netSalary = toMoney(item.basicSalary + sumJsonAmounts(allowances) - sumJsonAmounts(deductions));
+      await prisma.payrollItem.create({
+        data: {
+          schoolId,
+          payrollRunId: run.id,
+          staffId: item.staffId,
+          basicSalary: item.basicSalary,
+          allowances: allowances as Prisma.InputJsonValue,
+          deductions: deductions as Prisma.InputJsonValue,
+          netSalary,
+        },
+      });
+    }
+
+    await this.audit(
+      schoolId,
+      actorId,
+      "CREATE",
+      "PayrollRun",
+      run.id,
+      { month: parsed.month, year: parsed.year, staffCount: parsed.staffItems.length },
+      { ipAddress },
+    );
+    return (await this.listPayrollRuns(schoolId)).find((item) => item.id === run.id);
+  }
+
+  async getPayrollRunItems(schoolId: string, payrollRunId: string): Promise<PayrollItemView[]> {
+    const run = await prisma.payrollRun.findFirst({
+      where: { schoolId, id: payrollRunId },
+      include: { items: { include: { staff: { include: { user: true } } } } },
+    });
+    if (!run) throw new NotFoundException("Payroll run not found.");
+    return run.items.map((item) => this.mapPayrollItem(item));
+  }
+
+  async publishPayrollRun(schoolId: string, actorId: string, payrollRunId: string, payload: unknown, ipAddress?: string) {
+    const parsed = sensitiveActionSchema.parse(payload);
+    await this.assertPassword(actorId, parsed.password);
+    const run = await prisma.payrollRun.findFirst({
+      where: { schoolId, id: payrollRunId },
+      include: { items: { include: { staff: { include: { user: true } } } }, academicSession: true },
+    });
+    if (!run) throw new NotFoundException("Payroll run not found.");
+    if (run.status === "PUBLISHED") {
+      throw new BadRequestException("Payroll has already been published.");
+    }
+    await prisma.$transaction([
+      prisma.payrollRun.update({
+        where: { id: payrollRunId },
+        data: { status: "PUBLISHED", publishedAt: new Date(), processedById: actorId, processedAt: new Date() },
+      }),
+      prisma.payrollItem.updateMany({
+        where: { payrollRunId },
+        data: { payslipSent: true, paidAt: new Date() },
+      }),
+    ]);
+    await this.notifyStaffPayroll(schoolId, run.items.map((item) => item.staff), run.month, run.year);
+    await this.audit(
+      schoolId,
+      actorId,
+      "APPROVE",
+      "PayrollRun",
+      payrollRunId,
+      { published: true, staffCount: run.items.length },
+      { ipAddress, oldValue: { status: run.status }, newValue: { status: "PUBLISHED" } },
+    );
+    return (await this.listPayrollRuns(schoolId)).find((item) => item.id === payrollRunId);
+  }
+
+  async listFinanceAuditLogs(schoolId: string): Promise<AuditLogView[]> {
+    const logs = await prisma.auditLog.findMany({
+      where: {
+        schoolId,
+        entityType: {
+          in: ["FeeStructure", "FeeAssignment", "Invoice", "Payment", "Receipt", "InvoiceAdjustment", "InstallmentPlan", "Expense", "PayrollRun"],
+        },
+      },
+      include: { actor: true },
+      orderBy: { createdAt: "desc" },
+      take: 300,
+    });
+    return logs.map((log) => ({
+      id: log.id,
+      userId: log.actorId ?? undefined,
+      userName: log.actor ? `${log.actor.firstName} ${log.actor.lastName}` : undefined,
+      action: log.action,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      oldValue: (log.oldValue as Record<string, unknown> | null | undefined) ?? undefined,
+      newValue: (log.newValue as Record<string, unknown> | null | undefined) ?? undefined,
+      ipAddress: log.ipAddress ?? undefined,
+      detail: JSON.stringify(log.metadata ?? {}),
+      timestamp: log.createdAt.toISOString(),
+    }));
+  }
+
+  async getFinanceSettings(schoolId: string): Promise<FinanceSettingsView> {
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    if (!school) throw new NotFoundException("School not found.");
+    const config = await prisma.configurationItem.findFirst({
+      where: { schoolId, resource: "finance", code: "BURSARY_SETTINGS", deletedAt: null },
+    });
+    const data = (config?.data ?? {}) as Record<string, unknown>;
+    const contextConfig = await prisma.configurationItem.findFirst({
+      where: { schoolId, resource: "academic-context", code: "CURRENT_ACADEMIC_CONTEXT", deletedAt: null },
+    });
+    const contextData = (contextConfig?.data ?? {}) as Record<string, unknown>;
+    return {
+      currency: school.currency,
+      paymentMethods: Array.isArray(data.paymentMethods) ? data.paymentMethods.map(String) : ["CASH", "BANK_TRANSFER", "POS", "ONLINE"],
+      allowOverpayment: Boolean(data.allowOverpayment),
+      reminderScheduleDays: Array.isArray(data.reminderScheduleDays) ? data.reminderScheduleDays.map((item) => Number(item)) : [3, 0],
+      receiptPrefix: typeof data.receiptPrefix === "string" ? data.receiptPrefix : "RCT",
+      sessionConfig: {
+        currentSession: typeof contextData.academicSessionName === "string" ? contextData.academicSessionName : undefined,
+        currentTerm: typeof contextData.activeTermName === "string" ? contextData.activeTermName : undefined,
+      },
+    };
+  }
+
+  async updateFinanceSettings(schoolId: string, actorId: string, payload: unknown, ipAddress?: string) {
+    const normalized =
+      payload && typeof payload === "object" && !Array.isArray(payload)
+        ? {
+            ...payload,
+            paymentMethods:
+              Array.isArray((payload as Record<string, unknown>).paymentMethods)
+                ? (payload as Record<string, unknown>).paymentMethods
+                : String((payload as Record<string, unknown>).paymentMethodsCsv ?? "")
+                    .split(",")
+                    .map((item) => item.trim())
+                    .filter(Boolean),
+            reminderScheduleDays:
+              Array.isArray((payload as Record<string, unknown>).reminderScheduleDays)
+                ? (payload as Record<string, unknown>).reminderScheduleDays
+                : String((payload as Record<string, unknown>).reminderScheduleCsv ?? "")
+                    .split(",")
+                    .map((item) => Number(item.trim()))
+                    .filter((item) => Number.isFinite(item)),
+          }
+        : payload;
+    const parsed = financeSettingsSchema.parse(normalized);
+    const existing = await this.getFinanceSettings(schoolId);
+    const config = await prisma.configurationItem.upsert({
+      where: {
+        schoolId_resource_code: {
+          schoolId,
+          resource: "finance",
+          code: "BURSARY_SETTINGS",
+        },
+      },
+      update: {
+        name: "Bursary Settings",
+        description: "Accountant and bursary operational settings",
+        data: parsed as Prisma.InputJsonValue,
+        status: "ACTIVE",
+      },
+      create: {
+        schoolId,
+        resource: "finance",
+        name: "Bursary Settings",
+        code: "BURSARY_SETTINGS",
+        description: "Accountant and bursary operational settings",
+        data: parsed as Prisma.InputJsonValue,
+        status: "ACTIVE",
+      },
+    });
+    await this.audit(
+      schoolId,
+      actorId,
+      "SETTINGS_UPDATE",
+      "FinanceSettings",
+      config.id,
+      { updated: true },
+      { oldValue: existing as unknown as Record<string, unknown>, newValue: parsed as unknown as Record<string, unknown>, ipAddress },
+    );
+    return this.getFinanceSettings(schoolId);
+  }
+
+  async sendInvoiceReminder(schoolId: string, actorId: string, invoiceId: string) {
+    const invoice = await prisma.invoice.findFirst({
+      where: { schoolId, id: invoiceId },
+      include: { student: true, term: true, academicSession: true },
+    });
+    if (!invoice) throw new NotFoundException("Invoice not found.");
+    await this.notifyStudentGuardians(
+      schoolId,
+      invoice.studentId,
+      "Invoice reminder",
+      `${invoice.invoiceNumber} for ${invoice.academicSession?.name ?? "current session"} ${invoice.term?.name ?? ""} is due on ${invoice.dueOn.toLocaleDateString("en-NG")}. Outstanding balance: ${formatMoneyForAudit(Number(invoice.balance))}.`,
+    );
+    await this.audit(schoolId, actorId, "UPDATE", "Invoice", invoiceId, { reminderSent: true });
+    return { ok: true, sentAt: new Date().toISOString() };
+  }
+
+  async getFeeCollectionReport(schoolId: string) {
+    const payments = await this.listPayments(schoolId);
+    const totalCollected = payments.filter((item) => item.status === "SUCCESS").reduce((sum, item) => sum + item.amount, 0);
+    const byMethod = Array.from(
+      payments.reduce((map, item) => {
+        map.set(item.method, (map.get(item.method) ?? 0) + item.amount);
+        return map;
+      }, new Map<string, number>()),
+    ).map(([method, amount]) => ({ method, amount }));
+    return { totalCollected, count: payments.length, byMethod, payments };
+  }
+
+  async getDefaultersReport(schoolId: string) {
+    const invoices = (await this.listInvoices(schoolId)).filter((invoice) => invoice.balance > 0);
+    const grouped = new Map<string, { studentId?: string; studentName: string; className: string; billed: number; paid: number; balance: number; lastPaymentAt?: string }>();
+    for (const invoice of invoices) {
+      const key = invoice.studentId ?? invoice.studentName;
+      const current = grouped.get(key) ?? {
+        studentId: invoice.studentId,
+        studentName: invoice.studentName,
+        className: invoice.className,
+        billed: 0,
+        paid: 0,
+        balance: 0,
+        lastPaymentAt: invoice.lastPaymentAt,
+      };
+      current.billed += invoice.total;
+      current.paid += invoice.paid ?? 0;
+      current.balance += invoice.balance;
+      current.lastPaymentAt = current.lastPaymentAt ?? invoice.lastPaymentAt;
+      grouped.set(key, current);
+    }
+    return Array.from(grouped.values()).sort((left, right) => right.balance - left.balance);
+  }
+
+  async getPayrollReport(schoolId: string) {
+    const runs = await this.listPayrollRuns(schoolId);
+    return {
+      totalRuns: runs.length,
+      totalNetSalary: runs.reduce((sum, item) => sum + item.totalNetSalary, 0),
+      runs,
+    };
+  }
+
+  async getExpenditureReport(schoolId: string) {
+    const expenditures = await this.listExpenditures(schoolId);
+    const byCategory = Array.from(
+      expenditures.reduce((map, item) => {
+        map.set(item.category, (map.get(item.category) ?? 0) + item.amount);
+        return map;
+      }, new Map<string, number>()),
+    ).map(([category, amount]) => ({ category, amount }));
+    return { totalSpent: expenditures.reduce((sum, item) => sum + item.amount, 0), byCategory, expenditures };
+  }
+
+  async getIncomeVsExpenditureReport(schoolId: string) {
+    const [feeCollection, expenditure] = await Promise.all([
+      this.getFeeCollectionReport(schoolId),
+      this.getExpenditureReport(schoolId),
+    ]);
+    return {
+      income: feeCollection.totalCollected,
+      expenditure: expenditure.totalSpent,
+      net: toMoney(feeCollection.totalCollected - expenditure.totalSpent),
+      feeCollection,
+      expenditureReport: expenditure,
+    };
   }
 
   async handlePaystackWebhook(payload: Record<string, unknown>) {
@@ -928,7 +1929,19 @@ export class FinanceService {
     id: string;
     invoiceNumber: string;
     studentId: string;
-    student: { firstName: string; lastName: string; middleName?: string | null; currentClass?: { name: string; arm: string | null } | null };
+    classId?: string | null;
+    academicSessionId?: string | null;
+    termId?: string | null;
+    student: {
+      admissionNumber: string;
+      firstName: string;
+      lastName: string;
+      middleName?: string | null;
+      currentClass?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    };
+    classRoom?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    academicSession?: { name: string } | null;
+    term?: { name: string } | null;
     subtotal: unknown;
     discount: unknown;
     fine: unknown;
@@ -937,16 +1950,25 @@ export class FinanceService {
     status: string;
     issuedOn: Date;
     dueOn: Date;
-    payments?: Array<{ amount: unknown; status: string }>;
+    payments?: Array<{ amount: unknown; status: string; paidAt?: Date | null }>;
     receipts?: Array<{ receiptNumber: string }>;
   }): InvoiceView {
     const paid = (invoice.payments ?? []).filter((payment) => payment.status === "SUCCESS").reduce((sum, payment) => sum + Number(payment.amount), 0);
+    const successfulPayments = (invoice.payments ?? []).filter((payment) => payment.status === "SUCCESS");
+    const ledgerClass = invoice.classRoom ?? invoice.student.currentClass;
     return {
       id: invoice.id,
       invoiceNumber: invoice.invoiceNumber,
       studentId: invoice.studentId,
       studentName: studentName(invoice.student),
-      className: className(invoice.student.currentClass),
+      admissionNumber: invoice.student.admissionNumber,
+      classId: invoice.classId ?? undefined,
+      className: className(ledgerClass),
+      classLevel: ledgerClass?.classLevel?.name ?? undefined,
+      sessionId: invoice.academicSessionId ?? undefined,
+      session: invoice.academicSession?.name ?? undefined,
+      termId: invoice.termId ?? undefined,
+      term: invoice.term?.name ?? undefined,
       subtotal: Number(invoice.subtotal),
       discount: Number(invoice.discount),
       fine: Number(invoice.fine),
@@ -956,7 +1978,9 @@ export class FinanceService {
       status: invoice.status,
       issuedOn: invoice.issuedOn.toISOString(),
       dueOn: invoice.dueOn.toISOString(),
-      receiptNumber: invoice.receipts?.[0]?.receiptNumber
+      receiptNumber: invoice.receipts?.[0]?.receiptNumber,
+      paymentCount: successfulPayments.length,
+      lastPaymentAt: successfulPayments.find((payment) => payment.paidAt)?.paidAt?.toISOString(),
     };
   }
 
@@ -974,24 +1998,159 @@ export class FinanceService {
     };
   }
 
+  private mapFeeAssignment(assignment: {
+    id: string;
+    studentId: string;
+    feeStructureId: string;
+    amountDue: unknown;
+    discount: unknown;
+    finalAmount: unknown;
+    dueDate: Date | null;
+    status: string;
+    discountReason: string | null;
+    approvalStatus: string | null;
+    createdAt: Date;
+    student: {
+      admissionNumber: string;
+      firstName: string;
+      lastName: string;
+      middleName?: string | null;
+      currentClass?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    };
+    feeStructure: { id: string; name: string };
+    academicSession?: { name: string } | null;
+    term?: { name: string } | null;
+    invoice?: { id: string; invoiceNumber: string } | null;
+  }): FeeAssignmentView {
+    return {
+      id: assignment.id,
+      studentId: assignment.studentId,
+      studentName: studentName(assignment.student),
+      admissionNumber: assignment.student.admissionNumber,
+      className: assignment.student.currentClass ? className(assignment.student.currentClass) : undefined,
+      classLevel: assignment.student.currentClass?.classLevel?.name ?? undefined,
+      feeStructureId: assignment.feeStructureId,
+      feeStructureName: assignment.feeStructure.name,
+      session: assignment.academicSession?.name ?? undefined,
+      term: assignment.term?.name ?? undefined,
+      amountDue: Number(assignment.amountDue),
+      discount: Number(assignment.discount),
+      finalAmount: Number(assignment.finalAmount),
+      dueDate: assignment.dueDate?.toISOString(),
+      status: assignment.status,
+      discountReason: assignment.discountReason ?? undefined,
+      approvalStatus: assignment.approvalStatus ?? undefined,
+      invoiceId: assignment.invoice?.id ?? undefined,
+      invoiceNumber: assignment.invoice?.invoiceNumber ?? undefined,
+      createdAt: assignment.createdAt.toISOString(),
+    };
+  }
+
+  private mapPayment(payment: {
+    id: string;
+    studentId: string;
+    invoiceId: string | null;
+    reference: string;
+    amount: unknown;
+    status: string;
+    method: string;
+    provider: string | null;
+    paymentChannel: string | null;
+    schoolBankReference: string | null;
+    gatewayStatus: string | null;
+    paidAt: Date | null;
+    student: {
+      admissionNumber: string;
+      firstName: string;
+      lastName: string;
+      middleName?: string | null;
+      currentClassId?: string | null;
+      currentClass?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    };
+    invoice?: {
+      invoiceNumber: string;
+      classId?: string | null;
+      termId?: string | null;
+      academicSessionId?: string | null;
+      academicSession?: { name: string } | null;
+      term?: { name: string } | null;
+      classRoom?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    } | null;
+    receipts: Array<{ receiptNumber: string }>;
+    recordedBy?: {
+      firstName: string;
+      lastName: string;
+    } | null;
+  }): PaymentView {
+    return {
+      id: payment.id,
+      reference: payment.reference,
+      studentId: payment.studentId,
+      studentName: studentName(payment.student),
+      admissionNumber: payment.student.admissionNumber,
+      classId: payment.invoice?.classId ?? payment.student.currentClassId ?? undefined,
+      className: payment.invoice?.classRoom ? className(payment.invoice.classRoom) : payment.student.currentClass ? className(payment.student.currentClass) : undefined,
+      classLevel: payment.invoice?.classRoom?.classLevel?.name ?? payment.student.currentClass?.classLevel?.name ?? undefined,
+      sessionId: payment.invoice?.academicSessionId ?? undefined,
+      session: payment.invoice?.academicSession?.name ?? undefined,
+      termId: payment.invoice?.termId ?? undefined,
+      term: payment.invoice?.term?.name ?? undefined,
+      invoiceId: payment.invoiceId ?? undefined,
+      invoiceNumber: payment.invoice?.invoiceNumber,
+      receiptNumber: payment.receipts[0]?.receiptNumber,
+      amount: Number(payment.amount),
+      status: payment.status,
+      method: payment.method,
+      provider: payment.provider ?? undefined,
+      paymentChannel: payment.paymentChannel ?? undefined,
+      schoolBankReference: payment.schoolBankReference ?? undefined,
+      gatewayStatus: payment.gatewayStatus ?? undefined,
+      recordedByName: payment.recordedBy
+        ? [payment.recordedBy.firstName, payment.recordedBy.lastName].filter(Boolean).join(" ")
+        : undefined,
+      paidAt: payment.paidAt?.toISOString(),
+    };
+  }
+
   private mapInstallmentPlan(plan: {
     id: string;
     planNumber: string;
     totalAmount: unknown;
     balance: unknown;
     status: string;
-    student: { firstName: string; lastName: string; middleName?: string | null; currentClass?: { name: string; arm: string | null } | null };
-    invoice?: { invoiceNumber: string } | null;
+    notes?: string | null;
+    student: {
+      firstName: string;
+      lastName: string;
+      middleName?: string | null;
+      currentClass?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    };
+    invoice?: {
+      invoiceNumber: string;
+      academicSessionId?: string | null;
+      termId?: string | null;
+      academicSession?: { name: string } | null;
+      term?: { name: string } | null;
+      classRoom?: { name: string; arm: string | null; classLevel?: { name: string } | null } | null;
+    } | null;
     items: Array<{ id: string; dueOn: Date; amount: unknown; paidAmount: unknown; status: string }>;
   }): InstallmentPlanView {
+    const ledgerClass = plan.invoice?.classRoom ?? plan.student.currentClass;
     return {
       id: plan.id,
       planNumber: plan.planNumber,
       studentName: studentName(plan.student),
+      className: ledgerClass ? className(ledgerClass) : undefined,
+      classLevel: ledgerClass?.classLevel?.name ?? undefined,
+      sessionId: plan.invoice?.academicSessionId ?? undefined,
+      session: plan.invoice?.academicSession?.name ?? undefined,
+      termId: plan.invoice?.termId ?? undefined,
+      term: plan.invoice?.term?.name ?? undefined,
       invoiceNumber: plan.invoice?.invoiceNumber,
       totalAmount: Number(plan.totalAmount),
       balance: Number(plan.balance),
       status: plan.status,
+      notes: plan.notes ?? undefined,
       items: plan.items.map((item) => ({
         id: item.id,
         dueOn: item.dueOn.toISOString(),
@@ -1003,26 +2162,200 @@ export class FinanceService {
   }
 
   private async notifyStudentGuardians(schoolId: string, studentId: string, title: string, body: string) {
-    if (env.DEMO_MODE) return;
     const guardians = await prisma.guardian.findMany({
       where: { schoolId, students: { some: { studentId } }, userId: { not: null } },
-      select: { userId: true }
+      select: { userId: true, email: true, phone: true, canReceiveEmail: true, canReceiveSms: true }
     });
+    const records = guardians.flatMap((guardian) => {
+      const items: Array<Prisma.NotificationLogCreateManyInput> = [];
+      if (guardian.userId) {
+        items.push({
+          schoolId,
+          userId: guardian.userId,
+          channel: "IN_APP",
+          title,
+          body,
+          status: "QUEUED",
+          sentAt: new Date(),
+        });
+      }
+      if (guardian.canReceiveEmail && guardian.email) {
+        items.push({
+          schoolId,
+          userId: guardian.userId ?? undefined,
+          channel: "EMAIL",
+          title,
+          body,
+          status: "QUEUED",
+          metadata: { email: guardian.email } as Prisma.InputJsonValue,
+          sentAt: new Date(),
+        });
+      }
+      if (guardian.canReceiveSms && guardian.phone) {
+        items.push({
+          schoolId,
+          userId: guardian.userId ?? undefined,
+          channel: "SMS",
+          title,
+          body,
+          status: "QUEUED",
+          metadata: { phone: guardian.phone } as Prisma.InputJsonValue,
+          sentAt: new Date(),
+        });
+      }
+      return items;
+    });
+    if (records.length) {
+      await prisma.notificationLog.createMany({ data: records });
+    }
+  }
+
+  private async notifyStaffPayroll(schoolId: string, staffProfiles: Array<{ user?: { id: string } | null }>, month: number, year: number) {
+    const userIds = staffProfiles.map((item) => item.user?.id).filter((value): value is string => Boolean(value));
+    if (!userIds.length) return;
     await prisma.notificationLog.createMany({
-      data: guardians.map((guardian) => ({
+      data: userIds.map((userId) => ({
         schoolId,
-        userId: guardian.userId,
+        userId,
         channel: "IN_APP",
-        title,
-        body,
+        title: "Payroll published",
+        body: `Your payslip summary for ${month}/${year} is ready.`,
         status: "QUEUED",
-        sentAt: new Date()
-      }))
+        sentAt: new Date(),
+      })),
     });
   }
 
-  private async audit(schoolId: string, actorId: string | undefined, action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "EXPORT" | "APPROVE" | "REJECT" | "PAYMENT", entityType: string, entityId: string, metadata: Record<string, unknown>) {
-    if (env.DEMO_MODE) return;
-    await prisma.auditLog.create({ data: { schoolId, actorId, action, entityType, entityId, metadata: metadata as Prisma.InputJsonValue } });
+  private async assertPassword(actorId: string, password: string) {
+    const actor = await prisma.user.findUnique({ where: { id: actorId } });
+    if (!actor || !verifyPassword(password, actor.passwordHash)) {
+      throw new ForbiddenException("Password confirmation failed.");
+    }
+  }
+
+  private async nextReceiptNumber(schoolId: string, termId?: string) {
+    const school = await prisma.school.findUnique({ where: { id: schoolId } });
+    const settings = await this.getFinanceSettings(schoolId);
+    const year = new Date().getFullYear();
+    const term = termId
+      ? await prisma.term.findFirst({ where: { schoolId, id: termId } })
+      : await prisma.term.findFirst({ where: { schoolId, isCurrent: true } });
+    const termCode = term?.order ? `T${term.order}` : "T1";
+    const count = await prisma.receipt.count({
+      where: {
+        schoolId,
+        receiptNumber: { startsWith: `${settings.receiptPrefix}-${year}-${termCode}-` },
+      },
+    });
+    const sequence = String(count + 1).padStart(5, "0");
+    return `${settings.receiptPrefix}-${year}-${termCode}-${sequence}`;
+  }
+
+  private mapPayrollItem(item: {
+    id: string;
+    staffId: string;
+    basicSalary: unknown;
+    allowances: Prisma.JsonValue | null;
+    deductions: Prisma.JsonValue | null;
+    netSalary: unknown;
+    payslipSent: boolean;
+    paidAt: Date | null;
+    staff: {
+      employeeNo: string;
+      designation?: string;
+      department?: { name: string } | null;
+      user: { firstName: string; lastName: string };
+    };
+  }): PayrollItemView {
+    const allowances = (item.allowances && typeof item.allowances === "object" && !Array.isArray(item.allowances)
+      ? item.allowances
+      : {}) as Record<string, number>;
+    const deductions = (item.deductions && typeof item.deductions === "object" && !Array.isArray(item.deductions)
+      ? item.deductions
+      : {}) as Record<string, number>;
+    return {
+      id: item.id,
+      staffId: item.staffId,
+      staffName: `${item.staff.user.firstName} ${item.staff.user.lastName}`,
+      employeeNo: item.staff.employeeNo,
+      designation: item.staff.designation,
+      departmentName: item.staff.department?.name ?? undefined,
+      basicSalary: Number(item.basicSalary),
+      allowances,
+      deductions,
+      netSalary: Number(item.netSalary),
+      payslipSent: item.payslipSent,
+      paidAt: item.paidAt?.toISOString(),
+    };
+  }
+
+  private mapPayrollRun(run: {
+    id: string;
+    month: number;
+    year: number;
+    status: string;
+    processedById: string | null;
+    processedAt: Date | null;
+    publishedAt: Date | null;
+    academicSession?: { name: string } | null;
+    items: Array<{
+      id: string;
+      staffId: string;
+      basicSalary: unknown;
+      allowances: Prisma.JsonValue | null;
+      deductions: Prisma.JsonValue | null;
+      netSalary: unknown;
+      payslipSent: boolean;
+      paidAt: Date | null;
+      staff: {
+        employeeNo: string;
+        designation: string;
+        department?: { name: string } | null;
+        user: { firstName: string; lastName: string };
+      };
+    }>;
+  }): PayrollRunView {
+    const items = run.items.map((item) => this.mapPayrollItem(item));
+    return {
+      id: run.id,
+      session: run.academicSession?.name ?? undefined,
+      month: run.month,
+      year: run.year,
+      status: run.status,
+      processedById: run.processedById ?? undefined,
+      processedAt: run.processedAt?.toISOString(),
+      publishedAt: run.publishedAt?.toISOString(),
+      totalNetSalary: items.reduce((sum, item) => sum + item.netSalary, 0),
+      staffCount: items.length,
+      items,
+    };
+  }
+
+  private async audit(
+    schoolId: string,
+    actorId: string | undefined,
+    action: "CREATE" | "UPDATE" | "DELETE" | "LOGIN" | "EXPORT" | "APPROVE" | "REJECT" | "PAYMENT" | "SETTINGS_UPDATE",
+    entityType: string,
+    entityId: string,
+    metadata: Record<string, unknown>,
+    options?: {
+      oldValue?: Record<string, unknown>;
+      newValue?: Record<string, unknown>;
+      ipAddress?: string;
+    },
+  ) {
+    await prisma.auditLog.create({
+      data: {
+        schoolId,
+        actorId,
+        action,
+        entityType,
+        entityId,
+        oldValue: options?.oldValue ? (options.oldValue as Prisma.InputJsonValue) : undefined,
+        newValue: options?.newValue ? (options.newValue as Prisma.InputJsonValue) : undefined,
+        ipAddress: options?.ipAddress,
+        metadata: metadata as Prisma.InputJsonValue,
+      },
+    });
   }
 }

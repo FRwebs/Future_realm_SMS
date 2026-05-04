@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { CircleHelp, Loader2, UserCheck } from "lucide-react";
 
-import { Modal } from "@/components/ui/modal";
 import { Popover } from "@/components/ui/popover";
+import { SidePanel } from "@/components/ui/side-panel";
 import { useToast } from "@/components/ui/toast-provider";
 import { Tooltip } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils/cn";
@@ -62,8 +62,17 @@ export function AssignSubjectTeacherDialog({
   const [tone, setTone] = useState<"danger" | "success">("success");
 
   const activeAssignment = assignments.find((assignment) => assignment.classId === classId);
+  const formId = `assign-subject-teacher-${subjectId}`;
 
   function openDialog() {
+    if (assignments.length === 0) {
+      showToast({
+        variant: "warning",
+        title: "No classes available",
+        description: "This subject is not linked to any class yet, so there is nowhere to assign a teacher.",
+      });
+      return;
+    }
     setClassId(initialClassId ?? assignments[0]?.classId ?? "");
     setTeacherId((assignments.find((assignment) => assignment.classId === (initialClassId ?? assignments[0]?.classId))?.teacherId ?? ""));
     setApplyToAllArms(false);
@@ -153,14 +162,40 @@ export function AssignSubjectTeacherDialog({
         </Tooltip>
       </button>
 
-      <Modal
+      <SidePanel
         open={open}
         onClose={() => setOpen(false)}
-        size="md"
         title="Assign teacher"
         subtitle={`Update the teaching owner for ${subjectName} in a specific class, or apply the same teacher across every arm of that class level.`}
+        size="md"
+        footer={(
+          <div className="flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="btn-secondary px-5"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              form={formId}
+              disabled={pending}
+              className="btn-primary px-5"
+            >
+              {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
+              <span>{pending ? "Saving..." : "Save assignment"}</span>
+            </button>
+          </div>
+        )}
       >
-          <form onSubmit={handleSubmit} className="grid gap-5">
+          <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
+            <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4 text-[13px] text-slate-600">
+              <p className="font-semibold text-slate-900">Assignment context</p>
+              <p className="mt-1">
+                Use this panel to place the right subject teacher against a class stream without leaving the subject page.
+              </p>
+            </div>
             <label>
               <span className="field-label">Class</span>
               <select
@@ -269,26 +304,8 @@ export function AssignSubjectTeacherDialog({
                 {message}
               </div>
             ) : null}
-
-            <div className="flex items-center justify-end gap-3 border-t border-slate-100 pt-4">
-              <button
-                type="button"
-                onClick={() => setOpen(false)}
-                className="btn-secondary px-5"
-              >
-                Cancel
-              </button>
-              <button
-                type="submit"
-                disabled={pending || assignments.length === 0}
-                className="btn-primary px-5"
-              >
-                {pending ? <Loader2 className="h-4 w-4 animate-spin" /> : <UserCheck className="h-4 w-4" />}
-                <span>{pending ? "Saving..." : "Save assignment"}</span>
-              </button>
-            </div>
           </form>
-      </Modal>
+      </SidePanel>
     </>
   );
 }

@@ -5,7 +5,6 @@ import { AuditAction, Prisma, UserRole } from "@prisma/client";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoStore } from "../../../../src/lib/demo/data";
 import {
   canAdvanceAcademicApproval,
   canTransitionResult,
@@ -32,7 +31,6 @@ import {
   SubjectView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName, normalizeNigeriaClassValue } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 import { RolesManagementService } from "../roles-management/roles-management.service";
 
 const nigeriaClassInputSchema = z
@@ -216,6 +214,7 @@ function assertAcademicApprover(session: SessionPayload) {
       "VICE_PRINCIPAL_ACADEMICS",
       "ADMIN_OFFICER",
       "EXAM_OFFICER",
+      "EXAMINATION_OFFICER",
       "HEAD_OF_DEPARTMENT",
       "CLASS_TEACHER"
     ].includes(session.role)
@@ -236,11 +235,22 @@ function assertAssessmentManager(session: SessionPayload) {
       "VICE_PRINCIPAL_ACADEMICS",
       "ADMIN_OFFICER",
       "EXAM_OFFICER",
-      "ICT_CBT_ADMIN"
+      "EXAMINATION_OFFICER",
+      "ICT_CBT_ADMIN",
+      "HEAD_OF_DEPARTMENT"
     ].includes(session.role)
   ) {
     throw new ForbiddenException("Only school academic leaders or exam officers can manage assessment setup.");
   }
+}
+
+async function departmentScopeForHod(session: SessionPayload) {
+  if (session.role !== "HEAD_OF_DEPARTMENT") return null;
+  const staffProfile = await prisma.staffProfile.findUnique({
+    where: { userId: session.userId },
+    select: { departmentId: true },
+  });
+  return staffProfile?.departmentId ?? null;
 }
 
 function assertSubjectManager(session: SessionPayload) {
@@ -477,7 +487,6 @@ export class AcademicsService {
     body: string;
     metadata?: Record<string, unknown>;
   }) {
-    if (env.DEMO_MODE) return;
     await prisma.notificationLog.create({
       data: {
         schoolId: params.schoolId,
@@ -965,10 +974,6 @@ export class AcademicsService {
   }
 
   async listGrades(session: SessionPayload) {
-    if (env.DEMO_MODE) {
-      return getDemoStore().grades;
-    }
-
     const scores = await prisma.scoreEntry.findMany({
       where: {
         schoolId: session.schoolId,
@@ -1024,25 +1029,6 @@ export class AcademicsService {
   async upsertGrade(session: SessionPayload, payload: unknown, draft = true) {
     const parsed = gradeSchema.parse(payload);
     const total = parsed.continuousAssessment + parsed.exam;
-    const grade = resolveGradeLabel(total).label;
-
-    if (env.DEMO_MODE) {
-      const record: GradeRecordView = {
-        id: randomUUID(),
-        studentId: parsed.studentId ?? randomUUID(),
-        studentName: parsed.studentName ?? "Demo student",
-        className: parsed.className ? formatNigeriaClassName(parsed.className) : "Demo class",
-        subject: parsed.subject ?? "Demo subject",
-        continuousAssessment: parsed.continuousAssessment,
-        exam: parsed.exam,
-        total,
-        grade,
-        status: draft ? "DRAFT" : "SUBMITTED",
-        published: false
-      };
-      getDemoStore().grades.unshift(record);
-      return record;
-    }
 
     const [term, scheme] = await Promise.all([this.currentTerm(session.schoolId), this.activeScheme(session.schoolId)]);
     const { student, subject, classId } = await this.resolveStudentAndSubject(session.schoolId, parsed);
@@ -1200,25 +1186,6 @@ export class AcademicsService {
   }
 
   async listGradingSchemes(session: SessionPayload): Promise<GradingSchemeView[]> {
-    if (env.DEMO_MODE) {
-      return [
-        {
-          id: "demo-waec",
-          name: "WAEC/NECO Default",
-          isActive: true,
-          rankingEnabled: true,
-          passMark: 40,
-          bands: waecGradeBands.map((band, index) => ({
-            label: band.label,
-            minScore: band.min,
-            maxScore: band.max,
-            remark: band.remark,
-            order: index + 1
-          }))
-        }
-      ];
-    }
-
     const schemes = await prisma.gradingScheme.findMany({
       where: { schoolId: session.schoolId },
       include: { bands: { orderBy: { order: "asc" } } },
@@ -1273,13 +1240,6 @@ export class AcademicsService {
   }
 
   async listAssessmentComponents(session: SessionPayload): Promise<AssessmentComponentView[]> {
-    if (env.DEMO_MODE) {
-      return [
-        { id: "ca", name: "Continuous Assessment", code: "CA", weight: 40, maxScore: 40, order: 1, isActive: true },
-        { id: "exam", name: "Exam", code: "EXAM", weight: 60, maxScore: 60, order: 2, isActive: true }
-      ];
-    }
-
     const components = await prisma.assessmentComponent.findMany({
       where: { schoolId: session.schoolId },
       orderBy: { order: "asc" }
@@ -1393,26 +1353,6 @@ export class AcademicsService {
     const applicableClassLevels = parsed.classLevels?.length
       ? Array.from(new Set(parsed.classLevels.flatMap((level) => normalizeNigeriaClassValue(level) ?? [])))
       : parseClassLevelsJson(parsed.applicableClassLevelsJson);
-    if (env.DEMO_MODE) {
-      return {
-        id: randomUUID(),
-        name: parsed.name,
-        code: parsed.code.toUpperCase(),
-        waecCode: parsed.waecCode || undefined,
-        necoCode: parsed.necoCode || undefined,
-        isWaecSubject: parsed.isWaecSubject,
-        periodsPerWeek: parsed.periodsPerWeek,
-        requiresLab: parsed.requiresLab,
-        section: parsed.section,
-        applicableClassLevels,
-        isCore: parsed.isCore,
-        isOptional: parsed.isOptional,
-        religionSpecific: parsed.religionSpecific,
-        trackSpecific: parsed.trackSpecific,
-        tradeSubject: parsed.tradeSubject,
-        status: parsed.status
-      };
-    }
 
     const code = parsed.code.toUpperCase().trim();
     const existing = await prisma.subject.findFirst({ where: { schoolId: session.schoolId, code, deletedAt: null } });
@@ -1669,20 +1609,6 @@ export class AcademicsService {
   async createSectionAssessmentComponent(session: SessionPayload, payload: unknown): Promise<SectionAssessmentComponentView> {
     assertAssessmentManager(session);
     const parsed = sectionAssessmentComponentSchema.parse(payload);
-    if (env.DEMO_MODE) {
-      return {
-        id: randomUUID(),
-        section: parsed.section,
-        name: parsed.name,
-        code: parsed.code.toUpperCase(),
-        type: parsed.type,
-        weight: parsed.weight,
-        maxScore: parsed.maxScore,
-        order: parsed.order,
-        isActive: parsed.isActive
-      };
-    }
-
     const term = parsed.termId ? null : await this.currentTerm(session.schoolId);
     const componentsForSection = await prisma.sectionAssessmentComponent.findMany({
       where: {
@@ -1741,13 +1667,6 @@ export class AcademicsService {
   }
 
   async listSectionAssessmentComponents(session: SessionPayload): Promise<SectionAssessmentComponentView[]> {
-    if (env.DEMO_MODE) {
-      return ["NURSERY", "PRIMARY", "JUNIOR_SECONDARY", "SENIOR_SECONDARY"].flatMap((section) => [
-        { id: `${section}-ca`, section, name: "Continuous Assessment", code: "CA", type: "TEST", weight: 40, maxScore: 40, order: 1, isActive: true },
-        { id: `${section}-exam`, section, name: "Terminal Examination", code: "EXAM", type: "EXAMINATION", weight: 60, maxScore: 60, order: 2, isActive: true }
-      ]) as SectionAssessmentComponentView[];
-    }
-
     return prisma.sectionAssessmentComponent.findMany({
       where: { schoolId: session.schoolId },
       orderBy: [{ section: "asc" }, { order: "asc" }]
@@ -1763,34 +1682,15 @@ export class AcademicsService {
     assertAssessmentManager(session);
     const parsed = academicAssessmentSchema.parse(payload);
 
-    if (env.DEMO_MODE) {
-      return {
-        id: randomUUID(),
-        title: parsed.title,
-        term: "Second Term",
-        session: "2025/2026",
-        className: parsed.className ? formatNigeriaClassName(parsed.className) : "JSS 2 - Gold",
-        arm: parsed.arm,
-        subject: parsed.subject ?? "Mathematics",
-        teacherId: parsed.teacherId,
-        teacherName: "Boma Hart",
-        assessmentType: parsed.assessmentType,
-        maxScore: parsed.maxScore,
-        weight: parsed.weight,
-        assessmentDate: parsed.assessmentDate.toISOString(),
-        submissionMode: parsed.submissionMode,
-        status: parsed.status,
-        candidateCount: 3,
-        enteredCount: 0,
-        candidates: []
-      };
-    }
-
+    const hodDepartmentId = await departmentScopeForHod(session);
     const term = parsed.termId
       ? await prisma.term.findFirst({ where: { id: parsed.termId, schoolId: session.schoolId }, include: { academicSession: true } })
       : await prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, include: { academicSession: true } });
     if (!term) throw new NotFoundException("No valid term is configured for this assessment.");
     const { classRoom, subject } = await this.resolveClassAndSubject(session.schoolId, parsed);
+    if (hodDepartmentId && subject.departmentId !== hodDepartmentId) {
+      throw new ForbiddenException("HODs can only create assessments for subjects in their department.");
+    }
     const teacher = parsed.teacherId
       ? await prisma.user.findFirst({ where: { id: parsed.teacherId, schoolId: session.schoolId } })
       : null;
@@ -1846,36 +1746,12 @@ export class AcademicsService {
   }
 
   async listAcademicAssessments(session: SessionPayload): Promise<AcademicAssessmentView[]> {
-    if (env.DEMO_MODE) {
-      return [
-        {
-          id: "asm_second_term_math",
-          title: "Second Term Mathematics Test 2",
-          term: "Second Term",
-          session: "2025/2026",
-          classId: "class_jss2_gold",
-          className: "JSS 2 - Gold",
-          arm: "Gold",
-          subjectId: "subject_math",
-          subject: "Mathematics",
-          teacherId: "user_teacher",
-          teacherName: "Boma Hart",
-          assessmentType: "TEST",
-          maxScore: 20,
-          weight: 20,
-          assessmentDate: new Date("2026-04-18T09:00:00.000Z").toISOString(),
-          submissionMode: "PAPER",
-          status: "ACTIVE",
-          candidateCount: 3,
-          enteredCount: 2
-        }
-      ];
-    }
-
+    const hodDepartmentId = await departmentScopeForHod(session);
     const assessments = await prisma.academicAssessment.findMany({
       where: {
         schoolId: session.schoolId,
-        ...(canTeacherScoreRole(session.role) ? { OR: [{ teacherId: session.userId }, { createdById: session.userId }] } : {})
+        ...(canTeacherScoreRole(session.role) ? { OR: [{ teacherId: session.userId }, { createdById: session.userId }] } : {}),
+        ...(hodDepartmentId ? { subject: { departmentId: hodDepartmentId } } : {})
       },
       include: {
         term: { include: { academicSession: true } },
@@ -1893,24 +1769,6 @@ export class AcademicsService {
   }
 
   async getAcademicAssessment(session: SessionPayload, assessmentId: string): Promise<AcademicAssessmentView> {
-    if (env.DEMO_MODE) {
-      const assessment = (await this.listAcademicAssessments(session))[0];
-      return {
-        ...assessment,
-        id: assessmentId,
-        candidates: getDemoStore().students.slice(0, 3).map((student, index) => ({
-          id: `candidate_${student.id}`,
-          studentId: student.id,
-          studentName: student.fullName,
-          admissionNumber: student.admissionNumber,
-          attendanceState: index === 2 ? "EXCUSED" : "PRESENT",
-          score: index === 0 ? 16 : index === 1 ? 14 : undefined,
-          scoreFlag: index === 2 ? "ABSENT" : "NONE",
-          comment: index === 2 ? "Excused by sick bay note" : undefined
-        }))
-      };
-    }
-
     const assessment = await prisma.academicAssessment.findFirst({
       where: { id: assessmentId, schoolId: session.schoolId },
       include: {
@@ -1926,6 +1784,10 @@ export class AcademicsService {
       }
     });
     if (!assessment) throw new NotFoundException("Assessment not found.");
+    const hodDepartmentId = await departmentScopeForHod(session);
+    if (hodDepartmentId && assessment.subject.departmentId !== hodDepartmentId) {
+      throw new ForbiddenException("HODs can only review assessments from their department.");
+    }
     if (canTeacherScoreRole(session.role) && assessment.teacherId && assessment.teacherId !== session.userId && assessment.createdById !== session.userId) {
       throw new ForbiddenException("Teachers can view only their assigned assessments.");
     }
@@ -1933,8 +1795,6 @@ export class AcademicsService {
   }
 
   async generateAssessmentCandidates(session: SessionPayload, assessmentId: string) {
-    if (env.DEMO_MODE) return { generated: 3 };
-
     const assessment = await prisma.academicAssessment.findFirst({
       where: { id: assessmentId, schoolId: session.schoolId }
     });
@@ -1962,10 +1822,6 @@ export class AcademicsService {
 
   async recordAssessmentScores(session: SessionPayload, payload: unknown): Promise<AcademicAssessmentView> {
     const parsed = assessmentScoresSchema.parse(payload);
-    if (env.DEMO_MODE) {
-      return this.getAcademicAssessment(session, parsed.assessmentId);
-    }
-
     const assessment = await prisma.academicAssessment.findFirst({
       where: { id: parsed.assessmentId, schoolId: session.schoolId },
       include: { classRoom: true, subject: true, term: true }
@@ -2133,46 +1989,6 @@ export class AcademicsService {
     const access = await this.assertBroadsheetWorkspaceAccess(session, parsed.classId, parsed.termId);
     if (!access.permissions.has("results.compile")) {
       throw new ForbiddenException("You do not have permission to compile broadsheets.");
-    }
-
-    if (env.DEMO_MODE) {
-      return {
-        id: `broad_${parsed.classId}`,
-        classId: parsed.classId,
-        className: "JSS 2 - Gold",
-        classLevel: "JSS 2",
-        classArm: "Gold",
-        term: "Second Term",
-        session: "2025/2026",
-        status: "IN_REVIEW",
-        approvalStage: "CLASS_TEACHER",
-        rankingEnabled: parsed.rankingEnabled,
-        missingScoreWarnings: [],
-        metrics: {
-          studentCount: 1,
-          subjectCount: 1,
-          completeStudents: 1,
-          incompleteStudents: 0,
-          missingEntries: 0,
-          classAverage: 80,
-          published: false
-        },
-        rows: getDemoStore().grades.map((grade, index) => ({
-          studentId: grade.studentId,
-          studentName: grade.studentName,
-          totalSubjectsOffered: 1,
-          completedSubjects: 1,
-          missingSubjects: 0,
-          isComplete: true,
-          subjects: [{ subject: grade.subject, caTotal: grade.continuousAssessment, examTotal: grade.exam, total: grade.total, grade: grade.grade, remark: grade.remark, isComplete: true, missingComponents: [] }],
-          total: grade.total,
-          average: grade.total,
-          overallGrade: grade.grade,
-          position: index + 1,
-          promotionStatus: grade.total >= 40 ? "Promoted / Good standing" : "Review required"
-        })),
-        approvals: []
-      };
     }
 
     const term = parsed.termId
@@ -2518,52 +2334,6 @@ export class AcademicsService {
 
   async listBroadsheets(session: SessionPayload, query: Record<string, string | undefined> = {}): Promise<BroadsheetView[]> {
     const access = await this.assertBroadsheetWorkspaceAccess(session, query.classId, query.termId);
-    if (env.DEMO_MODE) {
-      return [
-        {
-          id: "broad_jss2_gold",
-          classId: "class_jss2_gold",
-          className: "JSS 2 - Gold",
-          classLevel: "JSS 2",
-          classArm: "Gold",
-          term: "Second Term",
-          session: "2025/2026",
-          status: "IN_REVIEW",
-          approvalStage: "VICE_PRINCIPAL_ACADEMICS",
-          rankingEnabled: true,
-          missingScoreWarnings: [],
-          metrics: {
-            studentCount: 1,
-            subjectCount: 1,
-            completeStudents: 1,
-            incompleteStudents: 0,
-            missingEntries: 0,
-            classAverage: 80,
-            published: false
-          },
-          rows: [
-            {
-              studentId: "stu_1",
-              studentName: "Daniel Yusuf",
-              admissionNumber: "GFC/26/0001",
-              subjects: [{ subject: "Mathematics", caTotal: 32, examTotal: 48, total: 80, grade: "A", remark: "Excellent", isComplete: true, missingComponents: [] }],
-              totalSubjectsOffered: 1,
-              completedSubjects: 1,
-              missingSubjects: 0,
-              isComplete: true,
-              total: 80,
-              average: 80,
-              overallGrade: "A",
-              position: 1,
-              attendance: "93%",
-              promotionStatus: "Promoted / Good standing"
-            }
-          ],
-          approvals: []
-        }
-      ];
-    }
-
     const search = query.search?.trim();
     const where: Prisma.BroadsheetWhereInput = {
       schoolId: session.schoolId
@@ -2609,10 +2379,6 @@ export class AcademicsService {
   }
 
   async getBroadsheet(session: SessionPayload, broadsheetId: string): Promise<BroadsheetView> {
-    if (env.DEMO_MODE) {
-      return { ...(await this.listBroadsheets(session))[0], id: broadsheetId };
-    }
-
     const broadsheet = await prisma.broadsheet.findFirst({
       where: { id: broadsheetId, schoolId: session.schoolId },
       include: {
@@ -2633,26 +2399,6 @@ export class AcademicsService {
 
   async reviewBroadsheet(session: SessionPayload, payload: unknown): Promise<BroadsheetView> {
     const parsed = broadsheetActionSchema.parse(payload);
-    if (env.DEMO_MODE) {
-      const broadsheet = await this.getBroadsheet(session, parsed.broadsheetId);
-      return {
-        ...broadsheet,
-        status: parsed.action === "PUBLISH" ? "PUBLISHED" : parsed.action === "UNLOCK" ? "APPROVED" : broadsheet.status,
-        approvalStage: parsed.action === "PUBLISH" ? "PUBLISHED" : broadsheet.approvalStage,
-        approvals: [
-          {
-            id: randomUUID(),
-            actorName: session.name,
-            stage: broadsheet.approvalStage,
-            action: parsed.action,
-            note: parsed.note,
-            createdAt: new Date().toISOString()
-          },
-          ...broadsheet.approvals
-        ]
-      };
-    }
-
     const broadsheet = await prisma.broadsheet.findFirst({
       where: { id: parsed.broadsheetId, schoolId: session.schoolId },
       include: {
@@ -2803,22 +2549,6 @@ export class AcademicsService {
 
   async listReportCards(session: SessionPayload): Promise<ReportCardView[]> {
     assertAcademicApprover(session);
-    if (env.DEMO_MODE) {
-      return getDemoStore().grades.map((grade) => ({
-        id: `report_${grade.studentId}`,
-        studentId: grade.studentId,
-        studentName: grade.studentName,
-        className: grade.className,
-        term: "Second Term",
-        session: "2025/2026",
-        status: grade.published ? "PUBLISHED" : "GENERATED",
-        total: grade.total,
-        average: grade.total,
-        grade: grade.grade,
-        reportCardUrl: `/api/v1/reports/report-card/${grade.studentId}`
-      }));
-    }
-
     const cards = await prisma.reportCard.findMany({
       where: { schoolId: session.schoolId },
       include: { student: true, classRoom: true, term: { include: { academicSession: true } } },
@@ -3006,8 +2736,6 @@ export class AcademicsService {
 
   async listApprovalQueue(session: SessionPayload): Promise<ResultApprovalView[]> {
     assertAcademicApprover(session);
-    if (env.DEMO_MODE) return [];
-
     const sheets = await prisma.resultSheet.findMany({
       where: { schoolId: session.schoolId, status: { in: ["SUBMITTED", "UNDER_REVIEW", "APPROVED", "RETURNED"] } },
       include: {
@@ -3036,20 +2764,6 @@ export class AcademicsService {
   }
 
   async getResultAnalytics(session: SessionPayload): Promise<ResultAnalyticsView> {
-    if (env.DEMO_MODE) {
-      const grades = getDemoStore().grades;
-      return {
-        metrics: [
-          { label: "Score entries", value: String(grades.length), tone: "neutral" },
-          { label: "Average score", value: `${Math.round(grades.reduce((sum, item) => sum + item.total, 0) / Math.max(grades.length, 1))}%`, tone: "success" }
-        ],
-        classSummaries: [],
-        subjectSummaries: [],
-        statusBreakdown: [],
-        missingScores: []
-      };
-    }
-
     const [sheets, classSubjects, students] = await Promise.all([
       prisma.resultSheet.findMany({
         where: { schoolId: session.schoolId },

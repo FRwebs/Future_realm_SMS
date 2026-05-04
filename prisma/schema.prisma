@@ -326,6 +326,13 @@ enum InvoiceStatus {
   VOID
 }
 
+enum FeeAssignmentStatus {
+  UNPAID
+  PARTIAL
+  PAID
+  CANCELLED
+}
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -380,6 +387,13 @@ enum AdjustmentValueType {
 enum ReceiptStatus {
   ISSUED
   VOID
+}
+
+enum PayrollRunStatus {
+  DRAFT
+  PROCESSED
+  PUBLISHED
+  REVERSED
 }
 
 enum LateFeeType {
@@ -672,6 +686,7 @@ model School {
   assignments                   Assignment[]
   assignmentSubmissions         AssignmentSubmission[]
   feeStructures                 FeeStructure[]
+  feeAssignments                FeeAssignment[]
   feeCategories                 FeeCategory[]
   feeItems                      FeeItem[]
   invoices                      Invoice[]
@@ -682,6 +697,9 @@ model School {
   scholarships                  Scholarship[]
   studentScholarships           StudentScholarship[]
   expenses                      Expense[]
+  payrollRuns                   PayrollRun[]
+  payrollItems                  PayrollItem[]
+  budgetAllocations             BudgetAllocation[]
   announcements                 Announcement[]
   internalMessages              InternalMessage[]
   notificationLogs              NotificationLog[]
@@ -777,8 +795,11 @@ model AcademicSession {
   promotionsTo                  PromotionRecord[]              @relation("PromotionToSession")
   hostelAllocs                  HostelAllocation[]
   feeStructures                 FeeStructure[]
+  feeAssignments                FeeAssignment[]
   feeItems                      FeeItem[]
   invoices                      Invoice[]
+  payrollRuns                   PayrollRun[]
+  budgetAllocations             BudgetAllocation[]
   studentScholarships           StudentScholarship[]
   AdmissionApplication          AdmissionApplication[]
   AdmissionConfig               AdmissionConfig[]
@@ -832,6 +853,7 @@ model Term {
   studentSkills                 StudentSkill[]
   feeItems                      FeeItem[]
   invoices                      Invoice[]
+  feeAssignments                FeeAssignment[]
 
   @@unique([academicSessionId, order])
 }
@@ -1360,6 +1382,7 @@ model Student {
   scoreEntries                  ScoreEntry[]
   attendance                    StudentAttendance[]
   assignmentSubmissions         AssignmentSubmission[]
+  feeAssignments                FeeAssignment[]
   invoices                      Invoice[]
   payments                      Payment[]
   feeWaivers                    FeeWaiver[]
@@ -1685,6 +1708,7 @@ model StaffProfile {
   emergencyContactName    String?
   emergencyContactPhone   String?
   salaryBand              String?
+  payrollItems            PayrollItem[]
   leaveRequests           LeaveRequest[]
   libraryLoans            LibraryLoan[]
   trainingParticipants    TrainingParticipant[]
@@ -2605,6 +2629,7 @@ model FeeStructure {
   academicSessionId String?
   termId            String?
   classId           String?
+  createdById       String?
   school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   academicSession   AcademicSession?   @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
   term              Term?              @relation(fields: [termId], references: [id], onDelete: SetNull)
@@ -2618,11 +2643,43 @@ model FeeStructure {
   visibilityRules   Json?
   isActive          Boolean            @default(true)
   items             FeeStructureItem[]
+  feeAssignments    FeeAssignment[]
   invoices          Invoice[]
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
+  deletedAt         DateTime?
 
-  @@index([schoolId, academicSessionId, termId, classId, isActive])
+  @@index([schoolId, academicSessionId, termId, classId, isActive, deletedAt])
+}
+
+model FeeAssignment {
+  id                String              @id @default(cuid())
+  schoolId          String
+  studentId         String
+  feeStructureId    String
+  invoiceId         String?
+  academicSessionId String?
+  termId            String?
+  amountDue         Decimal             @db.Decimal(15, 2)
+  discount          Decimal             @default(0) @db.Decimal(15, 2)
+  finalAmount       Decimal             @db.Decimal(15, 2)
+  dueDate           DateTime?
+  status            FeeAssignmentStatus @default(UNPAID)
+  discountReason    String?
+  approvalStatus    String?
+  createdById       String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  school            School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  student           Student             @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  feeStructure      FeeStructure        @relation(fields: [feeStructureId], references: [id], onDelete: Cascade)
+  invoice           Invoice?            @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  academicSession   AcademicSession?    @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
+  term              Term?               @relation(fields: [termId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, studentId, status])
+  @@index([schoolId, academicSessionId, termId])
+  @@index([schoolId, feeStructureId])
 }
 
 model FeeStructureItem {
@@ -2667,6 +2724,7 @@ model Invoice {
   allocations       PaymentAllocation[]
   receipts          Receipt[]
   adjustments       InvoiceAdjustment[]
+  feeAssignments    FeeAssignment[]
   feeWaivers        FeeWaiver[]
   installmentPlans  InstallmentPlan[]
 
@@ -2963,14 +3021,79 @@ model FinancialClearance {
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  schoolId    String
-  title       String
-  category    String
-  amount      Decimal  @db.Decimal(12, 2)
-  expenseDate DateTime
-  notes       String?
-  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  schoolId      String
+  title         String
+  category      String
+  amount        Decimal  @db.Decimal(12, 2)
+  paymentMethod String?
+  paidTo        String?
+  receiptUrl    String?
+  recordedById  String?
+  expenseDate   DateTime
+  notes         String?
+  deletedAt     DateTime?
+  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, category, expenseDate])
+}
+
+model PayrollRun {
+  id                String           @id @default(cuid())
+  schoolId          String
+  academicSessionId String?
+  month             Int
+  year              Int
+  status            PayrollRunStatus @default(DRAFT)
+  processedById     String?
+  processedAt       DateTime?
+  publishedAt       DateTime?
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicSession   AcademicSession? @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
+  items             PayrollItem[]
+
+  @@unique([schoolId, month, year])
+  @@index([schoolId, status, year, month])
+}
+
+model PayrollItem {
+  id           String       @id @default(cuid())
+  schoolId     String
+  payrollRunId String
+  staffId      String
+  basicSalary  Decimal      @db.Decimal(15, 2)
+  allowances   Json?
+  deductions   Json?
+  netSalary    Decimal      @db.Decimal(15, 2)
+  payslipSent  Boolean      @default(false)
+  paidAt       DateTime?
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  school       School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  payrollRun   PayrollRun   @relation(fields: [payrollRunId], references: [id], onDelete: Cascade)
+  staff        StaffProfile @relation(fields: [staffId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, payrollRunId])
+  @@index([schoolId, staffId])
+}
+
+model BudgetAllocation {
+  id                String           @id @default(cuid())
+  schoolId          String
+  department        String
+  academicSessionId String?
+  allocatedAmount   Decimal          @db.Decimal(15, 2)
+  spentAmount       Decimal          @default(0) @db.Decimal(15, 2)
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  academicSession   AcademicSession? @relation(fields: [academicSessionId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, department])
+  @@index([schoolId, academicSessionId])
 }
 
 model Announcement {
@@ -4005,6 +4128,9 @@ model AuditLog {
   action     AuditAction
   entityType String
   entityId   String
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
   metadata   Json?
   createdAt  DateTime    @default(now())
   school     School?     @relation(fields: [schoolId], references: [id], onDelete: SetNull)

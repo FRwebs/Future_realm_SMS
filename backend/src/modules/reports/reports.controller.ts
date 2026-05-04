@@ -5,27 +5,50 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import {
-  demoDashboardSummary,
-  demoGrades,
-  demoStudents,
-  getDemoParentPortalByEmail,
-  getDemoStudentPortalByEmail
-} from "../../../../src/lib/demo/data";
 import { buildReportCardPdf } from "../../../../src/lib/pdf/report-card";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
+
+const broadsheetExportRoles = [
+  "SUPER_ADMIN",
+  "SCHOOL_OWNER",
+  "PROPRIETOR",
+  "ADMINISTRATOR",
+  "PRINCIPAL",
+  "HEAD_TEACHER",
+  "VICE_PRINCIPAL_ACADEMICS",
+  "ADMIN_OFFICER",
+  "EXAM_OFFICER",
+  "EXAMINATION_OFFICER",
+  "HEAD_OF_DEPARTMENT",
+  "CLASS_TEACHER"
+] as const;
+
+const reportCardRoles = [
+  "SUPER_ADMIN",
+  "SCHOOL_OWNER",
+  "PRINCIPAL",
+  "VICE_PRINCIPAL_ACADEMICS",
+  "ADMIN_OFFICER",
+  "HEAD_OF_DEPARTMENT",
+  "TEACHER",
+  "CLASS_TEACHER",
+  "SUBJECT_TEACHER",
+  "EXAM_OFFICER",
+  "EXAMINATION_OFFICER",
+  "PARENT",
+  "STUDENT"
+] as const;
 
 @ApiTags("reports")
 @Controller("v1/reports")
 @UseGuards(SessionGuard, RolesGuard)
 export class ReportsController {
   @Get("broadsheet/:broadsheetId/pdf")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
+  @Roles(...broadsheetExportRoles)
   async broadsheetPdf(@CurrentSession() session: SessionPayload, @Param("broadsheetId") broadsheetId: string, @Res() response: Response) {
     const broadsheet = await this.loadBroadsheetForExport(session, broadsheetId);
     const rows = broadsheet.rows.slice(0, 24);
@@ -56,7 +79,7 @@ export class ReportsController {
   }
 
   @Get("broadsheet/:broadsheetId/csv")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
+  @Roles(...broadsheetExportRoles)
   async broadsheetCsv(@CurrentSession() session: SessionPayload, @Param("broadsheetId") broadsheetId: string, @Res() response: Response) {
     const broadsheet = await this.loadBroadsheetForExport(session, broadsheetId);
     const rows = this.buildBroadsheetExportRows(broadsheet);
@@ -67,7 +90,7 @@ export class ReportsController {
   }
 
   @Get("broadsheet/:broadsheetId/excel")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER")
+  @Roles(...broadsheetExportRoles)
   async broadsheetExcel(@CurrentSession() session: SessionPayload, @Param("broadsheetId") broadsheetId: string, @Res() response: Response) {
     const broadsheet = await this.loadBroadsheetForExport(session, broadsheetId);
     const rows = this.buildBroadsheetExportRows(broadsheet);
@@ -84,43 +107,12 @@ export class ReportsController {
   }
 
   @Get("report-card/:studentId")
-  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "PARENT", "STUDENT")
+  @Roles(...reportCardRoles)
   async reportCard(
     @CurrentSession() session: SessionPayload,
     @Param("studentId") studentId: string,
     @Res() response: Response
   ) {
-    if (env.DEMO_MODE) {
-      const ownedStudentId = session.role === "STUDENT" ? getDemoStudentPortalByEmail(session.email).studentId : undefined;
-      if (ownedStudentId && ownedStudentId !== studentId) {
-        throw new ForbiddenException("Students can only download their own report card.");
-      }
-      if (session.role === "PARENT") {
-        const linkedStudentIds = getDemoParentPortalByEmail(session.email).children.map((child) => child.studentId);
-        if (!linkedStudentIds.includes(studentId)) {
-          throw new ForbiddenException("Parents can only download report cards for linked children.");
-        }
-      }
-
-      const student = demoStudents.find((item) => item.id === studentId) ?? demoStudents[0];
-      const grades = demoGrades.filter((item) => item.studentId === student.id);
-      const bytes = await buildReportCardPdf({
-        schoolName: demoDashboardSummary.schoolName,
-        student,
-        sessionLabel: demoDashboardSummary.currentSession,
-        termLabel: demoDashboardSummary.currentTerm,
-        grades
-      });
-
-      response.setHeader("Content-Type", "application/pdf");
-      response.setHeader(
-        "Content-Disposition",
-        `inline; filename="${student.fullName.replaceAll(" ", "_")}-report-card.pdf"`
-      );
-      response.end(Buffer.from(bytes));
-      return;
-    }
-
     const student = await prisma.student.findFirstOrThrow({
       where: {
         id: studentId,
@@ -236,22 +228,6 @@ export class ReportsController {
   }
 
   private async loadBroadsheetForExport(session: SessionPayload, broadsheetId: string) {
-    if (env.DEMO_MODE) {
-      return {
-        className: "JSS 2 - Gold",
-        term: demoDashboardSummary.currentTerm,
-        session: demoDashboardSummary.currentSession,
-        rows: demoGrades.map((grade, index) => ({
-          studentName: grade.studentName,
-          admissionNumber: index === 0 ? "GFC/25/0001" : undefined,
-          average: grade.total,
-          position: index + 1,
-          promotionStatus: grade.total >= 40 ? "Promoted / Good standing" : "Review required",
-          subjects: [{ subject: grade.subject, total: grade.total, grade: grade.grade }]
-        }))
-      };
-    }
-
     const broadsheet = await prisma.broadsheet.findFirstOrThrow({
       where: { id: broadsheetId, schoolId: session.schoolId },
       include: { classRoom: true, term: { include: { academicSession: true } } }

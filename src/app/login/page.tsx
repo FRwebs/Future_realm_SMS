@@ -1,7 +1,6 @@
 import { ShieldCheck, Smartphone, Users } from "lucide-react";
 
 import { LoginForm } from "@/components/forms/login-form";
-import { demoCredentials } from "@/lib/demo/data";
 
 export default function LoginPage() {
   return (
@@ -15,8 +14,8 @@ export default function LoginPage() {
             Secure access for school leaders, staff, parents, and students.
           </h1>
           <p className="mt-4 max-w-xl text-sm leading-7 text-white/72">
-            Sign in with the seeded demo accounts to explore role-based dashboards, attendance
-            capture, results, finance operations, and communication workflows.
+            Sign in to manage attendance, results, finance operations, communication workflows,
+            and every day-to-day responsibility across the school.
           </p>
           <div className="mt-8 grid gap-4 md:grid-cols-3">
             {[
@@ -38,24 +37,12 @@ export default function LoginPage() {
         <section className="grid gap-6 rounded-[2rem] border border-white/50 bg-white/90 p-8 shadow-panel md:p-10">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Sign in</p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">Demo access</h2>
+            <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">School portal access</h2>
             <p className="mt-3 text-sm leading-6 text-ink/68">
-              All demo accounts use the password <span className="font-semibold text-ink">FutureRealm123!</span>
+              Enter your school-issued credentials to continue.
             </p>
           </div>
           <LoginForm />
-          <div className="rounded-[1.5rem] bg-sand/70 p-5">
-            <p className="text-sm font-semibold uppercase tracking-[0.24em] text-ink/45">Seeded accounts</p>
-            <div className="mt-4 grid gap-3 text-sm text-ink/75">
-              {demoCredentials.map((credential) => (
-                <div key={credential.email} className="rounded-2xl bg-white/80 px-4 py-3">
-                  <p className="font-semibold text-ink">{credential.name}</p>
-                  <p>{credential.role}</p>
-                  <p>{credential.email}</p>
-                </div>
-              ))}
-            </div>
-          </div>
         </section>
       </div>
     </main>

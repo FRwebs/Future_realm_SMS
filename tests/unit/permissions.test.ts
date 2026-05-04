@@ -39,9 +39,7 @@ describe("school role and permission catalog", () => {
     expect(systemRolePermissionKeys.PRINCIPAL).toContain("roles.assign");
     expect(systemRolePermissionKeys.PRINCIPAL).not.toContain("settings.school_profile");
     expect(systemRolePermissionKeys.VICE_PRINCIPAL_ADMINISTRATION).toEqual(expect.arrayContaining(["staff_leave.approve", "discipline.approve", "facilities.create"]));
-    expect(systemRolePermissionKeys.EXAM_OFFICER).toEqual(expect.arrayContaining(["exams.view", "exam_timetable.view", "seating_plan.view", "invigilation.view", "external_exams.view", "results.compile", "students.view", "question_bank.view", "reports.view", "discipline.view"]));
-    expect(systemRolePermissionKeys.EXAM_OFFICER).not.toContain("results.publish");
-    expect(systemRolePermissionKeys.EXAM_OFFICER).not.toContain("results.approve");
+    expect(systemRolePermissionKeys.EXAM_OFFICER).toEqual(expect.arrayContaining(["exams.view", "exam_timetable.view", "seating_plan.view", "invigilation.view", "external_exams.view", "results.compile", "results.publish", "results.approve", "students.view", "question_bank.view", "question_bank.create", "question_bank.edit", "question_bank.delete", "reports.view", "discipline.view", "classes.view", "subjects.view"]));
     expect(systemRolePermissionKeys.ACCOUNTANT).toEqual(expect.arrayContaining(["fees.view", "fees.collect", "fees.waive", "expenses.create"]));
     expect(systemRolePermissionKeys.STUDENT).toEqual(expect.arrayContaining(["results.view", "assignments.submit", "report_cards.download"]));
   });

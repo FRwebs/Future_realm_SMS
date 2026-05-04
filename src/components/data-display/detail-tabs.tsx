@@ -10,7 +10,7 @@ interface DetailTabsProps {
 
 export function DetailTabs({ tabs }: DetailTabsProps) {
   return (
-    <nav className="flex flex-wrap gap-2 rounded-[2rem] border border-white/60 bg-white/88 p-2 shadow-panel backdrop-blur" aria-label="Detail sections">
+    <nav className="flex flex-wrap gap-2 rounded-[2rem] border border-[var(--color-border-default)] bg-[color-mix(in_srgb,var(--color-bg-surface)_92%,transparent)] p-2 shadow-panel backdrop-blur" aria-label="Detail sections">
       {tabs.map((tab) => (
         <a
           key={tab.href}
@@ -18,8 +18,8 @@ export function DetailTabs({ tabs }: DetailTabsProps) {
           className={[
             "rounded-full px-4 py-2 text-sm font-semibold transition",
             tab.active
-              ? "bg-gradient-to-r from-brand-700 via-emerald-500 to-brand-800 text-white shadow-[0_14px_30px_rgba(37,89,63,0.18)]"
-              : "bg-sand text-ink hover:bg-white hover:text-brand-800"
+              ? "bg-[linear-gradient(90deg,var(--color-accent-primary),var(--color-bg-surface))] text-[var(--color-text-inverse)] shadow-[0_14px_30px_var(--color-accent-primary-glow)]"
+              : "bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
           ].join(" ")}
         >
           {tab.label}

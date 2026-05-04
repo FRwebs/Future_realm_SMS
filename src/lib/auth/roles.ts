@@ -231,7 +231,7 @@ const accessRules: AccessRule[] = [
   },
   {
     prefix: "/students",
-    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "ACCOUNTANT", "GUIDANCE_COUNSELLOR", "NURSE"],
+    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "GUIDANCE_COUNSELLOR", "NURSE"],
     manage: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "ADMIN_OFFICER"]
   },
   {
@@ -265,8 +265,8 @@ const accessRules: AccessRule[] = [
   },
   {
     prefix: "/finance",
-    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "ADMIN_OFFICER", "ACCOUNTANT"],
-    manage: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "ADMIN_OFFICER", "ACCOUNTANT"]
+    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"],
+    manage: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"]
   },
   {
     prefix: "/communications",
@@ -275,7 +275,7 @@ const accessRules: AccessRule[] = [
   },
   {
     prefix: "/analytics",
-    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "ACCOUNTANT", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT"]
+    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT"]
   },
   {
     prefix: "/settings",
@@ -291,7 +291,7 @@ const accessRules: AccessRule[] = [
   },
   {
     prefix: "/school/my-permissions",
-    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "VICE_PRINCIPAL_ADMINISTRATION", "VICE_PRINCIPAL_SPECIAL_DUTIES", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER", "SUBJECT_TEACHER", "ACCOUNTANT", "ADMISSIONS_OFFICER", "GUIDANCE_COUNSELLOR", "LIBRARIAN", "LABORATORY_STAFF", "ICT_CBT_ADMIN", "ATTENDANCE_OFFICER", "NURSE", "RECEPTIONIST", "TRANSPORT_MANAGER", "HOSTEL_MANAGER", "HOSTEL_MASTER", "HOSTEL_MISTRESS", "STORE_OFFICER"]
+    view: ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "VICE_PRINCIPAL_ADMINISTRATION", "VICE_PRINCIPAL_SPECIAL_DUTIES", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER", "HEAD_OF_DEPARTMENT", "CLASS_TEACHER", "SUBJECT_TEACHER", "ADMISSIONS_OFFICER", "GUIDANCE_COUNSELLOR", "LIBRARIAN", "LABORATORY_STAFF", "ICT_CBT_ADMIN", "ATTENDANCE_OFFICER", "NURSE", "RECEPTIONIST", "TRANSPORT_MANAGER", "HOSTEL_MANAGER", "HOSTEL_MASTER", "HOSTEL_MISTRESS", "STORE_OFFICER"]
   },
   {
     prefix: "/portals/parent",
@@ -300,6 +300,38 @@ const accessRules: AccessRule[] = [
   {
     prefix: "/portals/teacher",
     view: ["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"]
+  },
+  {
+    prefix: "/portals/admission-officer",
+    view: ["ADMISSIONS_OFFICER"]
+  },
+  {
+    prefix: "/portals/principal",
+    view: ["PRINCIPAL"]
+  },
+  {
+    prefix: "/portals/exam-officer",
+    view: ["EXAM_OFFICER", "EXAMINATION_OFFICER"]
+  },
+  {
+    prefix: "/portals/nurse",
+    view: ["SCHOOL_NURSE", "NURSE"]
+  },
+  {
+    prefix: "/portals/librarian",
+    view: ["LIBRARIAN"]
+  },
+  {
+    prefix: "/portals/front-desk",
+    view: ["RECEPTIONIST"]
+  },
+  {
+    prefix: "/portals/hostel",
+    view: ["HOSTEL_MANAGER", "HOSTEL_MASTER", "HOSTEL_MATRON", "HOSTEL_MISTRESS"]
+  },
+  {
+    prefix: "/portals/transport",
+    view: ["TRANSPORT_COORDINATOR", "TRANSPORT_MANAGER"]
   },
   {
     prefix: "/portals/student",
@@ -314,7 +346,13 @@ function findAccessRule(path: string) {
 }
 
 export function canAccessPath(role: Role, path: string) {
-  if (path === "/dashboard" && isSchoolStaffRole(role)) return true;
+  if (
+    path === "/dashboard" &&
+    isSchoolStaffRole(role) &&
+    !["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(role)
+  ) {
+    return true;
+  }
   return canAccessPathWithPermissions(role, path, getDefaultPermissionsForRole(role));
 }
 
@@ -330,8 +368,17 @@ export function canManagePath(role: Role, path: string) {
 export function getDefaultPathForRole(role: Role) {
   if (platformRoles.includes(role)) return "/super-admin";
   if (role === "PARENT") return "/portals/parent";
+  if (role === "PRINCIPAL") return "/portals/principal";
   if (role === "TEACHER" || role === "CLASS_TEACHER" || role === "SUBJECT_TEACHER") return "/portals/teacher";
+  if (role === "ADMISSIONS_OFFICER") return "/portals/admission-officer";
+  if (role === "EXAM_OFFICER" || role === "EXAMINATION_OFFICER") return "/portals/exam-officer";
+  if (role === "SCHOOL_NURSE" || role === "NURSE") return "/portals/nurse";
+  if (role === "LIBRARIAN") return "/portals/librarian";
+  if (role === "RECEPTIONIST") return "/portals/front-desk";
+  if (role === "HOSTEL_MANAGER" || role === "HOSTEL_MASTER" || role === "HOSTEL_MATRON" || role === "HOSTEL_MISTRESS") return "/portals/hostel";
+  if (role === "TRANSPORT_COORDINATOR" || role === "TRANSPORT_MANAGER") return "/portals/transport";
   if (role === "STUDENT") return "/portals/student";
+  if (role === "BURSAR" || role === "ACCOUNTANT" || role === "ACCOUNT_OFFICER") return "/finance";
   return "/dashboard";
 }
 

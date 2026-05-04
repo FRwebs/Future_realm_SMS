@@ -88,17 +88,17 @@ export function LoginForm() {
     <form
       onSubmit={handleSubmit}
       method="post"
-      className={success ? "grid gap-4 rounded-[20px] ring-2 ring-emerald-200 transition-all" : "grid gap-4"}
+      className={success ? "grid gap-4 rounded-[20px] ring-2 ring-[var(--color-success)]/40 transition-all" : "grid gap-4"}
     >
       <label>
         <span className="field-label">Email</span>
         <div className="relative mt-2">
-          <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Mail className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
           <input
             type="email"
             name="email"
             required
-            className="field-control h-12 rounded-2xl bg-white/90 pl-11"
+            className="field-control h-12 rounded-2xl pl-11"
             placeholder="principal@greenfieldcollege.ng"
           />
         </div>
@@ -106,18 +106,18 @@ export function LoginForm() {
       <label>
         <span className="field-label">Password</span>
         <div className="relative mt-2">
-          <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Lock className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
           <input
             type={showPassword ? "text" : "password"}
             name="password"
             required
-            className="field-control h-12 rounded-2xl bg-white/90 pl-11 pr-11"
+            className="field-control h-12 rounded-2xl pl-11 pr-11"
             placeholder="FutureRealm123!"
           />
           <button
             type="button"
             onClick={() => setShowPassword((current) => !current)}
-            className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+            className="absolute right-3 top-1/2 inline-flex h-8 w-8 -translate-y-1/2 items-center justify-center rounded-xl text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg-elevated)] hover:text-[var(--color-text-primary)]"
             aria-label={showPassword ? "Hide password" : "Show password"}
           >
             {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
@@ -137,7 +137,7 @@ export function LoginForm() {
         <span>{pending ? "Signing in..." : "Sign in"}</span>
         <ArrowRight className="h-4 w-4" />
       </button>
-      {error ? <p className="text-[13px] text-rose-600">{error}</p> : null}
+      {error ? <p className="text-[13px] text-[var(--color-danger)]">{error}</p> : null}
     </form>
   );
 }

@@ -2,7 +2,6 @@ import { ForbiddenException, Injectable, NotFoundException } from "@nestjs/commo
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { getDemoParentPortalByEmail } from "../../../../src/lib/demo/data";
 import { buildPortalSubjectResults, resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import {
   ParentChildPortalView,
@@ -19,7 +18,6 @@ import {
   StudentPortalNotificationView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -124,12 +122,6 @@ export class ParentPortalService {
     return guardian;
   }
 
-  private getDemoAuthorizedChild(session: SessionPayload, studentId: string) {
-    const child = getDemoParentPortalByEmail(session.email).children.find((item) => item.studentId === studentId);
-    if (!child) throw new ForbiddenException("This child is not linked to your guardian account.");
-    return child;
-  }
-
   private async getAuthorizedChild(session: SessionPayload, studentId: string): Promise<LinkedChild> {
     const guardian = await this.getGuardianContext(session);
     const link = guardian.students.find((item) => item.studentId === studentId);
@@ -142,10 +134,6 @@ export class ParentPortalService {
 
   async listLinkedChildren(session: SessionPayload) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) {
-      return getDemoParentPortalByEmail(session.email).children;
-    }
-
     const guardian = await this.getGuardianContext(session);
     return Promise.all(guardian.students.map((item) => this.buildChildOverview(session, item.student)));
   }
@@ -604,8 +592,6 @@ export class ParentPortalService {
 
   async getParentDashboard(session: SessionPayload): Promise<ParentPortalView> {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return getDemoParentPortalByEmail(session.email);
-
     const guardian = await this.getGuardianContext(session);
     const children = await Promise.all(guardian.students.map((item) => this.buildChildOverview(session, item.student)));
     const outstanding = children.reduce((sum, child) => sum + child.outstandingBalance, 0);
@@ -631,54 +617,36 @@ export class ParentPortalService {
 
   async getChildOverviewForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) {
-      return this.getDemoAuthorizedChild(session, studentId);
-    }
     const child = await this.getAuthorizedChild(session, studentId);
     return this.buildChildOverview(session, child);
   }
 
   async getChildAttendanceForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return this.getDemoAuthorizedChild(session, studentId).attendance;
     await this.getAuthorizedChild(session, studentId);
     return this.getAttendance(session, studentId);
   }
 
   async getChildResultsForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return this.getDemoAuthorizedChild(session, studentId).resultHistory;
     const child = await this.getAuthorizedChild(session, studentId);
     return this.getResults(session, child);
   }
 
   async getChildFeesForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return this.getDemoAuthorizedChild(session, studentId).finance;
     await this.getAuthorizedChild(session, studentId);
     return this.getFees(session, studentId);
   }
 
   async getChildSubjectsForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return this.getDemoAuthorizedChild(session, studentId).subjects ?? [];
     const child = await this.getAuthorizedChild(session, studentId);
     return this.getSubjectOfferings(session, child.currentClass?.id);
   }
 
   async getChildTimetableForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) {
-      const child = this.getDemoAuthorizedChild(session, studentId);
-      return {
-        weeklyTimetable: child.weeklyTimetable,
-        examTimetable: child.examTimetable ?? [],
-        calendar: child.calendar ?? [],
-        subjects: child.subjects ?? [],
-        curriculumTopics: child.curriculumTopics ?? [],
-        departmentTrack: child.departmentTrack
-      };
-    }
     const child = await this.getAuthorizedChild(session, studentId);
     return this.getTimetable(session, child);
   }
@@ -694,8 +662,6 @@ export class ParentPortalService {
 
   async getParentAnnouncements(session: SessionPayload) {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return getDemoParentPortalByEmail(session.email).announcements;
-
     const guardian = await this.getGuardianContext(session);
     const classNames = guardian.students.map((item) => formatClassName(item.student.currentClass?.name, item.student.currentClass?.arm));
     const announcements = await prisma.announcement.findMany({
@@ -718,8 +684,6 @@ export class ParentPortalService {
 
   async getParentNotifications(session: SessionPayload): Promise<StudentPortalNotificationView[]> {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) return getDemoParentPortalByEmail(session.email).notifications ?? [];
-
     const notifications = await prisma.notificationLog.findMany({
       where: {
         schoolId: session.schoolId,
@@ -741,23 +705,6 @@ export class ParentPortalService {
 
   async getParentProfile(session: SessionPayload): Promise<ParentProfileView> {
     this.assertParentSession(session);
-    if (env.DEMO_MODE) {
-      const portal = getDemoParentPortalByEmail(session.email);
-      return {
-        parentId: "demo-parent",
-        parentName: portal.parentName,
-        email: session.email,
-        canReceiveSms: true,
-        canReceiveEmail: true,
-        linkedChildren: portal.children.map((child) => ({
-          studentId: child.studentId,
-          studentName: child.studentName,
-          className: child.className,
-          admissionNumber: child.admissionNumber ?? child.studentId
-        }))
-      };
-    }
-
     const guardian = await this.getGuardianContext(session);
     return {
       parentId: guardian.id,

@@ -2,17 +2,11 @@ import { Injectable } from "@nestjs/common";
 
 import { prisma } from "../../../../src/lib/db/prisma";
 import {
-  getDemoTeacherActivities,
-  getDemoTeacherProfileById,
-  getDemoTeachers
-} from "../../../../src/lib/demo/data";
-import {
   TeacherActivityView,
   TeacherProfileView,
   TeacherRecordView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 function formatClassName(name?: string | null, arm?: string | null) {
   if (!name) return "Unassigned";
@@ -36,10 +30,6 @@ function resolveLeaveStatus(leaveRequests: Array<{ status: "PENDING" | "APPROVED
 @Injectable()
 export class TeachersService {
   async listTeacherActivities(schoolId: string): Promise<TeacherActivityView[]> {
-    if (env.DEMO_MODE) {
-      return getDemoTeacherActivities();
-    }
-
     const staffProfiles = await prisma.staffProfile.findMany({
       where: {
         schoolId,
@@ -136,10 +126,6 @@ export class TeachersService {
   }
 
   async listTeachers(schoolId: string): Promise<TeacherRecordView[]> {
-    if (env.DEMO_MODE) {
-      return getDemoTeachers();
-    }
-
     const staffProfiles = await prisma.staffProfile.findMany({
       where: {
         schoolId,
@@ -242,10 +228,6 @@ export class TeachersService {
   }
 
   async getTeacherProfile(schoolId: string, teacherId: string): Promise<TeacherProfileView> {
-    if (env.DEMO_MODE) {
-      return getDemoTeacherProfileById(teacherId);
-    }
-
     const profile = await prisma.staffProfile.findFirstOrThrow({
       where: {
         id: teacherId,

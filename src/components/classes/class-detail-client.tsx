@@ -5,7 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Award, CheckCircle2, ClipboardCheck, DoorOpen, Star, UserCheck, Users } from "lucide-react";
 
 import { CanDo, usePermissions } from "@/components/auth/permission-provider";
+import { ActionMenu, ActionMenuButton, ActionMenuLink } from "@/components/ui/action-menu";
 import { Pagination } from "@/components/ui/pagination";
+import { StudentQuickViewPanel } from "@/components/students/student-quick-view-panel";
 import { usePagination } from "@/hooks/use-pagination";
 import { cn } from "@/lib/utils/cn";
 import type { ClassListItem } from "./classes-list-client";
@@ -231,6 +233,7 @@ export function ClassDetailClient({ classId }: { classId: string }) {
 }
 
 function MembersTab({ classId, className }: { classId: string; className: string }) {
+  const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const fetchMembers = useCallback(async (params: { page: number; pageSize: number }) => {
     const data = await apiJson<{ data: ClassMember[]; total: number }>(`/api/v1/classes/${classId}/members?page=${params.page}&pageSize=${params.pageSize}`);
     return { data: data.data, total: data.total };
@@ -245,25 +248,44 @@ function MembersTab({ classId, className }: { classId: string; className: string
       <div className="overflow-x-auto rounded-[1.5rem] border border-ink/8">
         <table className="w-full min-w-[800px] text-sm">
           <thead className="bg-sand/70 text-left text-xs font-black uppercase tracking-[0.16em] text-ink/42">
-            <tr><th className="px-4 py-3">S/N</th><th className="px-4 py-3">Student</th><th className="px-4 py-3">Admission No.</th><th className="px-4 py-3">Gender</th><th className="px-4 py-3">Parent</th><th className="px-4 py-3">Status</th></tr>
+            <tr><th className="px-4 py-3">S/N</th><th className="px-4 py-3">Student</th><th className="px-4 py-3">Admission No.</th><th className="px-4 py-3">Gender</th><th className="px-4 py-3">Parent</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
           </thead>
           <tbody className="divide-y divide-ink/6">
-            {isLoading ? <tr><td colSpan={6} className="px-4 py-8 text-center text-ink/45">Loading students...</td></tr> : null}
-            {!isLoading && data.length === 0 ? <tr><td colSpan={6} className="px-4 py-8 text-center text-ink/45">No students enrolled in this class yet.</td></tr> : null}
+            {isLoading ? <tr><td colSpan={7} className="px-4 py-8 text-center text-ink/45">Loading students...</td></tr> : null}
+            {!isLoading && data.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-ink/45">No students enrolled in this class yet.</td></tr> : null}
             {!isLoading && data.map((student) => (
               <tr key={student.id} className="hover:bg-sand/35">
                 <td className="px-4 py-3 text-ink/40">{student.sn}</td>
-                <td className="px-4 py-3 font-semibold text-ink">{student.lastName ?? student.last_name}, {student.firstName ?? student.first_name}</td>
+                <td className="px-4 py-3">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedStudentId(student.id)}
+                    className="font-semibold text-ink transition hover:text-primary-700"
+                  >
+                    {student.lastName ?? student.last_name}, {student.firstName ?? student.first_name}
+                  </button>
+                </td>
                 <td className="px-4 py-3 font-mono text-xs text-ink/55">{student.admissionNumber ?? student.admission_number}</td>
                 <td className="px-4 py-3 text-ink/60">{student.gender}</td>
                 <td className="px-4 py-3 text-ink/60">{student.parentName ?? student.parent_name ?? "-"}</td>
                 <td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{student.status}</span></td>
+                <td className="px-4 py-3 text-right">
+                  <ActionMenu triggerLabel={`Actions for ${(student.firstName ?? student.first_name) ?? "student"}`}>
+                    <ActionMenuButton onClick={() => setSelectedStudentId(student.id)}>
+                      Quick view
+                    </ActionMenuButton>
+                    <ActionMenuLink href={`/students/${student.id}`}>
+                      Open full profile
+                    </ActionMenuLink>
+                  </ActionMenu>
+                </td>
               </tr>
             ))}
           </tbody>
         </table>
       </div>
       <Pagination currentPage={currentPage} totalItems={totalItems} pageSize={pageSize} onPageChange={setCurrentPage} onPageSizeChange={setPageSize} pageSizeOptions={[10, 25, 50]} />
+      <StudentQuickViewPanel studentId={selectedStudentId} open={Boolean(selectedStudentId)} onClose={() => setSelectedStudentId(null)} />
     </div>
   );
 }
