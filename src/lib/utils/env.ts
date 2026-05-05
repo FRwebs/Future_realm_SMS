@@ -1,5 +1,17 @@
 import { z } from "zod";
 
+function normalizeUrl(value?: string) {
+  const trimmed = value?.trim();
+  if (!trimmed) return undefined;
+  return /^https?:\/\//i.test(trimmed) ? trimmed : `https://${trimmed}`;
+}
+
+const inferredAppUrl =
+  normalizeUrl(process.env.APP_URL) ??
+  normalizeUrl(process.env.VERCEL_PROJECT_PRODUCTION_URL) ??
+  normalizeUrl(process.env.VERCEL_URL) ??
+  "http://localhost:3000";
+
 const envSchema = z.object({
   APP_URL: z.string().default("http://localhost:3000"),
   JWT_SECRET: z.string().min(16).default("local-development-secret"),
@@ -22,7 +34,7 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse({
-  APP_URL: process.env.APP_URL,
+  APP_URL: inferredAppUrl,
   JWT_SECRET: process.env.JWT_SECRET,
   DEMO_MODE: process.env.DEMO_MODE,
   DEFAULT_SCHOOL_SLUG: process.env.DEFAULT_SCHOOL_SLUG,

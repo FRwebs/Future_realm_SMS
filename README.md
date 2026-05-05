@@ -212,12 +212,49 @@ npm run test:e2e
 
 ## Deployment Notes
 
-- Deploy web and API as separate services or containers.
+- Vercel is now supported for both the Next frontend and the Nest API on the same domain.
+- The Nest backend is exposed through the Vercel serverless entry at [api/[...path].ts](/Users/victoryakubu/Desktop/futurerealm/school%20management%20system/api/%5B...path%5D.ts), so production requests keep the same `/api/v1/...` shape as local development.
+- Local development still uses the Next rewrite proxy to `http://127.0.0.1:4000`, but Vercel automatically disables that rewrite so requests do not bounce back to localhost.
 - Use a managed PostgreSQL instance in production.
 - Replace mock S3 and payment settings with real credentials in environment variables.
 - Deploy behind HTTPS so secure cookies remain enabled.
 - Add centralized logging, metrics, and background workers for outbound notifications in production.
 - For multi-school SaaS deployments, add tenant-aware subdomain routing and database row policies.
+
+## Vercel Setup
+
+1. Create a Vercel project from this repository.
+2. Keep the default build command:
+
+```bash
+npm run build
+```
+
+3. Set these required environment variables in Vercel:
+
+```bash
+DATABASE_URL=...
+DIRECT_URL=...
+APP_URL=https://your-domain.example
+JWT_SECRET=replace-with-a-long-random-secret
+DEFAULT_SCHOOL_SLUG=greenfield-college
+DEMO_MODE=false
+```
+
+4. Do not set `NEST_API_URL` in Vercel unless you intentionally want the frontend to call a different external API host.
+5. If you use preview deployments, Vercel preview URLs are automatically accepted by the backend CORS and `APP_URL` fallback logic.
+6. Run Prisma against your production database before the first live login:
+
+```bash
+npx prisma db push
+npm run prisma:seed
+```
+
+7. After deployment, verify:
+   - `/login`
+   - `/api/v1/auth/session`
+   - `/api/docs`
+   - one protected page such as `/dashboard`
 
 ## Known Limitations
 
