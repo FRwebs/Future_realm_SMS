@@ -22,10 +22,5 @@
       "src": "/(.*)",
       "dest": "/$1"
     }
-  ],
-  "functions": {
-    "api/[...path].ts": {
-      "maxDuration": 60
-    }
-  }
+  ]
 }
