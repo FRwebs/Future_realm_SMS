@@ -293,12 +293,14 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
                 <p><span className="font-semibold text-ink">Registration:</span> {selectedApplication.registeredAdmissionNumber ?? "Not enrolled"}</p>
               </div>
               {selectedApplication.offerStatus ? (
-                <Link
+                <a
                   href={`/api/v1/admissions/${selectedApplication.id}/offer-letter`}
+                  target="_blank"
+                  rel="noreferrer"
                   className="mt-5 inline-flex rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
                 >
                   Preview offer letter
-                </Link>
+                </a>
               ) : null}
             </article>
             <article className="rounded-[1.5rem] bg-sand/60 p-5">
