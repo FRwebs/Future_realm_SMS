@@ -268,12 +268,14 @@ export default async function AdmissionOfficerApplicationsPage({
 
               {selectedApplication.offerStatus ? (
                 <div className="flex flex-wrap gap-3">
-                  <Link
+                  <a
                     href={`/api/v1/admissions/${selectedApplication.id}/offer-letter`}
+                    target="_blank"
+                    rel="noreferrer"
                     className="btn-secondary min-h-[44px] px-4"
                   >
                     Preview offer letter
-                  </Link>
+                  </a>
                   <Link
                     href="/portals/admission-officer/offers"
                     className="btn-ghost min-h-[44px] px-4"
