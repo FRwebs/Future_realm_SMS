@@ -33,6 +33,7 @@ type ToastItem = {
   description?: string;
   variant: ToastVariant;
   duration?: number;
+  persistent?: boolean;
   action?: ToastAction;
 };
 
@@ -86,7 +87,7 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
 
     setToasts((current) => [nextToast, ...current].slice(0, 5));
 
-    if (toast.variant !== "error") {
+    if (!toast.persistent && duration > 0) {
       timersRef.current[id] = window.setTimeout(() => {
         dismissToast(id);
       }, duration);
