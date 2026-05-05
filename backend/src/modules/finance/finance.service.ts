@@ -278,8 +278,6 @@ export class FinanceService {
           reversalReason: true,
           reversedAt: true,
           paidAt: true,
-          paymentDate: true,
-          createdAt: true,
           student: {
             select: {
               firstName: true,
@@ -410,8 +408,8 @@ export class FinanceService {
       reversalReason: payment.reversalReason ?? undefined,
       reversedAt: payment.reversedAt?.toISOString(),
       paidAt: payment.paidAt?.toISOString(),
-      paymentDate: payment.paymentDate?.toISOString(),
-      createdAt: payment.createdAt.toISOString(),
+      paymentDate: payment.paidAt?.toISOString(),
+      createdAt: payment.paidAt?.toISOString(),
     }));
 
     const expenditures = expenditureRows.map<ExpenditureView>((expense) => ({
