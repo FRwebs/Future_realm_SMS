@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { BookMarked, CheckCircle2, Clock3, ShieldCheck, Target } from "lucide-react";
 
@@ -87,7 +88,7 @@ export default async function TeacherSchemeOfWorkApprovalsPage() {
               sitting in draft instead of moving toward approval.
             </p>
           </div>
-          <Link href="/portals/teacher/content/scheme-of-work/coverage" className="btn-secondary px-4">
+          <Link href={"/portals/teacher/content/scheme-of-work/coverage" as Route} className="btn-secondary px-4">
             <BookMarked className="h-4 w-4" />
             Back to coverage editor
           </Link>
@@ -161,7 +162,7 @@ export default async function TeacherSchemeOfWorkApprovalsPage() {
                     <td className="px-4 py-3 text-slate-600">{summary.nextWeek ?? "-"}</td>
                     <td className="px-4 py-3">
                       <Link
-                        href={`/portals/teacher/content/scheme-of-work/coverage?sow=${summary.id}`}
+                        href={`/portals/teacher/content/scheme-of-work/coverage?sow=${summary.id}` as Route}
                         className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
                       >
                         Open lane
@@ -217,7 +218,7 @@ export default async function TeacherSchemeOfWorkApprovalsPage() {
               </h2>
             </div>
             <div className="mt-4 grid gap-3">
-              <Link href="/portals/teacher/content/scheme-of-work/coverage" className="btn-secondary px-4">
+              <Link href={"/portals/teacher/content/scheme-of-work/coverage" as Route} className="btn-secondary px-4">
                 <CheckCircle2 className="h-4 w-4" />
                 Work coverage lanes
               </Link>

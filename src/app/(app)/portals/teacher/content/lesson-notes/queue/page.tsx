@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import Link from "next/link";
 import { BookOpen, CalendarDays, Clock3, FileStack, Target } from "lucide-react";
 
@@ -294,7 +295,7 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
                 <BookOpen className="h-4 w-4" />
                 Open planning studio
               </Link>
-              <Link href="/portals/teacher/content/scheme-of-work/coverage" className="btn-secondary px-4">
+              <Link href={"/portals/teacher/content/scheme-of-work/coverage" as Route} className="btn-secondary px-4">
                 <Target className="h-4 w-4" />
                 Review coverage
               </Link>

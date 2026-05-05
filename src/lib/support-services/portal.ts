@@ -7,6 +7,12 @@ export type SupportPortalTab = {
   label: string;
 };
 
+export type SupportPortalLayoutConfig = {
+  title: string;
+  description: string;
+  tabs: Array<{ href: string; label: string }>;
+};
+
 export type SupportAlertTone = "neutral" | "warning" | "danger";
 
 export type NurseDashboardView = {
@@ -213,6 +219,70 @@ export async function safeApiGet<T>(path: string, fallback: T): Promise<T> {
     return fallback;
   }
 }
+
+export const nursePortalLayout: SupportPortalLayoutConfig = {
+  title: "Clinic lanes",
+  description:
+    "Move between the nurse command center, visit operations, patient records, supply control, and health reporting without dropping out of the clinic workflow.",
+  tabs: [
+    { href: "/portals/nurse", label: "Dashboard" },
+    { href: "/portals/nurse/queue", label: "Clinic Queue" },
+    { href: "/portals/nurse/health-profiles", label: "Profiles" },
+    { href: "/portals/nurse/inventory", label: "Inventory" },
+    { href: "/portals/nurse/health-summary", label: "Reports" },
+  ],
+};
+
+export const librarianPortalLayout: SupportPortalLayoutConfig = {
+  title: "Library lanes",
+  description:
+    "Stay inside one circulation-driven workspace while switching between issuing, returns, catalog control, members, and reporting.",
+  tabs: [
+    { href: "/portals/librarian", label: "Dashboard" },
+    { href: "/portals/librarian/issue-book", label: "Issue" },
+    { href: "/portals/librarian/return-book", label: "Return" },
+    { href: "/portals/librarian/all-books", label: "Catalog" },
+    { href: "/portals/librarian/all-members", label: "Members" },
+  ],
+};
+
+export const frontDeskPortalLayout: SupportPortalLayoutConfig = {
+  title: "Reception lanes",
+  description:
+    "Keep the front desk tight and fast by moving between visitor flow, reception meetings, desk reporting, and parent-facing operations from one surface.",
+  tabs: [
+    { href: "/portals/front-desk", label: "Dashboard" },
+    { href: "/portals/front-desk/check-in-visitor", label: "Visitors" },
+    { href: "/portals/front-desk/room-availability", label: "Meetings" },
+    { href: "/portals/front-desk/daily-activity-report", label: "Reports" },
+  ],
+};
+
+export const hostelPortalLayout: SupportPortalLayoutConfig = {
+  title: "Boarding lanes",
+  description:
+    "Switch between occupancy, room placement, roll-call readiness, and reporting while staying inside the hostel operating system.",
+  tabs: [
+    { href: "/portals/hostel", label: "Dashboard" },
+    { href: "/portals/hostel/all-boarders", label: "Boarders" },
+    { href: "/portals/hostel/room-bed-map", label: "Bed Map" },
+    { href: "/portals/hostel/take-roll-call", label: "Roll Call" },
+    { href: "/portals/hostel/occupancy-report", label: "Reports" },
+  ],
+};
+
+export const transportPortalLayout: SupportPortalLayoutConfig = {
+  title: "Transport lanes",
+  description:
+    "Operate fleet, routes, student assignment load, and transport risk from one structured command surface.",
+  tabs: [
+    { href: "/portals/transport", label: "Dashboard" },
+    { href: "/portals/transport/vehicles", label: "Fleet" },
+    { href: "/portals/transport/all-routes", label: "Routes" },
+    { href: "/portals/transport/transport-students", label: "Students" },
+    { href: "/portals/transport/compliance-alerts", label: "Compliance" },
+  ],
+};
 
 export function supportLabel(value?: string | null) {
   if (!value) return "Not set";

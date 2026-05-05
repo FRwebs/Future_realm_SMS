@@ -185,7 +185,7 @@ export default async function TeacherContentOverviewPage() {
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
-                    href={`/portals/teacher/content/scheme-of-work/coverage?subjectId=${lane.subjectId}&classId=${lane.classId}`}
+                    href={`/portals/teacher/content/scheme-of-work/coverage?subjectId=${lane.subjectId}&classId=${lane.classId}` as Route}
                     className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
                   >
                     Scheme workspace
@@ -276,7 +276,7 @@ export default async function TeacherContentOverviewPage() {
               Scheme and curriculum health at a glance
             </h2>
           </div>
-          <Link href="/portals/teacher/content/scheme-of-work/coverage" className="btn-secondary px-4">
+          <Link href={"/portals/teacher/content/scheme-of-work/coverage" as Route} className="btn-secondary px-4">
             <BookMarked className="h-4 w-4" />
             Open coverage workspace
           </Link>
@@ -322,3 +322,4 @@ export default async function TeacherContentOverviewPage() {
     </div>
   );
 }
+import type { Route } from "next";

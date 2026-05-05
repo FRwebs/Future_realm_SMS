@@ -103,31 +103,72 @@ export class StudentsService {
   async listStudents(schoolId: string) {
     const students = await prisma.student.findMany({
       where: { schoolId },
-      include: {
+      select: {
+        id: true,
+        admissionNumber: true,
+        firstName: true,
+        lastName: true,
+        currentClassId: true,
+        status: true,
+        currentClass: {
+          select: {
+            name: true,
+            arm: true,
+          },
+        },
         guardians: {
-          include: {
-            guardian: true
-          }
-        },
-        attendance: {
           select: {
-            status: true
+            isPrimary: true,
+            guardian: {
+              select: {
+                firstName: true,
+              },
+            },
           }
         },
-        resultSheets: {
-          select: {
-            averageScore: true
-          }
-        },
-        invoices: {
-          select: {
-            balance: true
-          }
-        },
-        currentClass: true
       },
       orderBy: { admissionNumber: "asc" }
     });
+
+    const studentIds = students.map((student) => student.id);
+    if (studentIds.length === 0) {
+      return [];
+    }
+
+    const [attendanceStats, resultAverages, invoiceBalances] = await Promise.all([
+      prisma.studentAttendance.groupBy({
+        by: ["studentId", "status"],
+        where: { schoolId, studentId: { in: studentIds } },
+        _count: { _all: true },
+      }),
+      prisma.resultSheet.groupBy({
+        by: ["studentId"],
+        where: { schoolId, studentId: { in: studentIds } },
+        _avg: { averageScore: true },
+      }),
+      prisma.invoice.groupBy({
+        by: ["studentId"],
+        where: { schoolId, studentId: { in: studentIds } },
+        _sum: { balance: true },
+      }),
+    ]);
+
+    const attendanceMap = new Map<string, { total: number; presentLike: number }>();
+    for (const row of attendanceStats) {
+      const current = attendanceMap.get(row.studentId) ?? { total: 0, presentLike: 0 };
+      current.total += row._count._all;
+      if (row.status !== "ABSENT") {
+        current.presentLike += row._count._all;
+      }
+      attendanceMap.set(row.studentId, current);
+    }
+
+    const resultAverageMap = new Map(
+      resultAverages.map((row) => [row.studentId, Number(row._avg.averageScore ?? 0)]),
+    );
+    const invoiceBalanceMap = new Map(
+      invoiceBalances.map((row) => [row.studentId, Number(row._sum.balance ?? 0)]),
+    );
 
     return students.map<StudentRecordView>((student) => ({
       id: student.id,
@@ -140,18 +181,13 @@ export class StudentsService {
         student.guardians[0]?.guardian.firstName ??
         "No guardian",
       status: student.status,
-      attendanceRate:
-        student.attendance.length === 0
-          ? 0
-          : Number(
-              (
-                (student.attendance.filter((record) => record.status !== "ABSENT").length /
-                  student.attendance.length) *
-                100
-              ).toFixed(1)
-            ),
-      averageScore: Number(student.resultSheets[0]?.averageScore ?? 0),
-      outstandingBalance: student.invoices.reduce((sum, invoice) => sum + Number(invoice.balance), 0)
+      attendanceRate: (() => {
+        const stats = attendanceMap.get(student.id);
+        if (!stats || stats.total === 0) return 0;
+        return Number(((stats.presentLike / stats.total) * 100).toFixed(1));
+      })(),
+      averageScore: resultAverageMap.get(student.id) ?? 0,
+      outstandingBalance: invoiceBalanceMap.get(student.id) ?? 0,
     }));
   }
 

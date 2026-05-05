@@ -1,5 +1,6 @@
 "use client";
 
+import type { Route } from "next";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BookMarked, BookOpen, Layers3 } from "lucide-react";
@@ -8,21 +9,21 @@ import { cn } from "@/lib/utils/cn";
 
 const tabs = [
   {
-    href: "/portals/teacher/content",
+    href: "/portals/teacher/content" as Route,
     label: "Overview",
     description: "Content command center",
     icon: Layers3,
     matches: ["/portals/teacher/content"],
   },
   {
-    href: "/portals/teacher/content/lesson-notes/planning",
+    href: "/portals/teacher/content/lesson-notes/planning" as Route,
     label: "Lesson Notes",
     description: "Planning studio",
     icon: BookOpen,
     matches: ["/portals/teacher/content/lesson-notes", "/portals/teacher/curriculum"],
   },
   {
-    href: "/portals/teacher/content/scheme-of-work/coverage",
+    href: "/portals/teacher/content/scheme-of-work/coverage" as Route,
     label: "Scheme of Work",
     description: "Coverage workspace",
     icon: BookMarked,

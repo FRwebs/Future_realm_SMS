@@ -1,6 +1,7 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { endOfMonth, startOfMonth, subMonths } from "date-fns";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import { z } from "zod";
 
@@ -203,20 +204,228 @@ function normalizeName(value: string) {
 @Injectable()
 export class FinanceService {
   async getFinanceDashboard(schoolId: string): Promise<FinanceDashboardView> {
-    const [invoices, feeStructures, feeAssignments, payments, installmentPlans, expenditures, payrollRuns, auditTrail] = await Promise.all([
-      this.listInvoices(schoolId),
-      this.listFeeStructures(schoolId),
-      this.listFeeAssignments(schoolId),
-      this.listPayments(schoolId),
-      this.listInstallmentPlans(schoolId),
-      this.listExpenditures(schoolId),
-      this.listPayrollRuns(schoolId),
+    const today = new Date();
+    const paymentWindowStart = subMonths(today, 6);
+    const monthStart = startOfMonth(today);
+    const monthEnd = endOfMonth(today);
+
+    const [invoiceRows, paymentRows, expenditureRows, auditTrail] = await Promise.all([
+      prisma.invoice.findMany({
+        where: { schoolId, balance: { gt: 0 } },
+        select: {
+          id: true,
+          invoiceNumber: true,
+          studentId: true,
+          status: true,
+          total: true,
+          balance: true,
+          dueOn: true,
+          student: {
+            select: {
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              admissionNumber: true,
+              currentClass: {
+                select: {
+                  id: true,
+                  name: true,
+                  arm: true,
+                  classLevel: { select: { name: true } },
+                },
+              },
+            },
+          },
+          classRoom: {
+            select: {
+              id: true,
+              name: true,
+              arm: true,
+              classLevel: { select: { name: true } },
+            },
+          },
+          academicSession: { select: { id: true, name: true } },
+          term: { select: { id: true, name: true } },
+          payments: {
+            select: { paidAt: true },
+            orderBy: { paidAt: "desc" },
+            take: 1,
+          },
+          receipts: {
+            select: { receiptNumber: true },
+            orderBy: { issuedAt: "desc" },
+            take: 1,
+          },
+        },
+        orderBy: [{ balance: "desc" }, { issuedOn: "desc" }],
+        take: 250,
+      }),
+      prisma.payment.findMany({
+        where: { schoolId, paidAt: { gte: paymentWindowStart } },
+        select: {
+          id: true,
+          reference: true,
+          studentId: true,
+          amount: true,
+          status: true,
+          method: true,
+          provider: true,
+          paymentNumber: true,
+          paymentChannel: true,
+          schoolBankReference: true,
+          gatewayStatus: true,
+          isReversed: true,
+          reversalReason: true,
+          reversedAt: true,
+          paidAt: true,
+          paymentDate: true,
+          createdAt: true,
+          student: {
+            select: {
+              firstName: true,
+              middleName: true,
+              lastName: true,
+              admissionNumber: true,
+              currentClass: {
+                select: {
+                  id: true,
+                  name: true,
+                  arm: true,
+                  classLevel: { select: { name: true } },
+                },
+              },
+            },
+          },
+          invoice: {
+            select: {
+              id: true,
+              invoiceNumber: true,
+              academicSession: { select: { id: true, name: true } },
+              term: { select: { id: true, name: true } },
+              classRoom: {
+                select: {
+                  id: true,
+                  name: true,
+                  arm: true,
+                  classLevel: { select: { name: true } },
+                },
+              },
+            },
+          },
+          receipts: {
+            select: { receiptNumber: true },
+            orderBy: { issuedAt: "desc" },
+            take: 1,
+          },
+          recordedBy: {
+            select: {
+              firstName: true,
+              lastName: true,
+            },
+          },
+        },
+        orderBy: { paidAt: "desc" },
+        take: 180,
+      }),
+      prisma.expense.findMany({
+        where: { schoolId, deletedAt: null, expenseDate: { gte: monthStart, lte: monthEnd } },
+        select: {
+          id: true,
+          category: true,
+          title: true,
+          amount: true,
+          paymentMethod: true,
+          paidTo: true,
+          receiptUrl: true,
+          recordedById: true,
+          expenseDate: true,
+          notes: true,
+        },
+        orderBy: { expenseDate: "desc" },
+        take: 80,
+      }),
       prisma.auditLog.findMany({
         where: { schoolId, entityType: { in: ["Invoice", "Payment", "Receipt", "InvoiceAdjustment", "InstallmentPlan"] } },
         orderBy: { createdAt: "desc" },
-        take: 20
-      })
+        take: 12
+      }),
     ]);
+
+    const invoices = invoiceRows.map<InvoiceView>((invoice) => ({
+      id: invoice.id,
+      invoiceNumber: invoice.invoiceNumber,
+      studentId: invoice.studentId ?? undefined,
+      studentName: invoice.student ? studentName(invoice.student) : "Walk-in student",
+      admissionNumber: invoice.student?.admissionNumber ?? undefined,
+      classId: invoice.classRoom?.id ?? invoice.student?.currentClass?.id ?? undefined,
+      className: invoice.classRoom
+        ? className(invoice.classRoom)
+        : invoice.student?.currentClass
+          ? className(invoice.student.currentClass)
+          : "Unassigned",
+      classLevel: invoice.classRoom?.classLevel?.name ?? invoice.student?.currentClass?.classLevel?.name ?? undefined,
+      sessionId: invoice.academicSession?.id ?? undefined,
+      session: invoice.academicSession?.name ?? undefined,
+      termId: invoice.term?.id ?? undefined,
+      term: invoice.term?.name ?? undefined,
+      total: Number(invoice.total),
+      balance: Number(invoice.balance),
+      status: invoice.status,
+      dueOn: invoice.dueOn.toISOString(),
+      receiptNumber: invoice.receipts[0]?.receiptNumber,
+      paymentCount: invoice.payments.length,
+      lastPaymentAt: invoice.payments[0]?.paidAt?.toISOString(),
+    }));
+
+    const payments = paymentRows.map<PaymentView>((payment) => ({
+      id: payment.id,
+      reference: payment.reference,
+      studentId: payment.studentId ?? undefined,
+      studentName: payment.student ? studentName(payment.student) : "Walk-in student",
+      admissionNumber: payment.student?.admissionNumber ?? undefined,
+      classId: payment.student?.currentClass?.id ?? payment.invoice?.classRoom?.id ?? undefined,
+      className: payment.student?.currentClass
+        ? className(payment.student.currentClass)
+        : payment.invoice?.classRoom
+          ? className(payment.invoice.classRoom)
+          : undefined,
+      classLevel: payment.student?.currentClass?.classLevel?.name ?? payment.invoice?.classRoom?.classLevel?.name ?? undefined,
+      sessionId: payment.invoice?.academicSession?.id ?? undefined,
+      session: payment.invoice?.academicSession?.name ?? undefined,
+      termId: payment.invoice?.term?.id ?? undefined,
+      term: payment.invoice?.term?.name ?? undefined,
+      invoiceId: payment.invoice?.id ?? undefined,
+      invoiceNumber: payment.invoice?.invoiceNumber ?? undefined,
+      receiptNumber: payment.receipts[0]?.receiptNumber,
+      amount: Number(payment.amount),
+      status: payment.status,
+      method: payment.method,
+      provider: payment.provider ?? undefined,
+      paymentNumber: payment.paymentNumber ?? undefined,
+      paymentChannel: payment.paymentChannel ?? undefined,
+      schoolBankReference: payment.schoolBankReference ?? undefined,
+      gatewayStatus: payment.gatewayStatus ?? undefined,
+      recordedByName: payment.recordedBy ? `${payment.recordedBy.firstName} ${payment.recordedBy.lastName}` : undefined,
+      isReversed: payment.isReversed,
+      reversalReason: payment.reversalReason ?? undefined,
+      reversedAt: payment.reversedAt?.toISOString(),
+      paidAt: payment.paidAt?.toISOString(),
+      paymentDate: payment.paymentDate?.toISOString(),
+      createdAt: payment.createdAt.toISOString(),
+    }));
+
+    const expenditures = expenditureRows.map<ExpenditureView>((expense) => ({
+      id: expense.id,
+      category: expense.category,
+      description: expense.title,
+      amount: Number(expense.amount),
+      paymentMethod: expense.paymentMethod ?? undefined,
+      paidTo: expense.paidTo ?? undefined,
+      receiptUrl: expense.receiptUrl ?? undefined,
+      recordedById: expense.recordedById ?? undefined,
+      expenditureDate: expense.expenseDate.toISOString(),
+      notes: expense.notes ?? undefined,
+    }));
 
     const totalBilled = invoices.reduce((sum, invoice) => sum + invoice.total, 0);
     const outstanding = invoices.reduce((sum, invoice) => sum + invoice.balance, 0);
@@ -230,13 +439,13 @@ export class FinanceService {
         { label: "Outstanding", value: formatMoneyForAudit(outstanding), tone: "warning" },
         { label: "Collection rate", value: `${collectionRate}%`, tone: "ink" }
       ],
-      feeStructures,
-      feeAssignments,
+      feeStructures: [],
+      feeAssignments: [],
       invoices,
       payments,
-      installmentPlans,
+      installmentPlans: [],
       expenditures,
-      payrollRuns,
+      payrollRuns: [],
       auditTrail: auditTrail.map((item) => ({
         id: item.id,
         action: item.action,

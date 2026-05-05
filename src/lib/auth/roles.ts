@@ -128,7 +128,6 @@ export const adminDashboardRoles: Role[] = [
 export function normalizeRole(value: unknown): Role | null {
   if (typeof value !== "string") return null;
   const normalized = value.trim().toUpperCase().replaceAll("-", "_").replaceAll(" ", "_") as Role;
-  if (allRoles.includes(normalized)) return normalized;
   const aliased = roleCompatibilityAliases[normalized] ?? normalized;
   return allRoles.includes(aliased) ? aliased : null;
 }

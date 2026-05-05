@@ -1,0 +1,242 @@
+
+<div id="erd"></div>
+<style>
+#erd { padding: 1rem 0; }
+#erd svg { max-width: 100%; }
+</style>
+<script type="module">
+import mermaid from 'https://esm.sh/mermaid@11/dist/mermaid.esm.min.mjs';
+const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+await document.fonts.ready;
+mermaid.initialize({
+  startOnLoad: false,
+  theme: 'base',
+  fontFamily: '"Anthropic Sans", sans-serif',
+  themeVariables: {
+    darkMode: dark,
+    fontSize: '12px',
+    fontFamily: '"Anthropic Sans", sans-serif',
+    lineColor: dark ? '#9c9a92' : '#73726c',
+    textColor: dark ? '#c2c0b6' : '#3d3d3a',
+  },
+});
+
+const diagram = `erDiagram
+  SCHOOLS ||--o{ USERS : has
+  SCHOOLS ||--o{ CLASSES : has
+  SCHOOLS ||--o{ ACADEMIC_YEARS : has
+
+  USERS ||--o{ STUDENTS : "is a"
+  USERS ||--o{ TEACHERS : "is a"
+  USERS ||--o{ PARENTS : "is a"
+
+  STUDENTS ||--o{ ENROLLMENTS : enrolls
+  STUDENTS ||--o{ ATTENDANCE : tracks
+  STUDENTS ||--o{ GRADES : receives
+  STUDENTS ||--o{ FEE_PAYMENTS : pays
+
+  TEACHERS ||--o{ CLASS_SUBJECTS : teaches
+  TEACHERS ||--o{ TIMETABLE : assigned
+
+  PARENTS ||--o{ PARENT_STUDENT : linked
+  STUDENTS ||--o{ PARENT_STUDENT : linked
+
+  CLASSES ||--o{ ENROLLMENTS : contains
+  CLASSES ||--o{ TIMETABLE : has
+  CLASSES ||--o{ ATTENDANCE : records
+
+  SUBJECTS ||--o{ CLASS_SUBJECTS : offered
+  SUBJECTS ||--o{ GRADES : graded
+  SUBJECTS ||--o{ TIMETABLE : scheduled
+
+  ACADEMIC_YEARS ||--o{ CLASSES : organizes
+  ACADEMIC_YEARS ||--o{ FEE_STRUCTURES : defines
+  FEE_STRUCTURES ||--o{ FEE_PAYMENTS : applies
+
+  EXAMS ||--o{ GRADES : produces
+  CLASSES ||--o{ EXAMS : holds
+
+  SCHOOLS {
+    uuid id PK
+    string name
+    string address
+    string phone
+    string email
+    string logo_url
+    timestamp created_at
+  }
+
+  USERS {
+    uuid id PK
+    uuid school_id FK
+    string first_name
+    string last_name
+    string email
+    string password_hash
+    enum role
+    boolean is_active
+    timestamp created_at
+  }
+
+  STUDENTS {
+    uuid id PK
+    uuid user_id FK
+    string admission_number
+    date date_of_birth
+    enum gender
+    string address
+    timestamp enrolled_at
+  }
+
+  TEACHERS {
+    uuid id PK
+    uuid user_id FK
+    string employee_id
+    string qualification
+    string specialization
+    date joined_at
+  }
+
+  PARENTS {
+    uuid id PK
+    uuid user_id FK
+    string occupation
+    string phone
+  }
+
+  PARENT_STUDENT {
+    uuid id PK
+    uuid parent_id FK
+    uuid student_id FK
+    enum relationship
+  }
+
+  ACADEMIC_YEARS {
+    uuid id PK
+    uuid school_id FK
+    string name
+    date start_date
+    date end_date
+    boolean is_current
+  }
+
+  CLASSES {
+    uuid id PK
+    uuid school_id FK
+    uuid academic_year_id FK
+    string name
+    string grade_level
+    string section
+    uuid class_teacher_id FK
+  }
+
+  SUBJECTS {
+    uuid id PK
+    uuid school_id FK
+    string name
+    string code
+    int credit_hours
+  }
+
+  CLASS_SUBJECTS {
+    uuid id PK
+    uuid class_id FK
+    uuid subject_id FK
+    uuid teacher_id FK
+  }
+
+  ENROLLMENTS {
+    uuid id PK
+    uuid student_id FK
+    uuid class_id FK
+    date enrolled_on
+    enum status
+  }
+
+  TIMETABLE {
+    uuid id PK
+    uuid class_id FK
+    uuid subject_id FK
+    uuid teacher_id FK
+    enum day_of_week
+    time start_time
+    time end_time
+    string room
+  }
+
+  ATTENDANCE {
+    uuid id PK
+    uuid student_id FK
+    uuid class_id FK
+    date date
+    enum status
+    string remarks
+  }
+
+  EXAMS {
+    uuid id PK
+    uuid class_id FK
+    string name
+    enum type
+    date exam_date
+    int total_marks
+  }
+
+  GRADES {
+    uuid id PK
+    uuid student_id FK
+    uuid exam_id FK
+    uuid subject_id FK
+    decimal marks_obtained
+    string grade_letter
+    string remarks
+  }
+
+  FEE_STRUCTURES {
+    uuid id PK
+    uuid academic_year_id FK
+    string name
+    decimal amount
+    enum frequency
+    string description
+  }
+
+  FEE_PAYMENTS {
+    uuid id PK
+    uuid student_id FK
+    uuid fee_structure_id FK
+    decimal amount_paid
+    date payment_date
+    enum method
+    string transaction_ref
+    enum status
+  }
+`;
+
+const { svg } = await mermaid.render('erd-svg', diagram);
+document.getElementById('erd').innerHTML = svg;
+
+document.querySelectorAll('#erd svg .node').forEach(node => {
+  const firstPath = node.querySelector('path[d]');
+  if (!firstPath) return;
+  const d = firstPath.getAttribute('d');
+  const nums = d.match(/-?[\d.]+/g)?.map(Number);
+  if (!nums || nums.length < 8) return;
+  const xs = [nums[0], nums[2], nums[4], nums[6]];
+  const ys = [nums[1], nums[3], nums[5], nums[7]];
+  const x = Math.min(...xs), y = Math.min(...ys);
+  const w = Math.max(...xs) - x, h = Math.max(...ys) - y;
+  const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+  rect.setAttribute('x', x); rect.setAttribute('y', y);
+  rect.setAttribute('width', w); rect.setAttribute('height', h);
+  rect.setAttribute('rx', '8');
+  for (const a of ['fill', 'stroke', 'stroke-width', 'class', 'style']) {
+    if (firstPath.hasAttribute(a)) rect.setAttribute(a, firstPath.getAttribute(a));
+  }
+  firstPath.replaceWith(rect);
+});
+
+document.querySelectorAll('#erd svg .row-rect-odd path, #erd svg .row-rect-even path').forEach(p => {
+  p.setAttribute('stroke', 'none');
+});
+</script>

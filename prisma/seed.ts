@@ -1,4 +1,4 @@
-import { PrismaClient, UserRole } from "@prisma/client";
+import { PrismaClient, PrismaPromise, UserRole } from "@prisma/client";
 
 import { isPlatformRole } from "../src/lib/auth/role-architecture";
 import { hashPassword } from "../src/lib/auth/password";
@@ -14,7 +14,38 @@ import {
 } from "../src/lib/permissions/catalog";
 import { nigeriaClassOptions } from "../src/lib/school-options";
 
-const prisma = new PrismaClient();
+function withSeedConnectionLimit(rawUrl?: string) {
+  if (!rawUrl) return rawUrl;
+  try {
+    const parsed = new URL(rawUrl);
+    if (!parsed.searchParams.has("connection_limit")) {
+      parsed.searchParams.set("connection_limit", "1");
+    }
+    return parsed.toString();
+  } catch {
+    return rawUrl;
+  }
+}
+
+const seedDatabaseUrl = withSeedConnectionLimit(
+  process.env.DIRECT_URL || process.env.DATABASE_URL,
+);
+
+const prisma = new PrismaClient(
+  seedDatabaseUrl
+    ? {
+        datasources: {
+          db: {
+            url: seedDatabaseUrl,
+          },
+        },
+      }
+    : undefined,
+);
+
+const systemRoleCache = new Map<string, string | null>();
+const SEEDED_STUDENTS_PER_CLASS = 10;
+const SEEDED_GUARDIANS_PER_CLASS = 3;
 
 function seedUserRole(value: string) {
   return value as UserRole;
@@ -335,8 +366,28 @@ async function createSeedSchemeOfWork({
   return scheme;
 }
 
+async function runSeedBatches(
+  operations: Array<() => PrismaPromise<unknown>>,
+  batchSize = 20,
+) {
+  for (let index = 0; index < operations.length; index += batchSize) {
+    const chunk = operations
+      .slice(index, index + batchSize)
+      .map((operation) => operation());
+    await prisma.$transaction(chunk);
+  }
+}
+
+async function runSequential<T>(operations: Array<() => Promise<T>>) {
+  const results: T[] = [];
+  for (const operation of operations) {
+    results.push(await operation());
+  }
+  return results;
+}
+
 async function clearDatabase() {
-  await prisma.$transaction([
+  const operations: Array<() => PrismaPromise<unknown>> = [
     prisma.webhookDeliveryLog.deleteMany(),
     prisma.webhookEndpoint.deleteMany(),
     prisma.apiUsageLog.deleteMany(),
@@ -481,7 +532,13 @@ async function clearDatabase() {
     prisma.campus.deleteMany(),
     prisma.user.deleteMany(),
     prisma.school.deleteMany(),
-  ]);
+  ].map((operation) => () => operation);
+
+  console.log(
+    `Clearing existing data in ${Math.ceil(operations.length / 20)} batches using ${process.env.DIRECT_URL ? "DIRECT_URL" : "DATABASE_URL"}...`,
+  );
+
+  await runSeedBatches(operations);
 }
 
 async function seedPermissionsAndRoles(schoolId: string, createdById: string) {
@@ -537,12 +594,21 @@ async function assignSystemRole(
   role: UserRole,
   assignedById: string,
 ) {
-  const systemRole = await prisma.role.findFirst({
-    where: { schoolId, systemRole: role },
-  });
-  if (!systemRole) return;
+  const cacheKey = `${schoolId}:${role}`;
+  let systemRoleId = systemRoleCache.get(cacheKey);
+
+  if (systemRoleId === undefined) {
+    const systemRole = await prisma.role.findFirst({
+      where: { schoolId, systemRole: role },
+      select: { id: true },
+    });
+    systemRoleId = systemRole?.id ?? null;
+    systemRoleCache.set(cacheKey, systemRoleId);
+  }
+
+  if (!systemRoleId) return;
   await prisma.userRoleAssignment.create({
-    data: { schoolId, userId, roleId: systemRole.id, assignedById },
+    data: { schoolId, userId, roleId: systemRoleId, assignedById },
   });
 }
 
@@ -570,7 +636,11 @@ async function provisionStudentPortalAccounts({
     orderBy: [{ admissionNumber: "asc" }],
   });
 
-  for (const student of studentsWithoutUsers) {
+  console.log(
+    `[seed 05] Provisioning ${studentsWithoutUsers.length} student portal account(s)...`,
+  );
+
+  for (const [index, student] of studentsWithoutUsers.entries()) {
     const user = await prisma.user.create({
       data: {
         schoolId,
@@ -588,6 +658,12 @@ async function provisionStudentPortalAccounts({
     });
 
     await assignSystemRole(schoolId, user.id, "STUDENT", assignedById);
+
+    if ((index + 1) % 25 === 0 || index === studentsWithoutUsers.length - 1) {
+      console.log(
+        `[seed 05] Student portal accounts: ${index + 1}/${studentsWithoutUsers.length}`,
+      );
+    }
   }
 }
 
@@ -643,7 +719,11 @@ async function provisionGuardianPortalAccounts({
     orderBy: [{ lastName: "asc" }, { firstName: "asc" }],
   });
 
-  for (const guardian of guardiansWithoutUsers) {
+  console.log(
+    `[seed 05] Provisioning ${guardiansWithoutUsers.length} guardian portal account(s)...`,
+  );
+
+  for (const [index, guardian] of guardiansWithoutUsers.entries()) {
     const user = await prisma.user.create({
       data: {
         schoolId,
@@ -661,6 +741,12 @@ async function provisionGuardianPortalAccounts({
     });
 
     await assignSystemRole(schoolId, user.id, "PARENT", assignedById);
+
+    if ((index + 1) % 25 === 0 || index === guardiansWithoutUsers.length - 1) {
+      console.log(
+        `[seed 05] Guardian portal accounts: ${index + 1}/${guardiansWithoutUsers.length}`,
+      );
+    }
   }
 }
 
@@ -673,6 +759,31 @@ async function provisionStudentGuardians({
   assignedById: string;
   passwordHash: string;
 }) {
+  const existingGuardianLinks = await prisma.student.findMany({
+    where: {
+      schoolId,
+      currentClassId: { not: null },
+      guardians: { some: {} },
+    },
+    select: {
+      currentClassId: true,
+      guardians: {
+        select: { guardianId: true },
+      },
+    },
+  });
+
+  const remainingGuardianSlotsByClass = new Map<string, number>();
+  for (const student of existingGuardianLinks) {
+    const classId = student.currentClassId;
+    if (!classId) continue;
+    const current = remainingGuardianSlotsByClass.get(classId) ?? SEEDED_GUARDIANS_PER_CLASS;
+    remainingGuardianSlotsByClass.set(
+      classId,
+      Math.max(0, current - student.guardians.length),
+    );
+  }
+
   const studentsWithoutGuardians = await prisma.student.findMany({
     where: {
       schoolId,
@@ -682,22 +793,57 @@ async function provisionStudentGuardians({
     },
     select: {
       id: true,
+      currentClassId: true,
       firstName: true,
       lastName: true,
       admissionNumber: true,
       gender: true,
       stateOfOrigin: true,
     },
-    orderBy: [{ admissionNumber: "asc" }],
+    orderBy: [{ currentClassId: "asc" }, { admissionNumber: "asc" }],
   });
 
-  for (const [index, student] of studentsWithoutGuardians.entries()) {
-    const relationship = index % 2 === 0 ? "Mother" : "Father";
+  const eligibleStudents = studentsWithoutGuardians.filter((student) => {
+    const classId = student.currentClassId;
+    if (!classId) return false;
+    const remaining = remainingGuardianSlotsByClass.get(classId);
+    if (remaining === undefined) return true;
+    return remaining > 0;
+  });
+
+  const classesWithNoExistingGuardianLinks = new Set<string>();
+  for (const student of studentsWithoutGuardians) {
+    const classId = student.currentClassId;
+    if (!classId || remainingGuardianSlotsByClass.has(classId)) continue;
+    classesWithNoExistingGuardianLinks.add(classId);
+  }
+
+  const guardianLinksTarget =
+    [...remainingGuardianSlotsByClass.values()].reduce(
+      (sum, value) => sum + Math.max(0, value),
+      0,
+    ) +
+    classesWithNoExistingGuardianLinks.size * SEEDED_GUARDIANS_PER_CLASS;
+
+  console.log(
+    `[seed 05] Creating up to ${guardianLinksTarget} guardian link(s) to reach ${SEEDED_GUARDIANS_PER_CLASS} guardian link(s) per class...`,
+  );
+
+  let processedCount = 0;
+
+  for (const student of eligibleStudents) {
+    const classId = student.currentClassId;
+    if (!classId) continue;
+
+    const remaining = remainingGuardianSlotsByClass.get(classId) ?? SEEDED_GUARDIANS_PER_CLASS;
+    if (remaining <= 0) continue;
+
+    const relationship = processedCount % 2 === 0 ? "Mother" : "Father";
     const guardianFirstName =
       relationship === "Mother"
-        ? guardianMotherNames[index % guardianMotherNames.length]
-        : guardianFatherNames[index % guardianFatherNames.length];
-    const phone = `0805${String(index + 1).padStart(7, "0")}`;
+        ? guardianMotherNames[processedCount % guardianMotherNames.length]
+        : guardianFatherNames[processedCount % guardianFatherNames.length];
+    const phone = `0805${String(processedCount + 1).padStart(7, "0")}`;
     const guardian = await prisma.guardian.create({
       data: {
         schoolId,
@@ -719,14 +865,30 @@ async function provisionStudentGuardians({
         isPrimary: true,
       },
     });
+
+    remainingGuardianSlotsByClass.set(classId, remaining - 1);
+    processedCount += 1;
+
+    if (processedCount % 25 === 0 || processedCount === guardianLinksTarget) {
+      console.log(
+        `[seed 05] Guardian links created: ${processedCount}/${guardianLinksTarget}`,
+      );
+    }
   }
 
   await provisionGuardianPortalAccounts({ schoolId, passwordHash, assignedById });
 }
 
 async function main() {
+  let stage = 0;
+  const logStage = (label: string) => {
+    console.log(`\n[seed ${String(++stage).padStart(2, "0")}] ${label}`);
+  };
+
+  logStage("Clearing existing data");
   await clearDatabase();
 
+  logStage("Creating school, platform settings, and academic context");
   const school = await prisma.school.create({
     data: {
       name: "Greenfield College, Ibadan",
@@ -989,6 +1151,8 @@ async function main() {
       },
     },
   });
+
+  logStage("Creating departments, class levels, and classroom structure");
   const scienceDepartment = await prisma.department.create({
     data: {
       schoolId: school.id,
@@ -1006,50 +1170,59 @@ async function main() {
     valuesDepartment,
     healthDepartment,
     earlyYearsDepartment,
-  ] = await Promise.all([
-    prisma.department.create({
-      data: { schoolId: school.id, name: "Mathematics", code: "MATH" },
-    }),
-    prisma.department.create({
-      data: { schoolId: school.id, name: "Languages", code: "LANG" },
-    }),
-    prisma.department.create({
-      data: { schoolId: school.id, name: "Social Sciences", code: "SOC" },
-    }),
-    prisma.department.create({
-      data: {
-        schoolId: school.id,
-        name: "Technical & Vocational",
-        code: "TECH",
-      },
-    }),
-    prisma.department.create({
-      data: { schoolId: school.id, name: "Arts & Culture", code: "ART" },
-    }),
-    prisma.department.create({
-      data: { schoolId: school.id, name: "Commercial Studies", code: "COM" },
-    }),
-    prisma.department.create({
-      data: {
-        schoolId: school.id,
-        name: "Religious Studies & Values Education",
-        code: "VALUE",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        schoolId: school.id,
-        name: "Physical & Health Education",
-        code: "PHE",
-      },
-    }),
-    prisma.department.create({
-      data: {
-        schoolId: school.id,
-        name: "Early Years & Primary",
-        code: "BASIC",
-      },
-    }),
+  ] = await runSequential([
+    () =>
+      prisma.department.create({
+        data: { schoolId: school.id, name: "Mathematics", code: "MATH" },
+      }),
+    () =>
+      prisma.department.create({
+        data: { schoolId: school.id, name: "Languages", code: "LANG" },
+      }),
+    () =>
+      prisma.department.create({
+        data: { schoolId: school.id, name: "Social Sciences", code: "SOC" },
+      }),
+    () =>
+      prisma.department.create({
+        data: {
+          schoolId: school.id,
+          name: "Technical & Vocational",
+          code: "TECH",
+        },
+      }),
+    () =>
+      prisma.department.create({
+        data: { schoolId: school.id, name: "Arts & Culture", code: "ART" },
+      }),
+    () =>
+      prisma.department.create({
+        data: { schoolId: school.id, name: "Commercial Studies", code: "COM" },
+      }),
+    () =>
+      prisma.department.create({
+        data: {
+          schoolId: school.id,
+          name: "Religious Studies & Values Education",
+          code: "VALUE",
+        },
+      }),
+    () =>
+      prisma.department.create({
+        data: {
+          schoolId: school.id,
+          name: "Physical & Health Education",
+          code: "PHE",
+        },
+      }),
+    () =>
+      prisma.department.create({
+        data: {
+          schoolId: school.id,
+          name: "Early Years & Primary",
+          code: "BASIC",
+        },
+      }),
   ]);
 
   function departmentForSubject(
@@ -1090,8 +1263,8 @@ async function main() {
     return socialSciencesDepartment.id;
   }
 
-  const classLevels = await Promise.all(
-    nigeriaClassOptions.map((option) =>
+  const classLevels = await runSequential(
+    nigeriaClassOptions.map((option) => () =>
       prisma.classLevel.create({
         data: {
           schoolId: school.id,
@@ -1730,75 +1903,83 @@ async function main() {
     },
   });
 
+  logStage("Creating users, permissions, roles, and staff profiles");
   await seedPermissionsAndRoles(school.id, admin.id);
-  await Promise.all([
-    assignSystemRole(school.id, proprietorUser.id, "PROPRIETOR", admin.id),
-    assignSystemRole(school.id, administratorUser.id, "SCHOOL_OWNER", admin.id),
-    assignSystemRole(school.id, principalUser.id, "PRINCIPAL", admin.id),
-    assignSystemRole(school.id, headTeacherUser.id, "HEAD_TEACHER", admin.id),
-    assignSystemRole(
-      school.id,
-      vpAcademicsUser.id,
-      "VICE_PRINCIPAL_ACADEMICS",
-      admin.id,
-    ),
-    assignSystemRole(
-      school.id,
-      vpAdministrationUser.id,
-      "VICE_PRINCIPAL_ADMINISTRATION",
-      admin.id,
-    ),
-    assignSystemRole(
-      school.id,
-      vpSpecialDutiesUser.id,
-      "VICE_PRINCIPAL_SPECIAL_DUTIES",
-      admin.id,
-    ),
-    assignSystemRole(school.id, adminOfficerUser.id, "ADMIN_OFFICER", admin.id),
-    assignSystemRole(
-      school.id,
-      admissionsOfficerUser.id,
-      "ADMISSIONS_OFFICER",
-      admin.id,
-    ),
-    assignSystemRole(school.id, examOfficerUser.id, "EXAM_OFFICER", admin.id),
-    assignSystemRole(school.id, hodUser.id, "HEAD_OF_DEPARTMENT", admin.id),
-    assignSystemRole(school.id, teacherUser.id, "TEACHER", admin.id),
-    assignSystemRole(school.id, teacherPrimaryUser.id, "TEACHER", admin.id),
-    assignSystemRole(school.id, teacherEnglishUser.id, "TEACHER", admin.id),
-    assignSystemRole(school.id, classTeacherUser.id, "CLASS_TEACHER", admin.id),
-    assignSystemRole(
-      school.id,
-      subjectTeacherUser.id,
-      "SUBJECT_TEACHER",
-      admin.id,
-    ),
-    assignSystemRole(school.id, bursarUser.id, "ACCOUNTANT", admin.id),
-    assignSystemRole(
-      school.id,
-      counsellorUser.id,
-      "GUIDANCE_COUNSELLOR",
-      admin.id,
-    ),
-    assignSystemRole(school.id, nurseUser.id, "NURSE", admin.id),
-    assignSystemRole(school.id, receptionistUser.id, "RECEPTIONIST", admin.id),
-    assignSystemRole(school.id, librarianUser.id, "LIBRARIAN", admin.id),
-    assignSystemRole(
-      school.id,
-      transportUser.id,
-      "TRANSPORT_MANAGER",
-      admin.id,
-    ),
-    assignSystemRole(school.id, hostelUser.id, "HOSTEL_MISTRESS", admin.id),
-    assignSystemRole(school.id, ictUser.id, "ICT_CBT_ADMIN", admin.id),
-    assignSystemRole(school.id, parentUser.id, "PARENT", admin.id),
-    assignSystemRole(school.id, parentChineloUser.id, "PARENT", admin.id),
-    assignSystemRole(school.id, parentSalisuUser.id, "PARENT", admin.id),
-    assignSystemRole(school.id, studentUser.id, "STUDENT", admin.id),
-    assignSystemRole(school.id, studentMaryamUser.id, "STUDENT", admin.id),
-    assignSystemRole(school.id, studentAmarachiUser.id, "STUDENT", admin.id),
-    assignSystemRole(school.id, studentIbrahimUser.id, "STUDENT", admin.id),
-    assignSystemRole(school.id, studentEstherUser.id, "STUDENT", admin.id),
+  await runSequential([
+    () => assignSystemRole(school.id, proprietorUser.id, "PROPRIETOR", admin.id),
+    () => assignSystemRole(school.id, administratorUser.id, "SCHOOL_OWNER", admin.id),
+    () => assignSystemRole(school.id, principalUser.id, "PRINCIPAL", admin.id),
+    () => assignSystemRole(school.id, headTeacherUser.id, "HEAD_TEACHER", admin.id),
+    () =>
+      assignSystemRole(
+        school.id,
+        vpAcademicsUser.id,
+        "VICE_PRINCIPAL_ACADEMICS",
+        admin.id,
+      ),
+    () =>
+      assignSystemRole(
+        school.id,
+        vpAdministrationUser.id,
+        "VICE_PRINCIPAL_ADMINISTRATION",
+        admin.id,
+      ),
+    () =>
+      assignSystemRole(
+        school.id,
+        vpSpecialDutiesUser.id,
+        "VICE_PRINCIPAL_SPECIAL_DUTIES",
+        admin.id,
+      ),
+    () => assignSystemRole(school.id, adminOfficerUser.id, "ADMIN_OFFICER", admin.id),
+    () =>
+      assignSystemRole(
+        school.id,
+        admissionsOfficerUser.id,
+        "ADMISSIONS_OFFICER",
+        admin.id,
+      ),
+    () => assignSystemRole(school.id, examOfficerUser.id, "EXAM_OFFICER", admin.id),
+    () => assignSystemRole(school.id, hodUser.id, "HEAD_OF_DEPARTMENT", admin.id),
+    () => assignSystemRole(school.id, teacherUser.id, "TEACHER", admin.id),
+    () => assignSystemRole(school.id, teacherPrimaryUser.id, "TEACHER", admin.id),
+    () => assignSystemRole(school.id, teacherEnglishUser.id, "TEACHER", admin.id),
+    () => assignSystemRole(school.id, classTeacherUser.id, "CLASS_TEACHER", admin.id),
+    () =>
+      assignSystemRole(
+        school.id,
+        subjectTeacherUser.id,
+        "SUBJECT_TEACHER",
+        admin.id,
+      ),
+    () => assignSystemRole(school.id, bursarUser.id, "ACCOUNTANT", admin.id),
+    () =>
+      assignSystemRole(
+        school.id,
+        counsellorUser.id,
+        "GUIDANCE_COUNSELLOR",
+        admin.id,
+      ),
+    () => assignSystemRole(school.id, nurseUser.id, "NURSE", admin.id),
+    () => assignSystemRole(school.id, receptionistUser.id, "RECEPTIONIST", admin.id),
+    () => assignSystemRole(school.id, librarianUser.id, "LIBRARIAN", admin.id),
+    () =>
+      assignSystemRole(
+        school.id,
+        transportUser.id,
+        "TRANSPORT_MANAGER",
+        admin.id,
+      ),
+    () => assignSystemRole(school.id, hostelUser.id, "HOSTEL_MISTRESS", admin.id),
+    () => assignSystemRole(school.id, ictUser.id, "ICT_CBT_ADMIN", admin.id),
+    () => assignSystemRole(school.id, parentUser.id, "PARENT", admin.id),
+    () => assignSystemRole(school.id, parentChineloUser.id, "PARENT", admin.id),
+    () => assignSystemRole(school.id, parentSalisuUser.id, "PARENT", admin.id),
+    () => assignSystemRole(school.id, studentUser.id, "STUDENT", admin.id),
+    () => assignSystemRole(school.id, studentMaryamUser.id, "STUDENT", admin.id),
+    () => assignSystemRole(school.id, studentAmarachiUser.id, "STUDENT", admin.id),
+    () => assignSystemRole(school.id, studentIbrahimUser.id, "STUDENT", admin.id),
+    () => assignSystemRole(school.id, studentEstherUser.id, "STUDENT", admin.id),
   ]);
 
   await prisma.staffProfile.createMany({
@@ -2053,39 +2234,47 @@ async function main() {
     ],
   });
 
-  await Promise.all([
-    prisma.classRoom.update({
-      where: { id: jss2Gold.id },
-      data: { classTeacherId: classTeacherUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: jss1Silver.id },
-      data: { classTeacherId: subjectTeacherUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: primary4Blue.id },
-      data: { classTeacherId: teacherPrimaryUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: primary6Coral.id },
-      data: { classTeacherId: teacherPrimaryUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: ss1Emerald.id },
-      data: { classTeacherId: teacherUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: ss2Topaz.id },
-      data: { classTeacherId: teacherEnglishUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: jss3Bronze.id },
-      data: { classTeacherId: classTeacherUser.id },
-    }),
-    prisma.classRoom.update({
-      where: { id: ss3Crimson.id },
-      data: { classTeacherId: teacherUser.id },
-    }),
+  await runSequential([
+    () =>
+      prisma.classRoom.update({
+        where: { id: jss2Gold.id },
+        data: { classTeacherId: classTeacherUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: jss1Silver.id },
+        data: { classTeacherId: subjectTeacherUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: primary4Blue.id },
+        data: { classTeacherId: teacherPrimaryUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: primary6Coral.id },
+        data: { classTeacherId: teacherPrimaryUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: ss1Emerald.id },
+        data: { classTeacherId: teacherUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: ss2Topaz.id },
+        data: { classTeacherId: teacherEnglishUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: jss3Bronze.id },
+        data: { classTeacherId: classTeacherUser.id },
+      }),
+    () =>
+      prisma.classRoom.update({
+        where: { id: ss3Crimson.id },
+        data: { classTeacherId: teacherUser.id },
+      }),
   ]);
 
   await prisma.classAcademicAssignment.createMany({
@@ -2150,6 +2339,7 @@ async function main() {
     skipDuplicates: true,
   });
 
+  logStage("Creating guardians, students, portal accounts, and medical records");
   const guardian = await prisma.guardian.create({
     data: {
       schoolId: school.id,
@@ -2323,13 +2513,13 @@ async function main() {
   });
 
   const primaryCohortPlans = [
-    { classRoom: crecheA, prefix: "CRE", birthYear: 2021, target: 50, manualCount: 0 },
-    { classRoom: nursery1A, prefix: "NUR1", birthYear: 2020, target: 50, manualCount: 0 },
-    { classRoom: nursery2B, prefix: "NUR2", birthYear: 2019, target: 50, manualCount: 0 },
-    { classRoom: receptionC, prefix: "KGR", birthYear: 2018, target: 50, manualCount: 0 },
-    { classRoom: primary1A, prefix: "PRI1", birthYear: 2017, target: 50, manualCount: 0 },
-    { classRoom: primary4Blue, prefix: "PRI4", birthYear: 2014, target: 50, manualCount: 1 },
-    { classRoom: primary6Coral, prefix: "PRI6", birthYear: 2012, target: 50, manualCount: 1 },
+    { classRoom: crecheA, prefix: "CRE", birthYear: 2021, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
+    { classRoom: nursery1A, prefix: "NUR1", birthYear: 2020, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
+    { classRoom: nursery2B, prefix: "NUR2", birthYear: 2019, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
+    { classRoom: receptionC, prefix: "KGR", birthYear: 2018, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
+    { classRoom: primary1A, prefix: "PRI1", birthYear: 2017, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
+    { classRoom: primary4Blue, prefix: "PRI4", birthYear: 2014, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 1 },
+    { classRoom: primary6Coral, prefix: "PRI6", birthYear: 2012, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 1 },
   ];
 
   for (const plan of primaryCohortPlans) {
@@ -2369,12 +2559,12 @@ async function main() {
   }
 
   const secondaryCohortPlans = [
-    { classRoom: jss1Silver, prefix: "JSS1", birthYear: 2013, target: 50, manualCount: 1 },
-    { classRoom: jss2Gold, prefix: "JSS2", birthYear: 2012, target: 50, manualCount: 1 },
-    { classRoom: jss3Bronze, prefix: "JSS3", birthYear: 2011, target: 50, manualCount: 0 },
-    { classRoom: ss1Emerald, prefix: "SS1", birthYear: 2010, target: 50, manualCount: 1 },
-    { classRoom: ss2Topaz, prefix: "SS2", birthYear: 2009, target: 50, manualCount: 1 },
-    { classRoom: ss3Crimson, prefix: "SS3", birthYear: 2008, target: 50, manualCount: 0 },
+    { classRoom: jss1Silver, prefix: "JSS1", birthYear: 2013, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 1 },
+    { classRoom: jss2Gold, prefix: "JSS2", birthYear: 2012, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 1 },
+    { classRoom: jss3Bronze, prefix: "JSS3", birthYear: 2011, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
+    { classRoom: ss1Emerald, prefix: "SS1", birthYear: 2010, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 1 },
+    { classRoom: ss2Topaz, prefix: "SS2", birthYear: 2009, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 1 },
+    { classRoom: ss3Crimson, prefix: "SS3", birthYear: 2008, target: SEEDED_STUDENTS_PER_CLASS, manualCount: 0 },
   ];
 
   for (const plan of secondaryCohortPlans) {
@@ -2505,6 +2695,7 @@ async function main() {
     ],
   });
 
+  logStage("Creating subjects, class assignments, and timetable");
   await prisma.subject.createMany({
     data: nigerianSubjectDefaults.map((subject) => ({
       schoolId: school.id,
@@ -2812,6 +3003,7 @@ async function main() {
     ),
   });
 
+  logStage("Generating results, assessments, broadsheets, and report cards");
   await prisma.resultSheet.create({
     data: {
       schoolId: school.id,
@@ -3075,8 +3267,8 @@ async function main() {
       .sort((left, right) => right.average - left.average || left.studentName.localeCompare(right.studentName))
       .map((row, index) => ({ ...row, position: index + 1 }));
 
-    await Promise.all(
-      rankedRows.map((row) =>
+    await runSequential(
+      rankedRows.map((row) => () =>
         prisma.resultSheet.update({
           where: {
             studentId_termId: { studentId: row.studentId, termId: secondTerm.id },
@@ -3491,6 +3683,7 @@ async function main() {
     },
   });
 
+  logStage("Creating attendance, assignments, admissions, and finance records");
   await prisma.admissionConfig.create({
     data: {
       schoolId: school.id,
@@ -4034,6 +4227,7 @@ async function main() {
     ],
   });
 
+  logStage("Creating operations modules: announcements, transport, hostel, library, discipline, counseling, and clinic visits");
   await prisma.announcement.createMany({
     data: [
       {
@@ -4213,6 +4407,7 @@ async function main() {
     ],
   });
 
+  logStage("Creating learning content, curriculum data, schemes of work, and staff training");
   await prisma.learningMaterial.createMany({
     data: [
       {
@@ -5521,6 +5716,7 @@ async function main() {
     ],
   });
 
+  logStage("Writing final audit trail and seed summary");
   await prisma.auditLog.create({
     data: {
       schoolId: school.id,

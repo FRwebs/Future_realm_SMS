@@ -102,10 +102,10 @@ a {
 @keyframes trend-card-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+    box-shadow: 0 0 0 rgba(45, 107, 60, 0);
   }
   50% {
-    box-shadow: 0 0 12px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 0 12px rgba(45, 107, 60, 0.35);
   }
 }
 
@@ -273,6 +273,18 @@ a {
 }
 
 @layer components {
+  .app-skeleton {
+    background:
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 0%,
+        color-mix(in srgb, var(--color-bg-elevated) 94%, transparent) 50%,
+        color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 100%
+      );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
   .surface-card {
     @apply rounded-2xl border shadow-panel;
     border-color: var(--color-border-default);
