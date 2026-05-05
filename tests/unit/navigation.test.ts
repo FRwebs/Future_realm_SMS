@@ -5,8 +5,9 @@ describe("role-aware navigation and route access", () => {
   it("normalizes legacy lowercase role slugs used by old sessions", () => {
     expect(normalizeRole("super_admin")).toBe("SUPER_ADMIN");
     expect(normalizeRole("vice-principal-academics")).toBe("VICE_PRINCIPAL_ACADEMICS");
-    expect(normalizeRole("exam officer")).toBe("EXAM_OFFICER");
-    expect(normalizeRole("guidance counsellor")).toBe("GUIDANCE_COUNSELLOR");
+    expect(normalizeRole("exam officer")).toBe("EXAMINATION_OFFICER");
+    expect(normalizeRole("guidance counsellor")).toBe("GUIDANCE_COUNSELOR");
+    expect(normalizeRole("proprietor")).toBe("SCHOOL_OWNER");
     expect(normalizeRole("unknown_role")).toBeNull();
   });
 
@@ -122,6 +123,8 @@ describe("role-aware navigation and route access", () => {
   it("allows intended Nigerian admin roles to access the admin dashboard", () => {
     expect(canAccessPath("SUPER_ADMIN", "/dashboard")).toBe(false);
     expect(canAccessPath("SUPER_ADMIN", "/super-admin")).toBe(true);
+    expect(canAccessPath("PROPRIETOR", "/dashboard")).toBe(true);
+    expect(canAccessPath("PROPRIETOR", "/students")).toBe(true);
     expect(canAccessPath("ADMINISTRATOR", "/dashboard")).toBe(true);
     expect(canAccessPath("PRINCIPAL", "/dashboard")).toBe(true);
     expect(canAccessPath("HEAD_TEACHER", "/dashboard")).toBe(true);

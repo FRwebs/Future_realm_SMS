@@ -9,6 +9,11 @@ import { DashboardActionItem, DashboardSummary, SchoolContextView } from "../../
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 import { formatCurrency } from "../../../../src/lib/utils/formatters";
 
+type DashboardCacheEntry<T> = {
+  expiresAt: number;
+  value: T;
+};
+
 function className(classRoom?: { name: string; arm: string | null } | null) {
   if (!classRoom) return "Unassigned";
   return formatNigeriaClassName(classRoom.arm ? `${classRoom.name} - ${classRoom.arm}` : classRoom.name);
@@ -24,7 +29,39 @@ function isSchemaDriftError(error: unknown) {
 
 @Injectable()
 export class DashboardService {
+  private static readonly schoolContextCache = new Map<string, DashboardCacheEntry<SchoolContextView>>();
+  private static readonly overviewCache = new Map<string, DashboardCacheEntry<DashboardSummary>>();
+
+  private readCache<T>(store: Map<string, DashboardCacheEntry<T>>, key: string) {
+    const entry = store.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      store.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  private writeCache<T>(store: Map<string, DashboardCacheEntry<T>>, key: string, value: T, ttlMs: number) {
+    store.set(key, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+    return value;
+  }
+
+  private overviewCacheKey(session: SessionPayload) {
+    const scopedUserRoles = new Set(["PARENT", "STUDENT", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"]);
+    const subject = scopedUserRoles.has(session.role) ? session.userId : session.role;
+    return `${session.schoolId}:${session.role}:${subject}`;
+  }
+
   async getSchoolContext(session: SessionPayload): Promise<SchoolContextView> {
+    const cached = this.readCache(DashboardService.schoolContextCache, session.schoolId);
+    if (cached) {
+      return cached;
+    }
+
     const school = await prisma.school.findUniqueOrThrow({
       where: { id: session.schoolId },
       include: {
@@ -37,14 +74,30 @@ export class DashboardService {
       },
     });
 
-    return {
+    return this.writeCache(
+      DashboardService.schoolContextCache,
+      session.schoolId,
+      {
       schoolName: school.name,
       currentSession: school.academicSessions[0]?.name ?? "No active session",
       currentTerm: school.academicSessions[0]?.terms[0]?.name ?? "No active term",
-    };
+      },
+      60_000,
+    );
   }
 
   async getOverview(session: SessionPayload): Promise<DashboardSummary> {
+    const cacheKey = this.overviewCacheKey(session);
+    const cached = this.readCache(DashboardService.overviewCache, cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const result = await this.getFreshOverview(session);
+    return this.writeCache(DashboardService.overviewCache, cacheKey, result, 15_000);
+  }
+
+  private async getFreshOverview(session: SessionPayload): Promise<DashboardSummary> {
     if (session.role === "PARENT") {
       return this.getParentOverview(session);
     }
@@ -60,57 +113,66 @@ export class DashboardService {
     const schoolId = session.schoolId;
     const today = new Date();
     const weekStart = startOfDay(subDays(today, 6));
-    const [school, studentsCount, staffCount, admissions, todayAttendance, weekAttendance, invoiceAgg, overdueInvoices, recentPayments, upcomingExams, announcements, resultCounts, pendingLeave, auditLogs, enrollmentByClass, classCount, subjectCount, pendingBroadsheets] =
-      await Promise.all([
-        prisma.school.findUniqueOrThrow({
-          where: { id: schoolId },
-          include: {
-            academicSessions: { where: { isCurrent: true }, include: { terms: { where: { isCurrent: true } } } }
-          }
-        }),
-        prisma.student.count({ where: { schoolId, status: "ACTIVE" } }),
-        prisma.staffProfile.count({ where: { schoolId } }),
-        prisma.admissionApplication.groupBy({ by: ["status"], where: { schoolId }, _count: true }),
-        prisma.studentAttendance.findMany({
-          where: { schoolId, date: { gte: startOfDay(today), lte: endOfDay(today) } },
-          select: { status: true, student: { select: { currentClass: { select: { name: true, arm: true } } } } }
-        }),
-        prisma.studentAttendance.findMany({
-          where: { schoolId, date: { gte: weekStart, lte: endOfDay(today) } },
-          select: { date: true, status: true }
-        }),
-        prisma.invoice.aggregate({ where: { schoolId, status: { not: "VOID" } }, _sum: { total: true, balance: true } }),
-        prisma.invoice.findMany({
-          where: { schoolId, balance: { gt: 0 }, dueOn: { lt: today }, status: { notIn: ["PAID", "VOID"] } },
-          include: { student: { include: { currentClass: true } } },
-          orderBy: { dueOn: "asc" },
-          take: 5
-        }),
-        prisma.payment.findMany({
-          where: { schoolId },
-          include: { student: true },
-          orderBy: [{ paidAt: "desc" }, { reference: "desc" }],
-          take: 5
-        }),
-        prisma.examTimetableEntry.findMany({
-          where: { schoolId, examDate: { gte: today } },
-          include: { subject: true, classRoom: true },
-          orderBy: { examDate: "asc" },
-          take: 5
-        }),
-        prisma.announcement.findMany({
-          where: { schoolId, publishedAt: { lte: today }, OR: [{ expiresAt: null }, { expiresAt: { gte: today } }] },
-          orderBy: { publishedAt: "desc" },
-          take: 5
-        }),
-        prisma.resultSheet.groupBy({ by: ["status"], where: { schoolId }, _count: true }),
-        prisma.leaveRequest.count({ where: { schoolId, status: "PENDING" } }),
-        prisma.auditLog.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 8 }),
-        prisma.student.groupBy({ by: ["currentClassId"], where: { schoolId, status: "ACTIVE" }, _count: true }),
-        prisma.classRoom.count({ where: { schoolId } }),
-        prisma.subject.count({ where: { schoolId, status: "ACTIVE" } }),
-        prisma.broadsheet.count({ where: { schoolId, status: { in: ["DRAFT", "IN_REVIEW", "CORRECTION_REQUESTED", "APPROVED"] } } })
-      ]);
+    const school = await prisma.school.findUniqueOrThrow({
+      where: { id: schoolId },
+      include: {
+        academicSessions: { where: { isCurrent: true }, include: { terms: { where: { isCurrent: true } } } }
+      }
+    });
+
+    const [studentsCount, staffCount, admissions, todayAttendance] = await Promise.all([
+      prisma.student.count({ where: { schoolId, status: "ACTIVE" } }),
+      prisma.staffProfile.count({ where: { schoolId } }),
+      prisma.admissionApplication.groupBy({ by: ["status"], where: { schoolId }, _count: true }),
+      prisma.studentAttendance.findMany({
+        where: { schoolId, date: { gte: startOfDay(today), lte: endOfDay(today) } },
+        select: { status: true, student: { select: { currentClass: { select: { name: true, arm: true } } } } }
+      }),
+    ]);
+
+    const [weekAttendance, invoiceAgg, overdueInvoices, recentPayments] = await Promise.all([
+      prisma.studentAttendance.findMany({
+        where: { schoolId, date: { gte: weekStart, lte: endOfDay(today) } },
+        select: { date: true, status: true }
+      }),
+      prisma.invoice.aggregate({ where: { schoolId, status: { not: "VOID" } }, _sum: { total: true, balance: true } }),
+      prisma.invoice.findMany({
+        where: { schoolId, balance: { gt: 0 }, dueOn: { lt: today }, status: { notIn: ["PAID", "VOID"] } },
+        include: { student: { include: { currentClass: true } } },
+        orderBy: { dueOn: "asc" },
+        take: 5
+      }),
+      prisma.payment.findMany({
+        where: { schoolId },
+        include: { student: true },
+        orderBy: [{ paidAt: "desc" }, { reference: "desc" }],
+        take: 5
+      }),
+    ]);
+
+    const [upcomingExams, announcements, resultCounts, pendingLeave] = await Promise.all([
+      prisma.examTimetableEntry.findMany({
+        where: { schoolId, examDate: { gte: today } },
+        include: { subject: true, classRoom: true },
+        orderBy: { examDate: "asc" },
+        take: 5
+      }),
+      prisma.announcement.findMany({
+        where: { schoolId, publishedAt: { lte: today }, OR: [{ expiresAt: null }, { expiresAt: { gte: today } }] },
+        orderBy: { publishedAt: "desc" },
+        take: 5
+      }),
+      prisma.resultSheet.groupBy({ by: ["status"], where: { schoolId }, _count: true }),
+      prisma.leaveRequest.count({ where: { schoolId, status: "PENDING" } }),
+    ]);
+
+    const [auditLogs, enrollmentByClass, classCount, subjectCount, pendingBroadsheets] = await Promise.all([
+      prisma.auditLog.findMany({ where: { schoolId }, orderBy: { createdAt: "desc" }, take: 8 }),
+      prisma.student.groupBy({ by: ["currentClassId"], where: { schoolId, status: "ACTIVE" }, _count: true }),
+      prisma.classRoom.count({ where: { schoolId } }),
+      prisma.subject.count({ where: { schoolId, status: "ACTIVE" } }),
+      prisma.broadsheet.count({ where: { schoolId, status: { in: ["DRAFT", "IN_REVIEW", "CORRECTION_REQUESTED", "APPROVED"] } } }),
+    ]);
 
     const currentSession = school.academicSessions[0]?.name ?? "No active session";
     const currentTerm = school.academicSessions[0]?.terms[0]?.name ?? "No active term";
@@ -129,7 +191,7 @@ export class DashboardService {
       ? await prisma.classRoom.findMany({ where: { schoolId, id: { in: classIds } }, select: { id: true, name: true, arm: true } })
       : [];
     const classNameMap = new Map(classRooms.map((item) => [item.id, className(item)]));
-    const [curriculumTotals, staffLateToday, trainingParticipants] = await Promise.all([
+    const [curriculumTotals, staffLateToday] = await Promise.all([
       prisma.curriculumTopic.groupBy({
         by: ["progressStatus"],
         where: { schoolId },
@@ -141,15 +203,15 @@ export class DashboardService {
       prisma.staffAttendance.count({
         where: { schoolId, date: { gte: startOfDay(today), lte: endOfDay(today) }, status: "LATE" }
       }),
-      prisma.trainingParticipant.findMany({
-        where: { schoolId, trainingProgram: { mandatory: true, archivedAt: null } },
-        include: { trainingProgram: true },
-        take: 500
-      }).catch((error: unknown) => {
-        if (isSchemaDriftError(error)) return [];
-        throw error;
-      })
     ]);
+    const trainingParticipants = await prisma.trainingParticipant.findMany({
+      where: { schoolId, trainingProgram: { mandatory: true, archivedAt: null } },
+      include: { trainingProgram: true },
+      take: 500
+    }).catch((error: unknown) => {
+      if (isSchemaDriftError(error)) return [];
+      throw error;
+    });
     const curriculumCount = curriculumTotals.reduce((sum, item) => sum + item._count, 0);
     const curriculumComplete = curriculumTotals
       .filter((item) => item.progressStatus === "COMPLETED" || item.progressStatus === "TAUGHT")

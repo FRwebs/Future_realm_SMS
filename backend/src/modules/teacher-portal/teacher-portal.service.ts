@@ -948,7 +948,7 @@ export class TeacherPortalService {
 
   async getTeacherDashboard(session: SessionPayload): Promise<TeacherPortalView> {
     this.assertTeacherSession(session);
-    const [assignments, timetable, attendanceWorkspace, scoreSheets, tasks, announcements, notifications, students] = await Promise.all([
+    const [assignments, timetable, attendanceWorkspace, scoreSheets] = await Promise.all([
       this.resolveDashboardSection("assignedClasses", this.listTeacherAssignments(session), [] as TeacherClassPortalView[]),
       this.resolveDashboardSection("weeklyTimetable", this.getTeacherTimetable(session), [] as PortalTimetableEntry[]),
       this.resolveDashboardSection(
@@ -962,6 +962,8 @@ export class TeacherPortalService {
         } as TeacherAttendanceWorkspaceView,
       ),
       this.resolveDashboardSection("scoreSheets", this.listScores(session), [] as TeacherScoreEntryView[]),
+    ]);
+    const [tasks, announcements, notifications, students] = await Promise.all([
       this.resolveDashboardSection("assignmentTasks", this.listTeacherAssignmentTasks(session), [] as TeacherAssignmentTaskView[]),
       this.resolveDashboardSection("announcements", this.listTeacherAnnouncements(session), [] as AnnouncementView[]),
       this.resolveDashboardSection("notifications", this.listTeacherNotifications(session), [] as StudentPortalNotificationView[]),
@@ -972,7 +974,7 @@ export class TeacherPortalService {
     const classCount = new Set(assignments.map((item) => item.classId)).size;
     const pendingScores = assignments.reduce((sum: number, item: TeacherClassPortalView) => sum + item.pendingScores, 0);
     const today = normalizeAttendanceDate(new Date());
-    const [curriculumTopics, staffAttendanceToday, pendingTraining] = await Promise.all([
+    const [curriculumTopics, staffAttendanceToday] = await Promise.all([
       this.resolveDashboardSection(
         "curriculumTopics",
         prisma.curriculumTopic.findMany({
@@ -995,17 +997,17 @@ export class TeacherPortalService {
         }),
         null as { checkInAt: Date | null; status: string } | null,
       ),
-      this.resolveDashboardSection(
-        "pendingTraining",
-        prisma.trainingParticipant.count({
-          where: { schoolId: session.schoolId, userId: session.userId, status: { not: "COMPLETED" }, trainingProgram: { mandatory: true, archivedAt: null } }
-        }).catch((error: unknown) => {
-          if (isSchemaDriftError(error)) return 0;
-          throw error;
-        }),
-        0,
-      ),
     ]);
+    const pendingTraining = await this.resolveDashboardSection(
+      "pendingTraining",
+      prisma.trainingParticipant.count({
+        where: { schoolId: session.schoolId, userId: session.userId, status: { not: "COMPLETED" }, trainingProgram: { mandatory: true, archivedAt: null } }
+      }).catch((error: unknown) => {
+        if (isSchemaDriftError(error)) return 0;
+        throw error;
+      }),
+      0,
+    );
     const curriculumComplete = curriculumTopics.filter((item: { progressStatus: string }) => item.progressStatus === "COMPLETED" || item.progressStatus === "TAUGHT").length;
     const curriculumCoverage = curriculumTopics.length === 0 ? 0 : Number(((curriculumComplete / curriculumTopics.length) * 100).toFixed(1));
 

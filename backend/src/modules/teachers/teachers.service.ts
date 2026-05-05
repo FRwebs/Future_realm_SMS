@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { endOfDay, startOfDay } from "date-fns";
 
 import { prisma } from "../../../../src/lib/db/prisma";
 import {
@@ -37,26 +38,46 @@ export class TeachersService {
           role: "TEACHER"
         }
       },
-      include: {
-        user: true,
+      select: {
+        id: true,
+        userId: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+          },
+        },
         leaveRequests: {
+          select: {
+            id: true,
+            status: true,
+            type: true,
+            reason: true,
+            reviewedAt: true,
+            startDate: true,
+          },
           orderBy: { startDate: "desc" },
-          take: 3
+          take: 2,
         }
       }
     });
     const teacherIds = staffProfiles.map((item) => item.userId);
+    if (teacherIds.length === 0) {
+      return [];
+    }
     const staffByUserId = new Map(staffProfiles.map((item) => [item.userId, item]));
+    const recentWindowStart = startOfDay(new Date(Date.now() - 1000 * 60 * 60 * 24 * 14));
 
     const [staffAttendance, pendingResults] = await Promise.all([
       prisma.staffAttendance.findMany({
         where: {
           schoolId,
-          userId: { in: teacherIds }
+          userId: { in: teacherIds },
+          date: { gte: recentWindowStart },
         },
         select: { id: true, userId: true, date: true, status: true, checkInAt: true, checkOutAt: true, notes: true },
         orderBy: { date: "desc" },
-        take: 15
+        take: 20
       }),
       prisma.resultSheet.groupBy({
         by: ["createdById"],
@@ -133,11 +154,33 @@ export class TeachersService {
           role: "TEACHER"
         }
       },
-      include: {
-        user: true,
-        department: true,
-        campus: true,
+      select: {
+        id: true,
+        userId: true,
+        employeeNo: true,
+        designation: true,
+        employmentDate: true,
+        user: {
+          select: {
+            firstName: true,
+            lastName: true,
+            email: true,
+          },
+        },
+        department: {
+          select: {
+            name: true,
+          },
+        },
+        campus: {
+          select: {
+            name: true,
+          },
+        },
         leaveRequests: {
+          select: {
+            status: true,
+          },
           orderBy: { startDate: "desc" }
         }
       },
@@ -147,6 +190,10 @@ export class TeachersService {
     });
 
     const teacherIds = staffProfiles.map((item) => item.userId);
+    if (teacherIds.length === 0) {
+      return [];
+    }
+    const today = new Date();
     const [classSubjects, staffAttendance, pendingResults] = await Promise.all([
       prisma.classSubject.findMany({
         where: {
@@ -161,7 +208,8 @@ export class TeachersService {
       prisma.staffAttendance.findMany({
         where: {
           schoolId,
-          userId: { in: teacherIds }
+          userId: { in: teacherIds },
+          date: { gte: startOfDay(today), lte: endOfDay(today) },
         },
         select: { id: true, userId: true, date: true, status: true, checkInAt: true, checkOutAt: true, notes: true },
         orderBy: {
@@ -202,7 +250,7 @@ export class TeachersService {
     });
 
     const pendingResultsMap = new Map<string, number>();
-    pendingResults.forEach((item) => {
+      pendingResults.forEach((item) => {
       pendingResultsMap.set(item.createdById, item._count._all);
     });
 

@@ -170,20 +170,20 @@ export function TeacherSchemeOfWorkWorkspace({
                   href={`/portals/teacher/content/scheme-of-work?sow=${summary.id}`}
                   className={
                     active
-                      ? "rounded-[1.6rem] bg-[rgb(18,33,23)] p-4 text-white shadow-sm"
-                      : "rounded-[1.6rem] border border-slate-200 bg-white p-4 text-slate-900 transition hover:border-primary-200 hover:bg-primary-50"
+                      ? "min-w-0 overflow-hidden rounded-[1.6rem] bg-[rgb(18,33,23)] p-4 text-white shadow-sm"
+                      : "min-w-0 overflow-hidden rounded-[1.6rem] border border-slate-200 bg-white p-4 text-slate-900 transition hover:border-primary-200 hover:bg-primary-50"
                   }
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
+                    <div className="min-w-0">
                       <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-inherit/70">
                         {summary.className}
                       </p>
-                      <h3 className="mt-2 text-lg font-bold">{summary.subjectName}</h3>
+                      <h3 className="mt-2 break-words text-lg font-bold">{summary.subjectName}</h3>
                     </div>
                     <SchemeOfWorkStatusBadge status={summary.status} size="sm" />
                   </div>
-                  <div className="mt-4 grid grid-cols-3 gap-3">
+                  <div className="mt-4 grid gap-3 sm:grid-cols-3">
                     <div>
                       <p className="text-[11px] uppercase tracking-[0.16em] text-inherit/60">
                         Coverage
@@ -219,8 +219,8 @@ export function TeacherSchemeOfWorkWorkspace({
         )}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[340px_minmax(0,1fr)]">
-        <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
+      <section className="grid min-w-0 gap-6 xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]">
+        <aside className="grid min-w-0 gap-4 xl:sticky xl:top-24 xl:self-start">
           <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
             <div className="flex items-center gap-2">
               <Target className="h-4 w-4 text-emerald-600" />
@@ -346,7 +346,7 @@ export function TeacherSchemeOfWorkWorkspace({
           </section>
         </aside>
 
-        <article className="min-w-0">
+        <article className="min-w-0 overflow-hidden">
           {detail ? (
             <SchemeOfWorkDetailClient
               initialSow={detail}

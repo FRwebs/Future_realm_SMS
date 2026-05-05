@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { cache } from "react";
 
 import { env } from "@/lib/utils/env";
 
@@ -28,22 +29,15 @@ export interface ApiEnvelope<T> {
   };
 }
 
-export async function apiGetEnvelope<T>(path: string): Promise<ApiEnvelope<T>> {
-  const [baseUrl, cookieStore, headerStore] = await Promise.all([
-    getAppBaseUrl(),
-    cookies(),
-    headers()
-  ]);
-
-  const authorization = headerStore.get("authorization");
-
+const cachedApiEnvelopeRequest = cache(
+  async <T>(baseUrl: string, path: string, cookieHeader: string, authorization: string) => {
   const response = await fetch(`${baseUrl}${path}`, {
     method: "GET",
     cache: "no-store",
     headers: {
       Accept: "application/json",
-      Cookie: toCookieHeader(cookieStore.getAll()),
-      ...(authorization ? { Authorization: authorization } : {})
+      Cookie: cookieHeader,
+      ...(authorization ? { Authorization: authorization } : {}),
     }
   });
 
@@ -60,7 +54,23 @@ export async function apiGetEnvelope<T>(path: string): Promise<ApiEnvelope<T>> {
     throw new Error(`${message} (status ${response.status})`);
   }
 
-  return body;
+    return body;
+  },
+);
+
+export async function apiGetEnvelope<T>(path: string): Promise<ApiEnvelope<T>> {
+  const [baseUrl, cookieStore, headerStore] = await Promise.all([
+    getAppBaseUrl(),
+    cookies(),
+    headers()
+  ]);
+
+  return cachedApiEnvelopeRequest<T>(
+    baseUrl,
+    path,
+    toCookieHeader(cookieStore.getAll()),
+    headerStore.get("authorization") ?? "",
+  );
 }
 
 export async function apiGet<T>(path: string): Promise<T> {

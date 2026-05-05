@@ -35,11 +35,11 @@ const config: Config = {
         danger: "rgb(var(--color-red-rgb) / <alpha-value>)",
       },
       boxShadow: {
-        panel: "0 16px 40px rgba(37, 89, 63, 0.10)",
+        panel: "0 16px 40px rgba(18, 33, 23, 0.10)",
       },
       backgroundImage: {
         "dashboard-grid":
-          "radial-gradient(circle at top, rgba(66, 140, 98, 0.12), transparent 38%), linear-gradient(135deg, rgba(248, 250, 252, 0.98), rgba(255, 255, 255, 0.94))",
+          "radial-gradient(circle at top, rgba(45, 107, 60, 0.12), transparent 38%), linear-gradient(135deg, rgba(245, 247, 245, 0.98), rgba(255, 255, 255, 0.94))",
       },
     },
   },

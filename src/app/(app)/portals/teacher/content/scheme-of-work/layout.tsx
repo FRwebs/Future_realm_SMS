@@ -1,3 +1,4 @@
+import type { Route } from "next";
 import { TeacherContentSectionShell } from "@/components/portals/teacher-content-section-shell";
 
 export default function TeacherSchemeOfWorkLayout({
@@ -12,7 +13,7 @@ export default function TeacherSchemeOfWorkLayout({
       description="Separate hands-on weekly coverage work from approval readiness, so teachers can either manage delivery or step back and monitor where each teaching lane stands."
       tabs={[
         {
-          href: "/portals/teacher/content/scheme-of-work/coverage",
+          href: "/portals/teacher/content/scheme-of-work/coverage" as Route,
           label: "Coverage",
           description: "Live weekly editor",
           icon: "BookMarked",
@@ -22,7 +23,7 @@ export default function TeacherSchemeOfWorkLayout({
           ],
         },
         {
-          href: "/portals/teacher/content/scheme-of-work/approvals",
+          href: "/portals/teacher/content/scheme-of-work/approvals" as Route,
           label: "Approvals",
           description: "Status and submission board",
           icon: "ShieldCheck",
