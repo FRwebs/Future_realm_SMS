@@ -213,7 +213,7 @@ npm run test:e2e
 ## Deployment Notes
 
 - Vercel is now supported for both the Next frontend and the Nest API on the same domain.
-- The Nest backend is exposed through the Vercel serverless entry at [api/[...path].ts](/Users/victoryakubu/Desktop/futurerealm/school%20management%20system/api/%5B...path%5D.ts), and `vercel.json` routes `/api/*` to that function explicitly so production requests keep the same `/api/v1/...` shape as local development.
+- The Nest backend is exposed through the Vercel serverless entry at [api/[...path].js](/Users/victoryakubu/Desktop/futurerealm/school%20management%20system/api/%5B...path%5D.js), and `vercel.json` routes `/api/*` to that function explicitly so production requests keep the same `/api/v1/...` shape as local development.
 - Local development still uses the Next rewrite proxy to `http://127.0.0.1:4000`, but Vercel automatically disables that rewrite so requests do not bounce back to localhost.
 - Use a managed PostgreSQL instance in production.
 - Replace mock S3 and payment settings with real credentials in environment variables.
