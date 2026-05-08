@@ -39,7 +39,7 @@ const config: Config = {
       },
       backgroundImage: {
         "dashboard-grid":
-          "radial-gradient(circle at top, rgba(45, 107, 60, 0.12), transparent 38%), linear-gradient(135deg, rgba(245, 247, 245, 0.98), rgba(255, 255, 255, 0.94))",
+          "radial-gradient(circle at top, var(--color-accent-primary-dim), transparent 38%), linear-gradient(135deg, color-mix(in srgb, var(--color-bg-base) 96%, transparent), color-mix(in srgb, var(--color-bg-surface) 94%, transparent))",
       },
     },
   },

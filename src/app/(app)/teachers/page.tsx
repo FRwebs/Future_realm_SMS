@@ -44,20 +44,20 @@ export default async function TeachersPage({ searchParams }: TeachersPageProps) 
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const [teachers, teacherActivities, params] = await Promise.all([
-    apiGet<TeacherRecordView[]>("/api/v1/teachers"),
-    apiGet<TeacherActivityView[]>("/api/v1/teachers/activities"),
-    searchParams ? searchParams : Promise.resolve({ className: "", subject: "", search: "" })
-  ]);
+  const params = await (searchParams ? searchParams : Promise.resolve({ className: "", subject: "", search: "" }));
   const className = normalizeNigeriaClassValue(params.className) ?? "";
   const classNameLabel = className ? getNigeriaClassLabel(className) : "";
   const subject = params.subject ?? "";
   const search = params.search ?? "";
-  const filteredTeachers = teachers.filter((teacher) =>
-    (!className || teacher.classAssignments.some((item) => normalizeNigeriaClassValue(item) === className)) &&
-    (!subject || teacher.subjects.some((item) => item.toLowerCase().includes(subject.toLowerCase()))) &&
-    matchesTeacher(teacher, search)
-  );
+  const query = new URLSearchParams();
+  if (className) query.set("className", className);
+  if (subject) query.set("subject", subject);
+  if (search) query.set("search", search);
+  const [teachers, teacherActivities] = await Promise.all([
+    apiGet<TeacherRecordView[]>(`/api/v1/teachers${query.size ? `?${query.toString()}` : ""}`),
+    apiGet<TeacherActivityView[]>("/api/v1/teachers/activities"),
+  ]);
+  const filteredTeachers = teachers.filter((teacher) => matchesTeacher(teacher, search));
   const pendingResults = filteredTeachers.reduce((sum, teacher) => sum + teacher.pendingResults, 0);
   const teachersWithLeaveRisk = filteredTeachers.filter((teacher) => teacher.leaveStatus !== "No active leave").length;
   const uniqueSubjects = new Set(filteredTeachers.flatMap((teacher) => teacher.subjects)).size;

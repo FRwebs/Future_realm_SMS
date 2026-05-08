@@ -42,19 +42,17 @@ export default async function StudentsPage({ searchParams }: StudentsPageProps) 
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const [students, params] = await Promise.all([
-    apiGet<StudentRecordView[]>("/api/v1/students"),
-    searchParams ? searchParams : Promise.resolve({ className: "", status: "", search: "" })
-  ]);
+  const params = await (searchParams ? searchParams : Promise.resolve({ className: "", status: "", search: "" }));
   const className = normalizeNigeriaClassValue(params.className) ?? "";
   const classNameLabel = className ? getNigeriaClassLabel(className) : "";
   const status = params.status ?? "";
   const search = params.search ?? "";
-  const filteredStudents = students.filter((student) =>
-    (!className || normalizeNigeriaClassValue(student.className) === className) &&
-    (!status || student.status === status) &&
-    matchesSearch(student, search)
-  );
+  const query = new URLSearchParams();
+  if (className) query.set("className", className);
+  if (status) query.set("status", status);
+  if (search) query.set("search", search);
+  const students = await apiGet<StudentRecordView[]>(`/api/v1/students${query.size ? `?${query.toString()}` : ""}`);
+  const filteredStudents = students.filter((student) => matchesSearch(student, search));
   const canManageStudents = canManagePath(session.role, "/students");
   const flaggedStudents = filteredStudents.filter(
     (student) => student.attendanceRate < 90 || student.outstandingBalance > 0 || student.averageScore < 50

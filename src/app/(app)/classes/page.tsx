@@ -1,8 +1,10 @@
 import { ClassesListClient } from "@/components/classes/classes-list-client";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { apiGet } from "@/lib/api/server";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
+import type { ClassListItem, PaginatedResponse } from "@/components/classes/classes-list-client";
 
 export default async function ClassesPage() {
   const session = await getServerSession();
@@ -11,5 +13,7 @@ export default async function ClassesPage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  return <ClassesListClient />;
+  const initialResult = await apiGet<PaginatedResponse<ClassListItem>>("/api/v1/classes?page=1&pageSize=200");
+
+  return <ClassesListClient initialResult={initialResult} />;
 }

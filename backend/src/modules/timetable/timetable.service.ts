@@ -50,6 +50,47 @@ type ClassWithRelations = Prisma.ClassRoomGetPayload<{
   };
 }>;
 
+type TimetableClassListPayload = {
+  data: Record<string, Array<{
+    id: string;
+    name: string;
+    shortName: string;
+    short_name: string;
+    level: string;
+    section: string | null;
+    category: string;
+    arm: string | null;
+    displayOrder: number | null;
+    display_order: number | null;
+    classTeacherName: string | null;
+    class_teacher_name: string | null;
+    classTeacherId: string | null;
+    class_teacher_id: string | null;
+    totalSlots: number;
+    total_slots: number;
+    lessonSlots: number;
+    lesson_slots: number;
+    publishedSlots: number;
+    published_slots: number;
+    filledSlots: number;
+    filled_slots: number;
+    setupStatus: string;
+    setup_status: string;
+  }>>;
+  meta: {
+    academicSessionId: string | null;
+    academic_year_id: string | null;
+    termId: string;
+    term_id: string;
+    totalClasses: number;
+    total_classes: number;
+    publishedClasses: number;
+    published_classes: number;
+    emptyClasses: number;
+    empty_classes: number;
+  };
+};
+
 const periodSeeds: Record<string, PeriodSeed[]> = {
   secondary: [
     [0, "Assembly", "07:30", "07:45", "assembly"],
@@ -183,6 +224,27 @@ function isPortalViewOnly(role: string) {
 
 @Injectable()
 export class TimetableService {
+  private static readonly periodDefinitionCache = new Map<string, number>();
+  private static readonly classListCache = new Map<string, { expiresAt: number; value: unknown }>();
+
+  private readClassListCache<T>(key: string) {
+    const entry = TimetableService.classListCache.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      TimetableService.classListCache.delete(key);
+      return null;
+    }
+    return entry.value as T;
+  }
+
+  private writeClassListCache<T>(key: string, value: T, ttlMs = 15_000) {
+    TimetableService.classListCache.set(key, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+    return value;
+  }
+
   async ok<T>(dataPromise: Promise<T>, message?: string) {
     return { ok: true, success: true, ...(message ? { message } : {}), data: await dataPromise };
   }
@@ -210,6 +272,18 @@ export class TimetableService {
   }
 
   private async ensurePeriodDefinitions(schoolId: string) {
+    const cachedAt = TimetableService.periodDefinitionCache.get(schoolId);
+    if (cachedAt && cachedAt > Date.now() - 5 * 60_000) {
+      return;
+    }
+
+    const totalSeedCount = Object.values(periodSeeds).reduce((sum, seeds) => sum + seeds.length, 0);
+    const existingCount = await prisma.periodDefinition.count({ where: { schoolId } });
+    if (existingCount >= totalSeedCount) {
+      TimetableService.periodDefinitionCache.set(schoolId, Date.now());
+      return;
+    }
+
     for (const seeds of Object.values(periodSeeds)) {
       for (const period of seeds) {
         await prisma.periodDefinition.upsert({
@@ -234,6 +308,8 @@ export class TimetableService {
         });
       }
     }
+
+    TimetableService.periodDefinitionCache.set(schoolId, Date.now());
   }
 
   private async getPeriodDefinitions(schoolId: string, category: string) {
@@ -319,10 +395,14 @@ export class TimetableService {
   private async ensureTimetableForClass(classRoom: ClassWithRelations, termId: string, academicSessionId?: string | null) {
     await this.ensurePeriodDefinitions(classRoom.schoolId);
     const periods = await this.getPeriodDefinitions(classRoom.schoolId, classCategory(classRoom));
+    const expectedCount = periods.length * 5;
     const existing = await prisma.timetableEntry.findMany({
       where: { schoolId: classRoom.schoolId, classId: classRoom.id, termId },
       select: { id: true, dayOfWeek: true, periodNumber: true, slotType: true, subjectId: true, teacherId: true }
     });
+    if (existing.length >= expectedCount) {
+      return;
+    }
     const existingByKey = new Map(existing.map((slot) => [`${slot.dayOfWeek}:${slot.periodNumber}`, slot]));
     const subjects = await prisma.classSubject.findMany({
       where: { schoolId: classRoom.schoolId, classId: classRoom.id },
@@ -337,14 +417,6 @@ export class TimetableService {
       for (const period of periods) {
         const existingSlot = existingByKey.get(`${day}:${period.periodNumber}`);
         if (existingSlot) {
-          await prisma.timetableEntry.update({
-            where: { id: existingSlot.id },
-            data: {
-              startsAt: period.startsAt,
-              endsAt: period.endsAt,
-              slotType: existingSlot.subjectId || existingSlot.teacherId || existingSlot.slotType === "free" ? existingSlot.slotType : period.slotType
-            }
-          });
           if (!nonTeachingSlots.includes(period.slotType)) lessonIndex += 1;
           continue;
         }
@@ -406,7 +478,18 @@ export class TimetableService {
     };
   }
 
-  async listClasses(session: SessionPayload, query: Record<string, string | undefined>) {
+  async listClasses(session: SessionPayload, query: Record<string, string | undefined>): Promise<TimetableClassListPayload> {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      termId: query.term_id ?? query.termId ?? "current",
+    });
+    const cached = this.readClassListCache<TimetableClassListPayload>(cacheKey);
+    if (cached) {
+      return cached;
+    }
+
     const context = await this.currentContext(session.schoolId, query.term_id ?? query.termId);
     await this.ensurePeriodDefinitions(session.schoolId);
 
@@ -419,7 +502,28 @@ export class TimetableService {
       orderBy: [{ displayOrder: "asc" }, { classLevel: { order: "asc" } }, { name: "asc" }]
     });
 
-    await Promise.all(classRooms.map((classRoom) => this.ensureTimetableForClass(classRoom, context.term.id, context.academicSession?.id)));
+    const classIds = classRooms.map((classRoom) => classRoom.id);
+    const slotCounts = classIds.length
+      ? await prisma.timetableEntry.groupBy({
+          by: ["classId"],
+          where: { schoolId: session.schoolId, termId: context.term.id, classId: { in: classIds } },
+          _count: { _all: true },
+        })
+      : [];
+    const countByClassId = new Map(slotCounts.map((row) => [row.classId, row._count._all]));
+    const expectedCountByCategory = new Map<string, number>();
+    for (const classRoom of classRooms) {
+      const category = classCategory(classRoom);
+      if (!expectedCountByCategory.has(category)) {
+        const periods = await this.getPeriodDefinitions(session.schoolId, category);
+        expectedCountByCategory.set(category, periods.length * 5);
+      }
+    }
+    await Promise.all(
+      classRooms
+        .filter((classRoom) => (countByClassId.get(classRoom.id) ?? 0) < (expectedCountByCategory.get(classCategory(classRoom)) ?? 0))
+        .map((classRoom) => this.ensureTimetableForClass(classRoom, context.term.id, context.academicSession?.id)),
+    );
 
     const statRows = await prisma.timetableEntry.findMany({
       where: { schoolId: session.schoolId, termId: context.term.id },
@@ -480,7 +584,7 @@ export class TimetableService {
     const other = mapped.filter((item) => !categoryOrder.includes(item.category as (typeof categoryOrder)[number]));
     if (other.length > 0) grouped.Other = other;
 
-    return {
+    return this.writeClassListCache(cacheKey, {
       data: grouped,
       meta: {
         academicSessionId: context.academicSession?.id ?? null,
@@ -494,7 +598,7 @@ export class TimetableService {
         emptyClasses: mapped.filter((item) => item.setupStatus === "empty" || item.setupStatus === "structure_only").length,
         empty_classes: mapped.filter((item) => item.setupStatus === "empty" || item.setupStatus === "structure_only").length
       }
-    };
+    });
   }
 
   async getClassTimetable(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {

@@ -1,6 +1,7 @@
 import { cookies, headers } from "next/headers";
 import { cache } from "react";
 
+import { resolveDirectApiGet } from "@/lib/api/direct";
 import { env } from "@/lib/utils/env";
 
 async function getAppBaseUrl() {
@@ -31,6 +32,14 @@ export interface ApiEnvelope<T> {
 
 const cachedApiEnvelopeRequest = cache(
   async <T>(baseUrl: string, path: string, cookieHeader: string, authorization: string) => {
+  const directData = await resolveDirectApiGet<T>(path);
+  if (directData !== null) {
+    return {
+      ok: true,
+      data: directData,
+    } satisfies ApiEnvelope<T>;
+  }
+
   const response = await fetch(`${baseUrl}${path}`, {
     method: "GET",
     cache: "no-store",

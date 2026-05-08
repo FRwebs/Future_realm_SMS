@@ -43,6 +43,7 @@ type OverviewPayload = {
     empty_classes: number;
   };
 };
+export type TimetableOverviewPayload = OverviewPayload;
 
 type ConflictResult = {
   data: Array<{
@@ -224,11 +225,11 @@ function PublishAll({ onDone }: { onDone: () => void }) {
   );
 }
 
-export function TimetableOverviewClient() {
+export function TimetableOverviewClient({ initialPayload }: { initialPayload?: TimetableOverviewPayload | null }) {
   const router = useRouter();
   const { hasPermission } = usePermissions();
-  const [payload, setPayload] = useState<OverviewPayload | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [payload, setPayload] = useState<OverviewPayload | null>(initialPayload ?? null);
+  const [loading, setLoading] = useState(!initialPayload);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("");
@@ -248,8 +249,10 @@ export function TimetableOverviewClient() {
   }
 
   useEffect(() => {
-    void load();
-  }, []);
+    if (!initialPayload) {
+      void load();
+    }
+  }, [initialPayload]);
 
   const allClasses = useMemo(() => Object.values(payload?.data ?? {}).flat(), [payload]);
   const filteredData = useMemo(() => {

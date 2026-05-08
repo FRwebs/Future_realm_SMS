@@ -3,7 +3,6 @@
 import {
   createContext,
   useContext,
-  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -21,30 +20,30 @@ const STORAGE_KEY = "sms-theme";
 const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 function resolveInitialTheme(): ThemeMode {
-  if (typeof window === "undefined") return "dark";
+  if (typeof window === "undefined") return "light";
+  const attributeTheme = document.documentElement.getAttribute("data-theme");
+  if (attributeTheme === "dark" || attributeTheme === "light") return attributeTheme;
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "dark" || stored === "light") return stored;
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>("dark");
+  const [theme, setThemeState] = useState<ThemeMode>(resolveInitialTheme);
 
-  useEffect(() => {
-    const initial = resolveInitialTheme();
-    setThemeState(initial);
-  }, []);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", theme);
-    window.localStorage.setItem(STORAGE_KEY, theme);
-  }, [theme]);
+  const setTheme = (nextTheme: ThemeMode) => {
+    setThemeState(nextTheme);
+    if (typeof window !== "undefined") {
+      document.documentElement.setAttribute("data-theme", nextTheme);
+      window.localStorage.setItem(STORAGE_KEY, nextTheme);
+    }
+  };
 
   const value = useMemo<ThemeContextValue>(
     () => ({
       theme,
-      setTheme: setThemeState,
-      toggleTheme: () => setThemeState((current) => (current === "dark" ? "light" : "dark")),
+      setTheme,
+      toggleTheme: () => setTheme(theme === "dark" ? "light" : "dark"),
     }),
     [theme],
   );
