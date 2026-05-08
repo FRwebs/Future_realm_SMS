@@ -33,7 +33,7 @@ export type ClassListItem = {
   assistant_class_teacher: TeacherSummary | null;
 };
 
-type PaginatedResponse<T> = {
+export type PaginatedResponse<T> = {
   data: T[];
   total: number;
 };
@@ -191,7 +191,7 @@ function EmptyState({ title, message }: { title: string; message: string }) {
   );
 }
 
-export function ClassesListClient() {
+export function ClassesListClient({ initialResult }: { initialResult?: PaginatedResponse<ClassListItem> }) {
   const router = useRouter();
   const { hasPermission } = usePermissions();
   const [search, setSearch] = useState("");
@@ -226,6 +226,7 @@ export function ClassesListClient() {
     fetchFn: fetchClasses,
     defaultPageSize: 200,
     defaultFilters: { search: "", category: "", has_teacher: "", refreshKey },
+    initialResult,
   });
 
   const grouped = useMemo(

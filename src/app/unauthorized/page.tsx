@@ -21,7 +21,7 @@ export default async function UnauthorizedPage({
   const backLabel = session ? "Open my workspace" : "Go to login";
 
   return (
-    <main className="min-h-screen bg-[linear-gradient(180deg,rgba(248,250,252,0.98),rgba(255,255,255,0.96))] px-4 py-8 md:px-6 md:py-10">
+    <main className="min-h-screen bg-dashboard-grid px-4 py-8 md:px-6 md:py-10">
       <div className="mx-auto flex min-h-[calc(100vh-5rem)] max-w-5xl items-center justify-center">
         <AccessDenied
           title="You are not authorized to open this page"

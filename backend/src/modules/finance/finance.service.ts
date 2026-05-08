@@ -203,7 +203,32 @@ function normalizeName(value: string) {
 
 @Injectable()
 export class FinanceService {
+  private static readonly dashboardCache = new Map<string, { expiresAt: number; value: FinanceDashboardView }>();
+
+  private readDashboardCache(schoolId: string) {
+    const entry = FinanceService.dashboardCache.get(schoolId);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      FinanceService.dashboardCache.delete(schoolId);
+      return null;
+    }
+    return entry.value;
+  }
+
+  private writeDashboardCache(schoolId: string, value: FinanceDashboardView, ttlMs = 20_000) {
+    FinanceService.dashboardCache.set(schoolId, {
+      value,
+      expiresAt: Date.now() + ttlMs,
+    });
+    return value;
+  }
+
   async getFinanceDashboard(schoolId: string): Promise<FinanceDashboardView> {
+    const cached = this.readDashboardCache(schoolId);
+    if (cached) {
+      return cached;
+    }
+
     const today = new Date();
     const paymentWindowStart = subMonths(today, 6);
     const monthStart = startOfMonth(today);
@@ -430,7 +455,7 @@ export class FinanceService {
     const collected = toMoney(totalBilled - outstanding);
     const collectionRate = totalBilled === 0 ? 0 : Math.round((collected / totalBilled) * 100);
 
-    return {
+    return this.writeDashboardCache(schoolId, {
       metrics: [
         { label: "Total billed", value: formatMoneyForAudit(totalBilled), tone: "brand" },
         { label: "Collected", value: formatMoneyForAudit(collected), tone: "success" },
@@ -452,7 +477,7 @@ export class FinanceService {
         createdAt: item.createdAt.toISOString(),
         detail: JSON.stringify(item.metadata ?? {})
       }))
-    };
+    });
   }
 
   async listFeeStructures(schoolId: string): Promise<FeeStructureView[]> {

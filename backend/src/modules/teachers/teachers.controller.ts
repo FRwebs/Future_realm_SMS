@@ -1,4 +1,4 @@
-import { Controller, Get, Param, UseGuards } from "@nestjs/common";
+import { Controller, Get, Param, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -16,10 +16,15 @@ export class TeachersController {
 
   @Get()
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
-  async list(@CurrentSession() session: SessionPayload) {
+  async list(
+    @CurrentSession() session: SessionPayload,
+    @Query("className") className?: string,
+    @Query("subject") subject?: string,
+    @Query("search") search?: string,
+  ) {
     return {
       ok: true,
-      data: await this.teachersService.listTeachers(session.schoolId)
+      data: await this.teachersService.listTeachers(session.schoolId, { className, subject, search })
     };
   }
 

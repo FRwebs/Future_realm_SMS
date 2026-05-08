@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -100,9 +101,58 @@ function classLookupConditions(value: string) {
 
 @Injectable()
 export class StudentsService {
-  async listStudents(schoolId: string) {
+  async listStudents(
+    schoolId: string,
+    filters?: {
+      className?: string;
+      status?: string;
+      search?: string;
+    },
+  ) {
+    const normalizedClassName = filters?.className
+      ? normalizeNigeriaClassValue(filters.className)
+      : null;
+    const status = filters?.status?.trim();
+    const search = filters?.search?.trim();
+    const where: Prisma.StudentWhereInput = { schoolId };
+
+    if (normalizedClassName) {
+      where.currentClass = {
+        is: {
+          OR: classLookupConditions(normalizedClassName),
+        },
+      };
+    }
+
+    if (status) {
+      where.status = status as never;
+    }
+
+    if (search) {
+      where.OR = [
+        { firstName: { contains: search, mode: "insensitive" } },
+        { lastName: { contains: search, mode: "insensitive" } },
+        { middleName: { contains: search, mode: "insensitive" } },
+        { admissionNumber: { contains: search, mode: "insensitive" } },
+        {
+          guardians: {
+            some: {
+              guardian: {
+                is: {
+                  OR: [
+                    { firstName: { contains: search, mode: "insensitive" } },
+                    { lastName: { contains: search, mode: "insensitive" } },
+                  ],
+                },
+              },
+            },
+          },
+        },
+      ];
+    }
+
     const students = await prisma.student.findMany({
-      where: { schoolId },
+      where,
       select: {
         id: true,
         admissionNumber: true,

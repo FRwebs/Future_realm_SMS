@@ -12,7 +12,7 @@ import { usePagination } from "@/hooks/use-pagination";
 import { cn } from "@/lib/utils/cn";
 import type { ClassListItem } from "./classes-list-client";
 
-type ClassDetail = ClassListItem & {
+export type ClassDetail = ClassListItem & {
   academicYear?: { name: string } | null;
   academic_year?: { name: string } | null;
   currentTerm?: { name: string } | null;
@@ -36,6 +36,13 @@ type ClassMember = {
   parentName?: string | null;
   parent_name?: string | null;
   status: string;
+};
+export type ClassMembersResponse = {
+  data: ClassMember[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
 type ResultSubject = { id: string; name: string; code: string };
@@ -155,14 +162,25 @@ function MiniStat({ label, value, note, icon: Icon }: { label: string; value: st
   );
 }
 
-export function ClassDetailClient({ classId }: { classId: string }) {
+export function ClassDetailClient({
+  classId,
+  initialDetail,
+  initialMembers,
+}: {
+  classId: string;
+  initialDetail?: ClassDetail | null;
+  initialMembers?: ClassMembersResponse | null;
+}) {
   const { hasPermission } = usePermissions();
-  const [detail, setDetail] = useState<ClassDetail | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [detail, setDetail] = useState<ClassDetail | null>(initialDetail ?? null);
+  const [loading, setLoading] = useState(!initialDetail);
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState("members");
 
   useEffect(() => {
+    if (initialDetail && initialDetail.id === classId) {
+      return;
+    }
     let cancelled = false;
     setLoading(true);
     apiJson<ClassDetail>(`/api/v1/classes/${classId}`)
@@ -178,7 +196,7 @@ export function ClassDetailClient({ classId }: { classId: string }) {
     return () => {
       cancelled = true;
     };
-  }, [classId]);
+  }, [classId, initialDetail]);
 
   if (loading) return <div className="h-96 animate-pulse rounded-[2rem] bg-white/70" />;
   if (error || !detail) return <div className="rounded-[2rem] border border-rose-200 bg-rose-50 p-8 text-rose-700">{error ?? "Class not found."}</div>;
@@ -221,7 +239,7 @@ export function ClassDetailClient({ classId }: { classId: string }) {
           })}
         </div>
         <div className="p-5">
-          {activeTab === "members" ? <MembersTab classId={classId} className={detail.name} /> : null}
+          {activeTab === "members" ? <MembersTab classId={classId} className={detail.name} initialMembers={initialMembers} /> : null}
           {activeTab === "results" ? <ResultsTab classId={classId} /> : null}
           {activeTab === "skills" ? <SkillsTab classId={classId} /> : null}
           {activeTab === "attendance" ? <AttendanceTab classId={classId} /> : null}
@@ -232,13 +250,26 @@ export function ClassDetailClient({ classId }: { classId: string }) {
   );
 }
 
-function MembersTab({ classId, className }: { classId: string; className: string }) {
+function MembersTab({
+  classId,
+  className,
+  initialMembers,
+}: {
+  classId: string;
+  className: string;
+  initialMembers?: ClassMembersResponse | null;
+}) {
   const [selectedStudentId, setSelectedStudentId] = useState<string | null>(null);
   const fetchMembers = useCallback(async (params: { page: number; pageSize: number }) => {
-    const data = await apiJson<{ data: ClassMember[]; total: number }>(`/api/v1/classes/${classId}/members?page=${params.page}&pageSize=${params.pageSize}`);
+    const data = await apiJson<ClassMembersResponse>(`/api/v1/classes/${classId}/members?page=${params.page}&pageSize=${params.pageSize}`);
     return { data: data.data, total: data.total };
   }, [classId]);
-  const { data, totalItems, currentPage, pageSize, isLoading, setCurrentPage, setPageSize } = usePagination({ fetchFn: fetchMembers, defaultPageSize: 25, defaultFilters: {} });
+  const { data, totalItems, currentPage, pageSize, isLoading, setCurrentPage, setPageSize } = usePagination({
+    fetchFn: fetchMembers,
+    defaultPageSize: 25,
+    defaultFilters: {},
+    initialResult: initialMembers ? { data: initialMembers.data, total: initialMembers.total } : undefined,
+  });
   return (
     <div className="grid gap-4">
       <div>

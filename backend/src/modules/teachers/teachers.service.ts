@@ -30,7 +30,65 @@ function resolveLeaveStatus(leaveRequests: Array<{ status: "PENDING" | "APPROVED
 
 @Injectable()
 export class TeachersService {
+  private static readonly listCache = new Map<string, { expiresAt: number; value: TeacherRecordView[] }>();
+  private static readonly activitiesCache = new Map<string, { expiresAt: number; value: TeacherActivityView[] }>();
+
+  private readCache<T>(store: Map<string, { expiresAt: number; value: T }>, key: string) {
+    const entry = store.get(key);
+    if (!entry) return null;
+    if (entry.expiresAt <= Date.now()) {
+      store.delete(key);
+      return null;
+    }
+    return entry.value;
+  }
+
+  private writeCache<T>(store: Map<string, { expiresAt: number; value: T }>, key: string, value: T, ttlMs = 15_000) {
+    store.set(key, { value, expiresAt: Date.now() + ttlMs });
+    return value;
+  }
+
+  private async resolveTeacherIdsByFilters(
+    schoolId: string,
+    filters?: { className?: string; subject?: string; search?: string },
+  ) {
+    const normalizedSearch = filters?.search?.trim().toLowerCase();
+    const normalizedSubject = filters?.subject?.trim().toLowerCase();
+    const normalizedClass = filters?.className?.trim().toLowerCase();
+
+    if (!normalizedSubject && !normalizedClass) {
+      return null;
+    }
+
+    const classSubjects = await prisma.classSubject.findMany({
+      where: { schoolId },
+      select: {
+        teacherId: true,
+        subject: { select: { name: true } },
+        classRoom: { select: { name: true, arm: true } },
+      },
+    });
+
+    const matchingTeacherIds = classSubjects
+      .filter((item) => {
+        const subjectName = item.subject.name.toLowerCase();
+        const classLabel = formatClassName(item.classRoom.name, item.classRoom.arm).toLowerCase();
+        const matchesSubject = !normalizedSubject || subjectName.includes(normalizedSubject);
+        const matchesClass = !normalizedClass || classLabel.includes(normalizedClass);
+        return matchesSubject && matchesClass;
+      })
+      .map((item) => item.teacherId)
+      .filter((teacherId): teacherId is string => Boolean(teacherId));
+
+    return matchingTeacherIds.length > 0 ? new Set(matchingTeacherIds) : new Set<string>();
+  }
+
   async listTeacherActivities(schoolId: string): Promise<TeacherActivityView[]> {
+    const cached = this.readCache(TeachersService.activitiesCache, schoolId);
+    if (cached) {
+      return cached;
+    }
+
     const staffProfiles = await prisma.staffProfile.findMany({
       where: {
         schoolId,
@@ -141,17 +199,52 @@ export class TeachersService {
       ] satisfies TeacherActivityView[];
     });
 
-    return [...attendanceActivities, ...leaveActivities, ...resultActivities]
+    return this.writeCache(
+      TeachersService.activitiesCache,
+      schoolId,
+      [...attendanceActivities, ...leaveActivities, ...resultActivities]
       .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime())
-      .slice(0, 30);
+      .slice(0, 30),
+    );
   }
 
-  async listTeachers(schoolId: string): Promise<TeacherRecordView[]> {
+  async listTeachers(
+    schoolId: string,
+    filters?: {
+      className?: string;
+      subject?: string;
+      search?: string;
+    },
+  ): Promise<TeacherRecordView[]> {
+    const cacheKey = JSON.stringify({ schoolId, ...filters });
+    const cached = this.readCache(TeachersService.listCache, cacheKey);
+    if (cached) {
+      return cached;
+    }
+
+    const normalizedSearch = filters?.search?.trim();
+    const teacherIdsByClassOrSubject = await this.resolveTeacherIdsByFilters(schoolId, filters);
     const staffProfiles = await prisma.staffProfile.findMany({
       where: {
         schoolId,
+        ...(teacherIdsByClassOrSubject
+          ? {
+              userId: {
+                in: Array.from(teacherIdsByClassOrSubject),
+              },
+            }
+          : {}),
         user: {
-          role: "TEACHER"
+          role: "TEACHER",
+          ...(normalizedSearch
+            ? {
+                OR: [
+                  { firstName: { contains: normalizedSearch, mode: "insensitive" } },
+                  { lastName: { contains: normalizedSearch, mode: "insensitive" } },
+                  { email: { contains: normalizedSearch, mode: "insensitive" } },
+                ],
+              }
+            : {}),
         }
       },
       select: {
@@ -254,7 +347,27 @@ export class TeachersService {
       pendingResultsMap.set(item.createdById, item._count._all);
     });
 
-    return staffProfiles.map((profile) => {
+    return this.writeCache(
+      TeachersService.listCache,
+      cacheKey,
+      staffProfiles
+      .filter((profile) => {
+        if (!normalizedSearch) return true;
+        const haystack = [
+          profile.user.firstName,
+          profile.user.lastName,
+          profile.user.email,
+          profile.employeeNo,
+          profile.designation,
+          profile.department?.name,
+          profile.campus?.name,
+        ]
+          .filter(Boolean)
+          .join(" ")
+          .toLowerCase();
+        return haystack.includes(normalizedSearch.toLowerCase());
+      })
+      .map((profile) => {
       const latestAttendance = latestAttendanceMap.get(profile.userId);
       return {
         id: profile.id,
@@ -272,7 +385,8 @@ export class TeachersService {
         pendingResults: pendingResultsMap.get(profile.userId) ?? 0,
         employmentDate: profile.employmentDate.toISOString()
       };
-    });
+    }),
+    );
   }
 
   async getTeacherProfile(schoolId: string, teacherId: string): Promise<TeacherProfileView> {

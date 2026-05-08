@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 type FetchResult<TItem> = {
   data: TItem[];
@@ -11,21 +11,38 @@ export function usePagination<TItem, TFilters extends Record<string, unknown> = 
   fetchFn,
   defaultPageSize = 25,
   defaultFilters,
+  initialResult,
 }: {
   fetchFn: (params: { page: number; pageSize: number } & TFilters) => Promise<FetchResult<TItem>>;
   defaultPageSize?: number;
   defaultFilters: TFilters;
+  initialResult?: FetchResult<TItem>;
 }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSizeState] = useState(defaultPageSize);
   const [filters, setFilters] = useState(defaultFilters);
-  const [data, setData] = useState<TItem[]>([]);
-  const [totalItems, setTotalItems] = useState(0);
-  const [isLoading, setIsLoading] = useState(true);
+  const [data, setData] = useState<TItem[]>(initialResult?.data ?? []);
+  const [totalItems, setTotalItems] = useState(initialResult?.total ?? 0);
+  const [isLoading, setIsLoading] = useState(!initialResult);
   const [error, setError] = useState<string | null>(null);
+  const shouldSkipInitialFetch = useRef(Boolean(initialResult));
+
+  useEffect(() => {
+    if (initialResult) {
+      setData(initialResult.data);
+      setTotalItems(initialResult.total);
+      setIsLoading(false);
+    }
+  }, [initialResult]);
 
   useEffect(() => {
     let cancelled = false;
+    if (shouldSkipInitialFetch.current && currentPage === 1 && pageSize === defaultPageSize) {
+      shouldSkipInitialFetch.current = false;
+      return () => {
+        cancelled = true;
+      };
+    }
     setIsLoading(true);
     setError(null);
     fetchFn({ page: currentPage, pageSize, ...filters })
@@ -44,7 +61,7 @@ export function usePagination<TItem, TFilters extends Record<string, unknown> = 
     return () => {
       cancelled = true;
     };
-  }, [currentPage, fetchFn, filters, pageSize]);
+  }, [currentPage, defaultPageSize, fetchFn, filters, initialResult, pageSize]);
 
   function setPageSize(size: number) {
     setPageSizeState(size);

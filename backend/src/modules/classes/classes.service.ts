@@ -185,8 +185,39 @@ type ClassShapeInput = {
 
 @Injectable()
 export class ClassesService {
+  private static readonly listCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<ClassesService["listClassesFresh"]>> }>();
+  private static readonly detailCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<ClassesService["getClassDetailFresh"]>> }>();
+  private static readonly membersCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<ClassesService["listClassMembersFresh"]>> }>();
+  private static readonly resultsCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<ClassesService["getClassResultsFresh"]>> }>();
+  private static readonly attendanceCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<ClassesService["getClassAttendanceFresh"]>> }>();
+  private static readonly skillsCache = new Map<string, { expiresAt: number; value: Awaited<ReturnType<ClassesService["getClassSkillsFresh"]>> }>();
+
   async ok<T>(dataPromise: Promise<T>, message?: string) {
     return { ok: true, success: true, ...(message ? { message } : {}), data: await dataPromise };
+  }
+
+  private readCache<T>(cache: Map<string, { expiresAt: number; value: T }>, key: string) {
+    const hit = cache.get(key);
+    if (!hit) return null;
+    if (hit.expiresAt <= Date.now()) {
+      cache.delete(key);
+      return null;
+    }
+    return hit.value;
+  }
+
+  private writeCache<T>(cache: Map<string, { expiresAt: number; value: T }>, key: string, value: T, ttlMs = 20_000) {
+    cache.set(key, { value, expiresAt: Date.now() + ttlMs });
+    return value;
+  }
+
+  private clearCaches() {
+    ClassesService.listCache.clear();
+    ClassesService.detailCache.clear();
+    ClassesService.membersCache.clear();
+    ClassesService.resultsCache.clear();
+    ClassesService.attendanceCache.clear();
+    ClassesService.skillsCache.clear();
   }
 
   private async audit(session: SessionPayload, action: AuditAction, entityId: string, metadata?: Prisma.InputJsonValue) {
@@ -363,7 +394,7 @@ export class ClassesService {
     };
   }
 
-  async listClasses(session: SessionPayload, query: Record<string, string | undefined>) {
+  private async listClassesFresh(session: SessionPayload, query: Record<string, string | undefined>) {
     await this.ensureDefaultClasses(session.schoolId);
     const andFilters: Prisma.ClassRoomWhereInput[] = [];
     if (query.search) {
@@ -432,6 +463,19 @@ export class ClassesService {
     };
   }
 
+  async listClasses(session: SessionPayload, query: Record<string, string | undefined>) {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      query,
+    });
+    const cached = this.readCache(ClassesService.listCache, cacheKey);
+    if (cached) return cached;
+    const value = await this.listClassesFresh(session, query);
+    return this.writeCache(ClassesService.listCache, cacheKey, value);
+  }
+
   async listTeacherOptions(session: SessionPayload, query: Record<string, string | undefined>) {
     const search = query.search?.trim();
     const users = await prisma.user.findMany({
@@ -470,7 +514,7 @@ export class ClassesService {
     }));
   }
 
-  async getClassDetail(session: SessionPayload, classId: string) {
+  private async getClassDetailFresh(session: SessionPayload, classId: string) {
     const classRoom = await this.assertClassScope(session, classId);
     const { academicSession, term } = await this.currentContext(session.schoolId);
     const [studentCount, subjects, timetableCount, examCount, resultGroup, attendance] = await Promise.all([
@@ -548,7 +592,20 @@ export class ClassesService {
     };
   }
 
-  async listClassMembers(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+  async getClassDetail(session: SessionPayload, classId: string) {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      classId,
+    });
+    const cached = this.readCache(ClassesService.detailCache, cacheKey);
+    if (cached) return cached;
+    const value = await this.getClassDetailFresh(session, classId);
+    return this.writeCache(ClassesService.detailCache, cacheKey, value);
+  }
+
+  private async listClassMembersFresh(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
     await this.assertClassScope(session, classId);
     const { page, pageSize, skip } = pagination(query);
     const where: Prisma.StudentWhereInput = {
@@ -609,7 +666,22 @@ export class ClassesService {
     };
   }
 
-  async getClassResults(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+  async listClassMembers(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      classId,
+      query,
+      resource: "members",
+    });
+    const cached = this.readCache(ClassesService.membersCache, cacheKey);
+    if (cached) return cached;
+    const value = await this.listClassMembersFresh(session, classId, query);
+    return this.writeCache(ClassesService.membersCache, cacheKey, value);
+  }
+
+  private async getClassResultsFresh(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
     await this.assertClassScope(session, classId);
     const { term } = await this.currentContext(session.schoolId);
     const termId = query.termId ?? query.term_id ?? term?.id;
@@ -671,7 +743,22 @@ export class ClassesService {
     return { students: grid, subjects: subjectViews, termId };
   }
 
-  async getClassAttendance(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+  async getClassResults(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      classId,
+      query,
+      resource: "results",
+    });
+    const cached = this.readCache(ClassesService.resultsCache, cacheKey);
+    if (cached) return cached;
+    const value = await this.getClassResultsFresh(session, classId, query);
+    return this.writeCache(ClassesService.resultsCache, cacheKey, value);
+  }
+
+  private async getClassAttendanceFresh(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
     await this.assertClassScope(session, classId);
     const { term } = await this.currentContext(session.schoolId);
     const termId = query.termId ?? query.term_id ?? term?.id;
@@ -726,7 +813,22 @@ export class ClassesService {
     };
   }
 
-  async getClassSkills(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+  async getClassAttendance(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      classId,
+      query,
+      resource: "attendance",
+    });
+    const cached = this.readCache(ClassesService.attendanceCache, cacheKey);
+    if (cached) return cached;
+    const value = await this.getClassAttendanceFresh(session, classId, query);
+    return this.writeCache(ClassesService.attendanceCache, cacheKey, value);
+  }
+
+  private async getClassSkillsFresh(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
     const classRoom = await this.assertClassScope(session, classId);
     await this.ensureSkillDefinitions(session.schoolId);
     const { term } = await this.currentContext(session.schoolId);
@@ -757,6 +859,21 @@ export class ClassesService {
         assessedBy: rating.assessedById
       }))
     };
+  }
+
+  async getClassSkills(session: SessionPayload, classId: string, query: Record<string, string | undefined>) {
+    const cacheKey = JSON.stringify({
+      schoolId: session.schoolId,
+      userId: session.userId,
+      role: session.role,
+      classId,
+      query,
+      resource: "skills",
+    });
+    const cached = this.readCache(ClassesService.skillsCache, cacheKey);
+    if (cached) return cached;
+    const value = await this.getClassSkillsFresh(session, classId, query);
+    return this.writeCache(ClassesService.skillsCache, cacheKey, value);
   }
 
   private async classLevelFor(schoolId: string, level: string) {
@@ -797,6 +914,7 @@ export class ClassesService {
       }
     });
     await this.audit(session, AuditAction.CREATE, created.id, { className: parsed.name });
+    this.clearCaches();
     return this.getClassDetail(session, created.id);
   }
 
@@ -817,6 +935,7 @@ export class ClassesService {
       }
     });
     await this.audit(session, AuditAction.UPDATE, classId, parsed as Prisma.InputJsonObject);
+    this.clearCaches();
     return this.getClassDetail(session, classId);
   }
 
@@ -881,6 +1000,7 @@ export class ClassesService {
       classTeacherId: parsed.classTeacherId,
       assistantClassTeacherId: parsed.assistantClassTeacherId
     });
+    this.clearCaches();
     return this.getClassDetail(session, classId);
   }
 
@@ -894,6 +1014,7 @@ export class ClassesService {
     }
     await prisma.classRoom.update({ where: { id: classId }, data: { deletedAt: new Date(), isActive: false } });
     await this.audit(session, AuditAction.DELETE, classId);
+    this.clearCaches();
     return { id: classId, archived: true };
   }
 }
