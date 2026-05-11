@@ -25,7 +25,7 @@ function resolveInitialTheme(): ThemeMode {
   if (attributeTheme === "dark" || attributeTheme === "light") return attributeTheme;
   const stored = window.localStorage.getItem(STORAGE_KEY);
   if (stored === "dark" || stored === "light") return stored;
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  return "light";
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
