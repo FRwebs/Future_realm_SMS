@@ -10,8 +10,7 @@ const themeBootstrapScript = `
   try {
     const storageKey = "sms-theme";
     const stored = window.localStorage.getItem(storageKey);
-    const systemTheme = window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
-    const theme = stored === "light" || stored === "dark" ? stored : systemTheme;
+    const theme = stored === "light" || stored === "dark" ? stored : "light";
     document.documentElement.setAttribute("data-theme", theme);
   } catch {
     document.documentElement.setAttribute("data-theme", "light");
