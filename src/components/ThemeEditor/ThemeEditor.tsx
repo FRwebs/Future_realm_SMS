@@ -39,6 +39,7 @@ type ThemeShadowEntry = {
 
 const STORAGE_KEY = "custom-theme";
 const PRESET_STORAGE_KEY = "custom-theme-presets";
+const SHADOWS_DISABLED_KEY = "custom-theme-shadows-disabled";
 
 function readSavedThemes(): SavedThemes {
   if (typeof window === "undefined") return {};
@@ -85,6 +86,32 @@ function readThemePresets(): ThemePreset[] {
 function writeThemePresets(value: ThemePreset[]) {
   if (typeof window === "undefined") return;
   window.localStorage.setItem(PRESET_STORAGE_KEY, JSON.stringify(value));
+}
+
+function readShadowsDisabled() {
+  if (typeof window === "undefined") return false;
+  return window.localStorage.getItem(SHADOWS_DISABLED_KEY) === "true";
+}
+
+function writeShadowsDisabled(value: boolean) {
+  if (typeof window === "undefined") return;
+  if (value) {
+    window.localStorage.setItem(SHADOWS_DISABLED_KEY, "true");
+    return;
+  }
+
+  window.localStorage.removeItem(SHADOWS_DISABLED_KEY);
+}
+
+function applyGlobalShadowState(disabled: boolean) {
+  if (typeof document === "undefined") return;
+
+  if (disabled) {
+    document.documentElement.setAttribute("data-theme-editor-shadows", "off");
+    return;
+  }
+
+  document.documentElement.removeAttribute("data-theme-editor-shadows");
 }
 
 function sanitizeImportedThemes(value: unknown): SavedThemes | null {
@@ -410,6 +437,7 @@ export function ThemeEditor() {
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<ThemeEditorEntry[]>([]);
   const [shadowEntries, setShadowEntries] = useState<ThemeShadowEntry[]>([]);
+  const [allShadowsDisabled, setAllShadowsDisabled] = useState(false);
   const [search, setSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [importValue, setImportValue] = useState("");
@@ -462,6 +490,9 @@ export function ThemeEditor() {
   useEffect(() => {
     ensureProbe(probeRef);
     setPresets(readThemePresets());
+    const shadowsDisabled = readShadowsDisabled();
+    setAllShadowsDisabled(shadowsDisabled);
+    applyGlobalShadowState(shadowsDisabled);
     refreshEntries(theme);
 
     return () => {
@@ -478,6 +509,10 @@ export function ThemeEditor() {
       setSelectedPresetBaseline(null);
     }
   }, [presets, selectedPresetId]);
+
+  useEffect(() => {
+    applyGlobalShadowState(allShadowsDisabled);
+  }, [allShadowsDisabled]);
 
   const groupedCount = useMemo(() => entries.length + shadowEntries.length, [entries.length, shadowEntries.length]);
   const filteredEntries = useMemo(() => {
@@ -809,11 +844,13 @@ export function ThemeEditor() {
 
   function revertToDefault() {
     window.localStorage.removeItem(STORAGE_KEY);
+    writeShadowsDisabled(false);
 
     for (const name of knownVariablesRef.current) {
       document.documentElement.style.removeProperty(name);
     }
 
+    setAllShadowsDisabled(false);
     setSelectedPresetId(null);
     setSelectedPresetBaseline(null);
     refreshEntries(theme);
@@ -880,6 +917,19 @@ export function ThemeEditor() {
     commitShadowEntry(name, restoredValue, { apply: true, enabled: true });
   }
 
+  function toggleAllShadows() {
+    const nextValue = !allShadowsDisabled;
+    setAllShadowsDisabled(nextValue);
+    writeShadowsDisabled(nextValue);
+    showToast({
+      title: nextValue ? "All shadows disabled" : "All shadows restored",
+      description: nextValue
+        ? "Box-shadow output is suppressed across the app while you inspect a flatter look."
+        : "The app is using its normal shadow rendering again.",
+      variant: "info",
+    });
+  }
+
   return (
     <>
       <button
@@ -893,12 +943,12 @@ export function ThemeEditor() {
 
       <aside
         className={cn(
-          "fixed right-0 top-0 z-[590] flex h-screen w-[min(34rem,calc(100vw-1rem))] flex-col border-l border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)] transition-transform duration-300",
+          "fixed right-0 top-0 z-[590] flex h-[100dvh] w-[min(34rem,calc(100vw-1rem))] flex-col overflow-y-auto overscroll-contain border-l border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)] transition-transform duration-300",
           open ? "translate-x-0" : "translate-x-full",
         )}
         aria-hidden={!open}
       >
-        <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+        <div className="shrink-0 border-b border-[var(--color-border-default)] px-5 py-4">
           <div className="flex items-start justify-between gap-3">
             <div>
               <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-secondary)]">Theme Studio</p>
@@ -1225,7 +1275,7 @@ export function ThemeEditor() {
           ) : null}
         </div>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4">
+        <div className="min-h-0 px-4 py-4">
           <div className="grid gap-3">
             {filteredEntries.length === 0 && filteredShadowEntries.length === 0 ? (
               <div className="rounded-[1.25rem] border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-4 text-sm text-[var(--color-text-secondary)]">
@@ -1246,6 +1296,29 @@ export function ThemeEditor() {
                   <span className="rounded-full bg-[var(--color-bg-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-secondary)]">
                     {filteredShadowEntries.length}
                   </span>
+                </div>
+
+                <div className="mt-3 rounded-[1rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">Global shadow output</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                        Temporarily suppress all rendered box-shadows app-wide while you compare a flatter direction.
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={toggleAllShadows}
+                      className={cn(
+                        "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                        allShadowsDisabled
+                          ? "border-[var(--color-border-focus)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
+                          : "border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] text-[var(--color-text-secondary)]",
+                      )}
+                    >
+                      {allShadowsDisabled ? "Off" : "On"}
+                    </button>
+                  </div>
                 </div>
 
                 <div className="mt-3 grid gap-3">
