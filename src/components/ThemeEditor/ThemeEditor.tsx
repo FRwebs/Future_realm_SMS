@@ -28,6 +28,15 @@ type ThemeEditorEntry = {
   format: VariableFormat;
 };
 
+type ThemeShadowEntry = {
+  name: string;
+  rawValue: string;
+  inputValue: string;
+  defaultValue: string;
+  enabled: boolean;
+  lastEnabledValue: string;
+};
+
 const STORAGE_KEY = "custom-theme";
 const PRESET_STORAGE_KEY = "custom-theme-presets";
 
@@ -104,6 +113,17 @@ function presetSwatches(themes: SavedThemes, mode: ThemeMode) {
   const themeValues = themes[mode] ?? {};
   const fallbacks = themes.light ?? themes.dark ?? {};
   const pick = (name: string) => themeValues[name] ?? fallbacks[name] ?? null;
+
+  return [
+    pick("--color-bg-base"),
+    pick("--color-bg-surface"),
+    pick("--color-accent-primary"),
+    pick("--color-text-primary"),
+  ].filter((value): value is string => Boolean(value));
+}
+
+function swatchesFromThemeRecord(record: Record<string, string>) {
+  const pick = (name: string) => record[name] ?? null;
 
   return [
     pick("--color-bg-base"),
@@ -297,6 +317,14 @@ function captureStylesheetDefaults(theme: ThemeMode) {
   return { defaults, formats };
 }
 
+function isShadowToken(name: string, value: string) {
+  const tokenName = name.trim().toLowerCase();
+  const tokenValue = value.trim().toLowerCase();
+
+  return tokenName.includes("shadow")
+    || tokenValue.includes("drop-shadow(");
+}
+
 function discoverColorEntries(
   theme: ThemeMode,
   defaultValues: Record<string, string>,
@@ -339,16 +367,56 @@ function discoverColorEntries(
   return entries;
 }
 
+function discoverShadowEntries(theme: ThemeMode, defaultValues: Record<string, string>) {
+  const root = document.documentElement;
+  const computed = window.getComputedStyle(root);
+  const variableNames = new Set<string>(Object.keys(defaultValues));
+
+  for (const propertyName of Array.from(computed)) {
+    if (propertyName.startsWith("--")) {
+      variableNames.add(propertyName);
+    }
+  }
+
+  return Array.from(variableNames)
+    .map((name) => {
+      const inlineValue = root.style.getPropertyValue(name).trim();
+      const computedValue = computed.getPropertyValue(name).trim();
+      const defaultValue = defaultValues[name] ?? computedValue;
+      const rawValue = inlineValue || computedValue || defaultValue;
+
+      if (!rawValue || !isShadowToken(name, rawValue || defaultValue)) return null;
+
+      const enabled = rawValue.toLowerCase() !== "none";
+      const fallbackEnabledValue = defaultValue.toLowerCase() !== "none" ? defaultValue : "";
+
+      return {
+        name,
+        rawValue,
+        inputValue: enabled ? rawValue : fallbackEnabledValue || rawValue,
+        defaultValue,
+        enabled,
+        lastEnabledValue: enabled ? rawValue : fallbackEnabledValue,
+        theme,
+      } satisfies ThemeShadowEntry & { theme: ThemeMode };
+    })
+    .filter((entry): entry is ThemeShadowEntry & { theme: ThemeMode } => Boolean(entry))
+    .sort((left, right) => left.name.localeCompare(right.name));
+}
+
 export function ThemeEditor() {
   const { theme } = useTheme();
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [entries, setEntries] = useState<ThemeEditorEntry[]>([]);
+  const [shadowEntries, setShadowEntries] = useState<ThemeShadowEntry[]>([]);
   const [search, setSearch] = useState("");
   const [importOpen, setImportOpen] = useState(false);
   const [importValue, setImportValue] = useState("");
   const [presetName, setPresetName] = useState("");
   const [presets, setPresets] = useState<ThemePreset[]>([]);
+  const [selectedPresetId, setSelectedPresetId] = useState<string | null>(null);
+  const [selectedPresetBaseline, setSelectedPresetBaseline] = useState<Record<string, string> | null>(null);
   const [renamingPresetId, setRenamingPresetId] = useState<string | null>(null);
   const [renameValue, setRenameValue] = useState("");
   const defaultsRef = useRef<Record<ThemeMode, Record<string, string>>>({ light: {}, dark: {} });
@@ -380,12 +448,15 @@ export function ThemeEditor() {
     formatsRef.current[mode] = snapshot.formats;
 
     const nextEntries = discoverColorEntries(mode, snapshot.defaults, snapshot.formats, probeRef);
-    nextEntries.forEach((entry) => knownVariablesRef.current.add(entry.name));
-    applySavedThemeForMode(mode, nextEntries.map((entry) => entry.name));
+    const nextShadowEntries = discoverShadowEntries(mode, snapshot.defaults);
+    [...nextEntries, ...nextShadowEntries].forEach((entry) => knownVariablesRef.current.add(entry.name));
+    applySavedThemeForMode(mode, [...nextEntries, ...nextShadowEntries].map((entry) => entry.name));
 
     const hydratedEntries = discoverColorEntries(mode, snapshot.defaults, snapshot.formats, probeRef);
-    hydratedEntries.forEach((entry) => knownVariablesRef.current.add(entry.name));
+    const hydratedShadowEntries = discoverShadowEntries(mode, snapshot.defaults);
+    [...hydratedEntries, ...hydratedShadowEntries].forEach((entry) => knownVariablesRef.current.add(entry.name));
     setEntries(hydratedEntries);
+    setShadowEntries(hydratedShadowEntries);
   };
 
   useEffect(() => {
@@ -401,7 +472,14 @@ export function ThemeEditor() {
     };
   }, [theme]);
 
-  const groupedCount = useMemo(() => entries.length, [entries.length]);
+  useEffect(() => {
+    if (selectedPresetId && !presets.some((preset) => preset.id === selectedPresetId)) {
+      setSelectedPresetId(null);
+      setSelectedPresetBaseline(null);
+    }
+  }, [presets, selectedPresetId]);
+
+  const groupedCount = useMemo(() => entries.length + shadowEntries.length, [entries.length, shadowEntries.length]);
   const filteredEntries = useMemo(() => {
     const query = search.trim().toLowerCase();
     if (!query) return entries;
@@ -411,10 +489,53 @@ export function ThemeEditor() {
         || entry.appliedValue.toLowerCase().includes(query);
     });
   }, [entries, search]);
+  const filteredShadowEntries = useMemo(() => {
+    const query = search.trim().toLowerCase();
+    if (!query) return shadowEntries;
+    return shadowEntries.filter((entry) => {
+      return entry.name.toLowerCase().includes(query)
+        || entry.rawValue.toLowerCase().includes(query)
+        || entry.inputValue.toLowerCase().includes(query)
+        || (entry.enabled ? "enabled" : "disabled").includes(query);
+    });
+  }, [shadowEntries, search]);
   const activeThemePayload = useMemo(() => {
     const savedThemes = readSavedThemes();
     return savedThemes[theme] ?? {};
-  }, [entries, theme]);
+  }, [entries, shadowEntries, theme]);
+  const currentModePayload = useMemo(
+    () =>
+      Object.fromEntries([
+        ...entries.map((entry) => [entry.name, entry.rawValue] as const),
+        ...shadowEntries.map((entry) => [entry.name, entry.rawValue] as const),
+      ]),
+    [entries, shadowEntries],
+  );
+  const selectedPreset = useMemo(
+    () => presets.find((preset) => preset.id === selectedPresetId) ?? null,
+    [presets, selectedPresetId],
+  );
+  const isSelectedPresetDirty = useMemo(() => {
+    if (!selectedPreset || !selectedPresetBaseline) return false;
+    return !sameThemeRecord(selectedPresetBaseline, currentModePayload);
+  }, [currentModePayload, selectedPreset, selectedPresetBaseline]);
+  const selectedPresetDiffCount = useMemo(() => {
+    if (!selectedPresetBaseline) return 0;
+    const names = new Set([
+      ...Object.keys(selectedPresetBaseline),
+      ...Object.keys(currentModePayload),
+    ]);
+
+    return Array.from(names).filter((name) => selectedPresetBaseline[name] !== currentModePayload[name]).length;
+  }, [currentModePayload, selectedPresetBaseline]);
+  const selectedPresetBaselineSwatches = useMemo(
+    () => (selectedPresetBaseline ? swatchesFromThemeRecord(selectedPresetBaseline) : []),
+    [selectedPresetBaseline],
+  );
+  const currentDraftSwatches = useMemo(
+    () => swatchesFromThemeRecord(currentModePayload),
+    [currentModePayload],
+  );
 
   function updateEntryDraft(name: string, inputValue: string) {
     setEntries((current) => current.map((entry) => (entry.name === name ? { ...entry, inputValue } : entry)));
@@ -451,7 +572,7 @@ export function ThemeEditor() {
     const savedThemes = readSavedThemes();
     const nextSavedThemes: SavedThemes = {
       ...savedThemes,
-      [theme]: Object.fromEntries(entries.map((entry) => [entry.name, entry.rawValue])),
+      [theme]: currentModePayload,
     };
 
     writeSavedThemes(nextSavedThemes);
@@ -466,7 +587,7 @@ export function ThemeEditor() {
     const savedThemes = readSavedThemes();
     return {
       ...savedThemes,
-      [theme]: Object.fromEntries(entries.map((entry) => [entry.name, entry.rawValue])),
+      [theme]: currentModePayload,
     };
   }
 
@@ -497,6 +618,8 @@ export function ThemeEditor() {
     writeThemePresets(nextPresets);
     setPresets(nextPresets);
     setPresetName("");
+    setSelectedPresetId(nextPreset.id);
+    setSelectedPresetBaseline(currentModePayload);
     showToast({
       title: existing ? "Preset updated" : "Preset saved",
       description: `"${name}" is now available in your local preset library.`,
@@ -506,11 +629,49 @@ export function ThemeEditor() {
 
   function applyPreset(preset: ThemePreset) {
     writeSavedThemes(preset.themes);
-    applySavedThemeForMode(theme, entries.map((entry) => entry.name), preset.themes);
+    applySavedThemeForMode(
+      theme,
+      [...entries, ...shadowEntries].map((entry) => entry.name),
+      preset.themes,
+    );
+    const nextBaseline = Object.fromEntries(
+      [...entries, ...shadowEntries].map((entry) => [
+        entry.name,
+        preset.themes[theme]?.[entry.name]
+          ?? defaultsRef.current[theme][entry.name]
+          ?? entry.rawValue,
+      ] as const),
+    );
+    setSelectedPresetId(preset.id);
+    setSelectedPresetBaseline(nextBaseline);
     refreshEntries(theme);
     showToast({
       title: "Preset applied",
-      description: `"${preset.name}" is now live for ${theme} mode.`,
+      description: `"${preset.name}" is now live for ${theme} mode and ready to fine-tune.`,
+      variant: "success",
+    });
+  }
+
+  function updateSelectedPreset() {
+    if (!selectedPreset) return;
+
+    const payload = currentThemePayload();
+    const nextPresets = readThemePresets().map((preset) =>
+      preset.id === selectedPreset.id
+        ? {
+            ...preset,
+            themes: payload,
+            updatedAt: new Date().toISOString(),
+          }
+        : preset,
+    );
+
+    writeThemePresets(nextPresets);
+    setPresets(nextPresets);
+    setSelectedPresetBaseline(currentModePayload);
+    showToast({
+      title: "Preset updated",
+      description: `"${selectedPreset.name}" now reflects your latest tweaks.`,
       variant: "success",
     });
   }
@@ -631,7 +792,13 @@ export function ThemeEditor() {
     }
 
     writeSavedThemes(sanitized);
-    applySavedThemeForMode(theme, entries.map((entry) => entry.name), sanitized);
+    applySavedThemeForMode(
+      theme,
+      [...entries, ...shadowEntries].map((entry) => entry.name),
+      sanitized,
+    );
+    setSelectedPresetId(null);
+    setSelectedPresetBaseline(null);
     refreshEntries(theme);
     showToast({
       title: "Theme imported",
@@ -647,12 +814,70 @@ export function ThemeEditor() {
       document.documentElement.style.removeProperty(name);
     }
 
+    setSelectedPresetId(null);
+    setSelectedPresetBaseline(null);
     refreshEntries(theme);
     showToast({
       title: "Theme reset",
       description: "The original color tokens have been restored.",
       variant: "info",
     });
+  }
+
+  function updateShadowDraft(name: string, inputValue: string) {
+    setShadowEntries((current) =>
+      current.map((entry) =>
+        entry.name === name
+          ? {
+              ...entry,
+              inputValue,
+              lastEnabledValue: inputValue.trim() && inputValue.trim().toLowerCase() !== "none" ? inputValue.trim() : entry.lastEnabledValue,
+            }
+          : entry,
+      ),
+    );
+  }
+
+  function commitShadowEntry(name: string, nextValue: string, options?: { apply?: boolean; enabled?: boolean }) {
+    const trimmed = nextValue.trim();
+    const safeValue = trimmed || "none";
+    const nextEnabled = options?.enabled ?? safeValue.toLowerCase() !== "none";
+    const shouldApply = options?.apply ?? nextEnabled;
+    const appliedValue = shouldApply ? safeValue : "none";
+
+    document.documentElement.style.setProperty(name, appliedValue);
+    knownVariablesRef.current.add(name);
+
+    setShadowEntries((current) =>
+      current.map((entry) => {
+        if (entry.name !== name) return entry;
+
+        const nextLastEnabledValue = nextEnabled
+          ? (safeValue.toLowerCase() === "none" ? entry.lastEnabledValue : safeValue)
+          : (entry.inputValue.trim() && entry.inputValue.trim().toLowerCase() !== "none" ? entry.inputValue.trim() : entry.lastEnabledValue);
+
+        return {
+          ...entry,
+          rawValue: appliedValue,
+          inputValue: nextEnabled ? safeValue : entry.inputValue,
+          enabled: nextEnabled,
+          lastEnabledValue: nextLastEnabledValue,
+        };
+      }),
+    );
+  }
+
+  function toggleShadow(name: string) {
+    const entry = shadowEntries.find((item) => item.name === name);
+    if (!entry) return;
+
+    if (entry.enabled) {
+      commitShadowEntry(name, "none", { apply: true, enabled: false });
+      return;
+    }
+
+    const restoredValue = entry.lastEnabledValue || (entry.defaultValue.toLowerCase() !== "none" ? entry.defaultValue : "") || entry.inputValue || "none";
+    commitShadowEntry(name, restoredValue, { apply: true, enabled: true });
   }
 
   return (
@@ -668,7 +893,7 @@ export function ThemeEditor() {
 
       <aside
         className={cn(
-          "fixed right-0 top-0 z-[590] flex h-screen w-[min(24rem,calc(100vw-1rem))] flex-col border-l border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)] transition-transform duration-300",
+          "fixed right-0 top-0 z-[590] flex h-screen w-[min(34rem,calc(100vw-1rem))] flex-col border-l border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)] transition-transform duration-300",
           open ? "translate-x-0" : "translate-x-full",
         )}
         aria-hidden={!open}
@@ -683,7 +908,7 @@ export function ThemeEditor() {
               </p>
             </div>
             <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">
-              {filteredEntries.length}/{groupedCount} vars
+              {filteredEntries.length + filteredShadowEntries.length}/{groupedCount} vars
             </span>
           </div>
 
@@ -869,6 +1094,99 @@ export function ThemeEditor() {
                 ))
               )}
             </div>
+
+            {selectedPreset ? (
+              <div className="mt-3 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">
+                      Editing preset: {selectedPreset.name}
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                      Every token stays editable here, so you can keep tweaking until the preset feels right.
+                    </p>
+                  </div>
+                  <span
+                    className={cn(
+                      "rounded-full px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em]",
+                      isSelectedPresetDirty
+                        ? "bg-[var(--color-warning-dim)] text-[var(--color-warning)]"
+                        : "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
+                    )}
+                  >
+                    {isSelectedPresetDirty ? "Draft changed" : "In sync"}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
+                      Saved preset
+                    </p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {selectedPresetBaselineSwatches.map((swatch, index) => (
+                        <span
+                          key={`baseline-${index}-${swatch}`}
+                          className="h-6 w-6 rounded-full border border-[var(--color-border-default)]"
+                          style={{ backgroundColor: isRgbTriplet(swatch) ? `rgb(${swatch})` : swatch }}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-3">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
+                      Current draft
+                    </p>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {currentDraftSwatches.map((swatch, index) => (
+                        <span
+                          key={`draft-${index}-${swatch}`}
+                          className="h-6 w-6 rounded-full border border-[var(--color-border-default)]"
+                          style={{ backgroundColor: isRgbTriplet(swatch) ? `rgb(${swatch})` : swatch }}
+                          aria-hidden="true"
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                <p className="mt-3 text-xs text-[var(--color-text-secondary)]">
+                  {selectedPresetDiffCount} token{selectedPresetDiffCount === 1 ? "" : "s"} changed between the saved preset and your live draft.
+                </p>
+
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={updateSelectedPreset}
+                    className="inline-flex items-center gap-2 rounded-full bg-[var(--color-accent-primary)] px-4 py-2 text-sm font-semibold text-[var(--color-text-inverse)] transition hover:bg-[var(--color-accent-primary-hover)]"
+                  >
+                    <Save className="h-4 w-4" />
+                    Update Active Preset
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => duplicatePreset(selectedPreset)}
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition hover:bg-[var(--color-bg-subtle)]"
+                  >
+                    <Copy className="h-4 w-4" />
+                    Duplicate as Branch
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setSelectedPresetId(null);
+                      setSelectedPresetBaseline(null);
+                    }}
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-subtle)]"
+                  >
+                    <X className="h-4 w-4" />
+                    Stop Editing Preset
+                  </button>
+                </div>
+              </div>
+            ) : null}
           </div>
 
           {importOpen ? (
@@ -909,15 +1227,109 @@ export function ThemeEditor() {
 
         <div className="flex-1 overflow-y-auto px-4 py-4">
           <div className="grid gap-3">
-            {filteredEntries.length === 0 ? (
+            {filteredEntries.length === 0 && filteredShadowEntries.length === 0 ? (
               <div className="rounded-[1.25rem] border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-4 text-sm text-[var(--color-text-secondary)]">
                 No theme variables match <span className="font-mono text-[var(--color-text-primary)]">{search}</span>.
               </div>
             ) : null}
+            {filteredShadowEntries.length > 0 ? (
+              <div className="rounded-[1.25rem] border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
+                      Shadows
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                      Edit box-shadow and drop-shadow tokens, or toggle them off entirely.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[var(--color-bg-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-secondary)]">
+                    {filteredShadowEntries.length}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-3">
+                  {filteredShadowEntries.map((entry) => (
+                    <div
+                      key={entry.name}
+                      className="rounded-[1rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="truncate font-mono text-[11px] font-semibold text-[var(--color-text-primary)]">
+                            {entry.name}
+                          </p>
+                          <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">
+                            {entry.enabled ? "Shadow enabled" : "Shadow disabled"}
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => toggleShadow(entry.name)}
+                          className={cn(
+                            "inline-flex items-center rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+                            entry.enabled
+                              ? "border-[var(--color-border-focus)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
+                              : "border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] text-[var(--color-text-secondary)]",
+                          )}
+                        >
+                          {entry.enabled ? "On" : "Off"}
+                        </button>
+                      </div>
+
+                      <label className="mt-3 grid gap-1 text-[11px] font-medium text-[var(--color-text-secondary)]">
+                        Shadow value
+                        <input
+                          value={entry.inputValue}
+                          onChange={(event) => {
+                            const nextValue = event.target.value;
+                            updateShadowDraft(entry.name, nextValue);
+                            if (entry.enabled && nextValue.trim()) {
+                              commitShadowEntry(entry.name, nextValue, { apply: true, enabled: true });
+                            }
+                          }}
+                          onBlur={() => {
+                            if (entry.enabled) {
+                              const fallbackValue = entry.rawValue.toLowerCase() === "none" ? entry.lastEnabledValue || entry.defaultValue : entry.rawValue;
+                              updateShadowDraft(entry.name, fallbackValue);
+                              return;
+                            }
+
+                            if (!entry.inputValue.trim()) {
+                              updateShadowDraft(entry.name, entry.lastEnabledValue || entry.defaultValue);
+                            }
+                          }}
+                          placeholder="e.g. 0 10px 30px rgba(0, 0, 0, 0.18)"
+                          className="min-h-10 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 font-mono text-xs text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-border-focus)]"
+                        />
+                      </label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {filteredEntries.length > 0 ? (
+              <div className="rounded-[1.25rem] border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
+                      Colors
+                    </p>
+                    <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
+                      Live-edit the current mode&apos;s color tokens across the app.
+                    </p>
+                  </div>
+                  <span className="rounded-full bg-[var(--color-bg-surface)] px-2.5 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-secondary)]">
+                    {filteredEntries.length}
+                  </span>
+                </div>
+
+                <div className="mt-3 grid gap-3">
             {filteredEntries.map((entry) => (
               <div
                 key={entry.name}
-                className="rounded-[1.25rem] border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] p-3"
+                className="rounded-[1rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
@@ -960,6 +1372,9 @@ export function ThemeEditor() {
                 </label>
               </div>
             ))}
+                </div>
+              </div>
+            ) : null}
           </div>
         </div>
       </aside>
