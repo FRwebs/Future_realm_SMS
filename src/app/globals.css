@@ -273,6 +273,13 @@ a {
 }
 
 @layer components {
+  :root[data-theme-editor-shadows="off"] *,
+  :root[data-theme-editor-shadows="off"] *::before,
+  :root[data-theme-editor-shadows="off"] *::after {
+    box-shadow: none !important;
+    text-shadow: none !important;
+  }
+
   .app-skeleton {
     background:
       linear-gradient(
