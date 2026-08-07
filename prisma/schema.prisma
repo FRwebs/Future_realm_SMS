@@ -497,6 +497,7 @@ enum TenantStatus {
   ACTIVE
   SUSPENDED
   TRIAL
+  GRACE_PERIOD
   ARCHIVED
   DELETED
 }
@@ -518,7 +519,10 @@ enum PlatformTicketPriority {
 
 enum PlatformTicketStatus {
   OPEN
+  TRIAGED
   IN_PROGRESS
+  AWAITING_SCHOOL_RESPONSE
+  ESCALATED
   RESOLVED
   CLOSED
 }
@@ -529,6 +533,10 @@ enum PlatformTicketCategory {
   FEATURE_REQUEST
   ACCOUNT_ACCESS
   DATA_ISSUE
+  RESULT_COMPUTATION
+  NOTIFICATION_DELIVERY
+  SYNC_OFFLINE_ISSUE
+  DATA_CORRECTION_REQUEST
   OTHER
 }
 
@@ -621,9 +629,14 @@ model School {
   accountManagerId              String?
   schoolGroupId                 String?
   featureFlags                  Json?
+  prioritySupport               Boolean                        @default(false)
+  dataExportedAt                DateTime?
+  statusReason                  String?
+  statusChangedAt               DateTime?
   deletedAt                     DateTime?
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
+  contacts                      SchoolContact[]
   campuses                      Campus[]
   academicSessions              AcademicSession[]
   terms                         Term[]
@@ -752,6 +765,8 @@ model School {
   loginAttempts                 LoginAttempt[]
   backupRecords                 BackupRecord[]
   apiUsageLogs                  ApiUsageLog[]
+  notificationWallet            NotificationWallet?
+  churnSignalLogs               ChurnSignalLog[]
   schoolGroup                   SchoolGroup?                   @relation(fields: [schoolGroupId], references: [id], onDelete: SetNull)
   accountManager                User?                          @relation("SchoolAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
 
@@ -1174,6 +1189,17 @@ model User {
   featureFlagsCreated          PlatformFeatureFlag[]       @relation("FeatureFlagCreatedBy")
   platformSessions             PlatformSession[]
   loginAttempts                LoginAttempt[]
+  suspiciousActivityFlags      SuspiciousActivityFlag[]
+  duplicateFlagsAsA            DuplicateFlag[]             @relation("DuplicateFlagUserA")
+  duplicateFlagsAsB            DuplicateFlag[]             @relation("DuplicateFlagUserB")
+  accountRecoveryRecords       AccountRecoveryRecord[]     @relation("AccountRecoveryTarget")
+  accountRecoveriesVerified    AccountRecoveryRecord[]     @relation("AccountRecoveryVerifier")
+  cannedResponsesUpdated       CannedResponse[]
+  dataCorrectionsRequested     DataCorrectionRecord[]      @relation("DataCorrectionRequestedBy")
+  dataCorrectionsApproved      DataCorrectionRecord[]      @relation("DataCorrectionApprovedBy")
+  privacyRequestsCompleted     DataPrivacyRequest[]        @relation("PrivacyRequestCompletedBy")
+  securityIncidentsReported    SecurityIncident[]          @relation("SecurityIncidentReporter")
+  securityIncidentsResolved    SecurityIncident[]          @relation("SecurityIncidentResolver")
   profileDocuments             ProfileDocument[]           @relation("ProfileDocumentUser")
   uploadedProfileDocuments     ProfileDocument[]           @relation("ProfileDocumentUploadedBy")
   profileEditRequests          ProfileEditRequest[]        @relation("ProfileEditRequestTarget")
@@ -3021,11 +3047,11 @@ model FinancialClearance {
 }
 
 model Expense {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   schoolId      String
   title         String
   category      String
-  amount        Decimal  @db.Decimal(12, 2)
+  amount        Decimal   @db.Decimal(12, 2)
   paymentMethod String?
   paidTo        String?
   receiptUrl    String?
@@ -3033,7 +3059,7 @@ model Expense {
   expenseDate   DateTime
   notes         String?
   deletedAt     DateTime?
-  school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, category, expenseDate])
 }
@@ -3707,29 +3733,57 @@ model PlatformInvoice {
 }
 
 model PlatformDiscount {
-  id        String    @id @default(cuid())
-  schoolId  String
-  type      String
-  value     Decimal   @db.Decimal(12, 2)
-  reason    String
-  appliedBy String?
-  expiresAt DateTime?
-  createdAt DateTime  @default(now())
-  school    School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  id          String     @id @default(cuid())
+  schoolId    String
+  type        String
+  value       Decimal    @db.Decimal(12, 2)
+  reason      String
+  appliedBy   String?
+  promoCodeId String?
+  expiresAt   DateTime?
+  createdAt   DateTime   @default(now())
+  school      School     @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  promoCode   PromoCode? @relation(fields: [promoCodeId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, expiresAt])
+  @@index([promoCodeId])
 }
 
 model PromoCode {
-  id        String    @id @default(cuid())
-  code      String    @unique
-  type      String
-  value     Decimal   @db.Decimal(12, 2)
-  maxUses   Int?
-  uses      Int       @default(0)
-  expiresAt DateTime?
-  isActive  Boolean   @default(true)
-  createdAt DateTime  @default(now())
+  id           String             @id @default(cuid())
+  code         String             @unique
+  type         String
+  value        Decimal            @db.Decimal(12, 2)
+  campaignName String?
+  maxUses      Int?
+  uses         Int                @default(0)
+  expiresAt    DateTime?
+  isActive     Boolean            @default(true)
+  createdAt    DateTime           @default(now())
+  redemptions  PlatformDiscount[]
+}
+
+model NotificationWallet {
+  id                  String    @id @default(cuid())
+  schoolId            String    @unique
+  smsBalance          Int       @default(0)
+  whatsappBalance     Int       @default(0)
+  lowBalanceThreshold Int       @default(50)
+  lastToppedUpAt      DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+  school              School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+}
+
+model ChurnSignalLog {
+  id           String   @id @default(cuid())
+  schoolId     String
+  score        Int
+  signals      Json
+  calculatedAt DateTime @default(now())
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, calculatedAt])
 }
 
 model PlatformRefund {
@@ -3758,27 +3812,29 @@ model TaxRate {
 }
 
 model SupportTicket {
-  id           String                 @id @default(cuid())
-  schoolId     String
-  userId       String?
-  createdById  String?
-  assignedToId String?
-  ticketNo     String                 @unique
-  category     PlatformTicketCategory
-  subject      String
-  description  String
-  priority     PlatformTicketPriority @default(MEDIUM)
-  status       PlatformTicketStatus   @default(OPEN)
-  slaDueAt     DateTime?
-  resolvedAt   DateTime?
-  closedAt     DateTime?
-  attachments  Json?
-  createdAt    DateTime               @default(now())
-  updatedAt    DateTime               @updatedAt
-  school       School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  createdBy    User?                  @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  assignedTo   User?                  @relation("TicketAssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
-  messages     TicketMessage[]
+  id                    String                 @id @default(cuid())
+  schoolId              String
+  userId                String?
+  createdById           String?
+  assignedToId          String?
+  ticketNo              String                 @unique
+  category              PlatformTicketCategory
+  subject               String
+  description           String
+  priority              PlatformTicketPriority @default(MEDIUM)
+  status                PlatformTicketStatus   @default(OPEN)
+  slaDueAt              DateTime?
+  resolvedAt            DateTime?
+  closedAt              DateTime?
+  attachments           Json?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  school                School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy             User?                  @relation("TicketCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  assignedTo            User?                  @relation("TicketAssignedAgent", fields: [assignedToId], references: [id], onDelete: SetNull)
+  messages              TicketMessage[]
+  csatResponse          TicketCsatResponse?
+  dataCorrectionRecords DataCorrectionRecord[]
 
   @@index([schoolId, status, priority])
   @@index([assignedToId, status])
@@ -3796,6 +3852,47 @@ model TicketMessage {
   author       User?         @relation(fields: [authorId], references: [id], onDelete: SetNull)
 
   @@index([ticketId, createdAt])
+}
+
+model TicketCsatResponse {
+  id          String        @id @default(cuid())
+  ticketId    String        @unique
+  score       Int
+  comment     String?
+  submittedAt DateTime      @default(now())
+  ticket      SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+}
+
+model CannedResponse {
+  id          String                 @id @default(cuid())
+  category    PlatformTicketCategory
+  title       String
+  body        String
+  updatedById String?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  updatedBy   User?                  @relation(fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([category])
+}
+
+model DataCorrectionRecord {
+  id             String        @id @default(cuid())
+  ticketId       String
+  fieldCorrected String
+  oldValue       String
+  newValue       String
+  status         String        @default("PENDING")
+  requestedById  String?
+  approvedById   String?
+  completedAt    DateTime?
+  createdAt      DateTime      @default(now())
+  ticket         SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
+  requestedBy    User?         @relation("DataCorrectionRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  approvedBy     User?         @relation("DataCorrectionApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@index([ticketId])
+  @@index([status])
 }
 
 model PlatformFeatureFlag {
@@ -3920,6 +4017,20 @@ model NpsResponse {
   @@index([schoolId, createdAt])
 }
 
+model SchoolContact {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String
+  role      String
+  phone     String?
+  email     String?
+  isPrimary Boolean  @default(false)
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId])
+}
+
 model OnboardingChecklistItem {
   id          String    @id @default(cuid())
   schoolId    String
@@ -3943,20 +4054,43 @@ model SchoolGroup {
 }
 
 model DataPrivacyRequest {
-  id          String                   @id @default(cuid())
-  schoolId    String?
-  userId      String?
-  handledById String?
-  type        DataPrivacyRequestType
-  status      DataPrivacyRequestStatus @default(OPEN)
-  subject     String
-  details     String?
-  resolvedAt  DateTime?
-  createdAt   DateTime                 @default(now())
-  school      School?                  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
-  handledBy   User?                    @relation("PrivacyRequestHandler", fields: [handledById], references: [id], onDelete: SetNull)
+  id               String                   @id @default(cuid())
+  schoolId         String?
+  userId           String?
+  handledById      String?
+  completedById    String?
+  type             DataPrivacyRequestType
+  status           DataPrivacyRequestStatus @default(OPEN)
+  subject          String
+  details          String?
+  dataExportedAt   DateTime?
+  confirmationHash String?
+  resolvedAt       DateTime?
+  completedAt      DateTime?
+  createdAt        DateTime                 @default(now())
+  school           School?                  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  handledBy        User?                    @relation("PrivacyRequestHandler", fields: [handledById], references: [id], onDelete: SetNull)
+  completedBy      User?                    @relation("PrivacyRequestCompletedBy", fields: [completedById], references: [id], onDelete: SetNull)
 
   @@index([status, type, createdAt])
+}
+
+model SecurityIncident {
+  id                String    @id @default(cuid())
+  type              String
+  severity          String
+  description       String
+  status            String    @default("DETECTED")
+  detectedAt        DateTime  @default(now())
+  reportedById      String?
+  resolvedById      String?
+  resolvedAt        DateTime?
+  postIncidentNotes String?
+  createdAt         DateTime  @default(now())
+  reportedBy        User?     @relation("SecurityIncidentReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  resolvedBy        User?     @relation("SecurityIncidentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([status, severity, detectedAt])
 }
 
 model EmailTemplate {
@@ -4015,6 +4149,47 @@ model LoginAttempt {
 
   @@index([email, createdAt])
   @@index([success, createdAt])
+}
+
+model SuspiciousActivityFlag {
+  id          String    @id @default(cuid())
+  userId      String
+  flagType    String
+  detail      String?
+  detectedAt  DateTime  @default(now())
+  adminAction String?
+  resolvedAt  DateTime?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, resolvedAt])
+}
+
+model DuplicateFlag {
+  id            String    @id @default(cuid())
+  userIdA       String
+  userIdB       String
+  matchCriteria String
+  status        String    @default("PENDING")
+  createdAt     DateTime  @default(now())
+  resolvedAt    DateTime?
+  userA         User      @relation("DuplicateFlagUserA", fields: [userIdA], references: [id], onDelete: Cascade)
+  userB         User      @relation("DuplicateFlagUserB", fields: [userIdB], references: [id], onDelete: Cascade)
+
+  @@index([status])
+}
+
+model AccountRecoveryRecord {
+  id                 String    @id @default(cuid())
+  userId             String
+  verifiedById       String?
+  verificationMethod String
+  newEmail           String?
+  completedAt        DateTime?
+  createdAt          DateTime  @default(now())
+  user               User      @relation("AccountRecoveryTarget", fields: [userId], references: [id], onDelete: Cascade)
+  verifiedBy         User?     @relation("AccountRecoveryVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+
+  @@index([userId])
 }
 
 model IpAccessRule {

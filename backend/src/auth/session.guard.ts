@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 import {
   CanActivate,
   ExecutionContext,
@@ -10,6 +12,7 @@ import {
   SESSION_COOKIE_NAME,
   verifySessionToken
 } from "../../../src/lib/auth/session-core";
+import { prisma } from "../../../src/lib/db/prisma";
 
 type AuthenticatedRequest = Request & {
   user?: Awaited<ReturnType<typeof verifySessionToken>>;
@@ -36,6 +39,14 @@ export class SessionGuard implements CanActivate {
     }
 
     request.user = session;
+    // Fire-and-forget so request latency is unaffected; keeps "online now" widgets and
+    // session-based suspicious-activity detection working off real activity data.
+    prisma.platformSession
+      .updateMany({
+        where: { tokenHash: createHash("sha256").update(token).digest("hex"), revokedAt: null },
+        data: { lastActivityAt: new Date() }
+      })
+      .catch(() => undefined);
     return true;
   }
 }

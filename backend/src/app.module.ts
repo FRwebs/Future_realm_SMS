@@ -12,6 +12,7 @@ import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { ExamOfficerModule } from "./modules/exam-officer/exam-officer.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { NigeriaOperationsModule } from "./modules/nigeria-operations/nigeria-operations.module";
+import { OnboardingModule } from "./modules/onboarding/onboarding.module";
 import { ParentPortalModule } from "./modules/parent-portal/parent-portal.module";
 import { ParentsModule } from "./modules/parents/parents.module";
 import { OperationsModule } from "./modules/operations/operations.module";
@@ -41,6 +42,7 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     AcademicsModule,
     FinanceModule,
     NigeriaOperationsModule,
+    OnboardingModule,
     CommunicationsModule,
     ConfigurationModule,
     ReportsModule,

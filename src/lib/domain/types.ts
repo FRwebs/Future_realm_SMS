@@ -336,8 +336,8 @@ export interface NigeriaOperationsDashboardView {
 }
 
 export type SubscriptionPlan = "BASIC" | "STANDARD" | "ENTERPRISE";
-export type TenantStatus = "ACTIVE" | "SUSPENDED" | "TRIAL" | "DELETED";
-export type PlatformBillingStatus = "TRIAL" | "ACTIVE" | "OVERDUE" | "SUSPENDED";
+export type TenantStatus = "ACTIVE" | "SUSPENDED" | "TRIAL" | "GRACE_PERIOD" | "ARCHIVED" | "DELETED";
+export type PlatformBillingStatus = "TRIAL" | "ACTIVE" | "OVERDUE" | "SUSPENDED" | "CANCELLED";
 
 export interface SuperAdminSchoolRow {
   id: string;
@@ -346,6 +346,9 @@ export interface SuperAdminSchoolRow {
   plan: SubscriptionPlan;
   status: TenantStatus;
   billingStatus: PlatformBillingStatus;
+  country?: string;
+  state?: string;
+  healthScore?: number;
   totalUsers: number;
   totalStudents: number;
   totalTeachers: number;
@@ -355,14 +358,32 @@ export interface SuperAdminSchoolRow {
   nextBillingAt?: string;
 }
 
+export interface SuperAdminSchoolContact {
+  id: string;
+  name: string;
+  role: string;
+  phone?: string | null;
+  email?: string | null;
+  isPrimary: boolean;
+  createdAt: string;
+}
+
 export interface SuperAdminSchoolDetail {
   id: string;
   name: string;
   slug: string;
   category: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  address?: string;
+  city?: string;
+  state?: string;
+  country?: string;
   plan: SubscriptionPlan;
   status: TenantStatus;
   billingStatus: PlatformBillingStatus;
+  healthScore: number;
   featureFlags: Record<string, boolean>;
   trialEndsAt?: string;
   lastPaymentAt?: string;
@@ -370,6 +391,30 @@ export interface SuperAdminSchoolDetail {
   createdAt: string;
   counts: Record<string, number>;
   admins: Array<{ id: string; name: string; email: string; role: Role; status: string; createdAt: string }>;
+  prioritySupport: boolean;
+  dataExportedAt: string | null;
+  statusReason?: string | null;
+  statusChangedAt: string | null;
+  accountManager: { id: string; name: string; email: string } | null;
+  contacts: SuperAdminSchoolContact[];
+  configuration: {
+    academicSessionCount: number;
+    termCount: number;
+    activeGradingScheme: string | null;
+    passMark: number | null;
+    classLevelCount: number;
+    classRoomCount: number;
+    subjectCount: number;
+  };
+  usage: {
+    moduleAdoptionCount: number;
+    moduleTotal: number;
+    lastActivityAt: string | null;
+    notificationVolumeLast30Days: number;
+    supportTicketCount: number;
+    loginCountLast30Days: number;
+  };
+  activityLog: SuperAdminAuditLogRow[];
 }
 
 export interface SuperAdminUserRow {
@@ -382,6 +427,44 @@ export interface SuperAdminUserRow {
   schoolStatus: TenantStatus;
   status: "ACTIVE" | "SUSPENDED";
   lastLoginAt?: string;
+  createdAt: string;
+}
+
+export interface SuperAdminUserProfile {
+  id: string;
+  name: string;
+  email: string;
+  phone?: string;
+  role: string;
+  status: string;
+  lastLoginAt?: string;
+  createdAt: string;
+  school: { id: string; name: string; status: string; plan: string };
+  profileType: string;
+  recentSessions: Array<{ id: string; startedAt: string; lastActivityAt: string; device?: string | null; ipAddress?: string | null; active: boolean }>;
+  activitySummary:
+    | { type: "STAFF"; scoreEntriesSubmitted: number; attendanceMarked: number }
+    | { type: "PARENT"; notificationsReceived: number }
+    | { type: "ADMIN"; adminActionsTaken: number };
+  linkedAccounts: Array<{ studentId: string; studentName: string; isPrimary: boolean }>;
+}
+
+export interface SuperAdminSuspiciousActivityRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  flagType: string;
+  detail?: string | null;
+  detectedAt: string;
+}
+
+export interface SuperAdminDuplicateFlagRow {
+  id: string;
+  matchCriteria: string;
+  status: string;
+  userA: { id: string; name: string; email: string; phone?: string | null };
+  userB: { id: string; name: string; email: string; phone?: string | null };
   createdAt: string;
 }
 
@@ -414,6 +497,65 @@ export interface SuperAdminAnalyticsOverview {
   signups: { last7Days: number; last30Days: number };
   mau: number;
   revenue: { mrr: number; arr: number; totalPaidSchools: number };
+  commandCenter?: {
+    pulse: {
+      totalActiveSchools: number;
+      totalStudents: number;
+      schoolsOnline: number;
+      uptime30Day: number;
+      offlineSyncQueueSize: number;
+      lastSuccessfulBackupAt?: string | null;
+    };
+    revenueSnapshot: {
+      currentMonthRevenue: number;
+      currentTermCollected: number;
+      currentTermInvoiced: number;
+      overdueBalances: number;
+      monthOverMonthGrowth: number;
+      newMrrThisMonth: number;
+      notificationCreditRevenue: number;
+    };
+    subscriptionHealth: {
+      trialsExpiringNext7Days: number;
+      churnRiskSchools: number;
+      gracePeriodSchools: number;
+    };
+    onboardingPipeline: {
+      pendingVerification: number;
+      schoolsInTrial: number;
+      stuckMidOnboarding: number;
+      convertedThisWeek: number;
+    };
+    supportQueue: {
+      totalOpenTickets: number;
+      criticalOpenTickets: number;
+      ticketsBreachingSla: number;
+      averageResolutionHoursThisWeek: number;
+      averageResolutionHoursLastWeek: number;
+    };
+    systemHealth: {
+      apiUptime: number;
+      averageResponseMs: number;
+      syncFailureRate24h: number;
+      notificationDeliveryRate: number;
+      activeInfrastructureAlerts: number;
+    };
+    geography: Array<{
+      state: string;
+      schoolCount: number;
+      activeSchools: number;
+      trialSchools: number;
+      suspendedSchools: number;
+      planMix: Record<string, number>;
+    }>;
+    alerts: Array<{
+      id: string;
+      severity: string;
+      title: string;
+      detail: string;
+      actionHref: string;
+    }>;
+  };
   recentActivity: SuperAdminAuditLogRow[];
 }
 
@@ -431,6 +573,63 @@ export interface SuperAdminRevenueView {
   totalPaidSchools: number;
   schoolsByPlan: Array<{ plan: SubscriptionPlan; count: number }>;
   monthlyRevenue: Array<{ month: string; amount: number }>;
+}
+
+export interface SuperAdminInvoiceRow {
+  id: string;
+  invoiceNo: string;
+  schoolId: string;
+  schoolName: string;
+  amount: number;
+  taxAmount: number;
+  totalAmount: number;
+  amountPaid: number;
+  status: string;
+  issuedAt: string;
+  dueAt: string;
+  paidAt?: string;
+}
+
+export interface SuperAdminChurnRiskRow {
+  schoolId: string;
+  schoolName: string;
+  score: number;
+  status: TenantStatus;
+  plan: SubscriptionPlan;
+  signals: string[];
+  lastCalculatedAt: string | null;
+}
+
+export interface SuperAdminNotificationWallet {
+  schoolId: string;
+  smsBalance: number;
+  whatsappBalance: number;
+  lowBalanceThreshold: number;
+  isLow: boolean;
+  lastToppedUpAt: string | null;
+}
+
+export interface SuperAdminPromoCodeRow {
+  id: string;
+  code: string;
+  type: string;
+  value: number;
+  campaignName?: string | null;
+  maxUses?: number | null;
+  uses: number;
+  expiresAt?: string;
+  isActive: boolean;
+  totalDiscountIssued: number;
+  schoolsConverted: number;
+}
+
+export interface SuperAdminRevenueReport {
+  revenueByTier: Array<{ plan: string; revenue: number }>;
+  revenueByState: Array<{ state: string; revenue: number; schoolCount: number }>;
+  notificationCreditRevenue: number;
+  outstandingReceivables: number;
+  renewalRate: number;
+  ltvByTier: Array<{ plan: string; ltv: number }>;
 }
 
 export interface SuperAdminSettingsView {
@@ -1829,4 +2028,60 @@ export interface DemoUserCredential {
   password: string;
   role: Role;
   name: string;
+}
+
+export interface SuperAdminTicketRow {
+  id: string;
+  ticketNo: string;
+  schoolId: string;
+  schoolName: string;
+  subject: string;
+  category: string;
+  priority: string;
+  status: string;
+  assignedTo: string;
+  messageCount: number;
+  slaDueAt?: string;
+  slaBreached: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SuperAdminTicketDetail {
+  id: string;
+  ticketNo: string;
+  schoolId: string;
+  schoolName: string;
+  subject: string;
+  description: string;
+  category: string;
+  priority: string;
+  status: string;
+  assignedTo: { id: string; name: string } | null;
+  createdBy: string;
+  slaDueAt?: string;
+  slaBreached: boolean;
+  resolvedAt?: string;
+  closedAt?: string;
+  createdAt: string;
+  messages: Array<{ id: string; body: string; internalOnly: boolean; author: string; createdAt: string }>;
+  csat: { score: number; comment?: string | null; submittedAt: string } | null;
+  dataCorrectionRecords: Array<{ id: string; fieldCorrected: string; oldValue: string; newValue: string; status: string; completedAt?: string; createdAt: string }>;
+}
+
+export interface SuperAdminCannedResponse {
+  id: string;
+  category: string;
+  title: string;
+  body: string;
+  updatedAt: string;
+}
+
+export interface SuperAdminTicketAnalytics {
+  totalOpened: number;
+  totalResolved: number;
+  resolvedWithinSla: number;
+  avgResolutionByPriority: Record<string, number>;
+  categoryBreakdown: Array<{ category: string; count: number }>;
+  perAgent: Array<{ agentId: string | null; agentName: string; ticketsHandled: number; avgCsat: number | null }>;
 }
