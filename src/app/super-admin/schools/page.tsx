@@ -79,6 +79,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             { label: "Any status", value: "" },
             { label: "Active", value: "ACTIVE" },
             { label: "Trial", value: "TRIAL" },
+            { label: "Grace period", value: "GRACE_PERIOD" },
             { label: "Suspended", value: "SUSPENDED" },
             { label: "Archived", value: "ARCHIVED" }
           ] }
@@ -91,10 +92,12 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
         items={schools}
         columns={[
           { key: "name", header: "School Name", render: (item) => <Link className="font-semibold text-brand-700" href={`/super-admin/schools/${item.id}`}>{item.name}</Link> },
+          { key: "location", header: "State", render: (item) => item.state ?? "—" },
           { key: "plan", header: "Plan", render: (item) => item.plan },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
           { key: "students", header: "Total Students", render: (item) => item.totalStudents },
-          { key: "teachers", header: "Total Teachers", render: (item) => item.totalTeachers },
+          { key: "churn", header: "Churn Risk", render: (item) => `${item.healthScore ?? 70}%` },
+          { key: "renewal", header: "Renewal Date", render: (item) => (item.nextBillingAt ? formatDate(item.nextBillingAt) : "—") },
           { key: "created", header: "Date Created", render: (item) => formatDate(item.createdAt) },
           {
             key: "actions",
@@ -105,33 +108,36 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 <ResourceActionDialog
                   triggerLabel="Edit"
                   title={`Edit ${item.name}`}
-                  description="Update school name, plan, or tenant status."
+                  description="Update school name or plan. Status changes require a logged reason — use the Change status action below."
                   endpoint={`/api/super-admin/schools/${item.id}`}
                   method="PATCH"
                   variant="menu"
                   submitLabel="Save changes"
                   fields={[
                     { name: "name", label: "School Name", defaultValue: item.name },
-                    { name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: item.plan },
-                    { name: "status", label: "Status", type: "select", defaultValue: item.status, options: [
-                      { label: "Active", value: "ACTIVE" },
-                      { label: "Trial", value: "TRIAL" },
-                      { label: "Suspended", value: "SUSPENDED" },
-                      { label: "Archived", value: "ARCHIVED" }
-                    ] }
+                    { name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: item.plan }
                   ]}
                 />
                 <ResourceActionDialog
-                  triggerLabel={item.status === "SUSPENDED" ? "Activate" : "Suspend"}
-                  title={`${item.status === "SUSPENDED" ? "Activate" : "Suspend"} ${item.name}`}
-                  description="This changes tenant access for all school users."
-                  endpoint={`/api/super-admin/schools/${item.id}/${item.status === "SUSPENDED" ? "activate" : "suspend"}`}
+                  triggerLabel="Change status"
+                  title={`Change status — ${item.name}`}
+                  description="Every status change requires a logged reason and is written to the audit trail."
+                  endpoint={`/api/super-admin/schools/${item.id}/status`}
                   method="PATCH"
                   variant={item.status === "SUSPENDED" ? "menu" : "menuDanger"}
-                  submitLabel={item.status === "SUSPENDED" ? "Activate" : "Suspend"}
+                  submitLabel="Update status"
                   confirmLabel="Confirm"
-                  confirmMessage="This is an audit-sensitive tenant operation."
-                  fields={[]}
+                  confirmMessage="This changes tenant access for all school users and is fully audited."
+                  fields={[
+                    { name: "status", label: "New status", type: "select", defaultValue: item.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED", options: [
+                      { label: "Trial Active", value: "TRIAL" },
+                      { label: "Active", value: "ACTIVE" },
+                      { label: "Grace Period", value: "GRACE_PERIOD" },
+                      { label: "Suspended", value: "SUSPENDED" },
+                      { label: "Deactivated / Closed", value: "ARCHIVED" }
+                    ] },
+                    { name: "reason", label: "Reason", type: "textarea", required: true }
+                  ]}
                 />
                 <ResourceActionDialog
                   triggerLabel="Delete"

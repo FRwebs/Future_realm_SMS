@@ -9,7 +9,7 @@ import { getRoleAccent } from "@/lib/navigation/registry";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import Link from "next/link";
 import type { Route } from "next";
-import { AlertTriangle, Building2, LifeBuoy, LineChart, ShieldCheck, Sparkles } from "lucide-react";
+import { Activity, AlertTriangle, Building2, Clock3, DatabaseBackup, LineChart, PlugZap, ShieldCheck, Sparkles, UsersRound, Wifi } from "lucide-react";
 
 function platformGreeting(role: string, name?: string) {
   const firstName = name?.split(" ")[0] ?? "there";
@@ -91,6 +91,15 @@ function platformProfile(role?: string) {
   return profiles[role ?? ""] ?? profiles.PLATFORM_OWNER;
 }
 
+function formatPercent(value: number) {
+  return `${Math.round(value * 10) / 10}%`;
+}
+
+function formatHours(value: number) {
+  if (!value) return "0h";
+  return `${value}h`;
+}
+
 export default async function SuperAdminDashboardPage() {
   const session = await getServerSession();
   const [overview, revenue] = await Promise.all([
@@ -102,6 +111,55 @@ export default async function SuperAdminDashboardPage() {
   const accent = getRoleAccent(session?.role ?? "SUPER_ADMIN");
   const profile = platformProfile(session?.role ?? "PLATFORM_OWNER");
   const riskCount = overview.schools.suspended + overview.schools.trial;
+  const commandCenter = overview.commandCenter ?? {
+    pulse: {
+      totalActiveSchools: overview.schools.active,
+      totalStudents: overview.users.students,
+      schoolsOnline: 0,
+      uptime30Day: 100,
+      offlineSyncQueueSize: 0,
+      lastSuccessfulBackupAt: null
+    },
+    revenueSnapshot: {
+      currentMonthRevenue: overview.revenue.mrr,
+      currentTermCollected: overview.revenue.mrr,
+      currentTermInvoiced: overview.revenue.mrr,
+      overdueBalances: 0,
+      monthOverMonthGrowth: 0,
+      newMrrThisMonth: 0,
+      notificationCreditRevenue: 0
+    },
+    subscriptionHealth: {
+      trialsExpiringNext7Days: 0,
+      churnRiskSchools: 0,
+      gracePeriodSchools: overview.schools.suspended
+    },
+    onboardingPipeline: {
+      pendingVerification: overview.schools.trial,
+      schoolsInTrial: overview.schools.trial,
+      stuckMidOnboarding: 0,
+      convertedThisWeek: overview.signups.last7Days
+    },
+    supportQueue: {
+      totalOpenTickets: 0,
+      criticalOpenTickets: 0,
+      ticketsBreachingSla: 0,
+      averageResolutionHoursThisWeek: 0,
+      averageResolutionHoursLastWeek: 0
+    },
+    systemHealth: {
+      apiUptime: 100,
+      averageResponseMs: 0,
+      syncFailureRate24h: 0,
+      notificationDeliveryRate: 100,
+      activeInfrastructureAlerts: 0
+    },
+    geography: [],
+    alerts: []
+  };
+  const collectionRate = commandCenter.revenueSnapshot.currentTermInvoiced > 0
+    ? (commandCenter.revenueSnapshot.currentTermCollected / commandCenter.revenueSnapshot.currentTermInvoiced) * 100
+    : 0;
 
   return (
     <div className="grid gap-6">
@@ -132,6 +190,29 @@ export default async function SuperAdminDashboardPage() {
         </div>
       </section>
 
+      <section className="grid gap-3 rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel md:grid-cols-2 xl:grid-cols-6">
+        {[
+          { label: "Active schools", value: commandCenter.pulse.totalActiveSchools, detail: "Live tenants", icon: Building2 },
+          { label: "Students", value: commandCenter.pulse.totalStudents, detail: "Across active schools", icon: UsersRound },
+          { label: "Online schools", value: commandCenter.pulse.schoolsOnline, detail: "Last 30 minutes", icon: Wifi },
+          { label: "Uptime", value: formatPercent(commandCenter.pulse.uptime30Day), detail: "API success proxy", icon: Activity },
+          { label: "Sync queue", value: commandCenter.pulse.offlineSyncQueueSize, detail: "Pending records", icon: PlugZap },
+          { label: "Last backup", value: commandCenter.pulse.lastSuccessfulBackupAt ? formatDate(commandCenter.pulse.lastSuccessfulBackupAt) : "Not logged", detail: "Successful run", icon: DatabaseBackup }
+        ].map((item) => {
+          const Icon = item.icon;
+          return (
+            <article key={item.label} className="rounded-[1.25rem] border border-slate-100 bg-sand/60 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">{item.label}</p>
+                <Icon className="h-4 w-4 text-primary-700" />
+              </div>
+              <p className="mt-3 font-[var(--font-heading)] text-2xl font-black text-ink">{item.value}</p>
+              <p className="mt-1 text-[11px] font-semibold text-slate-500">{item.detail}</p>
+            </article>
+          );
+        })}
+      </section>
+
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <MetricCard metric={{ label: "Total Schools", value: String(overview.schools.total), change: `${overview.schools.active} active` }} />
         <MetricCard metric={{ label: "Suspended / Trial", value: `${overview.schools.suspended} / ${overview.schools.trial}`, change: "Tenant status" }} />
@@ -152,6 +233,159 @@ export default async function SuperAdminDashboardPage() {
             </Link>
           ))}
         </div>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">Revenue snapshot</p>
+              <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Financial health at a glance</h3>
+            </div>
+            <span className="rounded-full bg-primary-100 px-3 py-1 text-xs font-black text-primary-800">{formatPercent(collectionRate)} collected</span>
+          </div>
+          <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+            {[
+              { label: "Month revenue", value: formatCurrency(commandCenter.revenueSnapshot.currentMonthRevenue), detail: "Collected this month" },
+              { label: "Term collected", value: formatCurrency(commandCenter.revenueSnapshot.currentTermCollected), detail: "Against term invoices" },
+              { label: "Term invoiced", value: formatCurrency(commandCenter.revenueSnapshot.currentTermInvoiced), detail: "Platform invoice total" },
+              { label: "Overdue balances", value: formatCurrency(commandCenter.revenueSnapshot.overdueBalances), detail: "Past due invoices" },
+              { label: "MoM growth", value: formatPercent(commandCenter.revenueSnapshot.monthOverMonthGrowth), detail: "Collected revenue change" },
+              { label: "New MRR", value: formatCurrency(commandCenter.revenueSnapshot.newMrrThisMonth), detail: "New schools proxy" }
+            ].map((item) => (
+              <article key={item.label} className="rounded-[1.25rem] border border-slate-100 bg-sand/55 p-4">
+                <p className="text-xs font-bold text-slate-500">{item.label}</p>
+                <p className="mt-2 font-[var(--font-heading)] text-xl font-black text-ink">{item.value}</p>
+                <p className="mt-1 text-[11px] font-medium text-slate-500">{item.detail}</p>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">System health</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Reliability indicators</h3>
+          <div className="mt-5 grid gap-3">
+            {[
+              { label: "API uptime", value: formatPercent(commandCenter.systemHealth.apiUptime) },
+              { label: "Avg response", value: `${commandCenter.systemHealth.averageResponseMs}ms` },
+              { label: "Sync failure rate", value: formatPercent(commandCenter.systemHealth.syncFailureRate24h) },
+              { label: "Notification delivery", value: formatPercent(commandCenter.systemHealth.notificationDeliveryRate) },
+              { label: "Infrastructure alerts", value: commandCenter.systemHealth.activeInfrastructureAlerts }
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
+                <span className="text-sm font-semibold text-slate-600">{item.label}</span>
+                <span className="font-[var(--font-mono)] text-sm font-black text-ink">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+
+      <section className="grid gap-6 lg:grid-cols-3">
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">Subscription health</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Plan and retention risk</h3>
+          <div className="mt-5 grid gap-3">
+            {[
+              { label: "Trials expiring in 7 days", value: commandCenter.subscriptionHealth.trialsExpiringNext7Days },
+              { label: "Churn risk schools", value: commandCenter.subscriptionHealth.churnRiskSchools },
+              { label: "Grace period schools", value: commandCenter.subscriptionHealth.gracePeriodSchools }
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
+                <span className="text-sm font-semibold text-slate-600">{item.label}</span>
+                <span className="text-lg font-black text-ink">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">Onboarding pipeline</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Trial and conversion flow</h3>
+          <div className="mt-5 grid gap-3">
+            {[
+              { label: "Pending verification", value: commandCenter.onboardingPipeline.pendingVerification },
+              { label: "Schools in trial", value: commandCenter.onboardingPipeline.schoolsInTrial },
+              { label: "Stuck mid-onboarding", value: commandCenter.onboardingPipeline.stuckMidOnboarding },
+              { label: "Converted this week", value: commandCenter.onboardingPipeline.convertedThisWeek }
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
+                <span className="text-sm font-semibold text-slate-600">{item.label}</span>
+                <span className="text-lg font-black text-ink">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">Support queue</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">SLA and resolution load</h3>
+          <div className="mt-5 grid gap-3">
+            {[
+              { label: "Open tickets", value: commandCenter.supportQueue.totalOpenTickets },
+              { label: "Critical open", value: commandCenter.supportQueue.criticalOpenTickets },
+              { label: "Breaching SLA", value: commandCenter.supportQueue.ticketsBreachingSla },
+              { label: "Avg resolution this week", value: formatHours(commandCenter.supportQueue.averageResolutionHoursThisWeek) },
+              { label: "Avg resolution last week", value: formatHours(commandCenter.supportQueue.averageResolutionHoursLastWeek) }
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
+                <span className="text-sm font-semibold text-slate-600">{item.label}</span>
+                <span className="text-lg font-black text-ink">{item.value}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">Geographical distribution</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">School density by state</h3>
+          <div className="mt-5 grid gap-3">
+            {commandCenter.geography.slice(0, 6).map((item) => {
+              const dominantPlan = Object.entries(item.planMix).sort((left, right) => right[1] - left[1])[0]?.[0] ?? "No plan";
+              return (
+                <div key={item.state} className="rounded-2xl bg-sand/60 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-sm font-black text-ink">{item.state}</span>
+                    <span className="font-[var(--font-mono)] text-sm font-black text-primary-800">{item.schoolCount}</span>
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500">
+                    <span>{item.activeSchools} active</span>
+                    <span>{item.trialSchools} trial</span>
+                    <span>{item.suspendedSchools} suspended</span>
+                    <span>{dominantPlan}</span>
+                  </div>
+                </div>
+              );
+            })}
+            {commandCenter.geography.length === 0 ? <p className="rounded-2xl bg-sand/60 px-4 py-6 text-center text-sm font-semibold text-slate-500">No school location data yet.</p> : null}
+          </div>
+        </section>
+
+        <section className="rounded-[2rem] border border-white/60 bg-white/92 p-6 shadow-panel">
+          <p className="text-[10px] font-black uppercase tracking-[0.24em] text-primary-700">Alert centre</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Items requiring admin action</h3>
+          <div className="mt-5 grid gap-3">
+            {commandCenter.alerts.map((alert) => (
+              <Link
+                key={alert.id}
+                href={alert.actionHref as Route}
+                className="group flex items-start justify-between gap-4 rounded-2xl border border-slate-100 bg-sand/60 px-4 py-3 transition hover:border-primary-200 hover:bg-primary-50"
+              >
+                <span>
+                  <span className="block text-sm font-black text-ink group-hover:text-primary-900">{alert.title}</span>
+                  <span className="mt-1 block text-xs leading-5 text-slate-500">{alert.detail}</span>
+                </span>
+                <span className={`rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${alert.severity === "danger" ? "bg-rose-100 text-rose-700" : "bg-amber-100 text-amber-800"}`}>
+                  {alert.severity}
+                </span>
+              </Link>
+            ))}
+            {commandCenter.alerts.length === 0 ? <p className="rounded-2xl bg-emerald-50 px-4 py-6 text-center text-sm font-semibold text-emerald-700">No active command-center alerts.</p> : null}
+          </div>
+        </section>
       </section>
 
       <section className="grid gap-6 xl:grid-cols-3">
@@ -215,9 +449,9 @@ export default async function SuperAdminDashboardPage() {
             <p className="mt-2 text-3xl font-black text-slate-950">{overview.signups.last30Days}</p>
           </article>
           <article className="rounded-[2rem] border border-white/65 bg-white/92 p-5 shadow-panel">
-            <LifeBuoy className="h-5 w-5 text-primary-600" />
-            <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Support context</p>
-            <p className="mt-2 text-3xl font-black text-slate-950">{overview.users.schoolAdmins}</p>
+            <Clock3 className="h-5 w-5 text-primary-600" />
+            <p className="mt-3 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">Open support</p>
+            <p className="mt-2 text-3xl font-black text-slate-950">{commandCenter.supportQueue.totalOpenTickets}</p>
           </article>
         </section>
       </section>

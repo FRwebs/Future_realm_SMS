@@ -27,9 +27,9 @@ const toneStyles: Record<StatusTone, { shell: string; dot: string }> = {
 
 export function getWorkflowStatusTone(status?: string | null): StatusTone {
   if (!status) return "neutral";
-  if (["PUBLISHED", "APPROVED", "MARKED", "GENERATED", "ACTIVE", "SUCCESS", "PAID"].includes(status)) return "success";
-  if (["DRAFT", "IN_REVIEW", "UNDER_REVIEW", "SUBMITTED", "PENDING", "ISSUED"].includes(status)) return "warning";
-  if (["REJECTED", "RETURNED", "CORRECTION_REQUESTED", "OVERDUE", "FAILED", "CANCELLED"].includes(status)) return "danger";
+  if (["PUBLISHED", "APPROVED", "MARKED", "GENERATED", "ACTIVE", "SUCCESS", "PAID", "REACTIVATED"].includes(status)) return "success";
+  if (["DRAFT", "IN_REVIEW", "UNDER_REVIEW", "SUBMITTED", "PENDING", "ISSUED", "TRIAL", "GRACE_PERIOD"].includes(status)) return "warning";
+  if (["REJECTED", "RETURNED", "CORRECTION_REQUESTED", "OVERDUE", "FAILED", "CANCELLED", "SUSPENDED", "ARCHIVED", "DELETED"].includes(status)) return "danger";
   return "brand";
 }
 

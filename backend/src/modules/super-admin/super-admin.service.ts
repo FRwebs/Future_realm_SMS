@@ -1,3 +1,5 @@
+import { createHash } from "crypto";
+
 import {
   BadRequestException,
   ForbiddenException,
@@ -11,6 +13,7 @@ import { hashPassword } from "../../../../src/lib/auth/password";
 import { createSessionToken, SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import type { Role } from "../../../../src/lib/domain/types";
+import { sendNotification } from "../../../../src/lib/integrations/notifications";
 
 const pageSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -48,7 +51,82 @@ const schoolCreateSchema = z.object({
 const schoolUpdateSchema = z.object({
   name: z.string().trim().min(2).optional(),
   plan: planSchema.optional(),
-  status: tenantStatusSchema.optional()
+  status: tenantStatusSchema.optional(),
+  prioritySupport: z.coerce.boolean().optional()
+});
+
+const schoolStatusChangeSchema = z.object({
+  status: tenantStatusSchema,
+  reason: z.string().trim().min(3, "A reason is required for every status change.")
+});
+
+const accountManagerSchema = z.object({
+  accountManagerEmail: z.string().trim().email()
+});
+
+const schoolContactSchema = z.object({
+  name: z.string().trim().min(2),
+  role: z.string().trim().min(2),
+  phone: z.string().trim().optional(),
+  email: z.string().trim().email().optional(),
+  isPrimary: z.coerce.boolean().default(false)
+});
+
+const createInvoiceSchema = z.object({
+  schoolId: z.string().min(1),
+  amount: z.coerce.number().positive(),
+  taxAmount: z.coerce.number().min(0).default(0),
+  dueAt: z.coerce.date(),
+  note: z.string().optional()
+});
+
+const recordPaymentSchema = z.object({
+  amount: z.coerce.number().positive(),
+  method: z.string().trim().min(2),
+  reference: z.string().trim().min(2),
+  paidOn: z.coerce.date().default(() => new Date())
+});
+
+const cancelInvoiceSchema = z.object({
+  reason: z.string().trim().min(3, "A reason is required to cancel an invoice.")
+});
+
+const walletTopUpSchema = z.object({
+  smsCredits: z.coerce.number().int().min(0).default(0),
+  whatsappCredits: z.coerce.number().int().min(0).default(0)
+});
+
+const promoCodeCreateSchema = z.object({
+  code: z.string().trim().min(3).toUpperCase(),
+  type: z.enum(["PERCENTAGE", "FIXED"]),
+  value: z.coerce.number().positive(),
+  campaignName: z.string().trim().optional(),
+  maxUses: z.coerce.number().int().positive().optional(),
+  expiresAt: z.coerce.date().optional()
+});
+
+const applyPromoCodeSchema = z.object({
+  schoolId: z.string().min(1),
+  code: z.string().trim().min(3).toUpperCase(),
+  reason: z.string().trim().min(3)
+});
+
+const impersonateSchema = z.object({
+  reason: z.string().trim().min(3, "A reason is required before starting an impersonation session.")
+});
+
+const resolveSuspiciousActivitySchema = z.object({
+  action: z.enum(["DISMISS", "FORCE_RESET", "SUSPEND"])
+});
+
+const resolveDuplicateFlagSchema = z.object({
+  action: z.enum(["MERGE", "DISMISS", "ESCALATE"]),
+  keepUserId: z.string().optional()
+});
+
+const accountRecoverySchema = z.object({
+  verificationMethod: z.string().trim().min(3),
+  newEmail: z.string().trim().email().optional()
 });
 
 const billingUpdateSchema = z.object({
@@ -69,11 +147,14 @@ const settingsSchema = z.object({
 const featureSchema = z.record(z.boolean());
 const featurePayloadSchema = z.union([featureSchema, z.object({ features: featureSchema })]);
 
+const ticketCategoryValues = ["BILLING", "TECHNICAL_BUG", "FEATURE_REQUEST", "ACCOUNT_ACCESS", "DATA_ISSUE", "RESULT_COMPUTATION", "NOTIFICATION_DELIVERY", "SYNC_OFFLINE_ISSUE", "DATA_CORRECTION_REQUEST", "OTHER"] as const;
+const ticketStatusValues = ["OPEN", "TRIAGED", "IN_PROGRESS", "AWAITING_SCHOOL_RESPONSE", "ESCALATED", "RESOLVED", "CLOSED"] as const;
+
 const supportTicketSchema = z.object({
   schoolId: z.string().min(1),
   subject: z.string().min(3),
   description: z.string().min(5),
-  category: z.enum(["BILLING", "TECHNICAL_BUG", "FEATURE_REQUEST", "ACCOUNT_ACCESS", "DATA_ISSUE", "OTHER"]).default("OTHER"),
+  category: z.enum(ticketCategoryValues).default("OTHER"),
   priority: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]).default("MEDIUM"),
   assignedToId: z.string().optional()
 });
@@ -81,6 +162,31 @@ const supportTicketSchema = z.object({
 const ticketMessageSchema = z.object({
   body: z.string().min(2),
   internalOnly: z.coerce.boolean().default(false)
+});
+
+const ticketStatusSchema = z.object({
+  status: z.enum(ticketStatusValues)
+});
+
+const ticketAssignSchema = z.object({
+  assignedToId: z.string().min(1)
+});
+
+const ticketCsatSchema = z.object({
+  score: z.coerce.number().int().min(1).max(5),
+  comment: z.string().trim().optional()
+});
+
+const cannedResponseSchema = z.object({
+  category: z.enum(ticketCategoryValues),
+  title: z.string().trim().min(3),
+  body: z.string().trim().min(5)
+});
+
+const dataCorrectionRequestSchema = z.object({
+  fieldCorrected: z.string().trim().min(2),
+  oldValue: z.string().trim(),
+  newValue: z.string().trim()
 });
 
 const featureFlagSchema = z.object({
@@ -143,6 +249,21 @@ const privacyRequestSchema = z.object({
   type: z.enum(["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"]),
   subject: z.string().min(2),
   details: z.string().optional()
+});
+
+const privacyStatusSchema = z.object({
+  status: z.enum(["OPEN", "IN_REVIEW", "COMPLETED", "REJECTED"])
+});
+
+const securityIncidentSchema = z.object({
+  type: z.string().trim().min(2),
+  severity: z.enum(["LOW", "MEDIUM", "HIGH", "CRITICAL"]),
+  description: z.string().trim().min(5)
+});
+
+const securityIncidentUpdateSchema = z.object({
+  status: z.enum(["DETECTED", "INVESTIGATING", "CONTAINED", "RESOLVED"]),
+  postIncidentNotes: z.string().trim().optional()
 });
 
 const maintenanceWindowSchema = z.object({
@@ -374,6 +495,38 @@ export class SuperAdminService {
       }
     });
     if (!school) throw new NotFoundException("School not found.");
+
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [
+      accountManager,
+      contacts,
+      activityLog,
+      sessionCount,
+      termCount,
+      activeGradingScheme,
+      classLevelCount,
+      classRoomCount,
+      subjectCount,
+      lastLoginUser,
+      notificationCount,
+      supportTicketCount,
+      loginCountLast30Days
+    ] = await Promise.all([
+      school.accountManagerId ? prisma.user.findUnique({ where: { id: school.accountManagerId }, select: { id: true, firstName: true, lastName: true, email: true } }) : null,
+      prisma.schoolContact.findMany({ where: { schoolId }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] }),
+      prisma.auditLog.findMany({ where: { schoolId }, include: { actor: true, school: true }, orderBy: { createdAt: "desc" }, take: 20 }),
+      prisma.academicSession.count({ where: { schoolId } }),
+      prisma.term.count({ where: { schoolId } }),
+      prisma.gradingScheme.findFirst({ where: { schoolId, isActive: true }, select: { name: true, passMark: true } }),
+      prisma.classLevel.count({ where: { schoolId } }),
+      prisma.classRoom.count({ where: { schoolId } }),
+      prisma.subject.count({ where: { schoolId } }),
+      prisma.user.findFirst({ where: { schoolId }, orderBy: { lastLoginAt: "desc" }, select: { lastLoginAt: true } }),
+      prisma.notificationLog.count({ where: { schoolId, sentAt: { gte: thirtyDaysAgo } } }),
+      prisma.supportTicket.count({ where: { schoolId } }),
+      prisma.auditLog.count({ where: { schoolId, action: "LOGIN", createdAt: { gte: thirtyDaysAgo } } })
+    ]);
+
     return this.response({
       id: school.id,
       name: school.name,
@@ -413,7 +566,39 @@ export class SuperAdminService {
         role: user.role,
         status: user.isActive ? "ACTIVE" : "SUSPENDED",
         createdAt: user.createdAt.toISOString()
-      }))
+      })),
+      prioritySupport: school.prioritySupport,
+      dataExportedAt: school.dataExportedAt?.toISOString() ?? null,
+      statusReason: school.statusReason,
+      statusChangedAt: school.statusChangedAt?.toISOString() ?? null,
+      accountManager: accountManager ? { id: accountManager.id, name: `${accountManager.firstName} ${accountManager.lastName}`, email: accountManager.email } : null,
+      contacts: contacts.map((contact) => ({
+        id: contact.id,
+        name: contact.name,
+        role: contact.role,
+        phone: contact.phone,
+        email: contact.email,
+        isPrimary: contact.isPrimary,
+        createdAt: contact.createdAt.toISOString()
+      })),
+      configuration: {
+        academicSessionCount: sessionCount,
+        termCount: termCount,
+        activeGradingScheme: activeGradingScheme?.name ?? null,
+        passMark: activeGradingScheme?.passMark ?? null,
+        classLevelCount,
+        classRoomCount,
+        subjectCount
+      },
+      usage: {
+        moduleAdoptionCount: Object.values(school.featureFlags ?? featureDefaults()).filter(Boolean).length,
+        moduleTotal: Object.keys(school.featureFlags ?? featureDefaults()).length,
+        lastActivityAt: lastLoginUser?.lastLoginAt?.toISOString() ?? null,
+        notificationVolumeLast30Days: notificationCount,
+        supportTicketCount,
+        loginCountLast30Days
+      },
+      activityLog: activityLog.map((log) => this.mapAuditLog(log))
     });
   }
 
@@ -507,6 +692,124 @@ export class SuperAdminService {
     return this.response({ id: school.id }, "School soft-deleted");
   }
 
+  async updateSchoolStatus(session: SessionPayload, schoolId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = schoolStatusChangeSchema.parse(payload);
+    const closingStatuses: TenantStatus[] = ["ARCHIVED", "DELETED"];
+    if (closingStatuses.includes(parsed.status)) {
+      const existing = await prisma.school.findFirst({ where: { id: schoolId, deletedAt: null } });
+      if (!existing) throw new NotFoundException("School not found.");
+      if (!existing.dataExportedAt) {
+        throw new BadRequestException("A full data export must be completed before this school can be deactivated or closed.");
+      }
+    }
+
+    const billingStatusForStatus: Partial<Record<TenantStatus, Prisma.SchoolUpdateInput["billingStatus"]>> = {
+      ACTIVE: "ACTIVE",
+      TRIAL: "TRIAL",
+      GRACE_PERIOD: "OVERDUE",
+      SUSPENDED: "SUSPENDED",
+      ARCHIVED: "CANCELLED",
+      DELETED: "CANCELLED"
+    };
+    const shouldDisableUsers = parsed.status === "SUSPENDED" || parsed.status === "ARCHIVED" || parsed.status === "DELETED";
+    const shouldReenableUsers = parsed.status === "ACTIVE";
+
+    const school = await prisma.school.update({
+      where: { id: schoolId },
+      data: {
+        status: parsed.status,
+        billingStatus: billingStatusForStatus[parsed.status],
+        statusReason: parsed.reason,
+        statusChangedAt: new Date(),
+        deletedAt: parsed.status === "DELETED" ? new Date() : undefined,
+        ...(shouldDisableUsers
+          ? { users: { updateMany: { where: { role: { notIn: Array.from(platformRoles) } }, data: { isActive: false, suspendedAt: new Date() } } } }
+          : {}),
+        ...(shouldReenableUsers
+          ? { users: { updateMany: { where: { deletedAt: null }, data: { isActive: true, suspendedAt: null } } } }
+          : {})
+      }
+    });
+    const auditAction: AuditAction = parsed.status === "ACTIVE" ? "ACTIVATE" : parsed.status === "SUSPENDED" ? "SUSPEND" : parsed.status === "DELETED" ? "DELETE" : "UPDATE";
+    await this.audit(session, auditAction, "School", school.id, { status: parsed.status, reason: parsed.reason }, school.id);
+    return this.response({ id: school.id, status: school.status }, "School status updated");
+  }
+
+  async assignAccountManager(session: SessionPayload, schoolId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = accountManagerSchema.parse(payload);
+    const manager = await prisma.user.findFirst({
+      where: { email: parsed.accountManagerEmail.toLowerCase(), role: { in: Array.from(platformRoles) }, deletedAt: null }
+    });
+    if (!manager) throw new NotFoundException("No active platform team member found with that email.");
+    const school = await prisma.school.update({ where: { id: schoolId }, data: { accountManagerId: manager.id } });
+    await this.audit(session, "UPDATE", "School", school.id, { accountManagerId: manager.id, accountManagerEmail: manager.email }, school.id);
+    return this.response({ id: school.id, accountManagerId: manager.id }, "Account manager assigned");
+  }
+
+  async listSchoolContacts(session: SessionPayload, schoolId: string) {
+    assertSuperAdmin(session);
+    const contacts = await prisma.schoolContact.findMany({ where: { schoolId }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] });
+    return this.response(contacts.map((contact) => ({
+      id: contact.id,
+      name: contact.name,
+      role: contact.role,
+      phone: contact.phone,
+      email: contact.email,
+      isPrimary: contact.isPrimary,
+      createdAt: contact.createdAt.toISOString()
+    })));
+  }
+
+  async addSchoolContact(session: SessionPayload, schoolId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = schoolContactSchema.parse(payload);
+    const contact = await prisma.schoolContact.create({ data: { schoolId, ...parsed } });
+    await this.audit(session, "CREATE", "SchoolContact", contact.id, parsed as Prisma.InputJsonValue, schoolId);
+    return this.response({ id: contact.id }, "Contact added");
+  }
+
+  async removeSchoolContact(session: SessionPayload, schoolId: string, contactId: string) {
+    assertSuperAdmin(session);
+    const contact = await prisma.schoolContact.findFirst({ where: { id: contactId, schoolId } });
+    if (!contact) throw new NotFoundException("Contact not found.");
+    await prisma.schoolContact.delete({ where: { id: contactId } });
+    await this.audit(session, "DELETE", "SchoolContact", contactId, { name: contact.name }, schoolId);
+    return this.response({ id: contactId }, "Contact removed");
+  }
+
+  async exportSchoolData(session: SessionPayload, schoolId: string) {
+    assertSuperAdmin(session);
+    const school = await prisma.school.findFirst({ where: { id: schoolId, deletedAt: null } });
+    if (!school) throw new NotFoundException("School not found.");
+
+    const [students, staff, invoices, payments] = await Promise.all([
+      prisma.student.findMany({ where: { schoolId }, select: { id: true, firstName: true, lastName: true, admissionNumber: true, status: true, admissionDate: true } }),
+      prisma.staffProfile.findMany({ where: { schoolId }, select: { id: true, employeeNo: true, staffType: true, user: { select: { firstName: true, lastName: true, email: true, isActive: true } } } }),
+      prisma.invoice.findMany({ where: { schoolId }, select: { id: true, status: true, total: true, dueOn: true, issuedOn: true } }),
+      prisma.payment.findMany({ where: { schoolId }, select: { id: true, amount: true, method: true, status: true, paidAt: true } })
+    ]);
+
+    const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    const section = (title: string, header: string[], rows: string[][]) => [
+      `# ${title}`,
+      header.map(escape).join(","),
+      ...rows.map((row) => row.map(escape).join(","))
+    ].join("\n");
+
+    const csv = [
+      section("Students", ["ID", "Admission No", "First Name", "Last Name", "Status", "Enrolled"], students.map((s) => [s.id, s.admissionNumber ?? "", s.firstName, s.lastName, s.status, s.admissionDate.toISOString()])),
+      section("Staff", ["ID", "Employee No", "Name", "Email", "Type", "Status"], staff.map((s) => [s.id, s.employeeNo ?? "", `${s.user?.firstName ?? ""} ${s.user?.lastName ?? ""}`.trim(), s.user?.email ?? "", s.staffType, s.user?.isActive ? "ACTIVE" : "SUSPENDED"])),
+      section("Invoices", ["ID", "Status", "Amount", "Due Date", "Issued"], invoices.map((i) => [i.id, i.status, String(i.total), i.dueOn?.toISOString() ?? "", i.issuedOn.toISOString()])),
+      section("Payments", ["ID", "Amount", "Method", "Status", "Paid At"], payments.map((p) => [p.id, String(p.amount), p.method, p.status, p.paidAt?.toISOString() ?? ""]))
+    ].join("\n\n");
+
+    await prisma.school.update({ where: { id: schoolId }, data: { dataExportedAt: new Date() } });
+    await this.audit(session, "EXPORT", "School", schoolId, { studentCount: students.length, staffCount: staff.length, invoiceCount: invoices.length, paymentCount: payments.length }, schoolId);
+    return csv;
+  }
+
   private roleFilter(role?: string): UserRole[] | undefined {
     if (!role) return undefined;
     const value = role.toUpperCase();
@@ -569,9 +872,26 @@ export class SuperAdminService {
     assertSuperAdmin(session);
     const user = await prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
-      include: { school: true, guardian: true, student: true, staffProfile: true }
+      include: {
+        school: true,
+        guardian: { include: { students: { include: { student: { select: { id: true, firstName: true, lastName: true } } } } } },
+        student: true,
+        staffProfile: true
+      }
     });
     if (!user) throw new NotFoundException("User not found.");
+
+    const termStart = new Date();
+    termStart.setDate(termStart.getDate() - 90);
+
+    const [sessions, scoreEntryCount, attendanceMarkedCount, notificationsReceived, adminActionCount] = await Promise.all([
+      prisma.platformSession.findMany({ where: { userId }, orderBy: { lastActivityAt: "desc" }, take: 10 }),
+      prisma.scoreEntry.count({ where: { enteredById: userId, recordedAt: { gte: termStart } } }),
+      prisma.studentAttendance.count({ where: { markedById: userId, date: { gte: termStart } } }),
+      prisma.notificationLog.count({ where: { userId, sentAt: { gte: termStart } } }),
+      prisma.auditLog.count({ where: { actorId: userId, createdAt: { gte: termStart } } })
+    ]);
+
     return this.response({
       id: user.id,
       name: `${user.firstName} ${user.lastName}`,
@@ -582,7 +902,23 @@ export class SuperAdminService {
       lastLoginAt: user.lastLoginAt?.toISOString(),
       createdAt: user.createdAt.toISOString(),
       school: { id: user.school.id, name: user.school.name, status: user.school.status, plan: user.school.plan },
-      profileType: user.student ? "STUDENT" : user.guardian ? "PARENT" : user.staffProfile ? "STAFF" : "USER"
+      profileType: user.student ? "STUDENT" : user.guardian ? "PARENT" : user.staffProfile ? "STAFF" : "USER",
+      recentSessions: sessions.map((s) => ({
+        id: s.id,
+        startedAt: s.createdAt.toISOString(),
+        lastActivityAt: s.lastActivityAt.toISOString(),
+        device: s.device,
+        ipAddress: s.ipAddress,
+        active: !s.revokedAt && s.expiresAt > new Date()
+      })),
+      activitySummary: user.staffProfile
+        ? { type: "STAFF", scoreEntriesSubmitted: scoreEntryCount, attendanceMarked: attendanceMarkedCount }
+        : user.guardian
+        ? { type: "PARENT", notificationsReceived }
+        : { type: "ADMIN", adminActionsTaken: adminActionCount },
+      linkedAccounts: user.guardian
+        ? user.guardian.students.map((sg) => ({ studentId: sg.student.id, studentName: `${sg.student.firstName} ${sg.student.lastName}`, isPrimary: sg.isPrimary }))
+        : []
     });
   }
 
@@ -604,11 +940,208 @@ export class SuperAdminService {
     return this.response({ id: user.id }, "User suspended");
   }
 
+  async reinstateUser(session: SessionPayload, userId: string) {
+    assertSuperAdmin(session);
+    const user = await prisma.user.update({ where: { id: userId }, data: { isActive: true, suspendedAt: null } });
+    await this.audit(session, "ACTIVATE", "User", user.id, { email: user.email }, user.schoolId);
+    return this.response({ id: user.id }, "User reinstated");
+  }
+
   async softDeleteUser(session: SessionPayload, userId: string) {
     assertSuperAdmin(session);
     const user = await prisma.user.update({ where: { id: userId }, data: { isActive: false, deletedAt: new Date() } });
     await this.audit(session, "DELETE", "User", user.id, { email: user.email, softDelete: true }, user.schoolId);
     return this.response({ id: user.id }, "User soft-deleted");
+  }
+
+  async initiateAccountRecovery(session: SessionPayload, userId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = accountRecoverySchema.parse(payload);
+    const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null } });
+    if (!user) throw new NotFoundException("User not found.");
+
+    const tempPassword = `FutureRealm${Math.floor(100000 + Math.random() * 900000)}!`;
+    const record = await prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          passwordHash: hashPassword(tempPassword),
+          passwordResetRequired: true,
+          ...(parsed.newEmail ? { email: parsed.newEmail.toLowerCase() } : {})
+        }
+      });
+      return tx.accountRecoveryRecord.create({
+        data: {
+          userId,
+          verifiedById: session.userId,
+          verificationMethod: parsed.verificationMethod,
+          newEmail: parsed.newEmail,
+          completedAt: new Date()
+        }
+      });
+    });
+
+    await sendNotification({
+      channel: "EMAIL",
+      recipient: parsed.newEmail ?? user.email,
+      title: "Account access restored",
+      body: "Your account was recovered by FutureRealm support after identity verification. A temporary password has been set — you will be asked to change it on next login."
+    });
+    await this.audit(session, "RESET_PASSWORD", "User", userId, { verificationMethod: parsed.verificationMethod, recoveryRecordId: record.id }, user.schoolId);
+    return this.response({ id: record.id, temporaryPassword: tempPassword }, "Account recovery completed");
+  }
+
+  async recalculateSuspiciousActivity(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+    const thirtyMinutesAgo = new Date(Date.now() - 30 * 60 * 1000);
+    const businessStartHour = 6;
+    const businessEndHour = 22;
+
+    const [failedLoginGroupsRaw, activeSessions, recentSensitiveActions] = await Promise.all([
+      prisma.loginAttempt.groupBy({ by: ["email"], where: { success: false, createdAt: { gte: oneHourAgo } }, _count: { email: true } }),
+      prisma.platformSession.findMany({ where: { revokedAt: null, expiresAt: { gt: new Date() }, lastActivityAt: { gte: thirtyMinutesAgo } }, select: { userId: true, ipAddress: true } }),
+      prisma.auditLog.findMany({ where: { action: { in: ["SUSPEND", "ACTIVATE", "RESET_PASSWORD"] }, createdAt: { gte: oneHourAgo }, actorId: { not: null } }, select: { actorId: true, createdAt: true } })
+    ]);
+    const failedLoginGroups = failedLoginGroupsRaw.filter((group) => group._count.email > 10);
+
+    const flagsCreated: Array<{ userId: string; flagType: string; detail: string }> = [];
+
+    for (const group of failedLoginGroups) {
+      const user = await prisma.user.findUnique({ where: { email: group.email } });
+      if (user) flagsCreated.push({ userId: user.id, flagType: "EXCESSIVE_FAILED_LOGINS", detail: `${group._count.email} failed login attempts in the last hour` });
+    }
+
+    const sessionsByUser = new Map<string, Set<string>>();
+    for (const s of activeSessions) {
+      if (!s.ipAddress) continue;
+      const set = sessionsByUser.get(s.userId) ?? new Set<string>();
+      set.add(s.ipAddress);
+      sessionsByUser.set(s.userId, set);
+    }
+    for (const [userId, ips] of sessionsByUser.entries()) {
+      if (ips.size >= 2) flagsCreated.push({ userId, flagType: "SIMULTANEOUS_SESSIONS", detail: `Active sessions from ${ips.size} distinct locations at once` });
+    }
+
+    for (const log of recentSensitiveActions) {
+      if (!log.actorId) continue;
+      const hour = log.createdAt.getHours();
+      if (hour < businessStartHour || hour >= businessEndHour) {
+        flagsCreated.push({ userId: log.actorId, flagType: "OUTSIDE_HOURS_PERMISSION_CHANGE", detail: `Sensitive account action taken at ${log.createdAt.toLocaleTimeString()}` });
+      }
+    }
+
+    let created = 0;
+    for (const flag of flagsCreated) {
+      const existing = await prisma.suspiciousActivityFlag.findFirst({ where: { userId: flag.userId, flagType: flag.flagType, resolvedAt: null } });
+      if (existing) continue;
+      await prisma.suspiciousActivityFlag.create({ data: flag });
+      created += 1;
+    }
+
+    await this.audit(session, "UPDATE", "SuspiciousActivityFlag", "bulk", { newFlags: created }, null);
+    return this.response({ newFlags: created }, "Suspicious activity scan complete");
+  }
+
+  async listSuspiciousActivity(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const flags = await prisma.suspiciousActivityFlag.findMany({
+      where: { resolvedAt: null },
+      include: { user: { select: { firstName: true, lastName: true, email: true, schoolId: true } } },
+      orderBy: { detectedAt: "desc" }
+    });
+    return this.response(flags.map((flag) => ({
+      id: flag.id,
+      userId: flag.userId,
+      userName: `${flag.user.firstName} ${flag.user.lastName}`,
+      userEmail: flag.user.email,
+      flagType: flag.flagType,
+      detail: flag.detail,
+      detectedAt: flag.detectedAt.toISOString()
+    })));
+  }
+
+  async resolveSuspiciousActivity(session: SessionPayload, flagId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = resolveSuspiciousActivitySchema.parse(payload);
+    const flag = await prisma.suspiciousActivityFlag.findUnique({ where: { id: flagId } });
+    if (!flag) throw new NotFoundException("Flag not found.");
+
+    if (parsed.action === "FORCE_RESET") {
+      await this.resetPassword(session, flag.userId);
+    } else if (parsed.action === "SUSPEND") {
+      await this.suspendUser(session, flag.userId);
+    }
+
+    const updated = await prisma.suspiciousActivityFlag.update({ where: { id: flagId }, data: { adminAction: parsed.action, resolvedAt: new Date() } });
+    await this.audit(session, "UPDATE", "SuspiciousActivityFlag", flagId, { action: parsed.action }, null);
+    return this.response({ id: updated.id }, "Flag resolved");
+  }
+
+  async recalculateDuplicateAccounts(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const users = await prisma.user.findMany({ where: { deletedAt: null, phone: { not: null } }, select: { id: true, phone: true, firstName: true, lastName: true, schoolId: true } });
+    const byPhone = new Map<string, typeof users>();
+    for (const user of users) {
+      if (!user.phone) continue;
+      const list = byPhone.get(user.phone) ?? [];
+      list.push(user);
+      byPhone.set(user.phone, list);
+    }
+
+    let created = 0;
+    for (const [, group] of byPhone.entries()) {
+      if (group.length < 2) continue;
+      for (let i = 0; i < group.length; i += 1) {
+        for (let j = i + 1; j < group.length; j += 1) {
+          const [a, b] = [group[i].id, group[j].id].sort();
+          const existing = await prisma.duplicateFlag.findFirst({ where: { OR: [{ userIdA: a, userIdB: b }, { userIdA: b, userIdB: a }] } });
+          if (existing) continue;
+          await prisma.duplicateFlag.create({ data: { userIdA: a, userIdB: b, matchCriteria: "Same phone number" } });
+          created += 1;
+        }
+      }
+    }
+
+    await this.audit(session, "UPDATE", "DuplicateFlag", "bulk", { newFlags: created }, null);
+    return this.response({ newFlags: created }, "Duplicate account scan complete");
+  }
+
+  async listDuplicateAccounts(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const flags = await prisma.duplicateFlag.findMany({
+      where: { status: "PENDING" },
+      include: {
+        userA: { select: { firstName: true, lastName: true, email: true, phone: true } },
+        userB: { select: { firstName: true, lastName: true, email: true, phone: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+    return this.response(flags.map((flag) => ({
+      id: flag.id,
+      matchCriteria: flag.matchCriteria,
+      status: flag.status,
+      userA: { id: flag.userIdA, name: `${flag.userA.firstName} ${flag.userA.lastName}`, email: flag.userA.email, phone: flag.userA.phone },
+      userB: { id: flag.userIdB, name: `${flag.userB.firstName} ${flag.userB.lastName}`, email: flag.userB.email, phone: flag.userB.phone },
+      createdAt: flag.createdAt.toISOString()
+    })));
+  }
+
+  async resolveDuplicateAccount(session: SessionPayload, flagId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = resolveDuplicateFlagSchema.parse(payload);
+    const flag = await prisma.duplicateFlag.findUnique({ where: { id: flagId } });
+    if (!flag) throw new NotFoundException("Flag not found.");
+
+    if (parsed.action === "MERGE") {
+      const keepUserId = parsed.keepUserId ?? flag.userIdA;
+      const removeUserId = keepUserId === flag.userIdA ? flag.userIdB : flag.userIdA;
+      await prisma.user.update({ where: { id: removeUserId }, data: { isActive: false, deletedAt: new Date() } });
+    }
+
+    const updated = await prisma.duplicateFlag.update({ where: { id: flagId }, data: { status: parsed.action === "MERGE" ? "MERGED" : parsed.action, resolvedAt: new Date() } });
+    await this.audit(session, "UPDATE", "DuplicateFlag", flagId, { action: parsed.action, keepUserId: parsed.keepUserId }, null);
+    return this.response({ id: updated.id }, "Duplicate flag resolved");
   }
 
   async listBilling(session: SessionPayload, query: unknown) {
@@ -667,20 +1200,433 @@ export class SuperAdminService {
     return this.response({ schoolId: school.id }, "Billing suspended");
   }
 
+  async listInvoices(session: SessionPayload, query: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Invoice views are restricted to commercial and finance platform roles.");
+    const parsed = pageSchema.parse(query);
+    const where: Prisma.PlatformInvoiceWhereInput = {
+      ...(parsed.schoolId ? { schoolId: parsed.schoolId } : {}),
+      ...(parsed.status ? { status: parsed.status.toUpperCase() } : {})
+    };
+    const [invoices, total] = await Promise.all([
+      prisma.platformInvoice.findMany({
+        where,
+        include: { school: { select: { name: true } }, transactions: true },
+        orderBy: { issuedAt: "desc" },
+        skip: (parsed.page - 1) * parsed.limit,
+        take: parsed.limit
+      }),
+      prisma.platformInvoice.count({ where })
+    ]);
+    return this.response(
+      invoices.map((invoice) => ({
+        id: invoice.id,
+        invoiceNo: invoice.invoiceNo,
+        schoolId: invoice.schoolId,
+        schoolName: invoice.school.name,
+        amount: Number(invoice.amount),
+        taxAmount: Number(invoice.taxAmount),
+        totalAmount: Number(invoice.amount) + Number(invoice.taxAmount),
+        amountPaid: invoice.transactions.filter((t) => t.status === "SUCCESS").reduce((sum, t) => sum + Number(t.amount), 0),
+        status: invoice.status,
+        issuedAt: invoice.issuedAt.toISOString(),
+        dueAt: invoice.dueAt.toISOString(),
+        paidAt: invoice.paidAt?.toISOString()
+      })),
+      "Invoices loaded",
+      pagination(parsed.page, parsed.limit, total)
+    );
+  }
+
+  async createInvoice(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, billingRoles, "Invoice creation is restricted to platform finance roles.");
+    const parsed = createInvoiceSchema.parse(payload);
+    const school = await prisma.school.findFirst({ where: { id: parsed.schoolId, deletedAt: null } });
+    if (!school) throw new NotFoundException("School not found.");
+    const invoiceNo = `INV-${Date.now().toString(36).toUpperCase()}`;
+    const invoice = await prisma.platformInvoice.create({
+      data: {
+        schoolId: parsed.schoolId,
+        invoiceNo,
+        amount: parsed.amount,
+        taxAmount: parsed.taxAmount,
+        status: "DRAFT",
+        dueAt: parsed.dueAt,
+        metadata: parsed.note ? { note: parsed.note } : undefined
+      }
+    });
+    await this.audit(session, "CREATE", "PlatformInvoice", invoice.id, { schoolId: parsed.schoolId, amount: parsed.amount }, parsed.schoolId);
+    return this.response({ id: invoice.id, invoiceNo: invoice.invoiceNo }, "Invoice drafted");
+  }
+
+  async sendInvoice(session: SessionPayload, invoiceId: string) {
+    assertAnyPlatformRole(session, billingRoles, "Sending invoices is restricted to platform finance roles.");
+    const invoice = await prisma.platformInvoice.findUnique({ where: { id: invoiceId }, include: { school: true } });
+    if (!invoice) throw new NotFoundException("Invoice not found.");
+    if (invoice.status !== "DRAFT") throw new BadRequestException("Only draft invoices can be sent.");
+    const updated = await prisma.platformInvoice.update({ where: { id: invoiceId }, data: { status: "SENT" } });
+    await sendNotification({
+      channel: "EMAIL",
+      recipient: invoice.school.ownerEmail ?? "",
+      title: `Invoice ${invoice.invoiceNo} from FutureRealm SMS`,
+      body: `An invoice for ${Number(invoice.amount) + Number(invoice.taxAmount)} ${invoice.currency} is due ${invoice.dueAt.toDateString()}.`
+    });
+    await this.audit(session, "UPDATE", "PlatformInvoice", invoice.id, { status: "SENT" }, invoice.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Invoice sent to school");
+  }
+
+  async recordInvoicePayment(session: SessionPayload, invoiceId: string, payload: unknown) {
+    assertAnyPlatformRole(session, billingRoles, "Recording payments is restricted to platform finance roles.");
+    const parsed = recordPaymentSchema.parse(payload);
+    const invoice = await prisma.platformInvoice.findUnique({ where: { id: invoiceId }, include: { school: true, transactions: true } });
+    if (!invoice) throw new NotFoundException("Invoice not found.");
+    if (invoice.status === "CANCELLED") throw new BadRequestException("Cannot record a payment against a cancelled invoice.");
+
+    await prisma.platformBillingTransaction.create({
+      data: {
+        schoolId: invoice.schoolId,
+        invoiceId: invoice.id,
+        amount: parsed.amount,
+        method: parsed.method,
+        status: "SUCCESS",
+        reference: parsed.reference,
+        processedAt: parsed.paidOn
+      }
+    });
+
+    const totalDue = Number(invoice.amount) + Number(invoice.taxAmount);
+    const totalPaid = invoice.transactions.filter((t) => t.status === "SUCCESS").reduce((sum, t) => sum + Number(t.amount), 0) + parsed.amount;
+    const fullyPaid = totalPaid >= totalDue;
+
+    const updated = await prisma.platformInvoice.update({
+      where: { id: invoiceId },
+      data: { status: fullyPaid ? "PAID" : "PARTIALLY_PAID", paidAt: fullyPaid ? parsed.paidOn : null }
+    });
+
+    if (fullyPaid) {
+      await prisma.school.update({
+        where: { id: invoice.schoolId },
+        data: { billingStatus: "ACTIVE", status: invoice.school.status === "SUSPENDED" || invoice.school.status === "GRACE_PERIOD" ? "ACTIVE" : invoice.school.status, lastPaymentAt: parsed.paidOn }
+      });
+      await sendNotification({
+        channel: "EMAIL",
+        recipient: invoice.school.ownerEmail ?? "",
+        title: "Payment confirmed",
+        body: `We have received your payment of ${parsed.amount} ${invoice.currency} for invoice ${invoice.invoiceNo}. Thank you.`
+      });
+    }
+
+    await this.audit(session, "PAYMENT", "PlatformInvoice", invoice.id, { amount: parsed.amount, method: parsed.method, reference: parsed.reference, fullyPaid }, invoice.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Payment recorded");
+  }
+
+  async cancelInvoice(session: SessionPayload, invoiceId: string, payload: unknown) {
+    assertAnyPlatformRole(session, billingRoles, "Cancelling invoices is restricted to platform finance roles.");
+    const parsed = cancelInvoiceSchema.parse(payload);
+    const invoice = await prisma.platformInvoice.findUnique({ where: { id: invoiceId } });
+    if (!invoice) throw new NotFoundException("Invoice not found.");
+    const updated = await prisma.platformInvoice.update({ where: { id: invoiceId }, data: { status: "CANCELLED", metadata: { ...(invoice.metadata as object ?? {}), cancelReason: parsed.reason } } });
+    await this.audit(session, "UPDATE", "PlatformInvoice", invoice.id, { status: "CANCELLED", reason: parsed.reason }, invoice.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Invoice cancelled");
+  }
+
+  async recalculateChurnRisk(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, "PLATFORM_OWNER", "PLATFORM_ADMIN", "DEVELOPER", "SUPER_ADMIN"]), "Churn scoring is restricted to finance and technical platform roles.");
+    const tenDaysAgo = new Date(Date.now() - 10 * 24 * 60 * 60 * 1000);
+    const fourteenDaysAgo = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const sevenDaysFromNow = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const termStart = new Date();
+    termStart.setDate(termStart.getDate() - 60);
+
+    const schools = await prisma.school.findMany({ where: { deletedAt: null, status: { in: ["ACTIVE", "TRIAL", "GRACE_PERIOD"] } } });
+    const results: Array<{ schoolId: string; score: number; signals: string[] }> = [];
+
+    for (const school of schools) {
+      const [lastLogin, lastScoreEntry, lastPayment, openCriticalTicket, parentNotificationCount] = await Promise.all([
+        prisma.user.findFirst({ where: { schoolId: school.id, deletedAt: null }, orderBy: { lastLoginAt: "desc" }, select: { lastLoginAt: true } }),
+        prisma.scoreEntry.findFirst({ where: { schoolId: school.id }, orderBy: { recordedAt: "desc" }, select: { recordedAt: true } }),
+        prisma.payment.findFirst({ where: { schoolId: school.id }, orderBy: { paidAt: "desc" }, select: { paidAt: true } }),
+        prisma.supportTicket.findFirst({ where: { schoolId: school.id, status: { in: ["OPEN", "IN_PROGRESS"] }, priority: "CRITICAL", createdAt: { lte: fiveDaysAgo } } }),
+        prisma.notificationLog.count({ where: { schoolId: school.id, sentAt: { gte: termStart } } })
+      ]);
+
+      const signals: string[] = [];
+      let score = 100;
+
+      if (!lastLogin?.lastLoginAt || lastLogin.lastLoginAt < tenDaysAgo) {
+        signals.push("No admin or teacher login in 10+ days");
+        score -= 25;
+      }
+      if (!lastScoreEntry || lastScoreEntry.recordedAt < fourteenDaysAgo) {
+        signals.push("No result or score entry in 14+ days");
+        score -= 25;
+      }
+      if (!lastPayment || lastPayment.paidAt === null || lastPayment.paidAt < fourteenDaysAgo) {
+        signals.push("No fee recording activity in 14+ days");
+        score -= 15;
+      }
+      if (school.trialEndsAt && school.trialEndsAt <= sevenDaysFromNow && (!lastLogin?.lastLoginAt || lastLogin.lastLoginAt < sevenDaysAgo)) {
+        signals.push("Trial nearing expiry with low engagement");
+        score -= 25;
+      }
+      if (openCriticalTicket) {
+        signals.push("Critical support ticket unresolved 5+ days");
+        score -= 15;
+      }
+      if (parentNotificationCount === 0) {
+        signals.push("No parent notification sent all term");
+        score -= 5;
+      }
+
+      score = Math.max(0, Math.min(100, score));
+      results.push({ schoolId: school.id, score, signals });
+
+      await prisma.school.update({ where: { id: school.id }, data: { healthScore: score } });
+      await prisma.churnSignalLog.create({ data: { schoolId: school.id, score, signals } });
+    }
+
+    await this.audit(session, "UPDATE", "ChurnSignalLog", "bulk", { schoolsScored: results.length }, null);
+    return this.response({ schoolsScored: results.length, highRisk: results.filter((r) => r.score < 50).length }, "Churn risk recalculated");
+  }
+
+  async listChurnRisk(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, "PLATFORM_OWNER", "PLATFORM_ADMIN", "DEVELOPER", "SUPER_ADMIN"]), "Churn risk views are restricted to finance and technical platform roles.");
+    const schools = await prisma.school.findMany({
+      where: { deletedAt: null, status: { in: ["ACTIVE", "TRIAL", "GRACE_PERIOD"] } },
+      orderBy: { healthScore: "asc" },
+      take: 50,
+      select: { id: true, name: true, healthScore: true, status: true, plan: true, churnSignalLogs: { orderBy: { calculatedAt: "desc" }, take: 1 } }
+    });
+    return this.response(schools.map((school) => ({
+      schoolId: school.id,
+      schoolName: school.name,
+      score: school.healthScore,
+      status: school.status,
+      plan: school.plan,
+      signals: (school.churnSignalLogs[0]?.signals as string[] | undefined) ?? [],
+      lastCalculatedAt: school.churnSignalLogs[0]?.calculatedAt.toISOString() ?? null
+    })));
+  }
+
+  async getNotificationWallet(session: SessionPayload, schoolId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Notification wallet views are restricted to commercial and finance platform roles.");
+    const wallet = await prisma.notificationWallet.upsert({
+      where: { schoolId },
+      create: { schoolId },
+      update: {}
+    });
+    return this.response({
+      schoolId,
+      smsBalance: wallet.smsBalance,
+      whatsappBalance: wallet.whatsappBalance,
+      lowBalanceThreshold: wallet.lowBalanceThreshold,
+      isLow: wallet.smsBalance < wallet.lowBalanceThreshold || wallet.whatsappBalance < wallet.lowBalanceThreshold,
+      lastToppedUpAt: wallet.lastToppedUpAt?.toISOString() ?? null
+    });
+  }
+
+  async topUpNotificationWallet(session: SessionPayload, schoolId: string, payload: unknown) {
+    assertAnyPlatformRole(session, billingRoles, "Topping up notification credits is restricted to platform finance roles.");
+    const parsed = walletTopUpSchema.parse(payload);
+    const wallet = await prisma.notificationWallet.upsert({
+      where: { schoolId },
+      create: { schoolId, smsBalance: parsed.smsCredits, whatsappBalance: parsed.whatsappCredits, lastToppedUpAt: new Date() },
+      update: { smsBalance: { increment: parsed.smsCredits }, whatsappBalance: { increment: parsed.whatsappCredits }, lastToppedUpAt: new Date() }
+    });
+    await this.audit(session, "UPDATE", "NotificationWallet", wallet.id, { smsCredits: parsed.smsCredits, whatsappCredits: parsed.whatsappCredits }, schoolId);
+    return this.response({ schoolId, smsBalance: wallet.smsBalance, whatsappBalance: wallet.whatsappBalance }, "Notification credits topped up");
+  }
+
+  async listPromoCodes(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Promo code views are restricted to commercial and finance platform roles.");
+    const codes = await prisma.promoCode.findMany({ orderBy: { createdAt: "desc" }, include: { redemptions: true } });
+    return this.response(codes.map((code) => ({
+      id: code.id,
+      code: code.code,
+      type: code.type,
+      value: Number(code.value),
+      campaignName: code.campaignName,
+      maxUses: code.maxUses,
+      uses: code.uses,
+      expiresAt: code.expiresAt?.toISOString(),
+      isActive: code.isActive,
+      totalDiscountIssued: code.redemptions.reduce((sum, r) => sum + Number(r.value), 0),
+      schoolsConverted: new Set(code.redemptions.map((r) => r.schoolId)).size
+    })));
+  }
+
+  async createPromoCode(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN"]), "Only Super Admin can create promo codes.");
+    const parsed = promoCodeCreateSchema.parse(payload);
+    const existing = await prisma.promoCode.findUnique({ where: { code: parsed.code } });
+    if (existing) throw new BadRequestException("A promo code with this code already exists.");
+    const code = await prisma.promoCode.create({ data: parsed });
+    await this.audit(session, "CREATE", "PromoCode", code.id, { code: code.code, campaignName: code.campaignName }, null);
+    return this.response({ id: code.id, code: code.code }, "Promo code created");
+  }
+
+  async applyPromoCode(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Applying promo codes is restricted to commercial and finance platform roles.");
+    const parsed = applyPromoCodeSchema.parse(payload);
+    const code = await prisma.promoCode.findUnique({ where: { code: parsed.code } });
+    if (!code || !code.isActive) throw new NotFoundException("Promo code not found or inactive.");
+    if (code.expiresAt && code.expiresAt < new Date()) throw new BadRequestException("This promo code has expired.");
+    if (code.maxUses && code.uses >= code.maxUses) throw new BadRequestException("This promo code has reached its maximum redemptions.");
+    const school = await prisma.school.findFirst({ where: { id: parsed.schoolId, deletedAt: null } });
+    if (!school) throw new NotFoundException("School not found.");
+
+    const discount = await prisma.$transaction(async (tx) => {
+      const created = await tx.platformDiscount.create({
+        data: { schoolId: parsed.schoolId, type: code.type, value: code.value, reason: parsed.reason, appliedBy: session.userId, promoCodeId: code.id, expiresAt: code.expiresAt }
+      });
+      await tx.promoCode.update({ where: { id: code.id }, data: { uses: { increment: 1 } } });
+      return created;
+    });
+
+    await this.audit(session, "UPDATE", "PromoCode", code.id, { schoolId: parsed.schoolId, discountId: discount.id }, parsed.schoolId);
+    return this.response({ id: discount.id }, "Promo code applied to school");
+  }
+
+  async promoCodeCampaignReport(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Campaign reporting is restricted to commercial and finance platform roles.");
+    const codes = await prisma.promoCode.findMany({ include: { redemptions: true } });
+    const campaigns = new Map<string, { campaignName: string; totalRedemptions: number; totalDiscountIssued: number; schoolIds: Set<string> }>();
+    for (const code of codes) {
+      const name = code.campaignName ?? "Uncategorized";
+      const entry = campaigns.get(name) ?? { campaignName: name, totalRedemptions: 0, totalDiscountIssued: 0, schoolIds: new Set<string>() };
+      entry.totalRedemptions += code.redemptions.length;
+      entry.totalDiscountIssued += code.redemptions.reduce((sum, r) => sum + Number(r.value), 0);
+      code.redemptions.forEach((r) => entry.schoolIds.add(r.schoolId));
+      campaigns.set(name, entry);
+    }
+    return this.response(Array.from(campaigns.values()).map((entry) => ({
+      campaignName: entry.campaignName,
+      totalRedemptions: entry.totalRedemptions,
+      totalDiscountIssued: entry.totalDiscountIssued,
+      schoolsConverted: entry.schoolIds.size
+    })));
+  }
+
   async analyticsOverview(session: SessionPayload) {
     assertSuperAdmin(session);
     const sevenDays = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const fiveDays = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const thisWeek = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const lastWeekStart = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const thirtyDays = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-    const [schools, users, weekSignups, monthSignups, activeUsers, auditLogs] = await Promise.all([
+    const thirtyMinutes = new Date(Date.now() - 30 * 60 * 1000);
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    const nextSevenDays = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const previousMonthStart = new Date(monthStart);
+    previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
+    const previousMonthEnd = new Date(monthStart.getTime() - 1);
+
+    const [
+      schools,
+      users,
+      totalStudents,
+      weekSignups,
+      monthSignups,
+      activeUsers,
+      onlineSchoolSessions,
+      pendingSyncDrafts,
+      lastBackup,
+      currentMonthPayments,
+      previousMonthPayments,
+      currentTermInvoices,
+      overdueInvoices,
+      trialsExpiring,
+      churnRiskSchools,
+      gracePeriodSchools,
+      stuckTrialSchools,
+      convertedThisWeek,
+      supportOpen,
+      supportCriticalOpen,
+      supportSlaBreaching,
+      resolvedThisWeek,
+      resolvedLastWeek,
+      apiUsage,
+      failedSyncDrafts,
+      notificationLogs,
+      geographySchools,
+      auditLogs
+    ] = await Promise.all([
       prisma.school.groupBy({ by: ["status"], where: { deletedAt: null }, _count: true }),
       prisma.user.groupBy({ by: ["role"], where: { deletedAt: null }, _count: true }),
+      prisma.student.count({ where: { school: { deletedAt: null } } }),
       prisma.school.count({ where: { createdAt: { gte: sevenDays }, deletedAt: null } }),
       prisma.school.count({ where: { createdAt: { gte: thirtyDays }, deletedAt: null } }),
       prisma.user.count({ where: { lastLoginAt: { gte: thirtyDays }, deletedAt: null } }),
+      prisma.platformSession.findMany({
+        where: { schoolId: { not: null }, revokedAt: null, expiresAt: { gt: new Date() }, lastActivityAt: { gte: thirtyMinutes } },
+        distinct: ["schoolId"],
+        select: { schoolId: true }
+      }),
+      prisma.syncDraft.count({ where: { syncedAt: null, school: { deletedAt: null } } }),
+      prisma.backupRecord.findFirst({ where: { status: { in: ["SUCCESS", "COMPLETED", "COMPLETED_SUCCESSFULLY"] } }, orderBy: { endedAt: "desc" } }),
+      prisma.platformBillingTransaction.aggregate({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: monthStart } }, _sum: { amount: true } }),
+      prisma.platformBillingTransaction.aggregate({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: previousMonthStart, lte: previousMonthEnd } }, _sum: { amount: true } }),
+      prisma.platformInvoice.aggregate({ where: { issuedAt: { gte: monthStart } }, _sum: { amount: true } }),
+      prisma.platformInvoice.aggregate({ where: { status: { in: ["PENDING", "OVERDUE"] }, dueAt: { lt: new Date() } }, _sum: { amount: true } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL", trialEndsAt: { gte: new Date(), lte: nextSevenDays } } }),
+      prisma.school.count({ where: { deletedAt: null, healthScore: { lt: 50 } } }),
+      prisma.school.count({ where: { deletedAt: null, billingStatus: { in: ["OVERDUE", "SUSPENDED"] } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL", updatedAt: { lt: fiveDays } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "ACTIVE", updatedAt: { gte: thisWeek } } }),
+      prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
+      prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] }, priority: "CRITICAL" } }),
+      prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] }, slaDueAt: { lt: new Date() } } }),
+      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: thisWeek } }, select: { createdAt: true, resolvedAt: true } }),
+      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: lastWeekStart, lt: thisWeek } }, select: { createdAt: true, resolvedAt: true } }),
+      prisma.apiUsageLog.findMany({ where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } }, select: { status: true, durationMs: true } }),
+      prisma.syncDraft.count({ where: { syncedAt: null, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }, school: { deletedAt: null } } }),
+      prisma.notificationLog.findMany({ where: { sentAt: { gte: thirtyDays } }, select: { status: true } }),
+      prisma.school.findMany({ where: { deletedAt: null }, select: { state: true, plan: true, status: true } }),
       prisma.auditLog.findMany({ include: { actor: true, school: true }, orderBy: { createdAt: "desc" }, take: 10 })
     ]);
     const statusCounts = Object.fromEntries(schools.map((item) => [item.status, item._count]));
     const roleCounts = Object.fromEntries(users.map((item) => [item.role, item._count]));
+    const currentMonthRevenue = Number(currentMonthPayments._sum.amount ?? 0);
+    const previousMonthRevenue = Number(previousMonthPayments._sum.amount ?? 0);
+    const monthOverMonthGrowth = previousMonthRevenue > 0 ? ((currentMonthRevenue - previousMonthRevenue) / previousMonthRevenue) * 100 : currentMonthRevenue > 0 ? 100 : 0;
+    const averageResolutionHours = (tickets: typeof resolvedThisWeek) => {
+      if (!tickets.length) return 0;
+      const totalMs = tickets.reduce((sum, ticket) => {
+        if (!ticket.resolvedAt) return sum;
+        return sum + (ticket.resolvedAt.getTime() - ticket.createdAt.getTime());
+      }, 0);
+      return Math.round((totalMs / tickets.length / (60 * 60 * 1000)) * 10) / 10;
+    };
+    const successfulApiRequests = apiUsage.filter((item) => item.status < 500).length;
+    const apiUptime = apiUsage.length ? Math.round((successfulApiRequests / apiUsage.length) * 1000) / 10 : 100;
+    const responseSamples = apiUsage.filter((item) => typeof item.durationMs === "number");
+    const averageResponseMs = responseSamples.length ? Math.round(responseSamples.reduce((sum, item) => sum + (item.durationMs ?? 0), 0) / responseSamples.length) : 0;
+    const deliveredNotifications = notificationLogs.filter((item) => ["SENT", "DELIVERED", "SUCCESS", "COMPLETED"].includes(item.status.toUpperCase())).length;
+    const notificationDeliveryRate = notificationLogs.length ? Math.round((deliveredNotifications / notificationLogs.length) * 1000) / 10 : 100;
+    const geography = Array.from(
+      geographySchools.reduce((map, school) => {
+        const state = school.state?.trim() || "Unspecified";
+        const existing = map.get(state) ?? { state, schoolCount: 0, activeSchools: 0, trialSchools: 0, suspendedSchools: 0, planMix: {} as Record<string, number> };
+        existing.schoolCount += 1;
+        if (school.status === "ACTIVE") existing.activeSchools += 1;
+        if (school.status === "TRIAL") existing.trialSchools += 1;
+        if (school.status === "SUSPENDED") existing.suspendedSchools += 1;
+        existing.planMix[school.plan] = (existing.planMix[school.plan] ?? 0) + 1;
+        map.set(state, existing);
+        return map;
+      }, new Map<string, { state: string; schoolCount: number; activeSchools: number; trialSchools: number; suspendedSchools: number; planMix: Record<string, number> }>())
+    ).map(([, value]) => value).sort((left, right) => right.schoolCount - left.schoolCount);
+    const alerts = [
+      trialsExpiring ? { id: "trials-expiring", severity: "warning", title: "Trials expiring soon", detail: `${trialsExpiring} school(s) have trials ending within 7 days.`, actionHref: "/super-admin/schools?status=TRIAL" } : null,
+      Number(overdueInvoices._sum.amount ?? 0) > 0 ? { id: "overdue-invoices", severity: "danger", title: "Overdue platform invoices", detail: `${Number(overdueInvoices._sum.amount ?? 0).toLocaleString()} outstanding beyond due date.`, actionHref: "/super-admin/billing" } : null,
+      failedSyncDrafts ? { id: "sync-backlog", severity: "warning", title: "Offline sync backlog", detail: `${failedSyncDrafts} sync record(s) have been pending for more than 24 hours.`, actionHref: "/super-admin/analytics" } : null,
+      supportSlaBreaching ? { id: "support-sla", severity: "danger", title: "Support SLA breach", detail: `${supportSlaBreaching} support ticket(s) are beyond SLA.`, actionHref: "/super-admin/support" } : null,
+      churnRiskSchools ? { id: "churn-risk", severity: "warning", title: "Churn risk schools", detail: `${churnRiskSchools} school(s) have health scores below 50.`, actionHref: "/super-admin/crm" } : null
+    ].filter(Boolean);
+
     return this.response({
       schools: {
         total: Object.values(statusCounts).reduce((sum, count) => sum + count, 0),
@@ -698,6 +1644,52 @@ export class SuperAdminService {
       signups: { last7Days: weekSignups, last30Days: monthSignups },
       mau: activeUsers,
       revenue: await this.revenueSummary(),
+      commandCenter: {
+        pulse: {
+          totalActiveSchools: statusCounts.ACTIVE ?? 0,
+          totalStudents,
+          schoolsOnline: onlineSchoolSessions.length,
+          uptime30Day: apiUptime,
+          offlineSyncQueueSize: pendingSyncDrafts,
+          lastSuccessfulBackupAt: lastBackup?.endedAt?.toISOString() ?? lastBackup?.startedAt.toISOString() ?? null
+        },
+        revenueSnapshot: {
+          currentMonthRevenue,
+          currentTermCollected: currentMonthRevenue,
+          currentTermInvoiced: Number(currentTermInvoices._sum.amount ?? 0),
+          overdueBalances: Number(overdueInvoices._sum.amount ?? 0),
+          monthOverMonthGrowth,
+          newMrrThisMonth: monthSignups * planPrice("BASIC"),
+          notificationCreditRevenue: 0
+        },
+        subscriptionHealth: {
+          trialsExpiringNext7Days: trialsExpiring,
+          churnRiskSchools,
+          gracePeriodSchools
+        },
+        onboardingPipeline: {
+          pendingVerification: statusCounts.TRIAL ?? 0,
+          schoolsInTrial: statusCounts.TRIAL ?? 0,
+          stuckMidOnboarding: stuckTrialSchools,
+          convertedThisWeek
+        },
+        supportQueue: {
+          totalOpenTickets: supportOpen,
+          criticalOpenTickets: supportCriticalOpen,
+          ticketsBreachingSla: supportSlaBreaching,
+          averageResolutionHoursThisWeek: averageResolutionHours(resolvedThisWeek),
+          averageResolutionHoursLastWeek: averageResolutionHours(resolvedLastWeek)
+        },
+        systemHealth: {
+          apiUptime,
+          averageResponseMs,
+          syncFailureRate24h: pendingSyncDrafts > 0 ? Math.round((failedSyncDrafts / pendingSyncDrafts) * 1000) / 10 : 0,
+          notificationDeliveryRate,
+          activeInfrastructureAlerts: supportCriticalOpen + supportSlaBreaching
+        },
+        geography,
+        alerts
+      },
       recentActivity: auditLogs.map((log) => this.mapAuditLog(log))
     });
   }
@@ -739,6 +1731,45 @@ export class SuperAdminService {
         month: new Date(2026, index, 1).toLocaleString("en", { month: "short" }),
         amount: (index + 1) * 125000
       }))
+    });
+  }
+
+  async revenueReport(session: SessionPayload) {
+    assertAnyPlatformRole(session, billingRoles, "Revenue reporting is restricted to platform finance roles.");
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
+    const [schools, unpaidInvoices, notificationRevenue, renewedRecently, activeSchoolCount] = await Promise.all([
+      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, city: true, billingStatus: true, createdAt: true } }),
+      prisma.platformInvoice.aggregate({ where: { status: { in: ["SENT", "PENDING_PAYMENT", "PARTIALLY_PAID", "OVERDUE", "ESCALATED"] } }, _sum: { amount: true, taxAmount: true } }),
+      prisma.platformBillingTransaction.aggregate({ where: { status: "SUCCESS", metadata: { path: ["type"], equals: "notification_credit" } }, _sum: { amount: true } }),
+      prisma.school.count({ where: { deletedAt: null, lastPaymentAt: { gte: ninetyDaysAgo } } }),
+      prisma.school.count({ where: { deletedAt: null, billingStatus: "ACTIVE" } })
+    ]);
+
+    const revenueByTier = new Map<string, number>();
+    const revenueByState = new Map<string, { revenue: number; schoolCount: number }>();
+    for (const school of schools) {
+      const monthly = planPrice(school.plan);
+      revenueByTier.set(school.plan, (revenueByTier.get(school.plan) ?? 0) + monthly);
+      const state = school.state?.trim() || "Unspecified";
+      const existing = revenueByState.get(state) ?? { revenue: 0, schoolCount: 0 };
+      existing.revenue += monthly;
+      existing.schoolCount += 1;
+      revenueByState.set(state, existing);
+    }
+
+    const avgTenureMonths = 18;
+    const ltvByTier = Array.from(revenueByTier.entries()).map(([plan, monthly]) => ({
+      plan,
+      ltv: (monthly / Math.max(1, revenueByTier.size)) * avgTenureMonths
+    }));
+
+    return this.response({
+      revenueByTier: Array.from(revenueByTier.entries()).map(([plan, revenue]) => ({ plan, revenue })),
+      revenueByState: Array.from(revenueByState.entries()).map(([state, value]) => ({ state, ...value })).sort((a, b) => b.revenue - a.revenue),
+      notificationCreditRevenue: Number(notificationRevenue._sum.amount ?? 0),
+      outstandingReceivables: Number(unpaidInvoices._sum.amount ?? 0) + Number(unpaidInvoices._sum.taxAmount ?? 0),
+      renewalRate: activeSchoolCount > 0 ? Math.round((renewedRecently / activeSchoolCount) * 1000) / 10 : 0,
+      ltvByTier
     });
   }
 
@@ -793,20 +1824,22 @@ export class SuperAdminService {
     };
   }
 
-  async impersonate(session: SessionPayload, userId: string) {
+  async impersonate(session: SessionPayload, userId: string, payload: unknown) {
     assertSuperAdmin(session);
+    const parsed = impersonateSchema.parse(payload);
     const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true }, include: { school: true } });
     if (!user) throw new NotFoundException("User not found or inactive.");
     if (platformRoles.has(user.role)) throw new BadRequestException("Cannot impersonate another platform admin account.");
+    const maxAgeSeconds = 30 * 60;
     const token = await createSessionToken({
       userId: user.id,
       schoolId: user.schoolId,
       role: user.role as Role,
       email: user.email,
       name: `${user.firstName} ${user.lastName}`
-    }, { maxAgeSeconds: 15 * 60 });
-    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId }, user.schoolId);
-    return this.response({ token, expiresInSeconds: 15 * 60, user: { id: user.id, email: user.email, role: user.role, schoolName: user.school.name } }, "Impersonation token generated");
+    }, { maxAgeSeconds });
+    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId, reason: parsed.reason, startedAt: new Date().toISOString(), maxAgeSeconds }, user.schoolId);
+    return this.response({ token, expiresInSeconds: maxAgeSeconds, user: { id: user.id, email: user.email, role: user.role, schoolName: user.school.name } }, "Impersonation token generated");
   }
 
   async getSettings(session: SessionPayload) {
@@ -878,9 +1911,17 @@ export class SuperAdminService {
       assignedTo: ticket.assignedTo ? `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}` : "Unassigned",
       messageCount: ticket._count.messages,
       slaDueAt: ticket.slaDueAt?.toISOString(),
+      slaBreached: Boolean(ticket.slaDueAt && ticket.slaDueAt < new Date() && !["RESOLVED", "CLOSED"].includes(ticket.status)),
       createdAt: ticket.createdAt.toISOString(),
       updatedAt: ticket.updatedAt.toISOString()
     })), "Support tickets loaded", pagination(parsed.page, parsed.limit, total));
+  }
+
+  private ticketSlaHours(priority: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL") {
+    if (priority === "CRITICAL") return 1;
+    if (priority === "HIGH") return 4;
+    if (priority === "MEDIUM") return 8;
+    return 24;
   }
 
   async createSupportTicket(session: SessionPayload, payload: unknown) {
@@ -897,12 +1938,64 @@ export class SuperAdminService {
         description: parsed.description,
         category: parsed.category,
         priority: parsed.priority,
-        slaDueAt: new Date(Date.now() + (parsed.priority === "CRITICAL" ? 4 : parsed.priority === "HIGH" ? 12 : 48) * 60 * 60 * 1000),
+        status: parsed.assignedToId ? "TRIAGED" : "OPEN",
+        slaDueAt: new Date(Date.now() + this.ticketSlaHours(parsed.priority) * 60 * 60 * 1000),
         messages: { create: { authorId: actor?.id, body: parsed.description, internalOnly: false } }
       }
     });
     await this.audit(session, "CREATE", "SupportTicket", ticket.id, { subject: parsed.subject, priority: parsed.priority }, parsed.schoolId);
     return this.response({ id: ticket.id, ticketNo: ticket.ticketNo }, "Support ticket created");
+  }
+
+  async getSupportTicket(session: SessionPayload, ticketId: string) {
+    assertSuperAdmin(session);
+    const ticket = await prisma.supportTicket.findUnique({
+      where: { id: ticketId },
+      include: {
+        school: { select: { id: true, name: true } },
+        assignedTo: { select: { id: true, firstName: true, lastName: true } },
+        createdBy: { select: { id: true, firstName: true, lastName: true } },
+        messages: { include: { author: { select: { firstName: true, lastName: true } } }, orderBy: { createdAt: "asc" } },
+        csatResponse: true,
+        dataCorrectionRecords: { orderBy: { createdAt: "desc" } }
+      }
+    });
+    if (!ticket) throw new NotFoundException("Support ticket not found.");
+    return this.response({
+      id: ticket.id,
+      ticketNo: ticket.ticketNo,
+      schoolId: ticket.schoolId,
+      schoolName: ticket.school.name,
+      subject: ticket.subject,
+      description: ticket.description,
+      category: ticket.category,
+      priority: ticket.priority,
+      status: ticket.status,
+      assignedTo: ticket.assignedTo ? { id: ticket.assignedTo.id, name: `${ticket.assignedTo.firstName} ${ticket.assignedTo.lastName}` } : null,
+      createdBy: ticket.createdBy ? `${ticket.createdBy.firstName} ${ticket.createdBy.lastName}` : "Unknown",
+      slaDueAt: ticket.slaDueAt?.toISOString(),
+      slaBreached: Boolean(ticket.slaDueAt && ticket.slaDueAt < new Date() && !["RESOLVED", "CLOSED"].includes(ticket.status)),
+      resolvedAt: ticket.resolvedAt?.toISOString(),
+      closedAt: ticket.closedAt?.toISOString(),
+      createdAt: ticket.createdAt.toISOString(),
+      messages: ticket.messages.map((m) => ({
+        id: m.id,
+        body: m.body,
+        internalOnly: m.internalOnly,
+        author: m.author ? `${m.author.firstName} ${m.author.lastName}` : "School contact",
+        createdAt: m.createdAt.toISOString()
+      })),
+      csat: ticket.csatResponse ? { score: ticket.csatResponse.score, comment: ticket.csatResponse.comment, submittedAt: ticket.csatResponse.submittedAt.toISOString() } : null,
+      dataCorrectionRecords: ticket.dataCorrectionRecords.map((r) => ({
+        id: r.id,
+        fieldCorrected: r.fieldCorrected,
+        oldValue: r.oldValue,
+        newValue: r.newValue,
+        status: r.status,
+        completedAt: r.completedAt?.toISOString(),
+        createdAt: r.createdAt.toISOString()
+      }))
+    });
   }
 
   async addTicketMessage(session: SessionPayload, ticketId: string, payload: unknown) {
@@ -912,9 +2005,162 @@ export class SuperAdminService {
     if (!ticket) throw new NotFoundException("Support ticket not found.");
     const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] } });
     const message = await prisma.ticketMessage.create({ data: { ticketId, authorId: actor?.id, body: parsed.body, internalOnly: parsed.internalOnly } });
-    await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: "IN_PROGRESS" } });
+    if (!["RESOLVED", "CLOSED"].includes(ticket.status)) {
+      await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: parsed.internalOnly ? ticket.status : "AWAITING_SCHOOL_RESPONSE" } });
+    }
     await this.audit(session, "UPDATE", "SupportTicket", ticketId, { messageId: message.id, internalOnly: parsed.internalOnly }, ticket.schoolId);
     return this.response({ id: message.id }, "Ticket message added");
+  }
+
+  async updateTicketStatus(session: SessionPayload, ticketId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = ticketStatusSchema.parse(payload);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId }, include: { school: true } });
+    if (!ticket) throw new NotFoundException("Support ticket not found.");
+
+    const updated = await prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: {
+        status: parsed.status,
+        resolvedAt: parsed.status === "RESOLVED" ? new Date() : ticket.resolvedAt,
+        closedAt: parsed.status === "CLOSED" ? new Date() : ticket.closedAt
+      }
+    });
+
+    if (parsed.status === "RESOLVED") {
+      await sendNotification({
+        channel: "EMAIL",
+        recipient: ticket.school.ownerEmail ?? "",
+        title: `Ticket ${ticket.ticketNo} resolved — how did we do?`,
+        body: "Your support ticket has been marked resolved. Please rate your experience from 1 (poor) to 5 (excellent)."
+      });
+    }
+
+    await this.audit(session, "UPDATE", "SupportTicket", ticketId, { status: parsed.status }, ticket.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Ticket status updated");
+  }
+
+  async assignTicket(session: SessionPayload, ticketId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = ticketAssignSchema.parse(payload);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket) throw new NotFoundException("Support ticket not found.");
+    const updated = await prisma.supportTicket.update({
+      where: { id: ticketId },
+      data: { assignedToId: parsed.assignedToId, status: ticket.status === "OPEN" ? "TRIAGED" : ticket.status }
+    });
+    await this.audit(session, "UPDATE", "SupportTicket", ticketId, { assignedToId: parsed.assignedToId }, ticket.schoolId);
+    return this.response({ id: updated.id }, "Ticket reassigned");
+  }
+
+  async submitTicketCsat(session: SessionPayload, ticketId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = ticketCsatSchema.parse(payload);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket) throw new NotFoundException("Support ticket not found.");
+    const csat = await prisma.ticketCsatResponse.upsert({
+      where: { ticketId },
+      create: { ticketId, score: parsed.score, comment: parsed.comment },
+      update: { score: parsed.score, comment: parsed.comment, submittedAt: new Date() }
+    });
+    await this.audit(session, "UPDATE", "SupportTicket", ticketId, { csatScore: parsed.score }, ticket.schoolId);
+    return this.response({ id: csat.id }, "CSAT response recorded");
+  }
+
+  async listCannedResponses(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const responses = await prisma.cannedResponse.findMany({ orderBy: { category: "asc" } });
+    return this.response(responses.map((r) => ({ id: r.id, category: r.category, title: r.title, body: r.body, updatedAt: r.updatedAt.toISOString() })));
+  }
+
+  async createCannedResponse(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = cannedResponseSchema.parse(payload);
+    const response = await prisma.cannedResponse.create({ data: { ...parsed, updatedById: session.userId } });
+    await this.audit(session, "CREATE", "CannedResponse", response.id, { title: response.title }, null);
+    return this.response({ id: response.id }, "Canned response created");
+  }
+
+  async updateCannedResponse(session: SessionPayload, responseId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = cannedResponseSchema.partial().parse(payload);
+    const response = await prisma.cannedResponse.update({ where: { id: responseId }, data: { ...parsed, updatedById: session.userId } });
+    await this.audit(session, "UPDATE", "CannedResponse", response.id, parsed as Prisma.InputJsonValue, null);
+    return this.response({ id: response.id }, "Canned response updated");
+  }
+
+  async requestDataCorrection(session: SessionPayload, ticketId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = dataCorrectionRequestSchema.parse(payload);
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    if (!ticket) throw new NotFoundException("Support ticket not found.");
+    const record = await prisma.dataCorrectionRecord.create({
+      data: { ticketId, requestedById: session.userId, status: "PENDING", ...parsed }
+    });
+    await this.audit(session, "UPDATE", "SupportTicket", ticketId, { dataCorrectionRequested: record.id }, ticket.schoolId);
+    return this.response({ id: record.id }, "Data correction requested — awaiting Super Admin approval");
+  }
+
+  async approveDataCorrection(session: SessionPayload, recordId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Data corrections can only be approved by Super Admin.");
+    const record = await prisma.dataCorrectionRecord.findUnique({ where: { id: recordId }, include: { ticket: true } });
+    if (!record) throw new NotFoundException("Data correction record not found.");
+    if (record.status !== "PENDING") throw new BadRequestException("This correction has already been resolved.");
+    const updated = await prisma.dataCorrectionRecord.update({
+      where: { id: recordId },
+      data: { status: "COMPLETED", approvedById: session.userId, completedAt: new Date() }
+    });
+    await this.audit(session, "UPDATE", "DataCorrectionRecord", record.id, { fieldCorrected: record.fieldCorrected, oldValue: record.oldValue, newValue: record.newValue }, record.ticket.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Data correction approved and logged");
+  }
+
+  async ticketAnalytics(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [totalOpened, resolvedTickets, categoryBreakdown, agentGroups, csatResponses] = await Promise.all([
+      prisma.supportTicket.count({ where: { createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: thirtyDaysAgo, not: null } }, select: { createdAt: true, resolvedAt: true, slaDueAt: true, priority: true, assignedToId: true, category: true } }),
+      prisma.supportTicket.groupBy({ by: ["category"], where: { createdAt: { gte: thirtyDaysAgo } }, _count: { category: true } }),
+      prisma.supportTicket.groupBy({ by: ["assignedToId"], where: { createdAt: { gte: thirtyDaysAgo }, assignedToId: { not: null } }, _count: { assignedToId: true } }),
+      prisma.ticketCsatResponse.findMany({ where: { submittedAt: { gte: thirtyDaysAgo } }, include: { ticket: { select: { assignedToId: true } } } })
+    ]);
+
+    const resolvedWithinSla = resolvedTickets.filter((t) => !t.slaDueAt || (t.resolvedAt && t.resolvedAt <= t.slaDueAt)).length;
+    const avgResolutionByPriority: Record<string, number> = {};
+    for (const priority of ["LOW", "MEDIUM", "HIGH", "CRITICAL"]) {
+      const group = resolvedTickets.filter((t) => t.priority === priority);
+      avgResolutionByPriority[priority] = group.length
+        ? Math.round((group.reduce((sum, t) => sum + (t.resolvedAt!.getTime() - t.createdAt.getTime()), 0) / group.length / (60 * 60 * 1000)) * 10) / 10
+        : 0;
+    }
+
+    const agentIds = agentGroups.map((g) => g.assignedToId).filter((id): id is string => Boolean(id));
+    const agents = agentIds.length ? await prisma.user.findMany({ where: { id: { in: agentIds } }, select: { id: true, firstName: true, lastName: true } }) : [];
+    const csatByAgent = new Map<string, number[]>();
+    for (const csat of csatResponses) {
+      if (!csat.ticket.assignedToId) continue;
+      const list = csatByAgent.get(csat.ticket.assignedToId) ?? [];
+      list.push(csat.score);
+      csatByAgent.set(csat.ticket.assignedToId, list);
+    }
+
+    return this.response({
+      totalOpened,
+      totalResolved: resolvedTickets.length,
+      resolvedWithinSla,
+      avgResolutionByPriority,
+      categoryBreakdown: categoryBreakdown.map((c) => ({ category: c.category, count: c._count.category })),
+      perAgent: agentGroups.map((g) => {
+        const agent = agents.find((a) => a.id === g.assignedToId);
+        const scores = csatByAgent.get(g.assignedToId!) ?? [];
+        return {
+          agentId: g.assignedToId,
+          agentName: agent ? `${agent.firstName} ${agent.lastName}` : "Unknown",
+          ticketsHandled: g._count.assignedToId,
+          avgCsat: scores.length ? Math.round((scores.reduce((sum, s) => sum + s, 0) / scores.length) * 10) / 10 : null
+        };
+      })
+    });
   }
 
   async listFeatureFlags(session: SessionPayload) {
@@ -1015,14 +2261,57 @@ export class SuperAdminService {
 
   async securityOverview(session: SessionPayload) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "DEVELOPER", "SUPPORT_AGENT", "SUPER_ADMIN"]));
-    const [sessions, attempts, privacy, backups, systemLogs] = await Promise.all([
-      prisma.platformSession.findMany({ include: { user: true, school: true }, orderBy: { lastActivityAt: "desc" }, take: 50 }),
+    const [sessions, attempts, privacy, backups, systemLogs, incidents] = await Promise.all([
+      prisma.platformSession.findMany({ where: { revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: true, school: true }, orderBy: { lastActivityAt: "desc" }, take: 50 }),
       prisma.loginAttempt.findMany({ include: { school: true }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.dataPrivacyRequest.findMany({ include: { school: true, handledBy: true }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.backupRecord.findMany({ include: { school: true }, orderBy: { startedAt: "desc" }, take: 20 }),
-      prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 })
+      prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
+      prisma.securityIncident.findMany({ include: { reportedBy: true, resolvedBy: true }, orderBy: { detectedAt: "desc" }, take: 50 })
     ]);
-    return this.response({ sessions, attempts, privacy, backups, systemLogs });
+    return this.response({
+      sessions: sessions.map((s) => ({
+        id: s.id,
+        user: s.user ? { firstName: s.user.firstName, lastName: s.user.lastName, email: s.user.email, role: s.user.role } : null,
+        school: s.school ? { name: s.school.name } : null,
+        ipAddress: s.ipAddress,
+        device: s.device,
+        lastActivityAt: s.lastActivityAt.toISOString()
+      })),
+      attempts: attempts.map((a) => ({
+        id: a.id,
+        email: a.email,
+        status: a.success ? "SUCCESS" : "FAILED",
+        ipAddress: a.ipAddress,
+        failureReason: a.reason,
+        school: a.school ? { name: a.school.name } : null,
+        createdAt: a.createdAt.toISOString()
+      })),
+      privacy: privacy.map((p) => ({
+        id: p.id,
+        type: p.type,
+        status: p.status,
+        subject: p.subject,
+        confirmationHash: p.confirmationHash,
+        completedAt: p.completedAt?.toISOString(),
+        school: p.school ? { name: p.school.name } : null,
+        createdAt: p.createdAt.toISOString()
+      })),
+      backups,
+      systemLogs,
+      incidents: incidents.map((i) => ({
+        id: i.id,
+        type: i.type,
+        severity: i.severity,
+        status: i.status,
+        description: i.description,
+        detectedAt: i.detectedAt.toISOString(),
+        resolvedAt: i.resolvedAt?.toISOString(),
+        postIncidentNotes: i.postIncidentNotes,
+        reportedBy: i.reportedBy ? `${i.reportedBy.firstName} ${i.reportedBy.lastName}` : "System",
+        resolvedBy: i.resolvedBy ? `${i.resolvedBy.firstName} ${i.resolvedBy.lastName}` : null
+      }))
+    });
   }
 
   async createPrivacyRequest(session: SessionPayload, payload: unknown) {
@@ -1031,6 +2320,99 @@ export class SuperAdminService {
     const request = await prisma.dataPrivacyRequest.create({ data: parsed });
     await this.audit(session, "CREATE", "DataPrivacyRequest", request.id, { type: parsed.type, subject: parsed.subject }, parsed.schoolId ?? null);
     return this.response({ id: request.id }, "Privacy request created");
+  }
+
+  async updatePrivacyRequestStatus(session: SessionPayload, requestId: string, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN"]));
+    const parsed = privacyStatusSchema.parse(payload);
+    const request = await prisma.dataPrivacyRequest.update({
+      where: { id: requestId },
+      data: { status: parsed.status, handledById: session.userId, resolvedAt: parsed.status === "REJECTED" ? new Date() : undefined }
+    });
+    await this.audit(session, "UPDATE", "DataPrivacyRequest", request.id, { status: parsed.status }, request.schoolId);
+    return this.response({ id: request.id, status: request.status }, "Privacy request updated");
+  }
+
+  async completeDataDeletion(session: SessionPayload, requestId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can confirm a data deletion.");
+    const request = await prisma.dataPrivacyRequest.findUnique({ where: { id: requestId } });
+    if (!request) throw new NotFoundException("Data privacy request not found.");
+    if (request.type !== "ERASURE") throw new BadRequestException("Only erasure (data deletion) requests can be completed this way.");
+    if (request.status === "COMPLETED") throw new BadRequestException("This deletion has already been completed.");
+
+    const completedAt = new Date();
+    const confirmationHash = createHash("sha256")
+      .update(`${request.id}:${request.schoolId ?? "platform"}:${completedAt.toISOString()}:${session.userId}`)
+      .digest("hex");
+
+    const updated = await prisma.dataPrivacyRequest.update({
+      where: { id: requestId },
+      data: { status: "COMPLETED", completedById: session.userId, completedAt, dataExportedAt: request.dataExportedAt ?? completedAt, confirmationHash }
+    });
+    await this.audit(session, "DELETE", "DataPrivacyRequest", request.id, { ndpcCompletion: true, confirmationHash }, request.schoolId);
+    return this.response({ id: updated.id, status: updated.status, confirmationHash }, "Data deletion completed and logged for NDPC compliance");
+  }
+
+  async complianceReport(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN"]));
+    const requests = await prisma.dataPrivacyRequest.findMany({ where: { type: "ERASURE" }, include: { school: true, completedBy: true }, orderBy: { createdAt: "desc" } });
+    const byStatus = requests.reduce((acc, r) => { acc[r.status] = (acc[r.status] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+    return this.response({
+      totalDeletionRequests: requests.length,
+      byStatus,
+      completed: requests.filter((r) => r.status === "COMPLETED").map((r) => ({
+        id: r.id,
+        schoolName: r.school?.name ?? "Platform",
+        subject: r.subject,
+        completedBy: r.completedBy ? `${r.completedBy.firstName} ${r.completedBy.lastName}` : "Unknown",
+        completedAt: r.completedAt?.toISOString(),
+        confirmationHash: r.confirmationHash
+      }))
+    });
+  }
+
+  async listSecurityIncidents(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Security incident management is restricted to CTO and Super Admin.");
+    const incidents = await prisma.securityIncident.findMany({ include: { reportedBy: true, resolvedBy: true }, orderBy: { detectedAt: "desc" } });
+    return this.response(incidents.map((i) => ({
+      id: i.id,
+      type: i.type,
+      severity: i.severity,
+      status: i.status,
+      description: i.description,
+      detectedAt: i.detectedAt.toISOString(),
+      resolvedAt: i.resolvedAt?.toISOString(),
+      postIncidentNotes: i.postIncidentNotes,
+      reportedBy: i.reportedBy ? `${i.reportedBy.firstName} ${i.reportedBy.lastName}` : "System",
+      resolvedBy: i.resolvedBy ? `${i.resolvedBy.firstName} ${i.resolvedBy.lastName}` : null
+    })));
+  }
+
+  async createSecurityIncident(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Security incident management is restricted to CTO and Super Admin.");
+    const parsed = securityIncidentSchema.parse(payload);
+    const incident = await prisma.securityIncident.create({ data: { ...parsed, status: "DETECTED", reportedById: session.userId } });
+    await this.audit(session, "CREATE", "SecurityIncident", incident.id, { type: parsed.type, severity: parsed.severity }, null);
+    return this.response({ id: incident.id }, "Security incident logged");
+  }
+
+  async updateSecurityIncident(session: SessionPayload, incidentId: string, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Security incident management is restricted to CTO and Super Admin.");
+    const parsed = securityIncidentUpdateSchema.parse(payload);
+    if (parsed.status === "RESOLVED" && !parsed.postIncidentNotes) {
+      throw new BadRequestException("A post-incident note (root cause, actions, prevention) is required to resolve an incident.");
+    }
+    const incident = await prisma.securityIncident.update({
+      where: { id: incidentId },
+      data: {
+        status: parsed.status,
+        postIncidentNotes: parsed.postIncidentNotes,
+        resolvedById: parsed.status === "RESOLVED" ? session.userId : undefined,
+        resolvedAt: parsed.status === "RESOLVED" ? new Date() : undefined
+      }
+    });
+    await this.audit(session, "UPDATE", "SecurityIncident", incident.id, { status: parsed.status }, null);
+    return this.response({ id: incident.id, status: incident.status }, "Security incident updated");
   }
 
   async listPlans(session: SessionPayload) {

@@ -338,7 +338,7 @@ export function FutureRealmLandingPage() {
               </div>
 
               <div className="flex flex-wrap gap-3">
-                <Link href="/login" className="btn-primary rounded-full px-5">
+                <Link href="/onboarding" className="btn-primary rounded-full px-5">
                   Get Started
                   <ArrowRight className="h-4 w-4" />
                 </Link>
@@ -618,7 +618,7 @@ export function FutureRealmLandingPage() {
                 </ul>
 
                 <div className="mt-7">
-                  <Link href="/login" className={plan.featured ? "btn-primary w-full rounded-full" : "btn-secondary w-full rounded-full"}>
+                  <Link href="/onboarding" className={plan.featured ? "btn-primary w-full rounded-full" : "btn-secondary w-full rounded-full"}>
                     {plan.cta}
                   </Link>
                 </div>
