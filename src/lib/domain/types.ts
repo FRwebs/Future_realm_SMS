@@ -2085,3 +2085,162 @@ export interface SuperAdminTicketAnalytics {
   categoryBreakdown: Array<{ category: string; count: number }>;
   perAgent: Array<{ agentId: string | null; agentName: string; ticketsHandled: number; avgCsat: number | null }>;
 }
+
+export interface SuperAdminFeatureFlagRow {
+  id: string;
+  key: string;
+  name: string;
+  description?: string | null;
+  enabledGlobally: boolean;
+  rolloutStatus: string;
+  rolloutPercent: number;
+  pilotSchoolCount: number;
+  overrides: number;
+  createdAt: string;
+}
+
+export interface SuperAdminTierFeatureRow {
+  id: string;
+  name: string;
+  module: string;
+  starterAccess: boolean;
+  standardAccess: boolean;
+  eliteAccess: boolean;
+}
+
+export interface SuperAdminFeatureOverrideRow {
+  id: string;
+  flagName: string;
+  flagKey: string;
+  schoolId: string;
+  schoolName: string;
+  overrideStatus: string;
+  status: string;
+  reason?: string | null;
+  expiryDate?: string;
+  requestedBy: string;
+  approvedBy?: string | null;
+  createdAt: string;
+}
+
+export interface SuperAdminBrandingAssetRow {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  logoUrl?: string | null;
+  primaryColour: string;
+  secondaryColour: string;
+  status: string;
+  appliedTo: string;
+  appliedAt?: string;
+  approvedBy?: string | null;
+  createdAt: string;
+}
+
+export interface SuperAdminCampaignRow {
+  id: string;
+  name: string;
+  type: string;
+  channel: string;
+  status: string;
+  recipientCount: number;
+  deliveredCount: number;
+  failedCount: number;
+  openedCount: number;
+  scheduledAt?: string;
+  sentAt?: string;
+  createdBy: string;
+  approvedBy?: string | null;
+  createdAt: string;
+}
+
+export interface SuperAdminMessageTemplateRow {
+  id: string;
+  name: string;
+  channel: string;
+  category: string;
+  body: string;
+  placeholders: string[];
+  approvalStatus: string;
+  metaTemplateId?: string | null;
+  updatedAt: string;
+}
+
+export interface SuperAdminBiOverview {
+  heatmap: Array<{ module: string; schoolsUsing: number; adoptionPct: number; level: string }>;
+  funnel: Array<{ stage: string; count: number }>;
+  cohorts: Array<{ cohort: string; joined: number; stillActive: number; retentionPct: number }>;
+  featureRequests: Array<{ keyword: string; requestCount: number; schoolsRequesting: number; priorityScore: number }>;
+  schoolsActiveThisWeek: number;
+}
+
+export interface SuperAdminChurnAnalysis {
+  total: number;
+  byReason: Array<{ reason: string; count: number; pct: number }>;
+  recent: Array<{ id: string; schoolName: string; reason: string; notes?: string | null; churnedAt: string }>;
+}
+
+export interface SuperAdminNpsAnalytics {
+  npsScore: number;
+  total: number;
+  promoters: number;
+  passives: number;
+  detractors: number;
+  lowScoreFlags: Array<{ id: string; schoolName: string; score: number; comment?: string | null; createdAt: string }>;
+  comments: Array<{ schoolName: string; score: number; comment?: string | null }>;
+}
+
+export interface SuperAdminCustomReportRow {
+  id: string;
+  name: string;
+  dimension: string;
+  metric: string;
+  generatedAt?: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface SuperAdminInfraMonitoring {
+  uptime: { apiUptime: number; avgResponseMs: number; apiUptimeStatus: string; responseStatus: string; requestsLast24h: number };
+  syncQueue: { pending: number; failedOver24h: number; oldestAgeHours: number; oldestSchool: string | null; failureRate: number; status: string };
+  deliveryHealth: Array<{ channel: string; total: number; failureRate: number; status: string }>;
+  integrations: Array<{ name: string; checkFrequency: string; status: string; onFailure: string }>;
+  backups: { lastSuccessfulAt: string | null; recent: Array<{ id: string; scope: string; status: string; sizeMb?: number | null; school: string; startedAt: string; endedAt?: string }> };
+  generatedAt: string;
+}
+
+export interface SuperAdminConfigLibrary {
+  curricula: Array<{ id: string; name: string; country: string; subjectCount: number; calendarType: string; version: string; isActive: boolean }>;
+  gradingScales: Array<{ id: string; name: string; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean }>;
+  reportCards: Array<{ id: string; name: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean }>;
+}
+
+export interface SuperAdminInternalMember {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  status: string;
+  lastLoginAt?: string;
+  createdAt: string;
+}
+
+export interface SuperAdminDepartmentRow {
+  id: string;
+  name: string;
+  lead: string;
+  createdAt: string;
+}
+
+export interface SuperAdminPermissionTemplateRow {
+  id: string;
+  roleName: string;
+  modules: number;
+  defaultGrid: unknown;
+  updatedAt: string;
+}
+
+export interface SuperAdminTeamActivity {
+  schoolsOnboardedThisMonth: number;
+  members: Array<{ id: string; name: string; role: string; lastLoginAt?: string; ticketsResolved: number; actionsTaken: number }>;
+}

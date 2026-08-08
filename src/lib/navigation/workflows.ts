@@ -1,5 +1,6 @@
 import type { Route } from "next";
 import {
+  Activity,
   Award,
   BarChart3,
   BellRing,
@@ -60,6 +61,7 @@ export type WorkflowNavGroup = {
 };
 
 const iconMap: Record<string, LucideIcon> = {
+  Activity,
   Award,
   BarChart3,
   BellRing,
