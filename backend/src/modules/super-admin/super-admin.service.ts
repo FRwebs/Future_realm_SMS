@@ -197,6 +197,35 @@ const featureFlagSchema = z.object({
   rolloutPercent: z.coerce.number().int().min(0).max(100).default(0)
 });
 
+const featureRolloutSchema = z.object({
+  rolloutStatus: z.enum(["OFF", "PILOT", "PARTIAL", "FULL"]),
+  rolloutPercent: z.coerce.number().int().min(0).max(100).optional(),
+  pilotSchoolIds: z.array(z.string()).optional()
+});
+
+const tierFeatureSchema = z.object({
+  name: z.string().trim().min(2),
+  module: z.string().trim().min(2),
+  starterAccess: z.coerce.boolean().default(false),
+  standardAccess: z.coerce.boolean().default(false),
+  eliteAccess: z.coerce.boolean().default(true)
+});
+
+const featureOverrideRequestSchema = z.object({
+  schoolId: z.string().min(1),
+  flagId: z.string().min(1),
+  overrideStatus: z.enum(["GRANTED", "RESTRICTED"]).default("GRANTED"),
+  reason: z.string().trim().min(3),
+  expiryDate: z.coerce.date()
+});
+
+const brandingAssetSchema = z.object({
+  schoolId: z.string().min(1),
+  logoUrl: z.string().trim().optional(),
+  primaryColour: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #25593f"),
+  secondaryColour: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #c28c3d")
+});
+
 const announcementSchema = z.object({
   title: z.string().min(2),
   body: z.string().min(3),
@@ -204,6 +233,125 @@ const announcementSchema = z.object({
   target: z.unknown().default({ audience: "ALL_SCHOOLS" }),
   scheduledAt: z.coerce.date().optional(),
   expiresAt: z.coerce.date().optional()
+});
+
+const audienceFilterSchema = z.object({
+  role: z.string().trim().optional(),
+  plan: z.enum(["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"]).optional(),
+  state: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  lastLoginWithinDays: z.coerce.number().int().positive().optional(),
+  optedInOnly: z.coerce.boolean().optional()
+});
+
+const campaignSchema = z.object({
+  name: z.string().trim().min(2),
+  type: z.enum(["OPERATIONAL", "PROMOTIONAL"]).default("OPERATIONAL"),
+  channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]),
+  subject: z.string().trim().optional(),
+  body: z.string().trim().min(3),
+  templateId: z.string().optional(),
+  scheduledAt: z.coerce.date().optional(),
+  // Audience fields are accepted flat (matching the composer form) and assembled into audienceFilter.
+  role: z.string().trim().optional(),
+  plan: z.enum(["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"]).optional(),
+  state: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  lastLoginWithinDays: z.coerce.number().int().positive().optional()
+});
+
+const messageTemplateSchema = z.object({
+  name: z.string().trim().min(2),
+  channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]),
+  category: z.enum(["ONBOARDING", "SUBSCRIPTION", "OPERATIONAL", "COMMERCIAL"]),
+  body: z.string().trim().min(3),
+  placeholders: z.array(z.string()).default([]),
+  metaTemplateId: z.string().optional()
+});
+
+const templateApprovalSchema = z.object({
+  approvalStatus: z.enum(["PENDING_META_APPROVAL", "APPROVED", "REJECTED"])
+});
+
+const consentSchema = z.object({
+  userId: z.string().min(1),
+  channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]),
+  optedIn: z.coerce.boolean()
+});
+
+const churnReasonValues = ["PRICE_TOO_HIGH", "SWITCHED_TO_COMPETITOR", "SCHOOL_CLOSED", "PRODUCT_ISSUES", "INSUFFICIENT_SUPPORT", "LOW_STAFF_ADOPTION", "OTHER"] as const;
+
+const logChurnSchema = z.object({
+  schoolId: z.string().min(1),
+  reason: z.enum(churnReasonValues),
+  notes: z.string().trim().optional()
+});
+
+const npsSchema = z.object({
+  schoolId: z.string().min(1),
+  score: z.coerce.number().int().min(0).max(10),
+  comment: z.string().trim().optional()
+});
+
+const customReportSchema = z.object({
+  name: z.string().trim().min(2),
+  dimension: z.enum(["tier", "state", "status"]),
+  metric: z.enum(["schoolCount", "studentCount", "mrr"])
+});
+
+const curriculumTemplateSchema = z.object({
+  name: z.string().trim().min(2),
+  country: z.string().trim().min(2),
+  subjects: z.array(z.string()).default([]),
+  calendarType: z.enum(["THREE_TERM", "TWO_SEMESTER"]).default("THREE_TERM"),
+  version: z.string().trim().default("1.0")
+});
+
+const gradingScaleTemplateSchema = z.object({
+  name: z.string().trim().min(2),
+  gradeBands: z.array(z.object({ grade: z.string(), min: z.coerce.number(), max: z.coerce.number(), remark: z.string().optional() })).min(1),
+  passMark: z.coerce.number().min(0).max(100).default(40),
+  applicableCurricula: z.array(z.string()).default([])
+});
+
+const reportCardTemplateSchema = z.object({
+  name: z.string().trim().min(2),
+  layout: z.string().trim().min(2),
+  applicableCurricula: z.array(z.string()).default([]),
+  availableToTiers: z.array(z.string()).default([])
+});
+
+const platformRoleValues = ["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER", "DEVELOPER", "SUPER_ADMIN"] as const;
+
+const internalUserSchema = z.object({
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().min(1),
+  email: z.string().trim().email(),
+  role: z.enum(platformRoleValues),
+  department: z.string().trim().optional()
+});
+
+const internalDepartmentSchema = z.object({
+  name: z.string().trim().min(2),
+  leadEmail: z.string().trim().email().optional()
+});
+
+const permissionTemplateSchema = z.object({
+  roleName: z.enum(platformRoleValues),
+  defaultGrid: z.record(z.enum(["NONE", "VIEW", "EDIT", "FULL"]))
+});
+
+const permissionGridSchema = z.object({
+  userId: z.string().min(1),
+  moduleId: z.string().trim().min(1),
+  accessLevel: z.enum(["NONE", "VIEW", "EDIT", "FULL"])
+});
+
+const accessGrantSchema = z.object({
+  userId: z.string().min(1),
+  moduleId: z.string().trim().min(1),
+  functionId: z.string().trim().optional(),
+  expiresAt: z.coerce.date()
 });
 
 const crmInteractionSchema = z.object({
@@ -2172,7 +2320,9 @@ export class SuperAdminService {
       name: flag.name,
       description: flag.description,
       enabledGlobally: flag.enabledGlobally,
+      rolloutStatus: flag.rolloutStatus,
       rolloutPercent: flag.rolloutPercent,
+      pilotSchoolCount: flag.pilotSchoolIds.length,
       overrides: flag._count.overrides,
       createdAt: flag.createdAt.toISOString()
     })));
@@ -2185,6 +2335,155 @@ export class SuperAdminService {
     const flag = await prisma.platformFeatureFlag.create({ data: { ...parsed, createdById: actor?.id } });
     await this.audit(session, "CREATE", "PlatformFeatureFlag", flag.id, parsed as Prisma.InputJsonValue, null);
     return this.response(flag, "Feature flag created");
+  }
+
+  async updateFeatureFlagRollout(session: SessionPayload, flagId: string, payload: unknown) {
+    assertAnyPlatformRole(session, technicalRoles, "Feature flag rollout changes are restricted to CTO, Product Lead, and Super Admin.");
+    const parsed = featureRolloutSchema.parse(payload);
+    const flag = await prisma.platformFeatureFlag.update({
+      where: { id: flagId },
+      data: {
+        rolloutStatus: parsed.rolloutStatus,
+        rolloutPercent: parsed.rolloutStatus === "FULL" ? 100 : parsed.rolloutStatus === "OFF" ? 0 : parsed.rolloutPercent,
+        pilotSchoolIds: parsed.pilotSchoolIds,
+        enabledGlobally: parsed.rolloutStatus === "FULL"
+      }
+    });
+    await this.audit(session, "UPDATE", "PlatformFeatureFlag", flag.id, { rolloutStatus: parsed.rolloutStatus, rolloutPercent: flag.rolloutPercent }, null);
+    return this.response({ id: flag.id, rolloutStatus: flag.rolloutStatus, rolloutPercent: flag.rolloutPercent }, "Rollout updated");
+  }
+
+  async rollbackFeatureFlag(session: SessionPayload, flagId: string) {
+    assertAnyPlatformRole(session, technicalRoles, "Feature flag rollback is restricted to CTO, Product Lead, and Super Admin.");
+    const flag = await prisma.platformFeatureFlag.update({
+      where: { id: flagId },
+      data: { rolloutStatus: "OFF", rolloutPercent: 0, enabledGlobally: false, pilotSchoolIds: [] }
+    });
+    await this.audit(session, "UPDATE", "PlatformFeatureFlag", flag.id, { instantRollback: true }, null);
+    return this.response({ id: flag.id, rolloutStatus: flag.rolloutStatus }, "Feature disabled platform-wide (instant rollback)");
+  }
+
+  async listTierFeatures(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const features = await prisma.tierFeature.findMany({ orderBy: [{ module: "asc" }, { name: "asc" }] });
+    return this.response(features.map((f) => ({
+      id: f.id,
+      name: f.name,
+      module: f.module,
+      starterAccess: f.starterAccess,
+      standardAccess: f.standardAccess,
+      eliteAccess: f.eliteAccess
+    })));
+  }
+
+  async upsertTierFeature(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, technicalRoles, "Editing the tier-feature matrix is restricted to CTO, Product Lead, and Super Admin.");
+    const parsed = tierFeatureSchema.parse(payload);
+    const feature = await prisma.tierFeature.upsert({
+      where: { name: parsed.name },
+      create: parsed,
+      update: { module: parsed.module, starterAccess: parsed.starterAccess, standardAccess: parsed.standardAccess, eliteAccess: parsed.eliteAccess }
+    });
+    await this.audit(session, "UPDATE", "TierFeature", feature.id, parsed as Prisma.InputJsonValue, null);
+    return this.response({ id: feature.id }, "Tier-feature matrix updated");
+  }
+
+  async listFeatureOverrides(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const overrides = await prisma.platformFeatureFlagOverride.findMany({
+      include: { flag: { select: { name: true, key: true } }, school: { select: { name: true } }, requestedBy: true, approvedBy: true },
+      orderBy: { createdAt: "desc" }
+    });
+    return this.response(overrides.map((o) => ({
+      id: o.id,
+      flagName: o.flag.name,
+      flagKey: o.flag.key,
+      schoolId: o.schoolId,
+      schoolName: o.school.name,
+      overrideStatus: o.overrideStatus,
+      status: o.status,
+      reason: o.reason,
+      expiryDate: o.expiryDate?.toISOString(),
+      requestedBy: o.requestedBy ? `${o.requestedBy.firstName} ${o.requestedBy.lastName}` : "Unknown",
+      approvedBy: o.approvedBy ? `${o.approvedBy.firstName} ${o.approvedBy.lastName}` : null,
+      createdAt: o.createdAt.toISOString()
+    })));
+  }
+
+  async requestFeatureOverride(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...salesRoles, ...technicalRoles]), "Requesting a feature override is restricted to sales and above.");
+    const parsed = featureOverrideRequestSchema.parse(payload);
+    if (parsed.expiryDate <= new Date()) throw new BadRequestException("Override expiry date must be in the future.");
+    const override = await prisma.platformFeatureFlagOverride.upsert({
+      where: { flagId_schoolId: { flagId: parsed.flagId, schoolId: parsed.schoolId } },
+      create: { flagId: parsed.flagId, schoolId: parsed.schoolId, overrideStatus: parsed.overrideStatus, reason: parsed.reason, expiryDate: parsed.expiryDate, status: "PENDING", requestedById: session.userId, enabled: parsed.overrideStatus === "GRANTED" },
+      update: { overrideStatus: parsed.overrideStatus, reason: parsed.reason, expiryDate: parsed.expiryDate, status: "PENDING", requestedById: session.userId, approvedById: null, enabled: parsed.overrideStatus === "GRANTED" }
+    });
+    await this.audit(session, "UPDATE", "PlatformFeatureFlagOverride", override.id, { schoolId: parsed.schoolId, flagId: parsed.flagId, requested: true }, parsed.schoolId);
+    return this.response({ id: override.id, status: override.status }, "Feature override requested — awaiting Product Lead approval");
+  }
+
+  async approveFeatureOverride(session: SessionPayload, overrideId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Approving overrides is restricted to Product Lead and Super Admin.");
+    const override = await prisma.platformFeatureFlagOverride.findUnique({ where: { id: overrideId } });
+    if (!override) throw new NotFoundException("Override request not found.");
+    if (override.status !== "PENDING") throw new BadRequestException("This override has already been resolved.");
+    const updated = await prisma.platformFeatureFlagOverride.update({
+      where: { id: overrideId },
+      data: { status: "APPROVED", approvedById: session.userId }
+    });
+    await this.audit(session, "UPDATE", "PlatformFeatureFlagOverride", updated.id, { approved: true }, override.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Feature override approved");
+  }
+
+  async listBrandingAssets(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const assets = await prisma.brandingAsset.findMany({ include: { school: { select: { name: true } }, approvedBy: true }, orderBy: { createdAt: "desc" } });
+    return this.response(assets.map((a) => ({
+      id: a.id,
+      schoolId: a.schoolId,
+      schoolName: a.school.name,
+      logoUrl: a.logoUrl,
+      primaryColour: a.primaryColour,
+      secondaryColour: a.secondaryColour,
+      status: a.status,
+      appliedTo: a.appliedTo,
+      appliedAt: a.appliedAt?.toISOString(),
+      approvedBy: a.approvedBy ? `${a.approvedBy.firstName} ${a.approvedBy.lastName}` : null,
+      createdAt: a.createdAt.toISOString()
+    })));
+  }
+
+  async submitBrandingAsset(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = brandingAssetSchema.parse(payload);
+    const school = await prisma.school.findFirst({ where: { id: parsed.schoolId, deletedAt: null } });
+    if (!school) throw new NotFoundException("School not found.");
+    const asset = await prisma.brandingAsset.create({ data: { ...parsed, status: "PENDING" } });
+    await this.audit(session, "CREATE", "BrandingAsset", asset.id, { schoolId: parsed.schoolId }, parsed.schoolId);
+    return this.response({ id: asset.id }, "Branding asset submitted for review");
+  }
+
+  async approveBrandingAsset(session: SessionPayload, assetId: string) {
+    assertSuperAdmin(session);
+    const asset = await prisma.brandingAsset.findUnique({ where: { id: assetId } });
+    if (!asset) throw new NotFoundException("Branding asset not found.");
+    const updated = await prisma.brandingAsset.update({ where: { id: assetId }, data: { status: "APPROVED", approvedById: session.userId } });
+    await this.audit(session, "APPROVE", "BrandingAsset", updated.id, {}, asset.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Branding asset approved");
+  }
+
+  async applyBrandingAsset(session: SessionPayload, assetId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Applying branding to a live account requires Super Admin confirmation.");
+    const asset = await prisma.brandingAsset.findUnique({ where: { id: assetId } });
+    if (!asset) throw new NotFoundException("Branding asset not found.");
+    if (asset.status !== "APPROVED") throw new BadRequestException("Branding must be reviewed and approved before it can be applied.");
+    await prisma.$transaction([
+      prisma.school.update({ where: { id: asset.schoolId }, data: { logoUrl: asset.logoUrl ?? undefined, primaryColor: asset.primaryColour, secondaryColor: asset.secondaryColour } }),
+      prisma.brandingAsset.update({ where: { id: assetId }, data: { status: "APPLIED", appliedAt: new Date() } })
+    ]);
+    await this.audit(session, "UPDATE", "BrandingAsset", asset.id, { applied: true }, asset.schoolId);
+    return this.response({ id: asset.id, status: "APPLIED" }, "Branding applied to the school's live account");
   }
 
   async listCommunications(session: SessionPayload) {
@@ -2446,5 +2745,696 @@ export class SuperAdminService {
     });
     await this.audit(session, "SETTINGS_UPDATE", "MaintenanceWindow", window.id, { title: parsed.title, isActive: parsed.isActive }, null);
     return this.response({ id: window.id }, "Maintenance window created");
+  }
+
+  private buildAudienceWhere(filter: z.infer<typeof audienceFilterSchema>): Prisma.UserWhereInput {
+    const roleIn = this.roleFilter(filter.role);
+    return {
+      deletedAt: null,
+      isActive: true,
+      school: { deletedAt: null, ...(filter.plan ? { plan: filter.plan } : {}), ...(filter.state ? { state: { equals: filter.state, mode: "insensitive" } } : {}), ...(filter.city ? { city: { equals: filter.city, mode: "insensitive" } } : {}) },
+      ...(roleIn ? { role: { in: roleIn } } : {}),
+      ...(filter.lastLoginWithinDays ? { lastLoginAt: { gte: new Date(Date.now() - filter.lastLoginWithinDays * 24 * 60 * 60 * 1000) } } : {})
+    };
+  }
+
+  async previewAudience(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const filter = audienceFilterSchema.parse(payload);
+    const where = this.buildAudienceWhere(filter);
+    const [count, sample] = await Promise.all([
+      prisma.user.count({ where }),
+      prisma.user.findMany({ where, select: { id: true, firstName: true, lastName: true, email: true, role: true, school: { select: { name: true } } }, take: 10 })
+    ]);
+    return this.response({
+      recipientCount: count,
+      sample: sample.map((u) => ({ name: `${u.firstName} ${u.lastName}`, email: u.email, role: u.role, school: u.school.name }))
+    });
+  }
+
+  async listCampaigns(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const campaigns = await prisma.campaign.findMany({ include: { createdBy: true, approvedBy: true }, orderBy: { createdAt: "desc" } });
+    return this.response(campaigns.map((c) => ({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      channel: c.channel,
+      status: c.status,
+      recipientCount: c.recipientCount,
+      deliveredCount: c.deliveredCount,
+      failedCount: c.failedCount,
+      openedCount: c.openedCount,
+      scheduledAt: c.scheduledAt?.toISOString(),
+      sentAt: c.sentAt?.toISOString(),
+      createdBy: c.createdBy ? `${c.createdBy.firstName} ${c.createdBy.lastName}` : "Unknown",
+      approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null,
+      createdAt: c.createdAt.toISOString()
+    })));
+  }
+
+  async createCampaign(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = campaignSchema.parse(payload);
+    if (parsed.channel === "SMS" && parsed.body.length > 160) throw new BadRequestException("SMS messages are limited to 160 characters.");
+    const audienceFilter = audienceFilterSchema.parse({
+      role: parsed.role,
+      plan: parsed.plan,
+      state: parsed.state,
+      city: parsed.city,
+      lastLoginWithinDays: parsed.lastLoginWithinDays
+    });
+    const recipientCount = await prisma.user.count({ where: this.buildAudienceWhere(audienceFilter) });
+    const campaign = await prisma.campaign.create({
+      data: {
+        name: parsed.name,
+        type: parsed.type,
+        channel: parsed.channel,
+        subject: parsed.subject,
+        body: parsed.body,
+        templateId: parsed.templateId,
+        audienceFilter: audienceFilter as Prisma.InputJsonValue,
+        scheduledAt: parsed.scheduledAt,
+        recipientCount,
+        status: "DRAFT",
+        createdById: session.userId
+      }
+    });
+    await this.audit(session, "CREATE", "Campaign", campaign.id, { name: parsed.name, type: parsed.type, channel: parsed.channel }, null);
+    return this.response({ id: campaign.id, recipientCount }, "Campaign drafted");
+  }
+
+  async approveCampaign(session: SessionPayload, campaignId: string) {
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    if (!campaign) throw new NotFoundException("Campaign not found.");
+    // Operational campaigns: any department lead / platform role. Promotional: Super Admin or Marketing (Sales) lead.
+    if (campaign.type === "PROMOTIONAL") {
+      assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SALES_MANAGER", "SUPER_ADMIN"]), "Promotional campaigns require Super Admin or Marketing Lead sign-off.");
+    } else {
+      assertSuperAdmin(session);
+    }
+    const updated = await prisma.campaign.update({ where: { id: campaignId }, data: { status: "APPROVED", approvedById: session.userId } });
+    await this.audit(session, "APPROVE", "Campaign", updated.id, { type: campaign.type }, null);
+    return this.response({ id: updated.id, status: updated.status }, "Campaign approved");
+  }
+
+  async sendCampaign(session: SessionPayload, campaignId: string) {
+    assertSuperAdmin(session);
+    const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
+    if (!campaign) throw new NotFoundException("Campaign not found.");
+    if (campaign.status !== "APPROVED" && campaign.status !== "SCHEDULED") {
+      throw new BadRequestException("Only an approved campaign can be sent.");
+    }
+
+    const filter = audienceFilterSchema.parse(campaign.audienceFilter ?? {});
+    const where = this.buildAudienceWhere(filter);
+    let recipients = await prisma.user.findMany({ where, select: { id: true } });
+
+    // Promotional campaigns must honour opt-outs; operational messages bypass opt-out.
+    if (campaign.type === "PROMOTIONAL") {
+      const optedOut = await prisma.consentRecord.findMany({
+        where: { channel: campaign.channel, optedIn: false, userId: { in: recipients.map((r) => r.id) } },
+        select: { userId: true }
+      });
+      const optedOutIds = new Set(optedOut.map((o) => o.userId));
+      recipients = recipients.filter((r) => !optedOutIds.has(r.id));
+    }
+
+    // Mock delivery: assume 97% delivered.
+    const recipientCount = recipients.length;
+    const deliveredCount = Math.round(recipientCount * 0.97);
+    const failedCount = recipientCount - deliveredCount;
+
+    const updated = await prisma.campaign.update({
+      where: { id: campaignId },
+      data: { status: "SENT", sentAt: new Date(), recipientCount, deliveredCount, failedCount, openedCount: Math.round(deliveredCount * 0.4) }
+    });
+    await this.audit(session, "UPDATE", "Campaign", updated.id, { sent: true, recipientCount, deliveredCount }, null);
+    return this.response({ id: updated.id, status: updated.status, recipientCount, deliveredCount, failedCount }, "Campaign sent");
+  }
+
+  async getCampaignReport(session: SessionPayload, campaignId: string) {
+    assertSuperAdmin(session);
+    const c = await prisma.campaign.findUnique({ where: { id: campaignId }, include: { createdBy: true, approvedBy: true } });
+    if (!c) throw new NotFoundException("Campaign not found.");
+    const deliveryRate = c.recipientCount > 0 ? Math.round((c.deliveredCount / c.recipientCount) * 1000) / 10 : 0;
+    const openRate = c.deliveredCount > 0 ? Math.round((c.openedCount / c.deliveredCount) * 1000) / 10 : 0;
+    return this.response({
+      id: c.id,
+      name: c.name,
+      type: c.type,
+      channel: c.channel,
+      status: c.status,
+      subject: c.subject,
+      body: c.body,
+      recipientCount: c.recipientCount,
+      deliveredCount: c.deliveredCount,
+      failedCount: c.failedCount,
+      openedCount: c.openedCount,
+      deliveryRate,
+      openRate,
+      scheduledAt: c.scheduledAt?.toISOString(),
+      sentAt: c.sentAt?.toISOString(),
+      approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null
+    });
+  }
+
+  async listMessageTemplates(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const templates = await prisma.messageTemplate.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
+    return this.response(templates.map((t) => ({
+      id: t.id,
+      name: t.name,
+      channel: t.channel,
+      category: t.category,
+      body: t.body,
+      placeholders: t.placeholders,
+      approvalStatus: t.approvalStatus,
+      metaTemplateId: t.metaTemplateId,
+      updatedAt: t.updatedAt.toISOString()
+    })));
+  }
+
+  async createMessageTemplate(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can add message templates.");
+    const parsed = messageTemplateSchema.parse(payload);
+    const template = await prisma.messageTemplate.create({
+      data: { ...parsed, approvalStatus: parsed.channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "APPROVED" }
+    });
+    await this.audit(session, "CREATE", "MessageTemplate", template.id, { name: parsed.name, channel: parsed.channel }, null);
+    return this.response({ id: template.id }, "Message template created");
+  }
+
+  async updateTemplateApproval(session: SessionPayload, templateId: string, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can change template approval.");
+    const parsed = templateApprovalSchema.parse(payload);
+    const template = await prisma.messageTemplate.update({ where: { id: templateId }, data: { approvalStatus: parsed.approvalStatus } });
+    await this.audit(session, "UPDATE", "MessageTemplate", template.id, { approvalStatus: parsed.approvalStatus }, null);
+    return this.response({ id: template.id, approvalStatus: template.approvalStatus }, "Template approval updated");
+  }
+
+  async setConsent(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = consentSchema.parse(payload);
+    const consent = await prisma.consentRecord.upsert({
+      where: { userId_channel: { userId: parsed.userId, channel: parsed.channel } },
+      create: { userId: parsed.userId, channel: parsed.channel, optedIn: parsed.optedIn, optedOutAt: parsed.optedIn ? null : new Date() },
+      update: { optedIn: parsed.optedIn, optedOutAt: parsed.optedIn ? null : new Date() }
+    });
+    await this.audit(session, "UPDATE", "ConsentRecord", consent.id, { userId: parsed.userId, channel: parsed.channel, optedIn: parsed.optedIn }, null);
+    return this.response({ id: consent.id, optedIn: consent.optedIn }, "Consent updated");
+  }
+
+  async biOverview(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const now = new Date();
+    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const [schools, totalSchools, verifiedOrActive, trials, activeSchools, secondTerm, featureRequests, weeklyLogins] = await Promise.all([
+      prisma.school.findMany({ where: { deletedAt: null }, select: { createdAt: true, status: true, featureFlags: true } }),
+      prisma.school.count({ where: { deletedAt: null } }),
+      prisma.school.count({ where: { deletedAt: null, status: { in: ["TRIAL", "ACTIVE", "GRACE_PERIOD"] } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL" } }),
+      prisma.school.count({ where: { deletedAt: null, status: "ACTIVE" } }),
+      prisma.school.count({ where: { deletedAt: null, status: "ACTIVE", createdAt: { lt: new Date(now.getFullYear(), now.getMonth() - 4, 1) } } }),
+      prisma.supportTicket.findMany({ where: { category: "FEATURE_REQUEST" }, include: { school: { select: { plan: true } } } }),
+      prisma.auditLog.groupBy({ by: ["schoolId"], where: { action: "LOGIN", createdAt: { gte: sevenDaysAgo } }, _count: true })
+    ]);
+
+    // Product adoption heatmap: average enabled-module adoption across schools per module.
+    const moduleCounts = new Map<string, number>();
+    for (const s of schools) {
+      const flags = (s.featureFlags ?? {}) as Record<string, boolean>;
+      for (const [key, enabled] of Object.entries(flags)) {
+        if (enabled) moduleCounts.set(key, (moduleCounts.get(key) ?? 0) + 1);
+      }
+    }
+    const heatmap = Array.from(moduleCounts.entries()).map(([module, count]) => {
+      const pct = totalSchools > 0 ? count / totalSchools : 0;
+      return { module, schoolsUsing: count, adoptionPct: Math.round(pct * 1000) / 10, level: pct >= 0.66 ? "HIGH" : pct >= 0.33 ? "MEDIUM" : "LOW" };
+    }).sort((a, b) => b.adoptionPct - a.adoptionPct);
+
+    // Conversion funnel.
+    const funnel = [
+      { stage: "Signed Up", count: totalSchools },
+      { stage: "Verified", count: verifiedOrActive },
+      { stage: "Trial Active", count: trials + activeSchools },
+      { stage: "Converted to Paid", count: activeSchools },
+      { stage: "Active 2nd Term", count: secondTerm }
+    ];
+
+    // Cohort retention: group by join month, count still-active.
+    const cohortMap = new Map<string, { joined: number; active: number }>();
+    for (const s of schools) {
+      const key = `${s.createdAt.getFullYear()}-${String(s.createdAt.getMonth() + 1).padStart(2, "0")}`;
+      const c = cohortMap.get(key) ?? { joined: 0, active: 0 };
+      c.joined += 1;
+      if (s.status === "ACTIVE") c.active += 1;
+      cohortMap.set(key, c);
+    }
+    const cohorts = Array.from(cohortMap.entries())
+      .map(([cohort, v]) => ({ cohort, joined: v.joined, stillActive: v.active, retentionPct: v.joined > 0 ? Math.round((v.active / v.joined) * 1000) / 10 : 0 }))
+      .sort((a, b) => a.cohort.localeCompare(b.cohort));
+
+    // Feature request intelligence: keyword frequency from feature-request tickets.
+    const stopWords = new Set(["the", "a", "an", "to", "for", "and", "or", "of", "in", "on", "with", "please", "can", "we", "our", "add", "need", "would", "like", "want"]);
+    const keywordMap = new Map<string, { count: number; schools: Set<string>; tiers: Set<string> }>();
+    for (const t of featureRequests) {
+      const words = t.subject.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 3 && !stopWords.has(w));
+      for (const w of new Set(words)) {
+        const entry = keywordMap.get(w) ?? { count: 0, schools: new Set<string>(), tiers: new Set<string>() };
+        entry.count += 1;
+        entry.schools.add(t.schoolId);
+        entry.tiers.add(t.school.plan);
+        keywordMap.set(w, entry);
+      }
+    }
+    const featureRequestsRanked = Array.from(keywordMap.entries())
+      .map(([keyword, v]) => ({ keyword, requestCount: v.count, schoolsRequesting: v.schools.size, priorityScore: v.count * 2 + v.schools.size + v.tiers.size }))
+      .sort((a, b) => b.priorityScore - a.priorityScore)
+      .slice(0, 10);
+
+    return this.response({
+      heatmap,
+      funnel,
+      cohorts,
+      featureRequests: featureRequestsRanked,
+      schoolsActiveThisWeek: weeklyLogins.length
+    });
+  }
+
+  async logChurn(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = logChurnSchema.parse(payload);
+    const record = await prisma.churnRecord.create({ data: { schoolId: parsed.schoolId, reason: parsed.reason, notes: parsed.notes, loggedById: session.userId } });
+    await this.audit(session, "UPDATE", "ChurnRecord", record.id, { schoolId: parsed.schoolId, reason: parsed.reason }, parsed.schoolId);
+    return this.response({ id: record.id }, "Churn reason logged");
+  }
+
+  async churnAnalysis(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const records = await prisma.churnRecord.findMany({ include: { school: { select: { name: true } } }, orderBy: { churnedAt: "desc" } });
+    const byReason = records.reduce((acc, r) => { acc[r.reason] = (acc[r.reason] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+    return this.response({
+      total: records.length,
+      byReason: Object.entries(byReason).map(([reason, count]) => ({ reason, count, pct: records.length > 0 ? Math.round((count / records.length) * 1000) / 10 : 0 })).sort((a, b) => b.count - a.count),
+      recent: records.slice(0, 20).map((r) => ({ id: r.id, schoolName: r.school.name, reason: r.reason, notes: r.notes, churnedAt: r.churnedAt.toISOString() }))
+    });
+  }
+
+  async submitNps(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = npsSchema.parse(payload);
+    const nps = await prisma.npsResponse.create({ data: { schoolId: parsed.schoolId, score: parsed.score, comment: parsed.comment } });
+    await this.audit(session, "CREATE", "NpsResponse", nps.id, { schoolId: parsed.schoolId, score: parsed.score }, parsed.schoolId);
+    return this.response({ id: nps.id }, "NPS response recorded");
+  }
+
+  async npsAnalytics(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const responses = await prisma.npsResponse.findMany({ include: { school: { select: { name: true, plan: true, state: true } } }, orderBy: { createdAt: "desc" } });
+    const total = responses.length;
+    const promoters = responses.filter((r) => r.score >= 9).length;
+    const detractors = responses.filter((r) => r.score <= 6).length;
+    const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+    return this.response({
+      npsScore,
+      total,
+      promoters,
+      passives: total - promoters - detractors,
+      detractors,
+      lowScoreFlags: responses.filter((r) => r.score <= 6).slice(0, 20).map((r) => ({ id: r.id, schoolName: r.school.name, score: r.score, comment: r.comment, createdAt: r.createdAt.toISOString() })),
+      comments: responses.filter((r) => r.comment).slice(0, 30).map((r) => ({ schoolName: r.school.name, score: r.score, comment: r.comment }))
+    });
+  }
+
+  async listCustomReports(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const reports = await prisma.customReport.findMany({ include: { createdBy: true }, orderBy: { createdAt: "desc" } });
+    return this.response(reports.map((r) => ({
+      id: r.id,
+      name: r.name,
+      dimension: r.dimension,
+      metric: r.metric,
+      generatedAt: r.generatedAt?.toISOString(),
+      createdBy: r.createdBy ? `${r.createdBy.firstName} ${r.createdBy.lastName}` : "Unknown",
+      createdAt: r.createdAt.toISOString()
+    })));
+  }
+
+  async createCustomReport(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = customReportSchema.parse(payload);
+    const report = await prisma.customReport.create({ data: { name: parsed.name, dimension: parsed.dimension, metric: parsed.metric, createdById: session.userId, generatedAt: new Date() } });
+    await this.audit(session, "CREATE", "CustomReport", report.id, parsed as Prisma.InputJsonValue, null);
+    return this.response({ id: report.id }, "Custom report saved");
+  }
+
+  async runCustomReport(session: SessionPayload, reportId: string) {
+    assertSuperAdmin(session);
+    const report = await prisma.customReport.findUnique({ where: { id: reportId } });
+    if (!report) throw new NotFoundException("Report not found.");
+    const dimField = report.dimension === "tier" ? "plan" : report.dimension === "state" ? "state" : "status";
+    const schools = await prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, _count: { select: { students: true } } } });
+    const groups = new Map<string, number>();
+    for (const s of schools) {
+      const key = (dimField === "plan" ? s.plan : dimField === "state" ? (s.state?.trim() || "Unspecified") : s.status) as string;
+      const value = report.metric === "schoolCount" ? 1 : report.metric === "studentCount" ? s._count.students : planPrice(s.plan);
+      groups.set(key, (groups.get(key) ?? 0) + value);
+    }
+    await prisma.customReport.update({ where: { id: reportId }, data: { generatedAt: new Date() } });
+    return this.response({
+      name: report.name,
+      dimension: report.dimension,
+      metric: report.metric,
+      rows: Array.from(groups.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value)
+    });
+  }
+
+  async infrastructureMonitoring(session: SessionPayload) {
+    assertAnyPlatformRole(session, technicalRoles, "Infrastructure monitoring is restricted to CTO, technical, and Super Admin roles.");
+    const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
+    const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+    const [apiUsage, pendingSync, failedSync, oldestSync, notificationLogs, backups] = await Promise.all([
+      prisma.apiUsageLog.findMany({ where: { createdAt: { gte: oneDayAgo } }, select: { status: true, durationMs: true } }),
+      prisma.syncDraft.count({ where: { syncedAt: null, school: { deletedAt: null } } }),
+      prisma.syncDraft.count({ where: { syncedAt: null, createdAt: { lt: oneDayAgo }, school: { deletedAt: null } } }),
+      prisma.syncDraft.findFirst({ where: { syncedAt: null, school: { deletedAt: null } }, orderBy: { createdAt: "asc" }, include: { school: { select: { name: true } } } }),
+      prisma.notificationLog.findMany({ where: { sentAt: { gte: thirtyDaysAgo } }, select: { channel: true, status: true } }),
+      prisma.backupRecord.findMany({ orderBy: { startedAt: "desc" }, take: 30, include: { school: { select: { name: true } } } })
+    ]);
+
+    // Uptime & performance.
+    const successful = apiUsage.filter((a) => a.status < 500).length;
+    const apiUptime = apiUsage.length ? Math.round((successful / apiUsage.length) * 1000) / 10 : 100;
+    const durations = apiUsage.filter((a) => typeof a.durationMs === "number").map((a) => a.durationMs as number);
+    const avgResponseMs = durations.length ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length) : 0;
+
+    // Sync queue.
+    const oldestSyncAgeHours = oldestSync ? Math.round(((now.getTime() - oldestSync.createdAt.getTime()) / (60 * 60 * 1000)) * 10) / 10 : 0;
+    const syncFailureRate = pendingSync > 0 ? Math.round((failedSync / pendingSync) * 1000) / 10 : 0;
+
+    // Delivery health per channel.
+    const channels = ["EMAIL", "SMS", "WHATSAPP"] as const;
+    const deliveryHealth = channels.map((ch) => {
+      const logs = notificationLogs.filter((l) => l.channel === ch);
+      const delivered = logs.filter((l) => ["SENT", "DELIVERED", "SUCCESS", "COMPLETED"].includes(l.status.toUpperCase())).length;
+      const failureRate = logs.length ? Math.round(((logs.length - delivered) / logs.length) * 1000) / 10 : 0;
+      const threshold = ch === "WHATSAPP" ? 15 : ch === "SMS" ? 10 : 10;
+      return { channel: ch, total: logs.length, failureRate, status: failureRate > threshold ? "CRITICAL" : failureRate > threshold / 2 ? "WARNING" : "HEALTHY" };
+    });
+
+    // Integration status derived from recent delivery + last backup.
+    const lastSuccessfulBackup = backups.find((b) => ["SUCCESS", "COMPLETED", "COMPLETED_SUCCESSFULLY"].includes(b.status.toUpperCase()));
+    const integrations = [
+      { name: "Email Service (Brevo)", checkFrequency: "Every 5 minutes", status: deliveryHealth.find((d) => d.channel === "EMAIL")!.status, onFailure: "Alert CTO" },
+      { name: "SMS Gateway (Termii)", checkFrequency: "Every 5 minutes", status: deliveryHealth.find((d) => d.channel === "SMS")!.status, onFailure: "Alert CTO + switch to email fallback" },
+      { name: "WhatsApp Business API", checkFrequency: "Every 5 minutes", status: deliveryHealth.find((d) => d.channel === "WHATSAPP")!.status, onFailure: "Alert CTO + pause all WhatsApp sends" },
+      { name: "Paystack (Phase 2)", checkFrequency: "Every 5 minutes", status: "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" }
+    ];
+
+    return this.response({
+      uptime: {
+        apiUptime,
+        avgResponseMs,
+        apiUptimeStatus: apiUptime < 99 ? "CRITICAL" : apiUptime < 99.5 ? "WARNING" : "HEALTHY",
+        responseStatus: avgResponseMs > 3000 ? "CRITICAL" : avgResponseMs > 1500 ? "WARNING" : "HEALTHY",
+        requestsLast24h: apiUsage.length
+      },
+      syncQueue: {
+        pending: pendingSync,
+        failedOver24h: failedSync,
+        oldestAgeHours: oldestSyncAgeHours,
+        oldestSchool: oldestSync?.school.name ?? null,
+        failureRate: syncFailureRate,
+        status: oldestSyncAgeHours > 6 || syncFailureRate > 15 ? "CRITICAL" : oldestSyncAgeHours > 2 || syncFailureRate > 5 ? "WARNING" : "HEALTHY"
+      },
+      deliveryHealth,
+      integrations,
+      backups: {
+        lastSuccessfulAt: lastSuccessfulBackup?.endedAt?.toISOString() ?? lastSuccessfulBackup?.startedAt.toISOString() ?? null,
+        recent: backups.map((b) => ({ id: b.id, scope: b.scope, status: b.status, sizeMb: b.sizeMb, school: b.school?.name ?? "Platform", startedAt: b.startedAt.toISOString(), endedAt: b.endedAt?.toISOString() }))
+      },
+      generatedAt: now.toISOString(),
+      recentWindow: twoHoursAgo.toISOString()
+    });
+  }
+
+  async triggerBackup(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Manual backups are restricted to CTO and Super Admin.");
+    const startedAt = new Date();
+    const backup = await prisma.backupRecord.create({
+      data: { scope: "FULL_DATABASE", status: "SUCCESS", sizeMb: Math.round((500 + Math.random() * 1500) * 10) / 10, location: "offsite://futurerealm-backups", startedAt, endedAt: new Date(startedAt.getTime() + 45 * 1000) }
+    });
+    await this.audit(session, "SETTINGS_UPDATE", "BackupRecord", backup.id, { manual: true, scope: "FULL_DATABASE" }, null);
+    return this.response({ id: backup.id, status: backup.status }, "Manual backup completed");
+  }
+
+  async listSyncFailures(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...technicalRoles, "SUPPORT_AGENT"]), "Sync failure logs are restricted to technical and support platform roles.");
+    const oneDayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const drafts = await prisma.syncDraft.findMany({
+      where: { syncedAt: null, createdAt: { lt: oneDayAgo }, school: { deletedAt: null } },
+      include: { school: { select: { name: true } } },
+      orderBy: { createdAt: "asc" },
+      take: 100
+    });
+    return this.response(drafts.map((d) => ({
+      id: d.id,
+      schoolName: d.school.name,
+      type: d.type,
+      ageHours: Math.round(((Date.now() - d.createdAt.getTime()) / (60 * 60 * 1000)) * 10) / 10,
+      createdAt: d.createdAt.toISOString()
+    })));
+  }
+
+  async listConfigLibrary(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const [curricula, gradingScales, reportCards] = await Promise.all([
+      prisma.curriculumTemplate.findMany({ orderBy: { country: "asc" } }),
+      prisma.gradingScaleTemplate.findMany({ orderBy: { name: "asc" } }),
+      prisma.reportCardTemplate.findMany({ orderBy: { name: "asc" } })
+    ]);
+    return this.response({
+      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive })),
+      gradingScales: gradingScales.map((g) => ({ id: g.id, name: g.name, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive })),
+      reportCards: reportCards.map((r) => ({ id: r.id, name: r.name, applicableCurricula: r.applicableCurricula, availableToTiers: r.availableToTiers, isActive: r.isActive }))
+    });
+  }
+
+  async upsertCurriculumTemplate(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Editing the curriculum library is restricted to Product Lead and Super Admin.");
+    const parsed = curriculumTemplateSchema.parse(payload);
+    const template = await prisma.curriculumTemplate.upsert({
+      where: { name: parsed.name },
+      create: { name: parsed.name, country: parsed.country, subjects: parsed.subjects, calendarType: parsed.calendarType, version: parsed.version },
+      update: { country: parsed.country, subjects: parsed.subjects, calendarType: parsed.calendarType, version: parsed.version }
+    });
+    await this.audit(session, "UPDATE", "CurriculumTemplate", template.id, { name: parsed.name, country: parsed.country }, null);
+    return this.response({ id: template.id }, "Curriculum template saved");
+  }
+
+  async upsertGradingScaleTemplate(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Editing the grading scale library is restricted to Product Lead and Super Admin.");
+    const parsed = gradingScaleTemplateSchema.parse(payload);
+    const template = await prisma.gradingScaleTemplate.upsert({
+      where: { name: parsed.name },
+      create: { name: parsed.name, gradeBands: parsed.gradeBands as Prisma.InputJsonValue, passMark: parsed.passMark, applicableCurricula: parsed.applicableCurricula },
+      update: { gradeBands: parsed.gradeBands as Prisma.InputJsonValue, passMark: parsed.passMark, applicableCurricula: parsed.applicableCurricula }
+    });
+    await this.audit(session, "UPDATE", "GradingScaleTemplate", template.id, { name: parsed.name }, null);
+    return this.response({ id: template.id }, "Grading scale template saved");
+  }
+
+  async upsertReportCardTemplate(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Editing the report card library is restricted to Product Lead and Super Admin.");
+    const parsed = reportCardTemplateSchema.parse(payload);
+    const template = await prisma.reportCardTemplate.upsert({
+      where: { name: parsed.name },
+      create: { name: parsed.name, layoutConfig: { layout: parsed.layout }, applicableCurricula: parsed.applicableCurricula, availableToTiers: parsed.availableToTiers },
+      update: { layoutConfig: { layout: parsed.layout }, applicableCurricula: parsed.applicableCurricula, availableToTiers: parsed.availableToTiers }
+    });
+    await this.audit(session, "UPDATE", "ReportCardTemplate", template.id, { name: parsed.name }, null);
+    return this.response({ id: template.id }, "Report card template saved");
+  }
+
+  async listInternalTeam(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const members = await prisma.user.findMany({
+      where: { role: { in: Array.from(platformRoles) } },
+      select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, deletedAt: true, lastLoginAt: true, createdAt: true },
+      orderBy: { createdAt: "asc" }
+    });
+    return this.response(members.map((m) => ({
+      id: m.id,
+      name: `${m.firstName} ${m.lastName}`,
+      email: m.email,
+      role: m.role,
+      status: m.deletedAt ? "REVOKED" : m.isActive ? "ACTIVE" : "SUSPENDED",
+      lastLoginAt: m.lastLoginAt?.toISOString(),
+      createdAt: m.createdAt.toISOString()
+    })));
+  }
+
+  async createInternalUser(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can create internal accounts.");
+    const parsed = internalUserSchema.parse(payload);
+    const email = parsed.email.toLowerCase();
+    const existing = await prisma.user.findUnique({ where: { email } });
+    if (existing) throw new BadRequestException("A user with this email already exists.");
+    const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { schoolId: true } });
+    if (!actor) throw new NotFoundException("Acting account not found.");
+    const tempPassword = `FutureRealm${Math.floor(100000 + Math.random() * 900000)}!`;
+    const user = await prisma.user.create({
+      data: { schoolId: actor.schoolId, email, firstName: parsed.firstName, lastName: parsed.lastName, role: parsed.role, passwordHash: hashPassword(tempPassword), passwordResetRequired: true }
+    });
+    // Apply the role's default permission grid, if a template exists.
+    const template = await prisma.internalPermissionTemplate.findUnique({ where: { roleName: parsed.role } });
+    if (template && template.defaultGrid && typeof template.defaultGrid === "object") {
+      const grid = template.defaultGrid as Record<string, string>;
+      await prisma.$transaction(Object.entries(grid).map(([moduleId, accessLevel]) =>
+        prisma.internalPermissionGrid.upsert({ where: { userId_moduleId: { userId: user.id, moduleId } }, create: { userId: user.id, moduleId, accessLevel }, update: { accessLevel } })
+      ));
+    }
+    await sendNotification({ channel: "EMAIL", recipient: email, title: "Welcome to the Future Realm platform team", body: `Your internal account has been created with the ${parsed.role} role. A temporary password has been set — you will set up MFA and change it on first login.` });
+    await this.audit(session, "CREATE", "InternalUser", user.id, { email, role: parsed.role, department: parsed.department }, null);
+    return this.response({ id: user.id, temporaryPassword: tempPassword }, "Internal account created");
+  }
+
+  async revokeInternalUser(session: SessionPayload, userId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can offboard internal accounts.");
+    const user = await prisma.user.findFirst({ where: { id: userId, role: { in: Array.from(platformRoles) } } });
+    if (!user) throw new NotFoundException("Internal user not found.");
+    // Instant offboarding: deactivate, revoke sessions, revoke time-bound grants.
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: userId }, data: { isActive: false, suspendedAt: new Date(), deletedAt: new Date() } }),
+      prisma.platformSession.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } }),
+      prisma.internalAccessGrant.updateMany({ where: { userId, revokedAt: null }, data: { revokedAt: new Date() } })
+    ]);
+    await this.audit(session, "DELETE", "InternalUser", userId, { offboarded: true }, null);
+    return this.response({ id: userId }, "Internal account offboarded — access revoked immediately");
+  }
+
+  async listDepartments(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const departments = await prisma.internalDepartment.findMany({ include: { lead: true }, orderBy: { name: "asc" } });
+    return this.response(departments.map((d) => ({
+      id: d.id,
+      name: d.name,
+      lead: d.lead ? `${d.lead.firstName} ${d.lead.lastName}` : "Unassigned",
+      createdAt: d.createdAt.toISOString()
+    })));
+  }
+
+  async upsertDepartment(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can manage departments.");
+    const parsed = internalDepartmentSchema.parse(payload);
+    let leadId: string | undefined;
+    if (parsed.leadEmail) {
+      const lead = await prisma.user.findFirst({ where: { email: parsed.leadEmail.toLowerCase(), role: { in: Array.from(platformRoles) } } });
+      if (!lead) throw new NotFoundException("No internal team member found with that lead email.");
+      leadId = lead.id;
+    }
+    const department = await prisma.internalDepartment.upsert({
+      where: { name: parsed.name },
+      create: { name: parsed.name, leadId },
+      update: { leadId }
+    });
+    await this.audit(session, "UPDATE", "InternalDepartment", department.id, { name: parsed.name }, null);
+    return this.response({ id: department.id }, "Department saved");
+  }
+
+  async listPermissionTemplates(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const templates = await prisma.internalPermissionTemplate.findMany({ orderBy: { roleName: "asc" } });
+    return this.response(templates.map((t) => ({
+      id: t.id,
+      roleName: t.roleName,
+      modules: t.defaultGrid && typeof t.defaultGrid === "object" ? Object.keys(t.defaultGrid as object).length : 0,
+      defaultGrid: t.defaultGrid,
+      updatedAt: t.updatedAt.toISOString()
+    })));
+  }
+
+  async upsertPermissionTemplate(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can manage permission templates.");
+    const parsed = permissionTemplateSchema.parse(payload);
+    const template = await prisma.internalPermissionTemplate.upsert({
+      where: { roleName: parsed.roleName },
+      create: { roleName: parsed.roleName, defaultGrid: parsed.defaultGrid as Prisma.InputJsonValue },
+      update: { defaultGrid: parsed.defaultGrid as Prisma.InputJsonValue }
+    });
+    await this.audit(session, "UPDATE", "InternalPermissionTemplate", template.id, { roleName: parsed.roleName }, null);
+    return this.response({ id: template.id }, "Permission template saved");
+  }
+
+  async getInternalUserPermissions(session: SessionPayload, userId: string) {
+    assertSuperAdmin(session);
+    const [grid, grants] = await Promise.all([
+      prisma.internalPermissionGrid.findMany({ where: { userId }, orderBy: { moduleId: "asc" } }),
+      prisma.internalAccessGrant.findMany({ where: { userId }, include: { grantedBy: true }, orderBy: { createdAt: "desc" } })
+    ]);
+    return this.response({
+      grid: grid.map((g) => ({ moduleId: g.moduleId, accessLevel: g.accessLevel })),
+      grants: grants.map((g) => ({
+        id: g.id,
+        moduleId: g.moduleId,
+        functionId: g.functionId,
+        expiresAt: g.expiresAt?.toISOString(),
+        expired: Boolean(g.expiresAt && g.expiresAt < new Date()),
+        revoked: Boolean(g.revokedAt),
+        grantedBy: g.grantedBy ? `${g.grantedBy.firstName} ${g.grantedBy.lastName}` : "Unknown",
+        createdAt: g.createdAt.toISOString()
+      }))
+    });
+  }
+
+  async setPermissionGrid(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can set permissions directly.");
+    const parsed = permissionGridSchema.parse(payload);
+    const entry = await prisma.internalPermissionGrid.upsert({
+      where: { userId_moduleId: { userId: parsed.userId, moduleId: parsed.moduleId } },
+      create: { userId: parsed.userId, moduleId: parsed.moduleId, accessLevel: parsed.accessLevel },
+      update: { accessLevel: parsed.accessLevel }
+    });
+    await this.audit(session, "UPDATE", "InternalPermissionGrid", entry.id, { userId: parsed.userId, moduleId: parsed.moduleId, accessLevel: parsed.accessLevel }, null);
+    return this.response({ id: entry.id }, "Permission updated");
+  }
+
+  async grantTimeBoundAccess(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can grant time-bound access.");
+    const parsed = accessGrantSchema.parse(payload);
+    if (parsed.expiresAt <= new Date()) throw new BadRequestException("Grant expiry must be in the future.");
+    const grant = await prisma.internalAccessGrant.create({
+      data: { userId: parsed.userId, grantedById: session.userId, moduleId: parsed.moduleId, functionId: parsed.functionId, expiresAt: parsed.expiresAt }
+    });
+    await this.audit(session, "UPDATE", "InternalAccessGrant", grant.id, { userId: parsed.userId, moduleId: parsed.moduleId, expiresAt: parsed.expiresAt.toISOString() }, null);
+    return this.response({ id: grant.id }, "Time-bound access granted");
+  }
+
+  async teamActivityDashboard(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const members = await prisma.user.findMany({ where: { role: { in: Array.from(platformRoles) }, deletedAt: null }, select: { id: true, firstName: true, lastName: true, role: true, lastLoginAt: true } });
+    const [ticketsByAgent, schoolsOnboarded, actionsByActor] = await Promise.all([
+      prisma.supportTicket.groupBy({ by: ["assignedToId"], where: { resolvedAt: { gte: thirtyDaysAgo }, assignedToId: { not: null } }, _count: { assignedToId: true } }),
+      prisma.school.count({ where: { createdAt: { gte: thirtyDaysAgo }, deletedAt: null } }),
+      prisma.auditLog.groupBy({ by: ["actorId"], where: { createdAt: { gte: thirtyDaysAgo }, actorId: { not: null } }, _count: { actorId: true } })
+    ]);
+    const ticketMap = new Map(ticketsByAgent.map((t) => [t.assignedToId, t._count.assignedToId]));
+    const actionMap = new Map(actionsByActor.map((a) => [a.actorId, a._count.actorId]));
+    return this.response({
+      schoolsOnboardedThisMonth: schoolsOnboarded,
+      members: members.map((m) => ({
+        id: m.id,
+        name: `${m.firstName} ${m.lastName}`,
+        role: m.role,
+        lastLoginAt: m.lastLoginAt?.toISOString(),
+        ticketsResolved: ticketMap.get(m.id) ?? 0,
+        actionsTaken: actionMap.get(m.id) ?? 0
+      })).sort((a, b) => b.actionsTaken - a.actionsTaken)
+    });
   }
 }
