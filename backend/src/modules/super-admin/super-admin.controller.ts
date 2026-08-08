@@ -249,6 +249,136 @@ export class SuperAdminController {
     return this.superAdminService.revenueReport(session);
   }
 
+  @Get("analytics/bi")
+  biOverview(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.biOverview(session);
+  }
+
+  @Get("analytics/churn")
+  churnAnalysis(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.churnAnalysis(session);
+  }
+
+  @Post("analytics/churn")
+  logChurn(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.logChurn(session, body);
+  }
+
+  @Get("analytics/nps")
+  npsAnalytics(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.npsAnalytics(session);
+  }
+
+  @Post("analytics/nps")
+  submitNps(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.submitNps(session, body);
+  }
+
+  @Get("analytics/custom-reports")
+  listCustomReports(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listCustomReports(session);
+  }
+
+  @Post("analytics/custom-reports")
+  createCustomReport(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.createCustomReport(session, body);
+  }
+
+  @Get("analytics/custom-reports/:reportId/run")
+  runCustomReport(@CurrentSession() session: SessionPayload, @Param("reportId") reportId: string) {
+    return this.superAdminService.runCustomReport(session, reportId);
+  }
+
+  @Get("system/monitoring")
+  infrastructureMonitoring(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.infrastructureMonitoring(session);
+  }
+
+  @Post("system/backups")
+  triggerBackup(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.triggerBackup(session);
+  }
+
+  @Get("system/sync-failures")
+  listSyncFailures(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listSyncFailures(session);
+  }
+
+  @Get("config-library")
+  listConfigLibrary(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listConfigLibrary(session);
+  }
+
+  @Post("config-library/curricula")
+  upsertCurriculumTemplate(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.upsertCurriculumTemplate(session, body);
+  }
+
+  @Post("config-library/grading-scales")
+  upsertGradingScaleTemplate(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.upsertGradingScaleTemplate(session, body);
+  }
+
+  @Post("config-library/report-cards")
+  upsertReportCardTemplate(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.upsertReportCardTemplate(session, body);
+  }
+
+  @Get("internal-team")
+  listInternalTeam(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listInternalTeam(session);
+  }
+
+  @Post("internal-team")
+  createInternalUser(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.createInternalUser(session, body);
+  }
+
+  @Get("internal-team/activity")
+  teamActivityDashboard(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.teamActivityDashboard(session);
+  }
+
+  @Get("internal-team/departments")
+  listDepartments(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listDepartments(session);
+  }
+
+  @Post("internal-team/departments")
+  upsertDepartment(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.upsertDepartment(session, body);
+  }
+
+  @Get("internal-team/permission-templates")
+  listPermissionTemplates(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listPermissionTemplates(session);
+  }
+
+  @Post("internal-team/permission-templates")
+  upsertPermissionTemplate(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.upsertPermissionTemplate(session, body);
+  }
+
+  @Post("internal-team/permission-grid")
+  setPermissionGrid(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.setPermissionGrid(session, body);
+  }
+
+  @Post("internal-team/access-grants")
+  grantTimeBoundAccess(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.grantTimeBoundAccess(session, body);
+  }
+
+  @Get("internal-team/:userId/permissions")
+  getInternalUserPermissions(@CurrentSession() session: SessionPayload, @Param("userId") userId: string) {
+    return this.superAdminService.getInternalUserPermissions(session, userId);
+  }
+
+  @Delete("internal-team/:userId")
+  revokeInternalUser(@CurrentSession() session: SessionPayload, @Param("userId") userId: string) {
+    return this.superAdminService.revokeInternalUser(session, userId);
+  }
+
   @Get("analytics/overview")
   analyticsOverview(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.analyticsOverview(session);
@@ -367,6 +497,61 @@ export class SuperAdminController {
     return this.superAdminService.createFeatureFlag(session, body);
   }
 
+  @Get("feature-flags/tier-matrix")
+  listTierFeatures(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listTierFeatures(session);
+  }
+
+  @Post("feature-flags/tier-matrix")
+  upsertTierFeature(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.upsertTierFeature(session, body);
+  }
+
+  @Get("feature-flags/overrides")
+  listFeatureOverrides(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listFeatureOverrides(session);
+  }
+
+  @Post("feature-flags/overrides")
+  requestFeatureOverride(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.requestFeatureOverride(session, body);
+  }
+
+  @Patch("feature-flags/overrides/:overrideId/approve")
+  approveFeatureOverride(@CurrentSession() session: SessionPayload, @Param("overrideId") overrideId: string) {
+    return this.superAdminService.approveFeatureOverride(session, overrideId);
+  }
+
+  @Get("feature-flags/branding")
+  listBrandingAssets(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listBrandingAssets(session);
+  }
+
+  @Post("feature-flags/branding")
+  submitBrandingAsset(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.submitBrandingAsset(session, body);
+  }
+
+  @Patch("feature-flags/branding/:assetId/approve")
+  approveBrandingAsset(@CurrentSession() session: SessionPayload, @Param("assetId") assetId: string) {
+    return this.superAdminService.approveBrandingAsset(session, assetId);
+  }
+
+  @Patch("feature-flags/branding/:assetId/apply")
+  applyBrandingAsset(@CurrentSession() session: SessionPayload, @Param("assetId") assetId: string) {
+    return this.superAdminService.applyBrandingAsset(session, assetId);
+  }
+
+  @Patch("feature-flags/:flagId/rollout")
+  updateFeatureFlagRollout(@CurrentSession() session: SessionPayload, @Param("flagId") flagId: string, @Body() body: unknown) {
+    return this.superAdminService.updateFeatureFlagRollout(session, flagId, body);
+  }
+
+  @Post("feature-flags/:flagId/rollback")
+  rollbackFeatureFlag(@CurrentSession() session: SessionPayload, @Param("flagId") flagId: string) {
+    return this.superAdminService.rollbackFeatureFlag(session, flagId);
+  }
+
   @Get("communications")
   communications(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.listCommunications(session);
@@ -380,6 +565,56 @@ export class SuperAdminController {
   @Post("communications/maintenance")
   createMaintenanceWindow(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createMaintenanceWindow(session, body);
+  }
+
+  @Post("communications/audience-preview")
+  previewAudience(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.previewAudience(session, body);
+  }
+
+  @Get("communications/campaigns")
+  listCampaigns(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listCampaigns(session);
+  }
+
+  @Post("communications/campaigns")
+  createCampaign(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.createCampaign(session, body);
+  }
+
+  @Get("communications/campaigns/:campaignId/report")
+  getCampaignReport(@CurrentSession() session: SessionPayload, @Param("campaignId") campaignId: string) {
+    return this.superAdminService.getCampaignReport(session, campaignId);
+  }
+
+  @Patch("communications/campaigns/:campaignId/approve")
+  approveCampaign(@CurrentSession() session: SessionPayload, @Param("campaignId") campaignId: string) {
+    return this.superAdminService.approveCampaign(session, campaignId);
+  }
+
+  @Post("communications/campaigns/:campaignId/send")
+  sendCampaign(@CurrentSession() session: SessionPayload, @Param("campaignId") campaignId: string) {
+    return this.superAdminService.sendCampaign(session, campaignId);
+  }
+
+  @Get("communications/templates")
+  listMessageTemplates(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listMessageTemplates(session);
+  }
+
+  @Post("communications/templates")
+  createMessageTemplate(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.createMessageTemplate(session, body);
+  }
+
+  @Patch("communications/templates/:templateId/approval")
+  updateTemplateApproval(@CurrentSession() session: SessionPayload, @Param("templateId") templateId: string, @Body() body: unknown) {
+    return this.superAdminService.updateTemplateApproval(session, templateId, body);
+  }
+
+  @Post("communications/consent")
+  setConsent(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.setConsent(session, body);
   }
 
   @Get("crm")
