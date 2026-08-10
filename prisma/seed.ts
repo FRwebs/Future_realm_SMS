@@ -879,11 +879,38 @@ async function provisionStudentGuardians({
   await provisionGuardianPortalAccounts({ schoolId, passwordHash, assignedById });
 }
 
+async function assertSeedAllowed() {
+  // This seed WIPES every table before inserting the demo dataset. Guard against
+  // running it against a database that already holds data (e.g. production).
+  if (process.env.SEED_FORCE === "true") {
+    console.warn(
+      "[seed] SEED_FORCE=true — clearing and reseeding regardless of existing data.",
+    );
+    return;
+  }
+
+  const [schoolCount, userCount] = await Promise.all([
+    prisma.school.count(),
+    prisma.user.count(),
+  ]);
+
+  if (schoolCount > 0 || userCount > 0) {
+    throw new Error(
+      `Refusing to seed: this database already contains data (${schoolCount} schools, ${userCount} users).\n` +
+        "The seed script DELETES all data before inserting the demo dataset, so running it here would wipe real data.\n" +
+        "If you genuinely intend to reset this database, re-run with SEED_FORCE=true.",
+    );
+  }
+}
+
 async function main() {
   let stage = 0;
   const logStage = (label: string) => {
     console.log(`\n[seed ${String(++stage).padStart(2, "0")}] ${label}`);
   };
+
+  logStage("Checking the target database is safe to seed");
+  await assertSeedAllowed();
 
   logStage("Clearing existing data");
   await clearDatabase();
