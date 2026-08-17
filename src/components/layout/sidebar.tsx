@@ -73,14 +73,14 @@ function SidebarContent({
         collapsed && !isMobile ? "overflow-visible" : "overflow-hidden",
         isFinanceLight
           ? "finance-sidebar-card border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,250,248,0.98),rgba(240,245,241,0.96))] text-[var(--finance-text-primary)] shadow-[0_18px_38px_rgba(15,23,42,0.10)]"
-          : "finance-sidebar-card border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(18,33,23,0.98),rgba(26,46,32,0.98),rgba(15,28,19,0.98))] text-[var(--finance-text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.45)]",
+          : "finance-sidebar-card border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(13,35,21,0.98),rgba(19,38,29,0.98),rgba(10,26,16,0.98))] text-[var(--finance-text-primary)] shadow-[0_24px_60px_rgba(0,0,0,0.45)]",
       )}
     >
       <div
         className={cn(
           isFinanceLight
-            ? "border-b border-[var(--finance-border)] bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.14),rgba(255,255,255,0.94),rgba(240,245,241,0.98))]"
-            : "border-b border-[var(--finance-border)] bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.12),rgba(18,33,23,0.98),rgba(15,28,19,0.98))]",
+            ? "border-b border-[var(--finance-border)] bg-[radial-gradient(circle_at_top_left,rgba(18,121,106,0.14),rgba(255,255,255,0.94),rgba(240,245,241,0.98))]"
+            : "border-b border-[var(--finance-border)] bg-[radial-gradient(circle_at_top_left,rgba(18,121,106,0.12),rgba(13,35,21,0.98),rgba(10,26,16,0.98))]",
           collapsed ? "px-3 py-4" : "px-5 py-5",
         )}
       >
@@ -90,8 +90,8 @@ function SidebarContent({
               className={cn(
                 "flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl font-bold text-white",
                 isFinanceLight
-                  ? "bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#122117] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
-                  : "bg-gradient-to-br from-[#2dd4bf] via-[#0f766e] to-[#122117] shadow-[0_16px_34px_rgba(0,0,0,0.28)]",
+                  ? "bg-gradient-to-br from-[#12796a] via-[#12796a] to-[#0d2315] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+                  : "bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] shadow-[0_16px_34px_rgba(0,0,0,0.28)]",
               )}
             >
               {portalType === "super_admin" ? "SA" : "FR"}
@@ -117,8 +117,8 @@ function SidebarContent({
               className={cn(
                 "flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl font-bold text-white",
                 isFinanceLight
-                  ? "bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#122117] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
-                  : "bg-gradient-to-br from-[#2dd4bf] via-[#0f766e] to-[#122117] shadow-[0_18px_34px_rgba(45,212,191,0.18)]",
+                  ? "bg-gradient-to-br from-[#12796a] via-[#12796a] to-[#0d2315] shadow-[0_14px_28px_rgba(15,23,42,0.12)]"
+                  : "bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] shadow-[0_18px_34px_rgba(18,121,106,0.18)]",
               )}
             >
               {portalType === "super_admin" ? "SA" : "FR"}
@@ -205,8 +205,8 @@ function SidebarContent({
           collapsed ? "px-1.5" : "px-3",
         )}
       >
-        <div className={cn("pointer-events-none absolute inset-x-3 top-4 z-10 h-6", isFinanceLight ? "bg-gradient-to-b from-[rgba(255,255,255,0.96)] to-transparent" : "bg-gradient-to-b from-[#122117] to-transparent")} />
-        <div className={cn("pointer-events-none absolute inset-x-3 bottom-4 z-10 h-6", isFinanceLight ? "bg-gradient-to-t from-[rgba(255,255,255,0.96)] to-transparent" : "bg-gradient-to-t from-[#122117] to-transparent")} />
+        <div className={cn("pointer-events-none absolute inset-x-3 top-4 z-10 h-6", isFinanceLight ? "bg-gradient-to-b from-[rgba(255,255,255,0.96)] to-transparent" : "bg-gradient-to-b from-[#0d2315] to-transparent")} />
+        <div className={cn("pointer-events-none absolute inset-x-3 bottom-4 z-10 h-6", isFinanceLight ? "bg-gradient-to-t from-[rgba(255,255,255,0.96)] to-transparent" : "bg-gradient-to-t from-[#0d2315] to-transparent")} />
 
         <nav
           className={cn(
@@ -246,8 +246,8 @@ function SidebarContent({
                               : "gap-3 px-4 py-3",
                             active
                               ? isFinanceLight
-                                ? "border border-[#a7ece1] bg-[linear-gradient(135deg,rgba(45,212,191,0.18),rgba(255,255,255,0.98))] text-[var(--finance-text-primary)] shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
-                                : "border border-[var(--finance-border)] bg-[linear-gradient(135deg,rgba(45,212,191,0.18),rgba(18,33,23,0.98))] text-[var(--finance-text-primary)] shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
+                                ? "border border-[#a7ece1] bg-[linear-gradient(135deg,rgba(18,121,106,0.18),rgba(255,255,255,0.98))] text-[var(--finance-text-primary)] shadow-[0_12px_28px_rgba(15,23,42,0.10)]"
+                                : "border border-[var(--finance-border)] bg-[linear-gradient(135deg,rgba(18,121,106,0.18),rgba(13,35,21,0.98))] text-[var(--finance-text-primary)] shadow-[0_18px_40px_rgba(0,0,0,0.35)]"
                               : isFinanceLight
                                 ? "text-[var(--finance-text-secondary)] hover:bg-black/[0.03] hover:text-[var(--finance-text-primary)] hover:shadow-[0_8px_20px_rgba(15,23,42,0.06)]"
                                 : "text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)] hover:shadow-[0_10px_22px_rgba(0,0,0,0.22)]",

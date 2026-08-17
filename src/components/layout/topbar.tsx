@@ -149,7 +149,11 @@ function initials(name: string) {
 
 function pageTitle(pathname: string) {
   const workflowItem = getWorkflowNavItemForPath(pathname);
-  if (workflowItem?.label) return workflowItem.label;
+  // Only trust the matched nav item when it's an exact match — registry
+  // lookups fall back to the longest matching prefix, which for a route with
+  // no dedicated entry (e.g. a profile page) resolves to its portal's
+  // dashboard and would mislabel the page as "Dashboard".
+  if (workflowItem?.label && workflowItem.href === pathname) return workflowItem.label;
   const segment = pathname.split("/").filter(Boolean).at(-1);
   if (!segment) return "Dashboard";
   return segment
@@ -191,7 +195,7 @@ function dropdownItemsFor(session: SessionUser): DropdownItem[] {
         : ["TRANSPORT_COORDINATOR", "TRANSPORT_MANAGER"].includes(session.role)
           ? "/portals/transport/profile"
         : session.role.startsWith("PLATFORM_") || session.role === "SUPER_ADMIN"
-          ? "/super-admin"
+          ? "/super-admin/profile"
           : "/school/profile";
 
   const common: DropdownItem[] = [
@@ -480,6 +484,7 @@ export function Topbar({
 }: TopbarProps) {
   const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const academicContextLabel =
     currentTermName && currentSessionName
@@ -498,6 +503,10 @@ export function Topbar({
 
     document.addEventListener("mousedown", handleOutsideClick);
     return () => document.removeEventListener("mousedown", handleOutsideClick);
+  }, []);
+
+  useEffect(() => {
+    setMounted(true);
   }, []);
 
   return (
@@ -567,7 +576,7 @@ export function Topbar({
               aria-label={`Switch to ${currentThemeMode === "dark" ? "light" : "dark"} mode`}
               title={`Switch to ${currentThemeMode === "dark" ? "light" : "dark"} mode`}
             >
-              {currentThemeMode === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+              {mounted && currentThemeMode === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             </button>
           ) : null}
 

@@ -346,8 +346,14 @@ export interface SuperAdminSchoolRow {
   plan: SubscriptionPlan;
   status: TenantStatus;
   billingStatus: PlatformBillingStatus;
+  category?: string;
   country?: string;
   state?: string;
+  city?: string;
+  address?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
   healthScore?: number;
   totalUsers: number;
   totalStudents: number;
@@ -366,6 +372,18 @@ export interface SuperAdminSchoolContact {
   email?: string | null;
   isPrimary: boolean;
   createdAt: string;
+}
+
+export interface SuperAdminSchoolGroup {
+  id: string;
+  name: string;
+  ownerName?: string | null;
+  ownerEmail?: string | null;
+  billingMode: string;
+  createdAt: string;
+  branchCount: number;
+  totalStudents: number;
+  branches: Array<{ id: string; name: string; totalStudents: number; plan: SubscriptionPlan; status: TenantStatus }>;
 }
 
 export interface SuperAdminSchoolDetail {
@@ -392,6 +410,7 @@ export interface SuperAdminSchoolDetail {
   counts: Record<string, number>;
   admins: Array<{ id: string; name: string; email: string; role: Role; status: string; createdAt: string }>;
   prioritySupport: boolean;
+  schoolGroup: { id: string; name: string } | null;
   dataExportedAt: string | null;
   statusReason?: string | null;
   statusChangedAt: string | null;
@@ -466,6 +485,28 @@ export interface SuperAdminDuplicateFlagRow {
   userA: { id: string; name: string; email: string; phone?: string | null };
   userB: { id: string; name: string; email: string; phone?: string | null };
   createdAt: string;
+}
+
+export interface SuperAdminAccountRecoveryRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  verificationMethod: string;
+  newEmail?: string | null;
+  verifiedBy: string;
+  completedAt?: string;
+  createdAt: string;
+}
+
+export interface SuperAdminImpersonationLogRow {
+  id: string;
+  impersonatedBy: string;
+  targetEmail: string;
+  schoolName: string;
+  reason?: string | null;
+  startedAt: string;
+  maxAgeSeconds?: number | null;
 }
 
 export interface SuperAdminBillingRow {
@@ -2047,6 +2088,21 @@ export interface SuperAdminTicketRow {
   updatedAt: string;
 }
 
+export interface SuperAdminDataCorrectionRow {
+  id: string;
+  ticketId: string;
+  ticketNo: string;
+  schoolName: string;
+  fieldCorrected: string;
+  oldValue: string;
+  newValue: string;
+  status: string;
+  requestedBy: string | null;
+  approvedBy: string | null;
+  createdAt: string;
+  completedAt: string | null;
+}
+
 export interface SuperAdminTicketDetail {
   id: string;
   ticketNo: string;
@@ -2137,6 +2193,36 @@ export interface SuperAdminBrandingAssetRow {
   createdAt: string;
 }
 
+export interface SuperAdminPlanRow {
+  id: string;
+  name: string;
+  slug: string;
+  plan: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  studentLimit?: number | null;
+  staffLimit?: number | null;
+  storageLimitGb?: number | null;
+  smsUnitsPerMonth: number;
+  emailSendsPerMonth: number;
+  supportTier: string;
+  apiAccess: boolean;
+  customBranding: boolean;
+  includedModules: unknown;
+  isActive: boolean;
+  subscriberCount: number;
+  createdAt: string;
+}
+
+export interface SuperAdminPlanLifecycleRow {
+  id: string;
+  schoolId: string | null;
+  schoolName: string;
+  toPlan: string;
+  changedBy: string;
+  changedAt: string;
+}
+
 export interface SuperAdminCampaignRow {
   id: string;
   name: string;
@@ -2163,6 +2249,17 @@ export interface SuperAdminMessageTemplateRow {
   placeholders: string[];
   approvalStatus: string;
   metaTemplateId?: string | null;
+  updatedAt: string;
+}
+
+export interface SuperAdminConsentRow {
+  id: string;
+  userId: string;
+  userName: string;
+  userEmail: string;
+  channel: string;
+  optedIn: boolean;
+  optedOutAt?: string;
   updatedAt: string;
 }
 
@@ -2223,6 +2320,7 @@ export interface SuperAdminInternalMember {
   status: string;
   lastLoginAt?: string;
   createdAt: string;
+  revokedAt?: string;
 }
 
 export interface SuperAdminDepartmentRow {
@@ -2243,4 +2341,9 @@ export interface SuperAdminPermissionTemplateRow {
 export interface SuperAdminTeamActivity {
   schoolsOnboardedThisMonth: number;
   members: Array<{ id: string; name: string; role: string; lastLoginAt?: string; ticketsResolved: number; actionsTaken: number }>;
+}
+
+export interface SuperAdminPermissionGridMatrix {
+  modules: string[];
+  members: Array<{ id: string; name: string; role: string; access: Record<string, string> }>;
 }

@@ -3,6 +3,7 @@
 import {
   createContext,
   useContext,
+  useEffect,
   useMemo,
   useState,
 } from "react";
@@ -29,7 +30,19 @@ function resolveInitialTheme(): ThemeMode {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeMode>(resolveInitialTheme);
+  // Always start at the server-rendered default ("light") so the client's
+  // first render matches SSR output exactly. resolveInitialTheme() reads
+  // window/localStorage, which already exist by the time React hydrates —
+  // calling it as the useState initializer would make the client's first
+  // render diverge from the server's, producing a hydration mismatch. The
+  // inline bootstrap script in <head> already sets data-theme on <html>
+  // before paint, so this only affects React-state-driven variants (e.g.
+  // the theme toggle icon), not the CSS itself.
+  const [theme, setThemeState] = useState<ThemeMode>("light");
+
+  useEffect(() => {
+    setThemeState(resolveInitialTheme());
+  }, []);
 
   const setTheme = (nextTheme: ThemeMode) => {
     setThemeState(nextTheme);

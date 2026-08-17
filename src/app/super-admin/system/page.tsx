@@ -1,8 +1,11 @@
+import Link from "next/link";
+
+import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import type { SuperAdminInfraMonitoring } from "@/lib/domain/types";
+import type { SuperAdminFeatureFlagRow, SuperAdminInfraMonitoring } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
@@ -12,17 +15,44 @@ function statusTone(status: string): "success" | "warning" | "danger" | "neutral
   return "neutral";
 }
 
-export default async function SuperAdminSystemPage() {
+function StatCard({ label, value, detail, status }: { label: string; value: string; detail?: string; status?: string }) {
+  return (
+    <article className="surface-card p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+        {status ? <StatusBadge status={status} tone={statusTone(status)} /> : null}
+      </div>
+      <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+      {detail ? <p className="mt-1 text-[11px] font-medium text-[var(--color-text-muted)]">{detail}</p> : null}
+    </article>
+  );
+}
+
+function tabHref(tab: string) {
+  return tab === "health" ? "/super-admin/system" : `/super-admin/system?tab=${tab}`;
+}
+
+export default async function SuperAdminSystemPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
+  const { tab = "health" } = searchParams ? await searchParams : {};
   const data = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
 
+  const tabs = [
+    { label: "Uptime & Performance", href: tabHref("health"), active: tab === "health" },
+    { label: "Offline Sync Queue", href: tabHref("sync"), active: tab === "sync" },
+    { label: "Notification Delivery", href: tabHref("delivery"), active: tab === "delivery" },
+    { label: "Backups", href: tabHref("backups"), active: tab === "backups" },
+    { label: "Integrations", href: tabHref("integrations"), active: tab === "integrations" },
+    { label: "Flag Status", href: tabHref("flags"), active: tab === "flags" }
+  ];
+
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <div className="grid gap-5">
+      <section className="surface-hero p-6 md:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Technical operations</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">System & Infrastructure</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+            <p className="section-eyebrow">Technical operations</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">System & Infrastructure</h1>
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Uptime, offline sync queue, notification delivery, third-party integrations, and backups.
             </p>
           </div>
@@ -39,53 +69,98 @@ export default async function SuperAdminSystemPage() {
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">API uptime (24h)</p><StatusBadge status={data.uptime.apiUptimeStatus} tone={statusTone(data.uptime.apiUptimeStatus)} /></div>
-          <p className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-ink">{data.uptime.apiUptime}%</p>
-          <p className="mt-1 text-xs text-ink/50">{data.uptime.requestsLast24h} requests</p>
-        </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">Avg response</p><StatusBadge status={data.uptime.responseStatus} tone={statusTone(data.uptime.responseStatus)} /></div>
-          <p className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-ink">{data.uptime.avgResponseMs}ms</p>
-          <p className="mt-1 text-xs text-ink/50">Warning &gt;1.5s · Critical &gt;3s</p>
-        </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <div className="flex items-center justify-between"><p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">Sync queue</p><StatusBadge status={data.syncQueue.status} tone={statusTone(data.syncQueue.status)} /></div>
-          <p className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-ink">{data.syncQueue.pending}</p>
-          <p className="mt-1 text-xs text-ink/50">Oldest {data.syncQueue.oldestAgeHours}h{data.syncQueue.oldestSchool ? ` · ${data.syncQueue.oldestSchool}` : ""}</p>
-        </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">Last successful backup</p>
-          <p className="mt-2 font-[var(--font-heading)] text-xl font-bold text-ink">{data.backups.lastSuccessfulAt ? formatDate(data.backups.lastSuccessfulAt) : "None logged"}</p>
-        </article>
+      <DetailTabs tabs={tabs} />
+
+      {tab === "health" ? <UptimeTab data={data} /> : null}
+      {tab === "sync" ? <SyncQueueTab data={data} /> : null}
+      {tab === "delivery" ? <DeliveryTab data={data} /> : null}
+      {tab === "backups" ? <BackupsTab data={data} /> : null}
+      {tab === "integrations" ? <IntegrationsTab data={data} /> : null}
+      {tab === "flags" ? <FlagStatusTab /> : null}
+    </div>
+  );
+}
+
+function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        <StatCard
+          label="API uptime (24h)"
+          value={`${data.uptime.apiUptime}%`}
+          detail={`${data.uptime.requestsLast24h.toLocaleString()} requests`}
+          status={data.uptime.apiUptimeStatus}
+        />
+        <StatCard
+          label="Avg response"
+          value={`${data.uptime.avgResponseMs}ms`}
+          detail="Warning >1.5s · Critical >3s"
+          status={data.uptime.responseStatus}
+        />
+        <StatCard label="Data as of" value={formatDate(data.generatedAt)} detail="Last refreshed" />
       </section>
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Reliability</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What these numbers mean</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          API uptime and average response time are measured across every request the platform served in the last 24
+          hours. A drop below the healthy threshold raises an infrastructure alert visible from the Command Center.
+        </p>
+      </section>
+    </div>
+  );
+}
 
-      <TableCard
-        title="Notification delivery health"
-        description="Delivery failure rate by channel over the last 30 days."
-        items={data.deliveryHealth}
-        columns={[
-          { key: "channel", header: "Channel", render: (item) => item.channel },
-          { key: "total", header: "Messages", render: (item) => item.total },
-          { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
-        ]}
-        emptyState="No notification activity recorded."
+function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <StatCard label="Pending records" value={String(data.syncQueue.pending)} status={data.syncQueue.status} />
+        <StatCard label="Failed (24h)" value={String(data.syncQueue.failedOver24h)} />
+        <StatCard label="Failure rate" value={`${data.syncQueue.failureRate}%`} />
+        <StatCard
+          label="Oldest pending"
+          value={`${data.syncQueue.oldestAgeHours}h`}
+          detail={data.syncQueue.oldestSchool ?? "No pending records"}
+        />
+      </section>
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Offline sync</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">How offline sync works</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          School devices queue attendance, results, and fee records locally when offline, then sync automatically once
+          connectivity returns. Records still pending after 24 hours are flagged for follow-up with the school&apos;s ICT
+          contact.
+        </p>
+      </section>
+    </div>
+  );
+}
+
+function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  return (
+    <TableCard
+      title="Notification delivery health"
+      description="Delivery failure rate by channel over the last 30 days."
+      items={data.deliveryHealth}
+      columns={[
+        { key: "channel", header: "Channel", render: (item) => item.channel },
+        { key: "total", header: "Messages", render: (item) => item.total },
+        { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
+        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
+      ]}
+      emptyState="No notification activity recorded."
+    />
+  );
+}
+
+function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  return (
+    <div className="grid gap-5">
+      <StatCard
+        label="Last successful backup"
+        value={data.backups.lastSuccessfulAt ? formatDate(data.backups.lastSuccessfulAt) : "None logged"}
       />
-
-      <TableCard
-        title="Third-party integration status"
-        description="Health of the external providers the platform depends on."
-        items={data.integrations}
-        columns={[
-          { key: "name", header: "Integration", render: (item) => item.name },
-          { key: "freq", header: "Check frequency", render: (item) => item.checkFrequency },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> },
-          { key: "onfail", header: "On failure", render: (item) => item.onFailure }
-        ]}
-      />
-
       <TableCard
         title="Backup log"
         description="The last 30 backup events. A missed or failed backup raises a critical alert until a successful backup completes."
@@ -100,5 +175,49 @@ export default async function SuperAdminSystemPage() {
         emptyState="No backups have been logged yet."
       />
     </div>
+  );
+}
+
+function IntegrationsTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  return (
+    <TableCard
+      title="Third-party integration status"
+      description="Health of the external providers the platform depends on."
+      items={data.integrations}
+      columns={[
+        { key: "name", header: "Integration", render: (item) => item.name },
+        { key: "freq", header: "Check frequency", render: (item) => item.checkFrequency },
+        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> },
+        { key: "onfail", header: "On failure", render: (item) => item.onFailure }
+      ]}
+    />
+  );
+}
+
+async function FlagStatusTab() {
+  const flags = await apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags");
+
+  return (
+    <TableCard
+      title="Feature flag rollout status"
+      description={
+        <>
+          Read-only infrastructure view of every flag&apos;s current rollout stage. Manage rollouts from{" "}
+          <Link href="/super-admin/feature-flags?tab=flags" className="font-semibold text-[var(--color-text-accent)] underline">
+            Feature & Tier Management
+          </Link>
+          .
+        </>
+      }
+      items={flags ?? []}
+      emptyState="No feature flags have been configured."
+      columns={[
+        { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-xs text-[var(--color-text-muted)]">{item.key}</p></div> },
+        { key: "rollout", header: "Rollout", render: (item) => <StatusBadge status={item.rolloutStatus} tone={item.rolloutStatus === "FULL" ? "success" : item.rolloutStatus === "OFF" ? "neutral" : "warning"} /> },
+        { key: "pct", header: "Percent", render: (item) => `${item.rolloutPercent}%` },
+        { key: "pilot", header: "Pilot schools", render: (item) => item.pilotSchoolCount },
+        { key: "overrides", header: "Overrides", render: (item) => item.overrides }
+      ]}
+    />
   );
 }

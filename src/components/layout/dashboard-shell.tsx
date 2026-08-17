@@ -110,7 +110,7 @@ export function DashboardShell({
           <main
             className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5"
           >
-            <div key={pathname} className="page-shell-enter">
+            <div key={pathname} className="page-shell-enter mx-auto w-full max-w-[1480px]">
               {children}
             </div>
           </main>

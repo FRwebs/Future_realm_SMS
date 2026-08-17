@@ -27,8 +27,8 @@ const triggerStyles = {
   primary: "btn-primary px-5",
   secondary: "btn-secondary px-5",
   danger: "btn-destructive px-5",
-  menu: "flex w-full rounded-xl px-3 py-2 text-left text-slate-700 hover:bg-primary-50 hover:text-primary-700",
-  menuDanger: "flex w-full rounded-xl px-3 py-2 text-left text-rose-700 hover:bg-rose-50",
+  menu: "flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
+  menuDanger: "flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-danger)] transition-colors duration-150 hover:bg-[var(--color-danger-dim)]",
 };
 
 const triggerIcons = {

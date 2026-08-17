@@ -11,7 +11,6 @@ import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { getRoleDashboardProfile } from "@/lib/domain/dashboard";
 import { DashboardSummary } from "@/lib/domain/types";
-import { getRoleAccent } from "@/lib/navigation/registry";
 import { formatDate } from "@/lib/utils/formatters";
 
 function displayDateOrText(value: string) {
@@ -91,7 +90,6 @@ export default async function DashboardPage() {
   }
 
   const overview = await apiGet<DashboardSummary>("/api/v1/dashboard/overview");
-  const accent = getRoleAccent(session.role);
   const profile = getRoleDashboardProfile(session.role);
   const primaryMetrics = overview.metrics.slice(0, 4);
   const roleSignals = overview.roleWidgets?.slice(0, 6) ?? [];
@@ -115,38 +113,36 @@ export default async function DashboardPage() {
   ].slice(0, 6);
 
   return (
-    <div className="grid gap-6">
-      <section className={`relative overflow-hidden rounded-[2rem] border border-white/50 bg-gradient-to-br ${accent.gradient} p-6 text-white shadow-panel md:p-8`}>
-        <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-        <div className="absolute -bottom-16 left-1/3 h-44 w-44 rounded-full bg-emerald-300/15 blur-3xl" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.35fr_0.65fr] xl:items-end">
+    <div className="portal-page">
+      <section className="portal-hero">
+        <div className="portal-hero-grid">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/75">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               <Sparkles className="h-3.5 w-3.5" />
               {profile.eyebrow}
             </div>
-            <h1 className="mt-4 max-w-4xl font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">
+            <h1 className="portal-title mt-4 max-w-4xl">
               {dashboardTitle(session.role, session.name)}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/76">{profile.mission}</p>
+            <p className="portal-copy mt-3">{profile.mission}</p>
             <div className="mt-5 flex flex-wrap gap-2">
-              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
                 {overview.currentTerm} · {overview.currentSession}
               </span>
-              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
                 {roleLabels[session.role]}
               </span>
-              <span className="rounded-full border border-white/15 bg-white/10 px-3 py-1.5 text-xs font-semibold text-white/80">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
                 {overview.schoolName}
               </span>
             </div>
           </div>
-          <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-4 backdrop-blur-xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/60">Focus for this role</p>
+          <div className="portal-muted-tile">
+            <p className="section-eyebrow">Focus for this role</p>
             <div className="mt-3 grid gap-2">
               {profile.focus.map((item) => (
-                <div key={item} className="flex items-center gap-2 rounded-2xl bg-white/10 px-3 py-2 text-sm font-semibold text-white/82">
-                  <CheckCircle2 className="h-4 w-4 text-emerald-200" />
+                <div key={item} className="flex items-center gap-2 rounded-[10px] bg-[var(--color-bg-surface)] px-3 py-2 text-sm font-semibold text-[var(--color-text-secondary)]">
+                  <CheckCircle2 className="h-4 w-4 text-[var(--color-success)]" />
                   {item}
                 </div>
               ))}
@@ -160,21 +156,21 @@ export default async function DashboardPage() {
       </section>
 
       {visibleActions.length ? (
-        <section className="rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel">
+        <section className="portal-panel">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Quick action bar</p>
-              <p className="mt-1 text-sm text-slate-600">The fastest routes for this role and permission set.</p>
+              <p className="section-eyebrow">Quick action bar</p>
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">The fastest routes for this role and permission set.</p>
             </div>
             <div className="grid flex-1 gap-2 sm:grid-cols-2 lg:grid-cols-5">
               {visibleActions.map((action) => (
                 <Link
                   key={action.href}
                   href={action.href as Route}
-                  className="group rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:-translate-y-0.5 hover:border-primary-200 hover:bg-primary-50"
+                  className="portal-action-tile group"
                 >
-                  <span className="block text-[13px] font-bold text-slate-900 group-hover:text-primary-800">{action.label}</span>
-                  <span className="mt-1 line-clamp-2 block text-[11px] leading-5 text-slate-500">{action.description}</span>
+                  <span className="block text-[13px] font-bold">{action.label}</span>
+                  <span className="mt-1 line-clamp-2 block text-[11px] leading-5 text-[var(--color-text-muted)]">{action.description}</span>
                 </Link>
               ))}
             </div>
@@ -183,16 +179,16 @@ export default async function DashboardPage() {
       ) : null}
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-primary-700 via-emerald-500 to-teal-400" />
+        <section className="surface-card overflow-hidden">
+          <div className="h-1 bg-[var(--color-accent-primary)]" />
           <div className="p-6">
             <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
-                <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Priority queue</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">{profile.commandTitle}</h2>
-                <p className="mt-2 max-w-xl text-[13px] leading-6 text-slate-600">{profile.commandDescription}</p>
+                <p className="section-eyebrow">Priority queue</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-[var(--color-text-primary)]">{profile.commandTitle}</h2>
+                <p className="mt-2 max-w-xl text-[13px] leading-6 text-[var(--color-text-secondary)]">{profile.commandDescription}</p>
               </div>
-              <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
                 {(overview.pendingActions ?? []).length} item(s)
               </span>
             </div>
@@ -211,7 +207,7 @@ export default async function DashboardPage() {
                 </Link>
               ))}
               {(overview.pendingActions ?? []).length === 0 ? (
-                <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500">
+                <div className="empty-state p-6 text-sm text-[var(--color-text-secondary)]">
                   No pending actions for this role right now.
                 </div>
               ) : null}
@@ -219,21 +215,21 @@ export default async function DashboardPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-teal-500 via-primary-500 to-slate-900" />
+        <section className="surface-card overflow-hidden">
+          <div className="h-1 bg-[var(--color-accent-primary)]" />
           <div className="p-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Role snapshot</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">{profile.spotlightTitle}</h2>
-            <p className="mt-2 text-[13px] leading-6 text-slate-600">{profile.spotlightDescription}</p>
+            <p className="section-eyebrow">Role snapshot</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-[var(--color-text-primary)]">{profile.spotlightTitle}</h2>
+            <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{profile.spotlightDescription}</p>
             <div className="mt-5 grid gap-3 sm:grid-cols-2">
               {roleSignals.length ? roleSignals.map((metric) => (
-                <article key={metric.label} className="rounded-[1.35rem] border border-slate-100 bg-slate-50/70 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">{metric.label}</p>
-                  <p className="mt-2 text-2xl font-black tracking-tight text-slate-950">{metric.value}</p>
-                  <p className="mt-1 text-[12px] leading-5 text-slate-500">{metric.change}</p>
+                <article key={metric.label} className="portal-muted-tile">
+                  <p className="portal-stat-label">{metric.label}</p>
+                  <p className="portal-stat-value">{metric.value}</p>
+                  <p className="portal-stat-note">{metric.change}</p>
                 </article>
               )) : (
-                <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 p-6 text-sm text-slate-500 sm:col-span-2">
+                <div className="empty-state p-6 text-sm text-[var(--color-text-secondary)] sm:col-span-2">
                   No additional role-specific signal is available yet.
                 </div>
               )}
