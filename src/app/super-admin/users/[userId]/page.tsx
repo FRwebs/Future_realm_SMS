@@ -25,14 +25,14 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
   const user = await apiGet<SuperAdminUserProfile>(`/api/super-admin/users/${userId}`);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/super-admin/users" className="text-sm font-semibold text-brand-700">Back to users</Link>
+    <div className="grid gap-5">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/super-admin/users" className="text-[13px] font-semibold text-[var(--color-text-accent)]">← Back to users</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">User profile</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{user.name}</h1>
-            <p className="mt-2 text-sm text-ink/60">{user.email} · {user.role.replaceAll("_", " ")}</p>
+            <p className="section-eyebrow">User profile</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">{user.name}</h1>
+            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{user.email} · {user.role.replaceAll("_", " ")}</p>
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={user.status} />
@@ -90,50 +90,56 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
         </div>
       </section>
 
-      <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">School</p>
-          <p className="mt-2 font-semibold text-ink">{user.school.name}</p>
-          <p className="mt-1 text-sm text-ink/55">{user.school.plan} · {user.school.status}</p>
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">School</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{user.school.name}</p>
+          <p className="mt-1 text-[11px] font-medium text-[var(--color-text-muted)]">{user.school.plan} · {user.school.status}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">Profile type</p>
-          <p className="mt-2 font-semibold text-ink">{user.profileType}</p>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Profile type</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{user.profileType}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">Last login</p>
-          <p className="mt-2 font-semibold text-ink">{user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}</p>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Last login</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em] text-ink/45">Joined</p>
-          <p className="mt-2 font-semibold text-ink">{formatDate(user.createdAt)}</p>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Joined</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{formatDate(user.createdAt)}</p>
         </article>
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Role-specific activity (last 90 days)</h2>
-          <div className="mt-4 grid gap-3">
+      <section className="grid gap-5 lg:grid-cols-2">
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Activity</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Role-specific activity (last 90 days)</h2>
+          <div className="mt-4 grid gap-2.5">
             {activitySummaryItems(user.activitySummary).map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
-                <span className="text-sm font-semibold text-ink">{item.label}</span>
-                <span className="text-lg font-black text-ink">{item.value}</span>
+              <div key={item.label} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.label}</span>
+                <span className="font-[var(--font-mono)] text-[16px] font-bold text-[var(--color-text-primary)]">{item.value}</span>
               </div>
             ))}
           </div>
         </section>
 
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Linked accounts</h2>
-          <p className="mt-2 text-sm text-ink/60">Student records linked to this parent/guardian account.</p>
-          <div className="mt-4 grid gap-2">
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Guardians</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Linked accounts</h2>
+          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Student records linked to this parent/guardian account.</p>
+          <div className="mt-4 grid gap-2.5">
             {user.linkedAccounts.length === 0 ? (
-              <p className="rounded-2xl bg-sand/60 px-4 py-6 text-center text-sm text-ink/50">No linked student accounts.</p>
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No linked student accounts.</p>
             ) : (
               user.linkedAccounts.map((child) => (
-                <div key={child.studentId} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
-                  <span className="text-sm font-semibold text-ink">{child.studentName}</span>
-                  {child.isPrimary ? <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-bold uppercase text-emerald-700">Primary</span> : null}
+                <div key={child.studentId} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{child.studentName}</span>
+                  {child.isPrimary ? (
+                    <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
+                      Primary
+                    </span>
+                  ) : null}
                 </div>
               ))
             )}

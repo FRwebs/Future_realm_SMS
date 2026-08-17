@@ -46,7 +46,7 @@ export function TrendCard({ title, description, items }: TrendCardProps) {
 
                 <div className="relative mt-2 h-3 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                   <div
-                    className="relative h-3 rounded-full bg-gradient-to-r from-primary-600 via-primary-500 to-teal-400 transition-all duration-500 ease-out"
+                    className="relative h-3 rounded-full bg-gradient-to-r from-primary-600 via-primary-500 to-[#4fa895] transition-all duration-500 ease-out"
                     style={{ width: `${percentage}%` }}
                   />
 

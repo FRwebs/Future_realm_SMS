@@ -1,20 +1,20 @@
-@import url("https://api.fontshare.com/v2/css?f[]=cabinet-grotesk@500,600,700,800&f[]=satoshi@400,500,600,700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap");
 @import url("https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap");
 
 :root {
-  --font-display: "Cabinet Grotesk", sans-serif;
-  --font-body: "Satoshi", sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
+  --font-display: "Manrope", "Inter", sans-serif;
+  --font-body: "Inter", sans-serif;
+  --font-mono: "Manrope", "JetBrains Mono", monospace;
 
   --text-xs: 11px;
-  --text-sm: 13px;
-  --text-base: 15px;
-  --text-md: 17px;
-  --text-lg: 20px;
-  --text-xl: 24px;
-  --text-2xl: 32px;
-  --text-3xl: 40px;
-  --text-4xl: 56px;
+  --text-sm: 12.5px;
+  --text-base: 13.5px;
+  --text-md: 15px;
+  --text-lg: 18px;
+  --text-xl: 22px;
+  --text-2xl: 28px;
+  --text-3xl: 36px;
+  --text-4xl: 48px;
 
   --weight-regular: 400;
   --weight-medium: 500;
@@ -33,15 +33,15 @@
   --space-12: 48px;
   --space-16: 64px;
 
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
-  --radius-xl: 24px;
+  --radius-sm: 7px;
+  --radius-md: 11px;
+  --radius-lg: 14px;
+  --radius-xl: 20px;
   --radius-full: 9999px;
 
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.35), 0 1px 3px rgba(0, 0, 0, 0.3);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.3);
+  --shadow-sm: 0 1px 2px rgba(13, 35, 21, 0.06);
+  --shadow-md: 0 10px 24px -12px rgba(13, 35, 21, 0.16);
+  --shadow-lg: 0 20px 44px -18px rgba(13, 35, 21, 0.22);
 
   --transition-fast: all 120ms cubic-bezier(0.4, 0, 0.2, 1);
   --transition-base: all 200ms cubic-bezier(0.4, 0, 0.2, 1);
@@ -56,98 +56,101 @@
   --z-toast: 400;
   --z-tooltip: 500;
 
-  --layout-sidebar-width: 280px;
-  --layout-sidebar-collapsed: 88px;
+  --layout-sidebar-width: 272px;
+  --layout-sidebar-collapsed: 84px;
   --layout-topbar-height: 64px;
-  --space-page-x: 32px;
+  --space-page-x: 28px;
   --space-page-x-mobile: 16px;
-  --space-card: 24px;
-  --space-card-compact: 16px;
-  --space-card-hero: 32px;
-  --space-section-gap: 24px;
-  --space-card-gap: 16px;
+  --space-card: 20px;
+  --space-card-compact: 14px;
+  --space-card-hero: 28px;
+  --space-section-gap: 20px;
+  --space-card-gap: 14px;
   --space-table-x: 16px;
-  --space-table-y: 12px;
+  --space-table-y: 11px;
   --space-table-x-compact: 12px;
   --space-table-y-compact: 8px;
   --radius-input: 10px;
-  --radius-card: 16px;
-  --radius-panel: 16px;
-  --radius-hero: 24px;
+  --radius-card: 14px;
+  --radius-panel: 14px;
+  --radius-hero: 18px;
 }
 
+/* Dark surfaces, light content — the "Nooria" system: near-black ink,
+   a single teal accent, and flat white cards defined by a thin border
+   rather than shadow. */
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg-base: #0a110d;
-  --color-bg-surface: #162019;
-  --color-bg-elevated: #1d3526;
-  --color-bg-overlay: #213128;
-  --color-bg-subtle: #111914;
+  --color-bg-base: #0a130e;
+  --color-bg-surface: #10201a;
+  --color-bg-elevated: #142720;
+  --color-bg-overlay: #182d24;
+  --color-bg-subtle: #0d1a15;
 
-  --color-border-default: #2b3d30;
-  --color-border-muted: rgba(43, 61, 48, 0.62);
-  --color-border-strong: rgba(201, 224, 207, 0.18);
-  --color-border-focus: #3d8a50;
+  --color-border-default: #223830;
+  --color-border-muted: rgba(34, 56, 48, 0.62);
+  --color-border-strong: rgba(201, 224, 207, 0.16);
+  --color-border-focus: #4fa895;
 
-  --color-accent-primary: #2d6b3c;
-  --color-accent-primary-hover: #3d8a50;
-  --color-accent-primary-dim: rgba(45, 107, 60, 0.16);
-  --color-accent-primary-glow: rgba(61, 138, 80, 0.24);
+  --color-accent-primary: #17917e;
+  --color-accent-primary-hover: #22a892;
+  --color-accent-primary-dim: rgba(23, 145, 126, 0.18);
+  --color-accent-primary-glow: rgba(23, 145, 126, 0.28);
 
-  --color-success: #10b981;
-  --color-success-dim: rgba(16, 185, 129, 0.12);
-  --color-warning: #f59e0b;
-  --color-warning-dim: rgba(245, 158, 11, 0.12);
-  --color-danger: #f43f5e;
-  --color-danger-dim: rgba(244, 63, 94, 0.12);
-  --color-info: #60a5fa;
-  --color-info-dim: rgba(96, 165, 250, 0.12);
+  --color-success: #22a06b;
+  --color-success-dim: rgba(34, 160, 107, 0.14);
+  --color-warning: #d9a22c;
+  --color-warning-dim: rgba(217, 162, 44, 0.14);
+  --color-danger: #db5555;
+  --color-danger-dim: rgba(219, 85, 85, 0.14);
+  --color-info: #5b9bd8;
+  --color-info-dim: rgba(91, 155, 216, 0.14);
 
-  --color-text-primary: #c9e0cf;
-  --color-text-secondary: #6b9b78;
-  --color-text-muted: #6b9b78;
-  --color-text-inverse: #0a110d;
-  --color-text-accent: #3d8a50;
+  --color-text-primary: #e7f0ec;
+  --color-text-secondary: #9fb8a7;
+  --color-text-muted: #77857c;
+  --color-text-inverse: #0d2315;
+  --color-text-accent: #4fa895;
 
-  --color-gold: #2d6b3c;
-  --color-gold-dim: rgba(45, 107, 60, 0.14);
+  --color-gold: #d9a22c;
+  --color-gold-dim: rgba(217, 162, 44, 0.12);
 }
 
 :root[data-theme="light"] {
   color-scheme: light;
-  --color-bg-base: #f5f7f5;
+  --color-bg-base: #f4f8f6;
   --color-bg-surface: #ffffff;
   --color-bg-elevated: #ffffff;
-  --color-bg-overlay: #eaf0eb;
-  --color-bg-subtle: #eaf0eb;
+  --color-bg-overlay: #f0f5f2;
+  --color-bg-subtle: #f7faf8;
 
-  --color-border-default: #c8d4ca;
-  --color-border-muted: rgba(200, 212, 202, 0.72);
-  --color-border-strong: rgba(26, 61, 39, 0.18);
-  --color-border-focus: #2d6b3c;
+  --color-border-default: #dee8e2;
+  --color-border-muted: rgba(222, 232, 226, 0.75);
+  --color-border-strong: rgba(13, 35, 21, 0.14);
+  --color-border-focus: #12796a;
 
-  --color-accent-primary: #2d6b3c;
-  --color-accent-primary-hover: #1f522d;
-  --color-accent-primary-dim: rgba(217, 235, 224, 0.95);
-  --color-accent-primary-glow: rgba(45, 107, 60, 0.16);
+  --color-accent-primary: #12796a;
+  --color-accent-primary-hover: #0d2315;
+  --color-accent-primary-dim: #e4f1ec;
+  --color-accent-primary-glow: rgba(18, 121, 106, 0.16);
 
-  --color-success: #059669;
-  --color-success-dim: rgba(5, 150, 105, 0.1);
-  --color-warning: #d97706;
-  --color-warning-dim: rgba(217, 119, 6, 0.1);
-  --color-danger: #e11d48;
-  --color-danger-dim: rgba(225, 29, 72, 0.1);
-  --color-info: #2563eb;
-  --color-info-dim: rgba(37, 99, 235, 0.1);
+  --color-success: #17714f;
+  --color-success-dim: #eaf6f0;
+  --color-warning: #8a6410;
+  --color-warning-dim: #fdf6e7;
+  --color-danger: #b23b3b;
+  --color-danger-dim: #fdf3f3;
+  --color-info: #2b5f8f;
+  --color-info-dim: #e7f1fb;
 
-  --color-text-primary: #1a3d27;
-  --color-text-secondary: #4a6652;
-  --color-text-muted: #4a6652;
-  --color-text-inverse: #f5f7f5;
-  --color-text-accent: #122117;
+  --color-text-primary: #0d2315;
+  --color-text-secondary: #435048;
+  --color-text-muted: #77857c;
+  --color-text-inverse: #ffffff;
+  --color-text-accent: #12796a;
 
-  --color-gold: #2d6b3c;
-  --color-gold-dim: rgba(217, 235, 224, 0.72);
+  --color-gold: #d9a22c;
+  --color-gold-dim: #f2e4c6;
 }
 
 :root {
@@ -168,56 +171,67 @@
   --surface-page: var(--color-bg-base);
   --surface-card: var(--color-bg-surface);
   --surface-muted: var(--color-bg-subtle);
-  --surface-sidebar: var(--color-bg-surface);
-  --surface-topbar: rgba(255, 255, 255, 0.88);
+  --surface-sidebar: #0d2315;
+  --surface-topbar: rgba(255, 255, 255, 0.9);
 
   --border-default: var(--color-border-default);
   --border-strong: var(--color-border-strong);
   --border-focus: var(--color-accent-primary);
 
-  --color-primary-50-rgb: 245 247 245;
-  --color-primary-100-rgb: 234 240 235;
-  --color-primary-200-rgb: 217 235 224;
-  --color-primary-300-rgb: 200 212 202;
-  --color-primary-400-rgb: 106 155 120;
-  --color-primary-500-rgb: 45 107 60;
-  --color-primary-600-rgb: 26 61 39;
-  --color-primary-700-rgb: 18 33 23;
-  --color-primary-800-rgb: 22 32 25;
-  --color-primary-900-rgb: 10 17 13;
+  --color-primary-50-rgb: 244 248 246;
+  --color-primary-100-rgb: 228 241 236;
+  --color-primary-200-rgb: 217 231 225;
+  --color-primary-300-rgb: 159 203 191;
+  --color-primary-400-rgb: 79 168 149;
+  --color-primary-500-rgb: 18 121 106;
+  --color-primary-600-rgb: 15 95 83;
+  --color-primary-700-rgb: 13 35 21;
+  --color-primary-800-rgb: 10 26 16;
+  --color-primary-900-rgb: 6 15 10;
 
-  --color-teal-rgb: 45 107 60;
-  --color-blue-rgb: 45 107 60;
-  --color-indigo-rgb: 29 53 38;
-  --color-violet-rgb: 61 138 80;
-  --color-amber-rgb: 45 107 60;
-  --color-orange-rgb: 61 138 80;
-  --color-red-rgb: 45 107 60;
-  --color-slate-50-rgb: 245 247 245;
-  --color-slate-100-rgb: 234 240 235;
-  --color-slate-200-rgb: 200 212 202;
-  --color-slate-300-rgb: 74 102 82;
-  --color-slate-400-rgb: 74 102 82;
-  --color-slate-500-rgb: 26 61 39;
-  --color-slate-600-rgb: 26 61 39;
-  --color-slate-700-rgb: 18 33 23;
-  --color-slate-800-rgb: 18 33 23;
-  --color-slate-900-rgb: 18 33 23;
+  --color-teal-rgb: 18 121 106;
+  --color-blue-rgb: 43 95 143;
+  --color-indigo-rgb: 13 35 21;
+  --color-violet-rgb: 79 168 149;
+  --color-amber-rgb: 217 162 44;
+  --color-orange-rgb: 138 100 16;
+  --color-red-rgb: 178 59 59;
+  --color-slate-50-rgb: 247 250 248;
+  --color-slate-100-rgb: 240 245 242;
+  --color-slate-200-rgb: 222 232 226;
+  --color-slate-300-rgb: 159 184 167;
+  --color-slate-400-rgb: 140 154 146;
+  --color-slate-500-rgb: 119 133 124;
+  --color-slate-600-rgb: 67 80 72;
+  --color-slate-700-rgb: 13 35 21;
+  --color-slate-800-rgb: 10 26 16;
+  --color-slate-900-rgb: 6 15 10;
   --color-white-rgb: 255 255 255;
-  --color-ink-rgb: 18 33 23;
+  --color-ink-rgb: 13 35 21;
 }
 
 :root[data-theme="dark"] {
-  --surface-topbar: rgba(22, 32, 25, 0.86);
-  --color-slate-50-rgb: 10 17 13;
-  --color-slate-100-rgb: 22 32 25;
-  --color-slate-200-rgb: 29 53 38;
+  --surface-topbar: rgba(16, 32, 26, 0.88);
+  --surface-sidebar: #0a130e;
+  --color-primary-50-rgb: 10 19 14;
+  --color-primary-100-rgb: 16 32 26;
+  --color-primary-200-rgb: 34 56 48;
+  --color-primary-300-rgb: 43 61 48;
+  --color-primary-400-rgb: 79 168 149;
+  --color-primary-500-rgb: 23 145 126;
+  --color-primary-600-rgb: 79 168 149;
+  --color-primary-700-rgb: 231 240 236;
+  --color-primary-800-rgb: 240 247 244;
+  --color-primary-900-rgb: 247 250 248;
+  --color-slate-50-rgb: 10 19 14;
+  --color-slate-100-rgb: 16 32 26;
+  --color-slate-200-rgb: 34 56 48;
   --color-slate-300-rgb: 43 61 48;
-  --color-slate-400-rgb: 107 155 120;
-  --color-slate-500-rgb: 107 155 120;
+  --color-slate-400-rgb: 119 133 124;
+  --color-slate-500-rgb: 159 184 167;
   --color-slate-600-rgb: 201 224 207;
   --color-slate-700-rgb: 201 224 207;
-  --color-slate-800-rgb: 224 235 227;
-  --color-slate-900-rgb: 224 235 227;
-  --color-white-rgb: 22 32 25;
+  --color-slate-800-rgb: 231 240 236;
+  --color-slate-900-rgb: 231 240 236;
+  --color-white-rgb: 16 32 26;
 }

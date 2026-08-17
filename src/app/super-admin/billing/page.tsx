@@ -16,6 +16,8 @@ import type {
 } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
+const TRIAL_DAYS = 14;
+
 const planOptions = [
   { label: "Basic", value: "BASIC" },
   { label: "Standard", value: "STANDARD" },
@@ -23,6 +25,28 @@ const planOptions = [
   { label: "Custom", value: "CUSTOM" },
   { label: "Enterprise", value: "ENTERPRISE" }
 ];
+
+const invoiceStatusTone: Record<string, { bg: string; fg: string; label: string }> = {
+  DRAFT: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Draft" },
+  ISSUED: { bg: "var(--color-info-dim)", fg: "var(--color-info)", label: "Issued" },
+  PARTIALLY_PAID: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partially Paid" },
+  PAID: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Paid" },
+  OVERDUE: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Overdue" },
+  VOID: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Cancelled" }
+};
+
+function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+      {label}
+    </span>
+  );
+}
+
+function InvoiceStatusPill({ status }: { status: string }) {
+  const tone = invoiceStatusTone[status] ?? invoiceStatusTone.DRAFT;
+  return <StatusPill bg={tone.bg} fg={tone.fg} label={tone.label} />;
+}
 
 function tabHref(tab: string) {
   return tab === "overview" ? "/super-admin/billing" : `/super-admin/billing?tab=${tab}`;
@@ -36,34 +60,39 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
     apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue")
   ]);
   const billing = billingEnvelope.data ?? [];
-  const trialSchools = billing.filter((item) => item.status === "TRIAL").length;
+  const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
+  const arpu = revenue.totalPaidSchools > 0 ? revenue.mrr / revenue.totalPaidSchools : 0;
 
   const tabs = [
-    { label: "Overview", href: tabHref("overview"), active: tab === "overview" },
+    { label: "Subscription Dashboard", href: tabHref("overview"), active: tab === "overview" },
     { label: "Invoices", href: tabHref("invoices"), active: tab === "invoices" },
+    { label: "Trials", href: tabHref("trials"), active: tab === "trials", badge: trialBilling.length },
     { label: "Churn Risk", href: tabHref("churn"), active: tab === "churn" },
-    { label: "Notification Credits", href: tabHref("credits"), active: tab === "credits" },
+    { label: "Credit Wallets", href: tabHref("credits"), active: tab === "credits" },
     { label: "Promo Codes", href: tabHref("promo"), active: tab === "promo" },
-    { label: "Revenue Report", href: tabHref("report"), active: tab === "report" }
+    { label: "Revenue Reporting", href: tabHref("report"), active: tab === "report" }
   ];
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Subscriptions</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Billing</h1>
-        <p className="mt-2 max-w-3xl text-sm text-ink/60">Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns.</p>
+    <div className="grid gap-5">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">Subscriptions</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Billing</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns.
+        </p>
       </section>
 
       <DetailTabs tabs={tabs} />
 
       {tab === "overview" ? (
         <>
-          <section className="grid gap-4 md:grid-cols-4">
+          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
             <MetricCard metric={{ label: "MRR", value: formatCurrency(revenue.mrr), change: "Monthly recurring revenue" }} />
             <MetricCard metric={{ label: "ARR", value: formatCurrency(revenue.arr), change: "Annualized revenue" }} />
+            <MetricCard metric={{ label: "ARPU", value: formatCurrency(arpu), change: "Per paying school" }} />
             <MetricCard metric={{ label: "Paid Schools", value: String(revenue.totalPaidSchools), change: "Active billing" }} />
-            <MetricCard metric={{ label: "Trial Schools", value: String(trialSchools), change: "Trial billing" }} />
+            <MetricCard metric={{ label: "Trial Schools", value: String(trialBilling.length), change: "Trial billing" }} />
           </section>
 
           <TableCard
@@ -74,8 +103,8 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               { key: "school", header: "School", render: (item) => item.schoolName },
               { key: "plan", header: "Plan", render: (item) => item.plan },
               { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-              { key: "last", header: "Last Payment", render: (item) => item.lastPaymentAt ? formatDate(item.lastPaymentAt) : "-" },
-              { key: "next", header: "Next Due", render: (item) => item.nextDueAt ? formatDate(item.nextDueAt) : "-" },
+              { key: "last", header: "Last Payment", render: (item) => item.lastPaymentAt ? formatDate(item.lastPaymentAt) : "—" },
+              { key: "next", header: "Next Due", render: (item) => item.nextDueAt ? formatDate(item.nextDueAt) : "—" },
               {
                 key: "actions",
                 header: "Actions",
@@ -120,18 +149,20 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
         </>
       ) : null}
 
-      {tab === "invoices" ? <InvoicesTab /> : null}
+      {tab === "invoices" ? <InvoicesTab billing={billing} /> : null}
+      {tab === "trials" ? <TrialsTab trialBilling={trialBilling} /> : null}
       {tab === "churn" ? <ChurnRiskTab /> : null}
       {tab === "credits" ? <NotificationCreditsTab billing={billing} /> : null}
-      {tab === "promo" ? <PromoCodesTab /> : null}
-      {tab === "report" ? <RevenueReportTab /> : null}
+      {tab === "promo" ? <PromoCodesTab billing={billing} /> : null}
+      {tab === "report" ? <RevenueReportTab revenue={revenue} /> : null}
     </div>
   );
 }
 
-async function InvoicesTab() {
+async function InvoicesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   const envelope = await apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices");
   const invoices = envelope.data ?? [];
+  const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
 
   return (
     <TableCard
@@ -147,7 +178,7 @@ async function InvoicesTab() {
           method="POST"
           submitLabel="Create draft"
           fields={[
-            { name: "schoolId", label: "School ID", required: true },
+            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
             { name: "amount", label: "Amount (NGN)", type: "number", required: true },
             { name: "taxAmount", label: "Tax amount (NGN)", type: "number", defaultValue: 0 },
             { name: "dueAt", label: "Due date", type: "date", required: true },
@@ -160,7 +191,7 @@ async function InvoicesTab() {
         { key: "school", header: "School", render: (item) => item.schoolName },
         { key: "amount", header: "Total", render: (item) => formatCurrency(item.totalAmount) },
         { key: "paid", header: "Paid", render: (item) => formatCurrency(item.amountPaid) },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+        { key: "status", header: "Status", render: (item) => <InvoiceStatusPill status={item.status} /> },
         { key: "due", header: "Due", render: (item) => formatDate(item.dueAt) },
         {
           key: "actions",
@@ -181,7 +212,7 @@ async function InvoicesTab() {
                   fields={[]}
                 />
               ) : null}
-              {item.status !== "CANCELLED" && item.status !== "PAID" ? (
+              {item.status !== "VOID" && item.status !== "PAID" ? (
                 <ResourceActionDialog
                   triggerLabel="Record payment"
                   title={`Record payment for ${item.invoiceNo}`}
@@ -198,7 +229,7 @@ async function InvoicesTab() {
                   ]}
                 />
               ) : null}
-              {item.status !== "CANCELLED" && item.status !== "PAID" ? (
+              {item.status !== "VOID" && item.status !== "PAID" ? (
                 <ResourceActionDialog
                   triggerLabel="Cancel invoice"
                   title={`Cancel invoice ${item.invoiceNo}`}
@@ -221,17 +252,98 @@ async function InvoicesTab() {
   );
 }
 
+function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
+  const now = Date.now();
+
+  const trials = trialBilling
+    .map((item) => {
+      const endsAt = item.trialEndsAt ? new Date(item.trialEndsAt).getTime() : null;
+      const msRemaining = endsAt ? endsAt - now : null;
+      const daysRemaining = msRemaining !== null ? Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24))) : null;
+      const daysElapsed = daysRemaining !== null ? Math.min(TRIAL_DAYS, TRIAL_DAYS - daysRemaining) : null;
+      const pct = daysElapsed !== null ? Math.round((daysElapsed / TRIAL_DAYS) * 100) : 0;
+      return { ...item, daysRemaining, pct };
+    })
+    .sort((a, b) => (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999));
+
+  return (
+    <section className="grid gap-5">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Trial pipeline</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
+          Schools on a {TRIAL_DAYS}-day trial
+        </h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Every school starts on an automatic {TRIAL_DAYS}-day trial at signup. Sorted by soonest to expire.
+        </p>
+      </section>
+
+      {trials.length === 0 ? (
+        <section className="surface-card p-6">
+          <div className="empty-state">
+            <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">No schools currently on trial</p>
+            <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
+              Trial schools will appear here as they self-onboard.
+            </p>
+          </div>
+        </section>
+      ) : (
+        <div className="grid gap-3">
+          {trials.map((trial) => {
+            const urgent = trial.daysRemaining !== null && trial.daysRemaining <= 2;
+            const soon = trial.daysRemaining !== null && trial.daysRemaining <= 5;
+            const barColor = urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-accent-primary)";
+            return (
+              <article key={trial.schoolId} className="surface-card p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{trial.schoolName}</p>
+                    <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{trial.plan} tier</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {trial.daysRemaining !== null ? (
+                      <StatusPill
+                        bg={urgent ? "var(--color-danger-dim)" : soon ? "var(--color-warning-dim)" : "var(--color-accent-primary-dim)"}
+                        fg={urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-text-accent)"}
+                        label={trial.daysRemaining === 0 ? "Expires today" : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} left`}
+                      />
+                    ) : null}
+                    <ResourceActionDialog
+                      triggerLabel="Extend"
+                      title={`Extend trial for ${trial.schoolName}`}
+                      description="Add trial days and move billing due date forward."
+                      endpoint={`/api/super-admin/billing/${trial.schoolId}/extend-trial`}
+                      method="POST"
+                      variant="secondary"
+                      submitLabel="Extend trial"
+                      fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
+                    />
+                  </div>
+                </div>
+                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                  <div className="h-full rounded-full transition-all" style={{ width: `${trial.pct}%`, background: barColor }} />
+                </div>
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
+  );
+}
+
 async function ChurnRiskTab() {
   const envelope = await apiGetEnvelope<SuperAdminChurnRiskRow[]>("/api/super-admin/billing/churn");
   const schools = envelope.data ?? [];
 
   return (
-    <section className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <section className="grid gap-5">
+      <section className="surface-card p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Churn risk scoring</h2>
-            <p className="mt-2 max-w-2xl text-sm text-ink/60">
+            <p className="section-eyebrow">Churn risk scoring</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Retention risk</h2>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Daily behavioural signal scoring (login recency, result/fee activity, trial engagement, support health). Schools with a score below 50 are flagged as high risk.
             </p>
           </div>
@@ -252,7 +364,15 @@ async function ChurnRiskTab() {
         items={schools}
         columns={[
           { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "score", header: "Score", render: (item) => <span className={item.score < 50 ? "font-black text-rose-700" : "font-semibold text-ink"}>{item.score}</span> },
+          {
+            key: "score",
+            header: "Score",
+            render: (item) => (
+              <span className="font-[var(--font-mono)] font-bold" style={{ color: item.score < 50 ? "var(--color-danger)" : "var(--color-text-primary)" }}>
+                {item.score}
+              </span>
+            )
+          },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
           { key: "plan", header: "Plan", render: (item) => item.plan },
           { key: "signals", header: "Signals", render: (item) => item.signals.length ? item.signals.join("; ") : "No risk signals" },
@@ -281,7 +401,16 @@ async function NotificationCreditsTab({ billing }: { billing: SuperAdminBillingR
         { key: "school", header: "School", render: (item) => item.schoolName },
         { key: "sms", header: "SMS balance", render: (item) => item.smsBalance },
         { key: "whatsapp", header: "WhatsApp balance", render: (item) => item.whatsappBalance },
-        { key: "low", header: "Status", render: (item) => (item.isLow ? <span className="font-bold text-rose-700">Low balance</span> : <span className="text-emerald-700">Healthy</span>) },
+        {
+          key: "low",
+          header: "Status",
+          render: (item) =>
+            item.isLow ? (
+              <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Low balance" />
+            ) : (
+              <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Healthy" />
+            )
+        },
         { key: "topped", header: "Last topped up", render: (item) => (item.lastToppedUpAt ? formatDate(item.lastToppedUpAt) : "Never") },
         {
           key: "actions",
@@ -308,16 +437,17 @@ async function NotificationCreditsTab({ billing }: { billing: SuperAdminBillingR
   );
 }
 
-async function PromoCodesTab() {
+async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   const [codesEnvelope, reportEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminPromoCodeRow[]>("/api/super-admin/billing/promo-codes"),
     apiGetEnvelope<Array<{ campaignName: string; totalRedemptions: number; totalDiscountIssued: number; schoolsConverted: number }>>("/api/super-admin/billing/promo-codes/report")
   ]);
   const codes = codesEnvelope.data ?? [];
   const campaigns = reportEnvelope.data ?? [];
+  const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
 
   return (
-    <section className="grid gap-6">
+    <section className="grid gap-5">
       <TableCard
         title="Promo codes"
         description="Discount codes and their redemption performance."
@@ -341,7 +471,7 @@ async function PromoCodesTab() {
           />
         }
         columns={[
-          { key: "code", header: "Code", render: (item) => item.code },
+          { key: "code", header: "Code", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.code}</span> },
           { key: "campaign", header: "Campaign", render: (item) => item.campaignName ?? "Uncategorized" },
           { key: "value", header: "Value", render: (item) => (item.type === "PERCENTAGE" ? `${item.value}%` : formatCurrency(item.value)) },
           { key: "uses", header: "Redemptions", render: (item) => `${item.uses}${item.maxUses ? ` / ${item.maxUses}` : ""}` },
@@ -361,7 +491,7 @@ async function PromoCodesTab() {
                 submitLabel="Apply code"
                 fields={[
                   { name: "code", label: "Code", defaultValue: item.code },
-                  { name: "schoolId", label: "School ID", required: true },
+                  { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
                   { name: "reason", label: "Reason", type: "textarea", required: true }
                 ]}
               />
@@ -387,36 +517,49 @@ async function PromoCodesTab() {
   );
 }
 
-async function RevenueReportTab() {
+async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView }) {
   const report = await apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report");
+  const subscriberCounts = new Map<string, number>(revenue.schoolsByPlan.map((item) => [item.plan, item.count]));
+  const maxTierRevenue = Math.max(...report.revenueByTier.map((item) => item.revenue), 1);
 
   return (
-    <section className="grid gap-6">
-      <section className="grid gap-4 md:grid-cols-3">
+    <section className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
         <MetricCard metric={{ label: "Outstanding receivables", value: formatCurrency(report.outstandingReceivables), change: "Unpaid invoices" }} />
         <MetricCard metric={{ label: "Renewal rate (90d)", value: `${report.renewalRate}%`, change: "Schools with recent payment" }} />
         <MetricCard metric={{ label: "Notification credit revenue", value: formatCurrency(report.notificationCreditRevenue), change: "Separate from subscriptions" }} />
       </section>
 
-      <section className="grid gap-6 lg:grid-cols-2">
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-xl font-bold text-ink">Revenue by tier</h3>
-          <div className="mt-4 grid gap-2">
+      <section className="grid gap-5 lg:grid-cols-2">
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Tier split</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Revenue by tier</h3>
+          <div className="mt-4 grid gap-3">
             {report.revenueByTier.map((item) => (
-              <div key={item.plan} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
-                <span className="text-sm font-semibold text-ink">{item.plan}</span>
-                <span className="font-[var(--font-mono)] text-sm font-black text-ink">{formatCurrency(item.revenue)}</span>
+              <div key={item.plan}>
+                <div className="flex items-center justify-between text-[13px] font-semibold text-[var(--color-text-primary)]">
+                  <span className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-[3px] bg-[var(--color-accent-primary)]" />
+                    {item.plan}
+                    <span className="text-[11px] font-medium text-[var(--color-text-muted)]">{subscriberCounts.get(item.plan) ?? 0} subs</span>
+                  </span>
+                  <span className="font-[var(--font-mono)]">{formatCurrency(item.revenue)}</span>
+                </div>
+                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(item.revenue / maxTierRevenue) * 100}%` }} />
+                </div>
               </div>
             ))}
           </div>
         </section>
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h3 className="font-[var(--font-heading)] text-xl font-bold text-ink">Projected LTV by tier</h3>
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Projected value</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">LTV by tier</h3>
           <div className="mt-4 grid gap-2">
             {report.ltvByTier.map((item) => (
-              <div key={item.plan} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
-                <span className="text-sm font-semibold text-ink">{item.plan}</span>
-                <span className="font-[var(--font-mono)] text-sm font-black text-ink">{formatCurrency(item.ltv)}</span>
+              <div key={item.plan} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.plan}</span>
+                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{formatCurrency(item.ltv)}</span>
               </div>
             ))}
           </div>

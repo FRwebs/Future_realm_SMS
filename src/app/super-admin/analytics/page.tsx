@@ -1,9 +1,8 @@
 import { TrendCard } from "@/components/dashboard/trend-card";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
-import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
   SuperAdminAnalyticsOverview,
   SuperAdminBiOverview,
@@ -11,11 +10,26 @@ import type {
   SuperAdminCustomReportRow,
   SuperAdminNpsAnalytics,
   SuperAdminRevenueView,
+  SuperAdminSchoolRow,
   SuperAdminUsageRow
 } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 const churnReasonOptions = ["PRICE_TOO_HIGH", "SWITCHED_TO_COMPETITOR", "SCHOOL_CLOSED", "PRODUCT_ISSUES", "INSUFFICIENT_SUPPORT", "LOW_STAFF_ADOPTION", "OTHER"].map((v) => ({ label: v.replaceAll("_", " "), value: v }));
+
+function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+      {label}
+    </span>
+  );
+}
+
+function heatCellStyle(pct: number) {
+  if (pct >= 66) return { background: "var(--color-success-dim)", color: "var(--color-success)" };
+  if (pct >= 33) return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  return { background: "var(--color-danger-dim)", color: "var(--color-danger)" };
+}
 
 function tabHref(tab: string) {
   return tab === "overview" ? "/super-admin/analytics" : `/super-admin/analytics?tab=${tab}`;
@@ -25,18 +39,21 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
   const { tab = "overview" } = searchParams ? await searchParams : {};
   const tabs = [
     { label: "Overview", href: tabHref("overview"), active: tab === "overview" },
-    { label: "Adoption & Funnel", href: tabHref("bi"), active: tab === "bi" },
-    { label: "Churn", href: tabHref("churn"), active: tab === "churn" },
-    { label: "NPS", href: tabHref("nps"), active: tab === "nps" },
+    { label: "Adoption Heatmap", href: tabHref("adoption"), active: tab === "adoption" },
+    { label: "Growth Funnel", href: tabHref("funnel"), active: tab === "funnel" },
+    { label: "Cohort Retention", href: tabHref("cohorts"), active: tab === "cohorts" },
+    { label: "Churn Analysis", href: tabHref("churn"), active: tab === "churn" },
+    { label: "NPS & Satisfaction", href: tabHref("nps"), active: tab === "nps" },
+    { label: "Feature Requests", href: tabHref("requests"), active: tab === "requests" },
     { label: "Custom Reports", href: tabHref("reports"), active: tab === "reports" }
   ];
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Platform intelligence</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Analytics & BI</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+    <div className="grid gap-5">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">Platform intelligence</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Analytics & BI</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Product adoption, conversion funnel, cohort retention, churn reasons, NPS, feature-request intelligence, and a custom report builder.
         </p>
       </section>
@@ -44,9 +61,12 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
       <DetailTabs tabs={tabs} />
 
       {tab === "overview" ? <OverviewTab /> : null}
-      {tab === "bi" ? <BiTab /> : null}
+      {tab === "adoption" ? <AdoptionTab /> : null}
+      {tab === "funnel" ? <FunnelTab /> : null}
+      {tab === "cohorts" ? <CohortsTab /> : null}
       {tab === "churn" ? <ChurnTab /> : null}
       {tab === "nps" ? <NpsTab /> : null}
+      {tab === "requests" ? <FeatureRequestsTab /> : null}
       {tab === "reports" ? <ReportsTab /> : null}
     </div>
   );
@@ -61,7 +81,7 @@ async function OverviewTab() {
 
   return (
     <>
-      <section className="grid gap-6 xl:grid-cols-3">
+      <section className="grid gap-5 xl:grid-cols-3">
         <TrendCard title="User growth by role" description="Current role split across the platform." items={[
           { label: "Parents", value: overview.users.parents },
           { label: "Teachers", value: overview.users.teachers },
@@ -80,86 +100,174 @@ async function OverviewTab() {
           { key: "school", header: "School", render: (item) => item.schoolName },
           { key: "logins", header: "Logins", render: (item) => item.logins },
           { key: "users", header: "Active Users", render: (item) => item.activeUsers },
-          { key: "modules", header: "Modules Used", render: (item) => item.modulesUsed.join(", ") || "-" }
+          { key: "modules", header: "Modules Used", render: (item) => item.modulesUsed.join(", ") || "—" }
         ]}
       />
     </>
   );
 }
 
-async function BiTab() {
+async function AdoptionTab() {
   const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
 
   return (
-    <section className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Conversion funnel</h2>
-        <div className="mt-4 grid gap-2">
-          {bi.funnel.map((stage, i) => {
-            const prev = i > 0 ? bi.funnel[i - 1].count : stage.count;
-            const dropPct = prev > 0 ? Math.round(((prev - stage.count) / prev) * 100) : 0;
-            return (
-              <div key={stage.stage} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
-                <span className="text-sm font-semibold text-ink">{stage.stage}</span>
-                <span className="flex items-center gap-3"><span className="font-[var(--font-mono)] font-black text-ink">{stage.count}</span>{i > 0 ? <span className="text-xs text-rose-600">-{dropPct}%</span> : null}</span>
-              </div>
-            );
-          })}
-        </div>
+    <section className="grid gap-5">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Module adoption</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
+          {bi.schoolsActiveThisWeek} schools active this week
+        </h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Adoption per module across every school. High ≥66%, Medium ≥33%, Low below.
+        </p>
       </section>
 
       <TableCard
         title="Product adoption heatmap"
-        description="Module adoption across all schools. High ≥66%, Medium ≥33%, Low below."
+        description="Shading reflects the adoption rate for each module."
         items={bi.heatmap}
+        emptyState="No adoption data yet."
         columns={[
           { key: "module", header: "Module", render: (item) => item.module.replaceAll("_", " ") },
           { key: "using", header: "Schools using", render: (item) => item.schoolsUsing },
-          { key: "pct", header: "Adoption", render: (item) => `${item.adoptionPct}%` },
-          { key: "level", header: "Level", render: (item) => <StatusBadge status={item.level} tone={item.level === "HIGH" ? "success" : item.level === "MEDIUM" ? "warning" : "danger"} /> }
+          {
+            key: "pct",
+            header: "Adoption",
+            render: (item) => (
+              <div className="w-28">
+                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                  <div className="h-full rounded-full" style={{ width: `${item.adoptionPct}%`, background: heatCellStyle(item.adoptionPct).color }} />
+                </div>
+              </div>
+            )
+          },
+          {
+            key: "level",
+            header: "Level",
+            render: (item) => {
+              const style = heatCellStyle(item.adoptionPct);
+              return <StatusPill bg={style.background} fg={style.color} label={`${item.level} · ${item.adoptionPct}%`} />;
+            }
+          }
         ]}
-        emptyState="No adoption data yet."
-      />
-
-      <TableCard
-        title="Cohort retention"
-        description="Schools grouped by the month they joined, and how many are still active."
-        items={bi.cohorts}
-        columns={[
-          { key: "cohort", header: "Cohort", render: (item) => item.cohort },
-          { key: "joined", header: "Joined", render: (item) => item.joined },
-          { key: "active", header: "Still active", render: (item) => item.stillActive },
-          { key: "pct", header: "Retention", render: (item) => `${item.retentionPct}%` }
-        ]}
-        emptyState="No cohort data yet."
-      />
-
-      <TableCard
-        title="Feature request intelligence"
-        description="Top requested feature keywords, mined from feature-request support tickets."
-        items={bi.featureRequests}
-        columns={[
-          { key: "keyword", header: "Keyword", render: (item) => item.keyword },
-          { key: "requests", header: "Requests", render: (item) => item.requestCount },
-          { key: "schools", header: "Schools", render: (item) => item.schoolsRequesting },
-          { key: "score", header: "Priority score", render: (item) => item.priorityScore }
-        ]}
-        emptyState="No feature-request tickets yet."
       />
     </section>
   );
 }
 
-async function ChurnTab() {
-  const churn = await apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn");
+async function FunnelTab() {
+  const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
+  const maxCount = Math.max(...bi.funnel.map((stage) => stage.count), 1);
 
   return (
-    <section className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <section className="surface-card p-6">
+      <p className="section-eyebrow">Growth funnel</p>
+      <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Signup to active conversion</h2>
+      <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        Each stage's drop-off is measured against the stage before it.
+      </p>
+      <div className="mt-6 grid gap-3">
+        {bi.funnel.map((stage, i) => {
+          const prev = i > 0 ? bi.funnel[i - 1].count : stage.count;
+          const dropPct = prev > 0 ? Math.round(((prev - stage.count) / prev) * 100) : 0;
+          return (
+            <div key={stage.stage}>
+              <div className="flex items-center justify-between text-[13px]">
+                <span className="font-semibold text-[var(--color-text-primary)]">{stage.stage}</span>
+                <span className="flex items-center gap-3">
+                  <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{stage.count}</span>
+                  {i > 0 ? (
+                    <span className="text-[11px] font-bold" style={{ color: dropPct > 30 ? "var(--color-danger)" : "var(--color-text-muted)" }}>
+                      −{dropPct}%
+                    </span>
+                  ) : null}
+                </span>
+              </div>
+              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(stage.count / maxCount) * 100}%` }} />
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+async function CohortsTab() {
+  const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
+
+  return (
+    <TableCard
+      title="Cohort retention"
+      description="Schools grouped by the month they joined, and how many are still active."
+      items={bi.cohorts}
+      emptyState="No cohort data yet."
+      columns={[
+        { key: "cohort", header: "Cohort", render: (item) => item.cohort },
+        { key: "joined", header: "Joined", render: (item) => item.joined },
+        { key: "active", header: "Still active", render: (item) => item.stillActive },
+        {
+          key: "pct",
+          header: "Retention",
+          render: (item) => (
+            <div className="flex items-center gap-2">
+              <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${item.retentionPct}%` }} />
+              </div>
+              <span className="font-[var(--font-mono)] text-[12.5px] font-bold text-[var(--color-text-primary)]">{item.retentionPct}%</span>
+            </div>
+          )
+        }
+      ]}
+    />
+  );
+}
+
+async function FeatureRequestsTab() {
+  const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
+
+  return (
+    <TableCard
+      title="Feature request intelligence"
+      description="Top requested feature keywords, mined from feature-request support tickets."
+      items={bi.featureRequests}
+      emptyState="No feature-request tickets yet."
+      columns={[
+        { key: "keyword", header: "Keyword", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.keyword}</span> },
+        { key: "requests", header: "Requests", render: (item) => item.requestCount },
+        { key: "schools", header: "Schools", render: (item) => item.schoolsRequesting },
+        {
+          key: "score",
+          header: "Priority score",
+          render: (item) => (
+            <StatusPill
+              bg={item.priorityScore >= 70 ? "var(--color-danger-dim)" : item.priorityScore >= 40 ? "var(--color-warning-dim)" : "var(--color-bg-subtle)"}
+              fg={item.priorityScore >= 70 ? "var(--color-danger)" : item.priorityScore >= 40 ? "var(--color-warning)" : "var(--color-text-muted)"}
+              label={String(item.priorityScore)}
+            />
+          )
+        }
+      ]}
+    />
+  );
+}
+
+async function ChurnTab() {
+  const [churn, schoolsEnvelope] = await Promise.all([
+    apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+  ]);
+  const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
+
+  return (
+    <section className="grid gap-5">
+      <section className="surface-card p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Churn analysis</h2>
-            <p className="mt-2 text-sm text-ink/60">{churn.total} logged churn(s). Any reason exceeding 25% of churn is escalated to a response plan.</p>
+            <p className="section-eyebrow">Retention risk</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Churn analysis</h2>
+            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{churn.total} logged churn(s). Any reason exceeding 25% of churn is escalated to a response plan.</p>
           </div>
           <ResourceActionDialog
             triggerLabel="Log churn"
@@ -168,7 +276,7 @@ async function ChurnTab() {
             endpoint="/api/super-admin/analytics/churn"
             submitLabel="Log churn"
             fields={[
-              { name: "schoolId", label: "School ID", required: true },
+              { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
               { name: "reason", label: "Reason", type: "select", options: churnReasonOptions },
               { name: "notes", label: "Notes", type: "textarea" }
             ]}
@@ -176,12 +284,15 @@ async function ChurnTab() {
         </div>
         <div className="mt-5 grid gap-2">
           {churn.byReason.map((r) => (
-            <div key={r.reason} className="flex items-center justify-between rounded-2xl bg-sand/60 px-4 py-3">
-              <span className="text-sm font-semibold text-ink">{r.reason.replaceAll("_", " ")}</span>
-              <span className="flex items-center gap-3"><span className="font-[var(--font-mono)] font-black text-ink">{r.count}</span><span className={r.pct > 25 ? "text-xs font-bold text-rose-600" : "text-xs text-ink/50"}>{r.pct}%</span></span>
+            <div key={r.reason} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+              <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{r.reason.replaceAll("_", " ")}</span>
+              <span className="flex items-center gap-3">
+                <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{r.count}</span>
+                <span className="text-[11px] font-bold" style={{ color: r.pct > 25 ? "var(--color-danger)" : "var(--color-text-muted)" }}>{r.pct}%</span>
+              </span>
             </div>
           ))}
-          {churn.byReason.length === 0 ? <p className="rounded-2xl bg-sand/60 px-4 py-6 text-center text-sm text-ink/50">No churn logged yet.</p> : null}
+          {churn.byReason.length === 0 ? <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No churn logged yet.</p> : null}
         </div>
       </section>
 
@@ -192,7 +303,7 @@ async function ChurnTab() {
         columns={[
           { key: "school", header: "School", render: (item) => item.schoolName },
           { key: "reason", header: "Reason", render: (item) => item.reason.replaceAll("_", " ") },
-          { key: "notes", header: "Notes", render: (item) => item.notes ?? "-" },
+          { key: "notes", header: "Notes", render: (item) => item.notes ?? "—" },
           { key: "date", header: "Churned", render: (item) => formatDate(item.churnedAt) }
         ]}
         emptyState="No churn recorded."
@@ -202,15 +313,20 @@ async function ChurnTab() {
 }
 
 async function NpsTab() {
-  const nps = await apiGet<SuperAdminNpsAnalytics>("/api/super-admin/analytics/nps");
+  const [nps, schoolsEnvelope] = await Promise.all([
+    apiGet<SuperAdminNpsAnalytics>("/api/super-admin/analytics/nps"),
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+  ]);
+  const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
 
   return (
-    <section className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <section className="grid gap-5">
+      <section className="surface-card p-6">
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
-            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Net Promoter Score</h2>
-            <p className="mt-2 text-sm text-ink/60">Termly satisfaction. Detractors (0-6) are flagged for Customer Success outreach.</p>
+            <p className="section-eyebrow">Satisfaction</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Net Promoter Score</h2>
+            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Termly satisfaction. Detractors (0-6) are flagged for Customer Success outreach.</p>
           </div>
           <ResourceActionDialog
             triggerLabel="Record NPS"
@@ -219,22 +335,22 @@ async function NpsTab() {
             endpoint="/api/super-admin/analytics/nps"
             submitLabel="Record"
             fields={[
-              { name: "schoolId", label: "School ID", required: true },
+              { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
               { name: "score", label: "Score (0-10)", type: "number", required: true, min: 0, max: 10 },
               { name: "comment", label: "Comment", type: "textarea" }
             ]}
           />
         </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-4">
+        <div className="mt-5 grid gap-3 md:grid-cols-4">
           {[
             { label: "NPS", value: nps.npsScore },
-            { label: "Promoters", value: nps.promoters },
-            { label: "Passives", value: nps.passives },
-            { label: "Detractors", value: nps.detractors }
+            { label: "Promoters", value: nps.promoters, tone: "good" as const },
+            { label: "Passives", value: nps.passives, tone: "warn" as const },
+            { label: "Detractors", value: nps.detractors, tone: "bad" as const }
           ].map((m) => (
-            <article key={m.label} className="rounded-[1.25rem] border border-slate-100 bg-sand/55 p-4">
-              <p className="text-xs font-bold text-slate-500">{m.label}</p>
-              <p className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">{m.value}</p>
+            <article key={m.label} className="surface-card p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{m.label}</p>
+              <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{m.value}</p>
             </article>
           ))}
         </div>
@@ -246,8 +362,8 @@ async function NpsTab() {
         items={nps.lowScoreFlags}
         columns={[
           { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "score", header: "Score", render: (item) => <span className="font-bold text-rose-700">{item.score}</span> },
-          { key: "comment", header: "Comment", render: (item) => item.comment ?? "-" },
+          { key: "score", header: "Score", render: (item) => <span className="font-bold" style={{ color: "var(--color-danger)" }}>{item.score}</span> },
+          { key: "comment", header: "Comment", render: (item) => item.comment ?? "—" },
           { key: "date", header: "Date", render: (item) => formatDate(item.createdAt) }
         ]}
         emptyState="No detractors — great!"

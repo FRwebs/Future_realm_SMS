@@ -6,13 +6,10 @@
 
 body {
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, var(--color-accent-primary-dim), transparent 22%),
-    radial-gradient(circle at top right, var(--color-gold-dim), transparent 30%),
-    linear-gradient(180deg, var(--color-bg-base), var(--color-bg-base));
+  background: var(--color-bg-base);
   color: var(--color-text-primary);
   font-family: var(--font-body);
-  font-size: 15px;
+  font-size: 13.5px;
   line-height: 1.6;
   transition: background-color 200ms ease, color 200ms ease;
 }
@@ -539,52 +536,120 @@ a {
   }
 
   .surface-card {
-    @apply rounded-2xl border shadow-panel;
+    @apply rounded-[14px] border;
     border-color: var(--color-border-default);
-    background-color: var(--color-bg-surface);
+    background:
+      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 98%, transparent), color-mix(in srgb, var(--color-bg-elevated) 96%, transparent));
     box-shadow: var(--shadow-sm);
   }
 
   .surface-hero {
-    @apply overflow-hidden rounded-[20px] border shadow-panel;
+    @apply overflow-hidden rounded-[var(--radius-hero)] border;
     border-color: var(--color-border-default);
     background:
-      radial-gradient(circle at top left, var(--color-accent-primary-dim), transparent 36%),
-      linear-gradient(180deg, color-mix(in srgb, var(--color-bg-surface) 96%, transparent), color-mix(in srgb, var(--color-bg-elevated) 72%, transparent));
-    box-shadow: var(--shadow-md);
+      linear-gradient(135deg, color-mix(in srgb, var(--color-bg-surface) 96%, transparent), color-mix(in srgb, var(--color-bg-subtle) 98%, transparent));
+    box-shadow: var(--shadow-sm);
   }
 
   .section-eyebrow {
-    @apply text-[10px] font-semibold uppercase tracking-[0.28em];
-    color: var(--color-text-accent);
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.14em];
+    color: var(--color-text-muted);
+  }
+
+  .portal-page {
+    @apply mx-auto grid w-full max-w-[1480px] gap-5;
+  }
+
+  .portal-hero {
+    @apply surface-hero px-5 py-5 md:px-6 md:py-6;
+  }
+
+  .portal-hero-grid {
+    @apply grid gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(280px,0.36fr)] lg:items-end;
+  }
+
+  .portal-title {
+    @apply font-[var(--font-heading)] text-[26px] font-extrabold leading-tight tracking-tight md:text-[32px];
+    color: var(--color-text-primary);
+  }
+
+  .portal-copy {
+    @apply max-w-3xl text-[13px] leading-6 md:text-[13.5px];
+    color: var(--color-text-secondary);
+  }
+
+  .portal-panel {
+    @apply surface-card p-5 md:p-6;
+  }
+
+  .portal-panel-header {
+    @apply flex flex-col gap-2 md:flex-row md:items-start md:justify-between;
+  }
+
+  .portal-stat {
+    @apply surface-card relative overflow-hidden p-4 transition-all duration-150 hover:border-[var(--color-border-strong)];
+  }
+
+  .portal-stat-label {
+    @apply text-[10.5px] font-semibold uppercase tracking-[0.14em];
+    color: var(--color-text-muted);
+  }
+
+  .portal-stat-value {
+    @apply mt-2 font-[var(--font-heading)] text-[24px] font-extrabold leading-none tracking-tight;
+    color: var(--color-text-primary);
+  }
+
+  .portal-stat-note {
+    @apply mt-2 text-[12px] leading-5;
+    color: var(--color-text-secondary);
+  }
+
+  .portal-action-tile {
+    @apply rounded-[12px] border px-4 py-3 transition-all duration-150;
+    border-color: var(--color-border-default);
+    background: var(--color-bg-surface);
+    color: var(--color-text-primary);
+  }
+
+  .portal-action-tile:hover {
+    border-color: var(--color-border-strong);
+    background: var(--color-accent-primary-dim);
+    color: var(--color-text-primary);
+  }
+
+  .portal-muted-tile {
+    @apply rounded-[12px] border px-4 py-3;
+    border-color: var(--color-border-default);
+    background: var(--color-bg-subtle);
   }
 
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
     height: 40px;
     color: var(--color-text-inverse);
-    border-color: color-mix(in srgb, var(--color-accent-primary) 44%, transparent);
-    background: linear-gradient(180deg, var(--color-accent-primary), var(--color-accent-primary-hover));
-    box-shadow: 0 8px 18px var(--color-accent-primary-glow);
+    border-color: var(--color-accent-primary);
+    background: var(--color-accent-primary);
+    box-shadow: none;
   }
 
   .btn-primary:hover {
-    transform: translateY(-1px);
-    box-shadow: 0 12px 26px var(--color-accent-primary-glow);
+    background: var(--color-accent-primary-hover);
+    border-color: var(--color-accent-primary-hover);
   }
 
   .btn-secondary {
     @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150;
     height: 40px;
     color: var(--color-text-primary);
-    border-color: var(--color-border-strong);
-    background: var(--color-bg-elevated);
+    border-color: var(--color-border-default);
+    background: var(--color-bg-surface);
   }
 
   .btn-secondary:hover {
     color: var(--color-text-accent);
     border-color: var(--color-accent-primary);
-    background: var(--color-bg-overlay);
+    background: var(--color-accent-primary-dim);
   }
 
   .btn-destructive {

@@ -21,6 +21,26 @@ export class SuperAdminController {
     return this.superAdminService.listSchools(session, query);
   }
 
+  @Get("schools/groups")
+  listSchoolGroups(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listSchoolGroups(session);
+  }
+
+  @Post("schools/groups")
+  createSchoolGroup(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.createSchoolGroup(session, body);
+  }
+
+  @Patch("schools/groups/:groupId")
+  updateSchoolGroup(@CurrentSession() session: SessionPayload, @Param("groupId") groupId: string, @Body() body: unknown) {
+    return this.superAdminService.updateSchoolGroup(session, groupId, body);
+  }
+
+  @Delete("schools/groups/:groupId")
+  deleteSchoolGroup(@CurrentSession() session: SessionPayload, @Param("groupId") groupId: string) {
+    return this.superAdminService.deleteSchoolGroup(session, groupId);
+  }
+
   @Get("schools/:schoolId")
   getSchool(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string) {
     return this.superAdminService.getSchool(session, schoolId);
@@ -59,6 +79,16 @@ export class SuperAdminController {
   @Post("schools/:schoolId/account-manager")
   assignAccountManager(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string, @Body() body: unknown) {
     return this.superAdminService.assignAccountManager(session, schoolId, body);
+  }
+
+  @Post("schools/:schoolId/group")
+  linkSchoolToGroup(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string, @Body() body: unknown) {
+    return this.superAdminService.linkSchoolToGroup(session, schoolId, body);
+  }
+
+  @Delete("schools/:schoolId/group")
+  unlinkSchoolFromGroup(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string) {
+    return this.superAdminService.unlinkSchoolFromGroup(session, schoolId);
   }
 
   @Get("schools/:schoolId/contacts")
@@ -127,6 +157,16 @@ export class SuperAdminController {
   @Patch("users/duplicates/:flagId/resolve")
   resolveDuplicateAccount(@CurrentSession() session: SessionPayload, @Param("flagId") flagId: string, @Body() body: unknown) {
     return this.superAdminService.resolveDuplicateAccount(session, flagId, body);
+  }
+
+  @Get("users/recovery")
+  listAccountRecoveries(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listAccountRecoveries(session);
+  }
+
+  @Get("users/impersonation-log")
+  listImpersonationLog(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listImpersonationLog(session);
   }
 
   @Get("users/:userId")
@@ -325,8 +365,8 @@ export class SuperAdminController {
   }
 
   @Get("internal-team")
-  listInternalTeam(@CurrentSession() session: SessionPayload) {
-    return this.superAdminService.listInternalTeam(session);
+  listInternalTeam(@CurrentSession() session: SessionPayload, @Query() query: Record<string, unknown>) {
+    return this.superAdminService.listInternalTeam(session, query);
   }
 
   @Post("internal-team")
@@ -357,6 +397,11 @@ export class SuperAdminController {
   @Post("internal-team/permission-templates")
   upsertPermissionTemplate(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.upsertPermissionTemplate(session, body);
+  }
+
+  @Get("internal-team/permission-grid")
+  listPermissionGridMatrix(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listPermissionGridMatrix(session);
   }
 
   @Post("internal-team/permission-grid")
@@ -452,9 +497,19 @@ export class SuperAdminController {
     return this.superAdminService.updateCannedResponse(session, responseId, body);
   }
 
+  @Get("support/data-corrections")
+  listDataCorrections(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listDataCorrections(session);
+  }
+
   @Patch("support/data-correction/:recordId/approve")
   approveDataCorrection(@CurrentSession() session: SessionPayload, @Param("recordId") recordId: string) {
     return this.superAdminService.approveDataCorrection(session, recordId);
+  }
+
+  @Patch("support/data-correction/:recordId/reject")
+  rejectDataCorrection(@CurrentSession() session: SessionPayload, @Param("recordId") recordId: string, @Body() body: unknown) {
+    return this.superAdminService.rejectDataCorrection(session, recordId, body);
   }
 
   @Get("support/tickets/:ticketId")
@@ -612,6 +667,11 @@ export class SuperAdminController {
     return this.superAdminService.updateTemplateApproval(session, templateId, body);
   }
 
+  @Get("communications/consent")
+  listConsentRecords(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listConsentRecords(session);
+  }
+
   @Post("communications/consent")
   setConsent(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.setConsent(session, body);
@@ -632,9 +692,19 @@ export class SuperAdminController {
     return this.superAdminService.createLead(session, body);
   }
 
+  @Patch("crm/leads/:leadId")
+  updateLeadStage(@CurrentSession() session: SessionPayload, @Param("leadId") leadId: string, @Body() body: unknown) {
+    return this.superAdminService.updateLeadStage(session, leadId, body);
+  }
+
   @Get("security")
   security(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.securityOverview(session);
+  }
+
+  @Patch("security/sessions/:sessionId/revoke")
+  revokeSession(@CurrentSession() session: SessionPayload, @Param("sessionId") sessionId: string) {
+    return this.superAdminService.revokeSession(session, sessionId);
   }
 
   @Post("security/privacy-requests")
@@ -680,5 +750,15 @@ export class SuperAdminController {
   @Post("plans")
   createPlan(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createPlan(session, body);
+  }
+
+  @Patch("plans/:planId/toggle")
+  togglePlanActive(@CurrentSession() session: SessionPayload, @Param("planId") planId: string) {
+    return this.superAdminService.togglePlanActive(session, planId);
+  }
+
+  @Get("feature-flags/lifecycle")
+  planLifecycle(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listPlanLifecycle(session);
   }
 }

@@ -22,11 +22,11 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
   ];
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Academic configuration</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Config Library</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+    <div className="grid gap-5">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">Academic configuration</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Config Library</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Country-specific curriculum, grading scale, and report card templates. Schools consume these during onboarding and customise their own copy — the master library is never edited by schools.
         </p>
       </section>
@@ -56,7 +56,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           }
           columns={[
             { key: "country", header: "Country", render: (item) => item.country },
-            { key: "name", header: "Template", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+            { key: "name", header: "Template", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
             { key: "subjects", header: "Subjects", render: (item) => item.subjectCount },
             { key: "calendar", header: "Calendar", render: (item) => item.calendarType.replaceAll("_", " ") },
             { key: "version", header: "Version", render: (item) => item.version },
@@ -87,7 +87,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             />
           }
           columns={[
-            { key: "name", header: "Scale", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+            { key: "name", header: "Scale", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
             { key: "bands", header: "Bands", render: (item) => item.bandCount },
             { key: "pass", header: "Pass mark", render: (item) => item.passMark },
             { key: "curricula", header: "Applicable to", render: (item) => item.applicableCurricula.join(", ") || "All" },
@@ -118,7 +118,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             />
           }
           columns={[
-            { key: "name", header: "Template", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+            { key: "name", header: "Template", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
             { key: "curricula", header: "Curricula", render: (item) => item.applicableCurricula.join(", ") || "All" },
             { key: "tiers", header: "Tiers", render: (item) => item.availableToTiers.join(", ") || "All" },
             { key: "status", header: "Status", render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} tone={item.isActive ? "success" : "neutral"} /> }

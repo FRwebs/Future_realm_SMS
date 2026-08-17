@@ -1,9 +1,9 @@
-import { MetricCard } from "@/components/dashboard/metric-card";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import type { SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 type PlatformSession = {
@@ -69,6 +69,23 @@ const incidentStatusOptions = [
   { label: "Resolved", value: "RESOLVED" }
 ];
 
+function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
+  return (
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+      {label}
+    </span>
+  );
+}
+
+function KpiTile({ label, value }: { label: string; value: string }) {
+  return (
+    <article className="surface-card p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+    </article>
+  );
+}
+
 function tabHref(tab: string) {
   return tab === "overview" ? "/super-admin/security" : `/super-admin/security?tab=${tab}`;
 }
@@ -79,72 +96,114 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
   const failedAttempts = (data.attempts ?? []).filter((attempt) => attempt.status === "FAILED").length;
   const openPrivacy = (data.privacy ?? []).filter((request) => request.status !== "COMPLETED").length;
   const openIncidents = (data.incidents ?? []).filter((incident) => incident.status !== "RESOLVED").length;
+  const criticalIncidents = (data.incidents ?? []).filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length;
 
   const tabs = [
     { label: "Overview", href: tabHref("overview"), active: tab === "overview" },
+    { label: "Admin Login Security", href: tabHref("login"), active: tab === "login" },
     { label: "Security Incidents", href: tabHref("incidents"), active: tab === "incidents" },
-    { label: "Data Deletion (NDPC)", href: tabHref("ndpc"), active: tab === "ndpc" },
-    { label: "Compliance Report", href: tabHref("compliance"), active: tab === "compliance" }
+    { label: "NDPC Compliance", href: tabHref("ndpc"), active: tab === "ndpc" }
   ];
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Security & compliance</p>
-        <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div>
-            <h1 className="font-[var(--font-heading)] text-4xl font-bold text-ink">Security</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
-              Sessions, login activity, security incidents, and NDPC-compliant data deletion tracking.
-            </p>
-          </div>
-        </div>
+    <div className="grid gap-5">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">Security & compliance</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Security, Audit & Compliance</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          The accountability layer — active sessions, login activity, security incidents tracked from detection to
+          resolution, and NDPC-compliant data deletion evidence. For the full immutable platform action log, see{" "}
+          <a href="/super-admin/audit-logs" className="font-semibold text-[var(--color-text-accent)] underline">
+            Audit Logs
+          </a>
+          .
+        </p>
       </section>
 
       <DetailTabs tabs={tabs} />
 
       {tab === "overview" ? (
-        <>
-          <section className="grid gap-4 md:grid-cols-4">
-            <MetricCard metric={{ label: "Active Sessions", value: String(data.sessions?.length ?? 0), change: "Currently tracked" }} />
-            <MetricCard metric={{ label: "Failed Logins", value: String(failedAttempts), change: "Recent attempts" }} />
-            <MetricCard metric={{ label: "Open Incidents", value: String(openIncidents), change: "Unresolved" }} />
-            <MetricCard metric={{ label: "Open Privacy", value: String(openPrivacy), change: "Requests pending" }} />
-          </section>
-
-          <TableCard
-            title="Active Sessions"
-            description="Live sessions across the platform (revoked and expired sessions are excluded)."
-            items={data.sessions ?? []}
-            emptyState="No active sessions are currently tracked."
-            columns={[
-              { key: "user", header: "User", render: (item) => item.user ? `${item.user.firstName} ${item.user.lastName}` : "Unknown" },
-              { key: "role", header: "Role", render: (item) => item.user?.role ?? "-" },
-              { key: "device", header: "Device", render: (item) => item.device ?? "Unknown" },
-              { key: "ip", header: "IP", render: (item) => item.ipAddress ?? "-" },
-              { key: "last", header: "Last Activity", render: (item) => formatDate(item.lastActivityAt) }
-            ]}
-          />
-
-          <TableCard
-            title="Login Activity"
-            description="Recent successful and failed login attempts, with brute-force lockout after 5 failures in 10 minutes."
-            items={data.attempts ?? []}
-            emptyState="No login attempts have been recorded."
-            columns={[
-              { key: "email", header: "Email", render: (item) => item.email },
-              { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-              { key: "ip", header: "IP", render: (item) => item.ipAddress ?? "-" },
-              { key: "reason", header: "Reason", render: (item) => item.failureReason ?? "-" },
-              { key: "created", header: "Date", render: (item) => formatDate(item.createdAt) }
-            ]}
-          />
-        </>
+        <section className="grid gap-3 md:grid-cols-4">
+          <KpiTile label="Active sessions" value={String(data.sessions?.length ?? 0)} />
+          <KpiTile label="Failed logins (recent)" value={String(failedAttempts)} />
+          <KpiTile label="Open incidents" value={String(openIncidents)} />
+          <KpiTile label="Critical incidents" value={String(criticalIncidents)} />
+        </section>
       ) : null}
 
+      {tab === "login" ? <LoginSecurityTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} /> : null}
       {tab === "incidents" ? <IncidentsTab incidents={data.incidents ?? []} /> : null}
       {tab === "ndpc" ? <NdpcTab privacy={data.privacy ?? []} /> : null}
-      {tab === "compliance" ? <ComplianceTab /> : null}
+    </div>
+  );
+}
+
+function LoginSecurityTab({ sessions, attempts }: { sessions: PlatformSession[]; attempts: LoginAttempt[] }) {
+  return (
+    <div className="grid gap-5">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Lockout policy</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Brute-force protection</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Accounts are automatically locked after 5 failed login attempts within a 10-minute window. Force-logout a
+          session below to immediately end a suspicious admin session.
+        </p>
+      </section>
+
+      <TableCard
+        title="Active sessions"
+        description="Live sessions across the platform (revoked and expired sessions are excluded)."
+        items={sessions}
+        emptyState="No active sessions are currently tracked."
+        columns={[
+          { key: "user", header: "User", render: (item) => item.user ? `${item.user.firstName} ${item.user.lastName}` : "Unknown" },
+          { key: "role", header: "Role", render: (item) => item.user?.role ?? "-" },
+          { key: "device", header: "Device", render: (item) => item.device ?? "Unknown" },
+          { key: "ip", header: "IP", render: (item) => item.ipAddress ?? "-" },
+          { key: "last", header: "Last activity", render: (item) => formatDate(item.lastActivityAt) },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (item) => (
+              <ResourceActionDialog
+                triggerLabel="Force logout"
+                title={`Force logout — ${item.user ? `${item.user.firstName} ${item.user.lastName}` : "this session"}`}
+                description="Immediately ends this session. The user is signed out on their next request and must log in again."
+                endpoint={`/api/super-admin/security/sessions/${item.id}/revoke`}
+                method="PATCH"
+                variant="menuDanger"
+                submitLabel="Force logout"
+                confirmLabel="Confirm logout"
+                confirmMessage="This immediately signs the user out."
+                fields={[]}
+              />
+            )
+          }
+        ]}
+      />
+
+      <TableCard
+        title="Login activity"
+        description="Recent successful and failed login attempts, most recent first."
+        items={attempts}
+        emptyState="No login attempts have been recorded."
+        columns={[
+          { key: "email", header: "Email", render: (item) => item.email },
+          {
+            key: "status",
+            header: "Status",
+            render: (item) =>
+              item.status === "SUCCESS" ? (
+                <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Success" />
+              ) : (
+                <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Failed" />
+              )
+          },
+          { key: "ip", header: "IP", render: (item) => item.ipAddress ?? "-" },
+          { key: "reason", header: "Reason", render: (item) => item.failureReason ?? "-" },
+          { key: "created", header: "Date", render: (item) => formatDate(item.createdAt) }
+        ]}
+      />
     </div>
   );
 }
@@ -172,7 +231,19 @@ function IncidentsTab({ incidents }: { incidents: SecurityIncident[] }) {
       }
       columns={[
         { key: "type", header: "Type", render: (item) => item.type.replaceAll("_", " ") },
-        { key: "severity", header: "Severity", render: (item) => <StatusBadge status={item.severity} tone={item.severity === "CRITICAL" || item.severity === "HIGH" ? "danger" : item.severity === "MEDIUM" ? "warning" : "neutral"} /> },
+        {
+          key: "severity",
+          header: "Severity",
+          render: (item) => {
+            const tone =
+              item.severity === "CRITICAL" || item.severity === "HIGH"
+                ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
+                : item.severity === "MEDIUM"
+                  ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
+                  : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" };
+            return <StatusPill bg={tone.bg} fg={tone.fg} label={item.severity} />;
+          }
+        },
         { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
         { key: "detected", header: "Detected", render: (item) => formatDate(item.detectedAt) },
         { key: "reported", header: "Reported by", render: (item) => item.reportedBy },
@@ -195,7 +266,7 @@ function IncidentsTab({ incidents }: { incidents: SecurityIncident[] }) {
                 ]}
               />
             ) : (
-              <span className="text-xs text-ink/50">Resolved {item.resolvedAt ? formatDate(item.resolvedAt) : ""}</span>
+              <span className="text-xs text-[var(--color-text-muted)]">Resolved {item.resolvedAt ? formatDate(item.resolvedAt) : ""}</span>
             )
         }
       ]}
@@ -204,74 +275,77 @@ function IncidentsTab({ incidents }: { incidents: SecurityIncident[] }) {
   );
 }
 
-function NdpcTab({ privacy }: { privacy: PrivacyRequest[] }) {
-  return (
-    <TableCard
-      title="Data deletion requests (NDPC)"
-      description="Data deletion requests from schools leaving the platform. Completion requires export delivery, purge, and a logged confirmation hash."
-      items={privacy}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="New request"
-          title="Create data privacy request"
-          description="Track access, export, erasure, and rectification requests."
-          endpoint="/api/super-admin/security/privacy-requests"
-          method="POST"
-          submitLabel="Create request"
-          fields={[
-            { name: "schoolId", label: "School ID" },
-            { name: "type", label: "Type", type: "select", options: ["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"].map((v) => ({ label: v, value: v })) },
-            { name: "subject", label: "Subject", required: true },
-            { name: "details", label: "Details", type: "textarea" }
-          ]}
-        />
-      }
-      columns={[
-        { key: "subject", header: "Subject", render: (item) => <span className="font-semibold text-ink">{item.subject}</span> },
-        { key: "type", header: "Type", render: (item) => item.type },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-        { key: "school", header: "School", render: (item) => item.school?.name ?? "Platform" },
-        { key: "hash", header: "Confirmation hash", render: (item) => item.confirmationHash ? <span className="font-[var(--font-mono)] text-[11px]">{item.confirmationHash.slice(0, 16)}…</span> : "-" },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) =>
-            item.type === "ERASURE" && item.status !== "COMPLETED" ? (
-              <ResourceActionDialog
-                triggerLabel="Complete deletion"
-                title="Complete data deletion"
-                description="Confirms the export was delivered and data purged. Generates a confirmation hash and logs it immutably for NDPC compliance."
-                endpoint={`/api/super-admin/security/privacy-requests/${item.id}/complete`}
-                method="PATCH"
-                variant="danger"
-                submitLabel="Confirm deletion"
-                confirmLabel="Confirm"
-                confirmMessage="This is a Super Admin-only, audited, irreversible compliance action."
-                fields={[]}
-              />
-            ) : item.status === "COMPLETED" ? (
-              <span className="text-xs text-emerald-700">Completed {item.completedAt ? formatDate(item.completedAt) : ""}</span>
-            ) : (
-              <span className="text-xs text-ink/50">-</span>
-            )
-        }
-      ]}
-      emptyState="No data privacy requests recorded."
-    />
-  );
-}
-
-async function ComplianceTab() {
-  const report = await apiGet<ComplianceReport>("/api/super-admin/security/compliance-report");
+async function NdpcTab({ privacy }: { privacy: PrivacyRequest[] }) {
+  const [report, schoolsEnvelope] = await Promise.all([
+    apiGet<ComplianceReport>("/api/super-admin/security/compliance-report"),
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+  ]);
+  const schoolOptions = [
+    { label: "Platform-wide (no specific school)", value: "" },
+    ...(schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }))
+  ];
 
   return (
-    <section className="grid gap-6">
-      <section className="grid gap-4 md:grid-cols-4">
-        <MetricCard metric={{ label: "Deletion requests", value: String(report.totalDeletionRequests), change: "All time" }} />
-        <MetricCard metric={{ label: "Completed", value: String(report.byStatus.COMPLETED ?? 0), change: "Purged & confirmed" }} />
-        <MetricCard metric={{ label: "In review", value: String(report.byStatus.IN_REVIEW ?? 0), change: "Being processed" }} />
-        <MetricCard metric={{ label: "Open", value: String(report.byStatus.OPEN ?? 0), change: "Not started" }} />
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-4">
+        <KpiTile label="Deletion requests" value={String(report.totalDeletionRequests)} />
+        <KpiTile label="Completed" value={String(report.byStatus.COMPLETED ?? 0)} />
+        <KpiTile label="In review" value={String(report.byStatus.IN_REVIEW ?? 0)} />
+        <KpiTile label="Open" value={String(report.byStatus.OPEN ?? 0)} />
       </section>
+
+      <TableCard
+        title="Data privacy requests"
+        description="Access, export, erasure, and rectification requests. Erasure completion requires export delivery, purge, and a logged confirmation hash — this cannot be bypassed."
+        items={privacy}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="New request"
+            title="Create data privacy request"
+            description="Track access, export, erasure, and rectification requests."
+            endpoint="/api/super-admin/security/privacy-requests"
+            method="POST"
+            submitLabel="Create request"
+            fields={[
+              { name: "schoolId", label: "School", type: "select", defaultValue: "", options: schoolOptions },
+              { name: "type", label: "Type", type: "select", options: ["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"].map((v) => ({ label: v, value: v })) },
+              { name: "subject", label: "Subject", required: true },
+              { name: "details", label: "Details", type: "textarea" }
+            ]}
+          />
+        }
+        columns={[
+          { key: "subject", header: "Subject", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.subject}</span> },
+          { key: "type", header: "Type", render: (item) => item.type },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+          { key: "school", header: "School", render: (item) => item.school?.name ?? "Platform" },
+          { key: "hash", header: "Confirmation hash", render: (item) => item.confirmationHash ? <span className="font-[var(--font-mono)] text-[11px]">{item.confirmationHash.slice(0, 16)}…</span> : "-" },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (item) =>
+              item.type === "ERASURE" && item.status !== "COMPLETED" ? (
+                <ResourceActionDialog
+                  triggerLabel="Complete deletion"
+                  title="Complete data deletion"
+                  description="Confirms the export was delivered and data purged. Generates a confirmation hash and logs it immutably for NDPC compliance."
+                  endpoint={`/api/super-admin/security/privacy-requests/${item.id}/complete`}
+                  method="PATCH"
+                  variant="danger"
+                  submitLabel="Confirm deletion"
+                  confirmLabel="Confirm"
+                  confirmMessage="This is a Super Admin-only, audited, irreversible compliance action."
+                  fields={[]}
+                />
+              ) : item.status === "COMPLETED" ? (
+                <span className="text-xs" style={{ color: "var(--color-success)" }}>Completed {item.completedAt ? formatDate(item.completedAt) : ""}</span>
+              ) : (
+                <span className="text-xs text-[var(--color-text-muted)]">-</span>
+              )
+          }
+        ]}
+        emptyState="No data privacy requests recorded."
+      />
 
       <TableCard
         title="Completed deletions — NDPC evidence"
@@ -286,6 +360,6 @@ async function ComplianceTab() {
         ]}
         emptyState="No completed deletions yet."
       />
-    </section>
+    </div>
   );
 }

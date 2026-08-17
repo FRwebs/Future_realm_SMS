@@ -21,6 +21,7 @@ const pageSchema = z.object({
   search: z.string().trim().optional(),
   schoolId: z.string().trim().optional(),
   status: z.string().trim().optional(),
+  plan: z.string().trim().optional(),
   role: z.string().trim().optional(),
   action: z.string().trim().optional(),
   dateFrom: z.coerce.date().optional(),
@@ -29,6 +30,9 @@ const pageSchema = z.object({
 
 const planSchema = z.nativeEnum(SubscriptionPlan);
 const tenantStatusSchema = z.nativeEnum(TenantStatus);
+const zBool = (defaultValue: boolean) => z.preprocess((value) => value === true || value === "true", z.boolean()).default(defaultValue);
+const zOptionalPlan = () => z.preprocess((value) => (value === "" ? undefined : value), planSchema.optional());
+const zOptionalId = () => z.string().trim().optional().transform((value) => (value === "" ? undefined : value));
 
 const schoolCreateSchema = z.object({
   name: z.string().trim().min(2),
@@ -70,6 +74,24 @@ const schoolContactSchema = z.object({
   phone: z.string().trim().optional(),
   email: z.string().trim().email().optional(),
   isPrimary: z.coerce.boolean().default(false)
+});
+
+const schoolGroupCreateSchema = z.object({
+  name: z.string().trim().min(2),
+  ownerName: z.string().trim().optional(),
+  ownerEmail: z.string().trim().email().optional().or(z.literal("")),
+  billingMode: z.enum(["GROUP", "BRANCH"]).default("GROUP")
+});
+
+const schoolGroupUpdateSchema = z.object({
+  name: z.string().trim().min(2).optional(),
+  ownerName: z.string().trim().optional(),
+  ownerEmail: z.string().trim().email().optional().or(z.literal("")),
+  billingMode: z.enum(["GROUP", "BRANCH"]).optional()
+});
+
+const linkSchoolGroupSchema = z.object({
+  schoolGroupId: z.string().trim().min(1)
 });
 
 const createInvoiceSchema = z.object({
@@ -126,7 +148,7 @@ const resolveDuplicateFlagSchema = z.object({
 
 const accountRecoverySchema = z.object({
   verificationMethod: z.string().trim().min(3),
-  newEmail: z.string().trim().email().optional()
+  newEmail: z.preprocess((value) => (value === "" ? undefined : value), z.string().trim().email().optional())
 });
 
 const billingUpdateSchema = z.object({
@@ -189,6 +211,10 @@ const dataCorrectionRequestSchema = z.object({
   newValue: z.string().trim()
 });
 
+const rejectDataCorrectionSchema = z.object({
+  reason: z.string().trim().min(2)
+});
+
 const featureFlagSchema = z.object({
   key: z.string().trim().min(2).regex(/^[a-z0-9_.-]+$/),
   name: z.string().min(2),
@@ -206,9 +232,9 @@ const featureRolloutSchema = z.object({
 const tierFeatureSchema = z.object({
   name: z.string().trim().min(2),
   module: z.string().trim().min(2),
-  starterAccess: z.coerce.boolean().default(false),
-  standardAccess: z.coerce.boolean().default(false),
-  eliteAccess: z.coerce.boolean().default(true)
+  starterAccess: zBool(false),
+  standardAccess: zBool(false),
+  eliteAccess: zBool(true)
 });
 
 const featureOverrideRequestSchema = z.object({
@@ -237,7 +263,7 @@ const announcementSchema = z.object({
 
 const audienceFilterSchema = z.object({
   role: z.string().trim().optional(),
-  plan: z.enum(["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"]).optional(),
+  plan: zOptionalPlan(),
   state: z.string().trim().optional(),
   city: z.string().trim().optional(),
   lastLoginWithinDays: z.coerce.number().int().positive().optional(),
@@ -254,7 +280,7 @@ const campaignSchema = z.object({
   scheduledAt: z.coerce.date().optional(),
   // Audience fields are accepted flat (matching the composer form) and assembled into audienceFilter.
   role: z.string().trim().optional(),
-  plan: z.enum(["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"]).optional(),
+  plan: zOptionalPlan(),
   state: z.string().trim().optional(),
   city: z.string().trim().optional(),
   lastLoginWithinDays: z.coerce.number().int().positive().optional()
@@ -276,7 +302,7 @@ const templateApprovalSchema = z.object({
 const consentSchema = z.object({
   userId: z.string().min(1),
   channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]),
-  optedIn: z.coerce.boolean()
+  optedIn: zBool(true)
 });
 
 const churnReasonValues = ["PRICE_TOO_HIGH", "SWITCHED_TO_COMPETITOR", "SCHOOL_CLOSED", "PRODUCT_ISSUES", "INSUFFICIENT_SUPPORT", "LOW_STAFF_ADOPTION", "OTHER"] as const;
@@ -333,7 +359,7 @@ const internalUserSchema = z.object({
 
 const internalDepartmentSchema = z.object({
   name: z.string().trim().min(2),
-  leadEmail: z.string().trim().email().optional()
+  leadEmail: z.preprocess((value) => (value === "" ? undefined : value), z.string().trim().email().optional())
 });
 
 const permissionTemplateSchema = z.object({
@@ -374,6 +400,12 @@ const leadSchema = z.object({
   notes: z.string().optional()
 });
 
+const leadStageUpdateSchema = z.object({
+  stage: z.enum(["LEAD", "CONTACTED", "DEMO_SCHEDULED", "TRIAL", "PROPOSAL_SENT", "NEGOTIATION", "WON", "LOST"]),
+  wonReason: z.string().trim().optional(),
+  lostReason: z.string().trim().optional()
+});
+
 const planConfigSchema = z.object({
   name: z.string().min(2),
   slug: z.string().min(2),
@@ -386,14 +418,18 @@ const planConfigSchema = z.object({
   smsUnitsPerMonth: z.coerce.number().int().min(0).default(0),
   emailSendsPerMonth: z.coerce.number().int().min(0).default(0),
   supportTier: z.enum(["COMMUNITY", "EMAIL", "PRIORITY", "DEDICATED"]).default("EMAIL"),
-  apiAccess: z.coerce.boolean().default(false),
-  customBranding: z.coerce.boolean().default(false),
-  includedModules: z.unknown().default([])
+  apiAccess: zBool(false),
+  customBranding: zBool(false),
+  includedModules: z
+    .string()
+    .trim()
+    .default("")
+    .transform((value) => (value.length ? value.split(",").map((module) => module.trim()).filter(Boolean) : []))
 });
 
 const privacyRequestSchema = z.object({
-  schoolId: z.string().optional(),
-  userId: z.string().optional(),
+  schoolId: zOptionalId(),
+  userId: zOptionalId(),
   type: z.enum(["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"]),
   subject: z.string().min(2),
   details: z.string().optional()
@@ -591,7 +627,8 @@ export class SuperAdminService {
     const where: Prisma.SchoolWhereInput = {
       deletedAt: null,
       ...(parsed.search ? { name: { contains: parsed.search, mode: "insensitive" } } : {}),
-      ...(parsed.status ? { status: parsed.status.toUpperCase() as TenantStatus } : {})
+      ...(parsed.status ? { status: parsed.status.toUpperCase() as TenantStatus } : {}),
+      ...(parsed.plan ? { plan: parsed.plan.toUpperCase() as SubscriptionPlan } : {})
     };
     const [schools, total] = await Promise.all([
       prisma.school.findMany({
@@ -613,8 +650,14 @@ export class SuperAdminService {
         plan: school.plan,
         status: school.status,
         billingStatus: school.billingStatus,
+        category: school.category,
         country: school.country,
         state: school.state,
+        city: school.city,
+        address: school.address,
+        ownerName: school.ownerName,
+        ownerEmail: school.ownerEmail,
+        ownerPhone: school.ownerPhone,
         healthScore: school.healthScore,
         mrr: planPrice(school.plan),
         totalUsers: school._count.users,
@@ -639,6 +682,7 @@ export class SuperAdminService {
           where: { role: { in: schoolAdminRoles }, deletedAt: null },
           select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, createdAt: true }
         },
+        schoolGroup: { select: { id: true, name: true } },
         _count: { select: { users: true, students: true, staffProfiles: true, invoices: true, payments: true } }
       }
     });
@@ -716,6 +760,7 @@ export class SuperAdminService {
         createdAt: user.createdAt.toISOString()
       })),
       prioritySupport: school.prioritySupport,
+      schoolGroup: school.schoolGroup ? { id: school.schoolGroup.id, name: school.schoolGroup.name } : null,
       dataExportedAt: school.dataExportedAt?.toISOString() ?? null,
       statusReason: school.statusReason,
       statusChangedAt: school.statusChangedAt?.toISOString() ?? null,
@@ -925,6 +970,96 @@ export class SuperAdminService {
     await prisma.schoolContact.delete({ where: { id: contactId } });
     await this.audit(session, "DELETE", "SchoolContact", contactId, { name: contact.name }, schoolId);
     return this.response({ id: contactId }, "Contact removed");
+  }
+
+  async listSchoolGroups(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const groups = await prisma.schoolGroup.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        schools: {
+          where: { deletedAt: null },
+          include: { _count: { select: { students: true } } },
+          orderBy: { createdAt: "asc" }
+        }
+      }
+    });
+    return this.response(
+      groups.map((group) => ({
+        id: group.id,
+        name: group.name,
+        ownerName: group.ownerName,
+        ownerEmail: group.ownerEmail,
+        billingMode: group.billingMode,
+        createdAt: group.createdAt.toISOString(),
+        branchCount: group.schools.length,
+        totalStudents: group.schools.reduce((sum, school) => sum + school._count.students, 0),
+        branches: group.schools.map((school) => ({ id: school.id, name: school.name, totalStudents: school._count.students, plan: school.plan, status: school.status }))
+      })),
+      "School groups loaded"
+    );
+  }
+
+  async createSchoolGroup(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = schoolGroupCreateSchema.parse(payload);
+    const group = await prisma.schoolGroup.create({
+      data: {
+        name: parsed.name,
+        ownerName: parsed.ownerName || null,
+        ownerEmail: parsed.ownerEmail || null,
+        billingMode: parsed.billingMode
+      }
+    });
+    await this.audit(session, "CREATE", "SchoolGroup", group.id, { name: group.name }, null);
+    return this.response({ id: group.id }, "School group created");
+  }
+
+  async updateSchoolGroup(session: SessionPayload, groupId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = schoolGroupUpdateSchema.parse(payload);
+    const existing = await prisma.schoolGroup.findUnique({ where: { id: groupId } });
+    if (!existing) throw new NotFoundException("School group not found.");
+    const group = await prisma.schoolGroup.update({
+      where: { id: groupId },
+      data: {
+        ...(parsed.name !== undefined ? { name: parsed.name } : {}),
+        ...(parsed.ownerName !== undefined ? { ownerName: parsed.ownerName || null } : {}),
+        ...(parsed.ownerEmail !== undefined ? { ownerEmail: parsed.ownerEmail || null } : {}),
+        ...(parsed.billingMode !== undefined ? { billingMode: parsed.billingMode } : {})
+      }
+    });
+    await this.audit(session, "UPDATE", "SchoolGroup", group.id, parsed as Prisma.InputJsonValue, null);
+    return this.response({ id: group.id }, "School group updated");
+  }
+
+  async deleteSchoolGroup(session: SessionPayload, groupId: string) {
+    assertSuperAdmin(session);
+    const group = await prisma.schoolGroup.findUnique({ where: { id: groupId }, include: { _count: { select: { schools: true } } } });
+    if (!group) throw new NotFoundException("School group not found.");
+    if (group._count.schools > 0) {
+      throw new BadRequestException("Unlink every branch from this group before deleting it.");
+    }
+    await prisma.schoolGroup.delete({ where: { id: groupId } });
+    await this.audit(session, "DELETE", "SchoolGroup", groupId, { name: group.name }, null);
+    return this.response({ id: groupId }, "School group deleted");
+  }
+
+  async linkSchoolToGroup(session: SessionPayload, schoolId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = linkSchoolGroupSchema.parse(payload);
+    const group = await prisma.schoolGroup.findUnique({ where: { id: parsed.schoolGroupId } });
+    if (!group) throw new NotFoundException("School group not found.");
+    const school = await prisma.school.update({ where: { id: schoolId }, data: { schoolGroupId: group.id } });
+    await this.audit(session, "UPDATE", "School", school.id, { schoolGroupId: group.id, schoolGroupName: group.name }, school.id);
+    return this.response({ id: school.id, schoolGroupId: group.id }, "School linked to group");
+  }
+
+  async unlinkSchoolFromGroup(session: SessionPayload, schoolId: string) {
+    assertSuperAdmin(session);
+    const school = await prisma.school.update({ where: { id: schoolId }, data: { schoolGroupId: null } });
+    await this.audit(session, "UPDATE", "School", school.id, { schoolGroupId: null }, school.id);
+    return this.response({ id: school.id }, "School removed from group");
   }
 
   async exportSchoolData(session: SessionPayload, schoolId: string) {
@@ -1137,6 +1272,26 @@ export class SuperAdminService {
     });
     await this.audit(session, "RESET_PASSWORD", "User", userId, { verificationMethod: parsed.verificationMethod, recoveryRecordId: record.id }, user.schoolId);
     return this.response({ id: record.id, temporaryPassword: tempPassword }, "Account recovery completed");
+  }
+
+  async listAccountRecoveries(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const records = await prisma.accountRecoveryRecord.findMany({
+      include: { user: true, verifiedBy: true },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+    return this.response(records.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      userName: `${r.user.firstName} ${r.user.lastName}`,
+      userEmail: r.user.email,
+      verificationMethod: r.verificationMethod,
+      newEmail: r.newEmail,
+      verifiedBy: r.verifiedBy ? `${r.verifiedBy.firstName} ${r.verifiedBy.lastName}` : "System",
+      completedAt: r.completedAt?.toISOString(),
+      createdAt: r.createdAt.toISOString()
+    })));
   }
 
   async recalculateSuspiciousActivity(session: SessionPayload) {
@@ -1990,6 +2145,28 @@ export class SuperAdminService {
     return this.response({ token, expiresInSeconds: maxAgeSeconds, user: { id: user.id, email: user.email, role: user.role, schoolName: user.school.name } }, "Impersonation token generated");
   }
 
+  async listImpersonationLog(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const events = await prisma.auditLog.findMany({
+      where: { entityType: "User", action: "IMPERSONATE" },
+      include: { actor: true, school: true },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+    return this.response(events.map((event) => {
+      const metadata = (event.metadata ?? {}) as Record<string, unknown>;
+      return {
+        id: event.id,
+        impersonatedBy: event.actor ? `${event.actor.firstName} ${event.actor.lastName}` : "System",
+        targetEmail: (metadata.email as string) ?? "Unknown",
+        schoolName: event.school?.name ?? "Platform",
+        reason: (metadata.reason as string) ?? null,
+        startedAt: (metadata.startedAt as string) ?? event.createdAt.toISOString(),
+        maxAgeSeconds: (metadata.maxAgeSeconds as number) ?? null
+      };
+    }));
+  }
+
   async getSettings(session: SessionPayload) {
     assertSuperAdmin(session);
     const settings = await this.settingsRecord();
@@ -2260,6 +2437,49 @@ export class SuperAdminService {
     });
     await this.audit(session, "UPDATE", "DataCorrectionRecord", record.id, { fieldCorrected: record.fieldCorrected, oldValue: record.oldValue, newValue: record.newValue }, record.ticket.schoolId);
     return this.response({ id: updated.id, status: updated.status }, "Data correction approved and logged");
+  }
+
+  async rejectDataCorrection(session: SessionPayload, recordId: string, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Data corrections can only be rejected by Super Admin.");
+    const parsed = rejectDataCorrectionSchema.parse(payload);
+    const record = await prisma.dataCorrectionRecord.findUnique({ where: { id: recordId }, include: { ticket: true } });
+    if (!record) throw new NotFoundException("Data correction record not found.");
+    if (record.status !== "PENDING") throw new BadRequestException("This correction has already been resolved.");
+    const updated = await prisma.dataCorrectionRecord.update({
+      where: { id: recordId },
+      data: { status: "REJECTED", approvedById: session.userId, completedAt: new Date() }
+    });
+    await this.audit(session, "UPDATE", "DataCorrectionRecord", record.id, { fieldCorrected: record.fieldCorrected, reason: parsed.reason }, record.ticket.schoolId);
+    return this.response({ id: updated.id, status: updated.status }, "Data correction rejected");
+  }
+
+  async listDataCorrections(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const records = await prisma.dataCorrectionRecord.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        ticket: { select: { id: true, ticketNo: true, subject: true, school: { select: { id: true, name: true } } } },
+        requestedBy: { select: { firstName: true, lastName: true } },
+        approvedBy: { select: { firstName: true, lastName: true } }
+      }
+    });
+    return this.response(
+      records.map((record) => ({
+        id: record.id,
+        ticketId: record.ticket.id,
+        ticketNo: record.ticket.ticketNo,
+        schoolName: record.ticket.school?.name ?? "Unknown school",
+        fieldCorrected: record.fieldCorrected,
+        oldValue: record.oldValue,
+        newValue: record.newValue,
+        status: record.status,
+        requestedBy: record.requestedBy ? `${record.requestedBy.firstName} ${record.requestedBy.lastName}` : null,
+        approvedBy: record.approvedBy ? `${record.approvedBy.firstName} ${record.approvedBy.lastName}` : null,
+        createdAt: record.createdAt.toISOString(),
+        completedAt: record.completedAt?.toISOString() ?? null
+      })),
+      "Data correction requests loaded"
+    );
   }
 
   async ticketAnalytics(session: SessionPayload) {
@@ -2558,6 +2778,19 @@ export class SuperAdminService {
     return this.response({ id: lead.id }, "Lead created");
   }
 
+  async updateLeadStage(session: SessionPayload, leadId: string, payload: unknown) {
+    assertAnyPlatformRole(session, salesRoles, "Lead management is restricted to owner, platform admin, and sales roles.");
+    const parsed = leadStageUpdateSchema.parse(payload);
+    if (parsed.stage === "WON" && !parsed.wonReason) throw new BadRequestException("A reason is required when marking a lead Won.");
+    if (parsed.stage === "LOST" && !parsed.lostReason) throw new BadRequestException("A reason is required when marking a lead Lost.");
+    const lead = await prisma.lead.update({
+      where: { id: leadId },
+      data: { stage: parsed.stage, wonReason: parsed.wonReason, lostReason: parsed.lostReason }
+    });
+    await this.audit(session, "UPDATE", "Lead", lead.id, { stage: parsed.stage }, null);
+    return this.response({ id: lead.id, stage: lead.stage }, "Lead stage updated");
+  }
+
   async securityOverview(session: SessionPayload) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "DEVELOPER", "SUPPORT_AGENT", "SUPER_ADMIN"]));
     const [sessions, attempts, privacy, backups, systemLogs, incidents] = await Promise.all([
@@ -2611,6 +2844,16 @@ export class SuperAdminService {
         resolvedBy: i.resolvedBy ? `${i.resolvedBy.firstName} ${i.resolvedBy.lastName}` : null
       }))
     });
+  }
+
+  async revokeSession(session: SessionPayload, sessionId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "DEVELOPER", "SUPER_ADMIN"]));
+    const target = await prisma.platformSession.findUnique({ where: { id: sessionId } });
+    if (!target) throw new NotFoundException("Session not found.");
+    if (target.revokedAt) throw new BadRequestException("This session has already been revoked.");
+    await prisma.platformSession.update({ where: { id: sessionId }, data: { revokedAt: new Date() } });
+    await this.audit(session, "UPDATE", "PlatformSession", sessionId, { forcedLogout: true }, target.schoolId ?? null);
+    return this.response({ id: sessionId }, "Session revoked — the user has been logged out");
   }
 
   async createPrivacyRequest(session: SessionPayload, payload: unknown) {
@@ -2716,7 +2959,12 @@ export class SuperAdminService {
 
   async listPlans(session: SessionPayload) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SALES_MANAGER", "FINANCE_MANAGER", "SUPER_ADMIN"]));
-    return this.response(await prisma.platformSubscriptionPlan.findMany({ orderBy: { monthlyPrice: "asc" } }));
+    const [plans, schoolsByPlan] = await Promise.all([
+      prisma.platformSubscriptionPlan.findMany({ orderBy: { monthlyPrice: "asc" } }),
+      prisma.school.groupBy({ by: ["plan"], where: { deletedAt: null }, _count: true })
+    ]);
+    const subscriberCounts = new Map(schoolsByPlan.map((row) => [row.plan, row._count]));
+    return this.response(plans.map((plan) => ({ ...plan, subscriberCount: subscriberCounts.get(plan.plan) ?? 0 })));
   }
 
   async createPlan(session: SessionPayload, payload: unknown) {
@@ -2725,6 +2973,37 @@ export class SuperAdminService {
     const plan = await prisma.platformSubscriptionPlan.create({ data: parsed as Prisma.PlatformSubscriptionPlanCreateInput });
     await this.audit(session, "CREATE", "PlatformSubscriptionPlan", plan.id, { slug: parsed.slug, monthlyPrice: parsed.monthlyPrice }, null);
     return this.response({ id: plan.id }, "Subscription plan created");
+  }
+
+  async togglePlanActive(session: SessionPayload, planId: string) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]));
+    const existing = await prisma.platformSubscriptionPlan.findUnique({ where: { id: planId } });
+    if (!existing) throw new NotFoundException("Subscription plan not found.");
+    const plan = await prisma.platformSubscriptionPlan.update({ where: { id: planId }, data: { isActive: !existing.isActive } });
+    await this.audit(session, "SETTINGS_UPDATE", "PlatformSubscriptionPlan", plan.id, { isActive: plan.isActive }, null);
+    return this.response({ id: plan.id, isActive: plan.isActive }, plan.isActive ? "Plan activated" : "Plan archived");
+  }
+
+  async listPlanLifecycle(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SALES_MANAGER", "FINANCE_MANAGER", "SUPER_ADMIN"]));
+    const events = await prisma.auditLog.findMany({
+      where: { entityType: "School", action: "UPDATE" },
+      include: { school: true, actor: true },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+    const migrations = events.filter((event) => {
+      const metadata = event.metadata as Record<string, unknown> | null;
+      return Boolean(metadata && typeof metadata === "object" && "plan" in metadata);
+    });
+    return this.response(migrations.map((event) => ({
+      id: event.id,
+      schoolId: event.schoolId,
+      schoolName: event.school?.name ?? "Unknown school",
+      toPlan: (event.metadata as Record<string, unknown>).plan as string,
+      changedBy: event.actor ? `${event.actor.firstName} ${event.actor.lastName}` : "System",
+      changedAt: event.createdAt.toISOString()
+    })));
   }
 
   async createMaintenanceWindow(session: SessionPayload, payload: unknown) {
@@ -2943,6 +3222,25 @@ export class SuperAdminService {
     });
     await this.audit(session, "UPDATE", "ConsentRecord", consent.id, { userId: parsed.userId, channel: parsed.channel, optedIn: parsed.optedIn }, null);
     return this.response({ id: consent.id, optedIn: consent.optedIn }, "Consent updated");
+  }
+
+  async listConsentRecords(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const records = await prisma.consentRecord.findMany({
+      include: { user: true },
+      orderBy: { updatedAt: "desc" },
+      take: 200
+    });
+    return this.response(records.map((r) => ({
+      id: r.id,
+      userId: r.userId,
+      userName: `${r.user.firstName} ${r.user.lastName}`,
+      userEmail: r.user.email,
+      channel: r.channel,
+      optedIn: r.optedIn,
+      optedOutAt: r.optedOutAt?.toISOString(),
+      updatedAt: r.updatedAt.toISOString()
+    })));
   }
 
   async biOverview(session: SessionPayload) {
@@ -3260,10 +3558,24 @@ export class SuperAdminService {
     return this.response({ id: template.id }, "Report card template saved");
   }
 
-  async listInternalTeam(session: SessionPayload) {
+  async listInternalTeam(session: SessionPayload, query: unknown = {}) {
     assertSuperAdmin(session);
+    const parsed = pageSchema.parse(query);
+    const where: Prisma.UserWhereInput = {
+      role: { in: parsed.role ? [parsed.role.toUpperCase() as UserRole] : Array.from(platformRoles) },
+      ...(parsed.status === "REVOKED" ? { deletedAt: { not: null } } : parsed.status ? { deletedAt: null, isActive: parsed.status.toUpperCase() !== "SUSPENDED" } : {}),
+      ...(parsed.search
+        ? {
+            OR: [
+              { firstName: { contains: parsed.search, mode: "insensitive" } },
+              { lastName: { contains: parsed.search, mode: "insensitive" } },
+              { email: { contains: parsed.search, mode: "insensitive" } }
+            ]
+          }
+        : {})
+    };
     const members = await prisma.user.findMany({
-      where: { role: { in: Array.from(platformRoles) } },
+      where,
       select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, deletedAt: true, lastLoginAt: true, createdAt: true },
       orderBy: { createdAt: "asc" }
     });
@@ -3274,7 +3586,8 @@ export class SuperAdminService {
       role: m.role,
       status: m.deletedAt ? "REVOKED" : m.isActive ? "ACTIVE" : "SUSPENDED",
       lastLoginAt: m.lastLoginAt?.toISOString(),
-      createdAt: m.createdAt.toISOString()
+      createdAt: m.createdAt.toISOString(),
+      revokedAt: m.deletedAt?.toISOString()
     })));
   }
 
@@ -3401,6 +3714,30 @@ export class SuperAdminService {
     });
     await this.audit(session, "UPDATE", "InternalPermissionGrid", entry.id, { userId: parsed.userId, moduleId: parsed.moduleId, accessLevel: parsed.accessLevel }, null);
     return this.response({ id: entry.id }, "Permission updated");
+  }
+
+  async listPermissionGridMatrix(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const [members, gridEntries] = await Promise.all([
+      prisma.user.findMany({ where: { role: { in: Array.from(platformRoles) }, deletedAt: null }, select: { id: true, firstName: true, lastName: true, role: true }, orderBy: { createdAt: "asc" } }),
+      prisma.internalPermissionGrid.findMany({ orderBy: { moduleId: "asc" } })
+    ]);
+    const moduleIds = Array.from(new Set(gridEntries.map((g) => g.moduleId))).sort();
+    const gridByUser = new Map<string, Record<string, string>>();
+    for (const g of gridEntries) {
+      const row = gridByUser.get(g.userId) ?? {};
+      row[g.moduleId] = g.accessLevel;
+      gridByUser.set(g.userId, row);
+    }
+    return this.response({
+      modules: moduleIds,
+      members: members.map((m) => ({
+        id: m.id,
+        name: `${m.firstName} ${m.lastName}`,
+        role: m.role,
+        access: gridByUser.get(m.id) ?? {}
+      }))
+    });
   }
 
   async grantTimeBoundAccess(session: SessionPayload, payload: unknown) {

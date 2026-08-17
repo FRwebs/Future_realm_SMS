@@ -12,33 +12,48 @@ export function ActionMenu({
   children,
   align = "right",
   triggerLabel = "More actions",
+  triggerText,
   panelClassName,
 }: {
   children: React.ReactNode;
   align?: "left" | "right";
   triggerLabel?: string;
+  /** When set, renders a labeled text button (e.g. "Manage") instead of the default icon-only trigger. */
+  triggerText?: string;
   panelClassName?: string;
 }) {
   return (
     <Popover
       align={align}
-      panelClassName={cn("min-w-[190px] p-1.5", panelClassName)}
-      trigger={({ toggle, open }) => (
-        <Tooltip content={triggerLabel}>
+      panelClassName={cn("min-w-[200px] p-1.5", panelClassName)}
+      trigger={({ toggle, open }) =>
+        triggerText ? (
           <button
             type="button"
             onClick={toggle}
             aria-label={triggerLabel}
             aria-expanded={open}
-            className={cn(
-              "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)] transition",
-              "hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
-            )}
+            className="inline-flex items-center justify-center rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--color-text-accent)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
           >
-            <MoreVertical className="h-4 w-4" />
+            {triggerText}
           </button>
-        </Tooltip>
-      )}
+        ) : (
+          <Tooltip content={triggerLabel}>
+            <button
+              type="button"
+              onClick={toggle}
+              aria-label={triggerLabel}
+              aria-expanded={open}
+              className={cn(
+                "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)] transition",
+                "hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
+              )}
+            >
+              <MoreVertical className="h-4 w-4" />
+            </button>
+          </Tooltip>
+        )
+      }
     >
       {() => <div className="grid gap-1">{children}</div>}
     </Popover>
@@ -46,7 +61,7 @@ export function ActionMenu({
 }
 
 const itemClassName =
-  "flex w-full items-center rounded-xl px-3 py-2 text-left text-[13px] font-medium transition";
+  "flex w-full items-center gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold transition-colors duration-150";
 
 export function ActionMenuLink({
   href,
@@ -87,7 +102,7 @@ export function ActionMenuButton({
       className={cn(
         itemClassName,
         destructive
-          ? "text-rose-700 hover:bg-rose-50"
+          ? "text-[var(--color-danger)] hover:bg-[var(--color-danger-dim)]"
           : "text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
         className,
       )}

@@ -11,7 +11,7 @@ export interface TableColumn<TItem> {
 
 interface TableCardProps<TItem> {
   title: string;
-  description: string;
+  description: ReactNode;
   columns: TableColumn<TItem>[];
   items: TItem[];
   emptyState?: string;
