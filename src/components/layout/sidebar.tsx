@@ -91,7 +91,6 @@ function SidebarContent({
         items: group.items.filter((item) => item.label.toLowerCase().includes(query)),
       }))
       .filter((group) => group.items.length > 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [query, visibleGroups.length]);
 
   async function handleSignOut() {

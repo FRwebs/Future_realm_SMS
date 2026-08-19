@@ -12,7 +12,7 @@ import type {
   TermProgress
 } from "@/lib/dashboard/command-center-snapshot";
 import type { DashboardMetric, DashboardSummary, SessionUser } from "@/lib/domain/types";
-import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatCurrency } from "@/lib/utils/formatters";
 import { OfflineSyncStatus } from "./_offline-sync-status";
 
 type RoleDashboardProfile = {
