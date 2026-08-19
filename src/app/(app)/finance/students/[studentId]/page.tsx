@@ -39,7 +39,7 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
   );
 
   return (
-    <div className="grid gap-6">
+    <div className="portal-page">
       <DetailPageHeader
         eyebrow="Student finance ledger"
         title={ledger.studentName}
@@ -55,53 +55,53 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
       />
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Total billed</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{formatCurrency(ledger.metrics.totalBilled)}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Total billed</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(ledger.metrics.totalBilled)}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-5 shadow-panel">
-          <p className="text-sm text-emerald-700/80">Total paid</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-emerald-800">{formatCurrency(ledger.metrics.totalPaid)}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-success)]">Total paid</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(ledger.metrics.totalPaid)}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-5 shadow-panel">
-          <p className="text-sm text-rose-700/80">Outstanding</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-rose-700">{formatCurrency(ledger.metrics.outstanding)}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-danger-dim)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-danger)]">Outstanding</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(ledger.metrics.outstanding)}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-5 shadow-panel">
-          <p className="text-sm text-amber-700/80">Overdue invoices</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-amber-800">{ledger.metrics.overdueInvoices}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-warning)]">Overdue invoices</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{ledger.metrics.overdueInvoices}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Installment plans</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{ledger.metrics.activeInstallmentPlans}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Installment plans</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{ledger.metrics.activeInstallmentPlans}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Last payment</p>
-          <p className="mt-3 text-lg font-semibold text-ink">{ledger.metrics.lastPaymentAt ? formatDate(ledger.metrics.lastPaymentAt) : "No payment yet"}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Last payment</p>
+          <p className="mt-2 text-[15px] font-semibold text-[var(--color-text-primary)]">{ledger.metrics.lastPaymentAt ? formatDate(ledger.metrics.lastPaymentAt) : "No payment yet"}</p>
         </article>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Family and account context</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
-            <p><span className="font-semibold text-ink">Guardian:</span> {ledger.guardianName ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Phone:</span> {ledger.guardianPhone ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Email:</span> {ledger.guardianEmail ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Class:</span> {ledger.className}</p>
-            <p><span className="font-semibold text-ink">Level:</span> {ledger.classLevel ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Current session:</span> {ledger.currentSession ?? "Not recorded"}</p>
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Family and account context</h2>
+          <div className="mt-4 grid gap-2 text-[13px] text-[var(--color-text-secondary)]">
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Guardian:</span> {ledger.guardianName ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Phone:</span> {ledger.guardianPhone ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Email:</span> {ledger.guardianEmail ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Class:</span> {ledger.className}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Level:</span> {ledger.classLevel ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Current session:</span> {ledger.currentSession ?? "Not recorded"}</p>
           </div>
         </article>
 
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Ledger summary</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
-            <p><span className="font-semibold text-ink">Invoice records:</span> {ledger.invoices.length}</p>
-            <p><span className="font-semibold text-ink">Payment records:</span> {ledger.payments.length}</p>
-            <p><span className="font-semibold text-ink">Installment plans:</span> {ledger.installmentPlans.length}</p>
-            <p><span className="font-semibold text-ink">Adjustments:</span> {ledger.adjustments.length}</p>
-            <p><span className="font-semibold text-ink">Account state:</span> {ledger.metrics.outstanding > 0 ? "Balance outstanding" : "Financially clear"}</p>
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Ledger summary</h2>
+          <div className="mt-4 grid gap-2 text-[13px] text-[var(--color-text-secondary)]">
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Invoice records:</span> {ledger.invoices.length}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Payment records:</span> {ledger.payments.length}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Installment plans:</span> {ledger.installmentPlans.length}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Adjustments:</span> {ledger.adjustments.length}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Account state:</span> {ledger.metrics.outstanding > 0 ? "Balance outstanding" : "Financially clear"}</p>
           </div>
         </article>
       </section>
@@ -120,8 +120,8 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
             header: "Invoice",
             render: (item) => (
               <div>
-                <p className="font-semibold text-ink">{item.invoiceNumber}</p>
-                <p className="text-xs text-ink/55">{item.className}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.invoiceNumber}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.className}</p>
               </div>
             ),
           },
@@ -129,12 +129,12 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
           { key: "total", header: "Billed", render: (item) => formatCurrency(item.total) },
           { key: "paid", header: "Paid", render: (item) => formatCurrency(item.paid ?? 0) },
           { key: "balance", header: "Balance", render: (item) => formatCurrency(item.balance) },
-          { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">{item.status}</span> },
+          { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.status}</span> },
           { key: "due", header: "Due", render: (item) => formatDate(item.dueOn) },
         ]}
       />
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Payment history"
           description="Every payment recorded against this student, including manual and online channels."
@@ -149,15 +149,15 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
               header: "Reference",
               render: (item) => (
                 <div>
-                  <p className="font-semibold text-ink">{item.reference}</p>
-                  <p className="text-xs text-ink/55">{item.invoiceNumber ?? "No linked invoice"}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.reference}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.invoiceNumber ?? "No linked invoice"}</p>
                 </div>
               ),
             },
             { key: "context", header: "Context", render: (item) => [item.session, item.term, item.classLevel].filter(Boolean).join(" · ") || item.className || "No context set" },
             { key: "amount", header: "Amount", render: (item) => formatCurrency(item.amount) },
             { key: "method", header: "Method", render: (item) => item.paymentChannel || item.method },
-            { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">{item.status}</span> },
+            { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.status}</span> },
             { key: "paidAt", header: "Paid", render: (item) => (item.paidAt ? formatDate(item.paidAt) : "—") },
           ]}
         />
@@ -176,8 +176,8 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
               header: "Plan",
               render: (item) => (
                 <div>
-                  <p className="font-semibold text-ink">{item.planNumber}</p>
-                  <p className="text-xs text-ink/55">{item.invoiceNumber ?? "No linked invoice"}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.planNumber}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.invoiceNumber ?? "No linked invoice"}</p>
                 </div>
               ),
             },
@@ -185,7 +185,7 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
             { key: "total", header: "Total", render: (item) => formatCurrency(item.totalAmount) },
             { key: "balance", header: "Balance", render: (item) => formatCurrency(item.balance) },
             { key: "next", header: "Next due", render: (item) => (item.items[0] ? formatDate(item.items[0].dueOn) : "—") },
-            { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">{item.status}</span> },
+            { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.status}</span> },
           ]}
         />
       </section>
@@ -204,8 +204,8 @@ export default async function FinanceStudentLedgerPage({ params }: PageProps) {
             header: "Type",
             render: (item) => (
               <div>
-                <p className="font-semibold text-ink">{item.type}</p>
-                <p className="text-xs text-ink/55">{item.invoiceNumber ?? "No invoice number"}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.type}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.invoiceNumber ?? "No invoice number"}</p>
               </div>
             ),
           },

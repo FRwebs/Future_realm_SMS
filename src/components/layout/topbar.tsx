@@ -170,7 +170,7 @@ function notificationsEndpoint(session: SessionUser, portalType: PortalType) {
   return null;
 }
 
-function dropdownItemsFor(session: SessionUser): DropdownItem[] {
+export function dropdownItemsFor(session: SessionUser): DropdownItem[] {
   const profilePath =
     session.role === "PARENT"
       ? "/portals/parent/profile"
@@ -403,8 +403,8 @@ function ProfileDropdown({
           <div className={cn(
             "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-bold text-white",
             theme === "finance-light"
-              ? "bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#122117] shadow-[0_12px_28px_rgba(15,23,42,0.18)]"
-              : "bg-gradient-to-br from-[#2dd4bf] via-[#0f766e] to-[#122117] shadow-[0_14px_28px_rgba(45,212,191,0.18)]"
+              ? "bg-gradient-to-br from-[#12796a] via-[#12796a] to-[#0d2315] shadow-[0_12px_28px_rgba(15,23,42,0.18)]"
+              : "bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] shadow-[0_14px_28px_rgba(18,121,106,0.18)]"
           )}>
             {initials(session.name)}
           </div>
@@ -521,12 +521,12 @@ export function Topbar({
           className={cn(
             "absolute inset-y-3 left-0 w-1 rounded-r-full",
             theme === "finance-light"
-              ? "bg-gradient-to-b from-[#0d9488] via-[#0f766e] to-[#122117]"
-              : "bg-gradient-to-b from-[#2dd4bf] via-[#0f766e] to-[#122117]",
+              ? "bg-gradient-to-b from-[#12796a] via-[#12796a] to-[#0d2315]"
+              : "bg-gradient-to-b from-[#4fa895] via-[#12796a] to-[#0d2315]",
           )}
         />
-        <span className={cn("pointer-events-none absolute inset-x-6 top-0 h-px", theme === "finance-light" ? "bg-gradient-to-r from-transparent via-[#b9efe7] to-transparent" : "bg-gradient-to-r from-transparent via-white/20 to-transparent")} />
-        <span className={cn("pointer-events-none absolute inset-x-0 top-0 h-full", theme === "finance-light" ? "bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.10),transparent_32%)]" : "bg-[radial-gradient(circle_at_top_left,rgba(45,212,191,0.14),transparent_32%)]")} />
+        <span className={cn("pointer-events-none absolute inset-x-6 top-0 h-px", theme === "finance-light" ? "bg-gradient-to-r from-transparent via-[#a7ece1] to-transparent" : "bg-gradient-to-r from-transparent via-white/20 to-transparent")} />
+        <span className={cn("pointer-events-none absolute inset-x-0 top-0 h-full", theme === "finance-light" ? "bg-[radial-gradient(circle_at_top_left,rgba(18,121,106,0.10),transparent_32%)]" : "bg-[radial-gradient(circle_at_top_left,rgba(18,121,106,0.14),transparent_32%)]")} />
 
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -610,8 +610,8 @@ export function Topbar({
                 className={cn(
                   "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[0.68rem] font-bold text-white",
                   theme === "finance-light"
-                    ? "bg-gradient-to-br from-[#0d9488] via-[#0f766e] to-[#122117] shadow-[0_12px_28px_rgba(15,23,42,0.18)] ring-2 ring-white/80"
-                    : "bg-gradient-to-br from-[#2dd4bf] via-[#0f766e] to-[#122117] shadow-[0_14px_28px_rgba(45,212,191,0.18)] ring-2 ring-white/10"
+                    ? "bg-gradient-to-br from-[#12796a] via-[#12796a] to-[#0d2315] shadow-[0_12px_28px_rgba(15,23,42,0.18)] ring-2 ring-white/80"
+                    : "bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] shadow-[0_14px_28px_rgba(18,121,106,0.18)] ring-2 ring-white/10"
                 )}
               >
                 {initials(session.name)}

@@ -53,60 +53,37 @@ const STATUS_CONFIG: Record<
     label: string;
     shortLabel: string;
     icon: React.ElementType;
-    chip: string;
-    button: string;
-    active: string;
-    bar: string;
-    dot: string;
+    tone: string;
+    dim: string;
   }
 > = {
   PRESENT: {
     label: "Present",
     shortLabel: "P",
     icon: UserCheck,
-    chip: "border-emerald-200 bg-emerald-50 text-emerald-700",
-    button:
-      "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-50 hover:border-emerald-300",
-    active:
-      "border-emerald-500 bg-emerald-500 text-white shadow-sm ring-2 ring-emerald-200",
-    bar: "bg-emerald-500",
-    dot: "bg-emerald-500",
+    tone: "var(--color-success)",
+    dim: "var(--color-success-dim)",
   },
   LATE: {
     label: "Late",
     shortLabel: "L",
     icon: Clock,
-    chip: "border-amber-200 bg-amber-50 text-amber-700",
-    button:
-      "border-amber-200 bg-white text-amber-700 hover:bg-amber-50 hover:border-amber-300",
-    active:
-      "border-amber-500 bg-amber-500 text-white shadow-sm ring-2 ring-amber-200",
-    bar: "bg-amber-400",
-    dot: "bg-amber-400",
+    tone: "var(--color-warning)",
+    dim: "var(--color-warning-dim)",
   },
   ABSENT: {
     label: "Absent",
     shortLabel: "A",
     icon: UserX,
-    chip: "border-rose-200 bg-rose-50 text-rose-700",
-    button:
-      "border-rose-200 bg-white text-rose-700 hover:bg-rose-50 hover:border-rose-300",
-    active:
-      "border-rose-500 bg-rose-500 text-white shadow-sm ring-2 ring-rose-200",
-    bar: "bg-rose-500",
-    dot: "bg-rose-500",
+    tone: "var(--color-danger)",
+    dim: "var(--color-danger-dim)",
   },
   EXCUSED: {
     label: "Excused",
     shortLabel: "E",
     icon: UserMinus,
-    chip: "border-sky-200 bg-sky-50 text-sky-700",
-    button:
-      "border-sky-200 bg-white text-sky-700 hover:bg-sky-50 hover:border-sky-300",
-    active:
-      "border-sky-500 bg-sky-500 text-white shadow-sm ring-2 ring-sky-200",
-    bar: "bg-sky-400",
-    dot: "bg-sky-400",
+    tone: "var(--color-info)",
+    dim: "var(--color-info-dim)",
   },
 };
 
@@ -158,6 +135,18 @@ function toMinutes(value?: string) {
   return hours * 60 + minutes;
 }
 
+function statusChipStyle(status: AttendanceStatus) {
+  const cfg = STATUS_CONFIG[status];
+  return { background: cfg.dim, color: cfg.tone };
+}
+
+function statusButtonStyle(status: AttendanceStatus, active: boolean) {
+  const cfg = STATUS_CONFIG[status];
+  return active
+    ? { background: cfg.tone, borderColor: cfg.tone, color: "var(--color-text-inverse)" }
+    : { borderColor: cfg.dim, color: cfg.tone };
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function paginate<T>(items: T[], page: number, pageSize: number) {
@@ -174,7 +163,10 @@ function paginate<T>(items: T[], page: number, pageSize: number) {
 function UnmarkedBadge({ count }: { count: number }) {
   if (count === 0) return null;
   return (
-    <span className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full bg-rose-500 px-1.5 text-[10px] font-black text-white">
+    <span
+      className="inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-[10px] font-black"
+      style={{ background: "var(--color-danger)", color: "var(--color-text-inverse)" }}
+    >
       {count}
     </span>
   );
@@ -193,26 +185,26 @@ function PaginationControls({
 }) {
   if (totalPages <= 1) return null;
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-4 py-3 text-sm">
-      <p className="text-slate-500">{label}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-4 py-3 text-sm">
+      <p className="text-[var(--color-text-secondary)]">{label}</p>
       <div className="flex items-center gap-2">
         <button
           type="button"
           onClick={() => onPageChange(page - 1)}
           disabled={page <= 1}
-          className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <ChevronLeft className="h-4 w-4" />
           Prev
         </button>
-        <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">
+        <span className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2 text-xs font-bold text-[var(--color-text-secondary)]">
           Page {page} of {totalPages}
         </span>
         <button
           type="button"
           onClick={() => onPageChange(page + 1)}
           disabled={page >= totalPages}
-          className="inline-flex h-9 items-center gap-1 rounded-xl border border-slate-200 bg-white px-3 font-semibold text-slate-600 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+          className="inline-flex h-9 items-center gap-1 rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-subtle)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           Next
           <ChevronRight className="h-4 w-4" />
@@ -292,7 +284,7 @@ export function TeacherAttendanceClient({
       label: formatNigeriaClassName(item.className),
       description: "Morning register",
       learners: item.learners,
-      chipTone: "border-blue-200 bg-blue-50 text-blue-800",
+      chipTone: "border-[var(--color-border-default)] bg-[var(--color-info-dim)] text-[var(--color-info)]",
     }));
 
     const subjectOptions = teachingAssignments.map((item) => ({
@@ -302,7 +294,7 @@ export function TeacherAttendanceClient({
       label: `${item.subject} · ${formatNigeriaClassName(item.className)}`,
       description: "Subject period",
       learners: item.learners,
-      chipTone: "border-teal-200 bg-teal-50 text-teal-800",
+      chipTone: "border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
     }));
 
     return [...subjectOptions, ...morningOptions];
@@ -888,28 +880,28 @@ export function TeacherAttendanceClient({
   // ── Empty state ──
   if (registerOptions.length === 0) {
     return (
-      <div className="grid gap-6">
-        <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel">
+      <div className="portal-page">
+        <section className="surface-hero p-6 md:p-7">
           <Link
             href="/portals/teacher"
-            className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"
+            className="inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)]"
           >
             <ArrowLeft className="h-4 w-4" />
             Back to teacher portal
           </Link>
-          <p className="mt-5 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
+          <p className="mt-5 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
             Teacher portal
           </p>
-          <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">
+          <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
             Attendance register
           </h1>
         </section>
-        <section className="rounded-[2rem] border border-dashed border-slate-200 bg-white/92 p-10 text-center shadow-panel">
-          <ShieldCheck className="mx-auto h-12 w-12 text-brand-500" />
-          <h2 className="mt-4 font-[var(--font-heading)] text-2xl font-bold text-ink">
+        <section className="surface-card border-dashed p-10 text-center">
+          <ShieldCheck className="mx-auto h-12 w-12 text-[var(--color-text-accent)]" />
+          <h2 className="mt-4 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
             No attendance contexts assigned yet
           </h2>
-          <p className="mt-3 text-sm leading-6 text-ink/62">
+          <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
             Once timetable or homeroom assignments are connected to your account, your class registers
             and subject-period attendance workspaces will appear here automatically.
           </p>
@@ -920,36 +912,42 @@ export function TeacherAttendanceClient({
 
   // ── Full render ──
   return (
-    <div className="grid gap-4">
+    <div className="portal-page">
       {/* ── Header ── */}
-      <section className="rounded-[1.75rem] border border-white/50 bg-white/90 p-5 shadow-panel">
+      <section className="surface-hero p-5">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
           <div className="max-w-3xl min-w-0">
             <Link
               href="/portals/teacher"
-              className="inline-flex items-center gap-2 text-sm font-semibold text-brand-700"
+              className="inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)]"
             >
               <ArrowLeft className="h-4 w-4" />
               Back to teacher portal
             </Link>
-            <p className="mt-3 text-[0.68rem] font-semibold uppercase tracking-[0.24em] text-brand-700">
+            <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">
               Attendance workspace
             </p>
             <div className="mt-1.5 flex flex-wrap items-center gap-2.5">
-              <h1 className="font-[var(--font-heading)] text-3xl font-black text-ink sm:text-[2rem]">
+              <h1 className="font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
                 Attendance register
               </h1>
               {stats.unmarked > 0 ? (
-                <span className="rounded-full bg-rose-50 px-3 py-1 text-[11px] font-bold text-rose-600">
+                <span
+                  className="rounded-full px-3 py-1 text-[11px] font-bold"
+                  style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                >
                   {stats.unmarked} pending
                 </span>
               ) : (
-                <span className="rounded-full bg-emerald-50 px-3 py-1 text-[11px] font-bold text-emerald-700">
+                <span
+                  className="rounded-full px-3 py-1 text-[11px] font-bold"
+                  style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}
+                >
                   Register complete
                 </span>
               )}
             </div>
-            <p className="mt-2 text-sm text-ink/68">
+            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">
               {selectedRegisterLabel} ·{" "}
               {new Date(date).toLocaleDateString("en-NG", {
                 weekday: "long",
@@ -961,26 +959,38 @@ export function TeacherAttendanceClient({
           </div>
 
           <div className="flex flex-wrap gap-2 xl:max-w-[32rem] xl:justify-end">
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-semibold text-slate-700">
+            <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
               {completionPct}% complete
             </span>
-            <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
+            <span
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: "var(--color-success-dim)", background: "var(--color-success-dim)", color: "var(--color-success)" }}
+            >
               {stats.present} present
             </span>
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-700">
+            <span
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: "var(--color-warning-dim)", background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+            >
               {stats.late} late
             </span>
-            <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1.5 text-xs font-semibold text-rose-700">
+            <span
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: "var(--color-danger-dim)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+            >
               {stats.absent} absent
             </span>
-            <span className="rounded-full border border-sky-200 bg-sky-50 px-3 py-1.5 text-xs font-semibold text-sky-700">
+            <span
+              className="rounded-full border px-3 py-1.5 text-xs font-semibold"
+              style={{ borderColor: "var(--color-info-dim)", background: "var(--color-info-dim)", color: "var(--color-info)" }}
+            >
               {stats.excused} excused
             </span>
           </div>
         </div>
 
         {/* ── Tab bar ── */}
-        <div className="mt-4 flex items-center border-t border-slate-100 pt-2">
+        <div className="mt-4 flex items-center border-t border-[var(--color-border-default)] pt-2">
           {(
             [
               { id: "register" as TabId, label: "Register", icon: ClipboardList },
@@ -994,8 +1004,8 @@ export function TeacherAttendanceClient({
               onClick={() => setActiveTab(id)}
               className={`relative flex h-12 items-center gap-2 px-4 text-sm font-semibold transition ${
                 activeTab === id
-                  ? "text-brand-700"
-                  : "text-slate-500 hover:text-slate-700"
+                  ? "text-[var(--color-text-accent)]"
+                  : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
               }`}
             >
               <Icon className="h-4 w-4" />
@@ -1004,7 +1014,7 @@ export function TeacherAttendanceClient({
                 <UnmarkedBadge count={stats.unmarked} />
               )}
               {activeTab === id && (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-brand-700" />
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-[var(--color-accent-primary)]" />
               )}
             </button>
           ))}
@@ -1014,23 +1024,23 @@ export function TeacherAttendanceClient({
       {/* ══ TAB: REGISTER ══ */}
       {activeTab === "register" && (
         <div className="grid gap-5">
-          <section className="rounded-[1.75rem] border border-white/50 bg-white/90 p-4 shadow-panel">
+          <section className="surface-card p-4">
             <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-3 rounded-[1.4rem] border border-slate-100 bg-slate-50/70 px-4 py-3">
+              <div className="flex flex-col gap-3 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
                 <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-accent)]">
                     Register setup
                   </p>
-                  <p className="mt-1.5 text-sm text-slate-500">
+                  <p className="mt-1.5 text-sm text-[var(--color-text-secondary)]">
                     Open only when you need to switch class, register lane, or filter the working list.
                   </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                  <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
                     {classOptions.length} classes
                   </span>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                  <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
                     {selectedClassRegisterOptions.length} lane{selectedClassRegisterOptions.length === 1 ? "" : "s"}
                   </span>
                   <button
@@ -1048,28 +1058,28 @@ export function TeacherAttendanceClient({
 
               {setupExpanded ? (
               <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
-                <div className="rounded-[1.6rem] border border-slate-100 bg-slate-50/70 p-4">
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                   <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">
                         Class
                       </p>
-                      <h3 className="mt-1 text-sm font-bold text-slate-900">Choose class</h3>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <h3 className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">Choose class</h3>
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                         Search, then tap a compact class chip.
                       </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
                         {filteredClassOptions.length} shown
                       </span>
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
                         {classOptions.length} total
                       </span>
                     </div>
                   </div>
                   <label className="relative mt-4 block">
-                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                    <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                     <input
                       value={classQuery}
                       onChange={(e) => setClassQuery(e.target.value)}
@@ -1080,7 +1090,7 @@ export function TeacherAttendanceClient({
                       <button
                         type="button"
                         onClick={() => setClassQuery("")}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
                       >
                         <X className="h-3.5 w-3.5" />
                       </button>
@@ -1102,16 +1112,17 @@ export function TeacherAttendanceClient({
                           onClick={() => handleSelectClass(option.value)}
                           className={
                             active
-                              ? "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-brand-700 bg-brand-700 px-3 py-2 text-left text-white shadow-panel"
-                              : "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-left text-slate-800 shadow-panel transition hover:border-brand-200 hover:bg-brand-50/50"
+                              ? "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3 py-2 text-left text-[var(--color-text-inverse)]"
+                              : "inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-left text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                           }
+                          style={active ? { borderColor: "var(--color-accent-primary)", background: "var(--color-accent-primary)" } : undefined}
                         >
                           <span className="text-sm font-bold">{option.label}</span>
                           <span
                             className={
                               active
                                 ? "rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white"
-                                : "rounded-full border border-slate-200 bg-slate-50 px-2 py-0.5 text-[10px] font-bold text-slate-600"
+                                : "rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-secondary)]"
                             }
                           >
                             {option.learners}
@@ -1121,7 +1132,7 @@ export function TeacherAttendanceClient({
                               className={
                                 active
                                   ? "rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white"
-                                  : "rounded-full border border-blue-200 bg-blue-50 px-2 py-0.5 text-[10px] font-bold text-blue-800"
+                                  : "rounded-full border border-[var(--color-border-default)] bg-[var(--color-info-dim)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-info)]"
                               }
                             >
                               AM
@@ -1132,7 +1143,7 @@ export function TeacherAttendanceClient({
                               className={
                                 active
                                   ? "rounded-full border border-white/20 bg-white/10 px-2 py-0.5 text-[10px] font-bold text-white"
-                                  : "rounded-full border border-teal-200 bg-teal-50 px-2 py-0.5 text-[10px] font-bold text-teal-800"
+                                  : "rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-accent)]"
                               }
                             >
                               {subjectCount} subj
@@ -1142,28 +1153,28 @@ export function TeacherAttendanceClient({
                       );
                     })}
                     {filteredClassOptions.length === 0 ? (
-                      <div className="w-full rounded-[1.2rem] border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                      <div className="w-full rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-secondary)]">
                         No class matches that search yet.
                       </div>
                     ) : null}
                   </div>
                 </div>
 
-                <div className="rounded-[1.6rem] border border-slate-100 bg-slate-50/70 p-4">
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                   <div className="flex items-center justify-between gap-3">
                     <div>
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">
                         Register lane
                       </p>
-                      <h3 className="mt-1 text-sm font-bold text-slate-900">
+                      <h3 className="mt-1 text-sm font-bold text-[var(--color-text-primary)]">
                         Choose register context
                       </h3>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                         Use a compact switcher here since only one lane can be active at a time.
                       </p>
                     </div>
                     {selectedClassMeta ? (
-                      <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
                         {selectedClassMeta.label}
                       </span>
                     ) : null}
@@ -1172,7 +1183,7 @@ export function TeacherAttendanceClient({
                   {selectedClassRegisterOptions.length ? (
                     <div className="mt-3 grid gap-3">
                       <label className="grid gap-2">
-                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                        <span className="text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">
                           Active lane
                         </span>
                         <select
@@ -1200,26 +1211,27 @@ export function TeacherAttendanceClient({
                       </label>
                       <div className="flex flex-wrap gap-2">
                         <span
-                          className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${
+                          className="rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                          style={
                             selectedSubjectId
-                              ? "border-teal-200 bg-teal-50 text-teal-800"
-                              : "border-blue-200 bg-blue-50 text-blue-800"
-                          }`}
+                              ? { borderColor: "var(--color-border-default)", background: "var(--color-accent-primary-dim)", color: "var(--color-text-accent)" }
+                              : { borderColor: "var(--color-border-default)", background: "var(--color-info-dim)", color: "var(--color-info)" }
+                          }
                         >
                           {selectedSubjectId ? "Subject period" : "Homeroom"}
                         </span>
-                        <span className="rounded-full border border-slate-200 bg-white px-2.5 py-1 text-[10px] font-bold text-slate-600">
+                        <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-secondary)]">
                           {stats.total} learners
                         </span>
                         {smartContextOption?.key === selectedContextKey ? (
-                          <span className="rounded-full border border-brand-200 bg-brand-50 px-2.5 py-1 text-[10px] font-bold text-brand-700">
+                          <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-accent)]">
                             Smart pick
                           </span>
                         ) : null}
                       </div>
                     </div>
                   ) : (
-                    <div className="mt-4 rounded-[1.4rem] border border-dashed border-slate-200 bg-white px-4 py-8 text-center text-sm text-slate-500">
+                    <div className="mt-4 rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-8 text-center text-sm text-[var(--color-text-secondary)]">
                       Pick a class first to reveal its morning and subject attendance contexts.
                     </div>
                   )}
@@ -1229,7 +1241,7 @@ export function TeacherAttendanceClient({
 
               <div className="grid gap-3 xl:grid-cols-[minmax(0,1fr)_180px_180px] 2xl:grid-cols-[minmax(0,1fr)_180px_180px_auto]">
                 <label className="relative block">
-                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                   <input
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
@@ -1240,7 +1252,7 @@ export function TeacherAttendanceClient({
                     <button
                       type="button"
                       onClick={() => setSearch("")}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
                     >
                       <X className="h-3.5 w-3.5" />
                     </button>
@@ -1290,13 +1302,19 @@ export function TeacherAttendanceClient({
               </div>
 
               {selectedSubjectId ? (
-                <div className="rounded-[1.35rem] border border-teal-100 bg-teal-50/70 px-4 py-3 text-sm text-teal-900">
+                <div
+                  className="rounded-[10px] border px-4 py-3 text-sm"
+                  style={{ borderColor: "var(--color-border-default)", background: "var(--color-accent-primary-dim)", color: "var(--color-text-primary)" }}
+                >
                   This register is attached to a subject period. Saved records stay separate from
                   morning homeroom attendance for{" "}
                   <span className="font-semibold">{selectedClassLabel}</span>.
                 </div>
               ) : (
-                <div className="rounded-[1.35rem] border border-blue-100 bg-blue-50/70 px-4 py-3 text-sm text-blue-900">
+                <div
+                  className="rounded-[10px] border px-4 py-3 text-sm"
+                  style={{ borderColor: "var(--color-border-default)", background: "var(--color-info-dim)", color: "var(--color-text-primary)" }}
+                >
                   This is the morning / homeroom register for{" "}
                   <span className="font-semibold">{selectedClassLabel}</span>.
                 </div>
@@ -1304,13 +1322,13 @@ export function TeacherAttendanceClient({
             </div>
           </section>
 
-          <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-100 px-5 py-4">
+          <section className="surface-card overflow-hidden p-0">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border-default)] px-5 py-4">
               <div>
-                <p className="text-sm font-semibold text-slate-800">
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">
                   {visibleStudents.length} learner{visibleStudents.length === 1 ? "" : "s"} in view
                 </p>
-                <p className="mt-1 text-xs text-slate-500">
+                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                   Page {registerPagination.page} of {registerPagination.totalPages} · {stats.total - stats.unmarked} marked today
                 </p>
               </div>
@@ -1336,12 +1354,12 @@ export function TeacherAttendanceClient({
 
             <div className="max-h-[58vh] overflow-y-auto overscroll-contain p-5">
               {visibleStudents.length === 0 ? (
-                <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 py-12 text-center">
-                  <Users className="mx-auto h-8 w-8 text-slate-300" />
-                  <p className="mt-3 text-sm font-semibold text-slate-600">
+                <div className="grid place-items-center rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] py-12 text-center">
+                  <Users className="mx-auto h-8 w-8 text-[var(--color-text-muted)]" />
+                  <p className="mt-3 text-sm font-semibold text-[var(--color-text-secondary)]">
                     No learners match the current filter
                   </p>
-                  <p className="mt-1 text-xs text-slate-400">
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                     Reset the search or attendance state filter to see the class register again.
                   </p>
                 </div>
@@ -1356,34 +1374,34 @@ export function TeacherAttendanceClient({
                     return (
                       <article
                         key={student.studentId}
-                        className={`group rounded-[1.5rem] border bg-white transition-all duration-200 ${
-                          cfg
-                            ? `${cfg.chip} shadow-panel`
-                            : "border-slate-100 shadow-panel hover:border-slate-200"
+                        className={`group rounded-[10px] border bg-[var(--color-bg-surface)] transition-all duration-200 ${
+                          cfg ? "" : "border-[var(--color-border-default)] hover:border-[var(--color-border-strong)]"
                         }`}
+                        style={cfg ? { borderColor: cfg.tone, background: cfg.dim } : undefined}
                       >
                         <div className="flex flex-col gap-3 p-4 xl:flex-row xl:items-center xl:justify-between">
                           <div className="flex min-w-0 items-center gap-3">
                             <div
                               className={`relative grid h-11 w-11 shrink-0 place-items-center rounded-2xl text-sm font-black transition ${
-                                cfg ? "bg-white/70 text-slate-700" : "bg-slate-100 text-slate-600"
+                                cfg ? "bg-[var(--color-bg-surface)]/70" : "bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]"
                               }`}
+                              style={cfg ? { color: cfg.tone } : undefined}
                             >
                               {initials(student.studentName)}
-                              <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-slate-200 text-[8px] font-black text-slate-500">
+                              <span className="absolute -right-1 -top-1 grid h-4 w-4 place-items-center rounded-full bg-[var(--color-bg-subtle)] text-[8px] font-black text-[var(--color-text-secondary)]">
                                 {absoluteIndex}
                               </span>
                             </div>
                             <div className="min-w-0">
-                              <p className="truncate font-semibold text-slate-900">{student.studentName}</p>
-                              <p className="mt-0.5 text-xs text-slate-500">
+                              <p className="truncate font-semibold text-[var(--color-text-primary)]">{student.studentName}</p>
+                              <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">
                                 {student.admissionNumber} · {formatNigeriaClassName(student.className)}
                               </p>
                             </div>
                           </div>
 
                           <div className="w-full xl:w-auto">
-                            <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-slate-100/90 p-1 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5 sm:bg-transparent sm:p-0">
+                            <div className="grid grid-cols-4 gap-1.5 rounded-2xl bg-[var(--color-bg-subtle)] p-1 sm:flex sm:flex-wrap sm:items-center sm:gap-1.5 sm:bg-transparent sm:p-0">
                             {ALL_STATUSES.map((opt) => {
                               const active = status === opt;
                               const optCfg = STATUS_CONFIG[opt];
@@ -1396,10 +1414,9 @@ export function TeacherAttendanceClient({
                                   title={optCfg.label}
                                   aria-pressed={active}
                                   className={`flex h-10 items-center justify-center gap-1.5 rounded-xl border px-2 text-[11px] font-semibold transition sm:h-9 sm:rounded-full sm:px-3 sm:text-xs ${
-                                    active
-                                      ? `${optCfg.active} shadow-sm`
-                                      : `${optCfg.button} border-slate-200 bg-white hover:border-slate-300`
+                                    active ? "" : "bg-[var(--color-bg-surface)] hover:border-[var(--color-border-strong)]"
                                   }`}
+                                  style={statusButtonStyle(opt, active)}
                                 >
                                   <Icon className="h-3.5 w-3.5" />
                                   <span className="font-bold sm:hidden">{optCfg.shortLabel}</span>
@@ -1425,9 +1442,9 @@ export function TeacherAttendanceClient({
                         </div>
 
                         {isExpanded && (
-                          <div className="border-t border-slate-100 px-4 pb-4 pt-3">
+                          <div className="border-t border-[var(--color-border-default)] px-4 pb-4 pt-3">
                             <label className="grid gap-1.5">
-                              <span className="text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                              <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
                                 Reason / follow-up note
                               </span>
                               <textarea
@@ -1460,10 +1477,10 @@ export function TeacherAttendanceClient({
       {/* ══ TAB: HISTORY ══ */}
       {activeTab === "history" && (
         <div className="grid gap-5">
-          <section className="rounded-[2rem] border border-white/50 bg-white/90 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="grid gap-3 xl:grid-cols-[minmax(0,1.2fr)_220px_220px_auto]">
               <label className="relative block">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                 <input
                   value={historySearch}
                   onChange={(e) => setHistorySearch(e.target.value)}
@@ -1474,7 +1491,7 @@ export function TeacherAttendanceClient({
                   <button
                     type="button"
                     onClick={() => setHistorySearch("")}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--color-text-muted)] hover:text-[var(--color-text-secondary)]"
                   >
                     <X className="h-3.5 w-3.5" />
                   </button>
@@ -1522,23 +1539,23 @@ export function TeacherAttendanceClient({
           </section>
 
           <div className="grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-            <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+            <section className="surface-card overflow-hidden p-0">
+              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                   Class summary
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                   Term attendance performance across your assigned class arms
                 </p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[620px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Class", "Learners", "Recorded days", "Attendance", "Absences", "Last mark"].map((heading) => (
                         <th
                           key={heading}
-                          className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400"
+                          className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]"
                         >
                           {heading}
                         </th>
@@ -1547,17 +1564,17 @@ export function TeacherAttendanceClient({
                   </thead>
                   <tbody>
                     {classSummaryPagination.items.map((item) => (
-                      <tr key={item.classId} className="border-t border-slate-100 hover:bg-slate-50/60">
-                        <td className="px-4 py-3 font-semibold text-slate-900">{item.className}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.learners}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.schoolDays}</td>
+                      <tr key={item.classId} className="border-t border-[var(--color-border-default)] hover:bg-[var(--color-bg-subtle)]">
+                        <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{item.className}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.learners}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.schoolDays}</td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">
+                          <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">
                             {item.rate}%
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-rose-600">{item.absent}</td>
-                        <td className="px-4 py-3 text-slate-500">
+                        <td className="px-4 py-3 font-semibold" style={{ color: "var(--color-danger)" }}>{item.absent}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                           {item.lastMarkedAt ? formatShortDate(item.lastMarkedAt) : "—"}
                         </td>
                       </tr>
@@ -1573,23 +1590,23 @@ export function TeacherAttendanceClient({
               />
             </section>
 
-            <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+            <section className="surface-card overflow-hidden p-0">
+              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                   Student patterns
                 </h2>
-                <p className="mt-1 text-sm text-slate-500">
+                <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                   Focus on learners who need follow-up, then open their recent attendance trail.
                 </p>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[680px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Learner", "Class", "Attendance", "Absent", "Late", "Recent history"].map((heading) => (
                         <th
                           key={heading}
-                          className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400"
+                          className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]"
                         >
                           {heading}
                         </th>
@@ -1600,8 +1617,8 @@ export function TeacherAttendanceClient({
                     {studentSummaryPagination.items.map((student) => (
                       <tr
                         key={student.studentId}
-                        className={`border-t border-slate-100 transition hover:bg-slate-50/60 ${
-                          historyStudentId === student.studentId ? "bg-brand-50/40" : ""
+                        className={`border-t border-[var(--color-border-default)] transition hover:bg-[var(--color-bg-subtle)] ${
+                          historyStudentId === student.studentId ? "bg-[var(--color-accent-primary-dim)]" : ""
                         }`}
                       >
                         <td className="px-4 py-3">
@@ -1610,19 +1627,19 @@ export function TeacherAttendanceClient({
                             onClick={() => setHistoryStudentId(student.studentId)}
                             className="text-left"
                           >
-                            <p className="font-semibold text-slate-900">{student.studentName}</p>
-                            <p className="mt-0.5 text-xs text-slate-500">{student.admissionNumber}</p>
+                            <p className="font-semibold text-[var(--color-text-primary)]">{student.studentName}</p>
+                            <p className="mt-0.5 text-xs text-[var(--color-text-secondary)]">{student.admissionNumber}</p>
                           </button>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{formatNigeriaClassName(student.className)}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{formatNigeriaClassName(student.className)}</td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full border border-brand-100 bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">
+                          <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">
                             {student.rate}%
                           </span>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-rose-600">{student.absentCount}</td>
-                        <td className="px-4 py-3 font-semibold text-amber-600">{student.lateCount}</td>
-                        <td className="px-4 py-3 text-slate-500">{student.totalMarked} marked day(s)</td>
+                        <td className="px-4 py-3 font-semibold" style={{ color: "var(--color-danger)" }}>{student.absentCount}</td>
+                        <td className="px-4 py-3 font-semibold" style={{ color: "var(--color-warning)" }}>{student.lateCount}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{student.totalMarked} marked day(s)</td>
                       </tr>
                     ))}
                   </tbody>
@@ -1638,32 +1655,32 @@ export function TeacherAttendanceClient({
           </div>
 
           {selectedStudentHistory ? (
-            <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-              <div className="flex flex-col gap-4 border-b border-slate-100 px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
+            <section className="surface-card overflow-hidden p-0">
+              <div className="flex flex-col gap-4 border-b border-[var(--color-border-default)] px-5 py-4 lg:flex-row lg:items-start lg:justify-between">
                 <div>
-                  <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+                  <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                     {selectedStudentHistory.studentName}
                   </h2>
-                  <p className="mt-1 text-sm text-slate-500">
+                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                     {selectedStudentHistory.admissionNumber} · {formatNigeriaClassName(selectedStudentHistory.className)}
                   </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                  <div className="rounded-xl bg-emerald-50 px-3 py-2 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-emerald-700">Present</p>
-                    <p className="mt-1 text-lg font-black text-emerald-700">{selectedStudentHistory.presentCount}</p>
+                  <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--color-success-dim)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--color-success)" }}>Present</p>
+                    <p className="mt-1 text-lg font-black" style={{ color: "var(--color-success)" }}>{selectedStudentHistory.presentCount}</p>
                   </div>
-                  <div className="rounded-xl bg-amber-50 px-3 py-2 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-amber-700">Late</p>
-                    <p className="mt-1 text-lg font-black text-amber-700">{selectedStudentHistory.lateCount}</p>
+                  <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--color-warning-dim)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--color-warning)" }}>Late</p>
+                    <p className="mt-1 text-lg font-black" style={{ color: "var(--color-warning)" }}>{selectedStudentHistory.lateCount}</p>
                   </div>
-                  <div className="rounded-xl bg-rose-50 px-3 py-2 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-rose-700">Absent</p>
-                    <p className="mt-1 text-lg font-black text-rose-700">{selectedStudentHistory.absentCount}</p>
+                  <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--color-danger-dim)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--color-danger)" }}>Absent</p>
+                    <p className="mt-1 text-lg font-black" style={{ color: "var(--color-danger)" }}>{selectedStudentHistory.absentCount}</p>
                   </div>
-                  <div className="rounded-xl bg-sky-50 px-3 py-2 text-center">
-                    <p className="text-[10px] font-bold uppercase tracking-widest text-sky-700">Excused</p>
-                    <p className="mt-1 text-lg font-black text-sky-700">{selectedStudentHistory.excusedCount}</p>
+                  <div className="rounded-xl px-3 py-2 text-center" style={{ background: "var(--color-info-dim)" }}>
+                    <p className="text-[10px] font-bold uppercase tracking-widest" style={{ color: "var(--color-info)" }}>Excused</p>
+                    <p className="mt-1 text-lg font-black" style={{ color: "var(--color-info)" }}>{selectedStudentHistory.excusedCount}</p>
                   </div>
                 </div>
               </div>
@@ -1671,18 +1688,19 @@ export function TeacherAttendanceClient({
                 {selectedStudentHistory.recent.map((entry) => (
                   <div
                     key={`${entry.studentId}-${entry.date}`}
-                    className="rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3"
+                    className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3"
                   >
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-sm font-semibold text-slate-800">{formatShortDate(entry.date)}</p>
+                      <p className="text-sm font-semibold text-[var(--color-text-primary)]">{formatShortDate(entry.date)}</p>
                       <span
-                        className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_CONFIG[entry.status].chip}`}
+                        className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                        style={statusChipStyle(entry.status)}
                       >
-                        <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[entry.status].dot}`} />
+                        <span className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_CONFIG[entry.status].tone }} />
                         {STATUS_CONFIG[entry.status].label}
                       </span>
                     </div>
-                    <p className="mt-2 text-xs leading-5 text-slate-500">
+                    <p className="mt-2 text-xs leading-5 text-[var(--color-text-secondary)]">
                       {entry.reason ?? "No follow-up note recorded for this day."}
                     </p>
                   </div>
@@ -1691,32 +1709,32 @@ export function TeacherAttendanceClient({
             </section>
           ) : null}
 
-          <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+          <section className="surface-card overflow-hidden p-0">
+            <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+              <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                 Attendance log
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                 Filtered term register entries for quick audit and follow-up.
               </p>
             </div>
 
             {filteredHistoryRows.length === 0 ? (
-              <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-12 m-5 text-center">
-                <History className="mx-auto h-8 w-8 text-slate-300" />
-                <p className="mt-3 text-sm font-semibold text-slate-600">No history matches the current filter</p>
-                <p className="mt-1 text-xs text-slate-400">Try another class, status, or search term.</p>
+              <div className="grid place-items-center rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-12 m-5 text-center">
+                <History className="mx-auto h-8 w-8 text-[var(--color-text-muted)]" />
+                <p className="mt-3 text-sm font-semibold text-[var(--color-text-secondary)]">No history matches the current filter</p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">Try another class, status, or search term.</p>
               </div>
             ) : (
               <>
                 <div className="overflow-x-auto">
                   <table className="w-full min-w-[880px] text-sm">
-                    <thead className="bg-slate-50">
+                    <thead className="bg-[var(--color-bg-subtle)]">
                       <tr>
                         {["Date", "Learner", "Admission no.", "Class", "Status", "Note"].map((heading) => (
                           <th
                             key={heading}
-                            className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400"
+                            className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]"
                           >
                             {heading}
                           </th>
@@ -1727,19 +1745,22 @@ export function TeacherAttendanceClient({
                       {historyLogPagination.items.map((entry) => (
                         <tr
                           key={`${entry.studentId}-${entry.classId}-${entry.date}`}
-                          className="border-t border-slate-100 hover:bg-slate-50/60"
+                          className="border-t border-[var(--color-border-default)] hover:bg-[var(--color-bg-subtle)]"
                         >
-                          <td className="px-4 py-3 font-semibold text-slate-800">{formatShortDate(entry.date)}</td>
-                          <td className="px-4 py-3 font-semibold text-slate-800">{entry.studentName}</td>
-                          <td className="px-4 py-3 font-mono text-xs text-slate-500">{entry.admissionNumber ?? "—"}</td>
-                          <td className="px-4 py-3 text-slate-600">{formatNigeriaClassName(entry.className)}</td>
+                          <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatShortDate(entry.date)}</td>
+                          <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{entry.studentName}</td>
+                          <td className="px-4 py-3 font-mono text-xs text-[var(--color-text-secondary)]">{entry.admissionNumber ?? "—"}</td>
+                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">{formatNigeriaClassName(entry.className)}</td>
                           <td className="px-4 py-3">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold ${STATUS_CONFIG[entry.status].chip}`}>
-                              <span className={`h-1.5 w-1.5 rounded-full ${STATUS_CONFIG[entry.status].dot}`} />
+                            <span
+                              className="inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                              style={statusChipStyle(entry.status)}
+                            >
+                              <span className="h-1.5 w-1.5 rounded-full" style={{ background: STATUS_CONFIG[entry.status].tone }} />
                               {STATUS_CONFIG[entry.status].label}
                             </span>
                           </td>
-                          <td className="px-4 py-3 text-xs text-slate-500">{entry.reason ?? "—"}</td>
+                          <td className="px-4 py-3 text-xs text-[var(--color-text-secondary)]">{entry.reason ?? "—"}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -1760,39 +1781,39 @@ export function TeacherAttendanceClient({
       {/* ══ TAB: INSIGHTS ══ */}
       {activeTab === "insights" && (
         <div className="grid gap-5 lg:grid-cols-2">
-          <div className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel lg:col-span-2">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+          <div className="surface-card p-6 lg:col-span-2">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Level / year attendance summary
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               Term attendance performance across JSS and SS year groups you oversee
             </p>
             <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
               {levelYearSummaries.map((item) => (
-                <article key={item.label} className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4 shadow-panel">
+                <article key={item.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-base font-black text-slate-900">{item.label}</p>
-                      <p className="mt-1 text-xs text-slate-500">
+                      <p className="text-base font-black text-[var(--color-text-primary)]">{item.label}</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                         {item.classCount} class arm{item.classCount === 1 ? "" : "s"} · {item.studentCount} learners
                       </p>
                     </div>
-                    <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1 text-[11px] font-bold text-brand-700">
+                    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">
                       {item.attendanceRate}%
                     </span>
                   </div>
                   <div className="mt-4 grid grid-cols-3 gap-2">
-                    <div className="rounded-xl bg-white px-3 py-2 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Absent</p>
-                      <p className="mt-1 text-lg font-black text-rose-600">{item.absent}</p>
+                    <div className="rounded-xl bg-[var(--color-bg-surface)] px-3 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">Absent</p>
+                      <p className="mt-1 text-lg font-black" style={{ color: "var(--color-danger)" }}>{item.absent}</p>
                     </div>
-                    <div className="rounded-xl bg-white px-3 py-2 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Late</p>
-                      <p className="mt-1 text-lg font-black text-amber-600">{item.late}</p>
+                    <div className="rounded-xl bg-[var(--color-bg-surface)] px-3 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">Late</p>
+                      <p className="mt-1 text-lg font-black" style={{ color: "var(--color-warning)" }}>{item.late}</p>
                     </div>
-                    <div className="rounded-xl bg-white px-3 py-2 text-center">
-                      <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Excused</p>
-                      <p className="mt-1 text-lg font-black text-sky-600">{item.excused}</p>
+                    <div className="rounded-xl bg-[var(--color-bg-surface)] px-3 py-2 text-center">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">Excused</p>
+                      <p className="mt-1 text-lg font-black" style={{ color: "var(--color-info)" }}>{item.excused}</p>
                     </div>
                   </div>
                 </article>
@@ -1801,44 +1822,42 @@ export function TeacherAttendanceClient({
           </div>
 
           {/* 7-day trend */}
-          <div className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+          <div className="surface-card p-6">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Recent attendance trend
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               Latest marked attendance days across your classes for {attendance.currentTerm}
             </p>
             <div className="mt-6 flex items-end gap-2">
               {trend.map(({ date: d, present, total }) => {
                 const rate = total === 0 ? 0 : Math.round((present / total) * 100);
                 const isToday = d === new Date().toISOString().slice(0, 10);
+                const barColor = rate > 80 ? "var(--color-success)" : rate > 50 ? "var(--color-warning)" : "var(--color-danger)";
                 return (
                   <div
                     key={d}
                     className="group relative flex flex-1 flex-col items-center gap-1"
                   >
                     {/* Tooltip */}
-                    <div className="pointer-events-none absolute -top-10 left-1/2 hidden -translate-x-1/2 rounded-lg border border-slate-100 bg-white px-2 py-1 text-center text-[10px] shadow-lg group-hover:block">
-                      <span className="font-bold text-slate-800">{rate}%</span>
+                    <div className="pointer-events-none absolute -top-10 left-1/2 hidden -translate-x-1/2 rounded-lg border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2 py-1 text-center text-[10px] shadow-lg group-hover:block">
+                      <span className="font-bold text-[var(--color-text-primary)]">{rate}%</span>
                       <br />
-                      <span className="text-slate-400">
+                      <span className="text-[var(--color-text-muted)]">
                         {present}/{total}
                       </span>
                     </div>
-                    <div className="relative h-28 w-full overflow-hidden rounded-xl bg-slate-100">
+                    <div className="relative h-28 w-full overflow-hidden rounded-xl bg-[var(--color-bg-subtle)]">
                       <div
                         className={`absolute bottom-0 left-0 right-0 rounded-xl transition-[height] duration-500 ${
-                          rate > 80
-                            ? "bg-emerald-500"
-                            : rate > 50
-                              ? "bg-amber-400"
-                              : "bg-rose-500"
-                        } ${isToday ? "opacity-100" : "opacity-60"}`}
-                        style={{ height: `${Math.max(rate, 4)}%` }}
+                          isToday ? "opacity-100" : "opacity-60"
+                        }`}
+                        style={{ height: `${Math.max(rate, 4)}%`, background: barColor }}
                       />
                     </div>
                     <span
-                      className={`text-[9px] font-bold ${isToday ? "text-brand-700" : "text-slate-400"}`}
+                      className="text-[9px] font-bold"
+                      style={{ color: isToday ? "var(--color-text-accent)" : "var(--color-text-muted)" }}
                     >
                       {new Date(d).toLocaleDateString("en-NG", { weekday: "short" })}
                     </span>
@@ -1849,11 +1868,11 @@ export function TeacherAttendanceClient({
           </div>
 
           {/* Frequent absentees */}
-          <div className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+          <div className="surface-card p-6">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Attention needed
             </h2>
-            <p className="mt-1 text-sm text-slate-500">
+            <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
               Learners with the most absences this period
             </p>
             <div className="mt-4 grid gap-2">
@@ -1873,8 +1892,8 @@ export function TeacherAttendanceClient({
 
                 if (sorted.length === 0) {
                   return (
-                    <div className="rounded-2xl border border-dashed border-slate-200 bg-slate-50 py-8 text-center">
-                      <p className="text-sm font-semibold text-slate-500">
+                    <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] py-8 text-center">
+                      <p className="text-sm font-semibold text-[var(--color-text-secondary)]">
                         No patterns detected yet
                       </p>
                     </div>
@@ -1885,21 +1904,24 @@ export function TeacherAttendanceClient({
                 return sorted.map(([id, { name, count }]) => (
                   <div
                     key={id}
-                    className="flex items-center gap-3 rounded-2xl border border-slate-100 bg-slate-50/70 px-4 py-3"
+                    className="flex items-center gap-3 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3"
                   >
-                    <div className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-rose-100 text-xs font-black text-rose-600">
+                    <div
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-xl text-xs font-black"
+                      style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                    >
                       {initials(name)}
                     </div>
                     <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-semibold text-slate-800">{name}</p>
+                      <p className="truncate text-sm font-semibold text-[var(--color-text-primary)]">{name}</p>
                       <div className="mt-1 flex items-center gap-2">
-                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-200">
+                        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[var(--color-border-default)]">
                           <div
-                            className="h-full rounded-full bg-rose-400"
-                            style={{ width: `${(count / maxCount) * 100}%` }}
+                            className="h-full rounded-full"
+                            style={{ width: `${(count / maxCount) * 100}%`, background: "var(--color-danger)" }}
                           />
                         </div>
-                        <span className="text-[10px] font-bold text-rose-500">
+                        <span className="text-[10px] font-bold" style={{ color: "var(--color-danger)" }}>
                           {count}×
                         </span>
                       </div>
@@ -1911,8 +1933,8 @@ export function TeacherAttendanceClient({
           </div>
 
           {/* Overall summary card */}
-          <div className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel lg:col-span-2">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+          <div className="surface-card p-6 lg:col-span-2">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Active term totals
             </h2>
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -1922,7 +1944,8 @@ export function TeacherAttendanceClient({
                 return (
                   <div
                     key={s}
-                    className={`rounded-2xl border px-4 py-4 ${cfg.chip}`}
+                    className="rounded-2xl border px-4 py-4"
+                    style={{ borderColor: cfg.dim, background: cfg.dim, color: cfg.tone }}
                   >
                     <p className="text-[10px] font-bold uppercase tracking-widest opacity-70">
                       {cfg.label}
@@ -1940,23 +1963,29 @@ export function TeacherAttendanceClient({
       {/* ── Sticky save bar ── */}
       {activeTab === "register" && (
         <section className="sticky bottom-4 z-20">
-          <div className="flex flex-col gap-3 rounded-[1.5rem] border border-slate-200/80 bg-white/95 px-5 py-4 shadow-xl shadow-slate-200/60 backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex flex-col gap-3 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]/95 px-5 py-4 shadow-[var(--shadow-lg)] backdrop-blur-md sm:flex-row sm:items-center sm:justify-between">
             {/* Status summary */}
             <div className="flex flex-wrap items-center gap-3">
               <div>
-                <span className="text-sm font-bold text-slate-800">{selectedClassLabel}</span>
-                <span className="ml-2 text-sm text-slate-400">·</span>
-                <span className="ml-2 text-sm text-slate-500">
+                <span className="text-sm font-bold text-[var(--color-text-primary)]">{selectedClassLabel}</span>
+                <span className="ml-2 text-sm text-[var(--color-text-muted)]">·</span>
+                <span className="ml-2 text-sm text-[var(--color-text-secondary)]">
                   {stats.total - stats.unmarked}/{stats.total} marked
                 </span>
               </div>
               {stats.unmarked > 0 && (
-                <span className="rounded-full bg-rose-50 px-2.5 py-1 text-[11px] font-bold text-rose-600">
+                <span
+                  className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+                  style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                >
                   {stats.unmarked} still pending
                 </span>
               )}
               {completionPct === 100 && (
-                <span className="flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-[11px] font-bold text-emerald-600">
+                <span
+                  className="flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                  style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}
+                >
                   <CheckCheck className="h-3 w-3" /> Register complete
                 </span>
               )}

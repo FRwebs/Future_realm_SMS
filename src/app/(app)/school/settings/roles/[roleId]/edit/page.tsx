@@ -21,17 +21,23 @@ export default async function EditRolePage({ params }: { params: Promise<{ roleI
 
   if (role.isSystem || !myPermissions.permissions.includes("roles.edit")) {
     return (
-      <div className="grid gap-6">
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Role details</p>
-          <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{role.name}</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">{role.description ?? "System role details are read-only."}</p>
+      <div className="portal-page">
+        <section className="surface-hero p-6 md:p-7">
+          <p className="section-eyebrow">Role details</p>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{role.name}</h1>
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">{role.description ?? "System role details are read-only."}</p>
         </section>
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Permissions</h2>
+        <section className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Permissions</h2>
           <div className="mt-4 flex flex-wrap gap-2">
             {(role.permissions ?? []).map((permission) => (
-              <span key={permission} className="rounded-full bg-sand/70 px-3 py-1.5 text-xs font-semibold text-ink">{permission}</span>
+              <span
+                key={permission}
+                className="rounded-full px-3 py-1.5 text-xs font-semibold"
+                style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-primary)" }}
+              >
+                {permission}
+              </span>
             ))}
           </div>
         </section>
@@ -40,11 +46,11 @@ export default async function EditRolePage({ params }: { params: Promise<{ roleI
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Edit role</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{role.name}</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">Update a custom school role and its permission matrix.</p>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">Edit role</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{role.name}</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">Update a custom school role and its permission matrix.</p>
       </section>
       <RoleEditorForm schoolId={session.schoolId} permissionGroups={permissions} role={role} />
     </div>

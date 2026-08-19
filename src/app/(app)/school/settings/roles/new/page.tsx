@@ -16,11 +16,11 @@ export default async function NewRolePage() {
   const permissions = await apiGet<PermissionGroupView[]>(`/api/v1/school/${session.schoolId}/roles-management/permissions`);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">New role</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Create Role</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">Select only the privileges this staff role needs. The backend prevents Principals from assigning permissions above their own level.</p>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">New role</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Create Role</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">Select only the privileges this staff role needs. The backend prevents Principals from assigning permissions above their own level.</p>
       </section>
       <RoleEditorForm schoolId={session.schoolId} permissionGroups={permissions} />
     </div>

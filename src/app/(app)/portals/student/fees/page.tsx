@@ -19,14 +19,14 @@ export default async function StudentFeesPage() {
   const outstanding = fees.reduce((sum, item) => sum + item.balance, 0);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/student" className="text-sm font-semibold text-brand-700">Back to student portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">My fees</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/student" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to student portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My fees</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Read-only invoice and payment summary. Financial edits are restricted to the bursary/accounting team.
         </p>
-        <p className="mt-5 font-[var(--font-heading)] text-3xl font-bold text-ink">{formatCurrency(outstanding)} outstanding</p>
+        <p className="mt-5 font-[var(--font-heading)] text-[24px] font-bold text-[var(--color-text-primary)]">{formatCurrency(outstanding)} outstanding</p>
       </section>
 
       <TableCard
@@ -42,19 +42,19 @@ export default async function StudentFeesPage() {
         ]}
       />
 
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Payment history</h2>
+      <section className="surface-card p-6">
+        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Payment history</h2>
         <div className="mt-5 grid gap-3">
           {fees.flatMap((invoice) => invoice.payments ?? []).map((payment) => (
-            <article key={payment.id} className="rounded-2xl bg-sand/65 p-4 text-sm text-ink/72">
-              <p className="font-semibold text-ink">{payment.reference}</p>
+            <article key={payment.id} className="rounded-[10px] bg-[var(--color-bg-subtle)] p-4 text-[13px] text-[var(--color-text-secondary)]">
+              <p className="font-semibold text-[var(--color-text-primary)]">{payment.reference}</p>
               <p>{formatCurrency(payment.amount)} · {payment.method} · {payment.status}</p>
               {payment.receiptNumber ? <p>Receipt: {payment.receiptNumber}</p> : null}
               <p>{payment.paidAt ? formatDate(payment.paidAt) : "Pending confirmation"}</p>
             </article>
           ))}
           {fees.flatMap((invoice) => invoice.payments ?? []).length === 0 ? (
-            <p className="text-sm text-ink/65">No payment records are visible yet.</p>
+            <p className="text-[13px] text-[var(--color-text-secondary)]">No payment records are visible yet.</p>
           ) : null}
         </div>
       </section>

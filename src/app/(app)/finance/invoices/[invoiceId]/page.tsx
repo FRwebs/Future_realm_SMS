@@ -41,11 +41,11 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   const studentName = `${invoice.student.firstName} ${invoice.student.lastName}`;
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/finance" className="text-sm font-semibold text-brand-700">Back to finance</a>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{invoice.invoiceNumber}</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <a href="/finance" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to finance</a>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{invoice.invoiceNumber}</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           {studentName} · {className(invoice.student.currentClass)} · {invoice.status}
         </p>
       </section>
@@ -58,14 +58,14 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
           ["Total", Number(invoice.total)],
           ["Balance", Number(invoice.balance)]
         ].map(([label, value]) => (
-          <article key={label} className="rounded-[1.5rem] bg-white/90 p-5 shadow-panel">
-            <p className="text-sm text-ink/55">{label}</p>
-            <p className="mt-3 text-2xl font-bold text-ink">{formatCurrency(Number(value))}</p>
+          <article key={label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+            <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(Number(value))}</p>
           </article>
         ))}
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Invoice items"
           description={`Issued ${formatDate(invoice.issuedOn)} · Due ${formatDate(invoice.dueOn)}`}
@@ -89,7 +89,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Payments"
           description="Payment history and allocation sources."

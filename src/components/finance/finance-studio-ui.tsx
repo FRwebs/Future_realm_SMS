@@ -87,7 +87,7 @@ export function FinanceStatCard({
 }) {
   const iconClass =
     accent === "teal"
-      ? "bg-teal-500/16 text-teal-300"
+      ? "bg-[#12796a]/16 text-[#4fa895]"
       : accent === "amber"
         ? "bg-amber-500/16 text-amber-300"
         : accent === "rose"
@@ -96,7 +96,7 @@ export function FinanceStatCard({
 
   const barClass =
     accent === "teal"
-      ? "from-teal-400 to-emerald-400"
+      ? "from-[#4fa895] to-[#12796a]"
       : accent === "amber"
         ? "from-amber-400 to-orange-400"
         : accent === "rose"

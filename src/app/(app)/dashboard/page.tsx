@@ -9,18 +9,26 @@ import { apiGet } from "@/lib/api/server";
 import { getDefaultPathForRole, roleLabels } from "@/lib/auth/roles";
 import { canAccessServerPath } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
+import { loadCommandCenterSnapshot } from "@/lib/dashboard/command-center-snapshot";
 import { getRoleDashboardProfile } from "@/lib/domain/dashboard";
 import { DashboardSummary } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
+import { SchoolCommandCenter } from "./_school-command-center";
 
 function displayDateOrText(value: string) {
   return Number.isNaN(new Date(value).getTime()) ? value : formatDate(value);
 }
 
 function toneRing(tone: "neutral" | "warning" | "danger") {
-  if (tone === "danger") return "border-rose-200 bg-rose-50 text-rose-900";
-  if (tone === "warning") return "border-amber-200 bg-amber-50 text-amber-900";
-  return "border-primary-100 bg-primary-50 text-primary-900";
+  if (tone === "danger") return "border-[var(--color-border-default)]";
+  if (tone === "warning") return "border-[var(--color-border-default)]";
+  return "border-[var(--color-border-default)]";
+}
+
+function toneStyle(tone: "neutral" | "warning" | "danger") {
+  if (tone === "danger") return { background: "var(--color-danger-dim)", color: "var(--color-danger)" };
+  if (tone === "warning") return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  return { background: "var(--color-success-dim)", color: "var(--color-success)" };
 }
 
 function categoryIcon(category?: string) {
@@ -112,6 +120,27 @@ export default async function DashboardPage() {
     }))
   ].slice(0, 6);
 
+  if (session.role === "SCHOOL_OWNER" || session.role === "PROPRIETOR") {
+    const snapshot = await loadCommandCenterSnapshot(overview);
+
+    return (
+      <SchoolCommandCenter
+        session={session}
+        overview={overview}
+        profile={profile}
+        roleSignals={roleSignals}
+        topAlerts={topAlerts}
+        timeline={timeline}
+        pulse={snapshot.pulse}
+        termProgress={snapshot.termProgress}
+        academicSnapshot={snapshot.academicSnapshot}
+        financialSnapshot={snapshot.financialSnapshot}
+        staffActivity={snapshot.staffActivity}
+        commsSnapshot={snapshot.commsSnapshot}
+      />
+    );
+  }
+
   return (
     <div className="portal-page">
       <section className="portal-hero">
@@ -194,9 +223,9 @@ export default async function DashboardPage() {
             </div>
             <div className="mt-5 grid gap-3">
               {(overview.pendingActions ?? []).slice(0, 5).map((item) => (
-                <Link key={item.id} href={item.href as Route} className={`group rounded-[1.4rem] border p-4 transition hover:-translate-y-0.5 hover:shadow-sm ${toneRing(item.tone)}`}>
+                <Link key={item.id} href={item.href as Route} className={`group rounded-[10px] border p-4 transition hover:-translate-y-0.5 hover:shadow-[var(--shadow-sm)] ${toneRing(item.tone)}`} style={toneStyle(item.tone)}>
                   <div className="flex items-start gap-3">
-                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-white/70">
+                    <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-bg-surface)]">
                       {item.tone === "danger" ? <AlertTriangle className="h-4 w-4" /> : <Target className="h-4 w-4" />}
                     </div>
                     <div>
@@ -244,74 +273,74 @@ export default async function DashboardPage() {
         <TrendCard title="Admissions funnel" description="Applications by current workflow stage." items={overview.admissionsByStage.map((item) => ({ label: item.stage.replaceAll("_", " "), value: item.count }))} />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="border-b border-slate-100 bg-slate-50/70 p-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Role intelligence</p>
-            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">{profile.insightTitle}</h3>
-            <p className="mt-2 text-[13px] leading-6 text-slate-600">{profile.insightDescription}</p>
+      <section className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
+        <section className="surface-card overflow-hidden">
+          <div className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-6">
+            <p className="section-eyebrow">Role intelligence</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">{profile.insightTitle}</h3>
+            <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{profile.insightDescription}</p>
           </div>
           <div className="mt-5 grid gap-3">
             {(overview.upcomingExams ?? []).map((exam) => (
-              <Link key={exam.id} href={exam.href as Route} className="mx-6 rounded-2xl border border-slate-100 bg-white p-4 text-sm transition hover:bg-primary-50">
+              <Link key={exam.id} href={exam.href as Route} className="mx-6 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 text-[13px] transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-elevated)]">
                 <div className="flex items-start gap-3">
-                  <CalendarDays className="mt-0.5 h-4 w-4 text-primary-600" />
+                  <CalendarDays className="mt-0.5 h-4 w-4 text-[var(--color-text-accent)]" />
                   <div>
-                    <p className="font-semibold text-slate-900">{exam.title}</p>
-                    <p className="mt-1 text-slate-600">{exam.detail}</p>
-                    <p className="mt-1 text-slate-400">{formatDate(exam.startsAt)}</p>
+                    <p className="font-semibold text-[var(--color-text-primary)]">{exam.title}</p>
+                    <p className="mt-1 text-[var(--color-text-secondary)]">{exam.detail}</p>
+                    <p className="mt-1 text-[var(--color-text-muted)]">{formatDate(exam.startsAt)}</p>
                   </div>
                 </div>
               </Link>
             ))}
-            {(overview.upcomingExams ?? []).length === 0 ? <p className="px-6 pb-6 text-sm text-slate-500">No upcoming exams found.</p> : null}
+            {(overview.upcomingExams ?? []).length === 0 ? <p className="px-6 pb-6 text-[13px] text-[var(--color-text-secondary)]">No upcoming exams found.</p> : null}
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="border-b border-slate-100 bg-[radial-gradient(circle_at_top_left,rgba(235,244,238,0.9),rgba(255,255,255,0.98))] p-6">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Recent operating timeline</p>
-            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">What changed recently</h3>
+        <section className="surface-card overflow-hidden">
+          <div className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-6">
+            <p className="section-eyebrow">Recent operating timeline</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What changed recently</h3>
           </div>
           <div className="grid gap-3 p-6">
             {timeline.map((item) => {
               const Icon = categoryIcon(item.category);
               return (
-                <article key={`${item.category}-${item.id}`} className="flex gap-3 rounded-[1.4rem] border border-slate-100 bg-white p-4">
-                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl bg-primary-50 text-primary-700">
+                <article key={`${item.category}-${item.id}`} className="flex gap-3 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
                     <Icon className="h-4 w-4" />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-slate-900">{item.title}</p>
-                    <p className="mt-1 text-[13px] leading-6 text-slate-600">{item.detail}</p>
-                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">{item.meta}</p>
+                    <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{item.title}</p>
+                    <p className="mt-1 text-[13px] leading-6 text-[var(--color-text-secondary)]">{item.detail}</p>
+                    <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{item.meta}</p>
                   </div>
                 </article>
               );
             })}
-            {timeline.length === 0 ? <p className="text-sm text-slate-500">No recent activity visible for this role.</p> : null}
+            {timeline.length === 0 ? <p className="text-[13px] text-[var(--color-text-secondary)]">No recent activity visible for this role.</p> : null}
           </div>
         </section>
       </section>
 
-      <section className="rounded-[2rem] border border-white/65 bg-white/92 p-6 shadow-panel">
+      <section className="surface-card p-6">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Operational alerts</p>
-            <h3 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-slate-950">Risk radar</h3>
+            <p className="section-eyebrow">Operational alerts</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Risk radar</h3>
           </div>
-          <span className="rounded-full border border-slate-100 bg-slate-50 px-3 py-1 text-[11px] font-semibold text-slate-500">
+          <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
             {topAlerts.length} visible
           </span>
         </div>
         <div className="mt-5 grid gap-3 md:grid-cols-3">
           {topAlerts.map((alert) => (
-            <article key={alert.id} className={`rounded-[1.5rem] border p-5 ${toneRing(alert.tone)}`}>
+            <article key={alert.id} className={`rounded-[10px] border p-5 ${toneRing(alert.tone)}`} style={toneStyle(alert.tone)}>
               <p className="font-semibold">{alert.title}</p>
               <p className="mt-2 text-sm leading-6 opacity-85">{alert.detail}</p>
             </article>
           ))}
-          {topAlerts.length === 0 ? <p className="text-sm text-slate-500">No alerts visible for this role.</p> : null}
+          {topAlerts.length === 0 ? <p className="text-[13px] text-[var(--color-text-secondary)]">No alerts visible for this role.</p> : null}
         </div>
       </section>
     </div>

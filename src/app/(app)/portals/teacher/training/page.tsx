@@ -23,11 +23,11 @@ export default async function TeacherTrainingPortalPage() {
   const firstPending = participants.find((item) => item.status !== "COMPLETED");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">Back to teacher portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">My Training & CPD</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/teacher" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to teacher portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My Training & CPD</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           View required professional development, curriculum orientation, and certificates attached to your teacher profile.
         </p>
       </section>
@@ -57,13 +57,13 @@ export default async function TeacherTrainingPortalPage() {
         />
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Assigned training"
           description="Training programmes assigned to your teacher account."
           items={programs}
           columns={[
-            { key: "title", header: "Training", render: (item) => <span className="font-semibold text-ink">{item.title}</span> },
+            { key: "title", header: "Training", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.title}</span> },
             { key: "category", header: "Category", render: (item) => item.category.replaceAll("_", " ") },
             { key: "date", header: "Date", render: (item) => formatDate(item.startsAt) },
             { key: "type", header: "Type", render: (item) => item.trainingType }

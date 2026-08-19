@@ -151,19 +151,19 @@ function AssessmentCandidateEditor({
     >
       {candidate ? (
         <div className="space-y-5">
-          <section className="rounded-[1.5rem] border border-slate-100 bg-slate-50/90 p-4">
+          <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Candidate</p>
-                <p className="mt-2 text-[18px] font-bold text-slate-900">{candidate.studentName}</p>
-                <p className="mt-1 text-[13px] text-slate-600">{candidate.admissionNumber ?? "No admission number"}</p>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-muted)]">Candidate</p>
+                <p className="mt-2 text-[18px] font-bold text-[var(--color-text-primary)]">{candidate.studentName}</p>
+                <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{candidate.admissionNumber ?? "No admission number"}</p>
               </div>
               <StatusBadge status={candidate.scoreFlag} />
             </div>
           </section>
 
           {!isEditable ? (
-            <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50 p-4 text-[13px] leading-6 text-slate-700">
+            <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               This role can review the assessment workspace but cannot edit scores from here.
             </section>
           ) : null}
@@ -213,7 +213,7 @@ function AssessmentCandidateEditor({
               className="field-control h-11"
               placeholder={attendanceState === "PRESENT" ? `0 to ${maxScore}` : "No score needed for this attendance state"}
             />
-            <span className="text-[11px] text-slate-500">
+            <span className="text-[11px] text-[var(--color-text-muted)]">
               {attendanceState === "PRESENT"
                 ? `This assessment is scored over ${maxScore}.`
                 : "When the learner is not marked present, the stored score will be treated as zero in the result sheet."}
@@ -232,7 +232,14 @@ function AssessmentCandidateEditor({
             />
           </label>
 
-          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-700">{error}</div> : null}
+          {error ? (
+            <div
+              className="rounded-[14px] border px-4 py-3 text-[13px]"
+              style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+            >
+              {error}
+            </div>
+          ) : null}
         </div>
       ) : null}
     </SidePanel>
@@ -241,12 +248,12 @@ function AssessmentCandidateEditor({
 
 function SummaryCard({ label, value, note }: { label: string; value: string | number; note: string }) {
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/95 shadow-panel">
-      <div className="h-1.5 bg-gradient-to-r from-brand-700 via-emerald-500 to-ink" />
+    <article className="surface-card overflow-hidden p-0">
+      <div className="h-1.5" style={{ background: "var(--color-accent-primary)" }} />
       <div className="p-5">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-ink/45">{label}</p>
-        <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ink">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-ink/60">{note}</p>
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+        <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{note}</p>
       </div>
     </article>
   );
@@ -271,38 +278,38 @@ export default function AssessmentWorkspaceClient({
   const teacherFocusedCopy = isTeachingRole(sessionRole);
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 shadow-panel">
-        <div className="h-2 bg-gradient-to-r from-brand-800 via-emerald-500 to-ink" />
-        <div className="bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(238,247,241,0.96),rgba(250,245,235,0.95))] p-6 md:p-8">
-          <Link href={"/academics/results/assessment-format" as Route} className="text-sm font-semibold text-brand-700">
-            Back to assessment format
-          </Link>
-          <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
-            <div className="max-w-3xl">
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
-                {currentAssessment.term}
-                {currentAssessment.session ? ` · ${currentAssessment.session}` : ""}
-              </p>
-              <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">{currentAssessment.title}</h1>
-              <p className="mt-3 text-sm leading-6 text-ink/68">
-                {currentAssessment.className} · {currentAssessment.subject} · {currentAssessment.assessmentType.replaceAll("_", " ")} · {formatDate(currentAssessment.assessmentDate)}
-              </p>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/60">
-                {teacherFocusedCopy
-                  ? "Teachers should only focus on candidate readiness, missing scores, and moderation notes here. Approval and publishing decisions remain with academic oversight roles."
-                  : "Review candidate readiness, missing marks, attendance exceptions, and moderation flags from one assessment workspace."}
-              </p>
-            </div>
-            <div className="flex flex-wrap items-center gap-3">
-              <StatusBadge status={currentAssessment.status} />
-              {teacherFocusedCopy && canManageScores ? (
-                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-[11px] font-semibold text-emerald-800">
-                  <ClipboardCheck className="h-3.5 w-3.5" />
-                  Teacher scoring enabled
-                </span>
-              ) : null}
-            </div>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href={"/academics/results/assessment-format" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">
+          Back to assessment format
+        </Link>
+        <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
+          <div className="max-w-3xl">
+            <p className="section-eyebrow">
+              {currentAssessment.term}
+              {currentAssessment.session ? ` · ${currentAssessment.session}` : ""}
+            </p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{currentAssessment.title}</h1>
+            <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              {currentAssessment.className} · {currentAssessment.subject} · {currentAssessment.assessmentType.replaceAll("_", " ")} · {formatDate(currentAssessment.assessmentDate)}
+            </p>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              {teacherFocusedCopy
+                ? "Teachers should only focus on candidate readiness, missing scores, and moderation notes here. Approval and publishing decisions remain with academic oversight roles."
+                : "Review candidate readiness, missing marks, attendance exceptions, and moderation flags from one assessment workspace."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-3">
+            <StatusBadge status={currentAssessment.status} />
+            {teacherFocusedCopy && canManageScores ? (
+              <span
+                className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[11px] font-semibold"
+                style={{ borderColor: "var(--color-success)", background: "var(--color-success-dim)", color: "var(--color-success)" }}
+              >
+                <ClipboardCheck className="h-3.5 w-3.5" />
+                Teacher scoring enabled
+              </span>
+            ) : null}
           </div>
         </div>
       </section>
@@ -315,63 +322,69 @@ export default function AssessmentWorkspaceClient({
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-brand-700 via-emerald-500 to-ink" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Assessment readiness</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">What still needs teacher attention</h2>
-            <p className="mt-3 text-sm leading-6 text-ink/65">
+        <section className="surface-card p-6">
+            <p className="section-eyebrow">Assessment readiness</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What still needs teacher attention</h2>
+            <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Focus on the learners still missing marks, attendance decisions, or moderation notes before this assessment moves forward.
             </p>
-            <div className="mt-5 h-3 overflow-hidden rounded-full bg-sand">
+            <div className="mt-5 h-3 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
               <span
-                className="block h-full rounded-full bg-gradient-to-r from-brand-700 via-emerald-500 to-emerald-400"
-                style={{ width: `${completionRate}%` }}
+                className="block h-full rounded-full"
+                style={{ width: `${completionRate}%`, background: "var(--color-accent-primary)" }}
               />
             </div>
             <div className="mt-4 grid gap-3 md:grid-cols-3">
-              <div className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-ink/45">Pending scores</p>
-                <p className="mt-3 text-2xl font-black text-ink">{pendingCandidates}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Pending scores</p>
+                <p className="mt-3 text-[22px] font-bold text-[var(--color-text-primary)]">{pendingCandidates}</p>
               </div>
-              <div className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-ink/45">Flags</p>
-                <p className="mt-3 text-2xl font-black text-ink">{flaggedCandidates}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Flags</p>
+                <p className="mt-3 text-[22px] font-bold text-[var(--color-text-primary)]">{flaggedCandidates}</p>
               </div>
-              <div className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-ink/45">Attendance issues</p>
-                <p className="mt-3 text-2xl font-black text-ink">{attendanceExceptions}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance issues</p>
+                <p className="mt-3 text-[22px] font-bold text-[var(--color-text-primary)]">{attendanceExceptions}</p>
               </div>
             </div>
-          </div>
         </section>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-amber via-brand-700 to-emerald-500" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Teacher risk review</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Quick intervention list</h2>
+        <section className="surface-card p-6">
+            <p className="section-eyebrow">Teacher risk review</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Quick intervention list</h2>
             <div className="mt-5 grid gap-3">
               {highlightCandidates.length === 0 ? (
-                <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
+                <div
+                  className="rounded-[10px] border p-4 text-sm font-semibold"
+                  style={{ borderColor: "var(--color-success)", background: "var(--color-success-dim)", color: "var(--color-success)" }}
+                >
                   This assessment is clean right now. No missing scores, flags, or attendance exceptions need teacher action.
                 </div>
               ) : (
                 highlightCandidates.map((candidate) => (
-                  <article key={candidate.id} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                    <p className="font-semibold text-ink">{candidate.studentName}</p>
-                    <p className="mt-1 text-xs text-ink/55">{candidate.admissionNumber ?? "No admission number"}</p>
+                  <article key={candidate.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                    <p className="font-semibold text-[var(--color-text-primary)]">{candidate.studentName}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">{candidate.admissionNumber ?? "No admission number"}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
                       {candidate.score == null ? (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">Score pending</span>
+                        <span
+                          className="rounded-full border px-3 py-1 text-xs font-semibold"
+                          style={{ borderColor: "var(--color-warning)", background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+                        >
+                          Score pending
+                        </span>
                       ) : null}
                       {candidate.scoreFlag !== "NONE" ? (
-                        <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
+                        <span
+                          className="rounded-full border px-3 py-1 text-xs font-semibold"
+                          style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                        >
                           {candidate.scoreFlag.replaceAll("_", " ")}
                         </span>
                       ) : null}
                       {candidate.attendanceState !== "PRESENT" ? (
-                        <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold text-slate-600">
+                        <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
                           {candidate.attendanceState.replaceAll("_", " ")}
                         </span>
                       ) : null}
@@ -380,7 +393,6 @@ export default function AssessmentWorkspaceClient({
                 ))
               )}
             </div>
-          </div>
         </section>
       </section>
 
@@ -400,10 +412,10 @@ export default function AssessmentWorkspaceClient({
               header: "Student",
               render: (item) => (
                 <div>
-                  <Link className="font-semibold text-brand-700" href={`/students/${item.studentId}` as Route}>
+                  <Link className="font-semibold text-[var(--color-text-accent)]" href={`/students/${item.studentId}` as Route}>
                     {item.studentName}
                   </Link>
-                  <p className="text-xs text-ink/55">{item.admissionNumber ?? "No admission number"}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.admissionNumber ?? "No admission number"}</p>
                 </div>
               ),
             },
@@ -430,7 +442,10 @@ export default function AssessmentWorkspaceClient({
       </div>
 
       {teacherFocusedCopy && flaggedCandidates > 0 ? (
-        <section className="rounded-[1.5rem] border border-amber-200 bg-amber-50/80 p-4 text-[13px] leading-6 text-amber-900">
+        <section
+          className="rounded-[14px] border p-4 text-[13px] leading-6"
+          style={{ borderColor: "var(--color-warning)", background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+        >
           <div className="flex items-start gap-3">
             <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
@@ -441,7 +456,7 @@ export default function AssessmentWorkspaceClient({
       ) : null}
 
       {!teacherFocusedCopy && currentAssessment.status === "PUBLISHED" ? (
-        <section className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-4 text-[13px] leading-6 text-slate-700">
+        <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           <div className="flex items-start gap-3">
             <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0" />
             <p>

@@ -155,25 +155,31 @@ function ConflictChecker() {
 
   return (
     <>
-      <button type="button" onClick={check} className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/10 bg-white/80 px-4 text-sm font-semibold text-ink/70 transition hover:bg-white">
+      <button type="button" onClick={check} className="btn-secondary h-11 rounded-full px-4">
         <Zap className="h-4 w-4" />
         Check Conflicts
       </button>
       {open ? (
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_rgba(18,33,23,0.28)]">
-            <div className="flex items-start justify-between border-b border-ink/8 bg-sand/50 px-6 py-5">
+          <div className="modal-surface w-full max-w-2xl overflow-hidden rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] shadow-[var(--shadow-lg)]">
+            <div className="flex items-start justify-between border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-6 py-5">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-700">Timetable audit</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ink">Teacher Conflicts</h2>
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">Timetable audit</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Teacher Conflicts</h2>
               </div>
-              <button type="button" onClick={() => setOpen(false)} className="rounded-full px-4 py-2 text-sm font-semibold text-ink/58 hover:bg-white">Close</button>
+              <button type="button" onClick={() => setOpen(false)} className="icon-btn shrink-0" aria-label="Close teacher conflicts">
+                Close
+              </button>
             </div>
             <div className="max-h-[65vh] overflow-y-auto p-6">
-              {loading ? <p className="text-sm text-ink/55">Checking every teacher against every class period...</p> : null}
-              {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</p> : null}
+              {loading ? <p className="text-[13px] text-[var(--color-text-secondary)]">Checking every teacher against every class period...</p> : null}
+              {error ? (
+                <p className="rounded-[10px] p-4 text-[13px] font-semibold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+                  {error}
+                </p>
+              ) : null}
               {!loading && result && result.conflict_count === 0 ? (
-                <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-8 text-center text-emerald-800">
+                <div className="rounded-[14px] border border-[var(--color-border-default)] p-8 text-center" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                   <CheckCircle2 className="mx-auto h-9 w-9" />
                   <p className="mt-3 font-bold">No timetable conflicts found.</p>
                 </div>
@@ -181,12 +187,12 @@ function ConflictChecker() {
               {!loading && result && result.conflict_count > 0 ? (
                 <div className="grid gap-3">
                   {result.data.map((conflict, index) => (
-                    <div key={`${conflict.teacher_name}-${index}`} className="rounded-[1.25rem] border border-rose-200 bg-rose-50 p-4">
-                      <p className="font-bold text-rose-900">{conflict.teacher_name ?? "Teacher"}</p>
-                      <p className="mt-1 text-xs font-semibold text-rose-700">
+                    <div key={`${conflict.teacher_name}-${index}`} className="rounded-[10px] border border-[var(--color-border-default)] p-4" style={{ background: "var(--color-danger-dim)" }}>
+                      <p className="font-bold" style={{ color: "var(--color-danger)" }}>{conflict.teacher_name ?? "Teacher"}</p>
+                      <p className="mt-1 text-xs font-semibold" style={{ color: "var(--color-danger)" }}>
                         {dayNames[conflict.day_of_week]} · Period {conflict.period_number} · {formatTime(conflict.start_time)} - {formatTime(conflict.end_time)}
                       </p>
-                      <p className="mt-3 text-sm text-rose-800">{conflict.class_1}: {conflict.subject_1} vs {conflict.class_2}: {conflict.subject_2}</p>
+                      <p className="mt-3 text-[13px] text-[var(--color-text-primary)]">{conflict.class_1}: {conflict.subject_1} vs {conflict.class_2}: {conflict.subject_2}</p>
                     </div>
                   ))}
                 </div>

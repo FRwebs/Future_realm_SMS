@@ -28,11 +28,11 @@ export default async function StudentServicesPage() {
   const services = await apiGet<StudentServicesPayload>("/api/v1/student-portal/services");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/student" className="text-sm font-semibold text-brand-700">Back to student portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Library, hostel, and transport</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/student" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to student portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Library, hostel, and transport</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Read-only student service allocations and active library loan records.
         </p>
       </section>
@@ -50,7 +50,7 @@ export default async function StudentServicesPage() {
         ]}
       />
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Hostel allocation"
           description="Current or recent room allocation."

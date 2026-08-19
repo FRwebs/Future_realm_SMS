@@ -71,14 +71,13 @@ export function Modal({
         type="button"
         aria-label="Close modal backdrop"
         onClick={closeOnBackdrop ? onClose : undefined}
-        className="overlay-enter absolute inset-0 bg-black/60 backdrop-blur-[8px]"
+        className="overlay-enter absolute inset-0 bg-ink/55 backdrop-blur-[8px]"
       />
 
       <div
         ref={panelRef}
         className={cn(
-          "modal-enter relative z-[1] flex max-h-[min(88vh,900px)] w-full flex-col overflow-hidden rounded-[20px] border border-slate-100 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.2)] transition-all duration-200",
-          "border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] text-[var(--color-text-primary)] shadow-[var(--shadow-lg)]",
+          "modal-surface modal-enter relative z-[1] flex max-h-[min(88vh,900px)] w-full flex-col overflow-hidden rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] text-[var(--color-text-primary)] shadow-[var(--shadow-lg)] transition-all duration-200",
           MODAL_MAX_WIDTH[size],
         )}
         role="dialog"

@@ -20,24 +20,24 @@ export default async function ResultAnalyticsPage() {
   const analytics = await apiGet<ResultAnalyticsView>("/api/v1/academics/analytics");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/academics/results" className="text-sm font-semibold text-brand-700">Back to results</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Result analytics</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/academics/results" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to results</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Result analytics</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Performance summaries, workflow status, pass distribution, and missing score detection.
         </p>
         <div className="mt-6 grid gap-4 md:grid-cols-4">
           {analytics.metrics.map((metric) => (
-            <article key={metric.label} className="rounded-[1.5rem] bg-sand/65 p-5">
-              <p className="text-sm text-ink/55">{metric.label}</p>
-              <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{metric.value}</p>
+            <article key={metric.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{metric.label}</p>
+              <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{metric.value}</p>
             </article>
           ))}
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Class performance"
           description="Average, published count, pending count, and missing scores by class."

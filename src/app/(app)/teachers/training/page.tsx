@@ -22,16 +22,16 @@ export default async function TeacherTrainingPage() {
   ]);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">People & Staffing</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Teacher Training & CPD</h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">People & Staffing</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Teacher Training & CPD</h1>
+        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Plan seminars, pedagogy refreshers, curriculum orientation, safeguarding, and ICT/digital literacy training.
         </p>
       </section>
 
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-5 shadow-panel">
+      <section className="surface-card p-5">
         <ResourceActionDialog
           triggerLabel="Create training"
           title="Create training programme"
@@ -66,13 +66,13 @@ export default async function TeacherTrainingPage() {
         />
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Training programmes"
           description="Upcoming and historical teacher development activities."
           items={programs}
           columns={[
-            { key: "title", header: "Training", render: (item) => <span className="font-semibold text-ink">{item.title}</span> },
+            { key: "title", header: "Training", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.title}</span> },
             { key: "category", header: "Category", render: (item) => item.category.replaceAll("_", " ") },
             { key: "startsAt", header: "Date", render: (item) => formatDate(item.startsAt) },
             { key: "completion", header: "Completion", render: (item) => `${item.completedCount}/${item.invitedCount}` }

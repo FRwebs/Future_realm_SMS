@@ -27,17 +27,17 @@ export default async function OperationsPage() {
   }));
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">
           School operations
         </p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-[var(--font-heading)] text-3xl font-bold tracking-tight text-ink md:text-4xl">
+            <h1 className="font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
               Daily Operations Command Centre
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               A role-aware workspace for welfare, front desk, facilities, exam logistics, result deadlines, and support actions that happen in a real Nigerian school.
             </p>
           </div>
@@ -76,9 +76,9 @@ export default async function OperationsPage() {
           ["Front Desk", "/operations/front-desk", "Visitor logs and parent meetings."],
           ["Assets & Facilities", "/operations/assets", "Inventory, maintenance, transport vehicles."]
         ].map(([label, href, description]) => (
-          <Link key={href} href={href as Route} className="rounded-[1.75rem] border border-white/60 bg-white/85 p-5 shadow-panel transition hover:-translate-y-0.5 hover:bg-white">
-            <p className="font-[var(--font-heading)] text-xl font-bold text-ink">{label}</p>
-            <p className="mt-2 text-sm leading-6 text-ink/60">{description}</p>
+          <Link key={href} href={href as Route} className="surface-card p-5 transition hover:border-[var(--color-border-strong)]">
+            <p className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">{label}</p>
+            <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{description}</p>
           </Link>
         ))}
       </section>
@@ -89,8 +89,8 @@ export default async function OperationsPage() {
         items={overview.resultWindows}
         emptyState="No result entry windows have been opened yet."
         columns={[
-          { key: "title", header: "Window", render: (item) => <span className="font-semibold text-ink">{item.title}</span> },
-          { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">{item.status}</span> },
+          { key: "title", header: "Window", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.title}</span> },
+          { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.status}</span> },
           { key: "deadline", header: "Closes", render: (item) => new Date(item.closesAt).toLocaleString("en-NG") }
         ]}
       />

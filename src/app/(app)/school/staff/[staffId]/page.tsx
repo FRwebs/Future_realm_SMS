@@ -54,7 +54,7 @@ const staffRoleOptions = allRoles
 function FieldLine({ label, value }: { label: string; value?: string | number | null }) {
   return (
     <p>
-      <span className="font-semibold text-ink">{label}:</span> {value || "Not recorded"}
+      <span className="font-semibold text-[var(--color-text-primary)]">{label}:</span> {value || "Not recorded"}
     </p>
   );
 }
@@ -80,7 +80,7 @@ export default async function StaffDetailPage({ params }: PageProps) {
   const canUploadDocuments = permissions.has("staff.upload_documents") || permissions.has("profiles.upload_documents");
 
   return (
-    <div className="grid gap-6">
+    <div className="portal-page">
       <DetailPageHeader
         eyebrow="Staff profile"
         title={staff.fullName}
@@ -163,10 +163,10 @@ export default async function StaffDetailPage({ params }: PageProps) {
         ]}
       />
 
-      <section id="bio" className="grid gap-6 xl:grid-cols-3">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel xl:col-span-2">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Employment and contact</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72 md:grid-cols-2">
+      <section id="bio" className="grid gap-5 xl:grid-cols-3">
+        <article className="surface-card p-6 xl:col-span-2">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Employment and contact</h2>
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)] md:grid-cols-2">
             <FieldLine label="Staff ID" value={staff.employeeNo} />
             <FieldLine label="Designation" value={staff.designation} />
             <FieldLine label="Department" value={staff.departmentName} />
@@ -179,9 +179,9 @@ export default async function StaffDetailPage({ params }: PageProps) {
             <FieldLine label="Address" value={staff.contact.residentialAddress ?? staff.contact.homeAddress} />
           </div>
         </article>
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Next of kin</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Next of kin</h2>
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)]">
             <FieldLine label="Name" value={[staff.nextOfKin.firstName, staff.nextOfKin.lastName].filter(Boolean).join(" ")} />
             <FieldLine label="Relationship" value={staff.nextOfKin.relationship} />
             <FieldLine label="Phone" value={staff.nextOfKin.phone} />
@@ -191,7 +191,7 @@ export default async function StaffDetailPage({ params }: PageProps) {
         </article>
       </section>
 
-      <section id="teaching" className="grid gap-6 xl:grid-cols-2">
+      <section id="teaching" className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Subject assignments"
           description="Teacher-specific subject and class ownership for this term."
@@ -210,7 +210,7 @@ export default async function StaffDetailPage({ params }: PageProps) {
           columns={[
             { key: "day", header: "Day", render: (item) => `Day ${item.dayOfWeek}` },
             { key: "period", header: "Period", render: (item) => `P${item.periodNumber} · ${item.startTime}-${item.endTime}` },
-            { key: "subject", header: "Subject / Class", render: (item) => <div><p>{item.subjectName ?? "Free / activity"}</p><p className="text-xs text-ink/55">{item.className}</p></div> },
+            { key: "subject", header: "Subject / Class", render: (item) => <div><p>{item.subjectName ?? "Free / activity"}</p><p className="text-xs text-[var(--color-text-muted)]">{item.className}</p></div> },
           ]}
         />
       </section>
@@ -241,7 +241,7 @@ export default async function StaffDetailPage({ params }: PageProps) {
           items={staff.documents}
           emptyState="No staff documents have been uploaded."
           columns={[
-            { key: "title", header: "Document", render: (item) => <div><p className="font-semibold text-ink">{item.title}</p><p className="text-xs text-ink/55">{item.type}</p></div> },
+            { key: "title", header: "Document", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p><p className="text-xs text-[var(--color-text-muted)]">{item.type}</p></div> },
             { key: "status", header: "Verification", render: (item) => item.verificationStatus },
             { key: "created", header: "Uploaded", render: (item) => formatDate(item.createdAt) },
           ]}
@@ -256,7 +256,7 @@ export default async function StaffDetailPage({ params }: PageProps) {
           emptyState="No login history recorded."
           columns={[
             { key: "status", header: "Status", render: (item) => item.success ? "Successful" : "Failed" },
-            { key: "device", header: "Device / IP", render: (item) => <div><p>{item.device ?? "Unknown device"}</p><p className="text-xs text-ink/55">{item.ipAddress ?? "No IP"}</p></div> },
+            { key: "device", header: "Device / IP", render: (item) => <div><p>{item.device ?? "Unknown device"}</p><p className="text-xs text-[var(--color-text-muted)]">{item.ipAddress ?? "No IP"}</p></div> },
             { key: "date", header: "When", render: (item) => formatDate(item.createdAt) },
           ]}
         />

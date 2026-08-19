@@ -43,9 +43,9 @@ function resolveGrade(total: number) {
 }
 
 function gradeTone(total: number) {
-  if (total >= 70) return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (total >= 50) return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-rose-200 bg-rose-50 text-rose-700";
+  if (total >= 70) return { background: "var(--color-success-dim)", color: "var(--color-success)" };
+  if (total >= 50) return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  return { background: "var(--color-danger-dim)", color: "var(--color-danger)" };
 }
 
 function toDraft(item: TeacherScoreEntryView): DraftRow {
@@ -336,60 +336,60 @@ export function TeacherScoresClient({ portal, scores: initialScores }: TeacherSc
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/teacher" className="text-[13px] font-semibold text-[var(--color-text-accent)]">
           Back to teacher portal
         </Link>
         <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Assessment workspace</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ink">Teacher score sheet</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/68">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Assessment workspace</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Teacher score sheet</h1>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Enter results the way teachers actually work: one grid, all visible learners, editable score cells, and row-by-row or save-all control.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-            <article className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Rows</p>
-              <p className="mt-2 text-2xl font-black text-slate-900">{stats.total}</p>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Rows</p>
+              <p className="mt-2 text-[19px] font-black text-[var(--color-text-primary)]">{stats.total}</p>
             </article>
-            <article className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/80 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">Entered</p>
-              <p className="mt-2 text-2xl font-black text-emerald-900">{stats.entered}</p>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-success)]">Entered</p>
+              <p className="mt-2 text-[19px] font-black text-[var(--color-text-primary)]">{stats.entered}</p>
             </article>
-            <article className="rounded-[1.5rem] border border-amber-100 bg-amber-50/80 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700">Pending</p>
-              <p className="mt-2 text-2xl font-black text-amber-900">{stats.pending}</p>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-warning)]">Pending</p>
+              <p className="mt-2 text-[19px] font-black text-[var(--color-text-primary)]">{stats.pending}</p>
             </article>
-            <article className="rounded-[1.5rem] border border-blue-100 bg-blue-50/80 px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-blue-700">Unsaved edits</p>
-              <p className="mt-2 text-2xl font-black text-blue-900">{stats.dirty}</p>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-info-dim)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-info)]">Unsaved edits</p>
+              <p className="mt-2 text-[19px] font-black text-[var(--color-text-primary)]">{stats.dirty}</p>
             </article>
-            <article className="rounded-[1.5rem] border border-slate-100 bg-white px-4 py-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Average</p>
-              <p className="mt-2 text-2xl font-black text-slate-900">{stats.average || "—"}</p>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Average</p>
+              <p className="mt-2 text-[19px] font-black text-[var(--color-text-primary)]">{stats.average || "—"}</p>
             </article>
           </div>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Current class</p>
-          <p className="mt-2 text-lg font-black text-slate-900">{selectedClassLabel}</p>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Current class</p>
+          <p className="mt-2 text-[15px] font-black text-[var(--color-text-primary)]">{selectedClassLabel}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Current subject</p>
-          <p className="mt-2 text-lg font-black text-slate-900">{selectedAssignment?.subject ?? "All assigned subjects"}</p>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Current subject</p>
+          <p className="mt-2 text-[15px] font-black text-[var(--color-text-primary)]">{selectedAssignment?.subject ?? "All assigned subjects"}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Class roster</p>
-          <p className="mt-2 text-lg font-black text-slate-900">{rosterCount}</p>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Class roster</p>
+          <p className="mt-2 text-[15px] font-black text-[var(--color-text-primary)]">{rosterCount}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-slate-100 bg-white p-4 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Assignment scope</p>
-          <p className="mt-2 text-sm font-semibold text-slate-900">
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Assignment scope</p>
+          <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">
             {selectedAssignment
               ? `${formatNigeriaClassName(selectedAssignment.className)} · ${selectedAssignment.subject}`
               : "Use filters to focus one teaching register"}
@@ -399,7 +399,7 @@ export function TeacherScoresClient({ portal, scores: initialScores }: TeacherSc
 
       <section className="grid gap-3 lg:grid-cols-[1.2fr_0.5fr_0.5fr_auto_auto]">
         <label className="relative block">
-          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
           <input
             type="search"
             value={search}
@@ -448,31 +448,31 @@ export function TeacherScoresClient({ portal, scores: initialScores }: TeacherSc
         </button>
       </section>
 
-      <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
+      <section className="surface-card overflow-hidden">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center gap-3 px-6 py-20 text-center">
-            <FileCheck2 className="h-10 w-10 text-slate-300" />
-            <h2 className="text-[15px] font-semibold text-slate-800">No result rows match the current filter</h2>
-            <p className="max-w-md text-[13px] leading-6 text-slate-500">
+            <FileCheck2 className="h-10 w-10 text-[var(--color-text-muted)]" />
+            <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">No result rows match the current filter</h2>
+            <p className="max-w-md text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Try another class, subject, or learner search. Only the score sheets linked to your assigned classes are shown here.
             </p>
           </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="min-w-[1260px] w-full text-sm">
-              <thead className="bg-slate-50/90">
-                <tr className="border-b border-slate-100">
-                  <th className="sticky left-0 z-10 bg-slate-50/95 px-6 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Learner</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Subject</th>
-                  <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">CA / 40</th>
-                  <th className="px-4 py-4 text-center text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Exam / 60</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Comment</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Preview</th>
-                  <th className="px-4 py-4 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">State</th>
-                  <th className="px-4 py-4 text-right text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">Save</th>
+              <thead className="bg-[var(--color-bg-subtle)]">
+                <tr className="border-b border-[var(--color-border-default)]">
+                  <th className="sticky left-0 z-10 bg-[var(--color-bg-subtle)] px-6 py-4 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Learner</th>
+                  <th className="px-4 py-4 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Subject</th>
+                  <th className="px-4 py-4 text-center text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">CA / 40</th>
+                  <th className="px-4 py-4 text-center text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Exam / 60</th>
+                  <th className="px-4 py-4 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Comment</th>
+                  <th className="px-4 py-4 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Preview</th>
+                  <th className="px-4 py-4 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">State</th>
+                  <th className="px-4 py-4 text-right text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Save</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-[var(--color-border-muted)]">
                 {filtered.map((student) => {
                   const key = rowKey(student);
                   const draft = drafts[key] ?? toDraft(student);
@@ -484,21 +484,21 @@ export function TeacherScoresClient({ portal, scores: initialScores }: TeacherSc
                   const validation = errors[key];
 
                   return (
-                    <tr key={key} className="align-top transition hover:bg-brand-50/30">
-                      <td className="sticky left-0 z-[1] bg-white px-6 py-4">
+                    <tr key={key} className="align-top transition hover:bg-[var(--color-bg-subtle)]">
+                      <td className="sticky left-0 z-[1] bg-[var(--color-bg-surface)] px-6 py-4">
                         <div className="flex items-start gap-3">
-                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-brand-50 text-brand-700">
+                          <div className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
                             <UserRound className="h-4 w-4" />
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{student.studentName}</p>
-                            <p className="mt-1 text-[12px] text-slate-500">{formatNigeriaClassName(student.className)}</p>
+                            <p className="font-semibold text-[var(--color-text-primary)]">{student.studentName}</p>
+                            <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">{formatNigeriaClassName(student.className)}</p>
                           </div>
                         </div>
                       </td>
                       <td className="px-4 py-4">
-                        <div className="flex items-center gap-2 text-slate-700">
-                          <BookOpen className="h-4 w-4 text-slate-400" />
+                        <div className="flex items-center gap-2 text-[var(--color-text-secondary)]">
+                          <BookOpen className="h-4 w-4 text-[var(--color-text-muted)]" />
                           <span>{student.subject}</span>
                         </div>
                       </td>
@@ -534,14 +534,14 @@ export function TeacherScoresClient({ portal, scores: initialScores }: TeacherSc
                           placeholder="Teacher note for report sheet"
                         />
                         {validation ? (
-                          <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium text-rose-600">
+                          <p className="mt-2 inline-flex items-center gap-1 text-[11px] font-medium" style={{ color: "var(--color-danger)" }}>
                             <AlertTriangle className="h-3.5 w-3.5" />
                             {validation}
                           </p>
                         ) : null}
                       </td>
                       <td className="px-4 py-4">
-                        <span className={`inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold ${gradeTone(total)}`}>
+                        <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-semibold" style={gradeTone(total)}>
                           <span>{total}</span>
                           <span className="opacity-50">·</span>
                           <span>{grade}</span>
@@ -549,16 +549,16 @@ export function TeacherScoresClient({ portal, scores: initialScores }: TeacherSc
                       </td>
                       <td className="px-4 py-4">
                         {student.published ? (
-                          <span className="inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[11px] font-semibold text-slate-600">
+                          <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
                             <ShieldCheck className="h-3.5 w-3.5" />
                             Locked
                           </span>
                         ) : dirty ? (
-                          <span className="inline-flex rounded-full border border-blue-200 bg-blue-50 px-2.5 py-1 text-[11px] font-semibold text-blue-700">
+                          <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "var(--color-info-dim)", color: "var(--color-info)" }}>
                             Edited
                           </span>
                         ) : (
-                          <span className="inline-flex rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-semibold text-emerald-700">
+                          <span className="inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                             Ready
                           </span>
                         )}

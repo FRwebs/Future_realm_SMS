@@ -26,7 +26,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
   const canLogBehavior = hasRole(session.role, ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER"]);
 
   return (
-    <div className="grid gap-6">
+    <div className="portal-page">
       <DetailPageHeader
         eyebrow="Student profile"
         title={profile.fullName}
@@ -92,46 +92,46 @@ export default async function StudentDetailPage({ params }: PageProps) {
       />
 
       <section id="overview" className="grid gap-4 md:grid-cols-3">
-        <article className="rounded-[1.75rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Attendance</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{formatPercentage(profile.attendanceRate)}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
+          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatPercentage(profile.attendanceRate)}</p>
         </article>
-        <article className="rounded-[1.75rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Average score</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{profile.averageScore.toFixed(1)}%</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Average score</p>
+          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{profile.averageScore.toFixed(1)}%</p>
         </article>
-        <article className="rounded-[1.75rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Outstanding balance</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{formatCurrency(profile.outstandingBalance)}</p>
-        </article>
-      </section>
-
-      <section className="grid gap-6 xl:grid-cols-2">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Biodata and guardian</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
-            <p><span className="font-semibold text-ink">Guardian:</span> {profile.guardianName}</p>
-            <p><span className="font-semibold text-ink">Phone:</span> {profile.guardianPhone}</p>
-            <p><span className="font-semibold text-ink">Email:</span> {profile.guardianEmail ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Gender:</span> {profile.gender}</p>
-            <p><span className="font-semibold text-ink">Date of birth:</span> {formatDate(profile.dateOfBirth)}</p>
-            <p><span className="font-semibold text-ink">Admission date:</span> {formatDate(profile.admissionDate)}</p>
-            <p><span className="font-semibold text-ink">State of origin:</span> {profile.stateOfOrigin ?? "Not recorded"}</p>
-          </div>
-        </article>
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Medical readiness</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
-            <p><span className="font-semibold text-ink">Blood group:</span> {profile.medical.bloodGroup ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Genotype:</span> {profile.medical.genotype ?? "Not recorded"}</p>
-            <p><span className="font-semibold text-ink">Allergies:</span> {profile.medical.allergies ?? "None recorded"}</p>
-            <p><span className="font-semibold text-ink">Conditions:</span> {profile.medical.conditions ?? "None recorded"}</p>
-            <p><span className="font-semibold text-ink">Notes:</span> {profile.medical.notes ?? "No special note"}</p>
-          </div>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding balance</p>
+          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(profile.outstandingBalance)}</p>
         </article>
       </section>
 
-      <section id="welfare" className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Biodata and guardian</h2>
+          <div className="mt-4 grid gap-2 text-[13px] text-[var(--color-text-secondary)]">
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Guardian:</span> {profile.guardianName}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Phone:</span> {profile.guardianPhone}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Email:</span> {profile.guardianEmail ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Gender:</span> {profile.gender}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Date of birth:</span> {formatDate(profile.dateOfBirth)}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Admission date:</span> {formatDate(profile.admissionDate)}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">State of origin:</span> {profile.stateOfOrigin ?? "Not recorded"}</p>
+          </div>
+        </article>
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Medical readiness</h2>
+          <div className="mt-4 grid gap-2 text-[13px] text-[var(--color-text-secondary)]">
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Blood group:</span> {profile.medical.bloodGroup ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Genotype:</span> {profile.medical.genotype ?? "Not recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Allergies:</span> {profile.medical.allergies ?? "None recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Conditions:</span> {profile.medical.conditions ?? "None recorded"}</p>
+            <p><span className="font-semibold text-[var(--color-text-primary)]">Notes:</span> {profile.medical.notes ?? "No special note"}</p>
+          </div>
+        </article>
+      </section>
+
+      <section id="welfare" className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Behavior timeline"
           description="Operational notes for discipline, merit, welfare, and intervention follow-up."
@@ -139,8 +139,8 @@ export default async function StudentDetailPage({ params }: PageProps) {
           emptyState="No welfare or behavior notes have been recorded."
           columns={[
             { key: "category", header: "Category", render: (item) => item.category },
-            { key: "description", header: "Description", render: (item) => <div><p className="font-semibold text-ink">{item.description}</p><p className="text-xs text-ink/55">{formatDate(item.loggedAt)}</p></div> },
-            { key: "severity", header: "Severity", render: (item) => <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-800">{item.severity}</span> }
+            { key: "description", header: "Description", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.description}</p><p className="text-xs text-[var(--color-text-muted)]">{formatDate(item.loggedAt)}</p></div> },
+            { key: "severity", header: "Severity", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.severity}</span> }
           ]}
         />
         <TableCard
@@ -149,7 +149,7 @@ export default async function StudentDetailPage({ params }: PageProps) {
           items={profile.promotions}
           emptyState="No promotion records have been captured."
           columns={[
-            { key: "decision", header: "Decision", render: (item) => <div><p className="font-semibold text-ink">{item.decision}</p><p className="text-xs text-ink/55">{formatDate(item.promotedAt)}</p></div> },
+            { key: "decision", header: "Decision", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.decision}</p><p className="text-xs text-[var(--color-text-muted)]">{formatDate(item.promotedAt)}</p></div> },
             { key: "fromClassName", header: "From", render: (item) => item.fromClassName ? formatNigeriaClassName(item.fromClassName) : "N/A" },
             { key: "toClassName", header: "To", render: (item) => item.toClassName ? formatNigeriaClassName(item.toClassName) : "N/A" }
           ]}

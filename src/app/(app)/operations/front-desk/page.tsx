@@ -50,17 +50,17 @@ export default async function FrontDeskOperationsPage() {
   ]);
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">
           Front desk
         </p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-[var(--font-heading)] text-3xl font-bold tracking-tight text-ink md:text-4xl">
+            <h1 className="font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
               Visitor Log & Parent Meetings
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Reception can record visitors, issue passes, route parent enquiries, and schedule parent-teacher meetings.
             </p>
           </div>
@@ -109,10 +109,10 @@ export default async function FrontDeskOperationsPage() {
         items={visitors}
         emptyState="No visitors have been recorded."
         columns={[
-          { key: "visitor", header: "Visitor", render: (item) => <span className="font-semibold text-ink">{item.visitorName}</span> },
+          { key: "visitor", header: "Visitor", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.visitorName}</span> },
           { key: "purpose", header: "Purpose", render: (item) => item.purpose },
           { key: "host", header: "Host", render: (item) => item.hostName ?? "Not set" },
-          { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-brand-50 px-3 py-1 text-xs font-semibold text-brand-800">{item.status}</span> },
+          { key: "status", header: "Status", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.status}</span> },
           { key: "time", header: "Signed In", render: (item) => new Date(item.timeIn).toLocaleString("en-NG") }
         ]}
       />
@@ -123,7 +123,7 @@ export default async function FrontDeskOperationsPage() {
         items={meetings}
         emptyState="No parent meetings scheduled."
         columns={[
-          { key: "title", header: "Meeting", render: (item) => <span className="font-semibold text-ink">{item.title}</span> },
+          { key: "title", header: "Meeting", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.title}</span> },
           { key: "student", header: "Student", render: (item) => personName(item.student) },
           { key: "guardian", header: "Guardian", render: (item) => personName(item.guardian) },
           { key: "staff", header: "Staff", render: (item) => item.staff ? `${item.staff.user.firstName} ${item.staff.user.lastName}` : "Not set" },

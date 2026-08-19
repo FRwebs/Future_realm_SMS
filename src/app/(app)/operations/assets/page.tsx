@@ -50,17 +50,17 @@ export default async function AssetsOperationsPage() {
   ]);
 
   return (
-    <div className="space-y-8">
-      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel">
-        <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="section-eyebrow">
           Assets and facilities
         </p>
         <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <h1 className="font-[var(--font-heading)] text-3xl font-bold tracking-tight text-ink md:text-4xl">
+            <h1 className="font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
               Inventory, Maintenance & Transport
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Track supplies, low stock, facility faults, buses, drivers, and route readiness for VP Admin and operations staff.
             </p>
           </div>
@@ -110,10 +110,10 @@ export default async function AssetsOperationsPage() {
         items={inventory}
         emptyState="No inventory items found."
         columns={[
-          { key: "item", header: "Item", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+          { key: "item", header: "Item", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
           { key: "category", header: "Category", render: (item) => item.category },
           { key: "quantity", header: "Quantity", render: (item) => `${item.quantity} ${item.unit}` },
-          { key: "stock", header: "Stock", render: (item) => item.quantity <= item.reorderLevel ? <span className="rounded-full bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">Low stock</span> : <span className="rounded-full bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-700">OK</span> },
+          { key: "stock", header: "Stock", render: (item) => item.quantity <= item.reorderLevel ? <span className="rounded-full bg-[var(--color-danger-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-danger)]">Low stock</span> : <span className="rounded-full bg-[var(--color-success-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-success)]">OK</span> },
           { key: "location", header: "Location", render: (item) => item.location ?? "Not set" }
         ]}
       />
@@ -125,7 +125,7 @@ export default async function AssetsOperationsPage() {
           items={facilities}
           emptyState="No facility logs found."
           columns={[
-            { key: "facility", header: "Facility", render: (item) => <span className="font-semibold text-ink">{item.facilityName}</span> },
+            { key: "facility", header: "Facility", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.facilityName}</span> },
             { key: "issue", header: "Issue", render: (item) => item.issue },
             { key: "priority", header: "Priority", render: (item) => item.priority },
             { key: "status", header: "Status", render: (item) => item.status }
@@ -137,7 +137,7 @@ export default async function AssetsOperationsPage() {
           items={vehicles}
           emptyState="No transport vehicles recorded."
           columns={[
-            { key: "plate", header: "Plate", render: (item) => <span className="font-semibold text-ink">{item.plateNumber}</span> },
+            { key: "plate", header: "Plate", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.plateNumber}</span> },
             { key: "model", header: "Model", render: (item) => item.model ?? "Not set" },
             { key: "route", header: "Route", render: (item) => item.route?.name ?? "Unassigned" },
             { key: "driver", header: "Driver", render: (item) => item.driverName ?? "Not set" },

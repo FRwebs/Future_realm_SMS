@@ -48,16 +48,16 @@ function queryString(params: Record<string, string | undefined>) {
 
 function SummaryCard({ label, value, tone = "ink" }: { label: string; value: string | number; tone?: "ink" | "brand" | "emerald" | "amber" }) {
   const toneClasses = {
-    ink: "text-ink",
-    brand: "text-brand-700",
-    emerald: "text-emerald-700",
-    amber: "text-amber-700"
+    ink: "text-[var(--color-text-primary)]",
+    brand: "text-[var(--color-text-accent)]",
+    emerald: "text-[var(--color-success)]",
+    amber: "text-[var(--color-warning)]"
   };
 
   return (
-    <article className="rounded-[1.5rem] border border-white/60 bg-white/90 p-5 shadow-sm">
-      <p className="text-[0.68rem] font-semibold uppercase tracking-[0.2em] text-ink/45">{label}</p>
-      <p className={`mt-3 font-[var(--font-heading)] text-3xl font-bold ${toneClasses[tone]}`}>{value}</p>
+    <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+      <p className={`mt-2 text-[22px] font-bold ${toneClasses[tone]}`}>{value}</p>
     </article>
   );
 }
@@ -96,14 +96,14 @@ export default async function BroadsheetsPage({ searchParams }: BroadsheetsPageP
   };
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel md:p-8">
-        <Link href="/academics/results" className="text-sm font-semibold text-brand-700">Back to results</Link>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/academics/results" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to results</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Canonical class result workspace</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">Broadsheets</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
+            <p className="section-eyebrow">Canonical class result workspace</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Broadsheets</h1>
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Review class result completeness, workflow state, publication readiness, and exportable term summaries from one consolidated broadsheet module.
             </p>
           </div>
@@ -225,8 +225,8 @@ export default async function BroadsheetsPage({ searchParams }: BroadsheetsPageP
             header: "Class",
             render: (item) => (
               <div>
-                <p className="font-semibold text-ink">{item.className}</p>
-                <p className="text-xs text-ink/55">
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.className}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
                   {item.term}
                   {item.session ? ` · ${item.session}` : ""}
                   {item.classTeacherName ? ` · ${item.classTeacherName}` : ""}
@@ -248,9 +248,9 @@ export default async function BroadsheetsPage({ searchParams }: BroadsheetsPageP
             key: "completeness",
             header: "Completeness",
             render: (item) => (
-              <div className="text-sm text-ink/72">
+              <div className="text-[13px] text-[var(--color-text-secondary)]">
                 <p>{item.metrics?.completeStudents ?? 0}/{item.metrics?.studentCount ?? item.rows.length} students complete</p>
-                <p className="text-xs text-ink/52">{item.missingScoreWarnings.length} flagged issues</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.missingScoreWarnings.length} flagged issues</p>
               </div>
             )
           },
@@ -258,9 +258,9 @@ export default async function BroadsheetsPage({ searchParams }: BroadsheetsPageP
             key: "performance",
             header: "Performance",
             render: (item) => (
-              <div className="text-sm text-ink/72">
-                <p className="font-semibold text-ink">{item.metrics?.classAverage ?? 0}% mean</p>
-                <p className="text-xs text-ink/52">{item.metrics?.subjectCount ?? 0} subjects</p>
+              <div className="text-[13px] text-[var(--color-text-secondary)]">
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.metrics?.classAverage ?? 0}% mean</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.metrics?.subjectCount ?? 0} subjects</p>
               </div>
             )
           },
@@ -273,7 +273,7 @@ export default async function BroadsheetsPage({ searchParams }: BroadsheetsPageP
             key: "open",
             header: "Workspace",
             render: (item) => (
-              <Link className="font-semibold text-brand-700" href={`/academics/results/broadsheets/${item.id}` as Route}>
+              <Link className="font-semibold text-[var(--color-text-accent)]" href={`/academics/results/broadsheets/${item.id}` as Route}>
                 Open broadsheet
               </Link>
             )

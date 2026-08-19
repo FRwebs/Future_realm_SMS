@@ -67,11 +67,11 @@ export default async function TeachersPage({ searchParams }: TeachersPageProps) 
   ];
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Teacher Directory</p>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Teacher deployment and class coverage</h1>
-        <p className="mt-3 max-w-4xl text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Teacher Directory</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Teacher deployment and class coverage</h1>
+        <p className="mt-2 max-w-4xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Browse staff by class and subject, then open a dedicated teacher profile for attendance, leave, workload,
           class ownership, and recent activity. No hidden auto-selection, no scroll-hunting.
         </p>
@@ -85,9 +85,9 @@ export default async function TeachersPage({ searchParams }: TeachersPageProps) 
           ["Leave watchlist", teachersWithLeaveRisk],
           ["Recent activities", teacherActivities.length]
         ].map(([label, value]) => (
-          <article key={label} className="rounded-[1.5rem] bg-white/90 p-5 shadow-panel">
-            <p className="text-sm text-ink/55">{label}</p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{value}</p>
+          <article key={label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+            <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
           </article>
         ))}
       </section>
@@ -115,18 +115,18 @@ export default async function TeachersPage({ searchParams }: TeachersPageProps) 
             header: "Teacher",
             render: (item) => (
               <div>
-                <Link href={`/teachers/${item.id}`} className="font-semibold text-ink underline decoration-brand-300 underline-offset-4">
+                <Link href={`/teachers/${item.id}`} className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">
                   {item.fullName}
                 </Link>
-                <p className="text-xs text-ink/55">{item.employeeNo} · {item.designation}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.employeeNo} · {item.designation}</p>
               </div>
             )
           },
           { key: "subjects", header: "Subjects", render: (item) => item.subjects.join(", ") || "Not assigned" },
           { key: "classes", header: "Classes", render: (item) => item.classAssignments.map(formatNigeriaClassName).join(", ") || "Not assigned" },
-          { key: "attendance", header: "Attendance today", render: (item) => <div><p>{item.attendanceStatusToday}</p><p className="text-xs text-ink/55">{formatTime(item.checkInAt)}</p></div> },
-          { key: "leave", header: "Leave / workflow", render: (item) => <div><p>{item.leaveStatus}</p><p className="text-xs text-ink/55">{item.pendingResults} pending result item(s)</p></div> },
-          { key: "action", header: "Action", render: (item) => <Link href={`/teachers/${item.id}`} className="rounded-full bg-sand px-3 py-2 text-xs font-semibold text-ink hover:bg-white">View profile</Link> }
+          { key: "attendance", header: "Attendance today", render: (item) => <div><p>{item.attendanceStatusToday}</p><p className="text-xs text-[var(--color-text-muted)]">{formatTime(item.checkInAt)}</p></div> },
+          { key: "leave", header: "Leave / workflow", render: (item) => <div><p>{item.leaveStatus}</p><p className="text-xs text-[var(--color-text-muted)]">{item.pendingResults} pending result item(s)</p></div> },
+          { key: "action", header: "Action", render: (item) => <Link href={`/teachers/${item.id}`} className="rounded-full bg-[var(--color-bg-subtle)] px-3 py-2 text-xs font-semibold text-[var(--color-text-primary)] hover:bg-[var(--color-accent-primary-dim)]">View profile</Link> }
         ]}
       />
 
@@ -135,9 +135,9 @@ export default async function TeachersPage({ searchParams }: TeachersPageProps) 
         description="Recent attendance, leave, class assignment, result workflow, and intervention signals."
         items={teacherActivities.slice(0, 8)}
         columns={[
-          { key: "teacher", header: "Teacher", render: (item) => <Link href={`/teachers/${item.teacherId}`} className="font-semibold text-ink underline decoration-brand-300 underline-offset-4">{item.teacherName}</Link> },
-          { key: "activity", header: "Activity", render: (item) => <div><p className="font-semibold text-ink">{item.title}</p><p className="mt-1 max-w-xl text-xs leading-5 text-ink/58">{item.detail}</p></div> },
-          { key: "type", header: "Type", render: (item) => <span className="rounded-full bg-brand-100 px-3 py-1 text-xs font-semibold text-brand-800">{item.type.replace("_", " ")}</span> },
+          { key: "teacher", header: "Teacher", render: (item) => <Link href={`/teachers/${item.teacherId}`} className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">{item.teacherName}</Link> },
+          { key: "activity", header: "Activity", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p><p className="mt-1 max-w-xl text-xs leading-5 text-[var(--color-text-muted)]">{item.detail}</p></div> },
+          { key: "type", header: "Type", render: (item) => <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-text-accent)]">{item.type.replace("_", " ")}</span> },
           { key: "occurredAt", header: "When", render: (item) => formatDate(item.occurredAt) }
         ]}
       />

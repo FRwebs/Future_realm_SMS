@@ -624,18 +624,20 @@ a {
     background: var(--color-bg-subtle);
   }
 
+  /* Primary buttons use the same ink-green as the sidebar (the mockup's
+     brand color), hovering to the standard teal accent. */
   .btn-primary {
     @apply inline-flex items-center justify-center gap-2 rounded-[10px] border px-4 text-[13px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-60;
     height: 40px;
-    color: var(--color-text-inverse);
-    border-color: var(--color-accent-primary);
-    background: var(--color-accent-primary);
+    color: #ffffff;
+    border-color: #0d2315;
+    background: #0d2315;
     box-shadow: none;
   }
 
   .btn-primary:hover {
-    background: var(--color-accent-primary-hover);
-    border-color: var(--color-accent-primary-hover);
+    background: #12796a;
+    border-color: #12796a;
   }
 
   .btn-secondary {

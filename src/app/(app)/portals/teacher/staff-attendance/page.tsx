@@ -19,16 +19,16 @@ export default async function TeacherStaffAttendancePage() {
   const records = await apiGet<StaffClockView[]>("/api/v1/nigeria-operations/staff-attendance");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">Back to teacher portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">My Clock-In / Clock-Out</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/teacher" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to teacher portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My Clock-In / Clock-Out</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Self-service teacher attendance for Nigerian school resumption and closing-time records.
         </p>
       </section>
 
-      <section className="grid gap-6 md:grid-cols-2">
+      <section className="grid gap-5 md:grid-cols-2">
         <ResourceForm
           title="Clock in"
           description="Capture today's teacher resumption record. Lateness is calculated from the school policy."

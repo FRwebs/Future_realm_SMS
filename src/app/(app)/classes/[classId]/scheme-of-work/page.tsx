@@ -42,14 +42,14 @@ export default async function ClassSchemeOverviewPage({ params }: { params: Prom
   const canInitialize = permissions.includes("sow.create");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel md:p-8">
-        <Link href={`/classes/${classId}`} className="text-sm font-semibold text-brand-700">Back to class</Link>
-        <p className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Class scheme of work</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href={`/classes/${classId}`} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to class</Link>
+        <p className="mt-4 section-eyebrow">Class scheme of work</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
           {classInfo.name} {classInfo.arm ?? ""}
         </h1>
-        <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
+        <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Review every subject scheme mapped to this class and jump straight into the week-by-week plan.
         </p>
       </section>
@@ -65,8 +65,8 @@ export default async function ClassSchemeOverviewPage({ params }: { params: Prom
             header: "Subject",
             render: (subject) => (
               <div>
-                <p className="font-semibold text-ink">{subject.name}</p>
-                <p className="text-xs text-ink/52">{subject.code ?? "No code"}{subject.teacherName ? ` · ${subject.teacherName}` : ""}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{subject.name}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{subject.code ?? "No code"}{subject.teacherName ? ` · ${subject.teacherName}` : ""}</p>
               </div>
             )
           },
@@ -75,7 +75,7 @@ export default async function ClassSchemeOverviewPage({ params }: { params: Prom
             header: "Status",
             render: (subject) => {
               const sow = sows.find((item) => item.subjectId === subject.id);
-              return sow ? <SchemeOfWorkStatusBadge status={sow.status} size="sm" /> : <span className="text-sm text-ink/45">Not initialized</span>;
+              return sow ? <SchemeOfWorkStatusBadge status={sow.status} size="sm" /> : <span className="text-sm text-[var(--color-text-muted)]">Not initialized</span>;
             }
           },
           {
@@ -84,9 +84,9 @@ export default async function ClassSchemeOverviewPage({ params }: { params: Prom
             render: (subject) => {
               const sow = sows.find((item) => item.subjectId === subject.id);
               return sow ? (
-                <p className="text-sm text-ink/65">{sow.coveredWeeks}/{sow.teachingWeeks} teaching weeks · {sow.coveragePercent}%</p>
+                <p className="text-sm text-[var(--color-text-secondary)]">{sow.coveredWeeks}/{sow.teachingWeeks} teaching weeks · {sow.coveragePercent}%</p>
               ) : (
-                <span className="text-sm text-ink/45">No coverage yet</span>
+                <span className="text-sm text-[var(--color-text-muted)]">No coverage yet</span>
               );
             }
           },
@@ -96,13 +96,13 @@ export default async function ClassSchemeOverviewPage({ params }: { params: Prom
             render: (subject) => {
               const sow = sows.find((item) => item.subjectId === subject.id);
               return sow ? (
-                <Link href={`/subjects/${subject.id}/scheme-of-work/${classId}`} className="text-sm font-semibold text-brand-700 hover:text-brand-900">
+                <Link href={`/subjects/${subject.id}/scheme-of-work/${classId}`} className="text-sm font-semibold text-[var(--color-text-accent)] hover:opacity-80">
                   Open SOW
                 </Link>
               ) : canInitialize ? (
                 <InitializeSchemeButton subjectId={subject.id} classId={classId} label="Initialize" />
               ) : (
-                <span className="text-sm text-ink/45">No action</span>
+                <span className="text-sm text-[var(--color-text-muted)]">No action</span>
               );
             }
           }

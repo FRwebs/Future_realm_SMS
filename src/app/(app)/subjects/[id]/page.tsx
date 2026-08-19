@@ -51,13 +51,10 @@ function StatCard({
   note: string;
 }) {
   return (
-    <article className="overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/95 shadow-panel">
-      <div className="h-1.5 bg-gradient-to-r from-brand-700 via-emerald-500 to-ink" />
-      <div className="p-5">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.22em] text-ink/45">{label}</p>
-        <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ink">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-ink/60">{note}</p>
-      </div>
+    <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{note}</p>
     </article>
   );
 }
@@ -110,68 +107,59 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
     .filter((item) => item.needsTeacher || item.needsSow || item.lowCoverage);
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 shadow-panel">
-        <div className="h-2 bg-gradient-to-r from-brand-800 via-emerald-500 to-ink" />
-        <div className="bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(238,247,241,0.96),rgba(250,245,235,0.95))] p-6 md:p-8">
-          <Link href="/subjects" className="text-sm font-semibold text-brand-700">
-            Back to subjects
-          </Link>
-          <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-            <div>
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
-                {subject.departmentName ?? "General subjects"}
-              </p>
-              <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">{subject.name}</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
-                {subject.code} · {subject.section?.replaceAll("_", " ") ?? "All sections"} ·{" "}
-                {subject.description ?? "No subject description yet."}
-              </p>
-              <div className="mt-4 flex flex-wrap gap-2">
-                <span className="rounded-full border border-ink/10 bg-white px-3 py-1 text-xs font-semibold text-ink/68">
-                  {subject.classCount ?? subject.classAssignments.length} class assignments
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/subjects" className="text-[13px] font-semibold text-[var(--color-text-accent)]">
+          Back to subjects
+        </Link>
+        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="section-eyebrow">
+              {subject.departmentName ?? "General subjects"}
+            </p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{subject.name}</h1>
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              {subject.code} · {subject.section?.replaceAll("_", " ") ?? "All sections"} ·{" "}
+              {subject.description ?? "No subject description yet."}
+            </p>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                {subject.classCount ?? subject.classAssignments.length} class assignments
+              </span>
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                {coverageAverage}% average SOW coverage
+              </span>
+              {subject.isCore ? (
+                <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-success)]">
+                  Core subject
                 </span>
-                <span className="rounded-full border border-ink/10 bg-white px-3 py-1 text-xs font-semibold text-ink/68">
-                  {coverageAverage}% average SOW coverage
+              ) : null}
+              {subject.requiresLab ? (
+                <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-info-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-info)]">
+                  Lab required
                 </span>
-                {subject.isCore ? (
-                  <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold text-emerald-800">
-                    Core subject
-                  </span>
-                ) : null}
-                {subject.requiresLab ? (
-                  <span className="rounded-full border border-violet-200 bg-violet-50 px-3 py-1 text-xs font-semibold text-violet-800">
-                    Lab required
-                  </span>
-                ) : null}
-              </div>
+              ) : null}
             </div>
-            <div className="flex flex-wrap gap-3">
-              {canAssign && subject.classAssignments.length > 0 ? (
-                <AssignSubjectTeacherDialog
-                  subjectId={id}
-                  subjectName={subject.name}
-                  assignments={subject.classAssignments}
-                  teachers={teacherOptions}
-                  triggerLabel="Assign teacher"
-                  triggerVariant="secondary"
-                />
-              ) : null}
-              {canEdit ? (
-                <Link
-                  href={`/subjects/${id}/edit`}
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-ink/10 bg-white px-5 text-sm font-semibold text-ink transition hover:bg-sand/70"
-                >
-                  Edit subject
-                </Link>
-              ) : null}
-              <Link
-                href={`/subjects/${id}/scheme-of-work`}
-                className="inline-flex h-11 items-center justify-center rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-brand-800"
-              >
-                View scheme of work
+          </div>
+          <div className="flex flex-wrap gap-3">
+            {canAssign && subject.classAssignments.length > 0 ? (
+              <AssignSubjectTeacherDialog
+                subjectId={id}
+                subjectName={subject.name}
+                assignments={subject.classAssignments}
+                teachers={teacherOptions}
+                triggerLabel="Assign teacher"
+                triggerVariant="secondary"
+              />
+            ) : null}
+            {canEdit ? (
+              <Link href={`/subjects/${id}/edit`} className="btn-secondary px-5">
+                Edit subject
               </Link>
-            </div>
+            ) : null}
+            <Link href={`/subjects/${id}/scheme-of-work`} className="btn-primary px-5">
+              View scheme of work
+            </Link>
           </div>
         </div>
       </section>
@@ -192,88 +180,82 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-brand-700 via-emerald-500 to-ink" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Teaching footprint</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Operate from one subject cockpit</h2>
-            <p className="mt-3 text-sm leading-6 text-ink/65">
-              Jump directly into a class-specific scheme of work or teacher assignment without leaving the subject detail context.
-            </p>
-            <div className="mt-5 grid gap-3">
-              {subject.classAssignments.slice(0, 4).map((item) => {
-                const sow = sows.find((row) => row.classId === item.classId);
-                return (
-                  <article key={item.id} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-ink">{item.className}</p>
-                        <p className="mt-1 text-xs text-ink/55">
-                          {item.teacherName ?? "Teacher pending"} · {item.isActive ? "Active assignment" : "Inactive assignment"}
-                        </p>
-                      </div>
-                      {sow ? <SchemeOfWorkStatusBadge status={sow.status} size="sm" /> : null}
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Teaching footprint</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Operate from one subject cockpit</h2>
+          <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            Jump directly into a class-specific scheme of work or teacher assignment without leaving the subject detail context.
+          </p>
+          <div className="mt-5 grid gap-3">
+            {subject.classAssignments.slice(0, 4).map((item) => {
+              const sow = sows.find((row) => row.classId === item.classId);
+              return (
+                <article key={item.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-[var(--color-text-primary)]">{item.className}</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                        {item.teacherName ?? "Teacher pending"} · {item.isActive ? "Active assignment" : "Inactive assignment"}
+                      </p>
                     </div>
-                    <div className="mt-4">
-                      <ActionMenu triggerLabel={`Actions for ${item.className}`}>
-                        <ActionMenuLink href={`/subjects/${id}/scheme-of-work/${item.classId}`}>
-                          Open class SOW
-                        </ActionMenuLink>
-                        {canAssign ? (
-                          <AssignSubjectTeacherDialog
-                            subjectId={id}
-                            subjectName={subject.name}
-                            assignments={subject.classAssignments}
-                            teachers={teacherOptions}
-                            initialClassId={item.classId}
-                            triggerLabel={item.teacherId ? "Reassign teacher" : "Assign teacher"}
-                            triggerVariant="menu"
-                          />
-                        ) : null}
-                      </ActionMenu>
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
+                    {sow ? <SchemeOfWorkStatusBadge status={sow.status} size="sm" /> : null}
+                  </div>
+                  <div className="mt-4">
+                    <ActionMenu triggerLabel={`Actions for ${item.className}`}>
+                      <ActionMenuLink href={`/subjects/${id}/scheme-of-work/${item.classId}`}>
+                        Open class SOW
+                      </ActionMenuLink>
+                      {canAssign ? (
+                        <AssignSubjectTeacherDialog
+                          subjectId={id}
+                          subjectName={subject.name}
+                          assignments={subject.classAssignments}
+                          teachers={teacherOptions}
+                          initialClassId={item.classId}
+                          triggerLabel={item.teacherId ? "Reassign teacher" : "Assign teacher"}
+                          triggerVariant="menu"
+                        />
+                      ) : null}
+                    </ActionMenu>
+                  </div>
+                </article>
+              );
+            })}
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-amber via-brand-700 to-emerald-500" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Readiness snapshot</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">What needs attention next</h2>
-            <div className="mt-5 grid gap-3">
-              {readinessItems.length === 0 ? (
-                <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-800">
-                  This subject is in a healthy state across classes right now.
-                </div>
-              ) : (
-                readinessItems.map((item) => (
-                  <article key={`${item.id}-attention`} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                    <p className="font-semibold text-ink">{item.className}</p>
-                    <div className="mt-3 flex flex-wrap gap-2">
-                      {item.needsTeacher ? (
-                        <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                          Teacher still needed
-                        </span>
-                      ) : null}
-                      {item.needsSow ? (
-                        <span className="rounded-full border border-rose-200 bg-rose-50 px-3 py-1 text-xs font-semibold text-rose-700">
-                          SOW not initialized
-                        </span>
-                      ) : null}
-                      {!item.needsSow && item.lowCoverage ? (
-                        <span className="rounded-full border border-ink/10 bg-white px-3 py-1 text-xs font-semibold text-ink/65">
-                          {item.sow?.coveragePercent ?? 0}% coverage
-                        </span>
-                      ) : null}
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Readiness snapshot</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What needs attention next</h2>
+          <div className="mt-5 grid gap-3">
+            {readinessItems.length === 0 ? (
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] p-4 text-sm font-semibold text-[var(--color-success)]">
+                This subject is in a healthy state across classes right now.
+              </div>
+            ) : (
+              readinessItems.map((item) => (
+                <article key={`${item.id}-attention`} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.className}</p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {item.needsTeacher ? (
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-warning)]">
+                        Teacher still needed
+                      </span>
+                    ) : null}
+                    {item.needsSow ? (
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-danger-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-danger)]">
+                        SOW not initialized
+                      </span>
+                    ) : null}
+                    {!item.needsSow && item.lowCoverage ? (
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                        {item.sow?.coveragePercent ?? 0}% coverage
+                      </span>
+                    ) : null}
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
       </section>
@@ -290,8 +272,8 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
               header: "Class",
               render: (item) => (
                 <div>
-                  <p className="font-semibold text-ink">{item.className}</p>
-                  <p className="text-xs text-ink/52">{item.isActive ? "Active assignment" : "Inactive assignment"}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.className}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.isActive ? "Active assignment" : "Inactive assignment"}</p>
                 </div>
               ),
             },
@@ -301,7 +283,7 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
               render: (item) => (
                 <div>
                   <p>{item.teacherName ?? "Teacher not assigned"}</p>
-                  {item.teacherEmail ? <p className="text-xs text-ink/52">{item.teacherEmail}</p> : null}
+                  {item.teacherEmail ? <p className="text-xs text-[var(--color-text-muted)]">{item.teacherEmail}</p> : null}
                 </div>
               ),
             },
@@ -313,12 +295,12 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
                 return sow ? (
                   <div className="grid gap-2">
                     <SchemeOfWorkStatusBadge status={sow.status} size="sm" />
-                    <p className="text-xs text-ink/52">
+                    <p className="text-xs text-[var(--color-text-muted)]">
                       {sow.coveredWeeks}/{sow.teachingWeeks} teaching weeks · {sow.coveragePercent}%
                     </p>
                   </div>
                 ) : (
-                  <span className="text-sm text-ink/45">Not initialized</span>
+                  <span className="text-sm text-[var(--color-text-muted)]">Not initialized</span>
                 );
               },
             },
@@ -360,8 +342,8 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
               header: "Class",
               render: (item) => (
                 <div>
-                  <p className="font-semibold text-ink">{classNameById.get(item.classId) ?? item.classId}</p>
-                  <p className="text-xs text-ink/52">{item.classId}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{classNameById.get(item.classId) ?? item.classId}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.classId}</p>
                 </div>
               ),
             },

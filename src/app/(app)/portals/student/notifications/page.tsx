@@ -18,11 +18,11 @@ export default async function StudentNotificationsPage() {
   const notifications = await apiGet<StudentPortalNotificationView[]>("/api/v1/student-portal/notifications");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/student" className="text-sm font-semibold text-brand-700">Back to student portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Notifications</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">Result, fee, attendance, exam, and timetable notifications linked to your account.</p>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/student" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to student portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Notifications</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">Result, fee, attendance, exam, and timetable notifications linked to your account.</p>
       </section>
 
       <TableCard
@@ -37,7 +37,7 @@ export default async function StudentNotificationsPage() {
         ]}
       />
       {notifications.length === 0 ? (
-        <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 text-sm text-ink/65 shadow-panel">
+        <section className="surface-card p-6 text-[13px] text-[var(--color-text-secondary)]">
           No notifications are available yet.
         </section>
       ) : null}

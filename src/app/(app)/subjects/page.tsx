@@ -52,21 +52,24 @@ function MetricCard({
   note: string;
   tone?: "brand" | "emerald" | "ink" | "amber";
 }) {
-  const tones = {
-    brand: "from-brand-700 via-brand-600 to-emerald-500",
-    emerald: "from-emerald-700 via-brand-600 to-ink",
-    ink: "from-ink via-brand-900 to-brand-700",
-    amber: "from-amber via-brand-700 to-ink",
+  const tones: Record<string, { label: string; background: string }> = {
+    brand: { label: "var(--color-text-accent)", background: "var(--color-accent-primary-dim)" },
+    emerald: { label: "var(--color-success)", background: "var(--color-success-dim)" },
+    ink: { label: "var(--color-text-muted)", background: "var(--color-bg-subtle)" },
+    amber: { label: "var(--color-warning)", background: "var(--color-warning-dim)" },
   };
+  const paletteTone = tones[tone];
 
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/95 shadow-panel">
-      <div className={`h-1.5 bg-gradient-to-r ${tones[tone]}`} />
-      <div className="p-5">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-ink/45">{label}</p>
-        <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ink">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-ink/60">{note}</p>
-      </div>
+    <article
+      className="rounded-[10px] border border-[var(--color-border-default)] p-4"
+      style={{ background: paletteTone.background }}
+    >
+      <p className="text-[10px] font-bold uppercase tracking-[0.16em]" style={{ color: paletteTone.label }}>
+        {label}
+      </p>
+      <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{note}</p>
     </article>
   );
 }
@@ -143,63 +146,54 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
     .slice(0, 5);
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 shadow-panel">
-        <div className="h-2 bg-gradient-to-r from-brand-800 via-emerald-500 to-ink" />
-        <div className="bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(238,247,241,0.96),rgba(250,245,235,0.95))] p-6 md:p-8">
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Academic operations</p>
-              <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">Subjects</h1>
-              <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
-                Run the subject register, scheme-of-work readiness, and teaching ownership from one premium workspace
-                instead of hopping across scattered academic screens.
-              </p>
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800">
-                  {subjects.length} subjects in register
-                </span>
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
-                  {teacherReadySubjects} with teaching owners
-                </span>
-                <span className="rounded-full border border-ink/10 bg-white px-3 py-1.5 text-xs font-semibold text-ink/70">
-                  {overallCoverage}% average scheme coverage
-                </span>
-              </div>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="section-eyebrow">Academic operations</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Subjects</h1>
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              Run the subject register, scheme-of-work readiness, and teaching ownership from one premium workspace
+              instead of hopping across scattered academic screens.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-accent)]">
+                {subjects.length} subjects in register
+              </span>
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-1.5 text-xs font-semibold text-[var(--color-success)]">
+                {teacherReadySubjects} with teaching owners
+              </span>
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)]">
+                {overallCoverage}% average scheme coverage
+              </span>
             </div>
-            <div className="flex flex-wrap gap-3">
-              <Link
-                href="/academics/results/assessment-format"
-                className="inline-flex h-11 items-center justify-center rounded-full border border-brand-100 bg-brand-50 px-5 text-sm font-semibold text-brand-800 transition hover:bg-brand-100"
-              >
-                Assessment format
-              </Link>
-              {canCreate ? (
-                <>
-                  <Link
-                    href="/subjects/new"
-                    className="inline-flex h-11 items-center justify-center rounded-full border border-ink/10 bg-white px-5 text-sm font-semibold text-ink transition hover:bg-sand/70"
-                  >
-                    Full subject form
-                  </Link>
-                  <ResourceActionDialog
-                    triggerLabel="Quick add subject"
-                    title="Add subject"
-                    description="Create a subject quickly from the subjects workspace."
-                    endpoint="/api/v1/academics/subjects"
-                    submitLabel="Save subject"
-                    fields={[
-                      { name: "name", label: "Subject name", required: true, placeholder: "Agricultural Science" },
-                      { name: "code", label: "Subject code", required: true, placeholder: "AGRIC" },
-                      { name: "section", label: "Section", type: "select", required: true, options: sectionOptions },
-                      { name: "applicableClassLevelsJson", label: "Applicable classes", type: "multiselect", options: nigerianClassFieldOptions },
-                      { name: "description", label: "Description", type: "textarea", placeholder: "Short curriculum note" },
-                      { name: "periodsPerWeek", label: "Periods per week", type: "number", defaultValue: 3, min: 1, max: 30 },
-                    ]}
-                  />
-                </>
-              ) : null}
-            </div>
+          </div>
+          <div className="flex flex-wrap gap-3">
+            <Link href="/academics/results/assessment-format" className="btn-secondary px-5">
+              Assessment format
+            </Link>
+            {canCreate ? (
+              <>
+                <Link href="/subjects/new" className="btn-secondary px-5">
+                  Full subject form
+                </Link>
+                <ResourceActionDialog
+                  triggerLabel="Quick add subject"
+                  title="Add subject"
+                  description="Create a subject quickly from the subjects workspace."
+                  endpoint="/api/v1/academics/subjects"
+                  submitLabel="Save subject"
+                  fields={[
+                    { name: "name", label: "Subject name", required: true, placeholder: "Agricultural Science" },
+                    { name: "code", label: "Subject code", required: true, placeholder: "AGRIC" },
+                    { name: "section", label: "Section", type: "select", required: true, options: sectionOptions },
+                    { name: "applicableClassLevelsJson", label: "Applicable classes", type: "multiselect", options: nigerianClassFieldOptions },
+                    { name: "description", label: "Description", type: "textarea", placeholder: "Short curriculum note" },
+                    { name: "periodsPerWeek", label: "Periods per week", type: "number", defaultValue: 3, min: 1, max: 30 },
+                  ]}
+                />
+              </>
+            ) : null}
           </div>
         </div>
       </section>
@@ -220,76 +214,70 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-brand-700 via-emerald-500 to-ink" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Department footprint</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Where the curriculum is concentrated</h2>
-            <div className="mt-5 grid gap-3 md:grid-cols-2">
-              {departmentSummary.map((department) => (
-                <article key={department.name} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-ink">{department.name}</p>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/65">
-                      {department.count} subjects
-                    </span>
-                  </div>
-                  <p className="mt-3 text-sm text-ink/60">{department.withTeachers} already have teaching ownership in place.</p>
-                  <div className="mt-4 h-2 overflow-hidden rounded-full bg-white">
-                    <span
-                      className="block h-full rounded-full bg-gradient-to-r from-brand-700 via-emerald-500 to-emerald-400"
-                      style={{ width: `${department.count === 0 ? 0 : Math.round((department.withTeachers / department.count) * 100)}%` }}
-                    />
-                  </div>
-                </article>
-              ))}
-            </div>
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Department footprint</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Where the curriculum is concentrated</h2>
+          <div className="mt-5 grid gap-3 md:grid-cols-2">
+            {departmentSummary.map((department) => (
+              <article key={department.name} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-[var(--color-text-primary)]">{department.name}</p>
+                  <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                    {department.count} subjects
+                  </span>
+                </div>
+                <p className="mt-3 text-sm text-[var(--color-text-secondary)]">{department.withTeachers} already have teaching ownership in place.</p>
+                <div className="mt-4 h-2 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
+                  <span
+                    className="block h-full rounded-full bg-[var(--color-accent-primary)]"
+                    style={{ width: `${department.count === 0 ? 0 : Math.round((department.withTeachers / department.count) * 100)}%` }}
+                  />
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
-        <section id="attention" className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-amber via-brand-700 to-emerald-500" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Attention needed</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">Subjects that still need intervention</h2>
-            <p className="mt-3 text-sm leading-6 text-ink/65">
-              We surface low-coverage or unassigned subjects here so academic leaders can fix issues without digging
-              through the full register.
-            </p>
-            <div className="mt-5 grid gap-3">
-              {attentionSubjects.length === 0 ? (
-                <div className="rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-5 text-sm font-semibold text-emerald-800">
-                  Subject ownership and scheme-of-work coverage are in a healthy state right now.
-                </div>
-              ) : (
-                attentionSubjects.map((subject) => (
-                  <article key={subject.id} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-ink">{subject.name}</p>
-                        <p className="mt-1 text-xs text-ink/55">{subject.code} · {subject.departmentName}</p>
-                      </div>
-                      <div className="flex flex-wrap gap-2">
-                        {subject.teacherCount === 0 ? (
-                          <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
-                            Teacher pending
-                          </span>
-                        ) : null}
-                        <span className="rounded-full border border-ink/10 bg-white px-3 py-1 text-xs font-semibold text-ink/65">
-                          {subject.coverage}% coverage
+        <section id="attention" className="surface-card p-6">
+          <p className="section-eyebrow">Attention needed</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Subjects that still need intervention</h2>
+          <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            We surface low-coverage or unassigned subjects here so academic leaders can fix issues without digging
+            through the full register.
+          </p>
+          <div className="mt-5 grid gap-3">
+            {attentionSubjects.length === 0 ? (
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] p-5 text-sm font-semibold text-[var(--color-success)]">
+                Subject ownership and scheme-of-work coverage are in a healthy state right now.
+              </div>
+            ) : (
+              attentionSubjects.map((subject) => (
+                <article key={subject.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-[var(--color-text-primary)]">{subject.name}</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">{subject.code} · {subject.departmentName}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {subject.teacherCount === 0 ? (
+                        <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] px-3 py-1 text-xs font-semibold text-[var(--color-warning)]">
+                          Teacher pending
                         </span>
-                      </div>
+                      ) : null}
+                      <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                        {subject.coverage}% coverage
+                      </span>
                     </div>
-                    <div className="mt-4">
-                      <ActionMenu triggerLabel={`Actions for ${subject.name}`}>
-                        <ActionMenuLink href={`/subjects/${subject.id}`}>Open subject</ActionMenuLink>
-                        <ActionMenuLink href={`/subjects/${subject.id}/scheme-of-work`}>Review SOW</ActionMenuLink>
-                      </ActionMenu>
-                    </div>
-                  </article>
-                ))
-              )}
-            </div>
+                  </div>
+                  <div className="mt-4">
+                    <ActionMenu triggerLabel={`Actions for ${subject.name}`}>
+                      <ActionMenuLink href={`/subjects/${subject.id}`}>Open subject</ActionMenuLink>
+                      <ActionMenuLink href={`/subjects/${subject.id}/scheme-of-work`}>Review SOW</ActionMenuLink>
+                    </ActionMenu>
+                  </div>
+                </article>
+              ))
+            )}
           </div>
         </section>
       </section>
@@ -338,8 +326,8 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
             header: "Subject",
             render: (subject) => (
               <div>
-                <p className="font-semibold text-ink">{subject.name}</p>
-                <p className="text-xs text-ink/55">{subject.code} · {subject.departmentName ?? "General subjects"}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{subject.name}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{subject.code} · {subject.departmentName ?? "General subjects"}</p>
               </div>
             ),
           },
@@ -347,9 +335,9 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
             key: "classes",
             header: "Assignments",
             render: (subject) => (
-              <div className="text-sm text-ink/72">
+              <div className="text-sm text-[var(--color-text-secondary)]">
                 <p>{subject.classCount ?? 0} classes</p>
-                <p className="text-xs text-ink/52">{subject.teacherCount ?? 0} teachers</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{subject.teacherCount ?? 0} teachers</p>
               </div>
             ),
           },
@@ -362,17 +350,17 @@ export default async function SubjectsOverviewPage({ searchParams }: SubjectsPag
                 <div className="min-w-[180px]">
                   <div className="flex flex-wrap gap-2">
                     <SchemeOfWorkStatusBadge status={stats?.approved ? "APPROVED" : stats?.submitted ? "SUBMITTED" : stats?.draft ? "DRAFT" : "DRAFT"} size="sm" />
-                    <span className="rounded-full border border-ink/10 bg-white px-2.5 py-1 text-[0.68rem] font-semibold text-ink/65">
+                    <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-2.5 py-1 text-[0.68rem] font-semibold text-[var(--color-text-secondary)]">
                       {stats?.total ?? 0} classes
                     </span>
                   </div>
-                  <p className="mt-2 text-xs text-ink/55">
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">
                     {stats?.approved ?? 0} approved · {stats?.submitted ?? 0} submitted · {stats?.draft ?? 0} draft/returned
                   </p>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/8">
-                    <span className="block h-full rounded-full bg-brand-600" style={{ width: `${stats?.averageCoverage ?? 0}%` }} />
+                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <span className="block h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${stats?.averageCoverage ?? 0}%` }} />
                   </div>
-                  <p className="mt-1 text-xs text-ink/52">Average coverage: {stats?.averageCoverage ?? 0}%</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">Average coverage: {stats?.averageCoverage ?? 0}%</p>
                 </div>
               );
             },
