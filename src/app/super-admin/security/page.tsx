@@ -94,7 +94,6 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
   const { tab = "overview" } = searchParams ? await searchParams : {};
   const data = await apiGet<SecurityView>("/api/super-admin/security");
   const failedAttempts = (data.attempts ?? []).filter((attempt) => attempt.status === "FAILED").length;
-  const openPrivacy = (data.privacy ?? []).filter((request) => request.status !== "COMPLETED").length;
   const openIncidents = (data.incidents ?? []).filter((incident) => incident.status !== "RESOLVED").length;
   const criticalIncidents = (data.incidents ?? []).filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length;
 
