@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Route } from "next";
 import {
   ArrowRight,
   BookMarked,
@@ -80,58 +81,57 @@ export default async function TeacherContentOverviewPage() {
     .slice(0, 4);
 
   return (
-    <div className="grid gap-6">
-      <section className="relative overflow-hidden rounded-[2rem] border border-[rgba(18,33,23,0.12)] bg-gradient-to-br from-[rgb(18,33,23)] via-[#17392d] to-[#1c6b5c] p-6 text-white shadow-panel">
-        <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr] xl:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.22em] text-white/85">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               <Sparkles className="h-3.5 w-3.5" />
               Content Overview
             </div>
-            <h2 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white">
+            <h2 className="mt-4 font-[var(--font-heading)] text-[26px] font-black tracking-tight text-[var(--color-text-primary)]">
               Teacher content command center
             </h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/92">
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               This is the front door for planning. See all teaching lanes, today&apos;s instructional
               pressure points, and where lesson prep meets weekly curriculum coverage.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3 xl:grid-cols-1">
-            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                 Teaching lanes
               </p>
-              <p className="mt-2 text-3xl font-black text-white">{teachingLanes.length}</p>
+              <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{teachingLanes.length}</p>
             </article>
-            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                 Active topics
               </p>
-              <p className="mt-2 text-3xl font-black text-white">{activeTopics}</p>
+              <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{activeTopics}</p>
             </article>
-            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-4 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/82">
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                 Covered
               </p>
-              <p className="mt-2 text-3xl font-black text-white">{coveredTopics}</p>
+              <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{coveredTopics}</p>
             </article>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_380px]">
-        <article className="min-w-0 rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
-          <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_380px]">
+        <article className="surface-card min-w-0 p-5">
+          <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] pb-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+              <p className="section-eyebrow">
                 Teaching lanes
               </p>
-              <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">
+              <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                 Every subject-class workflow in one surface
               </h2>
             </div>
-          <Link href="/portals/teacher/content/lesson-notes/planning" className="btn-secondary px-4">
+            <Link href="/portals/teacher/content/lesson-notes/planning" className="btn-secondary px-4">
               <BookOpen className="h-4 w-4" />
               Open planning studio
             </Link>
@@ -141,52 +141,52 @@ export default async function TeacherContentOverviewPage() {
             {teachingLanes.map((lane) => (
               <article
                 key={lane.key}
-                className="rounded-[1.6rem] border border-slate-100 bg-slate-50/70 p-4 transition hover:border-primary-200 hover:bg-white"
+                className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-elevated)]"
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                       {lane.className}
                     </p>
-                    <h3 className="mt-2 text-lg font-bold text-slate-950">{lane.subject}</h3>
+                    <h3 className="mt-2 text-[16px] font-bold text-[var(--color-text-primary)]">{lane.subject}</h3>
                   </div>
-                  <span className="rounded-full border border-slate-200 bg-white px-3 py-1 text-[11px] font-semibold text-slate-600">
+                  <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
                     {lane.learners} learners
                   </span>
                 </div>
 
                 <div className="mt-4 grid grid-cols-3 gap-3">
-                  <div className="rounded-[1.2rem] border border-white bg-white px-3 py-3">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Coverage</p>
-                    <p className="mt-2 text-xl font-black text-slate-900">
+                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Coverage</p>
+                    <p className="mt-2 text-[17px] font-black text-[var(--color-text-primary)]">
                       {lane.coverage ?? 0}%
                     </p>
                   </div>
-                  <div className="rounded-[1.2rem] border border-white bg-white px-3 py-3">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Status</p>
-                    <p className="mt-2 text-sm font-bold text-slate-900">
+                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Status</p>
+                    <p className="mt-2 text-[13px] font-bold text-[var(--color-text-primary)]">
                       {lane.status ?? "Not started"}
                     </p>
                   </div>
-                  <div className="rounded-[1.2rem] border border-white bg-white px-3 py-3">
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-slate-400">Pending</p>
-                    <p className="mt-2 text-xl font-black text-slate-900">{lane.pendingScores}</p>
+                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-3">
+                    <p className="text-[10px] uppercase tracking-[0.14em] text-[var(--color-text-muted)]">Pending</p>
+                    <p className="mt-2 text-[17px] font-black text-[var(--color-text-primary)]">{lane.pendingScores}</p>
                   </div>
                 </div>
 
-                <p className="mt-4 text-sm text-slate-600">{lane.nextAction}</p>
+                <p className="mt-4 text-[13px] text-[var(--color-text-secondary)]">{lane.nextAction}</p>
 
                 <div className="mt-4 flex flex-wrap gap-3">
                   <Link
                     href={`/portals/teacher/content/lesson-notes/planning?subjectId=${lane.subjectId}&classId=${lane.classId}`}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                   >
                     Lesson notes
                     <ArrowRight className="h-4 w-4" />
                   </Link>
                   <Link
                     href={`/portals/teacher/content/scheme-of-work/coverage?subjectId=${lane.subjectId}&classId=${lane.classId}` as Route}
-                    className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
+                    className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                   >
                     Scheme workspace
                     <ArrowRight className="h-4 w-4" />
@@ -198,30 +198,30 @@ export default async function TeacherContentOverviewPage() {
         </article>
 
         <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
-          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary-700" />
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+              <CalendarDays className="h-4 w-4 text-[var(--color-text-accent)]" />
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
                 Today&apos;s rhythm
               </h2>
             </div>
             <div className="mt-4 grid gap-3">
               {todaysPeriods.length === 0 ? (
-                <div className="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500">
+                <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-8 text-center text-[13px] text-[var(--color-text-secondary)]">
                   No teaching periods scheduled for today.
                 </div>
               ) : (
                 todaysPeriods.slice(0, 5).map((entry) => (
                   <article
                     key={entry.id}
-                    className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 px-4 py-4"
+                    className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4"
                   >
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                       <Clock3 className="h-3.5 w-3.5" />
                       {entry.time}
                     </div>
-                    <p className="mt-2 text-sm font-bold text-slate-900">{entry.subject}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-2 text-[13px] font-bold text-[var(--color-text-primary)]">{entry.subject}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                       {entry.className ?? "Assigned class"} · {entry.venue}
                     </p>
                   </article>
@@ -230,29 +230,29 @@ export default async function TeacherContentOverviewPage() {
             </div>
           </section>
 
-          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-emerald-600" />
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+              <Target className="h-4 w-4" style={{ color: "var(--color-success)" }} />
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
                 Due soon
               </h2>
             </div>
             <div className="mt-4 grid gap-3">
               {assignmentsDueSoon.length === 0 ? (
-                <div className="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500">
+                <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-8 text-center text-[13px] text-[var(--color-text-secondary)]">
                   No urgent assignment deadlines right now.
                 </div>
               ) : (
                 assignmentsDueSoon.map((assignment) => (
                   <article
                     key={assignment.id}
-                    className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 px-4 py-4"
+                    className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4"
                   >
-                    <p className="text-sm font-bold text-slate-900">{assignment.title}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{assignment.title}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                       {assignment.className} · {assignment.subject}
                     </p>
-                    <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-amber-700">
+                    <p className="mt-3 text-[11px] font-semibold uppercase tracking-[0.14em]" style={{ color: "var(--color-warning)" }}>
                       Due {new Date(assignment.dueAt).toLocaleDateString("en-NG", {
                         day: "numeric",
                         month: "short",
@@ -266,13 +266,13 @@ export default async function TeacherContentOverviewPage() {
         </aside>
       </section>
 
-      <section className="rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
-        <div className="flex flex-col gap-3 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+      <section className="surface-card p-5">
+        <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] pb-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+            <p className="section-eyebrow">
               Coverage matrix
             </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Scheme and curriculum health at a glance
             </h2>
           </div>
@@ -284,29 +284,29 @@ export default async function TeacherContentOverviewPage() {
 
         <div className="mt-5 overflow-x-auto">
           <table className="w-full min-w-[760px] text-sm">
-            <thead className="bg-slate-50">
+            <thead className="bg-[var(--color-bg-subtle)]">
               <tr>
                 {["Class", "Subject", "Coverage", "Status", "Covered weeks", "Next week"].map((heading) => (
                   <th
                     key={heading}
-                    className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+                    className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]"
                   >
                     {heading}
                   </th>
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-100 bg-white">
+            <tbody className="divide-y divide-[var(--color-border-muted)] bg-[var(--color-bg-surface)]">
               {summaries.map((summary) => (
                 <tr key={summary.id}>
-                  <td className="px-4 py-3 font-semibold text-slate-900">{summary.className}</td>
-                  <td className="px-4 py-3 text-slate-900">{summary.subjectName}</td>
-                  <td className="px-4 py-3 text-slate-600">{summary.coveragePercent}%</td>
-                  <td className="px-4 py-3 text-slate-600">{summary.status}</td>
-                  <td className="px-4 py-3 text-slate-600">
+                  <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{summary.className}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-primary)]">{summary.subjectName}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{summary.coveragePercent}%</td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{summary.status}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                     {summary.coveredWeeks}/{summary.teachingWeeks}
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{summary.nextWeek ?? "-"}</td>
+                  <td className="px-4 py-3 text-[var(--color-text-secondary)]">{summary.nextWeek ?? "-"}</td>
                 </tr>
               ))}
             </tbody>
@@ -314,7 +314,7 @@ export default async function TeacherContentOverviewPage() {
         </div>
 
         {!summaries.length ? (
-          <div className="mt-5 rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-10 text-center text-sm text-slate-500">
+          <div className="mt-5 rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-10 text-center text-[13px] text-[var(--color-text-secondary)]">
             Scheme coverage data will appear here once lanes are initialized.
           </div>
         ) : null}
@@ -322,4 +322,3 @@ export default async function TeacherContentOverviewPage() {
     </div>
   );
 }
-import type { Route } from "next";

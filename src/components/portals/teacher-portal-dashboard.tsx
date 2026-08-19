@@ -36,85 +36,89 @@ export function TeacherPortalDashboard({
   ].filter((action) => canAccessPathWithPermissions(role, action.href, permissions));
 
   return (
-    <div className="grid gap-6 xl:gap-7">
-      <section className="relative overflow-hidden rounded-[2rem] border border-white/60 bg-gradient-to-br from-primary-900 via-primary-700 to-teal-600 p-6 text-white shadow-panel md:p-8">
-        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.25fr_0.75fr] xl:items-end">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-white/75">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               <Sparkles className="h-3.5 w-3.5" />
               Teacher command center
             </div>
-            {hasClassLeadership ? (
-              <div className="mt-3 flex flex-wrap gap-2">
-                <span className="inline-flex items-center gap-2 rounded-full border border-emerald-200/40 bg-emerald-300/15 px-3 py-1 text-[11px] font-semibold text-white">
+            <h1 className="mt-4 max-w-4xl font-[var(--font-heading)] text-[28px] font-black leading-tight tracking-tight text-[var(--color-text-primary)] md:text-[34px]">
+              {portal.headline}
+            </h1>
+            <p className="mt-3 max-w-3xl text-[13.5px] leading-6 text-[var(--color-text-secondary)]">
+              {portal.teacherName} can track today&apos;s lessons, assigned classes, attendance, scores, assignments,
+              and classroom activity from one focused workspace.
+            </p>
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)]">
+                {weekday} · {todaysClasses.length} class period{todaysClasses.length === 1 ? "" : "s"} today
+              </span>
+              {hasClassLeadership ? (
+                <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-success)]">
                   <ClipboardCheck className="h-3.5 w-3.5" />
                   Form / Class Teacher
                 </span>
-                {ledClasses.map((className) => (
-                  <span
-                    key={className}
-                    className="inline-flex items-center rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[11px] font-medium text-white/80"
-                  >
-                    {className}
-                  </span>
-                ))}
-              </div>
-            ) : null}
-            <h1 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">{portal.headline}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/75">
-              {portal.teacherName} can track today’s lessons, assigned classes, attendance, scores, assignments, and classroom activity from one focused workspace.
-            </p>
-          </div>
-          <div className="rounded-[1.5rem] border border-white/15 bg-white/10 p-4 backdrop-blur-xl">
-            <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-white/60">Today</p>
-            <p className="mt-2 text-3xl font-black">{todaysClasses.length}</p>
-            <p className="mt-1 text-sm text-white/72">{weekday} class period{todaysClasses.length === 1 ? "" : "s"} on your timetable.</p>
+              ) : null}
+              {ledClasses.map((className) => (
+                <span
+                  key={className}
+                  className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)]"
+                >
+                  {className}
+                </span>
+              ))}
+            </div>
           </div>
         </div>
       </section>
+
+      {quickActions.length > 0 ? (
+        <section className="flex flex-wrap gap-2">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link
+                key={action.href}
+                href={action.href as Route}
+                className="group inline-flex items-center gap-2 rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2.5 transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
+              >
+                <span className="flex h-[26px] w-[26px] shrink-0 items-center justify-center rounded-[8px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+                  <Icon className="h-3.5 w-3.5" />
+                </span>
+                <span className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{action.label}</span>
+              </Link>
+            );
+          })}
+        </section>
+      ) : null}
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {portal.stats.slice(0, 4).map((stat) => (
           <article key={stat.label} className="surface-card p-5">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-slate-400">{stat.label}</p>
-            <p className="mt-3 text-3xl font-black tracking-tight text-slate-950">{stat.value}</p>
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{stat.label}</p>
+            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{stat.value}</p>
           </article>
         ))}
       </section>
 
-      <section className="rounded-[1.75rem] border border-white/65 bg-white/90 p-4 shadow-panel">
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {quickActions.map((action) => {
-            const Icon = action.icon;
-            return (
-              <Link key={action.href} href={action.href as Route} className="group flex items-center gap-3 rounded-2xl border border-slate-100 bg-white px-4 py-3 shadow-sm transition hover:border-primary-200 hover:bg-primary-50">
-                <span className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary-50 text-primary-700 group-hover:bg-white">
-                  <Icon className="h-4 w-4" />
-                </span>
-                <span className="text-[13px] font-bold text-slate-900 group-hover:text-primary-800">{action.label}</span>
-              </Link>
-            );
-          })}
-        </div>
-      </section>
-
       {todaysClasses.length ? (
-        <section className="rounded-[2rem] border border-white/65 bg-white/92 p-6 shadow-panel">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.24em] text-primary-700">Today's teaching timeline</p>
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Today&apos;s teaching timeline</p>
           <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
             {todaysClasses.map((entry) => (
-              <article key={entry.id} className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-400">{entry.time}</p>
-                <p className="mt-2 text-base font-bold text-slate-950">{entry.subject}</p>
-                <p className="mt-1 text-sm text-slate-600">{entry.className ?? "Assigned class"} · {entry.venue}</p>
+              <article key={entry.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10.5px] font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{entry.time}</p>
+                <p className="mt-2 text-[14px] font-bold text-[var(--color-text-primary)]">{entry.subject}</p>
+                <p className="mt-1 text-[12.5px] text-[var(--color-text-secondary)]">{entry.className ?? "Assigned class"} · {entry.venue}</p>
               </article>
             ))}
           </div>
         </section>
       ) : null}
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Weekly teaching timetable"
           description="All scheduled teaching slots for the current week."
@@ -127,8 +131,8 @@ export function TeacherPortalDashboard({
               header: "Subject",
               render: (item) => (
                 <div>
-                  <p className="font-semibold text-ink">{item.subject}</p>
-                  <p className="text-xs text-ink/55">{item.className}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.subject}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.className}</p>
                 </div>
               )
             },
@@ -145,8 +149,8 @@ export function TeacherPortalDashboard({
               header: "Class",
               render: (item) => (
                 <div>
-                  <p className="font-semibold text-ink">{item.className}</p>
-                  <p className="text-xs text-ink/55">{item.subjectId ? item.subject : "Form / class leadership"}</p>
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.className}</p>
+                  <p className="text-xs text-[var(--color-text-muted)]">{item.subjectId ? item.subject : "Form / class leadership"}</p>
                 </div>
               )
             },
@@ -158,7 +162,7 @@ export function TeacherPortalDashboard({
       </section>
 
       {(portal.assignments?.length ?? 0) > 0 || (portal.notifications?.length ?? 0) > 0 ? (
-        <section className="grid gap-6 xl:grid-cols-2">
+        <section className="grid gap-5 xl:grid-cols-2">
           <TableCard
             title="Assignments"
             description="Recently created learning tasks and submission counts."
@@ -169,8 +173,8 @@ export function TeacherPortalDashboard({
                 header: "Task",
                 render: (item) => (
                   <div>
-                    <p className="font-semibold text-ink">{item.title}</p>
-                    <p className="text-xs text-ink/55">{item.className} / {item.subject}</p>
+                    <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                    <p className="text-xs text-[var(--color-text-muted)]">{item.className} / {item.subject}</p>
                   </div>
                 )
               },
@@ -192,18 +196,26 @@ export function TeacherPortalDashboard({
         </section>
       ) : null}
 
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Recent activity</h2>
-        <div className="mt-5 grid gap-4">
+      <section className="surface-card overflow-hidden">
+        <div className="flex items-center justify-between gap-4 border-b border-[var(--color-border-default)] px-6 py-4">
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Recent activity</p>
+        </div>
+        <div className="grid">
           {portal.recentActivity.map((item) => (
-            <article key={item.id} className="rounded-[1.5rem] border border-ink/8 bg-sand/55 p-5">
-              <div className="flex items-center justify-between gap-4">
-                <p className="font-semibold text-ink">{item.title}</p>
-                <span className="text-xs uppercase tracking-[0.24em] text-ink/35">{item.time}</span>
+            <div key={item.id} className="flex gap-3 border-b border-[var(--color-border-muted)] px-6 py-3.5 last:border-b-0">
+              <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent-primary)]" />
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center justify-between gap-4">
+                  <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                  <span className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{item.time}</span>
+                </div>
+                <p className="mt-1 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">{item.detail}</p>
               </div>
-              <p className="mt-3 text-sm leading-6 text-ink/68">{item.detail}</p>
-            </article>
+            </div>
           ))}
+          {portal.recentActivity.length === 0 ? (
+            <p className="px-6 py-6 text-center text-sm text-[var(--color-text-muted)]">No recent activity yet.</p>
+          ) : null}
         </div>
       </section>
     </div>

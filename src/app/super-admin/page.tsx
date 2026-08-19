@@ -6,7 +6,16 @@ import { getRoleAccent } from "@/lib/navigation/registry";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import Link from "next/link";
 import type { Route } from "next";
-import { Sparkles } from "lucide-react";
+import {
+  Activity,
+  AlertTriangle,
+  Globe2,
+  Headphones,
+  History,
+  Rocket,
+  Sparkles,
+  TrendingUp,
+} from "lucide-react";
 
 function platformGreeting(role: string, name?: string) {
   const firstName = name?.split(" ")[0] ?? "there";
@@ -104,6 +113,28 @@ const toneColors: Record<HealthTone, { bg: string; fg: string }> = {
   warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
   danger: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
 };
+
+function CardHeader({
+  icon: Icon,
+  eyebrow,
+  title,
+}: {
+  icon: React.ElementType;
+  eyebrow: string;
+  title: string;
+}) {
+  return (
+    <div className="flex items-start gap-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px]" style={{ background: "var(--color-accent-primary-dim)" }}>
+        <Icon className="h-[18px] w-[18px]" style={{ color: "var(--color-accent-primary)" }} />
+      </span>
+      <div className="min-w-0">
+        <p className="section-eyebrow">{eyebrow}</p>
+        <h3 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">{title}</h3>
+      </div>
+    </div>
+  );
+}
 
 function StatusPill({ tone, label }: { tone: HealthTone; label: string }) {
   const colors = toneColors[tone];
@@ -294,8 +325,7 @@ export default async function SuperAdminDashboardPage() {
 
       <section className="grid gap-5 lg:grid-cols-3">
         <section className="surface-card p-6">
-          <p className="section-eyebrow">Subscription health</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Plan and retention risk</h3>
+          <CardHeader icon={TrendingUp} eyebrow="Subscription health" title="Plan and retention risk" />
           {revenue.schoolsByPlan.length > 0 ? (
             <>
               <div className="mt-4 flex h-2.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
@@ -327,8 +357,7 @@ export default async function SuperAdminDashboardPage() {
         </section>
 
         <section className="surface-card p-6">
-          <p className="section-eyebrow">Onboarding pipeline</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Trial and conversion flow</h3>
+          <CardHeader icon={Rocket} eyebrow="Onboarding pipeline" title="Trial and conversion flow" />
           <div className="mt-4 grid gap-2.5">
             {pipelineStages.map((stage) => (
               <div key={stage.label} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
@@ -345,8 +374,7 @@ export default async function SuperAdminDashboardPage() {
         </section>
 
         <section className="surface-card p-6">
-          <p className="section-eyebrow">Support queue</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">SLA and resolution load</h3>
+          <CardHeader icon={Headphones} eyebrow="Support queue" title="SLA and resolution load" />
           <div className="mt-4 grid gap-2.5">
             <div className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3 text-[13px]">
               <span className="font-medium text-[var(--color-text-secondary)]">Open tickets</span>
@@ -371,29 +399,31 @@ export default async function SuperAdminDashboardPage() {
 
       <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
         <section className="surface-card p-6">
-          <p className="section-eyebrow">Alert centre</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Items requiring admin action</h3>
+          <CardHeader icon={AlertTriangle} eyebrow="Alert centre" title="Items requiring admin action" />
           <div className="mt-4 grid gap-2.5">
-            {commandCenter.alerts.map((alert) => (
-              <div key={alert.id} className="flex items-start justify-between gap-3 rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <div className="flex min-w-0 items-start gap-2.5">
-                  <span
-                    className="mt-1.5 h-2 w-2 shrink-0 rounded-full"
-                    style={{ background: alert.severity === "danger" ? "var(--color-danger)" : "var(--color-warning)" }}
-                  />
-                  <div className="min-w-0">
-                    <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{alert.title}</p>
-                    <p className="mt-0.5 text-[11px] leading-5 text-[var(--color-text-muted)]">{alert.detail}</p>
+            {commandCenter.alerts.map((alert) => {
+              const alertColor = alert.severity === "danger" ? "var(--color-danger)" : "var(--color-warning)";
+              const alertDim = alert.severity === "danger" ? "var(--color-danger-dim)" : "var(--color-warning-dim)";
+              return (
+                <div key={alert.id} className="flex items-start justify-between gap-3 rounded-[10px] border-l-[3px] bg-[var(--color-bg-subtle)] py-3 pl-3.5 pr-4" style={{ borderColor: alertColor }}>
+                  <div className="flex min-w-0 items-start gap-2.5">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full" style={{ background: alertDim }}>
+                      <AlertTriangle className="h-3.5 w-3.5" style={{ color: alertColor }} />
+                    </span>
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{alert.title}</p>
+                      <p className="mt-0.5 text-[11px] leading-5 text-[var(--color-text-muted)]">{alert.detail}</p>
+                    </div>
                   </div>
+                  <Link
+                    href={alert.actionHref as Route}
+                    className="shrink-0 rounded-[8px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1.5 text-[11px] font-bold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
+                  >
+                    Review
+                  </Link>
                 </div>
-                <Link
-                  href={alert.actionHref as Route}
-                  className="shrink-0 rounded-[8px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1.5 text-[11px] font-bold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
-                >
-                  Review
-                </Link>
-              </div>
-            ))}
+              );
+            })}
             {commandCenter.alerts.length === 0 ? (
               <p className="rounded-[10px] px-4 py-6 text-center text-sm font-semibold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                 No active command-center alerts.
@@ -403,13 +433,12 @@ export default async function SuperAdminDashboardPage() {
         </section>
 
         <section className="surface-card p-6">
-          <p className="section-eyebrow">Activity feed</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Latest platform events</h3>
+          <CardHeader icon={History} eyebrow="Activity feed" title="Latest platform events" />
           <div className="mt-4 grid gap-0">
             {activityFeed.map((item, index) => (
               <div key={`${item.timestamp}-${index}`} className="relative flex gap-3 pb-4 pl-1 last:pb-0">
                 {index < activityFeed.length - 1 ? <span className="absolute left-[7px] top-3 h-full w-px bg-[var(--color-border-default)]" /> : null}
-                <span className="relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-[var(--color-bg-surface)] bg-[var(--color-accent-primary)]" />
+                <span className="relative mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full border-2 border-[var(--color-bg-surface)]" style={{ background: "var(--color-accent-primary)" }} />
                 <div className="min-w-0 pb-0.5">
                   <p className="text-[12.5px] font-semibold leading-5 text-[var(--color-text-primary)]">
                     {item.superAdmin} <span className="font-normal text-[var(--color-text-secondary)]">{item.action.replaceAll("_", " ").toLowerCase()}</span> {item.target}
@@ -425,14 +454,17 @@ export default async function SuperAdminDashboardPage() {
 
       <section className="grid gap-5 xl:grid-cols-2">
         <section className="surface-card p-6">
-          <p className="section-eyebrow">System health</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Reliability indicators</h3>
+          <CardHeader icon={Activity} eyebrow="System health" title="Reliability indicators" />
           <div className="mt-4 grid gap-2.5">
             {systemHealthRows.map((item) => {
               const { tone, label } = systemHealthTone(item.key, typeof item.value === "string" ? Number.parseFloat(item.value) : item.value);
+              const rowColors = toneColors[tone];
               return (
                 <div key={item.label} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                  <span className="text-[13px] font-medium text-[var(--color-text-secondary)]">{item.label}</span>
+                  <div className="flex items-center gap-2.5">
+                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: rowColors.fg }} />
+                    <span className="text-[13px] font-medium text-[var(--color-text-secondary)]">{item.label}</span>
+                  </div>
                   <div className="flex items-center gap-2.5">
                     <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{item.value}</span>
                     <StatusPill tone={tone} label={label} />
@@ -444,8 +476,7 @@ export default async function SuperAdminDashboardPage() {
         </section>
 
         <section className="surface-card p-6">
-          <p className="section-eyebrow">Geographic distribution</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">School density by state</h3>
+          <CardHeader icon={Globe2} eyebrow="Geographic distribution" title="School density by state" />
           <div className="mt-4 grid gap-2.5">
             {commandCenter.geography.slice(0, 6).map((item) => {
               const dominantPlan = Object.entries(item.planMix).sort((left, right) => right[1] - left[1])[0]?.[0] ?? "No plan";

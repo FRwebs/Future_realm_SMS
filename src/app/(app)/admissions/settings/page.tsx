@@ -19,39 +19,39 @@ export default async function AdmissionSettingsPage() {
   const settings = await apiGet<AdmissionConfigView>("/api/v1/admissions/settings");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
         <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Admission settings</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{settings.name}</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/68">
+            <p className="section-eyebrow">Admission settings</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{settings.name}</h1>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Configure O-Level admissions rules for session, term, open classes, required documents, screening, fees,
               approval flow, offer expiry, and communication templates.
             </p>
           </div>
-          <Link href="/admissions" className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
+          <Link href="/admissions" className="btn-primary px-4">
             Back to admissions
           </Link>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-4">
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Application fee</p>
-            <p className="mt-3 font-[var(--font-heading)] text-2xl font-bold text-ink">
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Application fee</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[19px] font-bold text-[var(--color-text-primary)]">
               {formatCurrency(settings.applicationFeeAmount)}
             </p>
           </article>
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Open classes</p>
-            <p className="mt-3 font-[var(--font-heading)] text-2xl font-bold text-ink">{settings.openClasses.length}</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Open classes</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[19px] font-bold text-[var(--color-text-primary)]">{settings.openClasses.length}</p>
           </article>
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Required docs</p>
-            <p className="mt-3 font-[var(--font-heading)] text-2xl font-bold text-ink">{settings.requiredDocuments.length}</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Required docs</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[19px] font-bold text-[var(--color-text-primary)]">{settings.requiredDocuments.length}</p>
           </article>
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Offer expiry</p>
-            <p className="mt-3 font-[var(--font-heading)] text-2xl font-bold text-ink">{settings.offerExpiryDays} days</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Offer expiry</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[19px] font-bold text-[var(--color-text-primary)]">{settings.offerExpiryDays} days</p>
           </article>
         </div>
       </section>

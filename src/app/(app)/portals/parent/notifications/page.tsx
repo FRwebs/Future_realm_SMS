@@ -1,3 +1,6 @@
+import Link from "next/link";
+import type { Route } from "next";
+
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
@@ -16,10 +19,10 @@ export default async function ParentNotificationsPage() {
   const notifications = await apiGet<StudentPortalNotificationView[]>("/api/v1/parent-portal/notifications");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/portals/parent" className="text-sm font-semibold text-brand-700">Back to parent portal</a>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Notifications</h1>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Notifications</h1>
       </section>
       <TableCard
         title="Notification log"

@@ -49,9 +49,9 @@ function humanizeStatus(status: TeacherAssignmentTaskView["status"]) {
 }
 
 function statusTone(status: TeacherAssignmentTaskView["status"]) {
-  if (status === "PUBLISHED") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (status === "DRAFT") return "border-amber-200 bg-amber-50 text-amber-700";
-  return "border-slate-200 bg-slate-50 text-slate-600";
+  if (status === "PUBLISHED") return { background: "var(--color-success-dim)", color: "var(--color-success)" };
+  if (status === "DRAFT") return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  return { background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
 }
 
 function taskTypeLabel(value: TaskType) {
@@ -228,16 +228,16 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/teacher" className="text-[13px] font-semibold text-[var(--color-text-accent)]">
           Back to teacher portal
         </Link>
         <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">Teacher assignment desk</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black text-ink">Assignments and study tasks</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/68">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Teacher assignment desk</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Assignments and study tasks</h1>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Create realistic classroom tasks for the subjects assigned to you, keep drafts separate from published work, and track which tasks are due soon without leaving the teacher portal.
             </p>
           </div>
@@ -248,12 +248,12 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-white/65 bg-white/92 p-4 shadow-panel">
+      <section className="surface-card p-4">
         <div className="grid gap-3 lg:grid-cols-[1.2fr_0.8fr_0.8fr]">
           <label className="grid gap-2">
             <span className="field-label">Search tasks</span>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
               <input
                 value={search}
                 onChange={(event) => setSearch(event.target.value)}
@@ -288,36 +288,36 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
       </section>
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <article className="rounded-[1.5rem] border border-slate-100 bg-white p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Published</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{stats.published}</p>
-          <p className="mt-2 text-[13px] text-slate-600">Live class tasks currently visible to learners.</p>
+        <article className="surface-card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Published</p>
+          <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{stats.published}</p>
+          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Live class tasks currently visible to learners.</p>
         </article>
-        <article className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700">Drafts</p>
-          <p className="mt-3 text-3xl font-black text-amber-900">{stats.drafts}</p>
-          <p className="mt-2 text-[13px] text-amber-800">Tasks still being prepared before release.</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-warning)]">Drafts</p>
+          <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{stats.drafts}</p>
+          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Tasks still being prepared before release.</p>
         </article>
-        <article className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-emerald-700">Due this week</p>
-          <p className="mt-3 text-3xl font-black text-emerald-900">{stats.dueThisWeek}</p>
-          <p className="mt-2 text-[13px] text-emerald-800">Tasks requiring quick classroom follow-up.</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-success)]">Due this week</p>
+          <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{stats.dueThisWeek}</p>
+          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Tasks requiring quick classroom follow-up.</p>
         </article>
-        <article className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-5 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Submissions</p>
-          <p className="mt-3 text-3xl font-black text-slate-900">{stats.totalSubmissions}</p>
-          <p className="mt-2 text-[13px] text-slate-600">Total submission activity across your current tasks.</p>
+        <article className="surface-card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Submissions</p>
+          <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{stats.totalSubmissions}</p>
+          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Total submission activity across your current tasks.</p>
         </article>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
         {filteredTasks.length === 0 ? (
-          <div className="col-span-full flex flex-col items-center justify-center gap-3 rounded-[2rem] border border-white/60 bg-white/92 px-6 py-20 text-center shadow-panel">
-            <ClipboardList className="h-10 w-10 text-slate-300" />
-            <h2 className="text-[15px] font-semibold text-slate-800">
+          <div className="surface-card col-span-full flex flex-col items-center justify-center gap-3 px-6 py-20 text-center">
+            <ClipboardList className="h-10 w-10 text-[var(--color-text-muted)]" />
+            <h2 className="text-[15px] font-semibold text-[var(--color-text-primary)]">
               {tasks.length === 0 ? "No assignments created yet" : "No assignments match the current filters"}
             </h2>
-            <p className="max-w-md text-[13px] leading-6 text-slate-500">
+            <p className="max-w-md text-[13px] leading-6 text-[var(--color-text-secondary)]">
               {tasks.length === 0
                 ? "Start with one realistic task for an assigned class. Drafts are useful when you want to prepare instructions first and publish later."
                 : "Try another class, status, or search term to bring the right task back into view."}
@@ -343,15 +343,15 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
           </div>
         ) : (
           filteredTasks.map((task) => (
-            <article key={task.id} className="rounded-[2rem] border border-white/60 bg-white/92 p-5 shadow-panel transition-all duration-200 hover:-translate-y-0.5 hover:border-primary-200 hover:shadow-[0_20px_44px_rgba(18,33,23,0.10)]">
+            <article key={task.id} className="surface-card p-5 transition hover:border-[var(--color-border-strong)]">
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="min-w-0">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">{formatNigeriaClassName(task.className)}</p>
-                  <h2 className="mt-2 text-[20px] font-bold text-slate-900">{task.title}</h2>
-                  <p className="mt-2 text-[13px] text-slate-600">{task.subject}</p>
+                  <p className="text-[10.5px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">{formatNigeriaClassName(task.className)}</p>
+                  <h2 className="mt-2 text-[18px] font-bold text-[var(--color-text-primary)]">{task.title}</h2>
+                  <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{task.subject}</p>
                 </div>
                 <div className="flex items-start gap-2">
-                  <span className={`inline-flex items-center rounded-full border px-3 py-1 text-[11px] font-semibold ${statusTone(task.status)}`}>
+                  <span className="inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold" style={statusTone(task.status)}>
                     {humanizeStatus(task.status)}
                   </span>
                   <ActionMenu triggerLabel={`Quick actions for ${task.title}`}>
@@ -372,26 +372,26 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
               </div>
 
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <div className="rounded-[1.25rem] border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Due</p>
-                  <p className="mt-2 text-[13px] font-semibold text-slate-900">{formatDate(task.dueAt)}</p>
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Due</p>
+                  <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{formatDate(task.dueAt)}</p>
                 </div>
-                <div className="rounded-[1.25rem] border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Submissions</p>
-                  <p className="mt-2 text-[13px] font-semibold text-slate-900">{task.submissionsCount}</p>
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Submissions</p>
+                  <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{task.submissionsCount}</p>
                 </div>
-                <div className="rounded-[1.25rem] border border-slate-100 bg-slate-50 px-4 py-3">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Attachment</p>
-                  <p className="mt-2 text-[13px] font-semibold text-slate-900">{task.attachmentUrl ? "Added" : "None"}</p>
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attachment</p>
+                  <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{task.attachmentUrl ? "Added" : "None"}</p>
                 </div>
               </div>
 
               {task.description ? (
-                <p className="mt-4 line-clamp-3 text-[13px] leading-6 text-slate-600 whitespace-pre-line">{task.description}</p>
+                <p className="mt-4 line-clamp-3 text-[13px] leading-6 text-[var(--color-text-secondary)] whitespace-pre-line">{task.description}</p>
               ) : null}
 
               <div className="mt-5 flex items-center justify-between gap-3">
-                <div className="flex items-center gap-2 text-[12px] text-slate-500">
+                <div className="flex items-center gap-2 text-[12px] text-[var(--color-text-muted)]">
                   <Clock3 className="h-4 w-4" />
                   <span>{new Date(task.dueAt).getTime() < Date.now() ? "Due date has passed" : "Still active for follow-up"}</span>
                 </div>
@@ -526,7 +526,7 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
           <label className="grid gap-2">
             <span className="field-label">Resource link</span>
             <div className="relative">
-              <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Link2 className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
               <input
                 value={attachmentUrl}
                 onChange={(event) => setAttachmentUrl(event.target.value)}
@@ -547,17 +547,17 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
             />
           </label>
 
-          <section className="rounded-[1.5rem] border border-brand-100 bg-brand-50/70 p-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">Assignment preview</p>
-            <div className="mt-3 space-y-2 text-[13px] leading-6 text-slate-700">
-              <p><span className="font-semibold text-slate-900">Type:</span> {taskTypeLabel(taskType)}</p>
-              <p><span className="font-semibold text-slate-900">Submission:</span> {submissionModeLabel(submissionMode)}</p>
-              <p><span className="font-semibold text-slate-900">Effort:</span> {estimatedMinutes || "—"} minutes</p>
-              <p><span className="font-semibold text-slate-900">Outcome:</span> {status === "PUBLISHED" ? "Learners can see this immediately." : status === "DRAFT" ? "Only teachers can see this until you publish it." : "This task will be saved as closed."}</p>
+          <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-accent)]">Assignment preview</p>
+            <div className="mt-3 space-y-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              <p><span className="font-semibold text-[var(--color-text-primary)]">Type:</span> {taskTypeLabel(taskType)}</p>
+              <p><span className="font-semibold text-[var(--color-text-primary)]">Submission:</span> {submissionModeLabel(submissionMode)}</p>
+              <p><span className="font-semibold text-[var(--color-text-primary)]">Effort:</span> {estimatedMinutes || "—"} minutes</p>
+              <p><span className="font-semibold text-[var(--color-text-primary)]">Outcome:</span> {status === "PUBLISHED" ? "Learners can see this immediately." : status === "DRAFT" ? "Only teachers can see this until you publish it." : "This task will be saved as closed."}</p>
             </div>
           </section>
 
-          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-[13px] text-rose-700">{error}</div> : null}
+          {error ? <div className="rounded-[10px] px-4 py-3 text-[13px]" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>{error}</div> : null}
         </div>
       </SidePanel>
 
@@ -571,28 +571,28 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
         {activeTask ? (
           <div className="space-y-5">
             <section className="grid gap-3 md:grid-cols-2">
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Status</p>
-                <p className="mt-2 text-[13px] font-semibold text-slate-900">{humanizeStatus(activeTask.status)}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Status</p>
+                <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{humanizeStatus(activeTask.status)}</p>
               </div>
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Due date</p>
-                <p className="mt-2 text-[13px] font-semibold text-slate-900">{formatDate(activeTask.dueAt)}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Due date</p>
+                <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{formatDate(activeTask.dueAt)}</p>
               </div>
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Submissions</p>
-                <p className="mt-2 text-[13px] font-semibold text-slate-900">{activeTask.submissionsCount}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Submissions</p>
+                <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{activeTask.submissionsCount}</p>
               </div>
-              <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50 p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Attachment</p>
-                <p className="mt-2 text-[13px] font-semibold text-slate-900">{activeTask.attachmentUrl ? "Available" : "Not attached"}</p>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attachment</p>
+                <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-primary)]">{activeTask.attachmentUrl ? "Available" : "Not attached"}</p>
               </div>
             </section>
 
             {activeTask.description ? (
-              <section className="rounded-[1.5rem] border border-slate-100 bg-white p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">Instructions</p>
-                <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-slate-700">{activeTask.description}</p>
+              <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Instructions</p>
+                <p className="mt-3 whitespace-pre-line text-[13px] leading-6 text-[var(--color-text-secondary)]">{activeTask.description}</p>
               </section>
             ) : null}
 
@@ -601,14 +601,14 @@ export function TeacherAssignmentsClient({ portal, tasks: initialTasks, initialC
                 href={activeTask.attachmentUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="inline-flex items-center gap-2 text-[13px] font-semibold text-brand-700"
+                className="inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)]"
               >
                 <FileText className="h-4 w-4" />
                 Open attached resource
               </a>
             ) : null}
 
-            <section className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/70 p-4 text-[13px] leading-6 text-emerald-900">
+            <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] p-4 text-[13px] leading-6" style={{ color: "var(--color-success)" }}>
               <div className="flex items-start gap-3">
                 <Megaphone className="mt-0.5 h-4 w-4 shrink-0" />
                 <p>

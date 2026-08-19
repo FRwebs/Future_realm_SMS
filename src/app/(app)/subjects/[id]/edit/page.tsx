@@ -29,12 +29,12 @@ export default async function EditSubjectPage({ params }: { params: Promise<{ id
   const subject = await apiGet<SubjectView>(`/api/v1/academics/subjects/${id}`);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel md:p-8">
-        <Link href={`/subjects/${id}`} className="text-sm font-semibold text-brand-700">Back to subject</Link>
-        <p className="mt-4 text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Academic setup</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">Edit Subject</h1>
-        <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href={`/subjects/${id}`} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to subject</Link>
+        <p className="mt-4 section-eyebrow">Academic setup</p>
+        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Edit Subject</h1>
+        <p className="mt-3 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Update subject identity, section, timetable hints, and class applicability without leaving the academic workspace.
         </p>
       </section>

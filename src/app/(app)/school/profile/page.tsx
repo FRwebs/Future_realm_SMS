@@ -49,7 +49,7 @@ type ProfileView = {
 function FieldLine({ label, value }: { label: string; value?: string | null }) {
   return (
     <p>
-      <span className="font-semibold text-ink">{label}:</span> {value || "Not recorded"}
+      <span className="font-semibold text-[var(--color-text-primary)]">{label}:</span> {value || "Not recorded"}
     </p>
   );
 }
@@ -72,7 +72,7 @@ export default async function ProfilePage() {
   const canChangePassword = permissions.has("profiles.change_password_self");
 
   return (
-    <div className="grid gap-6">
+    <div className="portal-page">
       <DetailPageHeader
         eyebrow="My profile"
         title={profile.fullName}
@@ -153,10 +153,10 @@ export default async function ProfilePage() {
         ]}
       />
 
-      <section id="bio" className="grid gap-6 xl:grid-cols-3">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel xl:col-span-2">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Personal and contact information</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72 md:grid-cols-2">
+      <section id="bio" className="grid gap-5 xl:grid-cols-3">
+        <article className="surface-card p-6 xl:col-span-2">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Personal and contact information</h2>
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)] md:grid-cols-2">
             <FieldLine label="First name" value={profile.firstName} />
             <FieldLine label="Surname" value={profile.lastName} />
             <FieldLine label="Other name" value={profile.middleName} />
@@ -172,9 +172,9 @@ export default async function ProfilePage() {
           </div>
         </article>
 
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Next of kin</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Next of kin</h2>
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)]">
             <FieldLine label="Name" value={[profile.nextOfKin.firstName, profile.nextOfKin.lastName].filter(Boolean).join(" ")} />
             <FieldLine label="Relationship" value={profile.nextOfKin.relationship} />
             <FieldLine label="Phone" value={profile.nextOfKin.phone} />
@@ -184,10 +184,10 @@ export default async function ProfilePage() {
         </article>
       </section>
 
-      <section id="context" className="grid gap-6 xl:grid-cols-2">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Operational context</h2>
-          <div className="mt-4 grid gap-2 text-sm text-ink/72">
+      <section id="context" className="grid gap-5 xl:grid-cols-2">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Operational context</h2>
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)]">
             {profile.staff ? (
               <>
                 <FieldLine label="Staff type" value={profile.staff.staffType} />
@@ -233,14 +233,14 @@ export default async function ProfilePage() {
           items={profile.documents}
           emptyState="No profile documents have been uploaded."
           columns={[
-            { key: "title", header: "Document", render: (item) => <div><p className="font-semibold text-ink">{item.title}</p><p className="text-xs text-ink/55">{item.type}</p></div> },
+            { key: "title", header: "Document", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p><p className="text-xs text-[var(--color-text-muted)]">{item.type}</p></div> },
             { key: "status", header: "Verification", render: (item) => item.verificationStatus },
             { key: "date", header: "Uploaded", render: (item) => formatDate(item.createdAt) },
           ]}
         />
       </section>
 
-      <section id="requests" className="grid gap-6 xl:grid-cols-2">
+      <section id="requests" className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="My edit requests"
           description="Sensitive profile corrections awaiting review or already decided."
@@ -259,7 +259,7 @@ export default async function ProfilePage() {
           emptyState="No login history recorded."
           columns={[
             { key: "status", header: "Status", render: (item) => item.success ? "Successful" : "Failed" },
-            { key: "device", header: "Device / IP", render: (item) => <div><p>{item.device ?? "Unknown device"}</p><p className="text-xs text-ink/55">{item.ipAddress ?? "No IP"}</p></div> },
+            { key: "device", header: "Device / IP", render: (item) => <div><p>{item.device ?? "Unknown device"}</p><p className="text-xs text-[var(--color-text-muted)]">{item.ipAddress ?? "No IP"}</p></div> },
             { key: "date", header: "When", render: (item) => formatDate(item.createdAt) },
           ]}
         />

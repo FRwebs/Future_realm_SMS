@@ -92,19 +92,19 @@ function WorkspaceStatCard({
   tone?: "brand" | "emerald" | "ink" | "amber";
 }) {
   const toneMap = {
-    brand: "from-brand-700 via-brand-600 to-emerald-500",
-    emerald: "from-emerald-700 via-brand-600 to-ink",
-    ink: "from-ink via-brand-900 to-brand-700",
-    amber: "from-amber via-brand-700 to-ink",
+    brand: "var(--color-text-accent)",
+    emerald: "var(--color-success)",
+    ink: "var(--color-text-primary)",
+    amber: "var(--color-warning)",
   };
 
   return (
-    <article className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/95 shadow-panel">
-      <div className={`h-1.5 bg-gradient-to-r ${toneMap[tone]}`} />
-      <div className="p-5">
-        <p className="text-[0.7rem] font-semibold uppercase tracking-[0.24em] text-ink/45">{label}</p>
-        <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ink">{value}</p>
-        <p className="mt-2 text-sm leading-6 text-ink/60">{note}</p>
+    <article className="surface-card overflow-hidden p-0">
+      <div className="h-1.5" style={{ background: toneMap[tone] }} />
+      <div className="p-4">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+        <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{note}</p>
       </div>
     </article>
   );
@@ -127,13 +127,13 @@ function ConfigActionCard({
   children: React.ReactNode; // expects a <ResourceActionDialog> trigger
 }) {
   return (
-    <article className="flex items-start gap-4 rounded-[1.5rem] border border-white/70 bg-sand/55 p-5 transition hover:bg-sand/80">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white/80 text-brand-700 shadow-sm">
+    <article className="flex items-start gap-4 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5 transition hover:bg-[var(--color-accent-primary-dim)]">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-bg-surface)] text-[var(--color-text-accent)] shadow-[var(--shadow-sm)]">
         {icon}
       </span>
       <div className="min-w-0 flex-1">
-        <p className="font-semibold text-ink">{title}</p>
-        <p className="mt-1 text-xs leading-5 text-ink/55">{description}</p>
+        <p className="font-semibold text-[var(--color-text-primary)]">{title}</p>
+        <p className="mt-1 text-xs leading-5 text-[var(--color-text-muted)]">{description}</p>
         <div className="mt-4">{children}</div>
       </div>
     </article>
@@ -160,12 +160,12 @@ const SectionIcon = () => (
   </svg>
 );
 
-const SECTION_META: Record<string, { label: string; short: string; color: string; bar: string }> = {
-  CRECHE:           { label: "Crèche",           short: "CRÈ", color: "bg-violet-50 border-violet-200 text-violet-800",  bar: "from-violet-500 to-violet-400" },
-  NURSERY:          { label: "Nursery",           short: "NUR", color: "bg-sky-50 border-sky-200 text-sky-800",           bar: "from-sky-500 to-sky-400" },
-  PRIMARY:          { label: "Primary",           short: "PRI", color: "bg-emerald-50 border-emerald-200 text-emerald-800", bar: "from-emerald-600 to-emerald-400" },
-  JUNIOR_SECONDARY: { label: "Junior Secondary",  short: "JSS", color: "bg-amber-50 border-amber-200 text-amber-800",     bar: "from-amber-500 to-amber-400" },
-  SENIOR_SECONDARY: { label: "Senior Secondary",  short: "SSS", color: "bg-rose-50 border-rose-200 text-rose-800",        bar: "from-rose-500 to-rose-400" },
+const SECTION_META: Record<string, { label: string; short: string; tone: { background: string; borderColor: string; color: string }; bar: string }> = {
+  CRECHE:           { label: "Crèche",           short: "CRÈ", tone: { background: "var(--color-info-dim)", borderColor: "var(--color-info)", color: "var(--color-info)" }, bar: "var(--color-info)" },
+  NURSERY:          { label: "Nursery",           short: "NUR", tone: { background: "var(--color-accent-primary-dim)", borderColor: "var(--color-accent-primary)", color: "var(--color-text-accent)" }, bar: "var(--color-accent-primary)" },
+  PRIMARY:          { label: "Primary",           short: "PRI", tone: { background: "var(--color-success-dim)", borderColor: "var(--color-success)", color: "var(--color-success)" }, bar: "var(--color-success)" },
+  JUNIOR_SECONDARY: { label: "Junior Secondary",  short: "JSS", tone: { background: "var(--color-warning-dim)", borderColor: "var(--color-warning)", color: "var(--color-warning)" }, bar: "var(--color-warning)" },
+  SENIOR_SECONDARY: { label: "Senior Secondary",  short: "SSS", tone: { background: "var(--color-danger-dim)", borderColor: "var(--color-danger)", color: "var(--color-danger)" }, bar: "var(--color-danger)" },
 };
 
 /**
@@ -204,42 +204,43 @@ function ScoreStructurePanel({
   const activeSections = sectionOrder.filter((s) => bySection[s]?.length);
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-      {/* Accent bar: multi-section rainbow */}
-      <div className="h-1.5 bg-gradient-to-r from-sky-500 via-emerald-500 via-amber-400 to-rose-500" />
+    <section className="surface-card overflow-hidden p-0">
+      {/* Accent bar */}
+      <div className="h-1.5" style={{ background: "var(--color-accent-primary)" }} />
 
       <div className="p-6 md:p-8">
         {/* Header */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
+            <p className="section-eyebrow">
               Score structure
             </p>
-            <h2 className="mt-1 font-[var(--font-heading)] text-2xl font-black text-ink">
+            <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Components &amp; section rules
             </h2>
-            <p className="mt-2 max-w-xl text-sm leading-6 text-ink/60">
+            <p className="mt-2 max-w-xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Each school section must have components that total 100%. Rules here feed directly into broadsheet aggregation — keep them tight.
             </p>
           </div>
 
           {/* Global component library summary */}
-          <div className="shrink-0 rounded-2xl border border-white/70 bg-sand/60 px-4 py-3">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.22em] text-ink/45">
+          <div className="shrink-0 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
               Shared components
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
               {components.map((c) => (
                 <span
                   key={c.code}
-                  className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold ${
+                  className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-semibold"
+                  style={
                     c.isActive
-                      ? "border-brand-200 bg-brand-50 text-brand-800"
-                      : "border-ink/10 bg-white/60 text-ink/40 line-through"
-                  }`}
+                      ? { borderColor: "var(--color-accent-primary)", background: "var(--color-accent-primary-dim)", color: "var(--color-text-accent)" }
+                      : { borderColor: "var(--color-border-default)", background: "var(--color-bg-subtle)", color: "var(--color-text-muted)", textDecoration: "line-through" }
+                  }
                 >
                   {c.code}
-                  <span className="font-normal text-ink/50">·{c.weight}%</span>
+                  <span className="font-normal" style={{ color: "var(--color-text-muted)" }}>·{c.weight}%</span>
                 </span>
               ))}
               {canManage && (
@@ -268,7 +269,7 @@ function ScoreStructurePanel({
         {/* Per-section cards */}
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
           {activeSections.map((sectionKey) => {
-            const meta = SECTION_META[sectionKey] ?? { label: sectionKey, short: sectionKey.slice(0, 3), color: "bg-ink/5 border-ink/10 text-ink", bar: "from-ink to-ink/60" };
+            const meta = SECTION_META[sectionKey] ?? { label: sectionKey, short: sectionKey.slice(0, 3), tone: { background: "var(--color-bg-subtle)", borderColor: "var(--color-border-default)", color: "var(--color-text-primary)" }, bar: "var(--color-text-primary)" };
             const rows = bySection[sectionKey].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
             const totalWeight = rows.reduce((s, r) => s + r.weight, 0);
             const balanced = totalWeight === 100;
@@ -276,23 +277,24 @@ function ScoreStructurePanel({
             return (
               <article
                 key={sectionKey}
-                className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/80 shadow-sm"
+                className="surface-card overflow-hidden p-0"
               >
                 {/* Section header */}
-                <div className="flex items-center justify-between gap-3 border-b border-black/[0.04] bg-sand/40 px-4 py-3">
+                <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
                   <div className="flex items-center gap-2.5">
-                    <span className={`rounded-lg border px-2 py-0.5 text-[0.65rem] font-black tracking-widest ${meta.color}`}>
+                    <span className="rounded-[8px] border px-2 py-0.5 text-[10.5px] font-black tracking-widest" style={meta.tone}>
                       {meta.short}
                     </span>
-                    <p className="text-sm font-bold text-ink">{meta.label}</p>
+                    <p className="text-sm font-bold text-[var(--color-text-primary)]">{meta.label}</p>
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[0.68rem] font-semibold ${
+                      className="rounded-full px-2.5 py-0.5 text-[11px] font-semibold"
+                      style={
                         balanced
-                          ? "bg-emerald-100 text-emerald-800"
-                          : "bg-amber-100 text-amber-800"
-                      }`}
+                          ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                          : { background: "var(--color-warning-dim)", color: "var(--color-warning)" }
+                      }
                     >
                       {totalWeight}% {balanced ? "✓" : "⚠"}
                     </span>
@@ -321,14 +323,14 @@ function ScoreStructurePanel({
                 </div>
 
                 {/* Weight balance bar */}
-                <div className="flex h-1.5 w-full overflow-hidden bg-black/[0.04]">
+                <div className="flex h-1.5 w-full overflow-hidden bg-[var(--color-bg-subtle)]">
                   {rows.map((row, i) => {
-                    const barColors = ["from-sky-500 to-sky-400", "from-emerald-600 to-emerald-400", "from-amber-500 to-amber-400", "from-rose-500 to-rose-400", "from-violet-500 to-violet-400"];
+                    const barColors = ["var(--color-info)", "var(--color-success)", "var(--color-warning)", "var(--color-danger)", "var(--color-accent-primary)"];
                     return (
                       <span
                         key={row.code}
-                        className={`block h-full bg-gradient-to-r ${barColors[i % barColors.length]}`}
-                        style={{ width: `${Math.min(row.weight, 100)}%` }}
+                        className="block h-full"
+                        style={{ width: `${Math.min(row.weight, 100)}%`, background: barColors[i % barColors.length] }}
                         title={`${row.name}: ${row.weight}%`}
                       />
                     );
@@ -336,26 +338,26 @@ function ScoreStructurePanel({
                 </div>
 
                 {/* Component rows */}
-                <div className="divide-y divide-black/[0.04] px-4">
+                <div className="divide-y divide-[var(--color-border-default)] px-4">
                   {rows.map((row) => (
                     <div key={row.code} className="flex items-center gap-3 py-3">
                       {/* Code pill */}
-                      <span className="shrink-0 rounded-md bg-ink/[0.06] px-2 py-0.5 font-mono text-[0.68rem] font-bold text-ink/70">
+                      <span className="shrink-0 rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-0.5 font-mono text-[10.5px] font-bold text-[var(--color-text-secondary)]">
                         {row.code}
                       </span>
 
                       {/* Name */}
-                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-ink">
+                      <p className="min-w-0 flex-1 truncate text-sm font-medium text-[var(--color-text-primary)]">
                         {row.name}
                       </p>
 
                       {/* Weight */}
-                      <span className="shrink-0 text-sm font-semibold text-ink/80">
+                      <span className="shrink-0 text-sm font-semibold text-[var(--color-text-secondary)]">
                         {row.weight}%
                       </span>
 
                       {/* Max score */}
-                      <span className="shrink-0 rounded-full bg-sand/80 px-2 py-0.5 text-xs text-ink/55">
+                      <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-xs text-[var(--color-text-muted)]">
                         /{row.maxScore}
                       </span>
 
@@ -390,7 +392,7 @@ function ScoreStructurePanel({
 
           {/* Empty state */}
           {activeSections.length === 0 && (
-            <div className="col-span-full py-12 text-center text-sm text-ink/45">
+            <div className="col-span-full py-12 text-center text-sm text-[var(--color-text-muted)]">
               No section format rules configured yet.{" "}
               {canManage && "Use the Configuration studio above to add the first rule."}
             </div>
@@ -492,53 +494,51 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
 
   // ── Render ───────────────────────────────────────────────────────────────────
   return (
-    <div className="grid gap-6">
+    <div className="portal-page">
       {/* ── Hero / Page header ─────────────────────────────────────────────── */}
-      <section className="overflow-hidden rounded-[2rem] border border-white/60 bg-white/90 shadow-panel">
-        <div className="h-2 bg-gradient-to-r from-brand-800 via-emerald-500 to-ink" />
-        <div className="bg-[radial-gradient(circle_at_top_left,rgba(255,255,255,0.98),rgba(238,247,241,0.96),rgba(250,245,235,0.95))] p-6 md:p-8">
-          <Link href="/academics/results/broadsheets" className="text-sm font-semibold text-brand-700">
-            ← Back to broadsheet
-          </Link>
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/academics/results/broadsheets" className="text-[13px] font-semibold text-[var(--color-text-accent)]">
+          ← Back to broadsheet
+        </Link>
 
-          <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div>
-              <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">
-                Configuration foundation
-              </p>
-              <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">
-                Assessment Format
-              </h1>
-              <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/68">
-                Define grading bands, score components, and section weighting rules — then run the live
-                assessment register from the same workspace without jumping across pages.
-              </p>
+        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+          <div>
+            <p className="section-eyebrow">
+              Configuration foundation
+            </p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
+              Assessment Format
+            </h1>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              Define grading bands, score components, and section weighting rules — then run the live
+              assessment register from the same workspace without jumping across pages.
+            </p>
 
-              {/* Status chips */}
-              <div className="mt-5 flex flex-wrap gap-2">
-                <span className="rounded-full border border-brand-100 bg-brand-50 px-3 py-1.5 text-xs font-semibold text-brand-800">
-                  {activeSchemes} active grading {activeSchemes === 1 ? "scheme" : "schemes"}
+            {/* Status chips */}
+            <div className="mt-5 flex flex-wrap gap-2">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-accent)]">
+                {activeSchemes} active grading {activeSchemes === 1 ? "scheme" : "schemes"}
+              </span>
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-1.5 text-xs font-semibold" style={{ color: "var(--color-success)" }}>
+                {completionRate}% register completion
+              </span>
+              {atRiskAssessments > 0 && (
+                <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] px-3 py-1.5 text-xs font-semibold" style={{ color: "var(--color-warning)" }}>
+                  ⚠ {atRiskAssessments} {atRiskAssessments === 1 ? "assessment needs" : "assessments need"} follow-up
                 </span>
-                <span className="rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800">
-                  {completionRate}% register completion
-                </span>
-                {atRiskAssessments > 0 && (
-                  <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-800">
-                    ⚠ {atRiskAssessments} {atRiskAssessments === 1 ? "assessment needs" : "assessments need"} follow-up
-                  </span>
-                )}
-              </div>
+              )}
             </div>
+          </div>
 
-            {/* Primary CTA */}
-            {canCreateAssessment && (
-              <div className="flex flex-wrap gap-3">
-                <Link
-                  href="/academics/results/broadsheets"
-                  className="inline-flex h-11 items-center justify-center rounded-full border border-brand-100 bg-brand-50 px-5 text-sm font-semibold text-brand-800 transition hover:bg-brand-100"
-                >
-                  Open broadsheet
-                </Link>
+          {/* Primary CTA */}
+          {canCreateAssessment && (
+            <div className="flex flex-wrap gap-3">
+              <Link
+                href="/academics/results/broadsheets"
+                className="inline-flex h-11 items-center justify-center rounded-full border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-5 text-sm font-semibold text-[var(--color-text-accent)] transition hover:bg-[var(--color-accent-primary-dim)]"
+              >
+                Open broadsheet
+              </Link>
                 <ResourceActionDialog
                   presentation="drawer"
                   triggerLabel="+ Create assessment"
@@ -562,7 +562,6 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
                 />
               </div>
             )}
-          </div>
         </div>
       </section>
 
@@ -606,95 +605,89 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
       {/* ── Overview panels (section coverage + register health) ─────────────── */}
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
         {/* Section weight coverage */}
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-brand-700 via-emerald-500 to-ink" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">
-              Configuration guardrails
-            </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">
-              Section weight coverage
-            </h2>
-            <p className="mt-3 text-sm leading-6 text-ink/65">
-              Each section's components should add up to 100%. Gaps here mean scores may not aggregate correctly.
-            </p>
-            <div className="mt-5 grid gap-3">
-              {sectionCoverage.map((item) => (
-                <article key={item.section} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="font-semibold text-ink capitalize">{item.section.replaceAll("_", " ")}</p>
-                    <span className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink/65">
-                      {item.count} {item.count === 1 ? "component" : "components"}
-                    </span>
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">
+            Configuration guardrails
+          </p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
+            Section weight coverage
+          </h2>
+          <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            Each section's components should add up to 100%. Gaps here mean scores may not aggregate correctly.
+          </p>
+          <div className="mt-5 grid gap-3">
+            {sectionCoverage.map((item) => (
+              <article key={item.section} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="font-semibold text-[var(--color-text-primary)] capitalize">{item.section.replaceAll("_", " ")}</p>
+                  <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
+                    {item.count} {item.count === 1 ? "component" : "components"}
+                  </span>
+                </div>
+                <div className="mt-2 flex items-center justify-between gap-2">
+                  <div className="mt-2 flex-1 h-2 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
+                    <span
+                      className="block h-full rounded-full"
+                      style={{ width: `${Math.min(item.weight, 100)}%`, background: item.weight >= 100 ? "var(--color-success)" : "var(--color-accent-primary)" }}
+                    />
                   </div>
-                  <div className="mt-2 flex items-center justify-between gap-2">
-                    <div className="mt-2 flex-1 h-2 overflow-hidden rounded-full bg-white">
-                      <span
-                        className={`block h-full rounded-full bg-gradient-to-r ${item.weight >= 100 ? "from-emerald-500 to-emerald-400" : "from-brand-700 via-emerald-500 to-emerald-400"}`}
-                        style={{ width: `${Math.min(item.weight, 100)}%` }}
-                      />
-                    </div>
-                    <span className={`ml-3 text-xs font-semibold ${item.weight === 100 ? "text-emerald-700" : "text-amber-700"}`}>
-                      {item.weight}%
-                    </span>
-                  </div>
-                </article>
-              ))}
-            </div>
+                  <span className="ml-3 text-xs font-semibold" style={{ color: item.weight === 100 ? "var(--color-success)" : "var(--color-warning)" }}>
+                    {item.weight}%
+                  </span>
+                </div>
+              </article>
+            ))}
           </div>
         </section>
 
         {/* Live register health */}
-        <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-amber via-brand-700 to-emerald-500" />
-          <div className="p-6">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">
-              Live register health
-            </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">
-              Assessments needing attention
-            </h2>
-            <div className="mt-5 grid gap-3">
-              {filteredAssessments.slice(0, 5).map((assessment) => {
-                const pct =
-                  assessment.candidateCount === 0
-                    ? 0
-                    : Math.round((assessment.enteredCount / assessment.candidateCount) * 100);
-                return (
-                  <article key={assessment.id} className="rounded-[1.5rem] border border-white/70 bg-sand/55 p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                      <div>
-                        <p className="font-semibold text-ink">{assessment.title}</p>
-                        <p className="mt-1 text-xs text-ink/55">
-                          {assessment.className} · {assessment.subject}
-                        </p>
-                      </div>
-                      <StatusBadge status={assessment.status} />
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">
+            Live register health
+          </p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
+            Assessments needing attention
+          </h2>
+          <div className="mt-5 grid gap-3">
+            {filteredAssessments.slice(0, 5).map((assessment) => {
+              const pct =
+                assessment.candidateCount === 0
+                  ? 0
+                  : Math.round((assessment.enteredCount / assessment.candidateCount) * 100);
+              return (
+                <article key={assessment.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div>
+                      <p className="font-semibold text-[var(--color-text-primary)]">{assessment.title}</p>
+                      <p className="mt-1 text-xs text-[var(--color-text-muted)]">
+                        {assessment.className} · {assessment.subject}
+                      </p>
                     </div>
-                    <div className="mt-3 flex items-center gap-2">
-                      <div className="h-2 flex-1 overflow-hidden rounded-full bg-white">
-                        <span
-                          className="block h-full rounded-full bg-gradient-to-r from-brand-700 via-emerald-500 to-emerald-400"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs font-semibold text-ink/55">
-                        {assessment.enteredCount}/{assessment.candidateCount}
-                      </span>
+                    <StatusBadge status={assessment.status} />
+                  </div>
+                  <div className="mt-3 flex items-center gap-2">
+                    <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-bg-surface)]">
+                      <span
+                        className="block h-full rounded-full"
+                        style={{ width: `${pct}%`, background: "var(--color-accent-primary)" }}
+                      />
                     </div>
-                    <Link
-                      href={`/academics/results/assessment-format/${assessment.id}` as Route}
-                      className="mt-3 inline-block text-xs font-semibold text-brand-700 hover:underline"
-                    >
-                      Open workspace →
-                    </Link>
-                  </article>
-                );
-              })}
-              {filteredAssessments.length === 0 && (
-                <p className="py-6 text-center text-sm text-ink/45">No assessments match the current filters.</p>
-              )}
-            </div>
+                    <span className="text-xs font-semibold text-[var(--color-text-muted)]">
+                      {assessment.enteredCount}/{assessment.candidateCount}
+                    </span>
+                  </div>
+                  <Link
+                    href={`/academics/results/assessment-format/${assessment.id}` as Route}
+                    className="mt-3 inline-block text-xs font-semibold text-[var(--color-text-accent)] hover:underline"
+                  >
+                    Open workspace →
+                  </Link>
+                </article>
+              );
+            })}
+            {filteredAssessments.length === 0 && (
+              <p className="py-6 text-center text-sm text-[var(--color-text-muted)]">No assessments match the current filters.</p>
+            )}
           </div>
         </section>
       </section>
@@ -706,16 +699,14 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
           The heavy form UI only appears when the user deliberately opens it.
       */}
       {canManageConfiguration && (
-        <section id="configuration" className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/92 shadow-panel">
-          <div className="h-1.5 bg-gradient-to-r from-brand-700 via-brand-600 to-emerald-500" />
-          <div className="p-6 md:p-8">
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">
+        <section id="configuration" className="surface-card p-6 md:p-8">
+            <p className="section-eyebrow">
               Configuration studio
             </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-black text-ink">
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Manage grading rules &amp; components
             </h2>
-            <p className="mt-3 max-w-2xl text-sm leading-6 text-ink/65">
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Use these tools to set up grading bands, create reusable score components, and define
               section-level weighting rules. Changes here affect all score aggregation downstream.
             </p>
@@ -818,7 +809,6 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
                 />
               </ConfigActionCard>
             </div>
-          </div>
         </section>
       )}
 
@@ -882,8 +872,8 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
             header: "Assessment",
             render: (item) => (
               <div>
-                <p className="font-semibold text-ink">{item.title}</p>
-                <p className="text-xs text-ink/55">
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">
                   {item.assessmentType.replaceAll("_", " ")} · {item.submissionMode}
                 </p>
               </div>
@@ -901,7 +891,14 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
             key: "scores",
             header: "Scores",
             render: (item) => (
-              <span className={item.enteredCount < item.candidateCount && ["ACTIVE", "MARKED"].includes(item.status) ? "font-semibold text-amber-700" : ""}>
+              <span
+                className="font-semibold"
+                style={
+                  item.enteredCount < item.candidateCount && ["ACTIVE", "MARKED"].includes(item.status)
+                    ? { color: "var(--color-warning)" }
+                    : undefined
+                }
+              >
                 {item.enteredCount}/{item.candidateCount}
               </span>
             ),
@@ -912,7 +909,7 @@ export default async function AssessmentFormatPage({ searchParams }: AssessmentF
             header: "Workspace",
             render: (item) => (
               <Link
-                className="font-semibold text-brand-700 hover:underline"
+                className="font-semibold text-[var(--color-text-accent)] hover:underline"
                 href={`/academics/results/assessment-format/${item.id}` as Route}
               >
                 Open →

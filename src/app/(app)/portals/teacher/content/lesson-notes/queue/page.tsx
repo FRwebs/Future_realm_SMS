@@ -63,13 +63,13 @@ function buildTeachingLanes(portal: TeacherPortalView): TeachingLane[] {
 function progressTone(progress: CurriculumTopicView["progressStatus"]) {
   switch (progress) {
     case "COMPLETED":
-      return "border-emerald-200 bg-emerald-50 text-emerald-800";
+      return { background: "var(--color-success-dim)", color: "var(--color-success)" };
     case "TAUGHT":
-      return "border-teal-200 bg-teal-50 text-teal-800";
+      return { background: "var(--color-info-dim)", color: "var(--color-info)" };
     case "IN_PROGRESS":
-      return "border-amber-200 bg-amber-50 text-amber-800";
+      return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
     default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
+      return { background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
   }
 }
 
@@ -128,26 +128,26 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
   );
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+            <p className="section-eyebrow">
               Teaching queue
             </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Weekly lesson backlog and prep board
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink/62">
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               This view is optimized for pacing. It tells you what is still queued, what is live,
               and which weeks need coverage attention next.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <span className="rounded-full border border-amber-200 bg-amber-50 px-3 py-1 text-xs font-semibold text-amber-800">
+            <span className="rounded-full px-3 py-1 text-xs font-semibold" style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}>
               {backlog.length} topics still in motion
             </span>
-            <span className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-semibold text-slate-700">
+            <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">
               {todayPeriods.length} periods today
             </span>
           </div>
@@ -162,14 +162,14 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
                 href={`/portals/teacher/content/lesson-notes/queue?subjectId=${lane.subjectId}&classId=${lane.classId}`}
                 className={
                   active
-                    ? "min-w-[220px] rounded-[1.5rem] bg-[rgb(18,33,23)] px-4 py-4 text-white shadow-sm"
-                    : "min-w-[220px] rounded-[1.5rem] border border-slate-200 bg-white px-4 py-4 text-slate-800 transition hover:border-primary-200 hover:bg-primary-50"
+                    ? "min-w-[220px] rounded-[10px] bg-[var(--color-accent-primary)] px-4 py-4 text-[var(--color-text-inverse)]"
+                    : "min-w-[220px] rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-4 text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                 }
               >
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-inherit/70">
+                <p className="text-[10px] font-bold uppercase tracking-[0.16em] opacity-75">
                   {lane.className}
                 </p>
-                <p className="mt-2 text-base font-bold">{lane.subject}</p>
+                <p className="mt-2 text-[14px] font-bold">{lane.subject}</p>
                 <p className="mt-3 text-xs">{lane.nextAction}</p>
               </Link>
             );
@@ -177,37 +177,37 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_360px]">
-        <article className="min-w-0 rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
-            <FileStack className="h-4 w-4 text-primary-700" />
-            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_360px]">
+        <article className="surface-card min-w-0 p-5">
+          <div className="flex items-center gap-2 border-b border-[var(--color-border-default)] pb-4">
+            <FileStack className="h-4 w-4 text-[var(--color-text-accent)]" />
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Topic queue
             </h2>
           </div>
 
           <div className="mt-5 grid gap-4">
             {backlog.length === 0 ? (
-              <div className="rounded-[1.6rem] border border-dashed border-slate-200 bg-slate-50/70 px-6 py-12 text-center text-sm text-slate-500">
+              <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-6 py-12 text-center text-[13px] text-[var(--color-text-secondary)]">
                 This lane is fully covered for now.
               </div>
             ) : (
               backlog.map((topic) => (
                 <article
                   key={topic.id}
-                  className="rounded-[1.6rem] border border-slate-100 bg-slate-50/70 p-4 transition hover:border-primary-200 hover:bg-white"
+                  className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-elevated)]"
                 >
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div>
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full bg-white px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-slate-500">
+                        <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                           Week {topic.weekNumber}
                         </span>
-                        <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${progressTone(topic.progressStatus)}`}>
+                        <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={progressTone(topic.progressStatus)}>
                           {progressLabel(topic.progressStatus)}
                         </span>
                       </div>
-                      <h3 className="mt-3 text-lg font-bold text-slate-950">{topic.topic}</h3>
+                      <h3 className="mt-3 text-[16px] font-bold text-[var(--color-text-primary)]">{topic.topic}</h3>
                     </div>
                     <Link
                       href={
@@ -215,26 +215,26 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
                           ? `/portals/teacher/content/lesson-notes/planning?subjectId=${activeLane.subjectId}&classId=${activeLane.classId}`
                           : "/portals/teacher/content/lesson-notes/planning"
                       }
-                      className="inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50"
+                      className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                     >
                       Open planning
                     </Link>
                   </div>
 
                   <div className="mt-4 grid gap-3 md:grid-cols-2">
-                    <div className="rounded-[1.2rem] border border-white bg-white px-3 py-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                         Learning focus
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">
+                      <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
                         {truncate(topic.learningObjectives ?? topic.teacherNotes)}
                       </p>
                     </div>
-                    <div className="rounded-[1.2rem] border border-white bg-white px-3 py-3">
-                      <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                    <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-3">
+                      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                         Support resources
                       </p>
-                      <p className="mt-2 text-sm leading-6 text-slate-700">
+                      <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
                         {truncate(topic.recommendedResources)}
                       </p>
                     </div>
@@ -246,30 +246,30 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
         </article>
 
         <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
-          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="flex items-center gap-2">
-              <CalendarDays className="h-4 w-4 text-primary-700" />
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+              <CalendarDays className="h-4 w-4 text-[var(--color-text-accent)]" />
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
                 Today&apos;s lane
               </h2>
             </div>
             <div className="mt-4 grid gap-3">
               {todayPeriods.length === 0 ? (
-                <div className="rounded-[1.35rem] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-8 text-center text-sm text-slate-500">
+                <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-8 text-center text-[13px] text-[var(--color-text-secondary)]">
                   No periods in this lane today.
                 </div>
               ) : (
                 todayPeriods.map((entry) => (
                   <article
                     key={entry.id}
-                    className="rounded-[1.35rem] border border-slate-100 bg-slate-50/80 px-4 py-4"
+                    className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4"
                   >
-                    <div className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                    <div className="flex items-center gap-2 text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                       <Clock3 className="h-3.5 w-3.5" />
                       {entry.time}
                     </div>
-                    <p className="mt-2 text-sm font-bold text-slate-900">{entry.subject}</p>
-                    <p className="mt-1 text-xs text-slate-500">
+                    <p className="mt-2 text-[13px] font-bold text-[var(--color-text-primary)]">{entry.subject}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                       {entry.className ?? "Assigned class"} · {entry.venue}
                     </p>
                   </article>
@@ -278,15 +278,15 @@ export default async function TeacherLessonNotesQueuePage({ searchParams }: Page
             </div>
           </section>
 
-          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-emerald-600" />
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+              <Target className="h-4 w-4" style={{ color: "var(--color-success)" }} />
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
                 Next best move
               </h2>
             </div>
-            <div className="mt-4 rounded-[1.35rem] border border-emerald-100 bg-emerald-50/70 px-4 py-4">
-              <p className="text-sm font-semibold text-emerald-900">
+            <div className="mt-4 rounded-[10px] px-4 py-4" style={{ background: "var(--color-success-dim)" }}>
+              <p className="text-[13px] font-semibold" style={{ color: "var(--color-success)" }}>
                 {activeLane?.nextAction ?? "Review the next live teaching lane."}
               </p>
             </div>

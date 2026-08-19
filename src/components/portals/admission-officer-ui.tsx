@@ -52,7 +52,7 @@ export function AdmissionMetricCard({
 }) {
   const barClass =
     accent === "teal"
-      ? "from-teal-400 to-emerald-400"
+      ? "from-[#4fa895] to-[#12796a]"
       : accent === "amber"
         ? "from-amber-400 to-orange-400"
         : accent === "rose"

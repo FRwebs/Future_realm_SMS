@@ -20,14 +20,14 @@ export default async function FinancePayrollPage() {
   const workspace = await apiGet<PayrollWorkspaceView>("/api/v1/bursary/payroll/workspace");
 
   return (
-    <div className="grid gap-6">
-      <nav className="flex items-center gap-2 text-sm text-slate-500">
-        <Link href="/finance" className="inline-flex items-center gap-2 font-medium text-brand-700 transition hover:text-brand-800">
+    <div className="portal-page">
+      <nav className="flex items-center gap-2 text-[13px] text-[var(--color-text-secondary)]">
+        <Link href="/finance" className="inline-flex items-center gap-2 font-medium text-[var(--color-text-accent)] transition hover:text-[var(--color-text-primary)]">
           <ArrowLeft className="h-4 w-4" />
           Finance
         </Link>
         <span>/</span>
-        <span className="text-slate-700">Staff Payroll</span>
+        <span className="text-[var(--color-text-primary)]">Staff Payroll</span>
       </nav>
 
       <PayrollWorkspace workspace={workspace} />

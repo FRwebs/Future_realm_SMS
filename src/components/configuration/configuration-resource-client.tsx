@@ -52,28 +52,28 @@ function recordTitle(record: ConfigRecord) {
 }
 
 function Field({ name, label, type = "text", defaultValue, options }: { name: string; label: string; type?: string; defaultValue?: unknown; options?: Array<{ label: string; value: string }> }) {
-  const base = "h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100";
+  const base = "field-control h-10";
   if (type === "textarea") {
     return (
-      <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
-        {label}
-        <textarea name={name} defaultValue={inputValue(defaultValue)} rows={4} className="rounded-2xl border border-ink/10 bg-white px-3 py-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+      <label className="grid gap-1.5">
+        <span className="field-label">{label}</span>
+        <textarea name={name} defaultValue={inputValue(defaultValue)} rows={4} className="field-textarea" />
       </label>
     );
   }
   if (type === "select") {
     return (
-      <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
-        {label}
-        <select name={name} defaultValue={inputValue(defaultValue)} className={base}>
+      <label className="grid gap-1.5">
+        <span className="field-label">{label}</span>
+        <select name={name} defaultValue={inputValue(defaultValue)} className={cn(base, "field-select")}>
           {(options ?? []).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </select>
       </label>
     );
   }
   return (
-    <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
-      {label}
+    <label className="grid gap-1.5">
+      <span className="field-label">{label}</span>
       <input name={name} type={type} defaultValue={inputValue(defaultValue)} className={base} />
     </label>
   );
@@ -152,7 +152,7 @@ function flattenRecords(resource: string, payload: ResourcePayload | null) {
   return payload.records.flatMap((session) => [session, ...((session.terms as ConfigRecord[] | undefined) ?? [])]);
 }
 
-export function ConfigurationResourceClient({ resource }: { resource: string }) {
+export function ConfigurationResourceClient({ resource, embedded = false, title }: { resource: string; embedded?: boolean; title?: string }) {
   const { hasPermission } = usePermissions();
   const [payload, setPayload] = useState<ResourcePayload | null>(null);
   const [search, setSearch] = useState("");
@@ -161,7 +161,7 @@ export function ConfigurationResourceClient({ resource }: { resource: string }) 
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
 
-  const label = resourceLabels[resource] ?? resource.replace(/-/g, " ");
+  const label = title ?? resourceLabels[resource] ?? resource.replace(/-/g, " ");
   const canCreate = hasPermission(permissionKey(resource, "create")) || hasPermission(permissionKey(resource, "manage")) || hasPermission("config.manage");
   const canUpdate = hasPermission(permissionKey(resource, "update")) || hasPermission(permissionKey(resource, "manage")) || hasPermission("config.manage");
   const canDelete = hasPermission(permissionKey(resource, "delete")) || hasPermission(permissionKey(resource, "manage")) || hasPermission("config.manage");
@@ -220,26 +220,55 @@ export function ConfigurationResourceClient({ resource }: { resource: string }) 
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/88 shadow-panel backdrop-blur-xl">
-        <div className="h-2 bg-gradient-to-r from-brand-700 via-amber to-ink" />
-        <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <Link href="/school/configuration" className="inline-flex items-center gap-2 text-sm font-semibold text-ink/55 transition hover:text-brand-700"><ArrowLeft className="h-4 w-4" />Configuration</Link>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">{label}</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/62">School-scoped configuration with permission-aware actions and audited changes.</p>
-          </div>
+    <div className={embedded ? "grid gap-4" : "grid gap-5"}>
+      {embedded ? (
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h3 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{label}</h3>
           {!isReadonly && canCreate && !isSettings ? (
-            <button type="button" onClick={() => setCreating(true)} className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(18,33,23,0.18)] transition hover:bg-brand-800">
-              <Plus className="h-4 w-4" />
+            <button
+              type="button"
+              onClick={() => setCreating(true)}
+              className="inline-flex h-9 items-center justify-center gap-1.5 rounded-[9px] bg-[var(--color-accent-primary)] px-3.5 text-[12.5px] font-semibold text-[var(--color-text-inverse)] transition hover:bg-[var(--color-accent-primary-hover)]"
+            >
+              <Plus className="h-3.5 w-3.5" />
               Add
             </button>
           ) : null}
         </div>
-      </section>
+      ) : (
+        <section className="surface-hero p-6 md:p-7">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <Link href="/school/configuration" className="inline-flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)]">
+                <ArrowLeft className="h-4 w-4" />
+                Configuration
+              </Link>
+              <h1 className="mt-3 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">{label}</h1>
+              <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">School-scoped configuration with permission-aware actions and audited changes.</p>
+            </div>
+            {!isReadonly && canCreate && !isSettings ? (
+              <button
+                type="button"
+                onClick={() => setCreating(true)}
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-[10px] bg-[var(--color-accent-primary)] px-4 text-[13px] font-semibold text-[var(--color-text-inverse)] transition hover:bg-[var(--color-accent-primary-hover)]"
+              >
+                <Plus className="h-4 w-4" />
+                Add
+              </button>
+            ) : null}
+          </div>
+        </section>
+      )}
 
-      {message ? <div className="flex items-center gap-2 rounded-[1.5rem] border border-emerald-200 bg-emerald-50 p-4 text-sm font-semibold text-emerald-700"><CheckCircle2 className="h-4 w-4" />{message}</div> : null}
-      {error ? <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{error}</div> : null}
+      {message ? (
+        <div className="flex items-center gap-2 rounded-[10px] px-4 py-3 text-[13px] font-semibold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
+          <CheckCircle2 className="h-4 w-4" />
+          {message}
+        </div>
+      ) : null}
+      {error ? (
+        <div className="rounded-[10px] px-4 py-3 text-[13px] font-semibold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>{error}</div>
+      ) : null}
 
       {isSettings && schoolRecord ? (
         <form
@@ -247,30 +276,37 @@ export function ConfigurationResourceClient({ resource }: { resource: string }) 
             event.preventDefault();
             void submit(event.currentTarget, schoolRecord);
           }}
-          className="rounded-[2rem] border border-white/70 bg-white/90 p-6 shadow-panel"
+          className={embedded ? "" : "surface-card p-6"}
         >
           <div className="grid gap-4 md:grid-cols-2">{fieldsFor(resource, schoolRecord)}</div>
-          {canUpdate ? <button className="mt-6 rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-800">Save settings</button> : null}
+          {canUpdate ? (
+            <button className="btn-primary mt-5 px-5">Save settings</button>
+          ) : null}
         </form>
       ) : null}
 
       {!isSettings ? (
-        <section className="rounded-[1.75rem] border border-white/65 bg-white/82 p-4 shadow-[0_16px_40px_rgba(18,33,23,0.06)]">
-          <label className="relative block max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search..." className="h-11 w-full rounded-2xl border border-ink/10 bg-white/80 pl-10 pr-4 text-sm text-ink outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
-          </label>
-        </section>
+        <label className="relative block max-w-sm">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-[var(--color-text-muted)]" />
+          <input
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+            placeholder="Search..."
+            className="h-9 w-full rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] pl-8 pr-3 text-[12.5px] text-[var(--color-text-primary)] outline-none transition placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-border-focus)]"
+          />
+        </label>
       ) : null}
 
-      {!payload && !error ? <div className="h-40 animate-pulse rounded-[1.5rem] bg-white/75" /> : null}
-      {payload && records.length === 0 && !isSettings ? <div className="rounded-[2rem] border border-dashed border-ink/12 bg-white/70 p-10 text-center text-sm text-ink/55">No records yet.</div> : null}
+      {!payload && !error ? <div className="app-skeleton h-32 rounded-[10px]" /> : null}
+      {payload && records.length === 0 && !isSettings ? (
+        <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-8 text-center text-[13px] text-[var(--color-text-muted)]">No records yet.</div>
+      ) : null}
 
       {records.length > 0 ? (
-        <div className="overflow-hidden rounded-[1.75rem] border border-white/70 bg-white/90 shadow-panel">
+        <div className="overflow-hidden rounded-[10px] border border-[var(--color-border-default)]">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[820px] text-left text-sm">
-              <thead className="bg-sand/70 text-[0.68rem] font-black uppercase tracking-[0.18em] text-ink/42">
+            <table className="w-full min-w-[820px] text-left text-[13px]">
+              <thead className="bg-[var(--color-bg-subtle)] text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Code / Type</th>
@@ -279,17 +315,26 @@ export function ConfigurationResourceClient({ resource }: { resource: string }) 
                   <th className="px-4 py-3">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-ink/6">
+              <tbody className="divide-y divide-[var(--color-border-muted)]">
                 {records.map((record) => (
-                  <tr key={record.id} className="transition hover:bg-sand/35">
-                    <td className="px-4 py-3 font-bold text-ink">{recordTitle(record)}</td>
-                    <td className="px-4 py-3 text-ink/58">{inputValue(record.code ?? record.recordType ?? record.ipAddress ?? "—")}</td>
+                  <tr key={record.id} className="bg-[var(--color-bg-surface)] transition hover:bg-[var(--color-bg-subtle)]">
+                    <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{recordTitle(record)}</td>
+                    <td className="px-4 py-3 text-[var(--color-text-muted)]">{inputValue(record.code ?? record.recordType ?? record.ipAddress ?? "—")}</td>
                     <td className="px-4 py-3">
-                      <span className={cn("rounded-full px-2.5 py-1 text-xs font-bold", record.isCurrent ? "bg-emerald-50 text-emerald-700" : record.status === "INACTIVE" ? "bg-slate-100 text-slate-600" : "bg-brand-50 text-brand-800")}>
+                      <span
+                        className="rounded-full px-2.5 py-1 text-[11px] font-bold"
+                        style={
+                          record.isCurrent
+                            ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                            : record.status === "INACTIVE"
+                              ? { background: "var(--color-bg-elevated)", color: "var(--color-text-muted)" }
+                              : { background: "var(--color-accent-primary-dim)", color: "var(--color-text-accent)" }
+                        }
+                      >
                         {record.isCurrent ? "CURRENT" : inputValue(record.status ?? (record.success === false ? "FAILED" : record.success === true ? "SUCCESS" : "ACTIVE"))}
                       </span>
                     </td>
-                    <td className="max-w-sm truncate px-4 py-3 text-ink/55">{inputValue(record.description ?? record.reason ?? record.audience ?? record.startDate ?? record.createdAt ?? "—")}</td>
+                    <td className="max-w-sm truncate px-4 py-3 text-[var(--color-text-muted)]">{inputValue(record.description ?? record.reason ?? record.audience ?? record.startDate ?? record.createdAt ?? "—")}</td>
                     <td className="px-4 py-3">
                       <ActionMenu triggerLabel={`Actions for ${recordTitle(record)}`}>
                         {!isReadonly && canUpdate ? (
@@ -314,25 +359,31 @@ export function ConfigurationResourceClient({ resource }: { resource: string }) 
       ) : null}
 
       {(creating || editing) ? (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
+        <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-ink/55 p-4 backdrop-blur-sm">
           <form
             onSubmit={(event) => {
               event.preventDefault();
               void submit(event.currentTarget, editing ?? undefined);
             }}
-            className="w-full max-w-2xl overflow-hidden rounded-[2rem] border border-white/70 bg-white shadow-[0_30px_90px_rgba(18,33,23,0.28)]"
+            className="modal-surface w-full max-w-2xl overflow-hidden rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)]"
           >
-            <div className="flex items-start justify-between border-b border-ink/8 bg-sand/50 px-6 py-5">
+            <div className="flex items-start justify-between border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-6 py-5">
               <div>
-                <p className="text-xs font-bold uppercase tracking-[0.24em] text-brand-700">{label}</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-black text-ink">{editing ? "Edit record" : "Create record"}</h2>
+                <p className="section-eyebrow">{label}</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">{editing ? "Edit record" : "Create record"}</h2>
               </div>
-              <button type="button" onClick={() => { setCreating(false); setEditing(null); }} className="rounded-2xl border border-ink/10 bg-white p-3 text-ink/55"><X className="h-4 w-4" /></button>
+              <button
+                type="button"
+                onClick={() => { setCreating(false); setEditing(null); }}
+                className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2.5 text-[var(--color-text-muted)]"
+              >
+                <X className="h-4 w-4" />
+              </button>
             </div>
             <div className="grid max-h-[65vh] gap-4 overflow-y-auto p-6 md:grid-cols-2">{fieldsFor(resource, editing ?? undefined, flattenRecords("sessions-terms", payload))}</div>
-            <div className="flex justify-end gap-3 border-t border-ink/8 px-6 py-4">
-              <button type="button" onClick={() => { setCreating(false); setEditing(null); }} className="rounded-full px-5 py-2 text-sm font-semibold text-ink/60 hover:bg-sand">Cancel</button>
-              <button className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white hover:bg-brand-800">Save</button>
+            <div className="flex justify-end gap-3 border-t border-[var(--color-border-default)] px-6 py-4">
+              <button type="button" onClick={() => { setCreating(false); setEditing(null); }} className="btn-secondary px-5">Cancel</button>
+              <button className="btn-primary px-5">Save</button>
             </div>
           </form>
         </div>

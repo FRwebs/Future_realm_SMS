@@ -223,7 +223,7 @@ export function FinanceDashboardStudio({ dashboard, canManageFinance }: Props) {
                   onClick={() => setRange(option.value as RangeMode)}
                   className={cn(
                     "rounded-full px-3 py-2 text-sm font-semibold transition",
-                    range === option.value ? "bg-[#2dd4bf] text-[#03221d]" : "text-[var(--finance-text-secondary)] hover:text-[var(--finance-text-primary)]",
+                    range === option.value ? "bg-[#12796a] text-white" : "text-[var(--finance-text-secondary)] hover:text-[var(--finance-text-primary)]",
                   )}
                 >
                   {option.label}

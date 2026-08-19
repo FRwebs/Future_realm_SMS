@@ -18,11 +18,11 @@ export default async function TeacherNotificationsPage() {
   const notifications = await apiGet<StudentPortalNotificationView[]>("/api/v1/teacher-portal/notifications");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">Back to teacher portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Teacher notifications</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/teacher" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to teacher portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Teacher notifications</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           In-app, SMS, email, and push records visible to your teacher account.
         </p>
       </section>
@@ -37,8 +37,8 @@ export default async function TeacherNotificationsPage() {
             header: "Notification",
             render: (item) => (
               <div>
-                <p className="font-semibold text-ink">{item.title}</p>
-                <p className="mt-1 text-xs text-ink/55">{item.body}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.title}</p>
+                <p className="mt-1 text-xs text-[var(--color-text-muted)]">{item.body}</p>
               </div>
             )
           },

@@ -7,7 +7,6 @@ import { Eye, Search, ShieldCheck, X } from "lucide-react";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { Pagination } from "@/components/ui/pagination";
 import type { PermissionGroupView, SchoolRoleView, StaffRoleDetailView, StaffRoleRowView } from "@/lib/domain/types";
-import { cn } from "@/lib/utils/cn";
 
 function getCookie(name: string) {
   return document.cookie
@@ -253,38 +252,45 @@ export function StaffRoleManager({
 
       {selectedUserId ? (
         <div className="fixed inset-0 z-50 grid place-items-center bg-ink/55 p-4 backdrop-blur-[3px]">
-          <section className="max-h-[92vh] w-[min(1100px,100%)] overflow-hidden rounded-[2rem] border border-white/60 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.25)]">
-            <div className="flex items-start justify-between gap-4 border-b border-ink/6 px-6 py-5">
+          <section className="modal-surface max-h-[92vh] w-[min(1100px,100%)] overflow-hidden rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] shadow-[var(--shadow-lg)]">
+            <div className="flex items-start justify-between gap-4 border-b border-[var(--color-border-default)] px-6 py-5">
               <div>
-                <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Staff access control</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">
+                <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">Staff access control</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
                   {detail?.name ?? "Loading staff profile"}
                 </h2>
-                <p className="mt-1 text-sm text-ink/60">{detail?.email}</p>
+                <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{detail?.email}</p>
               </div>
-              <button type="button" onClick={closeManager} className="inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-ink/8 bg-white text-ink shadow-sm">
+              <button type="button" onClick={closeManager} className="icon-btn shrink-0" aria-label="Close staff access control">
                 <X className="h-4 w-4" />
               </button>
             </div>
 
             <div className="max-h-[calc(92vh-92px)] overflow-y-auto p-6">
               {!detail ? (
-                <div className="rounded-[1.5rem] border border-dashed border-ink/15 bg-sand/45 p-6 text-sm text-ink/60">Loading role details...</div>
+                <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-6 text-[13px] text-[var(--color-text-secondary)]">Loading role details...</div>
               ) : (
                 <div className="grid gap-6">
                   {message ? (
-                    <div className={cn("rounded-2xl px-4 py-3 text-sm font-semibold", message.includes("Unable") ? "bg-rose-50 text-rose-800" : "bg-emerald-50 text-emerald-800")}>
+                    <div
+                      className="rounded-[10px] px-4 py-3 text-[13px] font-semibold"
+                      style={
+                        message.includes("Unable")
+                          ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" }
+                          : { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                      }
+                    >
                       {message}
                     </div>
                   ) : null}
 
-                  <section className="rounded-[1.5rem] border border-ink/8 bg-sand/35 p-5">
-                    <h3 className="font-[var(--font-heading)] text-xl font-bold text-ink">Assigned roles</h3>
+                  <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
+                    <h3 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Assigned roles</h3>
                     <div className="mt-4 flex flex-wrap gap-2">
                       {detail.roles.map((role) => (
-                        <span key={role.id} className="inline-flex items-center gap-2 rounded-full bg-white px-3 py-1.5 text-sm font-semibold text-ink ring-1 ring-ink/8">
+                        <span key={role.id} className="inline-flex items-center gap-2 rounded-full bg-[var(--color-bg-surface)] px-3 py-1.5 text-sm font-semibold text-[var(--color-text-primary)] ring-1 ring-[var(--color-border-default)]">
                           {role.name}
-                          <button type="button" onClick={() => handleRevokeRole(role.id)} disabled={pending} className="text-rose-700">
+                          <button type="button" onClick={() => handleRevokeRole(role.id)} disabled={pending} className="text-[var(--color-danger)]">
                             ×
                           </button>
                         </span>
@@ -294,67 +300,67 @@ export function StaffRoleManager({
                       <select
                         value={roleId}
                         onChange={(event) => setRoleId(event.target.value)}
-                        className="h-12 min-w-0 flex-1 rounded-2xl border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm outline-none"
+                        className="field-select h-12 min-w-0 flex-1"
                       >
                         <option value="">Search and add a role</option>
                         {roles.map((role) => (
                           <option key={role.id} value={role.id}>{role.name}</option>
                         ))}
                       </select>
-                      <button type="button" onClick={handleAssignRole} disabled={!roleId || pending} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:bg-ink/35">
+                      <button type="button" onClick={handleAssignRole} disabled={!roleId || pending} className="btn-primary h-12 px-5">
                         Add Role
                       </button>
                     </div>
                   </section>
 
-                  <section className="rounded-[1.5rem] border border-ink/8 bg-white p-5">
-                    <h3 className="font-[var(--font-heading)] text-xl font-bold text-ink">Permission overrides</h3>
+                  <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
+                    <h3 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Permission overrides</h3>
                     <div className="mt-4 grid gap-3">
                       {detail.overrides.map((override) => (
-                        <div key={override.id} className="flex flex-col gap-3 rounded-2xl bg-sand/50 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div key={override.id} className="flex flex-col gap-3 rounded-[10px] bg-[var(--color-bg-subtle)] p-4 sm:flex-row sm:items-center sm:justify-between">
                           <div>
-                            <p className="font-semibold text-ink">{override.permission.label}</p>
-                            <p className="text-xs text-ink/55">{override.permission.key} · Set by {override.setBy}</p>
+                            <p className="font-semibold text-[var(--color-text-primary)]">{override.permission.label}</p>
+                            <p className="text-xs text-[var(--color-text-muted)]">{override.permission.key} · Set by {override.setBy}</p>
                           </div>
                           <div className="flex items-center gap-2">
                             <StatusBadge status={override.type} />
-                            <button type="button" onClick={() => handleDeleteOverride(override.id)} disabled={pending} className="rounded-full border border-ink/10 bg-white px-3 py-1.5 text-xs font-semibold text-ink">
+                            <button type="button" onClick={() => handleDeleteOverride(override.id)} disabled={pending} className="btn-secondary h-9 px-3 text-xs">
                               Remove
                             </button>
                           </div>
                         </div>
                       ))}
-                      {detail.overrides.length === 0 ? <p className="text-sm text-ink/55">No user-level overrides yet.</p> : null}
+                      {detail.overrides.length === 0 ? <p className="text-sm text-[var(--color-text-muted)]">No user-level overrides yet.</p> : null}
                     </div>
                     <div className="mt-4 grid gap-3 md:grid-cols-[1fr_180px_auto]">
-                      <select value={overridePermissionId} onChange={(event) => setOverridePermissionId(event.target.value)} className="h-12 rounded-2xl border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm">
+                      <select value={overridePermissionId} onChange={(event) => setOverridePermissionId(event.target.value)} className="field-select h-12">
                         <option value="">Select permission</option>
                         {flatPermissions.map((permission) => (
                           <option key={permission.id} value={permission.id}>{permission.module} · {permission.label}</option>
                         ))}
                       </select>
-                      <select value={overrideType} onChange={(event) => setOverrideType(event.target.value as "grant" | "revoke")} className="h-12 rounded-2xl border border-ink/10 bg-white px-4 text-sm font-semibold text-ink shadow-sm">
+                      <select value={overrideType} onChange={(event) => setOverrideType(event.target.value as "grant" | "revoke")} className="field-select h-12">
                         <option value="grant">Grant</option>
                         <option value="revoke">Revoke</option>
                       </select>
-                      <button type="button" onClick={handleCreateOverride} disabled={!overridePermissionId || pending} className="h-12 rounded-full bg-ink px-5 text-sm font-semibold text-white disabled:bg-ink/35">
+                      <button type="button" onClick={handleCreateOverride} disabled={!overridePermissionId || pending} className="btn-primary h-12 px-5">
                         Add Override
                       </button>
                     </div>
                   </section>
 
-                  <section className="rounded-[1.5rem] border border-ink/8 bg-ink p-5 text-white">
+                  <section className="rounded-[14px] border border-[rgba(255,255,255,0.1)] bg-[#0d2315] p-5 text-white">
                     <div className="mb-4 flex items-center gap-2">
                       <Eye className="h-4 w-4" />
-                      <h3 className="font-[var(--font-heading)] text-xl font-bold">Resolved permissions preview</h3>
+                      <h3 className="font-[var(--font-heading)] text-[18px] font-bold">Resolved permissions preview</h3>
                     </div>
                     <div className="grid gap-4 md:grid-cols-2">
                       {detail.groupedPermissions.map((group) => (
-                        <div key={group.module} className="rounded-2xl bg-white/8 p-4 ring-1 ring-white/10">
+                        <div key={group.module} className="rounded-2xl bg-[rgba(255,255,255,0.08)] p-4 ring-1 ring-[rgba(255,255,255,0.1)]">
                           <p className="font-semibold text-white">{group.module}</p>
                           <div className="mt-3 flex flex-wrap gap-2">
                             {group.permissions.map((permission) => (
-                              <span key={permission.key} className="rounded-full bg-white/10 px-3 py-1 text-xs font-medium text-white/80">
+                              <span key={permission.key} className="rounded-full bg-[rgba(255,255,255,0.1)] px-3 py-1 text-xs font-medium text-white/80">
                                 {permission.label}
                               </span>
                             ))}

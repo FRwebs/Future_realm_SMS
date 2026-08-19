@@ -21,35 +21,35 @@ export default async function ReportCardsPage() {
   const previewCard = reportCards[0];
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/academics/results" className="text-sm font-semibold text-brand-700">Back to results</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Report cards</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/academics/results" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to results</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Report cards</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           PDF report cards use the existing report-card utility and respect student/parent publication rules at download time.
         </p>
       </section>
 
       {previewCard ? (
-        <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-          <div className="bg-ink p-6 text-white md:p-8">
-            <p className="text-xs font-semibold uppercase tracking-[0.28em] text-white/65">Printable preview</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-3xl font-bold">Greenfield College, Ibadan</h2>
-            <p className="mt-2 text-sm text-white/70">{previewCard.term}{previewCard.session ? ` · ${previewCard.session}` : ""} report card</p>
+        <section className="surface-card overflow-hidden p-0">
+          <div className="bg-[var(--color-text-primary)] p-6 text-[var(--color-bg-surface)] md:p-8">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-bg-surface)]/65">Printable preview</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[22px] font-bold">Greenfield College, Ibadan</h2>
+            <p className="mt-2 text-[13px] text-[var(--color-bg-surface)]/70">{previewCard.term}{previewCard.session ? ` · ${previewCard.session}` : ""} report card</p>
           </div>
           <div className="grid gap-4 p-6 md:grid-cols-4 md:p-8">
             <article className="md:col-span-2">
-              <p className="text-sm font-semibold text-ink/55">Student</p>
-              <p className="mt-2 font-[var(--font-heading)] text-3xl font-bold text-ink">{previewCard.studentName}</p>
-              <p className="mt-2 text-sm text-ink/65">{formatNigeriaClassName(previewCard.className)}</p>
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Student</p>
+              <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{previewCard.studentName}</p>
+              <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{formatNigeriaClassName(previewCard.className)}</p>
             </article>
-            <article className="rounded-[1.5rem] bg-sand/65 p-5">
-              <p className="text-sm text-ink/55">Average</p>
-              <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-brand-800">{previewCard.average}%</p>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Average</p>
+              <p className="mt-2 text-[22px] font-bold text-[var(--color-text-accent)]">{previewCard.average}%</p>
             </article>
-            <article className="rounded-[1.5rem] bg-sand/65 p-5">
-              <p className="text-sm text-ink/55">Status</p>
-              <div className="mt-3"><StatusBadge status={previewCard.status} /></div>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Status</p>
+              <div className="mt-2"><StatusBadge status={previewCard.status} /></div>
             </article>
           </div>
         </section>
@@ -69,7 +69,7 @@ export default async function ReportCardsPage() {
             key: "download",
             header: "PDF",
             render: (item) => (
-              <a className="font-semibold text-brand-700" href={item.reportCardUrl ?? `/api/v1/reports/report-card/${item.studentId}`}>
+              <a className="font-semibold text-[var(--color-text-accent)]" href={item.reportCardUrl ?? `/api/v1/reports/report-card/${item.studentId}`}>
                 Download
               </a>
             )

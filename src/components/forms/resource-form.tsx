@@ -11,7 +11,6 @@ import {
 
 import { useToast } from "@/components/ui/toast-provider";
 import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
-import { cn } from "@/lib/utils/cn";
 
 export interface ResourceField {
   name: string;
@@ -200,13 +199,10 @@ export function ResourceForm({
     router.refresh();
   }
 
-  const feedbackToneClass = {
-    success:
-      "border-emerald-200 bg-emerald-50 text-emerald-700",
-    warning:
-      "border-amber-200 bg-amber-50 text-amber-700",
-    danger:
-      "border-rose-200 bg-rose-50 text-rose-700",
+  const feedbackToneStyle = {
+    success: { borderColor: "var(--color-success-dim)", background: "var(--color-success-dim)", color: "var(--color-success)" },
+    warning: { borderColor: "var(--color-warning-dim)", background: "var(--color-warning-dim)", color: "var(--color-warning)" },
+    danger: { borderColor: "var(--color-danger-dim)", background: "var(--color-danger-dim)", color: "var(--color-danger)" },
   }[tone];
 
   const feedbackIcon = {
@@ -221,13 +217,13 @@ export function ResourceForm({
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <p className="section-eyebrow">Resource form</p>
-            <h3 className="mt-2 text-[20px] font-bold text-slate-900">{title}</h3>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-slate-600">{description}</p>
+            <h3 className="mt-2 text-[20px] font-bold text-[var(--color-text-primary)]">{title}</h3>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">{description}</p>
           </div>
 
           {offlineKey ? (
-            <div className="rounded-2xl border border-primary-100 bg-primary-50/80 px-4 py-3 text-sm shadow-sm">
-              <p className="font-semibold text-slate-800">
+            <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-4 py-3 text-sm">
+              <p className="font-semibold text-[var(--color-text-primary)]">
                 Queued drafts: {offlineQueue.draftCount}
               </p>
               <button
@@ -244,8 +240,8 @@ export function ResourceForm({
         </div>
       ) : offlineKey ? (
         <div className="mb-6 flex justify-end">
-          <div className="rounded-2xl border border-primary-100 bg-primary-50/80 px-4 py-3 text-sm shadow-sm">
-            <p className="font-semibold text-slate-800">
+          <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-4 py-3 text-sm">
+            <p className="font-semibold text-[var(--color-text-primary)]">
               Queued drafts: {offlineQueue.draftCount}
             </p>
             <button
@@ -330,15 +326,13 @@ export function ResourceForm({
           })}
         </div>
 
-        <div className="border-t border-slate-100 pt-4">
+        <div className="border-t border-[var(--color-border-default)] pt-4">
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <div className="min-h-[24px]">
               {message ? (
                 <div
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium",
-                    feedbackToneClass
-                  )}
+                  className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium"
+                  style={feedbackToneStyle}
                 >
                   {(() => {
                     const Icon = feedbackIcon;
@@ -359,11 +353,11 @@ export function ResourceForm({
           </div>
 
           {needsConfirmation && pendingPayload ? (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50/90 p-4 shadow-sm">
-              <p className="text-[14px] font-semibold text-amber-900">
+            <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "var(--color-warning-dim)", background: "var(--color-warning-dim)" }}>
+              <p className="text-[14px] font-semibold text-[var(--color-warning)]">
                 Confirm before continuing
               </p>
-              <p className="mt-1 text-[13px] text-amber-800">
+              <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
                 {confirmMessage ??
                   "Please confirm this action before the record is saved."}
               </p>

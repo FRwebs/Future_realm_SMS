@@ -42,13 +42,13 @@ function buildTeachingLanes(portal: TeacherPortalView): TeachingLane[] {
 function statusTone(status: SchemeOfWorkSummaryView["status"]) {
   switch (status) {
     case "APPROVED":
-      return "border-emerald-200 bg-emerald-50 text-emerald-800";
+      return { background: "var(--color-success-dim)", color: "var(--color-success)" };
     case "SUBMITTED":
-      return "border-amber-200 bg-amber-50 text-amber-800";
+      return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
     case "RETURNED":
-      return "border-rose-200 bg-rose-50 text-rose-800";
+      return { background: "var(--color-danger-dim)", color: "var(--color-danger)" };
     default:
-      return "border-slate-200 bg-slate-50 text-slate-700";
+      return { background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
   }
 }
 
@@ -73,17 +73,17 @@ export default async function TeacherSchemeOfWorkApprovalsPage() {
   const drafts = summaries.filter((summary) => summary.status === "DRAFT");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-700">
+            <p className="section-eyebrow">
               Submission board
             </p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-2xl font-bold text-ink">
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Approval readiness across every teaching lane
             </h2>
-            <p className="mt-2 max-w-3xl text-sm leading-6 text-ink/62">
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               This view is for checking review status, returned work, and which schemes are still
               sitting in draft instead of moving toward approval.
             </p>
@@ -95,75 +95,75 @@ export default async function TeacherSchemeOfWorkApprovalsPage() {
         </div>
 
         <div className="mt-5 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <article className="rounded-[1.4rem] border border-amber-100 bg-amber-50/70 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-700">
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-warning)]">
               Submitted
             </p>
-            <p className="mt-2 text-3xl font-black text-amber-900">{submitted.length}</p>
+            <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{submitted.length}</p>
           </article>
-          <article className="rounded-[1.4rem] border border-rose-100 bg-rose-50/70 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-rose-700">
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-danger-dim)] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-danger)]">
               Returned
             </p>
-            <p className="mt-2 text-3xl font-black text-rose-900">{returned.length}</p>
+            <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{returned.length}</p>
           </article>
-          <article className="rounded-[1.4rem] border border-emerald-100 bg-emerald-50/70 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-emerald-700">
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-success)]">
               Approved
             </p>
-            <p className="mt-2 text-3xl font-black text-emerald-900">{approved.length}</p>
+            <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{approved.length}</p>
           </article>
-          <article className="rounded-[1.4rem] border border-slate-200 bg-slate-50/80 px-4 py-4">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
               Missing lanes
             </p>
-            <p className="mt-2 text-3xl font-black text-slate-900">{missingLanes.length}</p>
+            <p className="mt-2 text-[22px] font-black text-[var(--color-text-primary)]">{missingLanes.length}</p>
           </article>
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[minmax(0,1.1fr)_360px]">
-        <article className="min-w-0 rounded-[1.9rem] border border-white/65 bg-white/92 p-5 shadow-panel">
-          <div className="flex items-center gap-2 border-b border-slate-100 pb-4">
-            <ShieldCheck className="h-4 w-4 text-primary-700" />
-            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+      <section className="grid gap-5 xl:grid-cols-[minmax(0,1.1fr)_360px]">
+        <article className="surface-card min-w-0 p-5">
+          <div className="flex items-center gap-2 border-b border-[var(--color-border-default)] pb-4">
+            <ShieldCheck className="h-4 w-4 text-[var(--color-text-accent)]" />
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Scheme status matrix
             </h2>
           </div>
 
           <div className="mt-5 overflow-x-auto">
             <table className="w-full min-w-[820px] text-sm">
-              <thead className="bg-slate-50">
+              <thead className="bg-[var(--color-bg-subtle)]">
                 <tr>
                   {["Class", "Subject", "Status", "Coverage", "Covered weeks", "Next week", "Action"].map((heading) => (
                     <th
                       key={heading}
-                      className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+                      className="px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]"
                     >
                       {heading}
                     </th>
                   ))}
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 bg-white">
+              <tbody className="divide-y divide-[var(--color-border-muted)] bg-[var(--color-bg-surface)]">
                 {summaries.map((summary) => (
                   <tr key={summary.id}>
-                    <td className="px-4 py-3 font-semibold text-slate-900">{summary.className}</td>
-                    <td className="px-4 py-3 text-slate-900">{summary.subjectName}</td>
+                    <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{summary.className}</td>
+                    <td className="px-4 py-3 text-[var(--color-text-primary)]">{summary.subjectName}</td>
                     <td className="px-4 py-3">
-                      <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${statusTone(summary.status)}`}>
+                      <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={statusTone(summary.status)}>
                         {summary.status}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{summary.coveragePercent}%</td>
-                    <td className="px-4 py-3 text-slate-600">
+                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">{summary.coveragePercent}%</td>
+                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                       {summary.coveredWeeks}/{summary.teachingWeeks}
                     </td>
-                    <td className="px-4 py-3 text-slate-600">{summary.nextWeek ?? "-"}</td>
+                    <td className="px-4 py-3 text-[var(--color-text-secondary)]">{summary.nextWeek ?? "-"}</td>
                     <td className="px-4 py-3">
                       <Link
                         href={`/portals/teacher/content/scheme-of-work/coverage?sow=${summary.id}` as Route}
-                        className="inline-flex items-center rounded-full border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
+                        className="inline-flex items-center rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1.5 text-xs font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                       >
                         Open lane
                       </Link>
@@ -175,45 +175,45 @@ export default async function TeacherSchemeOfWorkApprovalsPage() {
           </div>
 
           {!summaries.length ? (
-            <div className="mt-5 rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50/70 px-4 py-10 text-center text-sm text-slate-500">
+            <div className="mt-5 rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-10 text-center text-[13px] text-[var(--color-text-secondary)]">
               No scheme records are available yet.
             </div>
           ) : null}
         </article>
 
         <aside className="grid gap-4 xl:sticky xl:top-24 xl:self-start">
-          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="flex items-center gap-2">
-              <Clock3 className="h-4 w-4 text-amber-600" />
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+              <Clock3 className="h-4 w-4" style={{ color: "var(--color-warning)" }} />
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
                 Needs attention
               </h2>
             </div>
             <div className="mt-4 grid gap-3">
-              <article className="rounded-[1.35rem] border border-amber-100 bg-amber-50/70 px-4 py-4">
-                <p className="text-sm font-semibold text-amber-900">
+              <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-warning-dim)] px-4 py-4">
+                <p className="text-[13px] font-semibold" style={{ color: "var(--color-warning)" }}>
                   {submitted.length} scheme{submitted.length === 1 ? "" : "s"} currently waiting for
                   review.
                 </p>
               </article>
-              <article className="rounded-[1.35rem] border border-rose-100 bg-rose-50/70 px-4 py-4">
-                <p className="text-sm font-semibold text-rose-900">
+              <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-danger-dim)] px-4 py-4">
+                <p className="text-[13px] font-semibold" style={{ color: "var(--color-danger)" }}>
                   {returned.length} scheme{returned.length === 1 ? "" : "s"} need revision before
                   approval.
                 </p>
               </article>
-              <article className="rounded-[1.35rem] border border-slate-200 bg-slate-50/80 px-4 py-4">
-                <p className="text-sm font-semibold text-slate-900">
+              <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-4">
+                <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">
                   {drafts.length} scheme{drafts.length === 1 ? "" : "s"} still sitting in draft.
                 </p>
               </article>
             </div>
           </section>
 
-          <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+          <section className="surface-card p-5">
             <div className="flex items-center gap-2">
-              <Target className="h-4 w-4 text-emerald-600" />
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">
+              <Target className="h-4 w-4" style={{ color: "var(--color-success)" }} />
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
                 Quick recovery
               </h2>
             </div>

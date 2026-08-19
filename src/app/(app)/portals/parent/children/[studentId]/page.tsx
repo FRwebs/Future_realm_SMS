@@ -24,15 +24,15 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
   const child = await apiGet<ParentChildPortalView>(`/api/v1/parent-portal/children/${studentId}`);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href={"/portals/parent/children" as Route} className="text-sm font-semibold text-brand-700">Back to children</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">{child.studentName}</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href={"/portals/parent/children" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to children</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{child.studentName}</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           {formatNigeriaClassName(child.className)} · {child.admissionNumber ?? "No admission number"}
         </p>
         {child.departmentTrack ? (
-          <p className="mt-2 text-sm font-semibold text-brand-700">Senior secondary track: {child.departmentTrack}</p>
+          <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-accent)]">Senior secondary track: {child.departmentTrack}</p>
         ) : null}
         <div className="mt-5">
           <ActionMenu triggerLabel={`Actions for ${child.studentName}`}>
@@ -46,32 +46,32 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <article className="rounded-[1.5rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Attendance</p>
-          <p className="mt-3 text-3xl font-bold text-ink">{formatPercentage(child.attendanceRate)}</p>
+        <article className="surface-card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
+          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatPercentage(child.attendanceRate)}</p>
         </article>
-        <article className="rounded-[1.5rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Average</p>
-          <p className="mt-3 text-3xl font-bold text-ink">{child.averageScore.toFixed(1)}%</p>
+        <article className="surface-card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Average</p>
+          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{child.averageScore.toFixed(1)}%</p>
         </article>
-        <article className="rounded-[1.5rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Outstanding</p>
-          <p className="mt-3 text-3xl font-bold text-ink">{formatCurrency(child.outstandingBalance)}</p>
+        <article className="surface-card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding</p>
+          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p>
         </article>
-        <article className="rounded-[1.5rem] bg-white/90 p-5 shadow-panel">
-          <p className="text-sm text-ink/55">Next class</p>
-          <p className="mt-3 text-sm font-semibold text-ink">{child.nextClass ? formatNigeriaClassName(child.nextClass) : "Not set"}</p>
+        <article className="surface-card p-5">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Next class</p>
+          <p className="mt-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{child.nextClass ? formatNigeriaClassName(child.nextClass) : "Not set"}</p>
         </article>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Subjects offered"
           description="Subjects currently assigned to this child's class."
           items={child.subjects ?? []}
           emptyState="No subject assignment is visible for this class yet."
           columns={[
-            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+            { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
             { key: "teacher", header: "Teacher", render: (item) => item.teacherName ?? "Not assigned" },
             { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
           ]}

@@ -36,7 +36,7 @@ export function AccessDenied({
 
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-primary-600 via-primary-500 to-teal-400 text-white shadow-[0_16px_30px_rgba(37,89,63,0.20)]">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-primary-600 via-primary-500 to-[#4fa895] text-white shadow-[0_16px_30px_rgba(37,89,63,0.20)]">
             <ShieldAlert className="h-6 w-6" />
           </div>
 

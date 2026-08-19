@@ -43,16 +43,16 @@ function hasFeeClearance(application: AdmissionApplicationView) {
 }
 
 function statusPill(status: AdmissionStatus) {
-  const tone =
-    status === "REJECTED" || status === "DECLINED"
-      ? "bg-rose-100 text-rose-800"
-      : status === "AWAITING_DOCUMENTS" || status === "INCOMPLETE" || status === "PAYMENT_PENDING"
-        ? "bg-amber-100 text-amber-800"
-        : status === "ENROLLED" || status === "ACTIVE" || status === "FINANCIALLY_CLEARED"
-          ? "bg-emerald-100 text-emerald-800"
-          : "bg-brand-100 text-brand-800";
-
-  return `rounded-full px-3 py-1 text-xs font-semibold ${tone}`;
+  if (status === "REJECTED" || status === "DECLINED") {
+    return { background: "var(--color-danger-dim)", color: "var(--color-danger)" };
+  }
+  if (status === "AWAITING_DOCUMENTS" || status === "INCOMPLETE" || status === "PAYMENT_PENDING") {
+    return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  }
+  if (status === "ENROLLED" || status === "ACTIVE" || status === "FINANCIALLY_CLEARED") {
+    return { background: "var(--color-success-dim)", color: "var(--color-success)" };
+  }
+  return { background: "var(--color-accent-primary-dim)", color: "var(--color-text-accent)" };
 }
 
 export default async function AdmissionsPage({ searchParams }: AdmissionsPageProps) {
@@ -95,44 +95,44 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
   const canIssueOffer = permissionSet.has("admissions.approve") || canRunAdmissionStep(session.role, ["ADMIN_OFFICER", "ADMISSIONS_OFFICER"]);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Admissions management</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">
+            <p className="section-eyebrow">Admissions management</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
               O-Level admissions workflow
             </h1>
-            <p className="mt-3 max-w-4xl text-sm leading-6 text-ink/68">
+            <p className="mt-3 max-w-4xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Intake, document checks, screening, principal decision, offer issuance, acceptance, bursary clearance,
               and enrollment conversion are now handled as explicit role-gated steps.
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Link href="/admissions/settings" className="rounded-full bg-sand px-4 py-2 text-sm font-semibold text-ink">
+            <Link href="/admissions/settings" className="btn-secondary px-4">
               Settings
             </Link>
-            <Link href="/admissions/reports" className="rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white">
+            <Link href="/admissions/reports" className="btn-primary px-4">
               Reports
             </Link>
           </div>
         </div>
         <div className="mt-6 grid gap-4 md:grid-cols-4">
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Applications</p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{metrics.totalApplications}</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Applications</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{metrics.totalApplications}</p>
           </article>
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Pending approval</p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{metrics.pendingApprovals}</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Pending approval</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{metrics.pendingApprovals}</p>
           </article>
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Conversion</p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{metrics.conversionRate}%</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Conversion</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{metrics.conversionRate}%</p>
           </article>
-          <article className="rounded-[1.5rem] bg-sand/65 p-5">
-            <p className="text-sm text-ink/55">Avg screening</p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-bold text-ink">{metrics.screeningAverage}</p>
+          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Avg screening</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{metrics.screeningAverage}</p>
           </article>
         </div>
       </section>
@@ -228,11 +228,11 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
               <div>
                 <Link
                   href={{ pathname: "/admissions", query: { ...resolvedSearchParams, applicationId: item.id } }}
-                  className="font-semibold text-ink underline decoration-brand-300 underline-offset-4"
+                  className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-strong)] underline-offset-4"
                 >
                   {item.applicationNo}
                 </Link>
-                {item.duplicateFlag ? <p className="text-xs text-amber-700">Possible duplicate</p> : null}
+                {item.duplicateFlag ? <p className="text-xs" style={{ color: "var(--color-warning)" }}>Possible duplicate</p> : null}
               </div>
             )
           },
@@ -241,8 +241,8 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
             header: "Applicant",
             render: (item) => (
               <div>
-                <p className="font-semibold text-ink">{item.studentName}</p>
-                <p className="text-xs text-ink/55">{formatNigeriaClassName(item.desiredClass)}</p>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.studentName}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{formatNigeriaClassName(item.desiredClass)}</p>
               </div>
             )
           },
@@ -252,14 +252,14 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
             render: (item) => (
               <div>
                 <p>{item.guardianName}</p>
-                <p className="text-xs text-ink/55">{item.guardianPhone}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.guardianPhone}</p>
               </div>
             )
           },
           {
             key: "status",
             header: "Status",
-            render: (item) => <span className={statusPill(item.status)}>{item.status}</span>
+            render: (item) => <span className="rounded-full px-3 py-1 text-xs font-semibold" style={statusPill(item.status)}>{item.status}</span>
           },
           {
             key: "payment",
@@ -269,58 +269,58 @@ export default async function AdmissionsPage({ searchParams }: AdmissionsPagePro
         ]}
       />
 
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <p className="text-sm font-semibold uppercase tracking-[0.24em] text-brand-700">Application detail</p>
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Application detail</p>
         {selectedApplication ? (
           <div className="mt-4 grid gap-5 xl:grid-cols-[0.95fr_1.05fr]">
-            <article className="rounded-[1.5rem] bg-sand/60 p-5">
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
-                  <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+                  <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                     {selectedApplication.studentName}
                   </h2>
-                  <p className="mt-2 text-sm text-ink/68">{selectedApplication.applicationNo} · {formatNigeriaClassName(selectedApplication.desiredClass)}</p>
+                  <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{selectedApplication.applicationNo} · {formatNigeriaClassName(selectedApplication.desiredClass)}</p>
                 </div>
-                <span className={statusPill(selectedApplication.status)}>{selectedApplication.status}</span>
+                <span className="rounded-full px-3 py-1 text-xs font-semibold" style={statusPill(selectedApplication.status)}>{selectedApplication.status}</span>
               </div>
-              <div className="mt-4 grid gap-2 text-sm leading-6 text-ink/72">
-                <p><span className="font-semibold text-ink">Guardian:</span> {selectedApplication.guardianName}</p>
-                <p><span className="font-semibold text-ink">Phone:</span> {selectedApplication.guardianPhone}</p>
-                <p><span className="font-semibold text-ink">Email:</span> {selectedApplication.guardianEmail ?? "Not recorded"}</p>
-                <p><span className="font-semibold text-ink">Previous school:</span> {selectedApplication.previousSchool ?? "Not recorded"}</p>
-                <p><span className="font-semibold text-ink">Medical:</span> {selectedApplication.medicalNotes ?? "No note"}</p>
-                <p><span className="font-semibold text-ink">Payment:</span> {selectedApplication.applicationFeeStatus ?? "PENDING"}</p>
-                <p><span className="font-semibold text-ink">Registration:</span> {selectedApplication.registeredAdmissionNumber ?? "Not enrolled"}</p>
+              <div className="mt-4 grid gap-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Guardian:</span> {selectedApplication.guardianName}</p>
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Phone:</span> {selectedApplication.guardianPhone}</p>
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Email:</span> {selectedApplication.guardianEmail ?? "Not recorded"}</p>
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Previous school:</span> {selectedApplication.previousSchool ?? "Not recorded"}</p>
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Medical:</span> {selectedApplication.medicalNotes ?? "No note"}</p>
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Payment:</span> {selectedApplication.applicationFeeStatus ?? "PENDING"}</p>
+                <p><span className="font-semibold text-[var(--color-text-primary)]">Registration:</span> {selectedApplication.registeredAdmissionNumber ?? "Not enrolled"}</p>
               </div>
               {selectedApplication.offerStatus ? (
                 <a
                   href={`/api/v1/admissions/${selectedApplication.id}/offer-letter`}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-5 inline-flex rounded-full bg-ink px-4 py-2 text-sm font-semibold text-white"
+                  className="btn-primary mt-5 px-4"
                 >
                   Preview offer letter
                 </a>
               ) : null}
             </article>
-            <article className="rounded-[1.5rem] bg-sand/60 p-5">
-              <h3 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Timeline and notes</h3>
+            <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
+              <h3 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Timeline and notes</h3>
               <div className="mt-4 grid gap-3">
                 {(selectedApplication.timeline ?? []).slice(0, 5).map((item) => (
-                  <div key={item.id} className="rounded-2xl bg-white p-4 text-sm text-ink/72">
-                    <p className="font-semibold text-ink">{item.toStatus}</p>
+                  <div key={item.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 text-[13px] text-[var(--color-text-secondary)]">
+                    <p className="font-semibold text-[var(--color-text-primary)]">{item.toStatus}</p>
                     <p className="mt-1">{item.note ?? "Status changed"}</p>
-                    <p className="mt-1 text-xs text-ink/50">{formatDate(item.createdAt)}</p>
+                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">{formatDate(item.createdAt)}</p>
                   </div>
                 ))}
                 {(selectedApplication.timeline ?? []).length === 0 ? (
-                  <p className="rounded-2xl bg-white p-4 text-sm text-ink/65">No timeline entries yet.</p>
+                  <p className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 text-[13px] text-[var(--color-text-secondary)]">No timeline entries yet.</p>
                 ) : null}
               </div>
             </article>
           </div>
         ) : (
-          <div className="mt-4 rounded-[1.5rem] bg-sand/70 p-5 text-sm leading-6 text-ink/68">
+          <div className="mt-4 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5 text-[13px] leading-6 text-[var(--color-text-secondary)]">
             Select an application from the list before review, screening, decision, offer, clearance, or enrollment.
           </div>
         )}

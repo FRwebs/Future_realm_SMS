@@ -22,11 +22,11 @@ export default async function InstallmentsPage() {
   );
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <a href="/finance" className="text-sm font-semibold text-brand-700">Back to finance</a>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Installment plans</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">Split an outstanding invoice balance into scheduled payment commitments.</p>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <a href="/finance" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to finance</a>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Installment plans</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">Split an outstanding invoice balance into scheduled payment commitments.</p>
       </section>
 
       {canManageFinance ? (
@@ -53,7 +53,7 @@ export default async function InstallmentsPage() {
         description="Scheduled payment plans by student and invoice."
         items={plans}
         columns={[
-          { key: "plan", header: "Plan", render: (item) => <span className="font-semibold text-ink">{item.planNumber}</span> },
+          { key: "plan", header: "Plan", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.planNumber}</span> },
           { key: "student", header: "Student", render: (item) => item.studentName },
           { key: "invoice", header: "Invoice", render: (item) => item.invoiceNumber ?? "-" },
           { key: "total", header: "Total", render: (item) => formatCurrency(item.totalAmount) },

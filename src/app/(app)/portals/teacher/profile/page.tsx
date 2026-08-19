@@ -39,7 +39,7 @@ type TeacherProfileView = {
 function FieldLine({ label, value }: { label: string; value?: string | null }) {
   return (
     <p>
-      <span className="font-semibold text-ink">{label}:</span> {value || "Not recorded"}
+      <span className="font-semibold text-[var(--color-text-primary)]">{label}:</span> {value || "Not recorded"}
     </p>
   );
 }
@@ -70,20 +70,20 @@ export default async function TeacherProfilePage() {
     : "Teacher";
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/teacher" className="text-sm font-semibold text-brand-700">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/teacher" className="text-[13px] font-semibold text-[var(--color-text-accent)]">
           Back to teacher portal
         </Link>
         <div className="mt-4 flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.24em] text-brand-700">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
               Teacher profile
             </p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">
               {profile.fullName}
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/68">
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Review your staff details, teaching assignments, and contact record in one place. Sensitive corrections should go through a profile edit request so the school office can verify them properly.
             </p>
           </div>
@@ -113,12 +113,12 @@ export default async function TeacherProfilePage() {
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-3">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel xl:col-span-2">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+      <section className="grid gap-5 xl:grid-cols-3">
+        <article className="surface-card p-6 xl:col-span-2">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
             Personal and contact information
           </h2>
-          <div className="mt-5 grid gap-3 text-sm text-ink/72 md:grid-cols-2">
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)] md:grid-cols-2">
             <FieldLine label="Staff ID" value={profile.staff?.employeeNo} />
             <FieldLine label="Role" value={profile.role.replaceAll("_", " ")} />
             <FieldLine label="Portal identity" value={portalIdentity} />
@@ -135,11 +135,11 @@ export default async function TeacherProfilePage() {
           </div>
         </article>
 
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
             Staff context
           </h2>
-          <div className="mt-5 grid gap-3 text-sm text-ink/72">
+          <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)]">
             <FieldLine label="Designation" value={profile.staff?.designation} />
             <FieldLine label="Staff type" value={profile.staff?.staffType} />
             <FieldLine label="Department" value={profile.staff?.departmentName} />
@@ -153,53 +153,53 @@ export default async function TeacherProfilePage() {
         </article>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-2">
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
             Assigned classes
           </h2>
           <div className="mt-5 grid gap-3">
             {assignedClasses.length ? (
               assignedClasses.map((item) => (
-                <div key={item.classId} className="rounded-[1.25rem] border border-slate-100 bg-slate-50/70 px-4 py-3">
-                  <p className="font-semibold text-slate-900">{item.className}</p>
-                  <p className="mt-1 text-xs text-slate-500">
+                <div key={item.classId} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.className}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                     {item.learners} learners · {item.pendingScores} pending scores · {item.nextAction}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-ink/65">No form class assignment has been linked to this teacher yet.</p>
+              <p className="text-[13px] text-[var(--color-text-secondary)]">No form class assignment has been linked to this teacher yet.</p>
             )}
           </div>
         </article>
 
-        <article className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-          <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+        <article className="surface-card p-6">
+          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
             Subject assignments
           </h2>
           <div className="mt-5 grid gap-3">
             {subjectAssignments.length ? (
               subjectAssignments.map((item) => (
-                <div key={`${item.classId}-${item.subjectId}`} className="rounded-[1.25rem] border border-slate-100 bg-slate-50/70 px-4 py-3">
-                  <p className="font-semibold text-slate-900">{item.subject}</p>
-                  <p className="mt-1 text-xs text-slate-500">
+                <div key={`${item.classId}-${item.subjectId}`} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <p className="font-semibold text-[var(--color-text-primary)]">{item.subject}</p>
+                  <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                     {item.className} · {item.learners} learners · {item.pendingScores} score rows pending
                   </p>
                 </div>
               ))
             ) : (
-              <p className="text-sm text-ink/65">No subject teaching assignments are linked yet.</p>
+              <p className="text-[13px] text-[var(--color-text-secondary)]">No subject teaching assignments are linked yet.</p>
             )}
           </div>
         </article>
       </section>
 
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+      <section className="surface-card p-6">
+        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
           Next of kin
         </h2>
-        <div className="mt-5 grid gap-3 text-sm text-ink/72 md:grid-cols-2">
+        <div className="mt-5 grid gap-3 text-[13px] text-[var(--color-text-secondary)] md:grid-cols-2">
           <FieldLine label="Name" value={[profile.nextOfKin.firstName, profile.nextOfKin.lastName].filter(Boolean).join(" ")} />
           <FieldLine label="Relationship" value={profile.nextOfKin.relationship} />
           <FieldLine label="Phone" value={profile.nextOfKin.phone} />

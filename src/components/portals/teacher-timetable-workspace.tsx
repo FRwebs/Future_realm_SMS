@@ -401,7 +401,7 @@ export function TeacherTimetableWorkspace({
                                 </p>
                               </div>
                               {entry.temporalState === "current" ? (
-                                <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-teal-500 shadow-[0_0_0_6px_rgba(20,184,166,0.14)]" />
+                                <span className="mt-0.5 h-2.5 w-2.5 rounded-full bg-[#12796a] shadow-[0_0_0_6px_rgba(18,121,106,0.14)]" />
                               ) : null}
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -581,7 +581,7 @@ export function TeacherTimetableWorkspace({
                           </p>
                         </div>
                         {entry.temporalState === "current" ? (
-                          <span className="rounded-full bg-teal-500 px-2.5 py-1 text-[10px] font-bold text-white">
+                          <span className="rounded-full bg-[#12796a] px-2.5 py-1 text-[10px] font-bold text-white">
                             NOW
                           </span>
                         ) : null}

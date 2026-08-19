@@ -28,13 +28,13 @@ export default async function StudentTimetablePage() {
   const timetable = await apiGet<TimetablePayload>("/api/v1/student-portal/timetable");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href="/portals/student" className="text-sm font-semibold text-brand-700">Back to student portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">My timetable</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">Class timetable, exam timetable, and school calendar events.</p>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href="/portals/student" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to student portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My timetable</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">Class timetable, exam timetable, and school calendar events.</p>
         {timetable.departmentTrack ? (
-          <p className="mt-3 text-sm font-semibold text-brand-700">Senior secondary track: {timetable.departmentTrack}</p>
+          <p className="mt-2 text-[13px] font-semibold text-[var(--color-text-accent)]">Senior secondary track: {timetable.departmentTrack}</p>
         ) : null}
       </section>
 
@@ -44,7 +44,7 @@ export default async function StudentTimetablePage() {
         items={timetable.subjects ?? []}
         emptyState="No subject assignment is visible for your class yet."
         columns={[
-          { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-ink">{item.name}</span> },
+          { key: "name", header: "Subject", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
           { key: "teacher", header: "Teacher", render: (item) => item.teacherName ?? "Not assigned" },
           { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
         ]}
@@ -58,7 +58,7 @@ export default async function StudentTimetablePage() {
         compact
       />
 
-      <section className="grid gap-6 xl:grid-cols-2">
+      <section className="grid gap-5 xl:grid-cols-2">
         <TableCard
           title="Exam timetable"
           description="Upcoming exam schedule for your class."

@@ -23,12 +23,12 @@ export default async function RolesManagementPage() {
   ]);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
         <div>
-          <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Enterprise access control</p>
-          <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Roles & Permissions</h1>
-          <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/65">
+          <p className="section-eyebrow">Enterprise access control</p>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Roles & Permissions</h1>
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
             Review system and custom roles from one premium permission matrix. Use the role editor for changes and staff assignment for per-user access.
           </p>
         </div>

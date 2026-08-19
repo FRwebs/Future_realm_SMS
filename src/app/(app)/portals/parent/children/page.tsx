@@ -20,11 +20,11 @@ export default async function ParentChildrenPage() {
   const children = await apiGet<ParentChildPortalView[]>("/api/v1/parent-portal/children");
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
-        <Link href={"/portals/parent" as Route} className="text-sm font-semibold text-brand-700">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">My children</h1>
-        <p className="mt-3 text-sm leading-6 text-ink/68">All students linked to your guardian account.</p>
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
+        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My children</h1>
+        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">All students linked to your guardian account.</p>
       </section>
 
       <TableCard
@@ -37,10 +37,10 @@ export default async function ParentChildrenPage() {
             header: "Student",
             render: (item) => (
               <div>
-                <Link href={`/portals/parent/children/${item.studentId}` as Route} className="font-semibold text-ink underline decoration-ink/20 underline-offset-4">
+                <Link href={`/portals/parent/children/${item.studentId}` as Route} className="font-semibold text-[var(--color-text-accent)] underline decoration-[var(--color-border-strong)] underline-offset-4">
                   {item.studentName}
                 </Link>
-                <p className="text-xs text-ink/55">{item.admissionNumber ?? item.studentId}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.admissionNumber ?? item.studentId}</p>
               </div>
             )
           },

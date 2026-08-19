@@ -251,7 +251,7 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
                     className={cn(
                       "flex items-center justify-between gap-4 rounded-2xl border px-4 py-3 text-left transition",
                       selectedInvoiceId === invoice.id
-                        ? "border-[#2dd4bf]/40 bg-[#2dd4bf]/10"
+                        ? "border-[#12796a]/40 bg-[#12796a]/10"
                         : "finance-soft-surface finance-soft-surface-hover",
                     )}
                   >
@@ -300,7 +300,7 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
                           onClick={() => setMethod(option.value)}
                           className={cn(
                             "rounded-2xl border px-4 py-4 text-left transition",
-                            active ? "border-[#2dd4bf]/40 bg-[#2dd4bf]/10" : "finance-soft-surface finance-soft-surface-hover",
+                            active ? "border-[#12796a]/40 bg-[#12796a]/10" : "finance-soft-surface finance-soft-surface-hover",
                           )}
                         >
                           <Icon className={cn("h-5 w-5", active ? "text-[var(--finance-accent-primary)]" : "text-[var(--finance-text-secondary)]")} />
@@ -369,7 +369,7 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
           {selectedInvoice ? (
             <>
               <div className="flex items-start gap-4">
-                <div className="grid h-20 w-20 place-items-center rounded-3xl bg-[#2dd4bf]/14 text-2xl font-bold text-[var(--finance-accent-primary)]">
+                <div className="grid h-20 w-20 place-items-center rounded-3xl bg-[#12796a]/14 text-2xl font-bold text-[var(--finance-accent-primary)]">
                   {selectedInvoice.studentName
                     .split(" ")
                     .slice(0, 2)
