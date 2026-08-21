@@ -134,8 +134,8 @@ const iconMap = {
 
 function chromeButton(theme: "default" | "finance-dark" | "finance-light") {
   return theme === "finance-light"
-    ? "inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.96),rgba(247,250,248,0.94))] text-[var(--finance-text-secondary)] shadow-[0_12px_24px_rgba(15,23,42,0.08)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--finance-border-active)] hover:bg-white hover:text-[var(--finance-text-primary)] hover:shadow-[0_16px_28px_rgba(15,23,42,0.12)]"
-    : "inline-flex h-11 w-11 items-center justify-center rounded-2xl border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(26,46,32,0.96),rgba(18,33,23,0.98))] text-[var(--finance-text-secondary)] shadow-[0_16px_28px_rgba(0,0,0,0.3)] transition-all duration-200 hover:-translate-y-0.5 hover:border-[var(--finance-border-active)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)] hover:shadow-[0_18px_34px_rgba(0,0,0,0.36)]";
+    ? "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--finance-border)] bg-white text-[var(--finance-text-secondary)] shadow-sm transition hover:border-[var(--finance-border-active)] hover:text-[var(--finance-text-primary)]"
+    : "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--finance-border)] bg-[var(--finance-surface)] text-[var(--finance-text-secondary)] shadow-sm transition hover:border-[var(--finance-border-active)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]";
 }
 
 function initials(name: string) {
@@ -393,18 +393,18 @@ function ProfileDropdown({
 
   return (
     <div className={cn(
-      "w-64 overflow-hidden rounded-[1.5rem]",
+      "w-72 overflow-hidden rounded-[16px]",
       theme === "finance-light"
-          ? "border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] shadow-[0_16px_34px_rgba(15,23,42,0.10)]"
-        : "border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(26,46,32,0.98),rgba(18,33,23,0.98))] shadow-[0_24px_50px_rgba(0,0,0,0.45)]"
+          ? "border border-[var(--finance-border)] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
+        : "border border-[var(--finance-border)] bg-[var(--finance-surface)] shadow-[0_24px_50px_rgba(0,0,0,0.38)]"
     )}>
-      <div className="border-b border-[var(--finance-border)] px-4 py-3.5">
+      <div className="border-b border-[var(--finance-border)] px-4 py-4">
         <div className="flex items-center gap-3">
           <div className={cn(
-            "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-xs font-bold text-white",
+            "flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-xs font-black text-white",
             theme === "finance-light"
-              ? "bg-gradient-to-br from-[#12796a] via-[#12796a] to-[#0d2315] shadow-[0_12px_28px_rgba(15,23,42,0.18)]"
-              : "bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] shadow-[0_14px_28px_rgba(18,121,106,0.18)]"
+              ? "bg-[#12796a] shadow-[0_10px_24px_rgba(18,121,106,0.18)]"
+              : "bg-[#4fa895] shadow-[0_10px_24px_rgba(18,121,106,0.22)]"
           )}>
             {initials(session.name)}
           </div>
@@ -423,16 +423,21 @@ function ProfileDropdown({
             ) : null}
           </div>
         </div>
+        {session.impersonation ? (
+          <div className="mt-3 rounded-[12px] border border-amber-300/70 bg-amber-50 px-3 py-2 text-[11.5px] font-semibold text-amber-900">
+            Impersonating account
+          </div>
+        ) : null}
       </div>
 
-      <div className="py-1.5">
+      <div className="p-2">
         {items.map((item) => (
           <button
             key={`${item.label}-${item.path ?? item.action}`}
             type="button"
             onClick={() => handleAction(item)}
             className={cn(
-              "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[0.82rem] transition",
+              "flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold transition",
               item.danger
                 ? "text-[var(--color-danger)] hover:bg-[var(--color-danger-dim)]"
                 : theme === "finance-light"
@@ -449,7 +454,7 @@ function ProfileDropdown({
         ))}
       </div>
 
-      <div className="border-t border-[var(--finance-border)] py-1.5">
+      <div className="border-t border-[var(--finance-border)] p-2">
         <button
           type="button"
           onClick={() =>
@@ -460,7 +465,7 @@ function ProfileDropdown({
               danger: true,
             })
           }
-          className="mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[0.82rem] text-[var(--color-danger)] transition hover:bg-[var(--color-danger-dim)]"
+          className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold text-[var(--color-danger)] transition hover:bg-[var(--color-danger-dim)]"
         >
           <LogOut className="h-3.5 w-3.5 text-[var(--color-danger)]" />
           <span>Sign Out</span>
@@ -510,12 +515,12 @@ export function Topbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full shrink-0 px-3 pt-3 md:px-4 md:pt-3">
+    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-transparent px-3 pt-3 md:px-4 md:pt-3">
       <div className={cn(
-        "relative flex h-[var(--layout-topbar-height)] items-center justify-between gap-4 overflow-visible rounded-[20px] px-4 backdrop-blur-xl md:px-5",
+        "relative flex h-[var(--layout-topbar-height)] items-center justify-between gap-4 overflow-visible rounded-[16px] px-4 backdrop-blur-xl md:px-5",
         theme === "finance-light"
-            ? "border border-[var(--finance-border)] bg-[linear-gradient(135deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98),rgba(241,245,249,0.96))] shadow-[0_12px_30px_rgba(15,23,42,0.08)]"
-          : "border border-[var(--finance-border)] bg-[linear-gradient(135deg,rgba(18,33,23,0.94),rgba(26,46,32,0.94),rgba(15,28,19,0.98))] shadow-[0_16px_40px_rgba(0,0,0,0.32)]",
+            ? "border border-[var(--finance-border)] bg-white/95 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
+          : "border border-[var(--finance-border)] bg-[var(--finance-surface)]/95 shadow-[0_14px_34px_rgba(0,0,0,0.28)]",
       )}>
         <span
           className={cn(
@@ -525,8 +530,6 @@ export function Topbar({
               : "bg-gradient-to-b from-[#4fa895] via-[#12796a] to-[#0d2315]",
           )}
         />
-        <span className={cn("pointer-events-none absolute inset-x-6 top-0 h-px", theme === "finance-light" ? "bg-gradient-to-r from-transparent via-[#a7ece1] to-transparent" : "bg-gradient-to-r from-transparent via-white/20 to-transparent")} />
-        <span className={cn("pointer-events-none absolute inset-x-0 top-0 h-full", theme === "finance-light" ? "bg-[radial-gradient(circle_at_top_left,rgba(18,121,106,0.10),transparent_32%)]" : "bg-[radial-gradient(circle_at_top_left,rgba(18,121,106,0.14),transparent_32%)]")} />
 
         <div className="flex min-w-0 items-center gap-3">
           <button
@@ -600,18 +603,18 @@ export function Topbar({
               onClick={() => setDropdownOpen((value) => !value)}
               aria-expanded={dropdownOpen}
               className={cn(
-                "flex h-12 items-center gap-2 rounded-2xl py-1.5 pl-1.5 pr-3 transition-all duration-200",
+                "flex h-11 items-center gap-2 rounded-[12px] py-1.5 pl-1.5 pr-3 transition-all duration-200",
                 theme === "finance-light"
-                    ? "border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.94),rgba(248,250,252,0.92))] text-[var(--finance-text-secondary)] shadow-[0_12px_24px_rgba(15,23,42,0.08)] hover:-translate-y-0.5 hover:border-[var(--finance-border-active)] hover:bg-white hover:text-[var(--finance-text-primary)]"
-                  : "border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(26,46,32,0.98),rgba(18,33,23,0.96))] text-[var(--finance-text-secondary)] shadow-[0_16px_28px_rgba(0,0,0,0.3)] hover:-translate-y-0.5 hover:border-[var(--finance-border-active)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]",
+                    ? "border border-[var(--finance-border)] bg-white text-[var(--finance-text-secondary)] shadow-sm hover:border-[var(--finance-border-active)] hover:text-[var(--finance-text-primary)]"
+                  : "border border-[var(--finance-border)] bg-[var(--finance-surface)] text-[var(--finance-text-secondary)] shadow-sm hover:border-[var(--finance-border-active)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]",
               )}
             >
               <span
                 className={cn(
-                  "flex h-10 w-10 shrink-0 items-center justify-center rounded-2xl text-[0.68rem] font-bold text-white",
+                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-[0.65rem] font-black text-white",
                   theme === "finance-light"
-                    ? "bg-gradient-to-br from-[#12796a] via-[#12796a] to-[#0d2315] shadow-[0_12px_28px_rgba(15,23,42,0.18)] ring-2 ring-white/80"
-                    : "bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] shadow-[0_14px_28px_rgba(18,121,106,0.18)] ring-2 ring-white/10"
+                    ? "bg-[#12796a]"
+                    : "bg-[#4fa895]"
                 )}
               >
                 {initials(session.name)}

@@ -2,6 +2,7 @@ import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { PlanCreateDialog, PlanEditDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
@@ -22,8 +23,6 @@ const rolloutOptions = [
   { label: "Full", value: "FULL" }
 ];
 const yesNo = [{ label: "Yes", value: "true" }, { label: "No", value: "false" }];
-const planTierOptions = ["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"].map((value) => ({ label: value, value }));
-const supportTierOptions = ["COMMUNITY", "EMAIL", "PRIORITY", "DEDICATED"].map((value) => ({ label: value, value }));
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
@@ -107,8 +106,8 @@ async function PlansTab() {
           header: "Pricing",
           render: (item) => (
             <div>
-              <p className="font-[var(--font-mono)] font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.monthlyPrice)}/mo</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{formatCurrency(item.annualPrice)}/yr</p>
+              <p className="font-[var(--font-mono)] font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.monthlyPrice)}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">per student / semester</p>
             </div>
           )
         },
@@ -149,21 +148,24 @@ async function PlansTab() {
           key: "actions",
           header: "Actions",
           render: (item) => (
-            <ResourceActionDialog
-              triggerLabel={item.isActive ? "Archive" : "Reactivate"}
-              title={`${item.isActive ? "Archive" : "Reactivate"} ${item.name}`}
-              description={
-                item.isActive
-                  ? "Archived plans stay on existing subscriptions but can no longer be selected for new signups or upgrades."
-                  : "Reactivating makes this plan selectable again for new signups and upgrades."
-              }
-              endpoint={`/api/super-admin/plans/${item.id}/toggle`}
-              method="PATCH"
-              variant={item.isActive ? "menuDanger" : "secondary"}
-              submitLabel={item.isActive ? "Archive plan" : "Reactivate plan"}
-              confirmLabel="Confirm"
-              fields={[]}
-            />
+            <ActionMenu triggerLabel={`Plan actions for ${item.name}`}>
+              <PlanEditDialog plan={item} variant="menu" />
+              <ResourceActionDialog
+                triggerLabel={item.isActive ? "Archive" : "Reactivate"}
+                title={`${item.isActive ? "Archive" : "Reactivate"} ${item.name}`}
+                description={
+                  item.isActive
+                    ? "Archived plans stay on existing subscriptions but can no longer be selected for new signups or upgrades."
+                    : "Reactivating makes this plan selectable again for new signups and upgrades."
+                }
+                endpoint={`/api/super-admin/plans/${item.id}/toggle`}
+                method="PATCH"
+                variant={item.isActive ? "menuDanger" : "menu"}
+                submitLabel={item.isActive ? "Archive plan" : "Reactivate plan"}
+                confirmLabel="Confirm"
+                fields={[]}
+              />
+            </ActionMenu>
           )
         }
       ]}
@@ -185,30 +187,7 @@ async function PlanBuilderTab() {
             and becomes selectable for new school signups and upgrades.
           </p>
         </div>
-        <ResourceActionDialog
-          triggerLabel="New Plan"
-          title="Build a subscription plan"
-          description="A stable slug (e.g. elite-annual) is used to reference this plan from billing and onboarding."
-          endpoint="/api/super-admin/plans"
-          submitLabel="Create plan"
-          presentation="drawer"
-          fields={[
-            { name: "name", label: "Plan name", required: true, placeholder: "e.g. Elite Annual" },
-            { name: "slug", label: "Slug", required: true, placeholder: "elite-annual" },
-            { name: "plan", label: "Tier", type: "select", defaultValue: "STANDARD", options: planTierOptions },
-            { name: "monthlyPrice", label: "Monthly price (₦)", type: "number", required: true, min: 0 },
-            { name: "annualPrice", label: "Annual price (₦)", type: "number", required: true, min: 0 },
-            { name: "studentLimit", label: "Student limit (blank = unlimited)", type: "number", min: 0 },
-            { name: "staffLimit", label: "Staff limit (blank = unlimited)", type: "number", min: 0 },
-            { name: "storageLimitGb", label: "Storage limit (GB)", type: "number", min: 0 },
-            { name: "smsUnitsPerMonth", label: "SMS units / month", type: "number", defaultValue: 0, min: 0 },
-            { name: "emailSendsPerMonth", label: "Email sends / month", type: "number", defaultValue: 0, min: 0 },
-            { name: "supportTier", label: "Support tier", type: "select", defaultValue: "EMAIL", options: supportTierOptions },
-            { name: "apiAccess", label: "API access", type: "select", defaultValue: "false", options: yesNo },
-            { name: "customBranding", label: "Custom branding", type: "select", defaultValue: "false", options: yesNo },
-            { name: "includedModules", label: "Included modules (comma-separated)", placeholder: "Schools, Billing, Analytics" }
-          ]}
-        />
+        <PlanCreateDialog />
       </section>
 
       <section className="surface-card p-6">
@@ -219,7 +198,7 @@ async function PlanBuilderTab() {
             <div key={plan.id} className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
               <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{plan.plan}</p>
               <p className="mt-1 font-semibold text-[var(--color-text-primary)]">{plan.name}</p>
-              <p className="mt-1 font-[var(--font-mono)] text-[13px] text-[var(--color-text-secondary)]">{formatCurrency(plan.monthlyPrice)}/mo</p>
+              <p className="mt-1 font-[var(--font-mono)] text-[13px] text-[var(--color-text-secondary)]">{formatCurrency(plan.monthlyPrice)} / semester</p>
             </div>
           ))}
           {(plans ?? []).length === 0 ? (

@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Check, Layers, Mail, MapPin, Phone, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Check, Clock3, FileWarning, Layers, Mail, MapPin, Phone, Users } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -27,11 +28,11 @@ const verificationEffects = [
 ];
 
 const planOptions = [
-  { label: "Basic", value: "BASIC" },
+  { label: "Starter", value: "BASIC" },
   { label: "Standard", value: "STANDARD" },
-  { label: "Professional", value: "PROFESSIONAL" },
-  { label: "Custom", value: "CUSTOM" },
-  { label: "Enterprise", value: "ENTERPRISE" }
+  { label: "Trial", value: "PROFESSIONAL" },
+  { label: "Elite", value: "ENTERPRISE" },
+  { label: "NGO / Mission", value: "CUSTOM" }
 ];
 
 const schoolTypeOptions = [
@@ -182,6 +183,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
   const pendingVerificationEnvelope = await apiGetEnvelope<SuperAdminPendingVerificationSchool[]>("/api/super-admin/schools-pending-verification");
   const pendingVerification = pendingVerificationEnvelope.data ?? [];
+  const missingRegistrationCount = pendingVerification.filter((school) => !school.cacNumber && !school.ministryApprovalNumber).length;
+  const missingContactCount = pendingVerification.filter((school) => !school.ownerEmail || !school.ownerPhone).length;
 
   const plansEnvelope = await apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans");
   const activePlans = (plansEnvelope.data ?? []).filter((plan) => plan.isActive).sort((a, b) => a.monthlyPrice - b.monthlyPrice);
@@ -232,87 +235,50 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           <SchoolBulkTable schools={schools} total={total} />
         </>
       ) : activeTab === "approval-queue" ? (
-        <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-          <div className="grid gap-3.5">
-            {pendingVerification.length === 0 ? (
-              <section className="surface-card p-8 text-center">
-                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--color-success-dim)" }}>
-                  <ShieldCheck className="h-5 w-5" style={{ color: "var(--color-success)" }} />
-                </div>
-                <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">Queue is clear</p>
-                <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
-                  Onboarding is automatic — nothing here waits on approval. Only schools the system flags at signup
-                  (missing legitimacy documents, no address on file) land in this queue for a manual check.
-                </p>
-              </section>
-            ) : (
-              pendingVerification.map((school) => (
-                <article key={school.id} className="surface-card p-5">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="flex items-center gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[14px] font-bold text-[var(--color-text-primary)]">
-                        {initials(school.name)}
-                      </span>
-                      <div>
-                        <Link href={`/super-admin/schools/${school.id}`} className="text-[15px] font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
-                          {school.name}
-                        </Link>
-                        <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
-                          Submitted {timeAgo(school.createdAt)} · {categoryLabel(school.curriculum)}
-                        </p>
-                      </div>
-                    </div>
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-                      style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
-                    >
-                      {timeAgo(school.createdAt)}
+        <section className="grid gap-5">
+          <section className="grid gap-3 md:grid-cols-3">
+            <StatCard label="Pending review" value={pendingVerification.length} detail="Schools flagged during onboarding." icon={Clock3} tone="warning" />
+            <StatCard label="Missing registration" value={missingRegistrationCount} detail="No CAC or ministry approval recorded." icon={FileWarning} tone="danger" />
+            <StatCard label="Contact gaps" value={missingContactCount} detail="Owner email or phone needs completion." icon={Users} tone="info" />
+          </section>
+
+          <TableCard
+            title="Review Queue"
+            items={pendingVerification}
+            emptyState="Queue is clear. Schools flagged at signup will appear here for a manual check."
+            columns={[
+              {
+                key: "school",
+                header: "School",
+                render: (school) => (
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">
+                      {initials(school.name)}
                     </span>
-                  </div>
-
-                  {school.flaggedForReviewReason ? (
-                    <div
-                      className="mt-3.5 rounded-[10px] px-3.5 py-2.5 text-[12px] leading-5"
-                      style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
-                    >
-                      <span className="font-bold">Flagged: </span>
-                      {school.flaggedForReviewReason}
-                    </div>
-                  ) : null}
-
-                  <div className="mt-4 grid grid-cols-2 gap-3.5 border-y border-[var(--color-border-default)] py-3.5 sm:grid-cols-3">
                     <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Owner</p>
-                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.ownerName ?? "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Contact</p>
-                      <p className="mt-1 truncate text-[12.5px] text-[var(--color-text-primary)]">{school.ownerEmail ?? "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Location</p>
-                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">CAC number</p>
-                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.cacNumber ?? "Not provided"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Ministry approval</p>
-                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.ministryApprovalNumber ?? "Not provided"}</p>
-                    </div>
-                    <div>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Students declared</p>
-                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.studentCount.toLocaleString()}</p>
+                      <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
+                        {school.name}
+                      </Link>
+                      <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{categoryLabel(school.curriculum)} · {timeAgo(school.createdAt)}</p>
                     </div>
                   </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-2">
+                )
+              },
+              { key: "owner", header: "Owner", render: (school) => <div><p className="font-semibold text-[var(--color-text-primary)]">{school.ownerName ?? "Not recorded"}</p><p className="text-xs text-[var(--color-text-muted)]">{school.ownerEmail ?? "No email"}</p></div> },
+              { key: "location", header: "Location", render: (school) => [school.city, school.state].filter(Boolean).join(", ") || "Not recorded" },
+              { key: "registration", header: "Registration", render: (school) => <div><p className="text-[12px] text-[var(--color-text-secondary)]">CAC: <span className="font-semibold text-[var(--color-text-primary)]">{school.cacNumber ?? "Missing"}</span></p><p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">Ministry: <span className="font-semibold text-[var(--color-text-primary)]">{school.ministryApprovalNumber ?? "Missing"}</span></p></div> },
+              { key: "students", header: "Students", render: (school) => school.studentCount.toLocaleString() },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (school) => (
+                  <ActionMenu triggerLabel={`Review ${school.name}`}>
                     <ResourceActionDialog
                       triggerLabel="Approve & verify"
                       title={`Verify ${school.name}`}
                       description="Marks this school as verified. It already has full trial access — this only records that the details have been reviewed."
                       endpoint={`/api/super-admin/schools/${school.id}/verify`}
+                      variant="menu"
                       submitLabel="Confirm verification"
                       fields={[]}
                     />
@@ -321,22 +287,22 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                       title={`Reject verification — ${school.name}`}
                       description="This suspends the school immediately and logs the reason. The tenant can be reactivated later from Lifecycle & Status if the issue is resolved."
                       endpoint={`/api/super-admin/schools/${school.id}/reject-verification`}
-                      variant="danger"
+                      variant="menuDanger"
                       submitLabel="Reject and suspend"
                       confirmLabel="Confirm"
                       confirmMessage="This suspends the school and all its staff logins immediately."
                       fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
                     />
-                    <Link href={`/super-admin/schools/${school.id}`} className="btn-link text-[12.5px]">
+                    <Link href={`/super-admin/schools/${school.id}`} className="block px-3 py-2 text-[12px] font-semibold text-[var(--color-text-accent)] hover:bg-[var(--color-bg-subtle)]">
                       View full profile
                     </Link>
-                  </div>
-                </article>
-              ))
-            )}
-          </div>
+                  </ActionMenu>
+                )
+              }
+            ]}
+          />
 
-          <div className="grid gap-3.5">
+          <div className="grid gap-3.5 lg:grid-cols-2">
             <section className="surface-card p-5">
               <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Verification checklist</p>
               <div className="mt-3.5 grid gap-2">
@@ -365,7 +331,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               </div>
             </section>
           </div>
-        </div>
+        </section>
       ) : activeTab === "recent-signups" ? (
         <section className="surface-card p-6">
           <p className="section-eyebrow">Recent signups</p>

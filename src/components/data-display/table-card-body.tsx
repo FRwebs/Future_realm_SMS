@@ -19,7 +19,7 @@ export interface PreparedRow {
 
 interface TableCardBodyProps {
   title: string;
-  description: ReactNode;
+  description?: ReactNode;
   emptyState: string;
   actions?: ReactNode;
   columns: PreparedColumn[];
@@ -95,23 +95,24 @@ export function TableCardBody({
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-5 md:px-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
           <div>
-            <p className="section-eyebrow">Data overview</p>
-            <h3 className="mt-2 font-[var(--font-display)] text-[20px] font-bold text-[var(--color-text-primary)]">{title}</h3>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-              {description}
-            </p>
+            <h3 className="font-[var(--font-display)] text-[16px] font-bold text-[var(--color-text-primary)]">{title}</h3>
+            {description ? (
+              <p className="mt-1 max-w-3xl text-[12.5px] leading-5 text-[var(--color-text-secondary)]">
+                {description}
+              </p>
+            ) : null}
           </div>
 
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </div>
       </div>
 
-      <div className="p-5 md:p-6">
+      <div>
         {rows.length === 0 ? (
-          <div className="empty-state">
+          <div className="empty-state m-5">
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
               <span className="text-lg font-bold">+</span>
             </div>
@@ -123,11 +124,11 @@ export function TableCardBody({
         ) : (
           <>
             {/* Mobile view: stacked cards so important fields like grades are always visible */}
-            <div className="grid gap-3 md:hidden">
+            <div className="grid gap-3 p-5 md:hidden">
               {pageRows.map((row) => (
                 <article
                   key={row.key}
-                  className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-md)]"
+                  className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:shadow-[var(--shadow-md)]"
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
@@ -176,9 +177,9 @@ export function TableCardBody({
 
             {/* Desktop view: plain table, no inner scroll box — the page scrolls naturally */}
             <div className="hidden md:block">
-              <div className="overflow-hidden rounded-2xl border border-[var(--color-border-default)]">
+              <div className="overflow-hidden">
                 <div className="overflow-x-auto">
-                  <table className="min-w-full border-separate border-spacing-0">
+                  <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
                     <caption className="sr-only">{title}</caption>
                     <thead className="bg-[var(--color-bg-subtle)]">
                       <tr>
@@ -191,7 +192,7 @@ export function TableCardBody({
                               scope="col"
                               aria-sort={isActive ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                               className={[
-                                "border-b border-[var(--color-border-default)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]",
+                                "border-b border-[var(--color-border-default)] px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]",
                                 column.headerClassName ?? "",
                               ].join(" ")}
                             >
@@ -225,13 +226,13 @@ export function TableCardBody({
                       {pageRows.map((row) => (
                         <tr
                           key={row.key}
-                          className="border-b border-[var(--color-border-muted)] bg-[var(--color-bg-surface)] text-[13px] text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-elevated)]"
+                          className="bg-[var(--color-bg-surface)] text-[12.5px] text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-elevated)]"
                         >
                           {columns.map((column) => (
                             <td
                               key={column.key}
                               className={[
-                                "px-4 py-3 align-top",
+                                "border-b border-[var(--color-border-muted)] px-4 py-3 align-top",
                                 column.cellClassName ?? "",
                               ].join(" ")}
                             >
@@ -247,7 +248,7 @@ export function TableCardBody({
             </div>
 
             {pageSize && totalPages > 1 ? (
-              <div className="mt-4 flex flex-col items-center justify-between gap-3 sm:flex-row">
+              <div className="flex flex-col items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-5 py-3 sm:flex-row">
                 <p className="text-[12px] text-[var(--color-text-muted)]">
                   Showing {rangeStart}–{rangeEnd} of {sortedRows.length}
                 </p>

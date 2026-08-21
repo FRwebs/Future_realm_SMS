@@ -139,7 +139,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
   const [tier, setTier] = useState(defaultPlan?.plan ?? "BASIC");
   const [accountType, setAccountType] = useState("Trial");
   const [trialEndDate, setTrialEndDate] = useState("");
-  const [billingCycle, setBillingCycle] = useState("Per term");
+  const [billingCycle, setBillingCycle] = useState("Per semester");
   const [leadSource, setLeadSource] = useState("Direct");
   const [partnerName, setPartnerName] = useState("None");
   const [accountManager, setAccountManager] = useState("");
@@ -179,7 +179,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
     setTier(defaultPlan?.plan ?? "BASIC");
     setAccountType("Trial");
     setTrialEndDate("");
-    setBillingCycle("Per term");
+    setBillingCycle("Per semester");
     setLeadSource("Direct");
     setPartnerName("None");
     setAccountManager("");
@@ -497,7 +497,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                       ) : (
                         plans.map((plan) => (
                           <option key={plan.id} value={plan.plan}>
-                            {plan.name} — {formatCurrency(plan.monthlyPrice)} / term
+                            {plan.name} — {formatCurrency(plan.monthlyPrice)} / semester
                           </option>
                         ))
                       )}
@@ -515,9 +515,9 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   </Field>
                   <Field label="Billing cycle">
                     <select value={billingCycle} onChange={(e) => setBillingCycle(e.target.value)} className={inputClass}>
-                      <option>Per term</option>
-                      <option>Annual</option>
-                      <option>Monthly</option>
+                      <option>Per semester</option>
+                      <option>Trial term</option>
+                      <option>NGO / Mission discount</option>
                     </select>
                   </Field>
                   <div>

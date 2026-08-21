@@ -4,7 +4,9 @@ import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
+import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { NavigationNoticeListener } from "@/components/layout/navigation-notice-listener";
+import { PageBackButton } from "@/components/layout/page-back-button";
 import { useTheme } from "@/components/theme/theme-provider";
 import { SessionUser } from "@/lib/domain/types";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
@@ -107,10 +109,12 @@ export function DashboardShell({
             onToggleTheme={toggleTheme}
             currentThemeMode={activeTheme}
           />
+          <ImpersonationBanner session={session} />
           <main
             className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5"
           >
             <div key={pathname} className="page-shell-enter mx-auto w-full max-w-[1480px]">
+              <PageBackButton session={session} />
               {children}
             </div>
           </main>

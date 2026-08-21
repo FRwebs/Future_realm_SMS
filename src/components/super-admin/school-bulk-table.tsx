@@ -12,11 +12,11 @@ import type { SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 const planOptions = [
-  { label: "Basic", value: "BASIC" },
+  { label: "Starter", value: "BASIC" },
   { label: "Standard", value: "STANDARD" },
-  { label: "Professional", value: "PROFESSIONAL" },
-  { label: "Custom", value: "CUSTOM" },
-  { label: "Enterprise", value: "ENTERPRISE" }
+  { label: "Trial", value: "PROFESSIONAL" },
+  { label: "Elite", value: "ENTERPRISE" },
+  { label: "NGO / Mission", value: "CUSTOM" }
 ];
 
 const statusTone: Record<string, { bg: string; fg: string; label: string }> = {

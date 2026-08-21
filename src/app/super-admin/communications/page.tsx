@@ -34,7 +34,7 @@ const announcementTypes = ["INFO", "WARNING", "CRITICAL", "NEW_FEATURE", "PROMOT
 const channelOptions = ["EMAIL", "SMS", "WHATSAPP"].map((v) => ({ label: v, value: v }));
 const campaignTypeOptions = [{ label: "Operational", value: "OPERATIONAL" }, { label: "Promotional", value: "PROMOTIONAL" }];
 const templateCategoryOptions = ["ONBOARDING", "SUBSCRIPTION", "OPERATIONAL", "COMMERCIAL"].map((v) => ({ label: v, value: v }));
-const planFilterOptions = [{ label: "Any", value: "" }, { label: "Basic", value: "BASIC" }, { label: "Standard", value: "STANDARD" }, { label: "Professional", value: "PROFESSIONAL" }, { label: "Enterprise", value: "ENTERPRISE" }];
+const planFilterOptions = [{ label: "Any", value: "" }, { label: "Starter", value: "BASIC" }, { label: "Standard", value: "STANDARD" }, { label: "Trial", value: "PROFESSIONAL" }, { label: "Elite", value: "ENTERPRISE" }, { label: "NGO / Mission", value: "CUSTOM" }];
 const yesNo = [{ label: "Yes", value: "true" }, { label: "No", value: "false" }];
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {

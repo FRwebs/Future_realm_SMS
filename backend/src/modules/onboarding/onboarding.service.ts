@@ -7,6 +7,15 @@ import { sendNotification } from "../../../../src/lib/integrations/notifications
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import type { Role, SessionUser } from "../../../../src/lib/domain/types";
 
+function planModules(value: unknown) {
+  if (Array.isArray(value)) return value.map((item) => String(item));
+  if (value && typeof value === "object") {
+    const modules = (value as Record<string, unknown>).modules;
+    if (Array.isArray(modules)) return modules.map((item) => String(item));
+  }
+  return [];
+}
+
 const registerSchoolSchema = z.object({
   schoolName: z.string().trim().min(2, "School name must be at least 2 characters"),
   slug: z.string().trim().optional(),
@@ -439,7 +448,7 @@ export class OnboardingService {
       staffLimit: plan.staffLimit,
       apiAccess: plan.apiAccess,
       customBranding: plan.customBranding,
-      includedModules: plan.includedModules as string[]
+      includedModules: planModules(plan.includedModules)
     }));
   }
 
