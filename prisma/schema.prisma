@@ -591,6 +591,7 @@ model School {
   slug                          String                         @unique
   category                      SchoolCategory
   isGroup                       Boolean                        @default(false)
+  isPersonalWorkspace           Boolean                        @default(false)
   timezone                      String                         @default("Africa/Lagos")
   currency                      String                         @default("NGN")
   academicYearLabel             String                         @default("Session")
@@ -603,6 +604,12 @@ model School {
   ownerName                     String?
   ownerEmail                    String?
   ownerPhone                    String?
+  cacNumber                     String?
+  ministryApprovalNumber        String?
+  flaggedForReviewReason        String?
+  verifiedAt                    DateTime?
+  verificationRejectedAt        DateTime?
+  verificationRejectionReason   String?
   subdomain                     String?                        @unique
   schoolCode                    String?                        @unique
   logoUrl                       String?
@@ -1107,8 +1114,10 @@ model User {
   suspendedAt                  DateTime?
   passwordResetRequired        Boolean                       @default(false)
   lastLoginAt                  DateTime?
+  emailVerifiedAt              DateTime?
   createdAt                    DateTime                      @default(now())
   updatedAt                    DateTime                      @updatedAt
+  verificationCodes            EmailVerificationCode[]
   guardian                     Guardian?
   student                      Student?
   staffProfile                 StaffProfile?
@@ -4416,6 +4425,22 @@ model IpAccessRule {
   createdAt DateTime @default(now())
 
   @@unique([ipAddress, type])
+}
+
+model EmailVerificationCode {
+  id         String    @id @default(cuid())
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email      String
+  codeHash   String
+  purpose    String    @default("SIGNUP_VERIFY")
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int       @default(0)
+  createdAt  DateTime  @default(now())
+
+  @@index([userId])
+  @@index([email])
 }
 
 model BackupRecord {

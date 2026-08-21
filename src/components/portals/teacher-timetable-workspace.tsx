@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import {
   ArrowLeft,
   BookOpen,
@@ -82,27 +82,34 @@ type DecoratedEntry = PortalTimetableEntry & {
   attendanceState: "marked" | "pending" | "overdue" | "future";
 };
 
-function entryTone(entry: DecoratedEntry) {
+function entryTone(entry: DecoratedEntry): CSSProperties {
   if (entry.temporalState === "current") {
-    return "border-teal-300 bg-teal-50 shadow-[0_22px_44px_rgba(13,148,136,0.16)]";
+    return {
+      borderColor: "var(--color-accent-primary)",
+      background: "var(--color-accent-primary-dim)",
+      boxShadow: "0 22px 44px rgba(18,121,106,0.16)",
+    };
   }
   if (entry.attendanceState === "overdue") {
-    return "border-rose-200 bg-rose-50/80";
+    return { borderColor: "var(--color-danger)", background: "var(--color-danger-dim)" };
   }
   if (entry.attendanceState === "pending") {
-    return "border-amber-200 bg-amber-50/80";
+    return { borderColor: "var(--color-warning)", background: "var(--color-warning-dim)" };
   }
   if (entry.temporalState === "past") {
-    return "border-slate-200 bg-slate-50/80";
+    return { borderColor: "var(--color-border-default)", background: "var(--color-bg-subtle)" };
   }
-  return "border-slate-200 bg-white";
+  return { borderColor: "var(--color-border-default)", background: "var(--color-bg-surface)" };
 }
 
-function attendanceTone(state: DecoratedEntry["attendanceState"]) {
-  if (state === "marked") return "border-emerald-200 bg-emerald-50 text-emerald-700";
-  if (state === "pending") return "border-amber-200 bg-amber-50 text-amber-700";
-  if (state === "overdue") return "border-rose-200 bg-rose-50 text-rose-700";
-  return "border-slate-200 bg-slate-50 text-slate-500";
+function attendanceTone(state: DecoratedEntry["attendanceState"]): CSSProperties {
+  if (state === "marked")
+    return { borderColor: "var(--color-success)", background: "var(--color-success-dim)", color: "var(--color-success)" };
+  if (state === "pending")
+    return { borderColor: "var(--color-warning)", background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  if (state === "overdue")
+    return { borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" };
+  return { borderColor: "var(--color-border-default)", background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" };
 }
 
 function temporalLabel(entry: DecoratedEntry) {
@@ -243,16 +250,16 @@ export function TeacherTimetableWorkspace({
   );
 
   return (
-    <div className="grid gap-6">
-      <section className="relative overflow-hidden rounded-[2rem] border border-[rgba(18,33,23,0.12)] bg-gradient-to-br from-[#0f1d15] via-[#17382c] to-[#1c6a5b] p-6 text-white shadow-panel">
-        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-white/12 blur-3xl" />
+    <div className="portal-page">
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-gradient-to-br from-[#0f1d15] via-[#17382c] to-[#1c6a5b] p-6 text-white md:p-8">
+        <div className="absolute right-0 top-0 h-44 w-44 rounded-full bg-[rgba(255,255,255,0.12)] blur-3xl" />
         <div className="relative flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
           <div className="max-w-3xl">
             <Link href="/portals/teacher" className="inline-flex items-center gap-2 text-sm font-semibold text-white/95">
               <ArrowLeft className="h-4 w-4" />
               Back to teacher portal
             </Link>
-            <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-white/88">
+            <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.24em] text-[rgba(255,255,255,0.88)]">
               Teaching workspace
             </p>
             <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white">
@@ -265,22 +272,22 @@ export function TeacherTimetableWorkspace({
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
-            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/88">
+            <article className="rounded-[10px] border border-[rgba(255,255,255,0.15)] bg-white/10 px-4 py-3 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[rgba(255,255,255,0.88)]">
                 Today
               </p>
               <p className="mt-2 text-3xl font-black">{summary.total}</p>
               <p className="mt-1 text-xs text-white/95">Scheduled periods</p>
             </article>
-            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/88">
+            <article className="rounded-[10px] border border-[rgba(255,255,255,0.15)] bg-white/10 px-4 py-3 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[rgba(255,255,255,0.88)]">
                 Marked
               </p>
               <p className="mt-2 text-3xl font-black">{summary.marked}</p>
               <p className="mt-1 text-xs text-white/95">Attendance completed</p>
             </article>
-            <article className="rounded-[1.5rem] border border-white/15 bg-white/10 px-4 py-3 backdrop-blur-xl">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-white/88">
+            <article className="rounded-[10px] border border-[rgba(255,255,255,0.15)] bg-white/10 px-4 py-3 backdrop-blur-xl">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[rgba(255,255,255,0.88)]">
                 Subjects
               </p>
               <p className="mt-2 text-3xl font-black">{subjectCount}</p>
@@ -291,16 +298,16 @@ export function TeacherTimetableWorkspace({
       </section>
 
       <section className="grid gap-6 2xl:grid-cols-[minmax(0,1fr)_360px]">
-        <article className="min-w-0 rounded-[2rem] border border-white/60 bg-white/92 p-5 shadow-panel">
-          <div className="flex flex-col gap-4 border-b border-slate-100 pb-4 lg:flex-row lg:items-center lg:justify-between">
+        <article className="min-w-0 surface-card p-5">
+          <div className="flex flex-col gap-4 border-b border-[var(--color-border-default)] pb-4 lg:flex-row lg:items-center lg:justify-between">
             <div>
               <div className="flex items-center gap-2">
-                <CalendarDays className="h-4 w-4 text-primary-700" />
-                <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+                <CalendarDays className="h-4 w-4 text-[var(--color-text-accent)]" />
+                <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                   Live timetable
                 </h2>
               </div>
-              <p className="mt-2 text-sm text-ink/60">
+              <p className="mt-2 text-sm text-[var(--color-text-muted)]">
                 {todaysName} is highlighted automatically, and overdue attendance stays visible
                 until it is resolved.
               </p>
@@ -319,7 +326,7 @@ export function TeacherTimetableWorkspace({
                   className={
                     viewMode === id
                       ? "inline-flex h-10 items-center gap-2 rounded-full bg-[rgb(18,33,23)] px-4 text-sm font-semibold text-white"
-                      : "inline-flex h-10 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
+                      : "inline-flex h-10 items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 text-sm font-semibold text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                   }
                 >
                   <Icon className="h-4 w-4" />
@@ -343,12 +350,12 @@ export function TeacherTimetableWorkspace({
                   }}
                   className={
                     active
-                      ? "inline-flex min-w-[112px] flex-col rounded-[1.35rem] bg-brand-700 px-4 py-3 text-left text-white shadow-sm"
-                      : "inline-flex min-w-[112px] flex-col rounded-[1.35rem] border border-slate-200 bg-white px-4 py-3 text-left text-slate-700 transition hover:border-primary-200 hover:bg-primary-50"
+                      ? "inline-flex min-w-[112px] flex-col rounded-[10px] bg-[rgb(18,33,23)] px-4 py-3 text-left text-white"
+                      : "inline-flex min-w-[112px] flex-col rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-left text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                   }
                 >
                   <span className="text-sm font-bold">{day.slice(0, 3)}</span>
-                  <span className={active ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-slate-500"}>
+                  <span className={active ? "mt-1 text-xs text-white/70" : "mt-1 text-xs text-[var(--color-text-muted)]"}>
                     {dayDate ? formatDate(dayDate) : "This week"}
                   </span>
                 </button>
@@ -364,22 +371,27 @@ export function TeacherTimetableWorkspace({
                 return (
                   <section
                     key={day}
-                    className={`rounded-[1.6rem] border p-4 ${isToday ? "border-primary-200 bg-primary-50/50" : "border-slate-100 bg-slate-50/50"}`}
+                    className="rounded-[1.6rem] border p-4"
+                    style={
+                      isToday
+                        ? { borderColor: "var(--color-accent-primary)", background: "var(--color-accent-primary-dim)" }
+                        : { borderColor: "var(--color-border-default)", background: "var(--color-bg-subtle)" }
+                    }
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="font-semibold text-slate-900">{day}</p>
-                        <p className="mt-1 text-xs text-slate-500">
+                        <p className="font-semibold text-[var(--color-text-primary)]">{day}</p>
+                        <p className="mt-1 text-xs text-[var(--color-text-muted)]">
                           {formatDate(weekDates.get(normalizeDay(day)) ?? new Date())}
                         </p>
                       </div>
-                      <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                      <span className="rounded-full bg-[var(--color-bg-surface)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-muted)]">
                         {entries.length}
                       </span>
                     </div>
                     <div className="mt-4 grid gap-3">
                       {entries.length === 0 ? (
-                        <div className="rounded-2xl border border-dashed border-slate-200 bg-white px-3 py-5 text-center text-xs text-slate-500">
+                        <div className="rounded-2xl border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-5 text-center text-xs text-[var(--color-text-muted)]">
                           Free day
                         </div>
                       ) : (
@@ -388,15 +400,16 @@ export function TeacherTimetableWorkspace({
                             key={entry.id}
                             type="button"
                             onClick={() => setSelectedEntry(entry)}
-                            className={`rounded-[1.25rem] border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${entryTone(entry)}`}
+                            className="rounded-[1.25rem] border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                            style={entryTone(entry)}
                           >
                             <div className="flex items-start justify-between gap-2">
                               <div>
-                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                                   {formatTimeLabel(entry)}
                                 </p>
-                                <p className="mt-2 text-sm font-bold text-slate-900">{entry.subject}</p>
-                                <p className="mt-1 text-xs text-slate-600">
+                                <p className="mt-2 text-sm font-bold text-[var(--color-text-primary)]">{entry.subject}</p>
+                                <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                                   {entry.className ?? "Assigned class"} · {entry.venue}
                                 </p>
                               </div>
@@ -405,7 +418,10 @@ export function TeacherTimetableWorkspace({
                               ) : null}
                             </div>
                             <div className="mt-3 flex flex-wrap items-center gap-2">
-                              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${attendanceTone(entry.attendanceState)}`}>
+                              <span
+                                className="rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                                style={attendanceTone(entry.attendanceState)}
+                              >
                                 {entry.attendanceState === "marked"
                                   ? "Attendance marked"
                                   : entry.attendanceState === "pending"
@@ -426,10 +442,10 @@ export function TeacherTimetableWorkspace({
           ) : viewMode === "day" ? (
             <div className="mt-5 grid gap-3">
               {activeEntries.length === 0 ? (
-                <div className="grid place-items-center rounded-[1.6rem] border border-dashed border-slate-200 bg-slate-50 py-16 text-center">
+                <div className="grid place-items-center rounded-[1.6rem] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] py-16 text-center">
                   <div>
-                    <p className="text-base font-semibold text-slate-900">No periods on this day</p>
-                    <p className="mt-2 text-sm text-slate-500">
+                    <p className="text-base font-semibold text-[var(--color-text-primary)]">No periods on this day</p>
+                    <p className="mt-2 text-sm text-[var(--color-text-muted)]">
                       Switch to another day to review lessons and attendance status.
                     </p>
                   </div>
@@ -440,29 +456,33 @@ export function TeacherTimetableWorkspace({
                     key={entry.id}
                     type="button"
                     onClick={() => setSelectedEntry(entry)}
-                    className={`rounded-[1.6rem] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${entryTone(entry)}`}
+                    className="rounded-[1.6rem] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                    style={entryTone(entry)}
                   >
                     <div className="flex flex-wrap items-start justify-between gap-4">
                       <div className="flex min-w-0 items-start gap-4">
-                        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-white text-sm font-black text-primary-700 shadow-sm">
+                        <div className="grid h-12 w-12 place-items-center rounded-2xl bg-[var(--color-bg-surface)] text-sm font-black text-[var(--color-text-accent)] shadow-sm">
                           {entry.startsAt ? entry.startsAt.slice(0, 2) : "--"}
                         </div>
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
-                            <p className="font-semibold text-slate-900">{entry.subject}</p>
-                            <span className="rounded-full bg-white px-2.5 py-1 text-[10px] font-bold text-slate-500">
+                            <p className="font-semibold text-[var(--color-text-primary)]">{entry.subject}</p>
+                            <span className="rounded-full bg-[var(--color-bg-surface)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-muted)]">
                               {temporalLabel(entry)}
                             </span>
                           </div>
-                          <p className="mt-1 text-sm text-slate-600">
+                          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                             {entry.className ?? "Assigned class"} · {formatTimeLabel(entry)}
                           </p>
-                          <p className="mt-1 text-sm text-slate-500">{entry.venue}</p>
+                          <p className="mt-1 text-sm text-[var(--color-text-muted)]">{entry.venue}</p>
                         </div>
                       </div>
 
                       <div className="flex flex-wrap gap-2">
-                        <span className={`rounded-full border px-3 py-1 text-[11px] font-bold ${attendanceTone(entry.attendanceState)}`}>
+                        <span
+                          className="rounded-full border px-3 py-1 text-[11px] font-bold"
+                          style={attendanceTone(entry.attendanceState)}
+                        >
                           {entry.attendanceState === "marked"
                             ? "Marked"
                             : entry.attendanceState === "pending"
@@ -478,35 +498,38 @@ export function TeacherTimetableWorkspace({
               )}
             </div>
           ) : (
-            <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-slate-100">
+            <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-[var(--color-border-default)]">
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[760px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Day", "Time", "Subject", "Class", "Room", "Attendance"].map((heading) => (
                         <th
                           key={heading}
-                          className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500"
+                          className="px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"
                         >
                           {heading}
                         </th>
                       ))}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100 bg-white">
+                  <tbody className="divide-y divide-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
                     {decoratedEntries.map((entry) => (
                       <tr
                         key={entry.id}
-                        className="cursor-pointer transition hover:bg-primary-50/50"
+                        className="cursor-pointer transition hover:bg-[var(--color-accent-primary-dim)]"
                         onClick={() => setSelectedEntry(entry)}
                       >
-                        <td className="px-4 py-3 font-semibold text-slate-900">{entry.day}</td>
-                        <td className="px-4 py-3 text-slate-600">{formatTimeLabel(entry)}</td>
-                        <td className="px-4 py-3 text-slate-900">{entry.subject}</td>
-                        <td className="px-4 py-3 text-slate-600">{entry.className ?? "Assigned class"}</td>
-                        <td className="px-4 py-3 text-slate-600">{entry.venue}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{entry.day}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{formatTimeLabel(entry)}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-primary)]">{entry.subject}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{entry.className ?? "Assigned class"}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{entry.venue}</td>
                         <td className="px-4 py-3">
-                          <span className={`rounded-full border px-2.5 py-1 text-[10px] font-bold ${attendanceTone(entry.attendanceState)}`}>
+                          <span
+                            className="rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                            style={attendanceTone(entry.attendanceState)}
+                          >
                             {entry.attendanceState === "marked"
                               ? "Marked"
                               : entry.attendanceState === "pending"
@@ -526,11 +549,11 @@ export function TeacherTimetableWorkspace({
         </article>
 
         <aside className="grid gap-4 2xl:sticky 2xl:top-24 2xl:self-start">
-          <section className="rounded-[2rem] border border-white/60 bg-white/92 p-5 shadow-panel">
-            <div className="flex flex-col gap-4 border-b border-slate-100 pb-4">
+          <section className="surface-card p-5">
+            <div className="flex flex-col gap-4 border-b border-[var(--color-border-default)] pb-4">
               <div className="flex items-center gap-2">
-                <TimerReset className="h-4 w-4 text-emerald-600" />
-                <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">
+                <TimerReset className="h-4 w-4 text-[var(--color-success)]" />
+                <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
                   Teaching companion
                 </h2>
               </div>
@@ -547,7 +570,7 @@ export function TeacherTimetableWorkspace({
                     className={
                       supportTab === tab.id
                         ? "inline-flex h-10 items-center rounded-full bg-[rgb(18,33,23)] px-4 text-sm font-semibold text-white"
-                        : "inline-flex h-10 items-center rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-600 hover:border-primary-200 hover:bg-primary-50 hover:text-primary-800"
+                        : "inline-flex h-10 items-center rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 text-sm font-semibold text-[var(--color-text-secondary)] hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                     }
                   >
                     {tab.label}
@@ -559,7 +582,7 @@ export function TeacherTimetableWorkspace({
             {supportTab === "today" ? (
               <div className="mt-4 grid max-h-[30rem] gap-3 overflow-y-auto pr-1">
                 {todaysEntries.length === 0 ? (
-                  <div className="rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 py-10 text-center text-sm text-slate-500">
+                  <div className="rounded-[1.5rem] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] py-10 text-center text-sm text-[var(--color-text-muted)]">
                     No periods scheduled for today.
                   </div>
                 ) : (
@@ -568,15 +591,16 @@ export function TeacherTimetableWorkspace({
                       key={`today-${entry.id}`}
                       type="button"
                       onClick={() => setSelectedEntry(entry)}
-                      className={`rounded-[1.35rem] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm ${entryTone(entry)}`}
+                      className="rounded-[1.35rem] border p-4 text-left transition hover:-translate-y-0.5 hover:shadow-sm"
+                      style={entryTone(entry)}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                             {formatTimeLabel(entry)}
                           </p>
-                          <p className="mt-2 font-semibold text-slate-900">{entry.subject}</p>
-                          <p className="mt-1 text-sm text-slate-600">
+                          <p className="mt-2 font-semibold text-[var(--color-text-primary)]">{entry.subject}</p>
+                          <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
                             {entry.className ?? "Assigned class"} · {entry.venue}
                           </p>
                         </div>
@@ -595,13 +619,13 @@ export function TeacherTimetableWorkspace({
             {supportTab === "next" ? (
               <div className="mt-4">
                 {nextUp ? (
-                  <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-5">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <div className="rounded-[1.5rem] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                       Next live context
                     </p>
-                    <p className="mt-3 text-lg font-bold text-slate-900">{nextUp.subject}</p>
-                    <p className="mt-1 text-sm text-slate-600">{nextUp.className ?? "Assigned class"}</p>
-                    <p className="mt-1 text-sm text-slate-500">
+                    <p className="mt-3 text-lg font-bold text-[var(--color-text-primary)]">{nextUp.subject}</p>
+                    <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{nextUp.className ?? "Assigned class"}</p>
+                    <p className="mt-1 text-sm text-[var(--color-text-muted)]">
                       {nextUp.day} · {formatTimeLabel(nextUp)} · {nextUp.venue}
                     </p>
                     <div className="mt-4 flex flex-wrap gap-3">
@@ -621,33 +645,42 @@ export function TeacherTimetableWorkspace({
                     </div>
                   </div>
                 ) : (
-                  <p className="mt-3 text-sm text-slate-500">Your teaching board is clear right now.</p>
+                  <p className="mt-3 text-sm text-[var(--color-text-muted)]">Your teaching board is clear right now.</p>
                 )}
               </div>
             ) : null}
 
             {supportTab === "attention" ? (
               <div className="mt-4 grid gap-3">
-                <div className="rounded-[1.35rem] border border-emerald-100 bg-emerald-50/70 px-4 py-3">
+                <div
+                  className="rounded-[1.35rem] border px-4 py-3"
+                  style={{ borderColor: "var(--color-success)", background: "var(--color-success-dim)" }}
+                >
                   <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-                    <p className="text-sm font-semibold text-emerald-900">Marked today</p>
+                    <CheckCircle2 className="h-4 w-4" style={{ color: "var(--color-success)" }} />
+                    <p className="text-sm font-semibold" style={{ color: "var(--color-success)" }}>Marked today</p>
                   </div>
-                  <p className="mt-2 text-2xl font-black text-emerald-900">{summary.marked}</p>
+                  <p className="mt-2 text-2xl font-black" style={{ color: "var(--color-success)" }}>{summary.marked}</p>
                 </div>
-                <div className="rounded-[1.35rem] border border-amber-100 bg-amber-50/70 px-4 py-3">
+                <div
+                  className="rounded-[1.35rem] border px-4 py-3"
+                  style={{ borderColor: "var(--color-warning)", background: "var(--color-warning-dim)" }}
+                >
                   <div className="flex items-center gap-2">
-                    <TriangleAlert className="h-4 w-4 text-amber-600" />
-                    <p className="text-sm font-semibold text-amber-900">Pending now</p>
+                    <TriangleAlert className="h-4 w-4" style={{ color: "var(--color-warning)" }} />
+                    <p className="text-sm font-semibold" style={{ color: "var(--color-warning)" }}>Pending now</p>
                   </div>
-                  <p className="mt-2 text-2xl font-black text-amber-900">{summary.pending}</p>
+                  <p className="mt-2 text-2xl font-black" style={{ color: "var(--color-warning)" }}>{summary.pending}</p>
                 </div>
-                <div className="rounded-[1.35rem] border border-rose-100 bg-rose-50/70 px-4 py-3">
+                <div
+                  className="rounded-[1.35rem] border px-4 py-3"
+                  style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)" }}
+                >
                   <div className="flex items-center gap-2">
-                    <TriangleAlert className="h-4 w-4 text-rose-600" />
-                    <p className="text-sm font-semibold text-rose-900">Overdue</p>
+                    <TriangleAlert className="h-4 w-4" style={{ color: "var(--color-danger)" }} />
+                    <p className="text-sm font-semibold" style={{ color: "var(--color-danger)" }}>Overdue</p>
                   </div>
-                  <p className="mt-2 text-2xl font-black text-rose-900">{summary.overdue}</p>
+                  <p className="mt-2 text-2xl font-black" style={{ color: "var(--color-danger)" }}>{summary.overdue}</p>
                 </div>
               </div>
             ) : null}
@@ -685,46 +718,52 @@ export function TeacherTimetableWorkspace({
       >
         {selectedEntry ? (
           <div className="grid gap-5">
-            <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-5">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-primary-700">
+            <div
+              className="rounded-[1.5rem] border p-5"
+              style={{ borderColor: "var(--color-accent-primary)", background: "var(--color-accent-primary-dim)" }}
+            >
+              <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--color-text-accent)]">
                 Period context
               </p>
-              <div className="mt-3 grid gap-3 text-sm text-slate-700">
+              <div className="mt-3 grid gap-3 text-sm text-[var(--color-text-secondary)]">
                 <p className="inline-flex items-center gap-2">
-                  <CalendarDays className="h-4 w-4 text-primary-600" />
+                  <CalendarDays className="h-4 w-4 text-[var(--color-text-accent)]" />
                   {selectedEntry.day}
                   {selectedEntry.dayDate ? ` · ${formatDate(selectedEntry.dayDate)}` : ""}
                 </p>
                 <p className="inline-flex items-center gap-2">
-                  <Clock3 className="h-4 w-4 text-emerald-600" />
+                  <Clock3 className="h-4 w-4" style={{ color: "var(--color-success)" }} />
                   {formatTimeLabel(selectedEntry)}
                 </p>
                 <p className="inline-flex items-center gap-2">
-                  <BookOpen className="h-4 w-4 text-violet-600" />
+                  <BookOpen className="h-4 w-4" style={{ color: "var(--color-info)" }} />
                   {selectedEntry.subject}
                 </p>
                 <p className="inline-flex items-center gap-2">
-                  <DoorOpen className="h-4 w-4 text-amber-600" />
+                  <DoorOpen className="h-4 w-4" style={{ color: "var(--color-warning)" }} />
                   {selectedEntry.venue}
                 </p>
               </div>
             </div>
 
             <div className="grid gap-3 sm:grid-cols-2">
-              <div className="rounded-[1.4rem] border border-slate-100 bg-white p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <div className="rounded-[1.4rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                   Teaching lane
                 </p>
-                <p className="mt-2 font-semibold text-slate-900">
+                <p className="mt-2 font-semibold text-[var(--color-text-primary)]">
                   {selectedEntry.className ?? "Assigned class"}
                 </p>
-                <p className="mt-1 text-sm text-slate-500">{temporalLabel(selectedEntry)}</p>
+                <p className="mt-1 text-sm text-[var(--color-text-muted)]">{temporalLabel(selectedEntry)}</p>
               </div>
-              <div className="rounded-[1.4rem] border border-slate-100 bg-white p-4">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+              <div className="rounded-[1.4rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
+                <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                   Attendance
                 </p>
-                <span className={`mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold ${attendanceTone(selectedEntry.attendanceState)}`}>
+                <span
+                  className="mt-2 inline-flex rounded-full border px-2.5 py-1 text-[10px] font-bold"
+                  style={attendanceTone(selectedEntry.attendanceState)}
+                >
                   {selectedEntry.attendanceState === "marked"
                     ? "Attendance marked"
                     : selectedEntry.attendanceState === "pending"
@@ -736,33 +775,33 @@ export function TeacherTimetableWorkspace({
               </div>
             </div>
 
-            <div className="rounded-[1.5rem] border border-slate-100 bg-slate-50/80 p-5">
+            <div className="rounded-[1.5rem] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
               <div className="flex items-center gap-2">
-                <FileCheck2 className="h-4 w-4 text-slate-500" />
-                <p className="text-sm font-semibold text-slate-900">Teacher actions</p>
+                <FileCheck2 className="h-4 w-4 text-[var(--color-text-muted)]" />
+                <p className="text-sm font-semibold text-[var(--color-text-primary)]">Teacher actions</p>
               </div>
               <div className="mt-4 grid gap-3">
                 <Link
                   href={`/portals/teacher/attendance?classId=${selectedEntry.classId ?? ""}&subjectId=${selectedEntry.subjectId ?? ""}`}
-                  className="flex items-center justify-between rounded-[1.2rem] border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-primary-50"
+                  className="flex items-center justify-between rounded-[1.2rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm font-semibold text-[var(--color-text-secondary)] shadow-sm transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                 >
                   Mark attendance for this period
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                  <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                 </Link>
                 <Link
                   href="/portals/teacher/content/lesson-notes/planning"
-                  className="flex items-center justify-between rounded-[1.2rem] border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-primary-50"
+                  className="flex items-center justify-between rounded-[1.2rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm font-semibold text-[var(--color-text-secondary)] shadow-sm transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                 >
                   Open lesson notes
-                  <ChevronRight className="h-4 w-4 text-slate-400" />
+                  <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                 </Link>
                 {canOpenScores ? (
                   <Link
                     href="/portals/teacher/gradebook"
-                    className="flex items-center justify-between rounded-[1.2rem] border border-white bg-white px-4 py-3 text-sm font-semibold text-slate-800 shadow-sm transition hover:border-primary-200 hover:bg-primary-50"
+                    className="flex items-center justify-between rounded-[1.2rem] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm font-semibold text-[var(--color-text-secondary)] shadow-sm transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]"
                   >
                     Open gradebook
-                    <ChevronRight className="h-4 w-4 text-slate-400" />
+                    <ChevronRight className="h-4 w-4 text-[var(--color-text-muted)]" />
                   </Link>
                 ) : null}
               </div>

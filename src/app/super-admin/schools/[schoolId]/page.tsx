@@ -89,16 +89,23 @@ export default async function SuperAdminSchoolDetailPage({
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6">
-        <Link href="/super-admin/schools" className="text-[13px] font-semibold text-[var(--color-text-accent)]">
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1]">
+        <Link href="/super-admin/schools" className="text-[13px] font-semibold text-[rgba(255,255,255,0.85)] underline">
           ← Back to schools
         </Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="section-eyebrow">Tenant profile</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">{school.name}</h1>
-            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{school.slug} · Created {formatDate(school.createdAt)}</p>
-            {school.statusReason ? <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">Last status reason: {school.statusReason}</p> : null}
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant profile</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">{school.name}</h1>
+            <p className="mt-2 text-[13px] text-[rgba(255,255,255,0.74)]">{school.slug} · Created {formatDate(school.createdAt)}</p>
+            {school.statusReason ? <p className="mt-1 text-[12px] text-white/60">Last status reason: {school.statusReason}</p> : null}
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={school.status} />
@@ -109,12 +116,13 @@ export default async function SuperAdminSchoolDetailPage({
             {school.prioritySupport ? (
               <span
                 className="rounded-full px-3.5 py-1.5 text-[12.5px] font-bold"
-                style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+                style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
               >
                 Priority support
               </span>
             ) : null}
           </div>
+        </div>
         </div>
       </section>
 

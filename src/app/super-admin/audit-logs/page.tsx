@@ -52,12 +52,18 @@ export default async function SuperAdminAuditLogsPage({ searchParams }: { search
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6 md:p-7">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="section-eyebrow">Compliance trail</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Audit Logs</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Compliance trail</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Audit Logs</h1>
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
               Every significant action taken on the platform, logged here immutably — who did what, to what, and
               when. This is the accountability layer behind every other module.
             </p>

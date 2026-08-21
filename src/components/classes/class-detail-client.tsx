@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import { ArrowLeft, Award, CheckCircle2, ClipboardCheck, DoorOpen, Star, UserCheck, Users } from "lucide-react";
 
 import { CanDo, usePermissions } from "@/components/auth/permission-provider";
@@ -83,11 +84,11 @@ async function apiJson<T>(path: string): Promise<T> {
   return body.data as T;
 }
 
-function gradeClass(score?: number | null) {
-  if (score === null || score === undefined) return "text-ink/30";
-  if (score >= 70) return "text-emerald-700";
-  if (score >= 50) return "text-amber-700";
-  return "text-rose-700";
+function gradeStyle(score?: number | null): CSSProperties {
+  if (score === null || score === undefined) return { color: "var(--color-text-muted)" };
+  if (score >= 70) return { color: "var(--color-success)" };
+  if (score >= 50) return { color: "var(--color-warning)" };
+  return { color: "var(--color-danger)" };
 }
 
 function ordinal(value?: number) {
@@ -108,7 +109,7 @@ function Hero({ detail }: { detail: ClassDetail }) {
   const fullness = detail.capacity ? Math.round((studentCount / detail.capacity) * 100) : 0;
 
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-panel backdrop-blur-xl">
+    <section className="surface-hero">
       <div className={cn("h-2 bg-gradient-to-r", categoryGradient)} />
       <div className="p-6">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start">
@@ -118,22 +119,22 @@ function Hero({ detail }: { detail: ClassDetail }) {
           <div className="min-w-0 flex-1">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
               <div>
-                <p className="text-xs font-black uppercase tracking-[0.24em] text-brand-700">{detail.category}</p>
-                <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">{detail.name}</h1>
-                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink/58">
+                <p className="text-xs font-black uppercase tracking-[0.24em] text-[var(--color-text-accent)]">{detail.category}</p>
+                <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black tracking-tight text-[var(--color-text-primary)]">{detail.name}</h1>
+                <div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-[var(--color-text-muted)]">
                   <span>{detail.level}</span>
-                  <span className="text-ink/20">/</span>
+                  <span>/</span>
                   <span>{detail.arm ?? detail.section}</span>
                   {detail.room ? (
                     <>
-                      <span className="text-ink/20">/</span>
+                      <span>/</span>
                       <span className="inline-flex items-center gap-1"><DoorOpen className="h-3.5 w-3.5" /> {detail.room}</span>
                     </>
                   ) : null}
                 </div>
               </div>
               <CanDo permission="classes.edit">
-                <button className="rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/68 shadow-sm transition hover:bg-sand">
+                <button className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-secondary)] shadow-sm transition hover:bg-[var(--color-bg-subtle)]">
                   Edit Class
                 </button>
               </CanDo>
@@ -153,11 +154,11 @@ function Hero({ detail }: { detail: ClassDetail }) {
 
 function MiniStat({ label, value, note, icon: Icon }: { label: string; value: string; note: string; icon: typeof Users }) {
   return (
-    <div className="rounded-[1.25rem] border border-ink/8 bg-sand/45 p-4">
-      <Icon className="h-4 w-4 text-brand-700" />
-      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.18em] text-ink/40">{label}</p>
-      <p className="mt-1 truncate text-lg font-black text-ink">{value}</p>
-      <p className="mt-1 text-xs text-ink/45">{note}</p>
+    <div className="surface-card p-4">
+      <Icon className="h-4 w-4 text-[var(--color-text-accent)]" />
+      <p className="mt-3 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-1 truncate text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="mt-1 text-xs text-[var(--color-text-muted)]">{note}</p>
     </div>
   );
 }
@@ -198,8 +199,13 @@ export function ClassDetailClient({
     };
   }, [classId, initialDetail]);
 
-  if (loading) return <div className="h-96 animate-pulse rounded-[2rem] bg-white/70" />;
-  if (error || !detail) return <div className="rounded-[2rem] border border-rose-200 bg-rose-50 p-8 text-rose-700">{error ?? "Class not found."}</div>;
+  if (loading) return <div className="h-96 animate-pulse rounded-[14px] bg-[var(--color-bg-subtle)]" />;
+  if (error || !detail)
+    return (
+      <div className="rounded-[14px] p-8" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+        {error ?? "Class not found."}
+      </div>
+    );
 
   const tabs = [
     { id: "members", label: "Class Members", icon: Users },
@@ -210,15 +216,15 @@ export function ClassDetailClient({
   ];
 
   return (
-    <div className="grid gap-6">
-      <Link href="/classes" className="inline-flex w-fit items-center gap-2 rounded-full bg-white/80 px-4 py-2 text-sm font-semibold text-ink/65 shadow-sm transition hover:bg-white">
+    <div className="portal-page">
+      <Link href="/classes" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)]">
         <ArrowLeft className="h-4 w-4" />
         Back to classes
       </Link>
       <Hero detail={detail} />
 
-      <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/88 shadow-panel backdrop-blur-xl">
-        <div className="flex gap-1 overflow-x-auto border-b border-ink/8 px-3 pt-3">
+      <section className="surface-card overflow-hidden p-0">
+        <div className="flex gap-1 overflow-x-auto border-b border-[var(--color-border-default)] px-3 pt-3">
           {tabs.map((tab) => {
             if (tab.permission && !hasPermission(tab.permission)) return null;
             const Icon = tab.icon;
@@ -229,7 +235,9 @@ export function ClassDetailClient({
                 onClick={() => setActiveTab(tab.id)}
                 className={cn(
                   "inline-flex items-center gap-2 rounded-t-2xl px-4 py-3 text-sm font-semibold transition",
-                  activeTab === tab.id ? "bg-sand text-ink" : "text-ink/48 hover:bg-sand/55 hover:text-ink/75",
+                  activeTab === tab.id
+                    ? "bg-[var(--color-bg-subtle)] text-[var(--color-text-primary)]"
+                    : "text-[var(--color-text-muted)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-secondary)]",
                 )}
               >
                 <Icon className="h-4 w-4" />
@@ -273,33 +281,37 @@ function MembersTab({
   return (
     <div className="grid gap-4">
       <div>
-        <h2 className="text-lg font-black text-ink">Class Members</h2>
-        <p className="text-sm text-ink/50">{totalItems} students in {className}</p>
+        <h2 className="text-lg font-black text-[var(--color-text-primary)]">Class Members</h2>
+        <p className="text-sm text-[var(--color-text-muted)]">{totalItems} students in {className}</p>
       </div>
-      <div className="overflow-x-auto rounded-[1.5rem] border border-ink/8">
+      <div className="overflow-x-auto rounded-[10px] border border-[var(--color-border-default)]">
         <table className="w-full min-w-[800px] text-sm">
-          <thead className="bg-sand/70 text-left text-xs font-black uppercase tracking-[0.16em] text-ink/42">
+          <thead className="bg-[var(--color-bg-subtle)] text-left text-xs font-black uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
             <tr><th className="px-4 py-3">S/N</th><th className="px-4 py-3">Student</th><th className="px-4 py-3">Admission No.</th><th className="px-4 py-3">Gender</th><th className="px-4 py-3">Parent</th><th className="px-4 py-3">Status</th><th className="px-4 py-3 text-right">Actions</th></tr>
           </thead>
-          <tbody className="divide-y divide-ink/6">
-            {isLoading ? <tr><td colSpan={7} className="px-4 py-8 text-center text-ink/45">Loading students...</td></tr> : null}
-            {!isLoading && data.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-ink/45">No students enrolled in this class yet.</td></tr> : null}
+          <tbody className="divide-y divide-[var(--color-border-default)]">
+            {isLoading ? <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--color-text-muted)]">Loading students...</td></tr> : null}
+            {!isLoading && data.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--color-text-muted)]">No students enrolled in this class yet.</td></tr> : null}
             {!isLoading && data.map((student) => (
-              <tr key={student.id} className="hover:bg-sand/35">
-                <td className="px-4 py-3 text-ink/40">{student.sn}</td>
+              <tr key={student.id} className="hover:bg-[var(--color-bg-subtle)]">
+                <td className="px-4 py-3 text-[var(--color-text-muted)]">{student.sn}</td>
                 <td className="px-4 py-3">
                   <button
                     type="button"
                     onClick={() => setSelectedStudentId(student.id)}
-                    className="font-semibold text-ink transition hover:text-primary-700"
+                    className="font-semibold text-[var(--color-text-primary)] transition hover:text-[var(--color-text-accent)]"
                   >
                     {student.lastName ?? student.last_name}, {student.firstName ?? student.first_name}
                   </button>
                 </td>
-                <td className="px-4 py-3 font-mono text-xs text-ink/55">{student.admissionNumber ?? student.admission_number}</td>
-                <td className="px-4 py-3 text-ink/60">{student.gender}</td>
-                <td className="px-4 py-3 text-ink/60">{student.parentName ?? student.parent_name ?? "-"}</td>
-                <td className="px-4 py-3"><span className="rounded-full bg-emerald-50 px-2 py-1 text-xs font-bold text-emerald-700">{student.status}</span></td>
+                <td className="px-4 py-3 font-mono text-xs text-[var(--color-text-muted)]">{student.admissionNumber ?? student.admission_number}</td>
+                <td className="px-4 py-3 text-[var(--color-text-muted)]">{student.gender}</td>
+                <td className="px-4 py-3 text-[var(--color-text-muted)]">{student.parentName ?? student.parent_name ?? "-"}</td>
+                <td className="px-4 py-3">
+                  <span className="rounded-full px-2 py-1 text-xs font-bold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
+                    {student.status}
+                  </span>
+                </td>
                 <td className="px-4 py-3 text-right">
                   <ActionMenu triggerLabel={`Actions for ${(student.firstName ?? student.first_name) ?? "student"}`}>
                     <ActionMenuButton onClick={() => setSelectedStudentId(student.id)}>
@@ -324,30 +336,30 @@ function MembersTab({
 function ResultsTab({ classId }: { classId: string }) {
   const [data, setData] = useState<ResultData | null>(null);
   useEffect(() => { apiJson<ResultData>(`/api/v1/classes/${classId}/results`).then(setData).catch(() => setData({ students: [], subjects: [] })); }, [classId]);
-  if (!data) return <div className="py-8 text-center text-ink/45">Loading result summary...</div>;
+  if (!data) return <div className="py-8 text-center text-[var(--color-text-muted)]">Loading result summary...</div>;
   return (
     <div className="grid gap-4">
-      <div className="rounded-[1.5rem] border border-ink/8 bg-sand/45 p-4">
-        <p className="text-sm font-bold text-ink">Result Broadsheet</p>
-        <p className="mt-1 text-sm text-ink/55">{data.subjects.length} subjects configured for this class.</p>
+      <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+        <p className="text-sm font-bold text-[var(--color-text-primary)]">Result Broadsheet</p>
+        <p className="mt-1 text-sm text-[var(--color-text-muted)]">{data.subjects.length} subjects configured for this class.</p>
       </div>
-      <div className="overflow-auto rounded-[1.5rem] border border-ink/8">
+      <div className="overflow-auto rounded-[10px] border border-[var(--color-border-default)]">
         <table className="min-w-full text-xs">
-          <thead className="bg-sand/70 text-left font-black uppercase tracking-[0.14em] text-ink/42">
-            <tr><th className="sticky left-0 bg-sand px-4 py-3">Student</th>{data.subjects.map((subject) => <th key={subject.id} className="px-3 py-3 text-center">{subject.code}</th>)}<th className="px-3 py-3 text-center">Avg</th><th className="px-3 py-3 text-center">Grade</th><th className="px-3 py-3 text-center">Position</th></tr>
+          <thead className="bg-[var(--color-bg-subtle)] text-left font-black uppercase tracking-[0.14em] text-[var(--color-text-muted)]">
+            <tr><th className="sticky left-0 bg-[var(--color-bg-subtle)] px-4 py-3">Student</th>{data.subjects.map((subject) => <th key={subject.id} className="px-3 py-3 text-center">{subject.code}</th>)}<th className="px-3 py-3 text-center">Avg</th><th className="px-3 py-3 text-center">Grade</th><th className="px-3 py-3 text-center">Position</th></tr>
           </thead>
-          <tbody className="divide-y divide-ink/6">
+          <tbody className="divide-y divide-[var(--color-border-default)]">
             {data.students.map((student) => (
               <tr key={student.studentId ?? student.student_id}>
-                <td className="sticky left-0 bg-white px-4 py-3 font-semibold text-ink">{student.studentName ?? student.student_name}</td>
+                <td className="sticky left-0 bg-[var(--color-bg-surface)] px-4 py-3 font-semibold text-[var(--color-text-primary)]">{student.studentName ?? student.student_name}</td>
                 {data.subjects.map((subject) => {
                   const subjectScore = student.subjects.find((item) => (item.subjectId ?? item.subject_id) === subject.id);
                   const score = subjectScore?.totalScore ?? subjectScore?.total_score ?? null;
-                  return <td key={subject.id} className={cn("px-3 py-3 text-center font-bold", gradeClass(score))}>{score ?? "-"}</td>;
+                  return <td key={subject.id} className="px-3 py-3 text-center font-bold" style={gradeStyle(score)}>{score ?? "-"}</td>;
                 })}
-                <td className={cn("px-3 py-3 text-center font-bold", gradeClass(student.average))}>{student.average ?? "-"}</td>
-                <td className="px-3 py-3 text-center font-bold text-ink">{student.grade ?? "-"}</td>
-                <td className="px-3 py-3 text-center font-bold text-ink">{ordinal(student.position)}</td>
+                <td className="px-3 py-3 text-center font-bold" style={gradeStyle(student.average)}>{student.average ?? "-"}</td>
+                <td className="px-3 py-3 text-center font-bold text-[var(--color-text-primary)]">{student.grade ?? "-"}</td>
+                <td className="px-3 py-3 text-center font-bold text-[var(--color-text-primary)]">{ordinal(student.position)}</td>
               </tr>
             ))}
           </tbody>
@@ -360,24 +372,35 @@ function ResultsTab({ classId }: { classId: string }) {
 function AttendanceTab({ classId }: { classId: string }) {
   const [data, setData] = useState<{ summary: AttendanceSummary[] } | null>(null);
   useEffect(() => { apiJson<{ summary: AttendanceSummary[] }>(`/api/v1/classes/${classId}/attendance`).then(setData).catch(() => setData({ summary: [] })); }, [classId]);
-  if (!data) return <div className="py-8 text-center text-ink/45">Loading attendance...</div>;
+  if (!data) return <div className="py-8 text-center text-[var(--color-text-muted)]">Loading attendance...</div>;
   return (
-    <div className="overflow-x-auto rounded-[1.5rem] border border-ink/8">
+    <div className="overflow-x-auto rounded-[10px] border border-[var(--color-border-default)]">
       <table className="w-full min-w-[720px] text-sm">
-        <thead className="bg-sand/70 text-left text-xs font-black uppercase tracking-[0.16em] text-ink/42">
+        <thead className="bg-[var(--color-bg-subtle)] text-left text-xs font-black uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
           <tr><th className="px-4 py-3">Student</th><th className="px-4 py-3">Days</th><th className="px-4 py-3">Present</th><th className="px-4 py-3">Late</th><th className="px-4 py-3">Absent</th><th className="px-4 py-3">Excused</th><th className="px-4 py-3">%</th></tr>
         </thead>
-        <tbody className="divide-y divide-ink/6">
-          {data.summary.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-ink/45">No attendance records yet.</td></tr> : null}
+        <tbody className="divide-y divide-[var(--color-border-default)]">
+          {data.summary.length === 0 ? <tr><td colSpan={7} className="px-4 py-8 text-center text-[var(--color-text-muted)]">No attendance records yet.</td></tr> : null}
           {data.summary.map((item) => (
             <tr key={item.studentId ?? item.student_id}>
-              <td className="px-4 py-3 font-semibold text-ink">{item.studentName ?? item.student_name}</td>
+              <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{item.studentName ?? item.student_name}</td>
               <td className="px-4 py-3">{item.totalDays ?? item.total_days}</td>
-              <td className="px-4 py-3 text-emerald-700">{item.present}</td>
-              <td className="px-4 py-3 text-amber-700">{item.late}</td>
-              <td className="px-4 py-3 text-rose-700">{item.absent}</td>
-              <td className="px-4 py-3 text-blue-700">{item.excused}</td>
-              <td className="px-4 py-3"><span className={cn("rounded-full px-2 py-1 text-xs font-black", item.percentage >= 75 ? "bg-emerald-50 text-emerald-700" : "bg-rose-50 text-rose-700")}>{item.percentage}%</span></td>
+              <td className="px-4 py-3 text-[var(--color-success)]">{item.present}</td>
+              <td className="px-4 py-3 text-[var(--color-warning)]">{item.late}</td>
+              <td className="px-4 py-3 text-[var(--color-danger)]">{item.absent}</td>
+              <td className="px-4 py-3 text-[var(--color-info)]">{item.excused}</td>
+              <td className="px-4 py-3">
+                <span
+                  className="rounded-full px-2 py-1 text-xs font-black"
+                  style={
+                    item.percentage >= 75
+                      ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                      : { background: "var(--color-danger-dim)", color: "var(--color-danger)" }
+                  }
+                >
+                  {item.percentage}%
+                </span>
+              </td>
             </tr>
           ))}
         </tbody>
@@ -389,22 +412,22 @@ function AttendanceTab({ classId }: { classId: string }) {
 function SkillsTab({ classId }: { classId: string }) {
   const [data, setData] = useState<SkillsData | null>(null);
   useEffect(() => { apiJson<SkillsData>(`/api/v1/classes/${classId}/skills`).then(setData).catch(() => setData({ definitions: [], ratings: [] })); }, [classId]);
-  if (!data) return <div className="py-8 text-center text-ink/45">Loading Early Years skills...</div>;
+  if (!data) return <div className="py-8 text-center text-[var(--color-text-muted)]">Loading Early Years skills...</div>;
   const grouped = data.definitions.reduce<Record<string, SkillDefinitionView[]>>((acc, item) => ({ ...acc, [item.category]: [...(acc[item.category] ?? []), item] }), {});
   return (
     <div className="grid gap-4">
-      <div className="rounded-[1.5rem] border border-ink/8 bg-sand/45 p-4 text-sm text-ink/60">
+      <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 text-sm text-[var(--color-text-muted)]">
         Early Years ratings: D = Developing, AP = Approaching, M = Meeting, E = Exceeding.
       </div>
       {Object.entries(grouped).map(([category, skills]) => (
-        <div key={category} className="rounded-[1.5rem] border border-ink/8 bg-white p-4">
-          <h3 className="font-black text-ink">{category}</h3>
+        <div key={category} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
+          <h3 className="font-black text-[var(--color-text-primary)]">{category}</h3>
           <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            {skills.map((skill) => <div key={skill.id} className="rounded-2xl bg-sand/50 px-3 py-2 text-sm font-medium text-ink/70">{skill.name}</div>)}
+            {skills.map((skill) => <div key={skill.id} className="rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)]">{skill.name}</div>)}
           </div>
         </div>
       ))}
-      {data.ratings.length === 0 ? <p className="text-sm text-ink/45">No skill ratings have been recorded for this class yet.</p> : null}
+      {data.ratings.length === 0 ? <p className="text-sm text-[var(--color-text-muted)]">No skill ratings have been recorded for this class yet.</p> : null}
     </div>
   );
 }
@@ -419,23 +442,23 @@ function TeacherTab({ detail }: { detail: ClassDetail }) {
   return (
     <div className="grid gap-5 lg:grid-cols-[1fr_1fr]">
       {teacherCards.map(({ label, person }) => (
-        <div key={label} className="rounded-[1.5rem] border border-ink/8 bg-white p-5">
-          <p className="text-xs font-black uppercase tracking-[0.2em] text-ink/42">{label}</p>
+        <div key={label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
+          <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-text-muted)]">{label}</p>
           {person ? (
             <div className="mt-4 flex items-center gap-3">
-              <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-ink text-xs font-black text-white">{person.name.slice(0, 2).toUpperCase()}</span>
-              <div><p className="font-black text-ink">{person.name}</p><p className="text-sm text-ink/50">{person.email}</p></div>
+              <span className="flex h-12 w-12 items-center justify-center rounded-[10px] bg-[var(--color-text-primary)] text-xs font-black text-[var(--color-bg-surface)]">{person.name.slice(0, 2).toUpperCase()}</span>
+              <div><p className="font-black text-[var(--color-text-primary)]">{person.name}</p><p className="text-sm text-[var(--color-text-muted)]">{person.email}</p></div>
             </div>
           ) : (
-            <p className="mt-4 text-sm text-ink/50">Not assigned yet.</p>
+            <p className="mt-4 text-sm text-[var(--color-text-muted)]">Not assigned yet.</p>
           )}
         </div>
       ))}
-      <div className="rounded-[1.5rem] border border-ink/8 bg-sand/45 p-5 lg:col-span-2">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-ink/42">Form Teacher Duties</p>
-        <ul className="mt-3 grid gap-2 text-sm text-ink/62 md:grid-cols-2">
+      <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5 lg:col-span-2">
+        <p className="text-xs font-black uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Form Teacher Duties</p>
+        <ul className="mt-3 grid gap-2 text-sm text-[var(--color-text-muted)] md:grid-cols-2">
           {["Take morning attendance daily", "Write form teacher comments on report cards", "Monitor welfare and conduct", "Communicate with parents", "Submit end-of-term class reports", "Coordinate support for struggling learners"].map((duty) => (
-            <li key={duty} className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-brand-700" /> {duty}</li>
+            <li key={duty} className="flex items-start gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 text-[var(--color-text-accent)]" /> {duty}</li>
           ))}
         </ul>
       </div>

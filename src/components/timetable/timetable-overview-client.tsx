@@ -62,30 +62,30 @@ type ConflictResult = {
 
 const categories = ["Early Years", "Primary", "Junior Secondary", "Senior Secondary", "Other"];
 const categoryConfig: Record<string, { gradient: string; chip: string }> = {
-  "Early Years": { gradient: "from-violet-500 via-fuchsia-500 to-purple-600", chip: "bg-violet-50 text-violet-800 border-violet-200" },
-  Primary: { gradient: "from-blue-500 via-sky-500 to-indigo-600", chip: "bg-blue-50 text-blue-800 border-blue-200" },
-  "Junior Secondary": { gradient: "from-teal-500 via-emerald-500 to-green-600", chip: "bg-teal-50 text-teal-800 border-teal-200" },
-  "Senior Secondary": { gradient: "from-orange-500 via-amber-500 to-red-600", chip: "bg-orange-50 text-orange-800 border-orange-200" },
-  Other: { gradient: "from-slate-500 via-slate-600 to-ink", chip: "bg-slate-50 text-slate-700 border-slate-200" },
+  "Early Years": { gradient: "from-[var(--color-accent-primary)] to-[var(--color-accent-primary-hover)]", chip: "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)] border-[var(--color-border-default)]" },
+  Primary: { gradient: "from-[var(--color-info)] to-[var(--color-accent-primary-hover)]", chip: "bg-[var(--color-info-dim)] text-[var(--color-info)] border-[var(--color-border-default)]" },
+  "Junior Secondary": { gradient: "from-[var(--color-accent-primary)] to-[var(--color-success)]", chip: "bg-[var(--color-success-dim)] text-[var(--color-success)] border-[var(--color-border-default)]" },
+  "Senior Secondary": { gradient: "from-[var(--color-warning)] to-[var(--color-danger)]", chip: "bg-[var(--color-warning-dim)] text-[var(--color-warning)] border-[var(--color-border-default)]" },
+  Other: { gradient: "from-[var(--color-text-muted)] to-[var(--color-text-primary)]", chip: "bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] border-[var(--color-border-default)]" },
 };
 
 const statusConfig = {
-  published: { label: "Published", icon: CheckCircle2, badge: "bg-emerald-50 text-emerald-700 border-emerald-200", bar: "bg-emerald-500" },
-  draft: { label: "Draft", icon: Clock, badge: "bg-amber-50 text-amber-700 border-amber-200", bar: "bg-amber-500" },
-  empty: { label: "Not Set Up", icon: AlertCircle, badge: "bg-slate-50 text-slate-600 border-slate-200", bar: "bg-slate-400" },
-  structure_only: { label: "Needs Subjects", icon: AlertCircle, badge: "bg-rose-50 text-rose-700 border-rose-200", bar: "bg-rose-400" },
+  published: { label: "Published", icon: CheckCircle2, badge: "bg-[var(--color-success-dim)] text-[var(--color-success)] border-[var(--color-border-default)]", bar: "bg-[var(--color-success)]" },
+  draft: { label: "Draft", icon: Clock, badge: "bg-[var(--color-warning-dim)] text-[var(--color-warning)] border-[var(--color-border-default)]", bar: "bg-[var(--color-warning)]" },
+  empty: { label: "Not Set Up", icon: AlertCircle, badge: "bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)] border-[var(--color-border-default)]", bar: "bg-[var(--color-text-muted)]" },
+  structure_only: { label: "Needs Subjects", icon: AlertCircle, badge: "bg-[var(--color-danger-dim)] text-[var(--color-danger)] border-[var(--color-border-default)]", bar: "bg-[var(--color-danger)]" },
 };
 
 function StatCard({ label, value, tone, icon: Icon }: { label: string; value: number; tone: string; icon: typeof Calendar }) {
   return (
-    <div className="rounded-[1.5rem] border border-white/65 bg-white/85 p-4 shadow-[0_16px_40px_rgba(18,33,23,0.06)]">
+    <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
       <div className="flex items-center justify-between">
-        <span className="text-xs font-bold uppercase tracking-[0.18em] text-ink/42">{label}</span>
-        <span className={cn("rounded-2xl p-2", tone)}>
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</span>
+        <span className={cn("rounded-[10px] p-2", tone)}>
           <Icon className="h-4 w-4" />
         </span>
       </div>
-      <p className="mt-4 font-[var(--font-heading)] text-3xl font-black text-ink">{value}</p>
+      <p className="mt-4 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
     </div>
   );
 }
@@ -102,31 +102,31 @@ function ClassCard({ classItem, onOpen }: { classItem: TimetableClass; onOpen: (
     <button
       type="button"
       onClick={onOpen}
-      className="group overflow-hidden rounded-[1.5rem] border border-white/70 bg-white/88 text-left shadow-[0_14px_36px_rgba(18,33,23,0.06)] transition duration-200 hover:-translate-y-0.5 hover:border-brand-200 hover:shadow-panel"
+      className="group overflow-hidden rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-left transition duration-200 hover:-translate-y-0.5 hover:border-[var(--color-accent-primary)]"
     >
       <div className={cn("h-1.5 bg-gradient-to-r", config.gradient)} />
       <div className="p-4">
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
-            <p className="truncate text-base font-black text-ink transition group-hover:text-brand-800">{classItem.name}</p>
-            <p className="mt-1 text-xs font-medium text-ink/45">{classItem.level} · {classItem.arm ?? "Class arm"}</p>
+            <p className="truncate text-base font-black text-[var(--color-text-primary)] transition group-hover:text-[var(--color-text-accent)]">{classItem.name}</p>
+            <p className="mt-1 text-xs font-medium text-[var(--color-text-muted)]">{classItem.level} · {classItem.arm ?? "Class arm"}</p>
           </div>
           <span className={cn("inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[0.65rem] font-black", status.badge)}>
             <StatusIcon className="h-3 w-3" />
             {status.label}
           </span>
         </div>
-        <div className="mt-4 flex items-center gap-2 rounded-2xl bg-sand/60 px-3 py-2 text-xs text-ink/62">
-          <User className="h-3.5 w-3.5 text-ink/35" />
+        <div className="mt-4 flex items-center gap-2 rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2 text-xs text-[var(--color-text-secondary)]">
+          <User className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />
           <span className="truncate">{classItem.classTeacherName ?? classItem.class_teacher_name ?? "No form teacher assigned"}</span>
         </div>
         <div className="mt-4">
-          <div className="flex justify-between text-xs font-semibold text-ink/50">
+          <div className="flex justify-between text-xs font-semibold text-[var(--color-text-muted)]">
             <span>Slots filled</span>
             <span>{filledSlots}/{totalSlots}</span>
           </div>
-          <div className="mt-2 h-2 overflow-hidden rounded-full bg-ink/8">
-            <span className={cn("block h-full rounded-full transition-all", fillPercent >= 100 ? "bg-emerald-500" : fillPercent >= 50 ? "bg-amber-500" : "bg-rose-400")} style={{ width: `${fillPercent}%` }} />
+          <div className="mt-2 h-2 overflow-hidden rounded-full bg-[var(--color-border-default)]">
+            <span className={cn("block h-full rounded-full transition-all", fillPercent >= 100 ? "bg-[var(--color-success)]" : fillPercent >= 50 ? "bg-[var(--color-warning)]" : "bg-[var(--color-danger)]")} style={{ width: `${fillPercent}%` }} />
           </div>
         </div>
       </div>
@@ -220,10 +220,10 @@ function PublishAll({ onDone }: { onDone: () => void }) {
 
   return (
     <div className="flex items-center gap-2">
-      <button type="button" disabled={loading} onClick={() => publish("unpublish")} className="h-11 rounded-full border border-ink/10 bg-white/80 px-4 text-sm font-semibold text-ink/65 transition hover:bg-white disabled:opacity-50">
+      <button type="button" disabled={loading} onClick={() => publish("unpublish")} className="btn-secondary h-11 rounded-full px-4 disabled:opacity-50">
         Unpublish All
       </button>
-      <button type="button" disabled={loading} onClick={() => publish("publish")} className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(18,33,23,0.18)] transition hover:bg-brand-800 disabled:opacity-50">
+      <button type="button" disabled={loading} onClick={() => publish("publish")} className="btn-primary h-11 rounded-full px-4 disabled:opacity-50">
         <Send className="h-4 w-4" />
         {loading ? "Publishing..." : "Publish All"}
       </button>
@@ -280,14 +280,14 @@ export function TimetableOverviewClient({ initialPayload }: { initialPayload?: T
   const empty = allClasses.filter((item) => ["empty", "structure_only"].includes(item.setupStatus ?? item.setup_status)).length;
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/88 shadow-panel backdrop-blur-xl">
-        <div className="h-2 bg-gradient-to-r from-brand-700 via-amber to-ink" />
-        <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-start lg:justify-between">
+    <div className="portal-page">
+      <section className="surface-hero">
+        <div className="h-2 bg-gradient-to-r from-[var(--color-accent-primary)] via-[var(--color-warning)] to-[var(--color-text-primary)]" />
+        <div className="flex flex-col gap-4 p-6 md:p-7 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-700">Academic planning</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">Timetable</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/62">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Academic planning</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black tracking-tight text-[var(--color-text-primary)]">Timetable</h1>
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Build weekly class timetables for Nigerian school arms, enforce teacher clashes, and publish approved schedules to teachers, students, and parents.
             </p>
           </div>
@@ -304,26 +304,26 @@ export function TimetableOverviewClient({ initialPayload }: { initialPayload?: T
 
       {canViewAll ? (
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-          <StatCard label="Total Classes" value={allClasses.length} tone="bg-blue-50 text-blue-700" icon={Calendar} />
-          <StatCard label="Published" value={published} tone="bg-emerald-50 text-emerald-700" icon={CheckCircle2} />
-          <StatCard label="Draft" value={Math.max(0, allClasses.length - published - empty)} tone="bg-amber-50 text-amber-700" icon={Clock} />
-          <StatCard label="Not Set Up" value={empty} tone="bg-rose-50 text-rose-700" icon={AlertCircle} />
+          <StatCard label="Total Classes" value={allClasses.length} tone="bg-[var(--color-info-dim)] text-[var(--color-info)]" icon={Calendar} />
+          <StatCard label="Published" value={published} tone="bg-[var(--color-success-dim)] text-[var(--color-success)]" icon={CheckCircle2} />
+          <StatCard label="Draft" value={Math.max(0, allClasses.length - published - empty)} tone="bg-[var(--color-warning-dim)] text-[var(--color-warning)]" icon={Clock} />
+          <StatCard label="Not Set Up" value={empty} tone="bg-[var(--color-danger-dim)] text-[var(--color-danger)]" icon={AlertCircle} />
         </div>
       ) : null}
 
-      <section className="rounded-[1.75rem] border border-white/65 bg-white/82 p-4 shadow-[0_16px_40px_rgba(18,33,23,0.06)] backdrop-blur-xl">
+      <section className="surface-card p-4">
         <div className="flex flex-wrap gap-3">
           <label className="relative min-w-[220px] flex-1 md:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
-            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search classes..." className="h-11 w-full rounded-2xl border border-ink/10 bg-white/80 pl-10 pr-4 text-sm text-ink outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
+            <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search classes..." className="field-control h-11 pl-10" />
           </label>
           {canViewAll ? (
-            <select value={category} onChange={(event) => setCategory(event.target.value)} className="h-11 rounded-2xl border border-ink/10 bg-white/80 px-4 text-sm font-medium text-ink/70 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100">
+            <select value={category} onChange={(event) => setCategory(event.target.value)} className="field-select h-11">
               <option value="">All categories</option>
               {categories.map((item) => <option key={item} value={item}>{item}</option>)}
             </select>
           ) : null}
-          <select value={status} onChange={(event) => setStatus(event.target.value)} className="h-11 rounded-2xl border border-ink/10 bg-white/80 px-4 text-sm font-medium text-ink/70 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100">
+          <select value={status} onChange={(event) => setStatus(event.target.value)} className="field-select h-11">
             <option value="">All statuses</option>
             <option value="published">Published</option>
             <option value="draft">Draft</option>
@@ -333,9 +333,9 @@ export function TimetableOverviewClient({ initialPayload }: { initialPayload?: T
         </div>
       </section>
 
-      {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-44 animate-pulse rounded-[1.5rem] bg-white/75" />)}</div> : null}
-      {error ? <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">{error}</div> : null}
-      {!loading && !error && filteredData.length === 0 ? <div className="rounded-[2rem] border border-dashed border-ink/12 bg-white/70 p-10 text-center text-sm text-ink/55">No timetables match your filters.</div> : null}
+      {loading ? <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">{Array.from({ length: 8 }).map((_, index) => <div key={index} className="h-44 animate-pulse rounded-[10px] bg-[var(--color-bg-subtle)]" />)}</div> : null}
+      {error ? <div className="rounded-[10px] border border-[var(--color-border-default)] p-5 text-sm font-semibold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>{error}</div> : null}
+      {!loading && !error && filteredData.length === 0 ? <div className="rounded-[14px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-10 text-center text-sm text-[var(--color-text-muted)]">No timetables match your filters.</div> : null}
 
       {!loading && !error ? filteredData.map(([group, classes]) => {
         const config = categoryConfig[group] ?? categoryConfig.Primary;
@@ -343,8 +343,8 @@ export function TimetableOverviewClient({ initialPayload }: { initialPayload?: T
           <section key={group} className="grid gap-3">
             <div className="flex items-center gap-3">
               <span className={cn("rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em]", config.chip)}>{group}</span>
-              <span className="h-px flex-1 bg-ink/8" />
-              <span className="text-xs font-medium text-ink/45">{classes.length} classes</span>
+              <span className="h-px flex-1 bg-[var(--color-border-default)]" />
+              <span className="text-xs font-medium text-[var(--color-text-muted)]">{classes.length} classes</span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
               {classes.map((classItem) => <ClassCard key={classItem.id} classItem={classItem} onOpen={() => router.push(`/timetable/${classItem.id}` as Route)} />)}

@@ -8,7 +8,6 @@ import { Popover } from "@/components/ui/popover";
 import { SidePanel } from "@/components/ui/side-panel";
 import { useToast } from "@/components/ui/toast-provider";
 import { Tooltip } from "@/components/ui/tooltip";
-import { cn } from "@/lib/utils/cn";
 
 type SubjectAssignmentOption = {
   classId: string;
@@ -141,10 +140,10 @@ export function AssignSubjectTeacherDialog({
 
   const triggerClassName =
     triggerVariant === "primary"
-      ? "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-brand-800"
+      ? "inline-flex h-11 items-center justify-center gap-2 rounded-full bg-[var(--color-text-primary)] px-5 text-sm font-semibold text-white transition hover:bg-[var(--color-accent-primary-hover)]"
       : triggerVariant === "menu"
-        ? "flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-[13px] font-medium text-slate-700 transition hover:bg-primary-50 hover:text-primary-700"
-        : "inline-flex h-9 items-center justify-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-sm font-semibold text-ink transition hover:bg-sand/60";
+        ? "flex w-full items-center gap-2 rounded-[10px] px-3 py-2 text-left text-[13px] font-medium text-[var(--color-text-secondary)] transition hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+        : "inline-flex h-9 items-center justify-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 text-sm font-semibold text-[var(--color-text-primary)] transition hover:bg-[var(--color-bg-subtle)]";
 
   return (
     <>
@@ -190,8 +189,8 @@ export function AssignSubjectTeacherDialog({
         )}
       >
           <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
-            <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4 text-[13px] text-slate-600">
-              <p className="font-semibold text-slate-900">Assignment context</p>
+            <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4 text-[13px] text-[var(--color-text-secondary)]">
+              <p className="font-semibold text-[var(--color-text-primary)]">Assignment context</p>
               <p className="mt-1">
                 Use this panel to place the right subject teacher against a class stream without leaving the subject page.
               </p>
@@ -233,14 +232,14 @@ export function AssignSubjectTeacherDialog({
               </select>
             </label>
 
-            <label className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+            <label className="flex items-start gap-3 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
               <input
                 type="checkbox"
                 checked={applyToAllArms}
                 onChange={(event) => setApplyToAllArms(event.target.checked)}
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-primary-600 focus:ring-primary-300"
+                className="mt-1 h-4 w-4 rounded border-[var(--color-border-strong)] text-[var(--color-text-accent)] focus:ring-[var(--color-accent-primary-glow)]"
               />
-              <span className="text-[13px] leading-6 text-slate-600">
+              <span className="text-[13px] leading-6 text-[var(--color-text-secondary)]">
                 <span className="inline-flex items-center gap-2">
                   <span>Apply to all arms of this class level.</span>
                   <Popover
@@ -250,7 +249,7 @@ export function AssignSubjectTeacherDialog({
                       <button
                         type="button"
                         onClick={toggle}
-                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-slate-400 transition hover:bg-white hover:text-primary-600"
+                        className="inline-flex h-6 w-6 items-center justify-center rounded-full text-[var(--color-text-muted)] transition hover:bg-[var(--color-bg-surface)] hover:text-[var(--color-text-accent)]"
                         aria-label="Explain apply to all arms"
                       >
                         <CircleHelp className="h-4 w-4" />
@@ -259,17 +258,17 @@ export function AssignSubjectTeacherDialog({
                   >
                     {() => (
                       <div className="space-y-2">
-                        <p className="text-[12px] font-semibold text-slate-800">
+                        <p className="text-[12px] font-semibold text-[var(--color-text-primary)]">
                           Apply to all arms
                         </p>
-                        <p className="text-[12px] leading-5 text-slate-500">
+                        <p className="text-[12px] leading-5 text-[var(--color-text-muted)]">
                           Use this when the same teacher should handle every arm for the selected level, for example JSS 1 A, JSS 1 B, and JSS 1 C.
                         </p>
                       </div>
                     )}
                   </Popover>
                 </span>
-                <span className="block text-[12px] text-slate-500">
+                <span className="block text-[12px] text-[var(--color-text-muted)]">
                   Example: assign the same teacher across JSS 1 A, JSS 1 B, and JSS 1 C.
                 </span>
               </span>
@@ -287,19 +286,19 @@ export function AssignSubjectTeacherDialog({
             </label>
 
             {activeAssignment ? (
-              <div className="rounded-2xl border border-slate-100 bg-white px-4 py-3 text-[13px] text-slate-600">
-                Current teacher: <span className="font-semibold text-slate-900">{activeAssignment.teacherName ?? "Not assigned"}</span>
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-[13px] text-[var(--color-text-secondary)]">
+                Current teacher: <span className="font-semibold text-[var(--color-text-primary)]">{activeAssignment.teacherName ?? "Not assigned"}</span>
               </div>
             ) : null}
 
             {message ? (
               <div
-                className={cn(
-                  "rounded-2xl border px-4 py-3 text-[13px] font-medium",
+                className="rounded-[10px] border px-4 py-3 text-[13px] font-medium"
+                style={
                   tone === "success"
-                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                    : "border-rose-200 bg-rose-50 text-rose-700",
-                )}
+                    ? { borderColor: "var(--color-success)", background: "var(--color-success-dim)", color: "var(--color-success)" }
+                    : { borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }
+                }
               >
                 {message}
               </div>

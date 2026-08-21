@@ -50,12 +50,20 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6 md:p-7">
-        <p className="section-eyebrow">Platform intelligence</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Analytics & BI</h1>
-        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Product adoption, conversion funnel, cohort retention, churn reasons, NPS, feature-request intelligence, and a custom report builder.
-        </p>
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1]">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Platform intelligence</p>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Analytics & BI</h1>
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+            Product adoption, conversion funnel, cohort retention, churn reasons, NPS, feature-request intelligence, and a custom report builder.
+          </p>
+        </div>
       </section>
 
       <DetailTabs tabs={tabs} />
@@ -107,50 +115,96 @@ async function OverviewTab() {
   );
 }
 
+const adoptionReadingRules = [
+  "Compare down a column, never across a row — different schools adopt different modules at different rates for legitimate reasons.",
+  "A module below the 40% floor is a retention risk long before it is a revenue one — schools are paying for capability they never switch on.",
+  "Adoption is measured per school, not per user — one teacher using a module does not make it a school-wide habit."
+];
+
 async function AdoptionTab() {
   const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
+  const belowFloor = bi.heatmap.filter((item) => item.adoptionPct < 40);
+  const avgAdoption = bi.heatmap.length > 0 ? Math.round(bi.heatmap.reduce((sum, item) => sum + item.adoptionPct, 0) / bi.heatmap.length) : 0;
 
   return (
     <section className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Module adoption</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
-          {bi.schoolsActiveThisWeek} schools active this week
-        </h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Adoption per module across every school. High ≥66%, Medium ≥33%, Low below.
-        </p>
+      <section className="grid gap-3 md:grid-cols-3">
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Schools active this week</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{bi.schoolsActiveThisWeek}</p>
+        </article>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Platform adoption index</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{avgAdoption}%</p>
+          <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Average adoption across every tracked module</p>
+        </article>
+        <article className="surface-card p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Modules below the 40% floor</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold" style={{ color: belowFloor.length > 0 ? "var(--color-danger)" : "var(--color-text-primary)" }}>
+            {belowFloor.length}
+          </p>
+        </article>
       </section>
 
-      <TableCard
-        title="Product adoption heatmap"
-        description="Shading reflects the adoption rate for each module."
-        items={bi.heatmap}
-        emptyState="No adoption data yet."
-        columns={[
-          { key: "module", header: "Module", render: (item) => item.module.replaceAll("_", " ") },
-          { key: "using", header: "Schools using", render: (item) => item.schoolsUsing },
-          {
-            key: "pct",
-            header: "Adoption",
-            render: (item) => (
-              <div className="w-28">
-                <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                  <div className="h-full rounded-full" style={{ width: `${item.adoptionPct}%`, background: heatCellStyle(item.adoptionPct).color }} />
+      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+        <TableCard
+          title="Product adoption heatmap"
+          description="Shading reflects the adoption rate for each module."
+          items={bi.heatmap}
+          emptyState="No adoption data yet."
+          columns={[
+            { key: "module", header: "Module", render: (item) => item.module.replaceAll("_", " ") },
+            { key: "using", header: "Schools using", render: (item) => item.schoolsUsing },
+            {
+              key: "pct",
+              header: "Adoption",
+              render: (item) => (
+                <div className="w-28">
+                  <div className="h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <div className="h-full rounded-full" style={{ width: `${item.adoptionPct}%`, background: heatCellStyle(item.adoptionPct).color }} />
+                  </div>
                 </div>
-              </div>
-            )
-          },
-          {
-            key: "level",
-            header: "Level",
-            render: (item) => {
-              const style = heatCellStyle(item.adoptionPct);
-              return <StatusPill bg={style.background} fg={style.color} label={`${item.level} · ${item.adoptionPct}%`} />;
+              )
+            },
+            {
+              key: "level",
+              header: "Level",
+              render: (item) => {
+                const style = heatCellStyle(item.adoptionPct);
+                return <StatusPill bg={style.background} fg={style.color} label={`${item.level} · ${item.adoptionPct}%`} />;
+              }
             }
-          }
-        ]}
-      />
+          ]}
+        />
+
+        <div className="grid gap-3.5 self-start">
+          <section className="surface-card p-5">
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How this grid is read</p>
+            <div className="mt-3.5 grid gap-3">
+              {adoptionReadingRules.map((rule) => (
+                <div key={rule} className="flex items-start gap-2">
+                  <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent-primary)]" />
+                  <p className="text-[12px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+          {belowFloor.length > 0 ? (
+            <section className="surface-card p-5">
+              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Below the floor</p>
+              <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">These modules are sitting under 40% adoption and are the strongest retention-risk signal on this page.</p>
+              <div className="mt-3.5 grid gap-2">
+                {belowFloor.map((item) => (
+                  <div key={item.module} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-3 py-2">
+                    <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">{item.module.replaceAll("_", " ")}</span>
+                    <span className="text-[12px] font-bold" style={{ color: "var(--color-danger)" }}>{item.adoptionPct}%</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ) : null}
+        </div>
+      </div>
     </section>
   );
 }
@@ -159,39 +213,72 @@ async function FunnelTab() {
   const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
   const maxCount = Math.max(...bi.funnel.map((stage) => stage.count), 1);
 
+  const drops = bi.funnel.slice(1).map((stage, i) => {
+    const prev = bi.funnel[i].count;
+    const dropPct = prev > 0 ? Math.round(((prev - stage.count) / prev) * 100) : 0;
+    return { fromStage: bi.funnel[i].stage, toStage: stage.stage, dropPct };
+  });
+  const sharpestDrop = drops.length > 0 ? drops.reduce((worst, current) => (current.dropPct > worst.dropPct ? current : worst)) : null;
+
   return (
-    <section className="surface-card p-6">
-      <p className="section-eyebrow">Growth funnel</p>
-      <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Signup to active conversion</h2>
-      <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-        Each stage's drop-off is measured against the stage before it.
-      </p>
-      <div className="mt-6 grid gap-3">
-        {bi.funnel.map((stage, i) => {
-          const prev = i > 0 ? bi.funnel[i - 1].count : stage.count;
-          const dropPct = prev > 0 ? Math.round(((prev - stage.count) / prev) * 100) : 0;
-          return (
-            <div key={stage.stage}>
-              <div className="flex items-center justify-between text-[13px]">
-                <span className="font-semibold text-[var(--color-text-primary)]">{stage.stage}</span>
-                <span className="flex items-center gap-3">
-                  <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{stage.count}</span>
-                  {i > 0 ? (
-                    <span className="text-[11px] font-bold" style={{ color: dropPct > 30 ? "var(--color-danger)" : "var(--color-text-muted)" }}>
-                      −{dropPct}%
-                    </span>
-                  ) : null}
-                </span>
+    <section className="grid gap-5 xl:grid-cols-[1.5fr_1fr]">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Growth funnel</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Signup to active conversion</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Each stage's drop-off is measured against the stage before it.
+        </p>
+        <div className="mt-6 grid gap-3">
+          {bi.funnel.map((stage, i) => {
+            const prev = i > 0 ? bi.funnel[i - 1].count : stage.count;
+            const dropPct = prev > 0 ? Math.round(((prev - stage.count) / prev) * 100) : 0;
+            return (
+              <div key={stage.stage}>
+                <div className="flex items-center justify-between text-[13px]">
+                  <span className="font-semibold text-[var(--color-text-primary)]">{stage.stage}</span>
+                  <span className="flex items-center gap-3">
+                    <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{stage.count}</span>
+                    {i > 0 ? (
+                      <span className="text-[11px] font-bold" style={{ color: dropPct > 30 ? "var(--color-danger)" : "var(--color-text-muted)" }}>
+                        −{dropPct}%
+                      </span>
+                    ) : null}
+                  </span>
+                </div>
+                <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(stage.count / maxCount) * 100}%` }} />
+                </div>
               </div>
-              <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(stage.count / maxCount) * 100}%` }} />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
+      </section>
+
+      <div className="grid gap-3.5 self-start">
+        <section
+          className="rounded-[14px] p-5"
+          style={{ background: sharpestDrop && sharpestDrop.dropPct > 30 ? "var(--color-danger-dim)" : "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}
+        >
+          <p className="text-[13px] font-bold text-[var(--color-text-primary)]">Where schools are being lost</p>
+          {sharpestDrop ? (
+            <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
+              The sharpest drop is <strong>{sharpestDrop.fromStage}</strong> to <strong>{sharpestDrop.toStage}</strong> at{" "}
+              <strong style={{ color: sharpestDrop.dropPct > 30 ? "var(--color-danger)" : "var(--color-text-primary)" }}>−{sharpestDrop.dropPct}%</strong>.
+              That stage is the highest-leverage place to focus onboarding or product work right now.
+            </p>
+          ) : (
+            <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">Not enough funnel data yet to identify the sharpest drop-off.</p>
+          )}
+        </section>
       </div>
     </section>
   );
+}
+
+function cohortVerdict(retentionPct: number): { label: string; bg: string; fg: string } {
+  if (retentionPct >= 80) return { label: "On track", bg: "var(--color-success-dim)", fg: "var(--color-success)" };
+  if (retentionPct >= 60) return { label: "Watch", bg: "var(--color-warning-dim)", fg: "var(--color-warning)" };
+  return { label: "At risk", bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
 }
 
 async function CohortsTab() {
@@ -200,7 +287,7 @@ async function CohortsTab() {
   return (
     <TableCard
       title="Cohort retention"
-      description="Schools grouped by the month they joined, and how many are still active."
+      description="Schools grouped by the month they joined, and how many are still active. On track ≥80%, Watch ≥60%, At risk below."
       items={bi.cohorts}
       emptyState="No cohort data yet."
       columns={[
@@ -218,6 +305,15 @@ async function CohortsTab() {
               <span className="font-[var(--font-mono)] text-[12.5px] font-bold text-[var(--color-text-primary)]">{item.retentionPct}%</span>
             </div>
           )
+        },
+        {
+          key: "verdict",
+          header: "Verdict",
+          sortable: false,
+          render: (item) => {
+            const verdict = cohortVerdict(item.retentionPct);
+            return <StatusPill bg={verdict.bg} fg={verdict.fg} label={verdict.label} />;
+          }
         }
       ]}
     />
@@ -296,18 +392,44 @@ async function ChurnTab() {
         </div>
       </section>
 
-      <TableCard
-        title="Recent churn"
-        description="Most recently logged departures."
-        items={churn.recent}
-        columns={[
-          { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "reason", header: "Reason", render: (item) => item.reason.replaceAll("_", " ") },
-          { key: "notes", header: "Notes", render: (item) => item.notes ?? "—" },
-          { key: "date", header: "Churned", render: (item) => formatDate(item.churnedAt) }
-        ]}
-        emptyState="No churn recorded."
-      />
+      <div className="grid gap-5 lg:grid-cols-[1fr_1.35fr]">
+        <section className="surface-card p-6">
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Churn rate by tier</p>
+          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Churned schools as a share of every school ever on that tier.</p>
+          <div className="mt-4 grid gap-3.5">
+            {churn.byTier.length === 0 ? (
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No tier data yet.</p>
+            ) : (
+              churn.byTier.map((item) => (
+                <div key={item.plan}>
+                  <div className="flex items-center justify-between text-[12.5px]">
+                    <span className="text-[var(--color-text-secondary)]">{item.plan} · {item.churned} churned</span>
+                    <span className="font-[var(--font-mono)] text-[13px] font-bold" style={{ color: item.ratePct > 5 ? "var(--color-danger)" : "var(--color-text-primary)" }}>
+                      {item.ratePct}%
+                    </span>
+                  </div>
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <div className="h-full rounded-full" style={{ width: `${Math.min(item.ratePct * 4, 100)}%`, background: item.ratePct > 5 ? "var(--color-danger)" : "var(--color-accent-primary)" }} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <TableCard
+          title="Recent churn"
+          description="Most recently logged departures."
+          items={churn.recent}
+          columns={[
+            { key: "school", header: "School", render: (item) => item.schoolName },
+            { key: "reason", header: "Reason", render: (item) => item.reason.replaceAll("_", " ") },
+            { key: "notes", header: "Notes", render: (item) => item.notes ?? "—" },
+            { key: "date", header: "Churned", render: (item) => formatDate(item.churnedAt) }
+          ]}
+          emptyState="No churn recorded."
+        />
+      </div>
     </section>
   );
 }
@@ -356,6 +478,53 @@ async function NpsTab() {
         </div>
       </section>
 
+      <div className="grid gap-5 lg:grid-cols-2">
+        <section className="surface-card p-6">
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">NPS by tier</p>
+          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
+          <div className="mt-4 grid gap-3.5">
+            {nps.byTier.length === 0 ? (
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No responses recorded yet.</p>
+            ) : (
+              nps.byTier.map((item) => (
+                <div key={item.plan}>
+                  <div className="flex items-center justify-between text-[12.5px]">
+                    <span className="text-[var(--color-text-secondary)]">{item.plan} · {item.responses} response{item.responses === 1 ? "" : "s"}</span>
+                    <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{item.npsScore >= 0 ? "+" : ""}{item.npsScore}</span>
+                  </div>
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${Math.max(0, Math.min(100, item.npsScore))}%` }} />
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        </section>
+
+        <section className="surface-card p-6">
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Verbatim comments</p>
+          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Stored and searchable — low scorers are flagged for personal outreach by Customer Success.</p>
+          <div className="mt-4 grid gap-3">
+            {nps.comments.length === 0 ? (
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No comments recorded yet.</p>
+            ) : (
+              nps.comments.slice(0, 6).map((item, index) => {
+                const pill = item.score >= 9 ? { label: "Promoter", bg: "var(--color-success-dim)", fg: "var(--color-success)" } : item.score >= 7 ? { label: "Passive", bg: "var(--color-warning-dim)", fg: "var(--color-warning)" } : { label: "Detractor", bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
+                return (
+                  <div key={`${item.schoolName}-${index}`} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                    <p className="text-[12.5px] italic leading-5 text-[var(--color-text-primary)]">&ldquo;{item.comment}&rdquo;</p>
+                    <div className="mt-1.5 flex items-center gap-2">
+                      <StatusPill bg={pill.bg} fg={pill.fg} label={pill.label} />
+                      <span className="text-[11px] text-[var(--color-text-muted)]">{item.schoolName} · score {item.score}</span>
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+        </section>
+      </div>
+
       <TableCard
         title="Low-score respondents"
         description="Detractors flagged for personal outreach by Customer Success."
@@ -372,36 +541,61 @@ async function NpsTab() {
   );
 }
 
+const reportingCadence = [
+  { type: "Adoption heatmap", cadence: "Recalculated on request from live usage data" },
+  { type: "Funnel / conversion", cadence: "Recalculated on request from live signup and trial data" },
+  { type: "Cohort retention", cadence: "Recalculated on request from live school records" },
+  { type: "Churn analysis", cadence: "Recalculated on request from logged churn records" },
+  { type: "NPS", cadence: "Recalculated on request from recorded survey responses" }
+];
+
 async function ReportsTab() {
   const reports = await apiGet<SuperAdminCustomReportRow[]>("/api/super-admin/analytics/custom-reports");
 
   return (
-    <TableCard
-      title="Custom reports"
-      description="Build reusable reports from a metric and a dimension. Open a report to run it."
-      items={reports ?? []}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="New report"
-          title="Build a custom report"
-          description="Choose what to measure and how to group it."
-          endpoint="/api/super-admin/analytics/custom-reports"
-          submitLabel="Save report"
-          fields={[
-            { name: "name", label: "Report name", required: true },
-            { name: "metric", label: "Metric", type: "select", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
-            { name: "dimension", label: "Group by", type: "select", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] }
-          ]}
-        />
-      }
-      columns={[
-        { key: "name", header: "Report", render: (item) => item.name },
-        { key: "metric", header: "Metric", render: (item) => item.metric },
-        { key: "dimension", header: "Grouped by", render: (item) => item.dimension },
-        { key: "by", header: "Created by", render: (item) => item.createdBy },
-        { key: "created", header: "Created", render: (item) => formatDate(item.createdAt) }
-      ]}
-      emptyState="No custom reports saved yet."
-    />
+    <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+      <TableCard
+        title="Custom reports"
+        description="Build reusable reports from a metric and a dimension. Open a report to run it."
+        items={reports ?? []}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="New report"
+            title="Build a custom report"
+            description="Choose what to measure and how to group it."
+            endpoint="/api/super-admin/analytics/custom-reports"
+            submitLabel="Save report"
+            fields={[
+              { name: "name", label: "Report name", required: true },
+              { name: "metric", label: "Metric", type: "select", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
+              { name: "dimension", label: "Group by", type: "select", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] }
+            ]}
+          />
+        }
+        columns={[
+          { key: "name", header: "Report", render: (item) => item.name },
+          { key: "metric", header: "Metric", render: (item) => item.metric },
+          { key: "dimension", header: "Grouped by", render: (item) => item.dimension },
+          { key: "by", header: "Created by", render: (item) => item.createdBy },
+          { key: "created", header: "Created", render: (item) => formatDate(item.createdAt) }
+        ]}
+        emptyState="No custom reports saved yet."
+      />
+
+      <section className="surface-card overflow-hidden">
+        <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Reporting cadence</p>
+          <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">When each rollup on this page reflects the latest data.</p>
+        </div>
+        <div className="grid gap-3 p-5">
+          {reportingCadence.map((row) => (
+            <div key={row.type} className="flex items-start justify-between gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.type}</p>
+              <p className="max-w-[55%] text-right text-[11.5px] text-[var(--color-text-muted)]">{row.cadence}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+    </div>
   );
 }

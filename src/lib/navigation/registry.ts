@@ -70,260 +70,6 @@ export type NavigationGroupView = {
   items: NavigationRegistryItem[];
 };
 
-export type RoleAccent = {
-  name: string;
-  active: string;
-  badge: string;
-  button: string;
-  gradient: string;
-};
-
-const defaultAccent: RoleAccent = {
-  name: "Ink Teal",
-  active: "bg-[#12796a]",
-  badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-  button: "bg-[#0d2315] hover:bg-[#12796a]",
-  gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-};
-
-const roleAccents: Partial<Record<Role, RoleAccent>> = {
-  PLATFORM_OWNER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  PLATFORM_ADMIN: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  SUPPORT_AGENT: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  SALES_MANAGER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  FINANCE_MANAGER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  DEVELOPER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  SUPER_ADMIN: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  SCHOOL_OWNER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  PROPRIETOR: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  PRINCIPAL: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  HEAD_TEACHER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  VICE_PRINCIPAL_ACADEMICS: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  VICE_PRINCIPAL_ADMINISTRATION: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  VICE_PRINCIPAL_SPECIAL_DUTIES: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  HEAD_OF_DEPARTMENT: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  CLASS_TEACHER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  SUBJECT_TEACHER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  TEACHER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  ACCOUNTANT: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  ADMISSIONS_OFFICER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  EXAM_OFFICER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  EXAMINATION_OFFICER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  GUIDANCE_COUNSELLOR: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  LIBRARIAN: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  TRANSPORT_MANAGER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  HOSTEL_MANAGER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  HOSTEL_MASTER: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  HOSTEL_MISTRESS: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  ICT_CBT_ADMIN: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  NURSE: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  RECEPTIONIST: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  PARENT: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-  STUDENT: {
-    name: "Ink Teal",
-    active: "bg-[#12796a]",
-    badge: "border-[#9fcbbf] bg-[#e4f1ec] text-[#0d2315]",
-    button: "bg-[#0d2315] hover:bg-[#12796a]",
-    gradient: "from-[#0d2315] via-[#12332a] to-[#12796a]",
-  },
-};
-
-export function getRoleAccent(role: Role) {
-  return roleAccents[role] ?? defaultAccent;
-}
-
 const platformPermissionByRole: Record<Role, string[]> = {
   PLATFORM_OWNER: ["sa.*"],
   SUPER_ADMIN: ["sa.*"],
@@ -438,7 +184,7 @@ const platformPermissionByRole: Record<Role, string[]> = {
 export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_dashboard",
-    label: "Dashboard",
+    label: "Command Center",
     icon: "LayoutDashboard",
     path: "/super-admin",
     requiredPermissions: ["sa.dashboard.view"],
@@ -448,7 +194,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_schools",
-    label: "Schools",
+    label: "School Accounts",
     icon: "Building2",
     path: "/super-admin/schools",
     requiredPermissions: ["sa.schools.view"],
@@ -458,7 +204,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_billing",
-    label: "Billing & Revenue",
+    label: "Subscription & Billing",
     icon: "CreditCard",
     path: "/super-admin/billing",
     requiredPermissions: ["sa.billing.view"],
@@ -468,7 +214,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_communications",
-    label: "Communications",
+    label: "Notification Center",
     icon: "Megaphone",
     path: "/super-admin/communications",
     requiredPermissions: ["sa.communications.view"],
@@ -488,7 +234,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_users",
-    label: "Users",
+    label: "User Management",
     icon: "Users",
     path: "/super-admin/users",
     requiredPermissions: ["sa.users.view"],
@@ -498,7 +244,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_support",
-    label: "Support Tickets",
+    label: "Support & Ticketing",
     icon: "Headphones",
     path: "/super-admin/support",
     requiredPermissions: ["sa.support.view"],
@@ -509,7 +255,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_analytics",
-    label: "Analytics",
+    label: "Analytics & BI",
     icon: "BarChart3",
     path: "/super-admin/analytics",
     requiredPermissions: ["sa.analytics.view"],
@@ -519,7 +265,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_feature_flags",
-    label: "Feature Flags",
+    label: "Feature & Tier Config",
     icon: "Flag",
     path: "/super-admin/feature-flags",
     requiredPermissions: ["sa.feature_flags.view"],
@@ -529,7 +275,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_security",
-    label: "Security",
+    label: "Security & Audit",
     icon: "ShieldCheck",
     path: "/super-admin/security",
     requiredPermissions: ["sa.security.view"],
@@ -549,7 +295,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_system_health",
-    label: "System Health",
+    label: "Infrastructure",
     icon: "Activity",
     path: "/super-admin/system",
     requiredPermissions: ["sa.security.view"],
@@ -559,7 +305,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_config_library",
-    label: "Config Library",
+    label: "Curriculum Library",
     icon: "BookMarked",
     path: "/super-admin/config-library",
     requiredPermissions: ["sa.settings.view"],
@@ -569,7 +315,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "sa_internal_team",
-    label: "Internal Team",
+    label: "Team & Roles",
     icon: "UserCog",
     path: "/super-admin/internal-team",
     requiredPermissions: ["sa.settings.view"],

@@ -2,7 +2,6 @@ import { getServerSession } from "@/lib/auth/session";
 import { apiGet } from "@/lib/api/server";
 import { roleLabels } from "@/lib/auth/roles";
 import type { SuperAdminAnalyticsOverview, SuperAdminRevenueView } from "@/lib/domain/types";
-import { getRoleAccent } from "@/lib/navigation/registry";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import Link from "next/link";
 import type { Route } from "next";
@@ -171,7 +170,6 @@ export default async function SuperAdminDashboardPage() {
     apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue")
   ]);
 
-  const accent = getRoleAccent(session?.role ?? "SUPER_ADMIN");
   const profile = platformProfile(session?.role ?? "PLATFORM_OWNER");
   const commandCenter = overview.commandCenter ?? {
     pulse: {
@@ -269,16 +267,21 @@ export default async function SuperAdminDashboardPage() {
 
   return (
     <div className="grid gap-5">
-      <section className={`relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-gradient-to-br ${accent.gradient} p-6 text-white md:p-8`}>
-        <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-        <div className="relative grid gap-6 xl:grid-cols-[1.3fr_0.7fr] xl:items-end">
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-8">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 220" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 200 Q 200 130 400 190 T 850 155" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="720" cy="20" r="160" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="720" cy="20" r="100" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1] grid gap-6 xl:grid-cols-[1.3fr_0.7fr] xl:items-end">
           <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/75">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.15)] bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/75">
               <Sparkles className="h-3.5 w-3.5" />
               {profile.eyebrow}
             </div>
             <h2 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">{platformGreeting(session?.role ?? "SUPER_ADMIN", session?.name)}</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-white/74">
+            <p className="mt-3 max-w-3xl text-sm leading-6 text-[rgba(255,255,255,0.74)]">
               {profile.mission} {session ? `Current internal role: ${roleLabels[session.role]}.` : ""}
             </p>
           </div>

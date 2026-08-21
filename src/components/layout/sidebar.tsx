@@ -158,12 +158,6 @@ function SidebarContent({
               <p className="truncate font-[var(--font-heading)] text-lg font-bold text-white">
                 FutureRealm SMS
               </p>
-              <span className="mt-1.5 inline-flex items-center gap-1.5 rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.12)] px-2 py-0.5">
-                <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-gold)" }} />
-                <span className="text-[10px] font-bold uppercase tracking-[0.08em] text-white">
-                  {portalType === "super_admin" ? "Super Admin" : "School Portal"}
-                </span>
-              </span>
             </div>
 
             <div className="flex items-center gap-2">

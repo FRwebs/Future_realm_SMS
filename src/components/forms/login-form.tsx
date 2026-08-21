@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
 
@@ -170,12 +171,14 @@ export function LoginForm() {
 
       {error ? <p className="mt-4 text-[13px] text-[var(--color-danger)]">{error}</p> : null}
 
-      <p className="mt-[26px] text-center text-xs text-[#9fb8a7]">
-        Not your school?{" "}
-        <button type="button" className="font-semibold text-[#435048] hover:underline">
-          Switch workspace
-        </button>{" "}
-        · <button type="button" className="font-semibold text-[#435048] hover:underline">Get help</button>
+      <p className="mt-[22px] text-center text-[12.5px] text-[#435048]">
+        New to FutureRealm?{" "}
+        <Link href="/onboarding" className="font-semibold text-[#12796a] hover:underline">
+          Create an account
+        </Link>
+      </p>
+      <p className="mt-[10px] text-center text-xs text-[#9fb8a7]">
+        Parents and students receive their accounts from their school.
       </p>
     </form>
   );

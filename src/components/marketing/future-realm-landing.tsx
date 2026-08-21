@@ -2,389 +2,342 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import {
-  ArrowRight,
-  BarChart3,
-  Bell,
-  Brain,
   Building2,
-  CalendarDays,
+  Camera,
   Check,
-  ChevronRight,
+  ClipboardList,
   CreditCard,
-  GraduationCap,
-  LineChart,
-  Lock,
-  MessageCircle,
   MessageSquareText,
-  Moon,
-  PhoneCall,
-  Receipt,
+  Minus,
+  Plus,
   School,
-  Send,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  Sun,
-  TrendingUp,
-  Users2,
-  Wallet,
-  Wifi,
-  WifiOff,
-  Zap,
 } from "lucide-react";
 
-import { useTheme } from "@/components/theme/theme-provider";
-import { AccordionGroup } from "@/components/ui/accordion";
 import { useToast } from "@/components/ui/toast-provider";
 import { cn } from "@/lib/utils/cn";
 
+const INK = "#0d2315";
+const TEAL = "#12796a";
+
 const navLinks = [
+  { label: "Home", href: "#top" },
   { label: "Features", href: "#features" },
-  { label: "Platform", href: "#platform" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ] as const;
 
-const heroStats = [
-  { value: "6", label: "Modules in one platform" },
-  { value: "4", label: "Role-based portals" },
-  { value: "99.9%", label: "Uptime target" },
-  { value: "24/7", label: "Priority support" },
+const heroKpis = [
+  { label: "Attendance", value: "96.2%", dark: false },
+  { label: "Fees collected", value: "₦4.2M", dark: false },
+  { label: "Active students", value: "1,284", dark: true },
 ] as const;
 
-const trustLogos = [
-  "Hillcrest Academy",
-  "Cedar Grove College",
-  "Royal Oaks Schools",
-  "Greenfield College",
-  "Bright Future Schools",
-  "Crescent High",
+const trustPlaces = ["Lagos", "Abuja", "Port Harcourt", "Ibadan"] as const;
+
+const bandStats = [
+  { value: "14 days", detail: "Keeps working with no internet, then syncs" },
+  { value: "1 day", detail: "From signup to first attendance register" },
+  { value: "3 terms", detail: "Nigerian session structure built in, not bolted on" },
+  { value: "Every edit", detail: "Score changes carry an approver and a timestamp" },
 ] as const;
 
-const features = [
+const pillars = [
+  { title: "Admissions", subtitle: "Application to enrollment" },
+  { title: "Academics", subtitle: "Results, periods, attendance" },
+  { title: "Finance", subtitle: "Fees, invoices, receipts" },
+  { title: "Communication", subtitle: "Parent and staff visibility" },
+] as const;
+
+interface FeatureCard {
+  span: 1 | 2;
+  bg: string;
+  title: string;
+  desc: string;
+  photoCaption?: string;
+  icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+}
+
+const featureCards: FeatureCard[] = [
   {
-    icon: Users2,
+    span: 2,
+    bg: "#f3f7f4",
     title: "Student enrollment",
-    description:
-      "Handle inquiry to admission with digital forms, screening workflows, and clean student onboarding built for Nigerian schools.",
+    desc: "Handle inquiry to admission with digital forms, screening workflows and clean onboarding built for Nigerian schools.",
+    photoCaption: "Admissions officer welcoming a parent",
   },
   {
-    icon: CalendarDays,
+    span: 1,
+    bg: "#f3f7f4",
+    icon: ClipboardList,
     title: "Attendance tracking",
-    description:
-      "Capture daily class attendance, staff presence, and follow-up alerts without slowing teachers down during busy school mornings.",
+    desc: "Capture daily class and staff attendance with follow-up alerts, without slowing teachers down.",
   },
   {
-    icon: GraduationCap,
+    span: 1,
+    bg: "#f3f7f4",
+    icon: Check,
     title: "Result management",
-    description:
-      "Manage CA scores, exams, broadsheets, and report cards with WAEC and NECO-friendly academic workflows.",
+    desc: "CA scores, exams, broadsheets and report cards with WAEC and NECO-friendly workflows.",
   },
   {
+    span: 1,
+    bg: "#eaf0ec",
     icon: CreditCard,
     title: "Fee payment",
-    description:
-      "Track invoices, balances, receipts, and structured fee plans with Naira-native payment experiences for parents and bursars.",
+    desc: "Invoices, balances, receipts and structured fee plans with Naira-native payment experiences.",
   },
   {
-    icon: BarChart3,
+    span: 1,
+    bg: "#f3f7f4",
+    icon: ClipboardList,
     title: "Timetable management",
-    description:
-      "Coordinate classes, teachers, periods, and conflicts from one organized timetable system for the full school.",
+    desc: "Coordinate classes, teachers and periods, with conflicts caught automatically.",
   },
   {
-    icon: MessageSquareText,
+    span: 2,
+    bg: "#f3f7f4",
     title: "Parent portal",
-    description:
-      "Give parents visibility into fees, attendance, announcements, and published results from a mobile-friendly portal.",
+    desc: "Give parents visibility into fees, attendance, announcements and published results from a mobile-friendly portal.",
+    photoCaption: "Parent checking the app on a mobile phone",
+  },
+];
+
+const offlinePoints = [
+  { title: "Works for 14 days offline", desc: "A full fortnight of attendance and scores held safely on device." },
+  { title: "Conflict-safe sync", desc: "Two teachers, one record — the system resolves it and shows you what changed." },
+  { title: "Low-data by design", desc: "Built to run on a modest phone bundle, not office fibre." },
+  { title: "Nothing silently lost", desc: "Every pending record is visible and counted until it lands." },
+] as const;
+
+const howItWorks = [
+  { n: "01", title: "Register your school", desc: "Create your workspace and define the structure that matches your campus, sections and academic sessions." },
+  { n: "02", title: "Set up school operations", desc: "Add classes, staff, subjects, fees and permissions using workflows your school already understands." },
+  { n: "03", title: "Manage daily activity", desc: "Run admissions, attendance, results, fees and communication from one reliable operating system." },
+  { n: "04", title: "Track outcomes clearly", desc: "Monitor finances, academic performance and school activity with dashboards built for leadership decisions." },
+] as const;
+
+const roleTabs = [
+  {
+    label: "For proprietors",
+    title: "See the whole business, not just one class",
+    points: [
+      "Real-time revenue and enrollment across every branch",
+      "Staff performance and attendance in one view",
+      "Custom reports for board and investor updates",
+    ],
+    panelLabel: "Leadership view · Second Term",
+    rows: [
+      { label: "Fee collection", value: "88%", pct: 88 },
+      { label: "Enrollment vs target", value: "96%", pct: 96 },
+      { label: "Staff attendance", value: "94%", pct: 94 },
+      { label: "Results approved", value: "72%", pct: 72 },
+    ],
+  },
+  {
+    label: "For teachers",
+    title: "Less admin, more teaching",
+    points: [
+      "Mark attendance and grades from your phone",
+      "Auto-generated report card drafts",
+      "Direct messaging with parents, logged for you",
+    ],
+    panelLabel: "My classes · JSS2 Gold",
+    rows: [
+      { label: "Attendance marked today", value: "32 / 32", pct: 100 },
+      { label: "Scores submitted", value: "9 / 11", pct: 82 },
+      { label: "Report drafts ready", value: "28 / 42", pct: 67 },
+      { label: "Parent replies pending", value: "3", pct: 18 },
+    ],
+  },
+  {
+    label: "For parents",
+    title: "Know what's happening, without asking",
+    points: [
+      "Live fee balance and payment history",
+      "Instant alerts on attendance and grades",
+      "One thread for every message from the school",
+    ],
+    panelLabel: "Chidinma · JSS2 Gold",
+    rows: [
+      { label: "Fees paid this term", value: "100%", pct: 100 },
+      { label: "Attendance this term", value: "96%", pct: 96 },
+      { label: "Term average", value: "78.4%", pct: 78 },
+      { label: "Subjects published", value: "8 / 11", pct: 73 },
+    ],
   },
 ] as const;
 
-const platformHighlights = [
-  {
-    icon: LineChart,
-    eyebrow: "Leadership Intelligence",
-    title: "See the whole school at a glance",
-    description:
-      "Live dashboards bring admissions, academics, finance, and attendance into a single command center so leadership decisions are made on evidence, not guesswork.",
-    points: ["Enrollment and revenue trends", "Fee collection health", "Academic performance signals"],
-  },
-  {
-    icon: Wallet,
-    eyebrow: "Finance & Fees",
-    title: "Fee collection that finally reconciles",
-    description:
-      "Structured fee plans, invoices, receipts, and balances in Naira-native workflows that bursars trust and parents actually understand.",
-    points: ["Automated invoices and receipts", "Balance and arrears tracking", "Term and session fee plans"],
-  },
-] as const;
-
-const steps = [
-  {
-    id: "01",
-    title: "Register your school",
-    description: "Create your workspace and define the structure that matches your campus, sections, and academic sessions.",
-  },
-  {
-    id: "02",
-    title: "Set up school operations",
-    description: "Add classes, staff, subjects, fees, and permissions using the same workflows your school already understands.",
-  },
-  {
-    id: "03",
-    title: "Manage daily activity",
-    description: "Run admissions, attendance, results, fees, and communication from one reliable operating system.",
-  },
-  {
-    id: "04",
-    title: "Track outcomes clearly",
-    description: "Monitor finances, academic performance, and school activity with dashboards built for leadership decisions.",
-  },
-] as const;
-
-const trustPillars = [
-  { icon: ShieldCheck, title: "Bank-grade security", description: "Role-based access, audit trails, and encrypted data by default." },
-  { icon: Wifi, title: "Low-bandwidth ready", description: "Optimized for mobile and resilient during inconsistent connectivity." },
-  { icon: Lock, title: "Your data, protected", description: "NDPC-conscious privacy controls and clear data ownership." },
-  { icon: Bell, title: "Always in the loop", description: "Announcements and alerts reach parents and staff instantly." },
+const parentPoints = [
+  { title: "Live fee balance", rest: " — what is owed, what was paid, and the receipt for it." },
+  { title: "Attendance the same day", rest: " — not a surprise at the end of term." },
+  { title: "Results when the school publishes", rest: " — never before approval." },
+  { title: "SMS for families without smartphones", rest: " — no parent is left out." },
 ] as const;
 
 const testimonials = [
   {
-    quote:
-      "Future Realm SMS helped us move from scattered spreadsheets to a calm, structured school workflow. Our admissions and fee tracking became far easier to manage.",
-    name: "Mrs. Ifeoma Nwosu",
-    role: "Proprietress",
-    school: "Hillcrest Academy, Abuja",
+    quote: "We closed our accounts office spreadsheet the week we switched. Fee collection is up 30%.",
+    name: "Funmi Adebayo",
+    role: "Proprietress, Crestwood Schools, Lagos",
   },
   {
-    quote:
-      "The result and attendance workflows feel like they were designed by people who understand real Nigerian school operations. Our staff settled in quickly.",
-    name: "Mr. Ayo Balogun",
-    role: "Principal",
-    school: "Cedar Grove College, Lagos",
+    quote: "The result and attendance workflows feel like they were built by people who understand real Nigerian school operations.",
+    name: "Tunde Okafor",
+    role: "Admin Head, Grace Int'l Academy, Abuja",
   },
   {
-    quote:
-      "Parents appreciate the visibility, and our leadership team finally has one place to review academics, payments, and communication without chasing paper trails.",
-    name: "Dr. Zainab Sule",
-    role: "Head of School",
-    school: "Royal Oaks Schools, Kano",
+    quote: "Parents finally stop calling the front desk — and our leadership has one place to review academics, payments and communication.",
+    name: "Chiamaka Nwosu",
+    role: "Vice Principal, Bright Path College",
   },
 ] as const;
 
-const standoutFeatures = [
+const trustCards = [
+  { title: "NDPC-aligned", desc: "Lawful basis, retention limits and deletion requests handled as process, not paperwork." },
+  { title: "Full audit trail", desc: "Every score change and fee adjustment carries who, when and why — permanently." },
+  { title: "Role-based access", desc: "A class teacher sees their class. A bursar sees fees. Nobody sees everything by accident." },
+  { title: "Your data leaves with you", desc: "Export every record in a standard format at any time. No hostage-taking." },
+] as const;
+
+interface Plan {
+  name: string;
+  desc: string;
+  price: string;
+  cta: string;
+  popular: boolean;
+  features: string[];
+}
+
+interface PublicPlan {
+  slug: string;
+  name: string;
+  plan: string;
+  monthlyPrice: number;
+  annualPrice: number;
+  includedModules: string[];
+}
+
+// Marketing copy for each tier — pricing itself is fetched live from
+// /api/v1/onboarding/plans (backed by PlatformSubscriptionPlan) so an
+// admin's pricing changes in Super Admin > Feature & Tier Config show up
+// here, in onboarding, and anywhere else that reads the same source.
+const planCopy: Record<string, { desc: string; cta: string; popular: boolean; features: string[] }> = {
+  Basic: {
+    desc: "For growing single-campus schools getting organized for the first time.",
+    cta: "Get started",
+    popular: false,
+    features: ["Admissions workflow", "Attendance tracking", "Parent portal", "Basic reports"],
+  },
+  Standard: {
+    desc: "For established schools running academics, finance and communication in one place.",
+    cta: "Get started",
+    popular: true,
+    features: ["Everything in Basic", "Results & broadsheets", "Fee management", "Role-based portals", "Priority onboarding"],
+  },
+  Premium: {
+    desc: "For multi-branch institutions that need deeper control, visibility and premium support.",
+    cta: "Talk to sales",
+    popular: false,
+    features: ["Everything in Standard", "Multi-campus support", "Advanced operations modules", "Executive reporting", "Dedicated success support"],
+  },
+};
+
+const fallbackPlans: Plan[] = Object.entries(planCopy).map(([name, copy]) => ({ name, price: "—", ...copy }));
+
+function formatNaira(amount: number) {
+  return `₦${amount.toLocaleString("en-NG")}`;
+}
+
+const faqs = [
   {
-    icon: MessageCircle,
-    tag: "WhatsApp integration",
-    title: "Meet parents where they already are",
-    description:
-      "Push results, fee reminders, and announcements straight to WhatsApp — the highest open-rate channel Nigerian parents actually check every day.",
-    highlights: ["Automated result alerts", "Fee & payment reminders", "Two-way parent messaging"],
-    large: true,
+    q: "Does FutureRealm support WAEC and NECO-style result workflows?",
+    a: "Yes — FutureRealm is built around Nigerian grading realities, supporting continuous assessment, exam scores, broadsheets and report cards that align with WAEC and NECO reporting structures.",
   },
   {
-    icon: Brain,
-    tag: "AI learning recommendations",
-    title: "Spot struggling students before it is too late",
-    description:
-      "AI reads performance and attendance patterns to flag at-risk students early and recommend focused interventions your teachers can act on.",
-    highlights: ["Early risk detection", "Personalized study focus", "Class performance insights"],
-    large: true,
+    q: "Can we manage more than one school branch?",
+    a: "Yes, especially on the Premium plan, which is built for multi-campus institutions with centralized oversight.",
+  },
+  {
+    q: "Does it work well when internet connectivity is unstable?",
+    a: "Yes. FutureRealm is built with low-bandwidth realities in mind — attendance and grading work offline and sync automatically once a connection is available.",
+  },
+  {
+    q: "Will parents be able to see fees, attendance and results?",
+    a: "Yes, through the parent portal, from day one of your rollout.",
+  },
+  {
+    q: "Can your team help with setup and onboarding for our staff?",
+    a: "Yes — hands-on onboarding support is included as part of every plan's rollout.",
   },
 ] as const;
 
-const capabilityChips = [
-  { icon: Zap, title: "Automated result computation", description: "CA plus exams roll into report cards instantly — no manual broadsheet maths." },
-  { icon: Receipt, title: "Instant fee reconciliation", description: "Payments match invoices automatically so bursars stop chasing balances." },
-  { icon: WifiOff, title: "Offline-first workflows", description: "Keep taking attendance and entering scores through weak connectivity." },
-  { icon: Send, title: "Bulk SMS, email & in-app", description: "Reach the whole school — or one class — in a couple of clicks." },
-] as const;
-
-const pricing = {
-  monthly: [
-    {
-      name: "Basic",
-      price: 35000,
-      summary: "For growing single-campus schools getting organized for the first time.",
-      features: ["Admissions workflow", "Attendance tracking", "Parent portal", "SMS & email alerts", "Basic reports"],
-      cta: "Get Started",
-      featured: false,
-    },
-    {
-      name: "Standard",
-      price: 85000,
-      summary: "For established schools that want communication and automation working together.",
-      features: [
-        "Everything in Basic",
-        "WhatsApp parent notifications",
-        "Results & broadsheets",
-        "Automated result computation",
-        "Fee management & reconciliation",
-        "Role-based portals",
-        "Priority onboarding",
-      ],
-      cta: "Get Started",
-      featured: true,
-    },
-    {
-      name: "Premium",
-      price: 160000,
-      summary: "For multi-branch institutions that want AI insight and deeper control.",
-      features: [
-        "Everything in Standard",
-        "AI learning recommendations",
-        "Executive AI reporting",
-        "Multi-campus support",
-        "Advanced operations modules",
-        "Dedicated success support",
-      ],
-      cta: "Get Started",
-      featured: false,
-    },
-  ],
-  annual: [
-    {
-      name: "Basic",
-      price: 350000,
-      summary: "For growing single-campus schools getting organized for the first time.",
-      features: ["Admissions workflow", "Attendance tracking", "Parent portal", "SMS & email alerts", "Basic reports"],
-      cta: "Get Started",
-      featured: false,
-    },
-    {
-      name: "Standard",
-      price: 850000,
-      summary: "For established schools that want communication and automation working together.",
-      features: [
-        "Everything in Basic",
-        "WhatsApp parent notifications",
-        "Results & broadsheets",
-        "Automated result computation",
-        "Fee management & reconciliation",
-        "Role-based portals",
-        "Priority onboarding",
-      ],
-      cta: "Get Started",
-      featured: true,
-    },
-    {
-      name: "Premium",
-      price: 1600000,
-      summary: "For multi-branch institutions that want AI insight and deeper control.",
-      features: [
-        "Everything in Standard",
-        "AI learning recommendations",
-        "Executive AI reporting",
-        "Multi-campus support",
-        "Advanced operations modules",
-        "Dedicated success support",
-      ],
-      cta: "Get Started",
-      featured: false,
-    },
-  ],
-} as const;
-
-const faqItems = [
-  {
-    id: "faq-waec",
-    title: "Can Future Realm SMS support WAEC and NECO-style result workflows?",
-    summary: "Yes, it is designed around Nigerian grading realities.",
-    content:
-      "The platform supports continuous assessment, exam score entry, broadsheets, report cards, and result workflows that align well with WAEC and NECO-oriented school reporting structures.",
-  },
-  {
-    id: "faq-branches",
-    title: "Can we manage more than one school branch?",
-    summary: "Yes, especially on higher plans.",
-    content:
-      "Future Realm SMS is built with multi-tenant and multi-campus scenarios in mind, making it suitable for school groups that want branch-level structure with leadership visibility.",
-  },
-  {
-    id: "faq-offline",
-    title: "Does it work well when internet quality is unstable?",
-    summary: "It is built with low-bandwidth realities in mind.",
-    content:
-      "The product is optimized for mobile and practical school use, and some workflows are designed to be more resilient during inconsistent connectivity so staff can keep moving.",
-  },
-  {
-    id: "faq-parents",
-    title: "Will parents be able to see fees, attendance, and results?",
-    summary: "Yes, through the parent portal.",
-    content:
-      "Parents can be given access to a dedicated portal where they can monitor attendance, view published results, track fee balances, and stay updated through announcements and notifications.",
-  },
-  {
-    id: "faq-onboarding",
-    title: "Can your team help with setup and onboarding for our staff?",
-    summary: "Yes, onboarding is part of the rollout experience.",
-    content:
-      "From configuration to data setup and team orientation, the rollout can be structured to match the size and operational maturity of your school.",
-  },
-] as const;
-
-type BillingMode = keyof typeof pricing;
-
-const dashboardBars = [42, 58, 51, 70, 64, 82, 76, 94];
+function ImagePlaceholder({ caption, className }: { caption: string; className?: string }) {
+  return (
+    <div
+      className={cn("relative flex items-end overflow-hidden rounded-[20px] bg-[#f3f7f4]", className)}
+      style={{ backgroundImage: "linear-gradient(155deg, #eaf0ec 0%, #f7faf8 60%, #ffffff 100%)" }}
+      role="img"
+      aria-label={caption}
+    >
+      <Camera className="absolute right-5 top-5 h-5 w-5 text-[#cfddd5]" strokeWidth={1.6} />
+      <span className="m-4 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#77857c]">{caption}</span>
+    </div>
+  );
+}
 
 function RevealSection({
   children,
   className,
   delay = 0,
   id,
+  style,
 }: {
   children: React.ReactNode;
   className?: string;
   delay?: number;
   id?: string;
+  style?: React.CSSProperties;
 }) {
   return (
     <section
       id={id}
       className={cn("motion-safe:animate-[fade-up_640ms_ease-out_both]", className)}
-      style={{ animationDelay: `${delay}ms` }}
+      style={{ ...style, animationDelay: `${delay}ms` }}
     >
       {children}
     </section>
   );
 }
 
-function formatPrice(amount: number) {
-  return `₦${amount.toLocaleString("en-NG")}`;
-}
-
-function ThemeToggle() {
-  const { theme, toggleTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const isDark = mounted && theme === "dark";
-
-  return (
-    <button
-      type="button"
-      onClick={toggleTheme}
-      className="group inline-flex h-10 w-10 items-center justify-center rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
-      aria-label={`Switch to ${isDark ? "light" : "dark"} mode`}
-      title={`Switch to ${isDark ? "light" : "dark"} mode`}
-    >
-      {isDark ? <Sun className="h-[18px] w-[18px]" /> : <Moon className="h-[18px] w-[18px]" />}
-    </button>
-  );
-}
-
 export function FutureRealmLandingPage() {
-  const [billingMode, setBillingMode] = useState<BillingMode>("annual");
+  const [activeTab, setActiveTab] = useState(0);
+  const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [plans, setPlans] = useState<Plan[]>(fallbackPlans);
   const { showToast } = useToast();
 
-  const plans = useMemo(() => pricing[billingMode], [billingMode]);
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/v1/onboarding/plans")
+      .then((response) => response.json())
+      .then((body: { data?: PublicPlan[] }) => {
+        if (cancelled || !body.data || body.data.length === 0) return;
+        const live = body.data
+          .filter((item) => planCopy[item.name])
+          .map((item) => ({ name: item.name, price: formatNaira(item.annualPrice), ...planCopy[item.name] }));
+        if (live.length > 0) setPlans(live);
+      })
+      .catch(() => {
+        // Keep the fallback copy — the pricing section still renders, just not live-updated.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const tab = roleTabs[activeTab];
 
   function handleNewsletterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -401,699 +354,732 @@ export function FutureRealmLandingPage() {
     showToast({
       variant: "success",
       title: "You are on the list",
-      description: "We will share Future Realm SMS updates, demos, and rollout news with you.",
+      description: "We will share FutureRealm SMS updates, demos, and rollout news with you.",
     });
     setNewsletterEmail("");
   }
 
   return (
-    <main className="lp-root min-h-screen text-[var(--color-text-primary)]">
-      <div className="lp-backdrop" aria-hidden="true">
-        <div className="lp-grid" />
-        <span className="lp-blob lp-blob-a" />
-        <span className="lp-blob lp-blob-b" />
-        <span className="lp-blob lp-blob-c" />
+    <main id="top" className="min-h-screen bg-white text-[#0d2315]" style={{ fontFamily: "'Inter', sans-serif" }}>
+      {/* Navigation */}
+      <div className="mx-auto flex max-w-[1360px] items-center justify-between px-6 py-[22px] sm:px-14">
+        <Link href="/" className="flex items-center gap-2.5">
+          <span className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ background: INK }}>
+            <School className="h-4 w-4 text-white" />
+          </span>
+          <span className="font-[var(--font-heading)] text-base font-extrabold" style={{ color: INK }}>
+            FutureRealm <span style={{ color: TEAL }}>SMS</span>
+          </span>
+        </Link>
+        <div className="hidden items-center gap-9 lg:flex">
+          {navLinks.map((link) => (
+            <a key={link.href} href={link.href} className="text-[15px] font-medium" style={{ color: INK }}>
+              {link.label}
+            </a>
+          ))}
+        </div>
+        <div className="flex items-center gap-[18px]">
+          <Link href="/login" className="hidden whitespace-nowrap text-[15px] font-medium sm:inline-flex" style={{ color: INK }}>
+            Sign in
+          </Link>
+          <Link
+            href="/onboarding"
+            className="whitespace-nowrap rounded-full px-[22px] py-[11px] text-sm font-semibold text-white"
+            style={{ background: INK }}
+          >
+            Sign up
+          </Link>
+        </div>
       </div>
 
-      {/* Navigation */}
-      <header className="sticky top-0 z-50 px-4 pt-4 sm:px-6">
-        <nav className="lp-nav mx-auto flex max-w-7xl items-center justify-between gap-4 rounded-full px-3 py-2 pl-4 sm:px-4 sm:py-2.5">
-          <Link href="/" className="inline-flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)] shadow-[0_8px_18px_var(--color-accent-primary-glow)]">
-              <School className="h-[18px] w-[18px]" />
+      {/* Hero */}
+      <RevealSection className="mx-auto grid max-w-[1360px] items-center gap-10 px-6 pb-10 pt-12 sm:px-14 lg:grid-cols-[1fr_0.95fr]">
+        <div>
+          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#d3dfd7] bg-[#eaf0ec] py-[7px] pl-2 pr-3.5">
+            <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: INK }}>
+              ✓
             </span>
-            <span className="font-[var(--font-heading)] text-base font-bold tracking-tight text-[var(--color-text-primary)]">
-              Future Realm <span className="text-[var(--color-text-accent)]">SMS</span>
-            </span>
-          </Link>
-
-          <div className="hidden items-center gap-1 lg:flex">
-            {navLinks.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="rounded-full px-4 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-overlay)] hover:text-[var(--color-text-primary)]"
-              >
-                {link.label}
-              </a>
-            ))}
+            <span className="text-[13px] font-semibold text-[#17604f]">Built for Nigerian schools · NDPC-compliant</span>
           </div>
-
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
+          <h1 className="mb-[22px] font-[var(--font-heading)] text-[42px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-[52px] lg:text-[60px]">
+            Run your school on <span style={{ color: TEAL }}>one clear system</span>, not six spreadsheets.
+          </h1>
+          <p className="mb-8 max-w-[520px] text-[17px] leading-[1.6] text-[#435048] sm:text-lg">
+            Admissions, academics, fees and communication — one modern operating system built for private,
+            faith-based and multi-branch schools across Nigeria.
+          </p>
+          <div className="mb-10 flex flex-wrap items-center gap-4">
             <Link
-              href="/login"
-              className="hidden rounded-full px-4 py-2 text-sm font-semibold text-[var(--color-text-primary)] transition hover:text-[var(--color-text-accent)] sm:inline-flex"
+              href="/onboarding"
+              className="rounded-full px-7 py-4 text-[15px] font-semibold text-white shadow-[0_12px_24px_-8px_rgba(13,35,21,0.55)]"
+              style={{ background: INK }}
             >
-              Login
+              Start free trial
             </Link>
-            <Link href="/onboarding" className="btn-primary rounded-full px-4">
-              Get Started
-              <ArrowRight className="h-4 w-4" />
-            </Link>
+            <a href="#features" className="flex items-center gap-2.5 py-4 text-[15px] font-semibold" style={{ color: INK }}>
+              <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full border-[1.5px]" style={{ borderColor: INK }}>
+                <svg width="11" height="12" viewBox="0 0 11 12" fill={INK}>
+                  <path d="M10.5 6 0 12V0z" />
+                </svg>
+              </span>
+              Watch 90s demo
+            </a>
           </div>
-        </nav>
-      </header>
-
-      <div className="mx-auto flex max-w-7xl flex-col gap-20 px-4 pb-16 pt-14 sm:px-6 md:gap-28 md:pt-20 lg:px-8">
-        {/* Hero */}
-        <RevealSection className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]" delay={40}>
-          <div className="space-y-7">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)]/80 px-4 py-1.5 text-[12px] font-semibold text-[var(--color-text-accent)] shadow-[var(--shadow-sm)]">
-              <Sparkles className="h-3.5 w-3.5" />
-              The operating system for Nigerian schools
-            </span>
-
-            <h1 className="font-[var(--font-heading)] text-[2.6rem] font-black leading-[1.04] tracking-tight sm:text-6xl lg:text-[4.1rem]">
-              <span className="lp-gradient-text">Run your entire school</span>
-              <br />
-              from <span className="lp-accent-text">one calm platform</span>
-            </h1>
-
-            <p className="max-w-xl text-base leading-8 text-[var(--color-text-secondary)] md:text-lg">
-              Admissions, academics, fees, communication, and daily operations — unified for private,
-              faith-based, and multi-branch institutions across Nigeria. Less paperwork, more clarity.
-            </p>
-
-            <div className="flex flex-wrap items-center gap-3">
-              <Link href="/onboarding" className="btn-primary h-12 rounded-full px-6 text-sm">
-                Start free
-                <ArrowRight className="h-4 w-4" />
-              </Link>
-              <a href="#platform" className="btn-secondary h-12 rounded-full px-6 text-sm">
-                See the platform
-                <ChevronRight className="h-4 w-4" />
-              </a>
-            </div>
-
-            <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-2">
-              <div className="flex items-center gap-1 text-[var(--color-warning)]">
-                {Array.from({ length: 5 }).map((_, index) => (
-                  <Star key={index} className="h-4 w-4 fill-current" />
-                ))}
-                <span className="ml-2 text-sm font-semibold text-[var(--color-text-primary)]">Loved by school teams</span>
-              </div>
-              <div className="flex items-center gap-2 text-sm font-medium text-[var(--color-text-secondary)]">
-                <ShieldCheck className="h-4 w-4 text-[var(--color-text-accent)]" />
-                No card required to start
-              </div>
-            </div>
-          </div>
-
-          {/* Product preview */}
-          <div className="relative">
-            <div className="lp-hero-panel lp-glow lp-float p-4 sm:p-5">
-              <div className="flex items-center justify-between gap-3 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)]/70 px-4 py-3">
-                <div className="flex items-center gap-2.5">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)]">
-                    <School className="h-4 w-4" />
-                  </span>
-                  <div>
-                    <p className="text-[13px] font-bold text-[var(--color-text-primary)]">Command Center</p>
-                    <p className="text-[11px] text-[var(--color-text-secondary)]">Term 2 · 2025/2026</p>
-                  </div>
-                </div>
-                <span className="relative inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
-                  <span className="lp-dot-pulse relative h-2 w-2 rounded-full bg-[var(--color-success)]" />
-                  Live
+          <div className="flex flex-wrap items-center gap-7">
+            <span className="text-[13px] text-[#77857c]">Trusted by school groups across</span>
+            <div className="flex flex-wrap gap-[18px]">
+              {trustPlaces.map((place) => (
+                <span key={place} className="font-[var(--font-heading)] text-sm font-semibold text-[#435048]">
+                  {place}
                 </span>
-              </div>
+              ))}
+            </div>
+          </div>
+        </div>
 
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                {[
-                  { label: "Enrollment", value: "1,284", trend: "+6.2%", icon: Users2 },
-                  { label: "Fees collected", value: "92%", trend: "+4.1%", icon: Wallet },
-                  { label: "Attendance", value: "96.4%", trend: "+1.8%", icon: CalendarDays },
-                ].map((kpi) => {
-                  const Icon = kpi.icon;
-                  return (
-                    <div key={kpi.label} className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]/90 p-3">
-                      <Icon className="h-4 w-4 text-[var(--color-text-accent)]" />
-                      <p className="mt-3 font-[var(--font-heading)] text-lg font-bold text-[var(--color-text-primary)]">{kpi.value}</p>
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-secondary)]">{kpi.label}</p>
-                      <p className="mt-1 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--color-success)]">
-                        <TrendingUp className="h-3 w-3" />
-                        {kpi.trend}
+        <div className="relative h-[440px] sm:h-[520px]">
+          <div className="absolute right-0 top-0 w-[94%] overflow-hidden rounded-[18px] border border-[#dce6df] bg-white shadow-[0_40px_80px_-24px_rgba(23,20,38,0.25)]">
+            <div className="flex items-center gap-1.5 border-b border-[#e3ece6] px-[18px] py-3.5">
+              <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
+              <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
+              <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
+              <span className="ml-3 font-[var(--font-heading)] text-[11px] text-[#9fb8a7]">app.futurerealm.school/dashboard</span>
+            </div>
+            <div className="flex">
+              <div className="flex w-14 flex-col items-center gap-4 border-r border-[#e3ece6] bg-[#f3f7f4] py-4">
+                <span className="h-[26px] w-[26px] rounded-[7px]" style={{ background: INK }} />
+                <span className="h-[18px] w-[18px] rounded-md bg-[#d3dfd7]" />
+                <span className="h-[18px] w-[18px] rounded-md bg-[#d3dfd7]" />
+                <span className="h-[18px] w-[18px] rounded-md bg-[#d3dfd7]" />
+              </div>
+              <div className="flex-1 p-5">
+                <p className="mb-3.5 font-[var(--font-heading)] text-sm font-semibold">Term overview</p>
+                <div className="mb-4 grid grid-cols-3 gap-2.5">
+                  {heroKpis.map((kpi) => (
+                    <div
+                      key={kpi.label}
+                      className="rounded-[10px] p-3"
+                      style={{ background: kpi.dark ? INK : "#eaf0ec" }}
+                    >
+                      <p className="mb-1.5 text-[10px]" style={{ color: kpi.dark ? "#9fb8a7" : "#77857c" }}>
+                        {kpi.label}
+                      </p>
+                      <p className="font-[var(--font-heading)] text-lg font-bold" style={{ color: kpi.dark ? "#fff" : INK }}>
+                        {kpi.value}
                       </p>
                     </div>
-                  );
-                })}
-              </div>
-
-              <div className="mt-3 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]/90 p-4">
-                <div className="flex items-center justify-between">
-                  <p className="text-[12px] font-bold text-[var(--color-text-primary)]">Revenue this term</p>
-                  <p className="text-[11px] font-semibold text-[var(--color-text-secondary)]">₦48.2M</p>
+                  ))}
                 </div>
-                <div className="mt-4 flex h-24 items-end gap-2">
-                  {dashboardBars.map((height, index) => (
+                <div className="mb-3.5 flex h-[90px] items-end gap-1.5 rounded-[10px] bg-[#f6f9f7] p-2.5 px-1">
+                  {[40, 65, 50, 85, 60, 72].map((h, i) => (
                     <div
-                      key={index}
-                      className="lp-mini-bar flex-1 rounded-t-md bg-gradient-to-t from-[var(--color-accent-primary)] to-[var(--color-accent-primary-hover)]"
-                      style={{ height: `${height}%`, animationDelay: `${index * 70}ms` }}
+                      key={i}
+                      className="lp-mini-bar w-full rounded"
+                      style={{ height: `${h}%`, background: i === 3 ? INK : "#d3dfd7", animationDelay: `${i * 70}ms` }}
                     />
                   ))}
                 </div>
+                <div className="flex flex-col gap-2">
+                  <div className="h-2.5 w-full rounded bg-[#e3ece6]" />
+                  <div className="h-2.5 w-4/5 rounded bg-[#e3ece6]" />
+                </div>
               </div>
             </div>
-
-            <div className="lp-glass absolute -left-3 bottom-6 hidden items-center gap-3 rounded-2xl px-4 py-3 shadow-[var(--shadow-md)] sm:flex">
-              <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                <GraduationCap className="h-5 w-5" />
+          </div>
+          <div className="absolute bottom-2.5 left-0 hidden w-[230px] rounded-[14px] border border-[#dce6df] bg-white p-4 shadow-[0_24px_48px_-16px_rgba(23,20,38,0.2)] sm:block">
+            <div className="mb-2.5 flex items-center gap-2.5">
+              <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-full bg-[#eaf0ec]">
+                <MessageSquareText className="h-4 w-4" style={{ color: INK }} strokeWidth={1.9} />
               </span>
               <div>
-                <p className="text-[12px] font-bold text-[var(--color-text-primary)]">Results published</p>
-                <p className="text-[11px] text-[var(--color-text-secondary)]">JSS 3 · 214 report cards</p>
+                <p className="text-xs font-semibold">Parent notified</p>
+                <p className="text-[11px] text-[#77857c]">Fee reminder · SMS + push</p>
               </div>
             </div>
+            <p className="rounded-lg bg-[#f3f7f4] px-2.5 py-2 text-[11px] text-[#77857c]">
+              &quot;Term 2 balance of ₦45,000 is due Friday.&quot;
+            </p>
           </div>
-        </RevealSection>
+        </div>
+      </RevealSection>
 
-        {/* Trust marquee */}
-        <RevealSection className="space-y-6" delay={100}>
-          <p className="text-center text-[11px] font-semibold uppercase tracking-[0.3em] text-[var(--color-text-secondary)]">
-            Built for schools that care about getting operations right
-          </p>
-          <div className="lp-marquee">
-            <div className="lp-marquee-track">
-              {[...trustLogos, ...trustLogos].map((logo, index) => (
-                <span
-                  key={`${logo}-${index}`}
-                  className="inline-flex items-center gap-2 whitespace-nowrap font-[var(--font-heading)] text-lg font-bold text-[var(--color-text-secondary)] opacity-70"
-                >
-                  <Building2 className="h-4 w-4" />
-                  {logo}
-                </span>
-              ))}
-            </div>
-          </div>
-        </RevealSection>
+      {/* Campus photo strip */}
+      <div className="mx-auto max-w-[1360px] px-6 pt-8 sm:px-14">
+        <ImagePlaceholder caption="Students and teachers on a Nigerian school campus" className="h-[280px] sm:h-[380px]" />
+      </div>
 
-        {/* Stats */}
-        <RevealSection className="grid grid-cols-2 gap-4 lg:grid-cols-4" delay={120}>
-          {heroStats.map((stat) => (
-            <div key={stat.label} className="lp-card p-6 text-center">
-              <p className="font-[var(--font-heading)] text-4xl font-black text-[var(--color-text-primary)]">{stat.value}</p>
-              <p className="mt-2 text-sm font-medium text-[var(--color-text-secondary)]">{stat.label}</p>
+      {/* Stat band */}
+      <RevealSection className="mt-16 py-14" style={{ background: INK }}>
+        <div className="mx-auto grid max-w-[1360px] grid-cols-2 gap-6 px-6 sm:px-14 lg:grid-cols-4">
+          {bandStats.map((stat, index) => (
+            <div
+              key={stat.value}
+              className={cn(
+                "pr-6",
+                index < bandStats.length - 1 && "border-r border-[rgba(255,255,255,0.14)]",
+              )}
+            >
+              <p className="font-[var(--font-heading)] text-[32px] font-extrabold leading-none tracking-[-0.02em] text-white sm:text-[40px]">
+                {stat.value}
+              </p>
+              <p className="mt-2.5 text-sm leading-[1.5] text-[#eaf0ec]">{stat.detail}</p>
             </div>
           ))}
-        </RevealSection>
+        </div>
+      </RevealSection>
 
-        {/* Features */}
-        <RevealSection id="features" className="space-y-10" delay={120}>
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="section-eyebrow">Everything in one place</p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-              The complete toolkit a modern Nigerian school runs on
-            </h2>
-            <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)]">
-              Purpose-built modules that fit how schools actually work — without forcing your staff into bloated,
-              confusing software.
+      {/* Pillars */}
+      <RevealSection className="px-6 py-24 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mx-auto mb-14 max-w-[640px] text-center">
+            <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: INK }}>
+              School operations command
             </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-            {features.map((feature, index) => {
-              const Icon = feature.icon;
-              return (
-                <article
-                  key={feature.title}
-                  className="lp-card group p-6 motion-safe:animate-[fade-up_560ms_ease-out_both]"
-                  style={{ animationDelay: `${180 + index * 60}ms` }}
-                >
-                  <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)] transition group-hover:bg-[var(--color-accent-primary)] group-hover:text-[var(--color-text-inverse)]">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-5 font-[var(--font-heading)] text-xl font-bold text-[var(--color-text-primary)]">
-                    {feature.title}
-                  </h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">{feature.description}</p>
-                </article>
-              );
-            })}
-          </div>
-        </RevealSection>
-
-        {/* Standout selling points */}
-        <RevealSection id="standout" className="space-y-10" delay={130}>
-          <div className="mx-auto max-w-3xl text-center">
-            <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)]/80 px-4 py-1.5 text-[12px] font-semibold text-[var(--color-text-accent)] shadow-[var(--shadow-sm)]">
-              <Sparkles className="h-3.5 w-3.5" />
-              What sets Future Realm apart
-            </span>
-            <h2 className="mt-4 font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-              The features schools switch for
-            </h2>
-            <p className="mt-4 text-base leading-7 text-[var(--color-text-secondary)]">
-              Beyond the basics — the differentiators that turn a school management system into a real advantage.
-            </p>
-          </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {standoutFeatures.map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <article
-                  key={item.tag}
-                  className="lp-card relative overflow-hidden p-8 motion-safe:animate-[fade-up_560ms_ease-out_both]"
-                  style={{ animationDelay: `${180 + index * 90}ms` }}
-                >
-                  <span
-                    className="pointer-events-none absolute -right-16 -top-16 h-48 w-48 rounded-full opacity-60 blur-3xl"
-                    style={{ background: "radial-gradient(circle, var(--color-accent-primary-glow), transparent 70%)" }}
-                    aria-hidden="true"
-                  />
-                  <div className="relative flex items-center gap-3">
-                    <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)] shadow-[0_12px_24px_var(--color-accent-primary-glow)]">
-                      <Icon className="h-6 w-6" />
-                    </span>
-                    <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-accent)]">
-                      {item.tag}
-                    </span>
-                  </div>
-                  <h3 className="relative mt-6 font-[var(--font-heading)] text-2xl font-bold text-[var(--color-text-primary)]">
-                    {item.title}
-                  </h3>
-                  <p className="relative mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">{item.description}</p>
-                  <ul className="relative mt-6 flex flex-wrap gap-2">
-                    {item.highlights.map((highlight) => (
-                      <li
-                        key={highlight}
-                        className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)]/60 px-3 py-1.5 text-xs font-semibold text-[var(--color-text-primary)]"
-                      >
-                        <Check className="h-3.5 w-3.5 text-[var(--color-text-accent)]" />
-                        {highlight}
-                      </li>
-                    ))}
-                  </ul>
-                </article>
-              );
-            })}
-          </div>
-
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {capabilityChips.map((chip, index) => {
-              const Icon = chip.icon;
-              return (
-                <div
-                  key={chip.title}
-                  className="lp-card p-6 motion-safe:animate-[fade-up_560ms_ease-out_both]"
-                  style={{ animationDelay: `${260 + index * 70}ms` }}
-                >
-                  <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                    <Icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="mt-4 font-[var(--font-heading)] text-base font-bold text-[var(--color-text-primary)]">{chip.title}</h3>
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{chip.description}</p>
-                </div>
-              );
-            })}
-          </div>
-        </RevealSection>
-
-        {/* Platform highlights */}
-        <RevealSection id="platform" className="space-y-10" delay={140}>
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="section-eyebrow">The platform</p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-              One system, complete visibility
+            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              One reliable operating system
             </h2>
           </div>
-
-          <div className="grid gap-6 lg:grid-cols-2">
-            {platformHighlights.map((item, index) => {
-              const Icon = item.icon;
-              return (
-                <article key={item.title} className="lp-card overflow-hidden p-8">
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)] shadow-[0_10px_20px_var(--color-accent-primary-glow)]">
-                      <Icon className="h-5 w-5" />
-                    </span>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-accent)]">{item.eyebrow}</p>
-                  </div>
-                  <h3 className="mt-6 font-[var(--font-heading)] text-2xl font-bold text-[var(--color-text-primary)]">{item.title}</h3>
-                  <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">{item.description}</p>
-                  <ul className="mt-6 grid gap-3">
-                    {item.points.map((point) => (
-                      <li key={point} className="flex items-center gap-3 text-sm font-medium text-[var(--color-text-primary)]">
-                        <span className="flex h-5 w-5 items-center justify-center rounded-full bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                          <Check className="h-3.5 w-3.5" />
-                        </span>
-                        {point}
-                      </li>
-                    ))}
-                  </ul>
-                  <div
-                    className="mt-7 flex items-center justify-between rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-overlay)]/60 px-5 py-4"
-                  >
-                    {index === 0 ? (
-                      <div className="flex w-full items-end gap-1.5">
-                        {[40, 62, 48, 74, 58, 88, 70, 96, 82].map((height, barIndex) => (
-                          <div
-                            key={barIndex}
-                            className="lp-mini-bar flex-1 rounded-t bg-gradient-to-t from-[var(--color-accent-primary)] to-[var(--color-accent-primary-hover)]"
-                            style={{ height: `${height * 0.6}px`, animationDelay: `${barIndex * 60}ms` }}
-                          />
-                        ))}
-                      </div>
-                    ) : (
-                      <>
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-[var(--color-text-secondary)]">Collected this term</p>
-                          <p className="mt-1 font-[var(--font-heading)] text-2xl font-black text-[var(--color-text-primary)]">₦48,240,500</p>
-                        </div>
-                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-success-dim)] px-3 py-1 text-xs font-bold text-[var(--color-success)]">
-                          <TrendingUp className="h-3.5 w-3.5" />
-                          92% rate
-                        </span>
-                      </>
-                    )}
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        </RevealSection>
-
-        {/* Trust pillars */}
-        <RevealSection className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4" delay={140}>
-          {trustPillars.map((pillar) => {
-            const Icon = pillar.icon;
-            return (
-              <div key={pillar.title} className="lp-card p-6">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                  <Icon className="h-5 w-5" />
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {pillars.map((pillar) => (
+              <div key={pillar.title} className="rounded-[18px] border border-[#e3ece6] bg-[#f3f7f4] p-7">
+                <span className="mb-[18px] flex h-[42px] w-[42px] items-center justify-center rounded-xl" style={{ background: INK }}>
+                  <Building2 className="h-[18px] w-[18px] text-white" strokeWidth={1.9} />
                 </span>
-                <h3 className="mt-4 font-[var(--font-heading)] text-lg font-bold text-[var(--color-text-primary)]">{pillar.title}</h3>
-                <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{pillar.description}</p>
+                <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{pillar.title}</p>
+                <p className="text-[13.5px] text-[#435048]">{pillar.subtitle}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Features */}
+      <RevealSection id="features" className="mx-auto max-w-[1360px] px-6 pb-24 sm:px-14">
+        <div className="mb-14 max-w-[640px]">
+          <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: INK }}>
+            Key features
+          </p>
+          <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            Everything a modern Nigerian school needs to run well
+          </h2>
+          <p className="mt-4 text-[15.5px] text-[#435048]">
+            Structured to support daily operations without forcing staff into bloated workflows.
+          </p>
+        </div>
+        <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+          {featureCards.map((feature) => {
+            const Icon = feature.icon;
+            return (
+              <div
+                key={feature.title}
+                className={cn("overflow-hidden rounded-[20px] border border-[#e3ece6]", feature.span === 2 && "sm:col-span-2")}
+                style={{ background: feature.bg }}
+              >
+                {feature.photoCaption ? (
+                  <ImagePlaceholder caption={feature.photoCaption} className="h-[180px] rounded-none" />
+                ) : null}
+                <div className="p-7">
+                  {Icon ? (
+                    <span
+                      className="mb-5 flex h-11 w-11 items-center justify-center rounded-xl"
+                      style={{ background: feature.bg === "#eaf0ec" ? "#fff" : INK }}
+                    >
+                      <Icon className="h-[18px] w-[18px]" style={{ color: feature.bg === "#eaf0ec" ? INK : "#fff" }} />
+                    </span>
+                  ) : null}
+                  <p className="mb-2.5 font-[var(--font-heading)] text-[19px] font-semibold">{feature.title}</p>
+                  <p className="text-[14.5px] leading-[1.55] text-[#435048]">{feature.desc}</p>
+                </div>
               </div>
             );
           })}
-        </RevealSection>
+        </div>
+      </RevealSection>
 
-        {/* How it works */}
-        <RevealSection className="space-y-10" delay={160}>
-          <div className="mx-auto max-w-3xl text-center">
-            <p className="section-eyebrow">How it works</p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-              From setup to school-wide control in four steps
-            </h2>
-          </div>
-
-          <div className="grid gap-5 lg:grid-cols-4">
-            {steps.map((step, index) => (
-              <article
-                key={step.id}
-                className="lp-card relative p-6 motion-safe:animate-[fade-up_560ms_ease-out_both]"
-                style={{ animationDelay: `${200 + index * 80}ms` }}
-              >
-                <span className="font-[var(--font-heading)] text-4xl font-black text-[var(--color-accent-primary-dim)]" style={{ WebkitTextStroke: "1px var(--color-accent-primary)" }}>
-                  {step.id}
-                </span>
-                <h3 className="mt-4 font-[var(--font-heading)] text-lg font-bold text-[var(--color-text-primary)]">{step.title}</h3>
-                <p className="mt-3 text-sm leading-7 text-[var(--color-text-secondary)]">{step.description}</p>
-                {index < steps.length - 1 ? (
-                  <ArrowRight className="absolute -right-3 top-1/2 hidden h-5 w-5 -translate-y-1/2 text-[var(--color-border-strong)] lg:block" />
-                ) : null}
-              </article>
-            ))}
-          </div>
-        </RevealSection>
-
-        {/* Testimonials */}
-        <RevealSection className="space-y-10" delay={180}>
-          <div className="flex flex-col gap-3 text-center">
-            <p className="section-eyebrow">Loved by school leaders</p>
-            <h2 className="font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-              Clarity, not complexity
-            </h2>
-            <p className="mx-auto max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
-              Illustrative scenarios that reflect the outcomes Nigerian school administrators care about most.
-            </p>
-          </div>
-
-          <div className="grid gap-5 md:grid-cols-3">
-            {testimonials.map((item, index) => (
-              <article
-                key={item.name}
-                className="lp-card flex flex-col p-6 motion-safe:animate-[fade-up_560ms_ease-out_both]"
-                style={{ animationDelay: `${220 + index * 80}ms` }}
-              >
-                <div className="flex items-center gap-1 text-[var(--color-warning)]">
-                  {Array.from({ length: 5 }).map((_, starIndex) => (
-                    <Star key={starIndex} className="h-4 w-4 fill-current" />
-                  ))}
-                </div>
-                <p className="mt-4 flex-1 text-sm leading-7 text-[var(--color-text-primary)]">“{item.quote}”</p>
-                <div className="mt-6 flex items-center gap-3 border-t border-[var(--color-border-default)] pt-5">
-                  <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--color-accent-primary)] font-[var(--font-heading)] text-sm font-bold text-[var(--color-text-inverse)]">
-                    {item.name.split(" ").slice(-1)[0]?.charAt(0) ?? "S"}
-                  </span>
-                  <div>
-                    <p className="text-sm font-bold text-[var(--color-text-primary)]">{item.name}</p>
-                    <p className="text-xs text-[var(--color-text-secondary)]">
-                      {item.role} · {item.school}
-                    </p>
-                  </div>
-                </div>
-              </article>
-            ))}
-          </div>
-        </RevealSection>
-
-        {/* Pricing */}
-        <RevealSection id="pricing" className="space-y-10" delay={200}>
-          <div className="flex flex-col items-center gap-6 text-center">
-            <div>
-              <p className="section-eyebrow">Pricing</p>
-              <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-                Simple pricing for every stage
-              </h2>
-              <p className="mx-auto mt-4 max-w-2xl text-sm leading-7 text-[var(--color-text-secondary)]">
-                Choose the plan that matches your size and operational depth. Annual plans are ideal for schools planning
-                around full academic sessions.
-              </p>
+      {/* Offline-first */}
+      <RevealSection className="px-6 py-24 sm:px-14" style={{ background: INK }}>
+        <div className="mx-auto grid max-w-[1360px] items-center gap-14 lg:grid-cols-2">
+          <div>
+            <div className="mb-[26px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.09)] px-3.5 py-[7px]">
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: "#3ee08a" }} />
+              <span className="text-[12.5px] font-semibold text-white">Why schools stay</span>
             </div>
-
-            <div className="inline-flex rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-1 shadow-[var(--shadow-sm)]">
-              {(["monthly", "annual"] as BillingMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  type="button"
-                  onClick={() => setBillingMode(mode)}
-                  className={cn(
-                    "rounded-full px-5 py-2 text-sm font-semibold transition",
-                    billingMode === mode
-                      ? "bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)] shadow-[0_10px_20px_var(--color-accent-primary-glow)]"
-                      : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
-                  )}
-                >
-                  {mode === "monthly" ? "Monthly" : "Annual"}
-                  {mode === "annual" ? <span className="ml-1.5 text-[10px] font-bold text-[var(--color-success)]">Save 2 months</span> : null}
-                </button>
+            <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+              The power goes out. The register still opens.
+            </h2>
+            <p className="mb-[34px] max-w-[520px] text-[16.5px] leading-[1.65] text-[#eaf0ec]">
+              Most school software assumes a stable connection. Yours does not have one. FutureRealm stores the
+              working day on the device, so teachers mark attendance and enter scores whether or not there is
+              network — then reconciles everything the moment a connection returns.
+            </p>
+            <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2">
+              {offlinePoints.map((point) => (
+                <div key={point.title} className="border-t border-[rgba(255,255,255,0.16)] pt-4">
+                  <p className="mb-1.5 text-sm font-semibold text-white">{point.title}</p>
+                  <p className="text-[13px] leading-[1.5] text-[#9fb8a7]">{point.desc}</p>
+                </div>
               ))}
             </div>
           </div>
-
-          <div className="grid gap-6 lg:grid-cols-3 lg:items-stretch">
-            {plans.map((plan, index) => (
-              <article
-                key={plan.name}
-                className={cn(
-                  "relative flex flex-col rounded-[1.75rem] border p-7 transition motion-safe:animate-[fade-up_560ms_ease-out_both]",
-                  plan.featured
-                    ? "border-[var(--color-accent-primary)] bg-[var(--color-bg-surface)] shadow-[0_28px_60px_-24px_var(--color-accent-primary-glow)] lg:-translate-y-3 lg:scale-[1.02]"
-                    : "lp-card",
-                )}
-                style={{ animationDelay: `${240 + index * 80}ms` }}
-              >
-                {plan.featured ? (
-                  <span className="absolute -top-3 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-[var(--color-accent-primary)] px-4 py-1 text-[11px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-inverse)] shadow-[0_10px_20px_var(--color-accent-primary-glow)]">
-                    <Sparkles className="h-3 w-3" />
-                    Most popular
-                  </span>
-                ) : null}
-
-                <div>
-                  <p className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-text-primary)]">{plan.name}</p>
-                  <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">{plan.summary}</p>
-                </div>
-
-                <div className="mt-6">
-                  <p className="font-[var(--font-heading)] text-4xl font-black text-[var(--color-text-primary)]">{formatPrice(plan.price)}</p>
-                  <p className="mt-1 text-sm text-[var(--color-text-secondary)]">
-                    {billingMode === "monthly" ? "per month" : "per year"}
-                  </p>
-                </div>
-
-                <ul className="mt-6 grid flex-1 gap-3">
-                  {plan.features.map((feature) => (
-                    <li key={feature} className="flex items-start gap-3 text-sm text-[var(--color-text-primary)]">
-                      <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                        <Check className="h-3.5 w-3.5" />
-                      </span>
-                      <span>{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <div className="mt-8">
-                  <Link
-                    href="/onboarding"
-                    className={cn("h-12 w-full rounded-full text-sm", plan.featured ? "btn-primary" : "btn-secondary")}
-                  >
-                    {plan.cta}
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </div>
-              </article>
-            ))}
-          </div>
-        </RevealSection>
-
-        {/* FAQ */}
-        <RevealSection id="faq" className="grid gap-6 lg:grid-cols-[0.85fr_1.15fr]" delay={220}>
-          <div className="lp-card p-8">
-            <p className="section-eyebrow">FAQ</p>
-            <h2 className="mt-3 font-[var(--font-heading)] text-3xl font-bold tracking-tight text-[var(--color-text-primary)] md:text-4xl">
-              Questions from school owners and administrators
-            </h2>
-            <p className="mt-4 text-sm leading-7 text-[var(--color-text-secondary)]">
-              Clear answers for schools evaluating digital transformation without losing the realities of Nigerian
-              school operations.
-            </p>
-            <a href="#" className="btn-link mt-6">
-              Talk to our team
-              <ArrowRight className="h-4 w-4" />
-            </a>
-          </div>
-
-          <AccordionGroup
-            items={faqItems.map((item) => ({
-              ...item,
-              content: <p className="text-sm leading-7 text-[var(--color-text-secondary)]">{item.content}</p>,
-            }))}
-            defaultOpenId={faqItems[0].id}
+          <ImagePlaceholder
+            caption="A Nigerian teacher marking attendance on a tablet in a classroom"
+            className="h-[340px] sm:h-[430px]"
           />
-        </RevealSection>
+        </div>
+      </RevealSection>
 
-        {/* CTA band */}
-        <RevealSection className="lp-cta-band px-6 py-14 text-center md:px-12 md:py-20" delay={240}>
-          <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-strong)] bg-[var(--color-bg-surface)]/70 px-4 py-1.5 text-[12px] font-semibold text-[var(--color-text-accent)]">
-            <PhoneCall className="h-3.5 w-3.5" />
-            Ready when you are
-          </span>
-          <h2 className="mx-auto mt-6 max-w-3xl font-[var(--font-heading)] text-3xl font-black tracking-tight text-[var(--color-text-primary)] md:text-5xl">
-            Give your school the operating system it deserves
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-base leading-7 text-[var(--color-text-secondary)]">
-            Set up in minutes and start running admissions, academics, and finance from a single, calm platform.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/onboarding" className="btn-primary h-12 rounded-full px-7 text-sm">
-              Start free
-              <ArrowRight className="h-4 w-4" />
-            </Link>
-            <a href="#pricing" className="btn-secondary h-12 rounded-full px-7 text-sm">
-              Book a demo
-            </a>
+      {/* Fees & payments */}
+      <RevealSection className="px-6 py-24 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mb-[52px] max-w-[680px]">
+            <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
+              Fees &amp; payments
+            </p>
+            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              Money in, reconciled, receipted — without the bursar chasing paper
+            </h2>
+            <p className="mt-4 text-base leading-[1.6] text-[#435048]">
+              Parents pay the way they already pay. Every naira lands against a student, a term and an invoice
+              automatically.
+            </p>
           </div>
-        </RevealSection>
-      </div>
-
-      {/* Footer */}
-      <footer className="border-t border-[var(--color-border-default)]">
-        <div className="mx-auto max-w-7xl px-4 py-14 sm:px-6 lg:px-8">
-          <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr_1fr]">
-            <div className="space-y-4">
-              <div className="inline-flex items-center gap-3">
-                <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)]">
-                  <School className="h-5 w-5" />
-                </span>
-                <div>
-                  <p className="font-[var(--font-heading)] text-xl font-bold text-[var(--color-text-primary)]">Future Realm SMS</p>
-                  <p className="text-sm text-[var(--color-text-secondary)]">Built for modern Nigerian schools</p>
+          <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
+            <div className="rounded-[20px] border border-[#e3ece6] bg-[#f3f7f4] p-[34px]">
+              <div className="grid gap-[26px] sm:grid-cols-2">
+                {[
+                  { title: "Card, transfer or USSD", desc: "Naira-native rails parents already trust, plus bank transfer for the ones who prefer it." },
+                  { title: "Auto-reconciliation", desc: "Payments match themselves to the right student and term. No end-of-day spreadsheet." },
+                  { title: "Part-payment plans", desc: "Structured instalments with balances parents can see, so fewer calls reach the front desk." },
+                  { title: "Instant receipts", desc: "Issued the moment payment clears, with a permanent record on both sides." },
+                ].map((item) => (
+                  <div key={item.title}>
+                    <p className="mb-2 font-[var(--font-heading)] text-[15.5px] font-bold">{item.title}</p>
+                    <p className="text-[13.5px] leading-[1.55] text-[#435048]">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-[30px] flex flex-wrap items-center gap-[22px] border-t border-[#dce6df] pt-6">
+                <span className="text-[12.5px] text-[#77857c]">Settles through</span>
+                <div className="flex flex-wrap gap-3">
+                  {["Paystack", "Flutterwave", "Bank transfer"].map((rail) => (
+                    <span key={rail} className="rounded-[9px] border border-[#dce6df] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#435048]">
+                      {rail}
+                    </span>
+                  ))}
                 </div>
               </div>
-              <p className="max-w-md text-sm leading-7 text-[var(--color-text-secondary)]">
-                A school management platform for admissions, academics, finance, operations, and communication —
-                designed to help school leaders run calmer and smarter institutions.
-              </p>
-              <div className="grid gap-1.5 text-sm text-[var(--color-text-secondary)]">
-                <p>12 Admiralty Way, Lekki Phase 1, Lagos, Nigeria</p>
-                <p>+234 800 000 0000 · hello@futurerealm.sms</p>
+            </div>
+            <div className="flex flex-col justify-between rounded-[20px] p-[34px] text-white" style={{ background: INK }}>
+              <div>
+                <p className="mb-2.5 text-[12.5px] text-[#9fb8a7]">Collection rate, this term</p>
+                <p className="font-[var(--font-heading)] text-[52px] font-extrabold leading-none tracking-[-0.02em]">88%</p>
+                <div className="my-5 h-[9px] overflow-hidden rounded-full bg-[rgba(255,255,255,0.16)]">
+                  <div className="h-full rounded-full" style={{ width: "88%", background: "#3ee08a" }} />
+                </div>
+                <p className="text-[13px] text-[#eaf0ec]">₦412M of ₦468M expected</p>
               </div>
-              <div className="flex gap-3 pt-1">
-                {["Instagram", "LinkedIn", "X"].map((item) => (
-                  <a
-                    key={item}
-                    href="#"
-                    className="inline-flex h-10 items-center justify-center rounded-full border border-[var(--color-border-default)] px-4 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
-                  >
-                    {item}
-                  </a>
+              <div className="mt-[30px] flex flex-col gap-3.5">
+                {[
+                  { label: "Outstanding", value: "₦56.0M" },
+                  { label: "Receipts issued today", value: "22" },
+                  { label: "vs last term", value: "+4 pts", accent: true },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between border-t border-[rgba(255,255,255,0.16)] pt-3.5">
+                    <span className="text-[13px] text-[#eaf0ec]">{row.label}</span>
+                    <span
+                      className="font-[var(--font-heading)] text-[15px] font-bold"
+                      style={{ color: row.accent ? "#3ee08a" : "#fff" }}
+                    >
+                      {row.value}
+                    </span>
+                  </div>
                 ))}
               </div>
             </div>
+          </div>
+        </div>
+      </RevealSection>
 
-            <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-secondary)]">Navigate</p>
-              <div className="mt-4 grid gap-2.5">
-                {[
-                  { label: "Home", href: "/" },
-                  { label: "Features", href: "#features" },
-                  { label: "Platform", href: "#platform" },
-                  { label: "Pricing", href: "#pricing" },
-                  { label: "FAQ", href: "#faq" },
-                  { label: "Login", href: "/login" },
-                ].map((item) =>
-                  item.href.startsWith("/") ? (
-                    <Link
-                      key={item.label}
-                      href={item.href as Route}
-                      className="text-sm font-medium text-[var(--color-text-secondary)] transition hover:text-[var(--color-text-accent)]"
+      {/* How it works */}
+      <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#eaf0ec" }}>
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mx-auto mb-14 max-w-[640px] text-center">
+            <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
+              How it works
+            </p>
+            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              Get your school running in four simple steps
+            </h2>
+          </div>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {howItWorks.map((step) => (
+              <div key={step.n}>
+                <span
+                  className="mb-5 flex h-[52px] w-[52px] items-center justify-center rounded-full font-[var(--font-heading)] text-[17px] font-bold text-white"
+                  style={{ background: INK }}
+                >
+                  {step.n}
+                </span>
+                <p className="mb-2 font-[var(--font-heading)] text-[17px] font-semibold">{step.title}</p>
+                <p className="text-[13.5px] leading-[1.55] text-[#435048]">{step.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Role tabs */}
+      <RevealSection className="px-6 py-24 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            Built differently for every role
+          </h2>
+          <p className="mb-11 text-center text-base text-[#435048]">The same data, three purpose-built views.</p>
+          <div className="mb-11 flex flex-wrap justify-center gap-2.5">
+            {roleTabs.map((t, index) => (
+              <button
+                key={t.label}
+                type="button"
+                onClick={() => setActiveTab(index)}
+                className="rounded-full border px-[22px] py-3 text-sm font-semibold transition"
+                style={{
+                  background: activeTab === index ? INK : "#fff",
+                  color: activeTab === index ? "#fff" : "#435048",
+                  borderColor: activeTab === index ? INK : "#dce6df",
+                }}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <div className="mx-auto max-w-[1040px] rounded-[22px] border border-[#dce6df] bg-white p-2 shadow-[0_30px_60px_-30px_rgba(23,20,38,0.2)]">
+            <div className="grid min-h-[320px] gap-8 rounded-2xl bg-[#f3f7f4] p-9 sm:grid-cols-2">
+              <div>
+                <p className="mb-3.5 font-[var(--font-heading)] text-[22px] font-semibold">{tab.title}</p>
+                {tab.points.map((point) => (
+                  <div key={point} className="mb-3 flex items-start gap-2.5">
+                    <span
+                      className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full text-[10px] text-white"
+                      style={{ background: INK }}
                     >
-                      {item.label}
-                    </Link>
-                  ) : (
-                    <a
-                      key={item.label}
-                      href={item.href}
-                      className="text-sm font-medium text-[var(--color-text-secondary)] transition hover:text-[var(--color-text-accent)]"
-                    >
-                      {item.label}
-                    </a>
-                  ),
-                )}
+                      ✓
+                    </span>
+                    <span className="text-[14.5px] leading-[1.5] text-[#435048]">{point}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="rounded-[14px] border border-[#dce6df] bg-white p-5">
+                <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.06em] text-[#77857c]">{tab.panelLabel}</p>
+                <div className="flex flex-col gap-3">
+                  {tab.rows.map((row) => (
+                    <div key={row.label}>
+                      <div className="mb-[7px] flex items-baseline justify-between gap-3">
+                        <span className="text-[12.5px] text-[#435048]">{row.label}</span>
+                        <span className="font-[var(--font-heading)] text-sm font-bold">{row.value}</span>
+                      </div>
+                      <div className="h-[7px] overflow-hidden rounded-full bg-[#edf3ef]">
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${row.pct}%`,
+                            background: row.pct >= 90 ? "#22a06b" : row.pct >= 60 ? TEAL : "#d9a22c",
+                          }}
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
               </div>
             </div>
+          </div>
+        </div>
+      </RevealSection>
 
-            <div className="lp-card p-6">
-              <p className="font-[var(--font-heading)] text-lg font-bold text-[var(--color-text-primary)]">Join the newsletter</p>
-              <p className="mt-2 text-sm leading-6 text-[var(--color-text-secondary)]">
-                Get launch notes, product updates, and rollout insights for school leaders.
+      {/* For parents */}
+      <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#eaf0ec" }}>
+        <div className="mx-auto grid max-w-[1360px] items-center gap-16 lg:grid-cols-[0.85fr_1fr]">
+          <ImagePlaceholder caption="A Nigerian parent holding a phone, warm and candid" className="h-[340px] sm:h-[460px]" />
+          <div>
+            <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
+              For parents
+            </p>
+            <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              The front desk stops being a call centre
+            </h2>
+            <p className="mb-8 max-w-[520px] text-[16.5px] leading-[1.65] text-[#435048]">
+              Most calls a school takes are four questions: what do I owe, was my child in school, what did they
+              score, and what did I miss. Parents answer all four themselves — in the language of a phone, not a
+              portal.
+            </p>
+            <div className="flex flex-col gap-4">
+              {parentPoints.map((point) => (
+                <div key={point.title} className="flex items-start gap-3.5">
+                  <span
+                    className="mt-px flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full"
+                    style={{ background: INK }}
+                  >
+                    <Check className="h-[11px] w-[11px] text-white" strokeWidth={3.2} />
+                  </span>
+                  <p className="text-[15px] leading-[1.5]">
+                    <span className="font-semibold">{point.title}</span>
+                    <span className="text-[#435048]">{point.rest}</span>
+                  </p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Testimonials */}
+      <RevealSection className="px-6 py-24 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            Trusted by school leaders across Nigeria
+          </h2>
+          <p className="mb-12 text-center text-base text-[#435048]">Heads of school don&apos;t go back to spreadsheets.</p>
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+            {testimonials.map((item) => (
+              <div key={item.name} className="rounded-[18px] border border-[#e3ece6] bg-[#f7faf8] p-[30px]">
+                <p className="mb-3.5 font-[var(--font-heading)] text-[38px] font-extrabold leading-[0.7] text-[#cfddd5]">&ldquo;</p>
+                <p className="mb-6 text-[15.5px] leading-[1.62]">{item.quote}</p>
+                <div className="flex items-center gap-3">
+                  <span
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-[var(--font-heading)] text-sm font-bold text-white"
+                    style={{ background: INK }}
+                  >
+                    {item.name
+                      .split(" ")
+                      .map((word) => word[0])
+                      .join("")
+                      .slice(0, 2)
+                      .toUpperCase()}
+                  </span>
+                  <div>
+                    <p className="text-[13.5px] font-semibold">{item.name}</p>
+                    <p className="text-[12.5px] text-[#77857c]">{item.role}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Trust & compliance */}
+      <RevealSection className="border-t border-[#e3ece6] px-6 py-24 sm:px-14" style={{ background: "#f3f7f4" }}>
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mb-[52px] max-w-[680px]">
+            <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
+              Trust &amp; compliance
+            </p>
+            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              You are holding children&apos;s records. We treat that seriously.
+            </h2>
+            <p className="mt-4 text-base leading-[1.6] text-[#435048]">
+              FutureRealm is built to the Nigeria Data Protection Commission&apos;s requirements, with the audit
+              trail a school needs when a parent disputes something.
+            </p>
+          </div>
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
+            {trustCards.map((card) => (
+              <div key={card.title} className="rounded-[18px] border border-[#e3ece6] bg-white p-7">
+                <p className="mb-2.5 font-[var(--font-heading)] text-base font-bold">{card.title}</p>
+                <p className="text-[13.5px] leading-[1.55] text-[#435048]">{card.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Pricing */}
+      <RevealSection id="pricing" className="px-6 py-24 sm:px-14" style={{ background: INK }}>
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mb-12 text-center">
+            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+              Pricing that grows with your school
+            </h2>
+            <p className="mx-auto mt-2.5 max-w-[520px] text-base text-[#9fb8a7]">
+              Choose the plan that matches your size and operational depth. Billed per academic year.
+            </p>
+          </div>
+          <div className="grid gap-6 lg:grid-cols-3">
+            {plans.map((plan) => (
+              <div
+                key={plan.name}
+                className="rounded-[20px] p-8"
+                style={
+                  plan.popular
+                    ? { background: "#fff", boxShadow: "0 30px 60px -20px rgba(0,0,0,0.5)", transform: "scale(1.03)" }
+                    : { background: "#fff", border: "1px solid #e3ece6" }
+                }
+              >
+                {plan.popular ? (
+                  <span
+                    className="mb-3.5 inline-block rounded-full px-3 py-[5px] text-[11px] font-bold uppercase tracking-[0.04em] text-white"
+                    style={{ background: INK }}
+                  >
+                    Most popular
+                  </span>
+                ) : null}
+                <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{plan.name}</p>
+                <p className="mb-5 min-h-9 text-[13px] text-[#435048]">{plan.desc}</p>
+                <div className="mb-6 flex items-baseline gap-1.5">
+                  <span className="font-[var(--font-heading)] text-[32px] font-bold">{plan.price}</span>
+                  <span className="text-[13px] text-[#435048]">/year</span>
+                </div>
+                <Link
+                  href="/onboarding"
+                  className="block rounded-full py-[13px] text-center text-sm font-semibold"
+                  style={{ background: "#f3f7f4", color: INK }}
+                >
+                  {plan.cta}
+                </Link>
+                <div className="my-6 h-px bg-[#e3ece6]" />
+                <div className="flex flex-col gap-3">
+                  {plan.features.map((feature) => (
+                    <div key={feature} className="flex items-start gap-2.5">
+                      <span className="mt-px text-[13px]" style={{ color: TEAL }}>✓</span>
+                      <span className="text-[13.5px] leading-[1.4] text-[#435048]">{feature}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* FAQ */}
+      <RevealSection id="faq" className="mx-auto max-w-[820px] px-6 py-24 sm:px-14">
+        <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+          Questions schools ask before switching
+        </h2>
+        <p className="mb-10 text-center text-[15px] text-[#435048]">
+          Clear answers, without losing the realities of Nigerian school operations.
+        </p>
+        <div className="divide-y divide-[#dce6df]">
+          {faqs.map((faq, index) => {
+            const open = openFaq === index;
+            return (
+              <div key={faq.q} className="py-[22px]">
+                <button
+                  type="button"
+                  onClick={() => setOpenFaq(open ? null : index)}
+                  className="flex w-full items-center justify-between gap-5 text-left"
+                >
+                  <span className="text-base font-semibold">{faq.q}</span>
+                  <span className="shrink-0" style={{ color: INK }}>
+                    {open ? <Minus className="h-5 w-5" /> : <Plus className="h-5 w-5" />}
+                  </span>
+                </button>
+                {open ? (
+                  <p className="mt-3.5 max-w-[640px] text-[14.5px] leading-[1.6] text-[#435048]">{faq.a}</p>
+                ) : null}
+              </div>
+            );
+          })}
+        </div>
+      </RevealSection>
+
+      {/* Bottom campus photo */}
+      <div className="mx-auto max-w-[1360px] px-6 pb-10 sm:px-14">
+        <ImagePlaceholder caption="Wide shot of a Nigerian school assembly or campus grounds" className="h-[220px] sm:h-[300px]" />
+      </div>
+
+      {/* CTA band */}
+      <div className="mx-auto max-w-[1360px] px-6 pb-24 sm:px-14">
+        <div className="relative overflow-hidden rounded-[28px] px-6 py-[70px] text-center sm:px-14" style={{ background: INK }}>
+          <span className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] rounded-full bg-[rgba(255,255,255,0.12)]" />
+          <span className="pointer-events-none absolute -bottom-20 -left-10 h-[180px] w-[180px] rounded-full bg-[rgba(255,255,255,0.1)]" />
+          <h2 className="relative mb-4 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+            Ready to run a calmer school office?
+          </h2>
+          <p className="relative mb-8 text-base text-[#eaf0ec]">Set up in a day. Free for your first 14 days.</p>
+          <div className="relative inline-flex flex-wrap justify-center gap-3.5">
+            <Link
+              href="/onboarding"
+              className="whitespace-nowrap rounded-full px-[30px] py-4 text-[15px] font-semibold shadow-[0_10px_28px_-10px_rgba(0,0,0,0.45)]"
+              style={{ background: "#fff", color: INK }}
+            >
+              Start free trial
+            </Link>
+            <a
+              href="#pricing"
+              className="whitespace-nowrap rounded-full border border-[rgba(255,255,255,0.3)] px-[30px] py-4 text-[15px] font-semibold text-white"
+              style={{ background: "rgba(255,255,255,0.15)" }}
+            >
+              Talk to sales
+            </a>
+          </div>
+        </div>
+      </div>
+
+      {/* Footer */}
+      <footer className="border-t border-[#e3ece6] px-6 pt-14 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mb-6 grid gap-10 border-b border-[#e3ece6] pb-10 lg:grid-cols-[1.4fr_1fr_1fr_1fr]">
+            <div>
+              <div className="mb-4 flex items-center gap-2.5">
+                <span className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ background: INK }}>
+                  <School className="h-4 w-4 text-white" />
+                </span>
+                <span className="font-[var(--font-heading)] text-base font-extrabold">FutureRealm SMS</span>
+              </div>
+              <p className="mb-[18px] max-w-[260px] text-[13.5px] leading-[1.6] text-[#77857c]">
+                A school management platform for admissions, academics, finance and communication — built to help
+                school leaders run calmer, smarter institutions.
               </p>
-              <form onSubmit={handleNewsletterSubmit} className="mt-4 flex flex-col gap-3 sm:flex-row">
+              <p className="text-[13px] leading-[1.8] text-[#435048]">
+                12 Admiralty Way, Lekki Phase 1, Lagos
+                <br />
+                +234 800 000 0000
+                <br />
+                hello@futurerealm.sms
+              </p>
+            </div>
+            <div>
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Product</p>
+              <div className="flex flex-col gap-[11px] text-sm">
+                <a href="#features" style={{ color: INK }}>Features</a>
+                <a href="#pricing" style={{ color: INK }}>Pricing</a>
+                <a href="#" style={{ color: INK }}>Parent app</a>
+                <a href="#" style={{ color: INK }}>Report cards</a>
+              </div>
+            </div>
+            <div>
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Company</p>
+              <div className="flex flex-col gap-[11px] text-sm">
+                <a href="#" style={{ color: INK }}>About</a>
+                <a href="#" style={{ color: INK }}>Careers</a>
+                <a href="#" style={{ color: INK }}>Contact</a>
+                <Link href={"/login" as Route} style={{ color: INK }}>Login</Link>
+              </div>
+            </div>
+            <div>
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Stay updated</p>
+              <p className="mb-3 text-[13px] text-[#435048]">Launch notes and rollout insights for school leaders.</p>
+              <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
                 <input
                   type="email"
                   value={newsletterEmail}
                   onChange={(event) => setNewsletterEmail(event.target.value)}
-                  placeholder="Enter your email"
-                  className="h-11 flex-1 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 text-sm text-[var(--color-text-primary)] outline-none transition focus:border-[var(--color-border-focus)]"
+                  placeholder="you@school.edu.ng"
+                  className="flex-1 rounded-[9px] border border-[#e3ece6] bg-[#f3f7f4] px-3 py-2.5 text-[13px] outline-none placeholder:text-[#9fb8a7]"
                 />
-                <button type="submit" className="btn-primary h-11 rounded-full px-5">
-                  Subscribe
+                <button type="submit" className="whitespace-nowrap rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white" style={{ background: INK }}>
+                  Join
                 </button>
               </form>
             </div>
           </div>
-
-          <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-6 text-sm text-[var(--color-text-secondary)] sm:flex-row">
-            <p>© {new Date().getFullYear()} Future Realm SMS. All rights reserved.</p>
-            <div className="flex gap-5">
-              <a href="#" className="transition hover:text-[var(--color-text-accent)]">Privacy</a>
-              <a href="#" className="transition hover:text-[var(--color-text-accent)]">Terms</a>
-              <a href="#" className="transition hover:text-[var(--color-text-accent)]">Security</a>
+          <div className="flex flex-col items-center justify-between gap-3 pb-7 text-[13px] text-[#77857c] sm:flex-row">
+            <p>© {new Date().getFullYear()} FutureRealm SMS. All rights reserved.</p>
+            <div className="flex items-center gap-2">
+              <span className="flex h-4 w-4 items-center justify-center rounded border border-[#d3dfd7] bg-[#eaf0ec] text-[9px]" style={{ color: INK }}>
+                ✓
+              </span>
+              NDPC compliant
             </div>
           </div>
         </div>

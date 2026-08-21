@@ -26,13 +26,20 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6 md:p-7">
-        <Link href="/super-admin/users" className="text-[13px] font-semibold text-[var(--color-text-accent)]">← Back to users</Link>
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1]">
+        <Link href="/super-admin/users" className="text-[13px] font-semibold text-[rgba(255,255,255,0.85)] underline">← Back to users</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="section-eyebrow">User profile</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">{user.name}</h1>
-            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">{user.email} · {user.role.replaceAll("_", " ")}</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">User profile</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">{user.name}</h1>
+            <p className="mt-2 text-[13px] text-[rgba(255,255,255,0.74)]">{user.email} · {user.role.replaceAll("_", " ")}</p>
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={user.status} />
@@ -87,6 +94,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
               ]}
             />
           </div>
+        </div>
         </div>
       </section>
 

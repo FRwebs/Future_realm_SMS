@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import {
   BadgeDollarSign,
@@ -94,8 +94,8 @@ function Pagination({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-sm">
-      <p className="text-slate-500">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-5 py-4 text-sm">
+      <p className="text-[var(--color-text-secondary)]">
         Page {page} of {totalPages}
       </p>
       <div className="flex items-center gap-2">
@@ -147,10 +147,10 @@ function buildDraftRows(staff: PayrollStaffMemberView[]): Record<string, Payroll
   );
 }
 
-function amountBadgeClass(amount: number) {
-  if (amount >= 250000) return "bg-emerald-50 text-emerald-700";
-  if (amount >= 100000) return "bg-amber-50 text-amber-700";
-  return "bg-slate-100 text-slate-600";
+function amountBadgeStyle(amount: number): CSSProperties {
+  if (amount >= 250000) return { background: "var(--color-success-dim)", color: "var(--color-success)" };
+  if (amount >= 100000) return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
+  return { background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)" };
 }
 
 export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
@@ -416,13 +416,13 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
   }, [selectedRun]);
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/60 bg-white/95 p-6 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
         <div className="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Staff payroll</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Run payroll without leaving the bursary desk</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/68">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">Staff payroll</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Run payroll without leaving the bursary desk</h1>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Review staff pay history, prepare the current month&apos;s run from live staff records, and publish confirmed payouts with audit-safe confirmation.
             </p>
           </div>
@@ -439,25 +439,25 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         </div>
 
         <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          <div className="rounded-[1.5rem] border border-emerald-100 bg-emerald-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-emerald-700">Active staff</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{activeStaffCount}</p>
-            <p className="mt-2 text-sm text-slate-600">Payroll-ready staff profiles pulled from the database.</p>
+          <div className="rounded-[10px] border border-[var(--color-success)] bg-[var(--color-success-dim)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-success)]">Active staff</p>
+            <p className="mt-3 text-[22px] font-bold text-[var(--color-text-primary)]">{activeStaffCount}</p>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Payroll-ready staff profiles pulled from the database.</p>
           </div>
-          <div className="rounded-[1.5rem] border border-slate-200 bg-slate-50/90 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-500">Last payroll baseline</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{formatCurrency(totalLastNet)}</p>
-            <p className="mt-2 text-sm text-slate-600">Combined last known net pay across staff records.</p>
+          <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Last payroll baseline</p>
+            <p className="mt-3 text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(totalLastNet)}</p>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Combined last known net pay across staff records.</p>
           </div>
-          <div className="rounded-[1.5rem] border border-sky-100 bg-sky-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">Published runs</p>
-            <p className="mt-3 text-3xl font-black text-slate-900">{publishedRunsCount}</p>
-            <p className="mt-2 text-sm text-slate-600">Payroll batches fully published to staff.</p>
+          <div className="rounded-[10px] border border-[var(--color-info)] bg-[var(--color-info-dim)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-info)]">Published runs</p>
+            <p className="mt-3 text-[22px] font-bold text-[var(--color-text-primary)]">{publishedRunsCount}</p>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">Payroll batches fully published to staff.</p>
           </div>
-          <div className="rounded-[1.5rem] border border-amber-100 bg-amber-50/80 p-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">Current session</p>
-            <p className="mt-3 text-lg font-black text-slate-900">{workspace.currentSessionName ?? "Not set"}</p>
-            <p className="mt-2 text-sm text-slate-600">
+          <div className="rounded-[10px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-warning)]">Current session</p>
+            <p className="mt-3 text-lg font-black text-[var(--color-text-primary)]">{workspace.currentSessionName ?? "Not set"}</p>
+            <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
               {latestRun ? `Latest run: ${monthNames[latestRun.month - 1]} ${latestRun.year}` : "No payroll run has been processed yet."}
             </p>
           </div>
@@ -465,9 +465,9 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
       </section>
 
       <section className="surface-card overflow-hidden">
-        <div className="border-b border-slate-100 px-5 py-5">
+        <div className="border-b border-[var(--color-border-default)] px-5 py-5">
           <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
-            <div className="inline-flex rounded-2xl bg-slate-100 p-1">
+            <div className="inline-flex rounded-2xl bg-[var(--color-bg-subtle)] p-1">
               <button
                 type="button"
                 onClick={() => {
@@ -476,7 +476,9 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                 }}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                  activeTab === "roster" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                  activeTab === "roster"
+                    ? "bg-[var(--color-bg-surface)] text-[var(--color-text-accent)] shadow-sm"
+                    : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
                 )}
               >
                 Staff roster
@@ -489,7 +491,9 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                 }}
                 className={cn(
                   "rounded-xl px-4 py-2 text-sm font-semibold transition",
-                  activeTab === "runs" ? "bg-white text-brand-700 shadow-sm" : "text-slate-500 hover:text-slate-700",
+                  activeTab === "runs"
+                    ? "bg-[var(--color-bg-surface)] text-[var(--color-text-accent)] shadow-sm"
+                    : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]",
                 )}
               >
                 Payroll history
@@ -498,7 +502,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
 
             <div className="grid gap-3 md:grid-cols-[minmax(0,1.2fr)_repeat(2,minmax(180px,1fr))]">
               <label className="relative min-w-0">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
                 <input
                   value={search}
                   onChange={(event) => {
@@ -555,7 +559,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                     <option value="PROCESSED">Processed</option>
                     <option value="PUBLISHED">Published</option>
                   </select>
-                  <div className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 px-3 text-sm text-slate-500">
+                  <div className="inline-flex items-center gap-2 rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-3 text-sm text-[var(--color-text-secondary)]">
                     <Filter className="h-4 w-4" />
                     {`${filteredRuns.length} payroll runs`}
                   </div>
@@ -570,7 +574,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
             <div className="overflow-x-auto px-5 py-5">
               <table className="min-w-full border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                     <th className="px-3 py-2">Staff</th>
                     <th className="px-3 py-2">Department</th>
                     <th className="px-3 py-2">Role</th>
@@ -582,15 +586,15 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                 </thead>
                 <tbody>
                   {paginatedRoster.items.map((member) => (
-                    <tr key={member.id} className="rounded-2xl bg-slate-50/70 text-sm text-slate-700">
+                    <tr key={member.id} className="rounded-2xl bg-[var(--color-bg-subtle)] text-sm text-[var(--color-text-secondary)]">
                       <td className="rounded-l-2xl px-3 py-4">
                         <div className="flex items-start gap-3">
-                          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white text-brand-700 shadow-sm">
+                          <div className="grid h-11 w-11 place-items-center rounded-2xl bg-[var(--color-bg-surface)] text-[var(--color-text-accent)] shadow-sm">
                             <Users className="h-5 w-5" />
                           </div>
                           <div>
-                            <p className="font-semibold text-slate-900">{member.staffName}</p>
-                            <p className="text-xs text-slate-500">
+                            <p className="font-semibold text-[var(--color-text-primary)]">{member.staffName}</p>
+                            <p className="text-xs text-[var(--color-text-secondary)]">
                               {member.employeeNo} · {member.accountStatus ?? (member.isActive ? "ACTIVE" : "INACTIVE")}
                             </p>
                           </div>
@@ -599,13 +603,13 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                       <td className="px-3 py-4">{member.departmentName ?? "Unassigned"}</td>
                       <td className="px-3 py-4">
                         <div>
-                          <p className="font-medium text-slate-800">{member.designation}</p>
-                          <p className="text-xs text-slate-500">{member.salaryBand ?? member.employmentType ?? "Staff profile"}</p>
+                          <p className="font-medium text-[var(--color-text-primary)]">{member.designation}</p>
+                          <p className="text-xs text-[var(--color-text-secondary)]">{member.salaryBand ?? member.employmentType ?? "Staff profile"}</p>
                         </div>
                       </td>
                       <td className="px-3 py-4">{member.lastBasicSalary ? formatCurrency(member.lastBasicSalary) : "-"}</td>
                       <td className="px-3 py-4">
-                        <span className={cn("rounded-full px-3 py-1 text-xs font-semibold", amountBadgeClass(member.lastNetSalary ?? 0))}>
+                        <span className="rounded-full px-3 py-1 text-xs font-semibold" style={amountBadgeStyle(member.lastNetSalary ?? 0)}>
                           {member.lastNetSalary ? formatCurrency(member.lastNetSalary) : "No run yet"}
                         </span>
                       </td>
@@ -642,10 +646,10 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
               </table>
 
               {paginatedRoster.items.length === 0 ? (
-                <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-16 text-center">
-                  <BriefcaseBusiness className="h-10 w-10 text-slate-300" />
-                  <h3 className="mt-4 text-base font-semibold text-slate-800">No staff match those filters</h3>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-16 text-center">
+                  <BriefcaseBusiness className="h-10 w-10 text-[var(--color-text-muted)]" />
+                  <h3 className="mt-4 text-base font-semibold text-[var(--color-text-primary)]">No staff match those filters</h3>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-[var(--color-text-secondary)]">
                     Try a different search term or reset the department/status filters.
                   </p>
                 </div>
@@ -658,7 +662,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
             <div className="overflow-x-auto px-5 py-5">
               <table className="min-w-full border-separate border-spacing-y-2">
                 <thead>
-                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                     <th className="px-3 py-2">Period</th>
                     <th className="px-3 py-2">Session</th>
                     <th className="px-3 py-2">Status</th>
@@ -670,26 +674,28 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                 </thead>
                 <tbody>
                   {paginatedRuns.items.map((run) => (
-                    <tr key={run.id} className="rounded-2xl bg-slate-50/70 text-sm text-slate-700">
+                    <tr key={run.id} className="rounded-2xl bg-[var(--color-bg-subtle)] text-sm text-[var(--color-text-secondary)]">
                       <td className="rounded-l-2xl px-3 py-4">
-                        <p className="font-semibold text-slate-900">
+                        <p className="font-semibold text-[var(--color-text-primary)]">
                           {monthNames[run.month - 1]} {run.year}
                         </p>
-                        <p className="text-xs text-slate-500">{run.session ?? workspace.currentSessionName ?? "No linked session"}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">{run.session ?? workspace.currentSessionName ?? "No linked session"}</p>
                       </td>
                       <td className="px-3 py-4">{run.session ?? "-"}</td>
                       <td className="px-3 py-4">
                         <span
-                          className={cn(
-                            "rounded-full px-3 py-1 text-xs font-semibold",
-                            run.status === "PUBLISHED" ? "bg-emerald-50 text-emerald-700" : "bg-amber-50 text-amber-700",
-                          )}
+                          className="rounded-full px-3 py-1 text-xs font-semibold"
+                          style={
+                            run.status === "PUBLISHED"
+                              ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                              : { background: "var(--color-warning-dim)", color: "var(--color-warning)" }
+                          }
                         >
                           {run.status}
                         </span>
                       </td>
                       <td className="px-3 py-4">{run.staffCount}</td>
-                      <td className="px-3 py-4 font-semibold text-slate-900">{formatCurrency(run.totalNetSalary)}</td>
+                      <td className="px-3 py-4 font-semibold text-[var(--color-text-primary)]">{formatCurrency(run.totalNetSalary)}</td>
                       <td className="px-3 py-4">{run.processedAt ? formatDate(run.processedAt) : "-"}</td>
                       <td className="rounded-r-2xl px-3 py-4">
                         <div className="flex justify-end">
@@ -713,10 +719,10 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
               </table>
 
               {paginatedRuns.items.length === 0 ? (
-                <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-16 text-center">
-                  <Landmark className="h-10 w-10 text-slate-300" />
-                  <h3 className="mt-4 text-base font-semibold text-slate-800">No payroll runs yet</h3>
-                  <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">
+                <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-16 text-center">
+                  <Landmark className="h-10 w-10 text-[var(--color-text-muted)]" />
+                  <h3 className="mt-4 text-base font-semibold text-[var(--color-text-primary)]">No payroll runs yet</h3>
+                  <p className="mt-2 max-w-md text-sm leading-6 text-[var(--color-text-secondary)]">
                     Process the first payroll batch to create payout history for the bursary desk.
                   </p>
                 </div>
@@ -735,26 +741,26 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         size="lg"
         footer={
           <div className="flex flex-col gap-3">
-            <div className="grid gap-3 rounded-2xl bg-slate-50 p-4 md:grid-cols-4">
+            <div className="grid gap-3 rounded-2xl bg-[var(--color-bg-subtle)] p-4 md:grid-cols-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Selected staff</p>
-                <p className="mt-1 text-lg font-bold text-slate-900">{selectedCount}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Selected staff</p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">{selectedCount}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Gross pay</p>
-                <p className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(selectedGross)}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Gross pay</p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">{formatCurrency(selectedGross)}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Deductions</p>
-                <p className="mt-1 text-lg font-bold text-slate-900">{formatCurrency(selectedDeductions)}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Deductions</p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-text-primary)]">{formatCurrency(selectedDeductions)}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Net payroll</p>
-                <p className="mt-1 text-lg font-bold text-emerald-700">{formatCurrency(selectedNet)}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Net payroll</p>
+                <p className="mt-1 text-lg font-bold text-[var(--color-success)]">{formatCurrency(selectedNet)}</p>
               </div>
             </div>
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-xs text-slate-500">
+              <p className="text-xs text-[var(--color-text-secondary)]">
                 Payroll is saved as a processed run first. Publish it only after final review.
               </p>
               <div className="flex justify-end gap-3">
@@ -771,9 +777,9 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         }
       >
         <div className="grid gap-5">
-          <div className="grid gap-4 rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4 lg:grid-cols-4">
+          <div className="grid gap-4 rounded-[1.5rem] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 lg:grid-cols-4">
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Month</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">Month</span>
               <select value={draftMonth} onChange={(event) => setDraftMonth(Number(event.target.value))} className="field-select">
                 {monthOptions.map((option) => (
                   <option key={option.value} value={option.value}>
@@ -783,7 +789,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
               </select>
             </label>
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Year</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">Year</span>
               <input
                 type="number"
                 value={draftYear}
@@ -793,7 +799,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
               />
             </label>
             <label className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Academic session</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">Academic session</span>
               <select value={draftSessionId} onChange={(event) => setDraftSessionId(event.target.value)} className="field-select">
                 <option value="">No linked session</option>
                 {workspace.sessions.map((session) => (
@@ -804,7 +810,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
               </select>
             </label>
             <div className="grid gap-2">
-              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-500">Selection tools</span>
+              <span className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-secondary)]">Selection tools</span>
               <div className="flex gap-2">
                 <button type="button" onClick={selectAllActive} className="btn-secondary h-11 flex-1 px-3">
                   Select active
@@ -817,7 +823,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
           </div>
 
           <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={drawerSearch}
               onChange={(event) => setDrawerSearch(event.target.value)}
@@ -826,10 +832,10 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
             />
           </label>
 
-          <div className="overflow-x-auto rounded-[1.5rem] border border-slate-200">
+          <div className="overflow-x-auto rounded-[1.5rem] border border-[var(--color-border-default)]">
             <table className="min-w-[1200px] w-full">
-              <thead className="bg-slate-50">
-                <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+              <thead className="bg-[var(--color-bg-subtle)]">
+                <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                   <th className="px-3 py-3">Include</th>
                   <th className="px-3 py-3">Staff</th>
                   <th className="px-3 py-3">Basic</th>
@@ -846,18 +852,18 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                 {drawerRows.map((member) => {
                   const row = draftRows[member.id];
                   return (
-                    <tr key={member.id} className="border-t border-slate-100 text-sm text-slate-700">
+                    <tr key={member.id} className="border-t border-[var(--color-border-default)] text-sm text-[var(--color-text-secondary)]">
                       <td className="px-3 py-3">
                         <input
                           type="checkbox"
                           checked={row?.selected ?? false}
                           onChange={(event) => updateDraftRow(member.id, "selected", event.target.checked)}
-                          className="h-4 w-4 rounded border-slate-300 text-brand-600"
+                          className="h-4 w-4 rounded border-[var(--color-border-default)] text-[var(--color-accent-primary)]"
                         />
                       </td>
                       <td className="px-3 py-3">
-                        <p className="font-semibold text-slate-900">{member.staffName}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="font-semibold text-[var(--color-text-primary)]">{member.staffName}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">
                           {member.employeeNo} · {member.departmentName ?? "No department"} · {member.designation}
                         </p>
                       </td>
@@ -906,12 +912,12 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
           selectedRun ? (
             <div className="grid gap-3">
               {selectedRun.status !== "PUBLISHED" ? (
-                <div className="rounded-2xl border border-amber-100 bg-amber-50 px-4 py-3">
+                <div className="rounded-2xl border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-4 py-3">
                   <div className="flex items-start gap-3">
-                    <ShieldCheck className="mt-0.5 h-4 w-4 text-amber-700" />
+                    <ShieldCheck className="mt-0.5 h-4 w-4 text-[var(--color-warning)]" />
                     <div>
-                      <p className="text-sm font-semibold text-amber-800">Password confirmation required</p>
-                      <p className="mt-1 text-xs leading-5 text-amber-700">
+                      <p className="text-sm font-semibold text-[var(--color-warning)]">Password confirmation required</p>
+                      <p className="mt-1 text-xs leading-5 text-[var(--color-warning)]">
                         Publishing payroll marks payslips as sent and prevents the same month from being re-published.
                       </p>
                     </div>
@@ -921,7 +927,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                     value={publishPassword}
                     onChange={(event) => setPublishPassword(event.target.value)}
                     placeholder="Enter your password to publish"
-                    className="field-control mt-3 bg-white"
+                    className="field-control mt-3 bg-[var(--color-bg-surface)]"
                   />
                 </div>
               ) : null}
@@ -950,29 +956,29 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
       >
         {selectedRun ? (
           <div className="grid gap-5">
-            <div className="grid gap-4 rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4 md:grid-cols-4">
+            <div className="grid gap-4 rounded-[1.5rem] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 md:grid-cols-4">
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Session</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRun.session ?? workspace.currentSessionName ?? "-"}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Session</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{selectedRun.session ?? workspace.currentSessionName ?? "-"}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Status</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRun.status}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Status</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{selectedRun.status}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Staff count</p>
-                <p className="mt-1 text-sm font-semibold text-slate-900">{selectedRun.staffCount}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Staff count</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-text-primary)]">{selectedRun.staffCount}</p>
               </div>
               <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-slate-400">Net payroll</p>
-                <p className="mt-1 text-sm font-semibold text-emerald-700">{formatCurrency(selectedRun.totalNetSalary)}</p>
+                <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Net payroll</p>
+                <p className="mt-1 text-sm font-semibold text-[var(--color-success)]">{formatCurrency(selectedRun.totalNetSalary)}</p>
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-[1.5rem] border border-slate-200">
+            <div className="overflow-x-auto rounded-[1.5rem] border border-[var(--color-border-default)]">
               <table className="min-w-full">
-                <thead className="bg-slate-50">
-                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-400">
+                <thead className="bg-[var(--color-bg-subtle)]">
+                  <tr className="text-left text-[11px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
                     <th className="px-3 py-3">Staff</th>
                     <th className="px-3 py-3">Department</th>
                     <th className="px-3 py-3">Basic</th>
@@ -983,10 +989,10 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                 </thead>
                 <tbody>
                   {selectedRunItems.map((item) => (
-                    <tr key={item.id} className="border-t border-slate-100 text-sm text-slate-700">
+                    <tr key={item.id} className="border-t border-[var(--color-border-default)] text-sm text-[var(--color-text-secondary)]">
                       <td className="px-3 py-3">
-                        <p className="font-semibold text-slate-900">{item.staffName}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="font-semibold text-[var(--color-text-primary)]">{item.staffName}</p>
+                        <p className="text-xs text-[var(--color-text-secondary)]">
                           {item.employeeNo} · {item.designation ?? "Staff"}
                         </p>
                       </td>
@@ -1006,7 +1012,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
                               .join(", ")
                           : "-"}
                       </td>
-                      <td className="px-3 py-3 font-semibold text-slate-900">{formatCurrency(item.netSalary)}</td>
+                      <td className="px-3 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.netSalary)}</td>
                     </tr>
                   ))}
                 </tbody>

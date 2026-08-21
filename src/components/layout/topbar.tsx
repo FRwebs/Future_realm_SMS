@@ -302,7 +302,7 @@ function NotificationBell({
       >
         <Bell className="h-4 w-4" />
         {count > 0 ? (
-          <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[0.56rem] font-bold leading-none text-white shadow-sm">
+          <span className="absolute right-1.5 top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[0.56rem] font-bold leading-none text-white shadow-sm">
             {count > 99 ? "99+" : count}
           </span>
         ) : null}
@@ -434,7 +434,7 @@ function ProfileDropdown({
             className={cn(
               "mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[0.82rem] transition",
               item.danger
-                ? "text-rose-600 hover:bg-rose-50"
+                ? "text-[var(--color-danger)] hover:bg-[var(--color-danger-dim)]"
                 : theme === "finance-light"
                   ? "text-[var(--finance-text-secondary)] hover:bg-black/[0.03] hover:text-[var(--finance-text-primary)]"
                   : "text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]",
@@ -442,7 +442,7 @@ function ProfileDropdown({
           >
             <Icon
               name={item.icon}
-              className={item.danger ? "text-rose-500" : "text-[var(--finance-text-muted)]"}
+              className={item.danger ? "text-[var(--color-danger)]" : "text-[var(--finance-text-muted)]"}
             />
             <span>{item.label}</span>
           </button>
@@ -460,9 +460,9 @@ function ProfileDropdown({
               danger: true,
             })
           }
-          className="mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[0.82rem] text-rose-600 transition hover:bg-rose-50"
+          className="mx-2 flex w-[calc(100%-1rem)] items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-[0.82rem] text-[var(--color-danger)] transition hover:bg-[var(--color-danger-dim)]"
         >
-          <LogOut className="h-3.5 w-3.5 text-rose-500" />
+          <LogOut className="h-3.5 w-3.5 text-[var(--color-danger)]" />
           <span>Sign Out</span>
         </button>
       </div>

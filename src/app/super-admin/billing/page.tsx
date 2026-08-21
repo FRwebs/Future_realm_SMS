@@ -10,6 +10,7 @@ import type {
   SuperAdminChurnRiskRow,
   SuperAdminInvoiceRow,
   SuperAdminNotificationWallet,
+  SuperAdminPlanRow,
   SuperAdminPromoCodeRow,
   SuperAdminRevenueReport,
   SuperAdminRevenueView
@@ -35,6 +36,42 @@ const invoiceStatusTone: Record<string, { bg: string; fg: string; label: string 
   VOID: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Cancelled" }
 };
 
+const invoiceStatusReference = [
+  { status: "Draft", meaning: "Created but not yet visible to the school. Safe to edit or discard." },
+  { status: "Issued", meaning: "Sent to the school's owner email. Awaiting payment." },
+  { status: "Partially Paid", meaning: "A payment was recorded but the balance is not yet cleared." },
+  { status: "Paid", meaning: "Balance is fully cleared. Billing status moves to Active." },
+  { status: "Overdue", meaning: "Past the due date with an outstanding balance. Triggers a churn-risk signal." },
+  { status: "Cancelled", meaning: "Voided with a logged reason. No longer collectible." }
+];
+
+const churnSignalReference = [
+  { signal: "No admin or teacher login in 10+ days", weight: -25, threshold: "10 days since last login" },
+  { signal: "No result or score entry in 14+ days", weight: -25, threshold: "14 days since last score entry" },
+  { signal: "No fee recording activity in 14+ days", weight: -15, threshold: "14 days since last recorded payment" },
+  { signal: "Trial nearing expiry with low engagement", weight: -25, threshold: "Trial ends within 7 days and no login in 7+ days" },
+  { signal: "Critical support ticket unresolved 5+ days", weight: -15, threshold: "Open CRITICAL ticket older than 5 days" },
+  { signal: "No parent notification sent all term", weight: -5, threshold: "Zero notifications sent since term start" }
+];
+
+const billingRules = [
+  "Billed per student, per term — confirmed against the enrolled headcount at the start of each term.",
+  "Trials run 14 days automatically at signup, with every feature unlocked and no card required.",
+  "A school moves to Grace Period on the first missed payment, then Suspended if it lapses further.",
+  "Notification (SMS/WhatsApp) credit revenue is tracked separately from subscription revenue.",
+  "Pricing here is the live, editable rate card — change it from Feature & Tier Config > Tier Plans."
+];
+
+function studentRangeLabel(plan: SuperAdminPlanRow) {
+  if (!plan.studentLimit) return "Unlimited students";
+  return `Up to ${plan.studentLimit.toLocaleString()} students`;
+}
+
+function planUsd(nairaMonthly: number) {
+  const usd = nairaMonthly / 1540;
+  return `≈ $${Math.round(usd).toLocaleString()}`;
+}
+
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
@@ -52,16 +89,23 @@ function tabHref(tab: string) {
   return tab === "overview" ? "/super-admin/billing" : `/super-admin/billing?tab=${tab}`;
 }
 
-export default async function SuperAdminBillingPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
-  const { tab = "overview" } = searchParams ? await searchParams : {};
+export default async function SuperAdminBillingPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
+  const params = searchParams ? await searchParams : {};
+  const tab = params.tab ?? "overview";
 
-  const [billingEnvelope, revenue] = await Promise.all([
+  const [billingEnvelope, revenue, plansEnvelope, report] = await Promise.all([
     apiGetEnvelope<SuperAdminBillingRow[]>("/api/super-admin/billing"),
-    apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue")
+    apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
+    apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans"),
+    apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report")
   ]);
   const billing = billingEnvelope.data ?? [];
   const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
   const arpu = revenue.totalPaidSchools > 0 ? revenue.mrr / revenue.totalPaidSchools : 0;
+  const activePlans = (plansEnvelope.data ?? []).filter((item) => item.isActive).sort((a, b) => a.monthlyPrice - b.monthlyPrice);
+  const planByTier = new Map(activePlans.map((item) => [item.plan, item]));
+  const churnRatePct = Math.round((100 - report.renewalRate) * 10) / 10;
+  const notRenewedCount = Math.max(0, report.activeSchoolCount - report.renewedRecently);
 
   const tabs = [
     { label: "Subscription Dashboard", href: tabHref("overview"), active: tab === "overview" },
@@ -75,24 +119,128 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6 md:p-7">
-        <p className="section-eyebrow">Subscriptions</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Billing</h1>
-        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns.
-        </p>
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1]">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Subscriptions</p>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Billing</h1>
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+            Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns.
+          </p>
+        </div>
       </section>
 
       <DetailTabs tabs={tabs} />
 
       {tab === "overview" ? (
         <>
-          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <MetricCard metric={{ label: "MRR", value: formatCurrency(revenue.mrr), change: "Monthly recurring revenue" }} />
-            <MetricCard metric={{ label: "ARR", value: formatCurrency(revenue.arr), change: "Annualized revenue" }} />
-            <MetricCard metric={{ label: "ARPU", value: formatCurrency(arpu), change: "Per paying school" }} />
-            <MetricCard metric={{ label: "Paid Schools", value: String(revenue.totalPaidSchools), change: "Active billing" }} />
-            <MetricCard metric={{ label: "Trial Schools", value: String(trialBilling.length), change: "Trial billing" }} />
+          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+            <MetricCard metric={{ label: "MRR (current month)", value: formatCurrency(revenue.mrr), change: "Monthly recurring revenue" }} />
+            <MetricCard metric={{ label: "ARR projection", value: formatCurrency(revenue.arr), change: "MRR × 12" }} />
+            <MetricCard metric={{ label: "ARPU per school", value: formatCurrency(arpu), change: "Per paying school" }} />
+            <MetricCard
+              metric={{
+                label: "Churn rate last term",
+                value: `${churnRatePct}%`,
+                change: `${notRenewedCount} of ${report.activeSchoolCount} did not renew`
+              }}
+            />
+            <MetricCard metric={{ label: "Projected renewal revenue", value: formatCurrency(report.mrr), change: `Next term · ${report.activeSchoolCount} schools` }} />
+            <MetricCard metric={{ label: "Credit bundle revenue", value: formatCurrency(report.notificationCreditRevenue), change: `${report.creditRevenueSharePct}% of platform revenue` }} />
+          </section>
+
+          <section className="grid gap-5 lg:grid-cols-[1fr_1.35fr]">
+            <section className="surface-card p-6">
+              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Revenue split by tier</p>
+              <div className="mt-4 grid gap-3.5">
+                {revenue.schoolsByPlan
+                  .filter((item) => item.count > 0)
+                  .map((item) => {
+                    const price = planByTier.get(item.plan)?.monthlyPrice ?? 0;
+                    const tierMrr = price * item.count;
+                    const maxTierMrr = Math.max(
+                      ...revenue.schoolsByPlan.map((row) => (planByTier.get(row.plan)?.monthlyPrice ?? 0) * row.count),
+                      1
+                    );
+                    return (
+                      <div key={item.plan}>
+                        <div className="flex items-center justify-between text-[12.5px]">
+                          <span className="text-[var(--color-text-secondary)]">
+                            {item.plan} · {item.count} subscription{item.count === 1 ? "" : "s"}
+                          </span>
+                          <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{formatCurrency(tierMrr)}</span>
+                        </div>
+                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                          <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(tierMrr / maxTierMrr) * 100}%` }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+              <div className="mt-5 border-t border-[var(--color-border-default)] pt-4">
+                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Additional billing rules</p>
+                <div className="mt-2.5 grid gap-2">
+                  {billingRules.map((rule) => (
+                    <div key={rule} className="flex items-start gap-2">
+                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent-primary)]" />
+                      <p className="text-[12px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </section>
+
+            <section className="surface-card overflow-hidden">
+              <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-5 py-4">
+                <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Subscription structure</p>
+                <p className="text-[11.5px] text-[var(--color-text-muted)]">
+                  Live rate card ·{" "}
+                  <a href="/super-admin/feature-flags?tab=plans" className="font-semibold text-[var(--color-text-accent)] hover:underline">
+                    Edit in Tier Plans
+                  </a>
+                </p>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
+                  <thead className="bg-[var(--color-bg-subtle)]">
+                    <tr>
+                      {["Tier", "Student range", "Naira", "USD", "Key add-ons unlocked"].map((header) => (
+                        <th key={header} className="border-b border-[var(--color-border-default)] px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                          {header}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {activePlans.length === 0 ? (
+                      <tr>
+                        <td colSpan={5} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
+                          No active plans — configure one in Feature & Tier Config &gt; Tier Plans.
+                        </td>
+                      </tr>
+                    ) : (
+                      activePlans.map((plan) => (
+                        <tr key={plan.id} className="border-b border-[var(--color-border-muted)] last:border-b-0">
+                          <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{plan.name}</td>
+                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">{studentRangeLabel(plan)}</td>
+                          <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(plan.monthlyPrice)} / term</td>
+                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">{planUsd(plan.monthlyPrice)}</td>
+                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">
+                            {plan.apiAccess ? "API access" : "Core modules"}
+                            {plan.customBranding ? ", custom branding" : ""}
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
           </section>
 
           <TableCard
@@ -149,7 +297,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
         </>
       ) : null}
 
-      {tab === "invoices" ? <InvoicesTab billing={billing} /> : null}
+      {tab === "invoices" ? <InvoicesTab billing={billing} params={params} /> : null}
       {tab === "trials" ? <TrialsTab trialBilling={trialBilling} /> : null}
       {tab === "churn" ? <ChurnRiskTab /> : null}
       {tab === "credits" ? <NotificationCreditsTab billing={billing} /> : null}
@@ -159,13 +307,35 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   );
 }
 
-async function InvoicesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
+async function InvoicesTab({ billing, params }: { billing: SuperAdminBillingRow[]; params: Record<string, string | undefined> }) {
   const envelope = await apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices");
-  const invoices = envelope.data ?? [];
+  const allInvoices = envelope.data ?? [];
+  const search = params.invoiceSearch?.trim().toLowerCase();
+  const invoices = search
+    ? allInvoices.filter((item) => item.invoiceNo.toLowerCase().includes(search) || item.schoolName.toLowerCase().includes(search))
+    : allInvoices;
   const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
 
   return (
-    <TableCard
+    <div className="grid gap-5 xl:grid-cols-[1.75fr_1fr]">
+      <div className="grid gap-3.5">
+        <form method="GET" className="flex items-center gap-2">
+          <input type="hidden" name="tab" value="invoices" />
+          <input
+            type="search"
+            name="invoiceSearch"
+            defaultValue={params.invoiceSearch}
+            placeholder="Search by invoice no. or school"
+            className="field-control h-10 w-72 rounded-[10px] text-[13px]"
+          />
+          <button type="submit" className="btn-secondary h-10 text-[12.5px]">Search</button>
+          {search ? (
+            <a href="/super-admin/billing?tab=invoices" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+              Clear
+            </a>
+          ) : null}
+        </form>
+        <TableCard
       title="Invoices"
       description="Every invoice tracked from draft through payment or cancellation. No invoice is sent without admin review."
       items={invoices}
@@ -248,7 +418,31 @@ async function InvoicesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
         }
       ]}
       emptyState="No invoices drafted yet."
-    />
+        />
+      </div>
+
+      <div className="grid gap-3.5 self-start">
+        <section className="surface-card p-5">
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Invoice status meanings</p>
+          <div className="mt-3.5 grid gap-3">
+            {invoiceStatusReference.map((row) => {
+              const tone = invoiceStatusTone[row.status.toUpperCase().replace(/\s+/g, "_")] ?? invoiceStatusTone.DRAFT;
+              return (
+                <div key={row.status} className="flex items-start gap-3">
+                  <span
+                    className="mt-0.5 inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10.5px] font-bold"
+                    style={{ background: tone.bg, color: tone.fg }}
+                  >
+                    {row.status}
+                  </span>
+                  <p className="text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{row.meaning}</p>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+      </div>
+    </div>
   );
 }
 
@@ -267,7 +461,7 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
     .sort((a, b) => (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999));
 
   return (
-    <section className="grid gap-5">
+    <div className="grid gap-5">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Trial pipeline</p>
         <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
@@ -278,63 +472,92 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
         </p>
       </section>
 
-      {trials.length === 0 ? (
-        <section className="surface-card p-6">
-          <div className="empty-state">
-            <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">No schools currently on trial</p>
-            <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
-              Trial schools will appear here as they self-onboard.
-            </p>
-          </div>
-        </section>
-      ) : (
-        <div className="grid gap-3">
-          {trials.map((trial) => {
-            const urgent = trial.daysRemaining !== null && trial.daysRemaining <= 2;
-            const soon = trial.daysRemaining !== null && trial.daysRemaining <= 5;
-            const barColor = urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-accent-primary)";
-            return (
-              <article key={trial.schoolId} className="surface-card p-4">
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{trial.schoolName}</p>
-                    <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{trial.plan} tier</p>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    {trial.daysRemaining !== null ? (
-                      <StatusPill
-                        bg={urgent ? "var(--color-danger-dim)" : soon ? "var(--color-warning-dim)" : "var(--color-accent-primary-dim)"}
-                        fg={urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-text-accent)"}
-                        label={trial.daysRemaining === 0 ? "Expires today" : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} left`}
+      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+        {trials.length === 0 ? (
+          <section className="surface-card p-6">
+            <div className="empty-state">
+              <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">No schools currently on trial</p>
+              <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
+                Trial schools will appear here as they self-onboard.
+              </p>
+            </div>
+          </section>
+        ) : (
+          <div className="grid gap-3 self-start">
+            {trials.map((trial) => {
+              const urgent = trial.daysRemaining !== null && trial.daysRemaining <= 2;
+              const soon = trial.daysRemaining !== null && trial.daysRemaining <= 5;
+              const barColor = urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-accent-primary)";
+              return (
+                <article key={trial.schoolId} className="surface-card p-4">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{trial.schoolName}</p>
+                      <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{trial.plan} tier</p>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {trial.daysRemaining !== null ? (
+                        <StatusPill
+                          bg={urgent ? "var(--color-danger-dim)" : soon ? "var(--color-warning-dim)" : "var(--color-accent-primary-dim)"}
+                          fg={urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-text-accent)"}
+                          label={trial.daysRemaining === 0 ? "Expires today" : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} left`}
+                        />
+                      ) : null}
+                      <ResourceActionDialog
+                        triggerLabel="Extend"
+                        title={`Extend trial for ${trial.schoolName}`}
+                        description="Add trial days and move billing due date forward."
+                        endpoint={`/api/super-admin/billing/${trial.schoolId}/extend-trial`}
+                        method="POST"
+                        variant="secondary"
+                        submitLabel="Extend trial"
+                        fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
                       />
-                    ) : null}
-                    <ResourceActionDialog
-                      triggerLabel="Extend"
-                      title={`Extend trial for ${trial.schoolName}`}
-                      description="Add trial days and move billing due date forward."
-                      endpoint={`/api/super-admin/billing/${trial.schoolId}/extend-trial`}
-                      method="POST"
-                      variant="secondary"
-                      submitLabel="Extend trial"
-                      fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
-                    />
+                    </div>
                   </div>
+                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <div className="h-full rounded-full transition-all" style={{ width: `${trial.pct}%`, background: barColor }} />
+                  </div>
+                </article>
+              );
+            })}
+          </div>
+        )}
+
+        <div className="grid gap-3.5 self-start">
+          <section className="surface-card p-5">
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Automatic trial alerts</p>
+            <div className="mt-3.5 grid gap-3">
+              {[
+                { title: "Day 7 check-in", detail: "Email nudge to the school owner with setup progress." },
+                { title: "Day 11 warning", detail: "In-app banner and email — 3 days remaining." },
+                { title: "Day 14 expiry", detail: "Trial ends. School moves to Trial Expired automatically." },
+                { title: "High-risk flag", detail: "No login in 5+ days triggers a churn-risk signal." }
+              ].map((alert) => (
+                <div key={alert.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{alert.title}</p>
+                  <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{alert.detail}</p>
                 </div>
-                <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                  <div className="h-full rounded-full transition-all" style={{ width: `${trial.pct}%`, background: barColor }} />
-                </div>
-              </article>
-            );
-          })}
+              ))}
+            </div>
+          </section>
+          <section className="rounded-[14px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
+            <p className="text-[13px] font-bold text-[var(--color-text-primary)]">Post-trial behaviour</p>
+            <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
+              If no conversion, the school moves to <strong>Trial Expired</strong> — read-only for 3 days, then
+              locked. All data is preserved and restored instantly on conversion.
+            </p>
+          </section>
         </div>
-      )}
-    </section>
+      </div>
+    </div>
   );
 }
 
 async function ChurnRiskTab() {
   const envelope = await apiGetEnvelope<SuperAdminChurnRiskRow[]>("/api/super-admin/billing/churn");
   const schools = envelope.data ?? [];
+  const flaggedSchools = schools.filter((school) => school.score < 50).slice(0, 6);
 
   return (
     <section className="grid gap-5">
@@ -358,28 +581,82 @@ async function ChurnRiskTab() {
           />
         </div>
       </section>
-      <TableCard
-        title="Schools by churn risk"
-        description="Lowest scores (highest risk) first."
-        items={schools}
-        columns={[
-          { key: "school", header: "School", render: (item) => item.schoolName },
-          {
-            key: "score",
-            header: "Score",
-            render: (item) => (
-              <span className="font-[var(--font-mono)] font-bold" style={{ color: item.score < 50 ? "var(--color-danger)" : "var(--color-text-primary)" }}>
-                {item.score}
-              </span>
-            )
-          },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "plan", header: "Plan", render: (item) => item.plan },
-          { key: "signals", header: "Signals", render: (item) => item.signals.length ? item.signals.join("; ") : "No risk signals" },
-          { key: "calculated", header: "Last calculated", render: (item) => (item.lastCalculatedAt ? formatDate(item.lastCalculatedAt) : "Never") }
-        ]}
-        emptyState="No churn scores calculated yet. Click Recalculate now."
-      />
+
+      <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
+        <TableCard
+          title="Schools by churn risk"
+          description="Lowest scores (highest risk) first."
+          items={schools}
+          columns={[
+            { key: "school", header: "School", render: (item) => item.schoolName },
+            {
+              key: "score",
+              header: "Score",
+              render: (item) => (
+                <span className="font-[var(--font-mono)] font-bold" style={{ color: item.score < 50 ? "var(--color-danger)" : "var(--color-text-primary)" }}>
+                  {item.score}
+                </span>
+              )
+            },
+            { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+            { key: "plan", header: "Plan", render: (item) => item.plan },
+            { key: "signals", header: "Signals", render: (item) => item.signals.length ? item.signals.join("; ") : "No risk signals" },
+            { key: "calculated", header: "Last calculated", render: (item) => (item.lastCalculatedAt ? formatDate(item.lastCalculatedAt) : "Never") }
+          ]}
+          emptyState="No churn scores calculated yet. Click Recalculate now."
+        />
+
+        <div className="grid gap-3.5 self-start">
+          <section className="surface-card p-5">
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Churn risk signals</p>
+            <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Every school starts at 100. Each signal below subtracts its weight; a final score under 50 is flagged high risk.</p>
+            <div className="mt-3.5 grid gap-3">
+              {churnSignalReference.map((row) => (
+                <div key={row.signal} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <p className="text-[12px] font-semibold leading-5 text-[var(--color-text-primary)]">{row.signal}</p>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+                      {row.weight}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{row.threshold}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+
+          <section className="surface-card p-5">
+            <div className="flex items-center justify-between">
+              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Flagged schools</p>
+              <p className="text-[11px] text-[var(--color-text-muted)]">Weekly digest to Finance &amp; CS</p>
+            </div>
+            <div className="mt-3.5 grid gap-4">
+              {flaggedSchools.length === 0 ? (
+                <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">
+                  No schools currently below the risk threshold.
+                </p>
+              ) : (
+                flaggedSchools.map((school) => (
+                  <div key={school.schoolId}>
+                    <div className="flex items-center justify-between gap-3">
+                      <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{school.schoolName}</p>
+                      <span className="font-[var(--font-mono)] text-[13px] font-bold" style={{ color: "var(--color-danger)" }}>
+                        {school.score}
+                      </span>
+                    </div>
+                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                      <div className="h-full rounded-full" style={{ width: `${school.score}%`, background: "var(--color-danger)" }} />
+                    </div>
+                    <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">
+                      {school.signals[0] ?? "No specific signal logged"}
+                    </p>
+                  </div>
+                ))
+              )}
+            </div>
+          </section>
+        </div>
+      </div>
     </section>
   );
 }
@@ -391,49 +668,89 @@ async function NotificationCreditsTab({ billing }: { billing: SuperAdminBillingR
       return { ...wallet, schoolName: item.schoolName };
     })
   );
+  const lowBalanceWallets = wallets.filter((wallet) => wallet.isLow);
 
   return (
-    <TableCard
-      title="Notification credit wallets"
-      description="SMS and WhatsApp credit balances. Top up manually after confirming a school's bundle payment."
-      items={wallets}
-      columns={[
-        { key: "school", header: "School", render: (item) => item.schoolName },
-        { key: "sms", header: "SMS balance", render: (item) => item.smsBalance },
-        { key: "whatsapp", header: "WhatsApp balance", render: (item) => item.whatsappBalance },
-        {
-          key: "low",
-          header: "Status",
-          render: (item) =>
-            item.isLow ? (
-              <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Low balance" />
-            ) : (
-              <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Healthy" />
-            )
-        },
-        { key: "topped", header: "Last topped up", render: (item) => (item.lastToppedUpAt ? formatDate(item.lastToppedUpAt) : "Never") },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) => (
-            <ResourceActionDialog
-              triggerLabel="Top up"
-              title={`Top up credits — ${item.schoolName}`}
-              description="Add SMS and/or WhatsApp credits after confirming the school's bundle payment."
-              endpoint={`/api/super-admin/billing/${item.schoolId}/wallet/top-up`}
-              method="POST"
-              variant="secondary"
-              submitLabel="Top up"
-              fields={[
-                { name: "smsCredits", label: "SMS credits to add", type: "number", defaultValue: 0 },
-                { name: "whatsappCredits", label: "WhatsApp credits to add", type: "number", defaultValue: 0 }
-              ]}
-            />
-          )
-        }
-      ]}
-      emptyState="No schools to display."
-    />
+    <div className="grid gap-5">
+      {lowBalanceWallets.length > 0 ? (
+        <section
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] px-5 py-4"
+          style={{ background: "var(--color-danger-dim)", border: "1px solid var(--color-danger)" }}
+        >
+          <div>
+            <p className="text-[13px] font-bold" style={{ color: "var(--color-danger)" }}>
+              {lowBalanceWallets.length} school{lowBalanceWallets.length === 1 ? "" : "s"} below the low-balance threshold
+            </p>
+            <p className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">
+              {lowBalanceWallets.map((wallet) => wallet.schoolName).join(", ")} — SMS or WhatsApp sends will fail once a balance reaches zero.
+            </p>
+          </div>
+        </section>
+      ) : null}
+
+      <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
+        <TableCard
+          title="Notification credit wallets"
+          description="SMS and WhatsApp credit balances. Top up manually after confirming a school's bundle payment."
+          items={wallets}
+          columns={[
+            { key: "school", header: "School", render: (item) => item.schoolName },
+            { key: "sms", header: "SMS balance", render: (item) => item.smsBalance },
+            { key: "whatsapp", header: "WhatsApp balance", render: (item) => item.whatsappBalance },
+            {
+              key: "low",
+              header: "Status",
+              render: (item) =>
+                item.isLow ? (
+                  <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Low balance" />
+                ) : (
+                  <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Healthy" />
+                )
+            },
+            { key: "topped", header: "Last topped up", render: (item) => (item.lastToppedUpAt ? formatDate(item.lastToppedUpAt) : "Never") },
+            {
+              key: "actions",
+              header: "Actions",
+              render: (item) => (
+                <ResourceActionDialog
+                  triggerLabel="Top up"
+                  title={`Top up credits — ${item.schoolName}`}
+                  description="Add SMS and/or WhatsApp credits after confirming the school's bundle payment."
+                  endpoint={`/api/super-admin/billing/${item.schoolId}/wallet/top-up`}
+                  method="POST"
+                  variant="secondary"
+                  submitLabel="Top up"
+                  fields={[
+                    { name: "smsCredits", label: "SMS credits to add", type: "number", defaultValue: 0 },
+                    { name: "whatsappCredits", label: "WhatsApp credits to add", type: "number", defaultValue: 0 }
+                  ]}
+                />
+              )
+            }
+          ]}
+          emptyState="No schools to display."
+        />
+
+        <div className="grid gap-3.5 self-start">
+          <section className="surface-card p-5">
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How credits work</p>
+            <div className="mt-3.5 grid gap-3">
+              {[
+                { title: "Bundles are purchased off-platform", detail: "A school pays for an SMS/WhatsApp bundle by transfer, then a Super Admin confirms and tops up here." },
+                { title: "Balances deduct per send", detail: "Every notification sent debits the school's SMS or WhatsApp balance by one unit." },
+                { title: "Low balance blocks nothing else", detail: "Only outbound notifications are affected — attendance, results, and fees keep working normally." },
+                { title: "Revenue is tracked separately", detail: "Credit top-ups are notification revenue, kept apart from subscription MRR in Revenue Reporting." }
+              ].map((rule) => (
+                <div key={rule.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{rule.title}</p>
+                  <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{rule.detail}</p>
+                </div>
+              ))}
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -446,8 +763,19 @@ async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   const campaigns = reportEnvelope.data ?? [];
   const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
 
+  const activeCodeCount = codes.filter((code) => code.isActive).length;
+  const totalRedemptions = codes.reduce((sum, code) => sum + code.uses, 0);
+  const totalDiscountIssued = codes.reduce((sum, code) => sum + code.totalDiscountIssued, 0);
+  const totalSchoolsConverted = codes.reduce((sum, code) => sum + code.schoolsConverted, 0);
+
   return (
     <section className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        <MetricCard metric={{ label: "Active promo codes", value: String(activeCodeCount), change: `${codes.length} total code${codes.length === 1 ? "" : "s"} created` }} />
+        <MetricCard metric={{ label: "Total redemptions", value: String(totalRedemptions), change: `${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted` }} />
+        <MetricCard metric={{ label: "Total discount issued", value: formatCurrency(totalDiscountIssued), change: "Across all codes" }} />
+      </section>
+
       <TableCard
         title="Promo codes"
         description="Discount codes and their redemption performance."
@@ -524,10 +852,26 @@ async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView })
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3">
-        <MetricCard metric={{ label: "Outstanding receivables", value: formatCurrency(report.outstandingReceivables), change: "Unpaid invoices" }} />
-        <MetricCard metric={{ label: "Renewal rate (90d)", value: `${report.renewalRate}%`, change: "Schools with recent payment" }} />
-        <MetricCard metric={{ label: "Notification credit revenue", value: formatCurrency(report.notificationCreditRevenue), change: "Separate from subscriptions" }} />
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <MetricCard
+          metric={{
+            label: "Outstanding receivables",
+            value: formatCurrency(report.outstandingReceivables),
+            change: `${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance`
+          }}
+        />
+        <MetricCard
+          metric={{ label: "Renewal rate (90d)", value: `${report.renewalRate}%`, change: `${report.renewedRecently} of ${report.activeSchoolCount} renewed` }}
+        />
+        <MetricCard metric={{ label: "ARPU", value: formatCurrency(report.arpu), change: "Per paying school, monthly" }} />
+        <MetricCard
+          metric={{
+            label: "Credit revenue share",
+            value: `${report.creditRevenueSharePct}%`,
+            change: `${formatCurrency(report.notificationCreditRevenue)} of platform revenue`
+          }}
+        />
+        <MetricCard metric={{ label: "Projected next term", value: formatCurrency(report.mrr), change: "Active schools × confirmed tiers" }} />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
@@ -552,28 +896,71 @@ async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView })
             ))}
           </div>
         </section>
-        <section className="surface-card p-6">
-          <p className="section-eyebrow">Projected value</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">LTV by tier</h3>
-          <div className="mt-4 grid gap-2">
-            {report.ltvByTier.map((item) => (
-              <div key={item.plan} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.plan}</span>
-                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{formatCurrency(item.ltv)}</span>
-              </div>
-            ))}
+        <section className="surface-card overflow-hidden">
+          <div className="p-6 pb-0">
+            <p className="section-eyebrow">Projected value</p>
+            <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">LTV projection by tier</h3>
+            <p className="mt-1.5 text-[12px] text-[var(--color-text-muted)]">Based on average subscription duration per tier.</p>
           </div>
+          <div className="mt-4 overflow-x-auto">
+            <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
+              <thead className="bg-[var(--color-bg-subtle)]">
+                <tr>
+                  {["Tier", "Avg duration", "Termly value", "Projected LTV"].map((header) => (
+                    <th key={header} className="border-b border-[var(--color-border-default)] px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
+                      {header}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {report.ltvByTier.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
+                      No active subscriptions yet.
+                    </td>
+                  </tr>
+                ) : (
+                  report.ltvByTier.map((item) => (
+                    <tr key={item.plan} className="border-b border-[var(--color-border-muted)] last:border-b-0">
+                      <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{item.plan}</td>
+                      <td className="px-4 py-3 text-[var(--color-text-secondary)]">{(item.avgTenureMonths / 4).toFixed(1)} terms</td>
+                      <td className="px-4 py-3 text-[var(--color-text-secondary)]">{formatCurrency(item.termlyValue)}</td>
+                      <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.ltv)}</td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+          <p className="border-t border-[var(--color-border-default)] px-6 py-4 text-[11.5px] leading-5 text-[var(--color-text-muted)]">
+            Tenure is measured from each active school&apos;s signup date — a tier gaining longer-tenured schools is the strongest argument for investing in upgrade paths rather than pure acquisition.
+          </p>
         </section>
       </section>
 
       <TableCard
         title="Revenue by state"
-        description="Where the platform's schools and revenue are concentrated."
+        description="Where the platform's schools and revenue are concentrated, and where growth is coming from."
         items={report.revenueByState}
         columns={[
           { key: "state", header: "State", render: (item) => item.state },
+          { key: "topCity", header: "Top city", render: (item) => item.topCity ?? "—" },
           { key: "schools", header: "Schools", render: (item) => item.schoolCount },
-          { key: "revenue", header: "Monthly revenue", render: (item) => formatCurrency(item.revenue) }
+          { key: "revenue", header: "Monthly revenue", render: (item) => formatCurrency(item.revenue) },
+          { key: "arpu", header: "ARPU", render: (item) => formatCurrency(item.arpu) },
+          {
+            key: "trend",
+            header: "Trend (90d)",
+            render: (item) =>
+              item.newSchools90d > 0 ? (
+                <span className="font-semibold" style={{ color: "var(--color-success)" }}>
+                  +{item.newSchools90d} school{item.newSchools90d === 1 ? "" : "s"}
+                </span>
+              ) : (
+                <span className="text-[var(--color-text-muted)]">Steady</span>
+              )
+          }
         ]}
         emptyState="No school location data yet."
       />
