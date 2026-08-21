@@ -364,6 +364,25 @@ export interface SuperAdminSchoolRow {
   nextBillingAt?: string;
 }
 
+export interface SuperAdminPendingVerificationSchool {
+  id: string;
+  name: string;
+  slug: string;
+  category?: string;
+  curriculum?: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  ownerName?: string;
+  ownerEmail?: string;
+  ownerPhone?: string;
+  cacNumber?: string | null;
+  ministryApprovalNumber?: string | null;
+  flaggedForReviewReason?: string | null;
+  studentCount: number;
+  createdAt: string;
+}
+
 export interface SuperAdminSchoolContact {
   id: string;
   name: string;
@@ -665,12 +684,26 @@ export interface SuperAdminPromoCodeRow {
 }
 
 export interface SuperAdminRevenueReport {
+  mrr: number;
+  arpu: number;
+  paidSchoolCount: number;
   revenueByTier: Array<{ plan: string; revenue: number }>;
-  revenueByState: Array<{ state: string; revenue: number; schoolCount: number }>;
+  revenueByState: Array<{
+    state: string;
+    revenue: number;
+    schoolCount: number;
+    arpu: number;
+    topCity: string | null;
+    newSchools90d: number;
+  }>;
   notificationCreditRevenue: number;
+  creditRevenueSharePct: number;
   outstandingReceivables: number;
+  unpaidSchoolCount: number;
   renewalRate: number;
-  ltvByTier: Array<{ plan: string; ltv: number }>;
+  renewedRecently: number;
+  activeSchoolCount: number;
+  ltvByTier: Array<{ plan: string; revenue: number; avgTenureMonths: number; termlyValue: number; ltv: number }>;
 }
 
 export interface SuperAdminSettingsView {
@@ -2274,6 +2307,7 @@ export interface SuperAdminBiOverview {
 export interface SuperAdminChurnAnalysis {
   total: number;
   byReason: Array<{ reason: string; count: number; pct: number }>;
+  byTier: Array<{ plan: string; churned: number; ratePct: number }>;
   recent: Array<{ id: string; schoolName: string; reason: string; notes?: string | null; churnedAt: string }>;
 }
 
@@ -2283,6 +2317,7 @@ export interface SuperAdminNpsAnalytics {
   promoters: number;
   passives: number;
   detractors: number;
+  byTier: Array<{ plan: string; responses: number; npsScore: number }>;
   lowScoreFlags: Array<{ id: string; schoolName: string; score: number; comment?: string | null; createdAt: string }>;
   comments: Array<{ schoolName: string; score: number; comment?: string | null }>;
 }

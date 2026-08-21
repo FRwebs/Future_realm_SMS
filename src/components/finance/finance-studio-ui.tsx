@@ -58,16 +58,26 @@ export function FinanceStatusBadge({
           ? "danger"
           : "neutral";
 
-  const className =
+  const toneStyle =
     tone === "success"
-      ? "bg-emerald-500/14 text-emerald-300"
+      ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
       : tone === "warning"
-        ? "bg-amber-500/14 text-amber-300"
+        ? { background: "var(--color-warning-dim)", color: "var(--color-warning)" }
         : tone === "danger"
-          ? "bg-rose-500/14 text-rose-300"
-          : "text-[var(--finance-neutral-badge-fg)]";
+          ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" }
+          : undefined;
 
-  return <span className={cn("finance-status-badge", tone === "neutral" && "finance-soft-surface", className)}>{status.replaceAll("_", " ")}</span>;
+  return (
+    <span
+      className={cn(
+        "finance-status-badge",
+        tone === "neutral" && "finance-soft-surface text-[var(--finance-neutral-badge-fg)]",
+      )}
+      style={toneStyle}
+    >
+      {status.replaceAll("_", " ")}
+    </span>
+  );
 }
 
 export function FinanceStatCard({
@@ -87,21 +97,21 @@ export function FinanceStatCard({
 }) {
   const iconClass =
     accent === "teal"
-      ? "bg-[#12796a]/16 text-[#4fa895]"
+      ? "bg-[var(--color-accent-primary-dim)] text-[var(--color-accent-primary)]"
       : accent === "amber"
-        ? "bg-amber-500/16 text-amber-300"
+        ? "bg-[var(--color-warning-dim)] text-[var(--color-warning)]"
         : accent === "rose"
-          ? "bg-rose-500/16 text-rose-300"
+          ? "bg-[var(--color-danger-dim)] text-[var(--color-danger)]"
           : "finance-icon-surface";
 
   const barClass =
     accent === "teal"
-      ? "from-[#4fa895] to-[#12796a]"
+      ? "from-[var(--color-accent-primary)] to-[var(--color-accent-primary-hover)]"
       : accent === "amber"
-        ? "from-amber-400 to-orange-400"
+        ? "from-[var(--color-warning)] to-[var(--color-warning)]"
         : accent === "rose"
-          ? "from-rose-400 to-pink-400"
-          : "from-slate-400 to-slate-500";
+          ? "from-[var(--color-danger)] to-[var(--color-danger)]"
+          : "from-[var(--finance-text-muted)] to-[var(--finance-text-muted)]";
 
   return (
     <article className="finance-kpi-card p-5">
@@ -111,12 +121,15 @@ export function FinanceStatCard({
           <span
             className={cn(
               "rounded-full px-2.5 py-1 text-[11px] font-semibold",
-              delta.trend === "up"
-                ? "bg-emerald-500/12 text-emerald-300"
-                : delta.trend === "down"
-                  ? "bg-rose-500/12 text-rose-300"
-                  : "finance-soft-surface text-[var(--finance-text-secondary)]",
+              delta.trend === "neutral" && "finance-soft-surface text-[var(--finance-text-secondary)]",
             )}
+            style={
+              delta.trend === "up"
+                ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                : delta.trend === "down"
+                  ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" }
+                  : undefined
+            }
           >
             {delta.value}
           </span>

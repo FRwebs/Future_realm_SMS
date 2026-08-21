@@ -58,8 +58,8 @@ function PaginationControls({
   if (totalPages <= 1) return null;
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-4 text-sm">
-      <p className="text-slate-500">{label}</p>
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-5 py-4 text-sm">
+      <p className="text-[var(--color-text-secondary)]">{label}</p>
       <div className="flex items-center gap-2">
         <button
           type="button"
@@ -70,7 +70,7 @@ function PaginationControls({
           <ChevronLeft className="h-4 w-4" />
           Prev
         </button>
-        <span className="rounded-xl bg-slate-100 px-3 py-2 text-xs font-bold text-slate-600">
+        <span className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2 text-xs font-bold text-[var(--color-text-secondary)]">
           Page {page} of {totalPages}
         </span>
         <button
@@ -89,18 +89,18 @@ function PaginationControls({
 
 function EmptyState({ title, description }: { title: string; description: string }) {
   return (
-    <div className="grid place-items-center rounded-[1.5rem] border border-dashed border-slate-200 bg-slate-50 px-5 py-14 text-center">
-      <FolderClock className="h-10 w-10 text-slate-300" />
-      <h3 className="mt-4 text-base font-semibold text-slate-800">{title}</h3>
-      <p className="mt-2 max-w-md text-sm leading-6 text-slate-500">{description}</p>
+    <div className="grid place-items-center rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-14 text-center">
+      <FolderClock className="h-10 w-10 text-[var(--color-text-muted)]" />
+      <h3 className="mt-4 text-base font-semibold text-[var(--color-text-primary)]">{title}</h3>
+      <p className="mt-2 max-w-md text-sm leading-6 text-[var(--color-text-secondary)]">{description}</p>
     </div>
   );
 }
 
 function tabClass(active: boolean) {
   return active
-    ? "text-brand-700"
-    : "text-slate-500 hover:text-slate-700";
+    ? "text-[var(--color-text-accent)]"
+    : "text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]";
 }
 
 export function FinanceOperationsWorkspace({
@@ -346,13 +346,13 @@ export function FinanceOperationsWorkspace({
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
         <div className="flex flex-col gap-4 xl:flex-row xl:items-start xl:justify-between">
           <div className="max-w-3xl">
-            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-brand-700">Finance operations</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-bold text-ink">Fees, payments, and clearance</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/68">
+            <p className="text-sm font-semibold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">Finance operations</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Fees, payments, and clearance</h1>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Run the bursary desk from one workspace: issue invoices, generate class-wide term billing, record cash and transfer payments, apply waivers, manage installment plans, and review history across students, sessions, terms, and levels.
             </p>
           </div>
@@ -486,27 +486,27 @@ export function FinanceOperationsWorkspace({
 
       <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
         {dashboard.metrics.map((metric) => (
-          <article key={metric.label} className="rounded-[1.5rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">{metric.label}</p>
-            <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ink">{metric.value}</p>
+          <article key={metric.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{metric.label}</p>
+            <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{metric.value}</p>
           </article>
         ))}
-        <article className="rounded-[1.5rem] border border-rose-100 bg-rose-50/70 p-5 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-rose-700">Overdue invoices</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-rose-700">{overdueCount}</p>
+        <article className="rounded-[10px] border border-[var(--color-danger)] bg-[var(--color-danger-dim)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-danger)]">Overdue invoices</p>
+          <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-danger)]">{overdueCount}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-amber-100 bg-amber-50/70 p-5 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-amber-700">Students with balance</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-amber-800">{studentBalanceCount}</p>
+        <article className="rounded-[10px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-warning)]">Students with balance</p>
+          <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-warning)]">{studentBalanceCount}</p>
         </article>
-        <article className="rounded-[1.5rem] border border-slate-100 bg-white/90 p-5 shadow-panel">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-slate-500">Payment channels used</p>
-          <p className="mt-3 font-[var(--font-heading)] text-3xl font-black text-ink">{paymentMethodsCount}</p>
+        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Payment channels used</p>
+          <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{paymentMethodsCount}</p>
         </article>
       </section>
 
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-5 shadow-panel">
-        <div className="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+      <section className="surface-card p-5">
+        <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-border-default)] pb-3">
           {(
             [
               { id: "overview" as TabId, label: "Overview", icon: ShieldCheck },
@@ -528,7 +528,7 @@ export function FinanceOperationsWorkspace({
               <Icon className="h-4 w-4" />
               {label}
               {activeTab === id ? (
-                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-brand-700" />
+                <span className="absolute bottom-0 left-0 right-0 h-0.5 rounded-t-full bg-[var(--color-accent-primary)]" />
               ) : null}
             </button>
           ))}
@@ -536,7 +536,7 @@ export function FinanceOperationsWorkspace({
 
         <div className="mt-5 grid gap-3 lg:grid-cols-[minmax(0,1.2fr)_220px_220px_220px_220px_auto]">
           <label className="relative block">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={search}
               onChange={(event) => {
@@ -620,10 +620,10 @@ export function FinanceOperationsWorkspace({
 
       {activeTab === "overview" ? (
         <div className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <section className="rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-            <div className="border-b border-slate-100 px-5 py-4">
-              <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Student balance watchlist</h2>
-              <p className="mt-1 text-sm text-slate-500">Highest outstanding student accounts across all sessions and active finance records.</p>
+          <section className="surface-card">
+            <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+              <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Student balance watchlist</h2>
+              <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Highest outstanding student accounts across all sessions and active finance records.</p>
             </div>
             <div className="p-5">
               {studentOutstanding.length === 0 ? (
@@ -631,23 +631,23 @@ export function FinanceOperationsWorkspace({
               ) : (
                 <div className="grid gap-3">
                   {studentOutstanding.map((item) => (
-                    <article key={`${item.studentName}-${item.className}`} className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4">
+                    <article key={`${item.studentName}-${item.className}`} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                       <div className="flex items-start justify-between gap-3">
                         <div>
                           {item.studentId ? (
-                            <Link href={`/finance/students/${item.studentId}`} className="text-base font-black text-slate-900 underline decoration-slate-200 underline-offset-4">
+                            <Link href={`/finance/students/${item.studentId}`} className="text-base font-black text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">
                               {item.studentName}
                             </Link>
                           ) : (
-                            <p className="text-base font-black text-slate-900">{item.studentName}</p>
+                            <p className="text-base font-black text-[var(--color-text-primary)]">{item.studentName}</p>
                           )}
-                          <p className="mt-1 text-xs text-slate-500">
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">
                             {item.className} {item.classLevel ? `· ${item.classLevel}` : ""} · {item.invoices} invoice{item.invoices === 1 ? "" : "s"}
                           </p>
                         </div>
                         <div className="text-right">
-                          <p className="text-[11px] uppercase tracking-[0.22em] text-slate-400">Outstanding</p>
-                          <p className="mt-1 text-xl font-black text-rose-600">{formatCurrency(item.balance)}</p>
+                          <p className="text-[11px] uppercase tracking-[0.22em] text-[var(--color-text-muted)]">Outstanding</p>
+                          <p className="mt-1 text-xl font-black text-[var(--color-danger)]">{formatCurrency(item.balance)}</p>
                         </div>
                       </div>
                     </article>
@@ -658,24 +658,24 @@ export function FinanceOperationsWorkspace({
           </section>
 
           <section className="grid gap-6">
-            <article className="rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Session / term history</h2>
-                <p className="mt-1 text-sm text-slate-500">Collections and balances grouped by academic context.</p>
+            <article className="surface-card">
+              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Session / term history</h2>
+                <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Collections and balances grouped by academic context.</p>
               </div>
               <div className="space-y-3 p-5">
                 {termSummary.slice(0, 6).map((item) => (
-                  <div key={item.label} className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4">
+                  <div key={item.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-900">{item.label}</p>
-                        <p className="mt-1 text-xs text-slate-500">{item.invoices} invoice record{item.invoices === 1 ? "" : "s"}</p>
+                        <p className="font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+                        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.invoices} invoice record{item.invoices === 1 ? "" : "s"}</p>
                       </div>
-                      <span className="rounded-full bg-brand-50 px-3 py-1 text-[11px] font-bold text-brand-700">
+                      <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-3 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">
                         {formatCurrency(item.paid)}
                       </span>
                     </div>
-                    <div className="mt-3 flex items-center justify-between text-xs text-slate-500">
+                    <div className="mt-3 flex items-center justify-between text-xs text-[var(--color-text-secondary)]">
                       <span>Billed {formatCurrency(item.billed)}</span>
                       <span>Balance {formatCurrency(item.balance)}</span>
                     </div>
@@ -684,20 +684,20 @@ export function FinanceOperationsWorkspace({
               </div>
             </article>
 
-            <article className="rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-              <div className="border-b border-slate-100 px-5 py-4">
-                <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Level summary</h2>
-                <p className="mt-1 text-sm text-slate-500">Outstanding and collection signals by class level.</p>
+            <article className="surface-card">
+              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Level summary</h2>
+                <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Outstanding and collection signals by class level.</p>
               </div>
               <div className="space-y-3 p-5">
                 {levelSummary.slice(0, 6).map((item) => (
-                  <div key={item.label} className="rounded-[1.5rem] border border-slate-100 bg-slate-50/70 p-4">
+                  <div key={item.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                     <div className="flex items-center justify-between gap-3">
                       <div>
-                        <p className="font-semibold text-slate-900">{item.label}</p>
-                        <p className="mt-1 text-xs text-slate-500">{item.students} learner account{item.students === 1 ? "" : "s"}</p>
+                        <p className="font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+                        <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.students} learner account{item.students === 1 ? "" : "s"}</p>
                       </div>
-                      <p className="text-sm font-black text-slate-900">{formatCurrency(item.balance)}</p>
+                      <p className="text-sm font-black text-[var(--color-text-primary)]">{formatCurrency(item.balance)}</p>
                     </div>
                   </div>
                 ))}
@@ -708,10 +708,10 @@ export function FinanceOperationsWorkspace({
       ) : null}
 
       {activeTab === "invoices" ? (
-        <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Invoice ledger</h2>
-            <p className="mt-1 text-sm text-slate-500">All student invoice records with session, term, level, payment count, and last payment visibility.</p>
+        <section className="overflow-hidden surface-card">
+          <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Invoice ledger</h2>
+            <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">All student invoice records with session, term, level, payment count, and last payment visibility.</p>
           </div>
           {filteredInvoices.length === 0 ? (
             <div className="p-5">
@@ -721,10 +721,10 @@ export function FinanceOperationsWorkspace({
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1180px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Invoice", "Student", "Context", "Billed", "Paid", "Balance", "Status", "Last payment"].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
                           {heading}
                         </th>
                       ))}
@@ -732,34 +732,34 @@ export function FinanceOperationsWorkspace({
                   </thead>
                   <tbody>
                     {paginatedInvoices.items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                      <tr key={item.id} className="border-t border-[var(--color-border-default)] hover:bg-[var(--color-bg-subtle)]">
                         <td className="px-4 py-3">
-                          <Link href={`/finance/invoices/${item.id}`} className="font-semibold text-ink underline decoration-ink/20 underline-offset-4">
+                          <Link href={`/finance/invoices/${item.id}`} className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">
                             {item.invoiceNumber}
                           </Link>
-                          <p className="mt-1 text-xs text-slate-500">{formatDate(item.dueOn)}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{formatDate(item.dueOn)}</p>
                         </td>
                         <td className="px-4 py-3">
                           {item.studentId ? (
-                            <Link href={`/finance/students/${item.studentId}`} className="font-semibold text-slate-900 underline decoration-slate-200 underline-offset-4">
+                            <Link href={`/finance/students/${item.studentId}`} className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">
                               {item.studentName}
                             </Link>
                           ) : (
-                            <p className="font-semibold text-slate-900">{item.studentName}</p>
+                            <p className="font-semibold text-[var(--color-text-primary)]">{item.studentName}</p>
                           )}
-                          <p className="mt-1 text-xs text-slate-500">{item.admissionNumber ?? "—"}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.admissionNumber ?? "—"}</p>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                           <p>{item.className}</p>
-                          <p className="mt-1 text-xs text-slate-500">{[item.classLevel, item.session, item.term].filter(Boolean).join(" · ") || "No context set"}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{[item.classLevel, item.session, item.term].filter(Boolean).join(" · ") || "No context set"}</p>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">{formatCurrency(item.total)}</td>
-                        <td className="px-4 py-3 text-emerald-700">{formatCurrency(item.paid ?? 0)}</td>
-                        <td className="px-4 py-3 font-semibold text-rose-600">{formatCurrency(item.balance)}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.total)}</td>
+                        <td className="px-4 py-3 text-[var(--color-success)]">{formatCurrency(item.paid ?? 0)}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--color-danger)]">{formatCurrency(item.balance)}</td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">{item.status}</span>
+                          <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">{item.status}</span>
                         </td>
-                        <td className="px-4 py-3 text-slate-500">
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                           {item.lastPaymentAt ? formatDate(item.lastPaymentAt) : "No payment yet"}
                         </td>
                       </tr>
@@ -779,10 +779,10 @@ export function FinanceOperationsWorkspace({
       ) : null}
 
       {activeTab === "payments" ? (
-        <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Payment history</h2>
-            <p className="mt-1 text-sm text-slate-500">Every payment record across students, sessions, terms, and levels with channel and recording context.</p>
+        <section className="overflow-hidden surface-card">
+          <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Payment history</h2>
+            <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Every payment record across students, sessions, terms, and levels with channel and recording context.</p>
           </div>
           {filteredPayments.length === 0 ? (
             <div className="p-5">
@@ -792,10 +792,10 @@ export function FinanceOperationsWorkspace({
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1320px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Reference", "Student", "Context", "Amount", "Method", "Status", "Receipt", "Recorded by", "Paid"].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
                           {heading}
                         </th>
                       ))}
@@ -803,36 +803,36 @@ export function FinanceOperationsWorkspace({
                   </thead>
                   <tbody>
                     {paginatedPayments.items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                      <tr key={item.id} className="border-t border-[var(--color-border-default)] hover:bg-[var(--color-bg-subtle)]">
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-900">{item.reference}</p>
-                          <p className="mt-1 text-xs text-slate-500">{item.invoiceNumber ?? "Unlinked payment"}</p>
+                          <p className="font-semibold text-[var(--color-text-primary)]">{item.reference}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.invoiceNumber ?? "Unlinked payment"}</p>
                         </td>
                         <td className="px-4 py-3">
                           {item.studentId ? (
-                            <Link href={`/finance/students/${item.studentId}`} className="font-semibold text-slate-900 underline decoration-slate-200 underline-offset-4">
+                            <Link href={`/finance/students/${item.studentId}`} className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">
                               {item.studentName}
                             </Link>
                           ) : (
-                            <p className="font-semibold text-slate-900">{item.studentName}</p>
+                            <p className="font-semibold text-[var(--color-text-primary)]">{item.studentName}</p>
                           )}
-                          <p className="mt-1 text-xs text-slate-500">{item.admissionNumber ?? "—"}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.admissionNumber ?? "—"}</p>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                           <p>{item.className ?? "—"}</p>
-                          <p className="mt-1 text-xs text-slate-500">{[item.classLevel, item.session, item.term].filter(Boolean).join(" · ") || "No context set"}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{[item.classLevel, item.session, item.term].filter(Boolean).join(" · ") || "No context set"}</p>
                         </td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">{formatCurrency(item.amount)}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.amount)}</td>
                         <td className="px-4 py-3">
-                          <p className="font-medium text-slate-700">{item.method}</p>
-                          <p className="mt-1 text-xs text-slate-500">{item.paymentChannel || item.provider || item.schoolBankReference || "Standard channel"}</p>
+                          <p className="font-medium text-[var(--color-text-primary)]">{item.method}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.paymentChannel || item.provider || item.schoolBankReference || "Standard channel"}</p>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">{item.status}</span>
+                          <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">{item.status}</span>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{item.receiptNumber ?? "Pending receipt"}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.recordedByName ?? "System / gateway"}</td>
-                        <td className="px-4 py-3 text-slate-500">{item.paidAt ? formatDate(item.paidAt) : "—"}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.receiptNumber ?? "Pending receipt"}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.recordedByName ?? "System / gateway"}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.paidAt ? formatDate(item.paidAt) : "—"}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -850,10 +850,10 @@ export function FinanceOperationsWorkspace({
       ) : null}
 
       {activeTab === "installments" ? (
-        <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Installment plans</h2>
-            <p className="mt-1 text-sm text-slate-500">Structured payment agreements with academic context and next-due visibility.</p>
+        <section className="overflow-hidden surface-card">
+          <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Installment plans</h2>
+            <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Structured payment agreements with academic context and next-due visibility.</p>
           </div>
           {filteredPlans.length === 0 ? (
             <div className="p-5">
@@ -863,10 +863,10 @@ export function FinanceOperationsWorkspace({
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[1180px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Plan", "Student", "Context", "Invoice", "Total", "Balance", "Next due", "Status"].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
                           {heading}
                         </th>
                       ))}
@@ -874,30 +874,30 @@ export function FinanceOperationsWorkspace({
                   </thead>
                   <tbody>
                     {paginatedPlans.items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/60">
+                      <tr key={item.id} className="border-t border-[var(--color-border-default)] hover:bg-[var(--color-bg-subtle)]">
                         <td className="px-4 py-3">
-                          <p className="font-semibold text-slate-900">{item.planNumber}</p>
-                          <p className="mt-1 text-xs text-slate-500">{item.notes || "No note attached"}</p>
+                          <p className="font-semibold text-[var(--color-text-primary)]">{item.planNumber}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{item.notes || "No note attached"}</p>
                         </td>
                         <td className="px-4 py-3">
                           {item.studentId ? (
-                            <Link href={`/finance/students/${item.studentId}`} className="font-semibold text-slate-900 underline decoration-slate-200 underline-offset-4">
+                            <Link href={`/finance/students/${item.studentId}`} className="font-semibold text-[var(--color-text-primary)] underline decoration-[var(--color-border-default)] underline-offset-4">
                               {item.studentName}
                             </Link>
                           ) : (
-                            <span className="font-semibold text-slate-900">{item.studentName}</span>
+                            <span className="font-semibold text-[var(--color-text-primary)]">{item.studentName}</span>
                           )}
                         </td>
-                        <td className="px-4 py-3 text-slate-600">
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">
                           <p>{item.className ?? "—"}</p>
-                          <p className="mt-1 text-xs text-slate-500">{[item.classLevel, item.session, item.term].filter(Boolean).join(" · ") || "No context set"}</p>
+                          <p className="mt-1 text-xs text-[var(--color-text-secondary)]">{[item.classLevel, item.session, item.term].filter(Boolean).join(" · ") || "No context set"}</p>
                         </td>
-                        <td className="px-4 py-3 text-slate-600">{item.invoiceNumber ?? "—"}</td>
-                        <td className="px-4 py-3 font-semibold text-slate-900">{formatCurrency(item.totalAmount)}</td>
-                        <td className="px-4 py-3 font-semibold text-amber-700">{formatCurrency(item.balance)}</td>
-                        <td className="px-4 py-3 text-slate-500">{item.items[0] ? formatDate(item.items[0].dueOn) : "—"}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.invoiceNumber ?? "—"}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.totalAmount)}</td>
+                        <td className="px-4 py-3 font-semibold text-[var(--color-warning)]">{formatCurrency(item.balance)}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.items[0] ? formatDate(item.items[0].dueOn) : "—"}</td>
                         <td className="px-4 py-3">
-                          <span className="rounded-full bg-brand-50 px-2.5 py-1 text-[11px] font-bold text-brand-700">{item.status}</span>
+                          <span className="rounded-full bg-[var(--color-accent-primary-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-accent)]">{item.status}</span>
                         </td>
                       </tr>
                     ))}
@@ -916,10 +916,10 @@ export function FinanceOperationsWorkspace({
       ) : null}
 
       {activeTab === "audit" ? (
-        <section className="overflow-hidden rounded-[2rem] border border-white/50 bg-white/90 shadow-panel">
-          <div className="border-b border-slate-100 px-5 py-4">
-            <h2 className="font-[var(--font-heading)] text-xl font-bold text-ink">Finance audit trail</h2>
-            <p className="mt-1 text-sm text-slate-500">Reviewer-friendly finance actions across invoices, receipts, adjustments, and plans.</p>
+        <section className="overflow-hidden surface-card">
+          <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Finance audit trail</h2>
+            <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">Reviewer-friendly finance actions across invoices, receipts, adjustments, and plans.</p>
           </div>
           {filteredAudit.length === 0 ? (
             <div className="p-5">
@@ -929,10 +929,10 @@ export function FinanceOperationsWorkspace({
             <>
               <div className="overflow-x-auto">
                 <table className="w-full min-w-[980px] text-sm">
-                  <thead className="bg-slate-50">
+                  <thead className="bg-[var(--color-bg-subtle)]">
                     <tr>
                       {["Action", "Entity", "Reference", "Detail", "When"].map((heading) => (
-                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-slate-400">
+                        <th key={heading} className="px-4 py-3 text-left text-[10px] font-bold uppercase tracking-widest text-[var(--color-text-muted)]">
                           {heading}
                         </th>
                       ))}
@@ -940,12 +940,12 @@ export function FinanceOperationsWorkspace({
                   </thead>
                   <tbody>
                     {paginatedAudit.items.map((item) => (
-                      <tr key={item.id} className="border-t border-slate-100 hover:bg-slate-50/60">
-                        <td className="px-4 py-3 font-semibold text-slate-900">{item.action}</td>
-                        <td className="px-4 py-3 text-slate-600">{item.entityType}</td>
-                        <td className="px-4 py-3 font-mono text-xs text-slate-500">{item.entityId}</td>
-                        <td className="px-4 py-3 text-xs leading-6 text-slate-500">{item.detail}</td>
-                        <td className="px-4 py-3 text-slate-500">{formatDate(item.createdAt)}</td>
+                      <tr key={item.id} className="border-t border-[var(--color-border-default)] hover:bg-[var(--color-bg-subtle)]">
+                        <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{item.action}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{item.entityType}</td>
+                        <td className="px-4 py-3 font-mono text-xs text-[var(--color-text-secondary)]">{item.entityId}</td>
+                        <td className="px-4 py-3 text-xs leading-6 text-[var(--color-text-secondary)]">{item.detail}</td>
+                        <td className="px-4 py-3 text-[var(--color-text-secondary)]">{formatDate(item.createdAt)}</td>
                       </tr>
                     ))}
                   </tbody>

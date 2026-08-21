@@ -261,7 +261,7 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
                         {invoice.className} · {invoice.invoiceNumber}
                       </p>
                     </div>
-                    <p className="finance-mono text-sm font-semibold text-rose-300">{formatCurrency(invoice.balance)}</p>
+                    <p className="finance-mono text-sm font-semibold text-[var(--color-danger)]">{formatCurrency(invoice.balance)}</p>
                   </button>
                 ))}
               </div>
@@ -333,10 +333,14 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
 
                 {amount > outstandingBalance ? (
                   <label
-                    className="flex items-center gap-3 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm"
-                    style={{ color: "var(--finance-warning-text)" }}
+                    className="flex items-center gap-3 rounded-2xl border px-4 py-3 text-sm"
+                    style={{
+                      borderColor: "var(--color-warning)",
+                      background: "var(--color-warning-dim)",
+                      color: "var(--finance-warning-text)",
+                    }}
                   >
-                    <input type="checkbox" checked={allowOverpayment} onChange={(event) => setAllowOverpayment(event.target.checked)} className="h-4 w-4 rounded border-white/10 bg-transparent" />
+                    <input type="checkbox" checked={allowOverpayment} onChange={(event) => setAllowOverpayment(event.target.checked)} className="h-4 w-4 rounded border-[var(--finance-border)] bg-transparent" />
                     Allow this overpayment and roll the excess forward.
                   </label>
                 ) : null}
@@ -387,9 +391,18 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
                 </div>
               </div>
 
-              <div className="mt-6 rounded-[16px] border border-rose-500/18 bg-rose-500/[0.08] p-4">
+              <div
+                className="mt-6 rounded-[16px] border p-4"
+                style={{
+                  borderColor: outstandingBalance > 0 ? "var(--color-danger)" : "var(--color-success)",
+                  background: outstandingBalance > 0 ? "var(--color-danger-dim)" : "var(--color-success-dim)",
+                }}
+              >
                 <p className="finance-label mb-2">Outstanding balance</p>
-                <p className={cn("finance-mono text-[32px] font-bold", outstandingBalance > 0 ? "text-rose-300" : "text-emerald-300")}>
+                <p
+                  className="finance-mono text-[32px] font-bold"
+                  style={{ color: outstandingBalance > 0 ? "var(--color-danger)" : "var(--color-success)" }}
+                >
                   {outstandingBalance > 0 ? formatCurrency(outstandingBalance) : "₦0.00"}
                 </p>
               </div>
@@ -413,7 +426,7 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
                       </div>
                       <div>
                         <p className="text-xs uppercase tracking-[0.08em] text-[var(--finance-text-muted)]">Balance</p>
-                        <p className="finance-mono text-rose-300">{formatCurrency(invoice.balance)}</p>
+                        <p className="finance-mono text-[var(--color-danger)]">{formatCurrency(invoice.balance)}</p>
                       </div>
                     </div>
                   ))}
@@ -577,9 +590,12 @@ export function FinancePaymentsStudio({ payments, invoices, canManageFinance }: 
       >
         {successReceipt ? (
           <div className="grid gap-4">
-            <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/10 px-4 py-4">
+            <div
+              className="rounded-[16px] border px-4 py-4"
+              style={{ borderColor: "var(--color-success)", background: "var(--color-success-dim)" }}
+            >
               <p className="finance-label mb-2">Receipt number</p>
-              <p className="finance-mono text-2xl font-bold text-emerald-300">{successReceipt.receiptNumber}</p>
+              <p className="finance-mono text-2xl font-bold" style={{ color: "var(--color-success)" }}>{successReceipt.receiptNumber}</p>
             </div>
             <button type="button" onClick={() => window.open(`/api/v1/bursary/payments/${successReceipt.paymentId ?? successReceipt.id}/receipt`, "_blank")} className="finance-btn-secondary w-full">
               <Download className="h-4 w-4" />

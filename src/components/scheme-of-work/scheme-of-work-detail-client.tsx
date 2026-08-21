@@ -9,51 +9,39 @@ import { Modal } from "@/components/ui/modal";
 import { SidePanel } from "@/components/ui/side-panel";
 import { useToast } from "@/components/ui/toast-provider";
 import type { SchemeOfWorkDetailView, SchemeOfWorkTopicView } from "@/lib/domain/types";
-import { cn } from "@/lib/utils/cn";
 import { schemeApi } from "./api";
 import { SchemeOfWorkStatusBadge } from "./status-badge";
 import { SchemeOfWorkTopicList } from "./topic-list";
 
 function ProgressCard({ sow }: { sow: SchemeOfWorkDetailView }) {
   const stats = sow.stats;
+  const tone =
+    stats.coveragePercent >= 80 ? "success" : stats.coveragePercent >= 50 ? "warning" : "danger";
   return (
-    <div className="rounded-[1.75rem] border border-white/70 bg-white/88 p-5 shadow-[0_14px_36px_rgba(18,33,23,0.05)]">
+    <div className="surface-card p-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-sm font-bold text-ink">Term coverage progress</p>
-          <p className="mt-1 text-sm text-ink/58">
+          <p className="text-sm font-bold text-[var(--color-text-primary)]">Term coverage progress</p>
+          <p className="mt-1 text-sm text-[var(--color-text-muted)]">
             {stats.coveredWeeks} of {stats.teachingWeeks} teaching weeks covered
           </p>
         </div>
         <div className="text-right">
           <p
-            className={cn(
-              "font-[var(--font-heading)] text-3xl font-black",
-              stats.coveragePercent >= 80
-                ? "text-emerald-700"
-                : stats.coveragePercent >= 50
-                  ? "text-amber-700"
-                  : "text-rose-700"
-            )}
+            className="font-[var(--font-heading)] text-3xl font-black"
+            style={{ color: `var(--color-${tone})` }}
           >
             {stats.coveragePercent}%
           </p>
-          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-ink/42">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
             {stats.isOnTrack ? "On track" : "Behind schedule"}
           </p>
         </div>
       </div>
-      <div className="mt-4 h-3 overflow-hidden rounded-full bg-ink/8">
+      <div className="mt-4 h-3 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
         <span
-          className={cn(
-            "block h-full rounded-full transition-all",
-            stats.coveragePercent >= 80
-              ? "bg-emerald-500"
-              : stats.coveragePercent >= 50
-                ? "bg-amber-500"
-                : "bg-rose-500"
-          )}
-          style={{ width: `${stats.coveragePercent}%` }}
+          className="block h-full rounded-full transition-all"
+          style={{ width: `${stats.coveragePercent}%`, background: `var(--color-${tone})` }}
         />
       </div>
       <div className="mt-4 flex flex-wrap gap-2">
@@ -64,14 +52,18 @@ function ProgressCard({ sow }: { sow: SchemeOfWorkDetailView }) {
           return (
             <span
               key={week}
-              className={cn(
-                "inline-flex h-8 w-8 items-center justify-center rounded-full text-[0.72rem] font-black",
+              className="inline-flex h-8 w-8 items-center justify-center rounded-full text-[0.72rem] font-black"
+              style={
                 covered
-                  ? "bg-emerald-600 text-white"
+                  ? { background: "var(--color-success)", color: "#ffffff" }
                   : current
-                    ? "bg-amber-500 text-white ring-4 ring-amber-100"
-                    : "bg-sand/80 text-ink/55"
-              )}
+                    ? {
+                        background: "var(--color-warning)",
+                        color: "#ffffff",
+                        boxShadow: "0 0 0 4px var(--color-warning-dim)",
+                      }
+                    : { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }
+              }
             >
               {week}
             </span>
@@ -136,7 +128,14 @@ function TopicForm({
 
   return (
     <div className="grid gap-4">
-      {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+      {error ? (
+        <p
+          className="rounded-2xl border px-4 py-3 text-sm font-semibold"
+          style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+        >
+          {error}
+        </p>
+      ) : null}
       {[
         ["Topic", "topic", "text"],
         ["Subtopics (one per line)", "subtopics", "textarea"],
@@ -149,32 +148,32 @@ function TopicForm({
         ["Assignment", "assignment", "textarea"],
       ].map(([label, key, type]) => (
         <label key={key} className="grid gap-2">
-          <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">{label}</span>
+          <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{label}</span>
           {type === "textarea" ? (
             <textarea
               rows={4}
               value={form[key as keyof typeof form]}
               onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
-              className="rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+              className="field-textarea rounded-2xl"
             />
           ) : (
             <input
               value={form[key as keyof typeof form]}
               onChange={(event) => setForm((current) => ({ ...current, [key]: event.target.value }))}
-              className="rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+              className="field-control rounded-2xl"
             />
           )}
         </label>
       ))}
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={onClose} className="rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/65">
+        <button type="button" onClick={onClose} className="btn-secondary px-4">
           Cancel
         </button>
         <button
           type="button"
           disabled={pending}
           onClick={submit}
-          className="rounded-full bg-ink px-5 py-2 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
+          className="btn-primary px-5"
         >
           {pending ? "Saving..." : "Save Topic"}
         </button>
@@ -224,47 +223,55 @@ function CoverForm({
 
   return (
     <div className="grid gap-4">
-      {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p> : null}
-      <div className="rounded-2xl border border-brand-100 bg-brand-50/70 p-4">
-        <p className="text-sm font-bold text-ink">{topic.topic}</p>
-        <p className="mt-1 text-xs text-ink/55">Week {topic.weekNumber}</p>
+      {error ? (
+        <p
+          className="rounded-2xl border px-4 py-3 text-sm font-semibold"
+          style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+        >
+          {error}
+        </p>
+      ) : null}
+      <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
+        <p className="text-sm font-bold text-[var(--color-text-primary)]">{topic.topic}</p>
+        <p className="mt-1 text-xs text-[var(--color-text-muted)]">Week {topic.weekNumber}</p>
       </div>
       <label className="grid gap-2">
-        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">Date covered</span>
+        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Date covered</span>
         <input
           type="date"
           value={coveredDate}
           onChange={(event) => setCoveredDate(event.target.value)}
-          className="rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+          className="field-control rounded-2xl"
         />
       </label>
       <label className="grid gap-2">
-        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">Actual topic taught</span>
+        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Actual topic taught</span>
         <input
           value={actualTopicTaught}
           onChange={(event) => setActualTopicTaught(event.target.value)}
           placeholder={topic.topic}
-          className="rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+          className="field-control rounded-2xl"
         />
       </label>
       <label className="grid gap-2">
-        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-ink/45">Coverage notes</span>
+        <span className="text-[0.72rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Coverage notes</span>
         <textarea
           rows={4}
           value={coverageNotes}
           onChange={(event) => setCoverageNotes(event.target.value)}
-          className="rounded-2xl border border-ink/10 bg-white px-4 py-3 text-sm text-ink outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+          className="field-textarea rounded-2xl"
         />
       </label>
       <div className="flex justify-end gap-3">
-        <button type="button" onClick={onClose} className="rounded-full border border-ink/10 bg-white px-4 py-2 text-sm font-semibold text-ink/65">
+        <button type="button" onClick={onClose} className="btn-secondary px-4">
           Cancel
         </button>
         <button
           type="button"
           disabled={pending}
           onClick={submit}
-          className="rounded-full bg-emerald-600 px-5 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+          className="inline-flex h-10 items-center justify-center gap-2 rounded-full px-5 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+          style={{ background: "var(--color-success)" }}
         >
           {pending ? "Saving..." : "Mark Covered"}
         </button>
@@ -352,23 +359,23 @@ export function SchemeOfWorkDetailClient({
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[2rem] border border-white/60 bg-white/90 p-6 shadow-panel md:p-8">
+    <div className="portal-page">
+      <section className="surface-hero p-6 md:p-7">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-brand-700">Scheme of Work</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-4xl font-bold text-ink">{sow.subjectName}</h1>
-            <p className="mt-3 text-sm leading-6 text-ink/68">
+            <p className="text-[0.72rem] font-semibold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">Scheme of Work</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{sow.subjectName}</h1>
+            <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               {sow.className} · {sow.termName} · {sow.academicSessionName}
             </p>
-            <p className="mt-2 text-sm text-ink/58">Teacher: {sow.teacherName ?? "Not yet assigned"}</p>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">Teacher: {sow.teacherName ?? "Not yet assigned"}</p>
           </div>
           <div className="flex flex-wrap items-center gap-3">
             <SchemeOfWorkStatusBadge status={sow.status} />
             <button
               type="button"
               onClick={() => void refresh()}
-              className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-sm font-semibold text-ink/65 transition hover:bg-sand/70"
+              className="btn-secondary px-4"
             >
               <RefreshCcw className="h-4 w-4" />
               Refresh
@@ -378,7 +385,7 @@ export function SchemeOfWorkDetailClient({
                 type="button"
                 disabled={pending === "submit"}
                 onClick={() => setConfirmAction("submit")}
-                className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
+                className="btn-primary px-4"
               >
                 <Send className="h-4 w-4" />
                 {pending === "submit" ? "Submitting..." : "Submit for Review"}
@@ -390,7 +397,8 @@ export function SchemeOfWorkDetailClient({
                   type="button"
                   disabled={pending === "approve"}
                   onClick={() => void runAction("approve")}
-                  className="inline-flex h-11 items-center gap-2 rounded-full bg-emerald-600 px-4 text-sm font-semibold text-white transition hover:bg-emerald-700 disabled:opacity-60"
+                  className="inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ background: "var(--color-success)" }}
                 >
                   <CheckCircle2 className="h-4 w-4" />
                   {pending === "approve" ? "Approving..." : "Approve"}
@@ -399,7 +407,8 @@ export function SchemeOfWorkDetailClient({
                   type="button"
                   disabled={pending === "return"}
                   onClick={() => setConfirmAction("return")}
-                  className="inline-flex h-11 items-center gap-2 rounded-full border border-rose-200 bg-rose-50 px-4 text-sm font-semibold text-rose-700 transition hover:bg-rose-100 disabled:opacity-60"
+                  className="inline-flex h-11 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-60"
+                  style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
                 >
                   <XCircle className="h-4 w-4" />
                   Return
@@ -408,9 +417,19 @@ export function SchemeOfWorkDetailClient({
             ) : null}
           </div>
         </div>
-        {error ? <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+        {error ? (
+          <p
+            className="mt-4 rounded-2xl border px-4 py-3 text-sm font-semibold"
+            style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+          >
+            {error}
+          </p>
+        ) : null}
         {sow.returnReason ? (
-          <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          <div
+            className="mt-4 rounded-2xl border px-4 py-3 text-sm"
+            style={{ borderColor: "var(--color-warning)", background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+          >
             <p className="font-bold">Returned for revision</p>
             <p className="mt-1">{sow.returnReason}</p>
           </div>
@@ -420,26 +439,36 @@ export function SchemeOfWorkDetailClient({
       <ProgressCard sow={sow} />
 
       {!sow.stats.isOnTrack ? (
-        <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 px-5 py-4 text-sm font-medium text-rose-800">
+        <div
+          className="rounded-[1.5rem] border px-5 py-4 text-sm font-medium"
+          style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+        >
           This scheme of work is behind the current school week. The next pending teaching week is Week {sow.stats.currentWeek ?? "N/A"}.
         </div>
       ) : null}
 
       <section className="grid gap-3">
         {sow.topics.map((topic) => (
-          <div key={topic.id} className="rounded-[1.5rem] border border-white/70 bg-white/90 p-5 shadow-[0_14px_36px_rgba(18,33,23,0.05)]">
+          <div key={topic.id} className="surface-card p-5">
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-2">
-                  <span className={cn("rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em]", topic.isCovered ? "bg-emerald-100 text-emerald-800" : "bg-sand/80 text-ink/55")}>
+                  <span
+                    className="rounded-full px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.18em]"
+                    style={
+                      topic.isCovered
+                        ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
+                        : { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }
+                    }
+                  >
                     Week {topic.weekNumber}
                   </span>
-                  <span className="rounded-full border border-ink/10 bg-white px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-ink/48">
+                  <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-1 text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                     {topic.weekType.toLowerCase()}
                   </span>
                 </div>
-                <h2 className="mt-3 text-xl font-bold text-ink">{topic.topic}</h2>
-                <p className="mt-2 text-sm text-ink/60">
+                <h2 className="mt-3 text-xl font-bold text-[var(--color-text-primary)]">{topic.topic}</h2>
+                <p className="mt-2 text-sm text-[var(--color-text-muted)]">
                   {topic.isCovered
                     ? `Covered${topic.coveredDate ? ` on ${new Date(topic.coveredDate).toLocaleDateString("en-NG")}` : ""}.`
                     : "Pending coverage."}
@@ -450,7 +479,8 @@ export function SchemeOfWorkDetailClient({
                   <button
                     type="button"
                     onClick={() => setCoverTopic(topic)}
-                    className="inline-flex h-10 items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 text-sm font-semibold text-emerald-700 transition hover:bg-emerald-100"
+                    className="inline-flex h-10 items-center gap-2 rounded-full border px-4 text-sm font-semibold transition"
+                    style={{ borderColor: "var(--color-success)", background: "var(--color-success-dim)", color: "var(--color-success)" }}
                   >
                     <CheckCircle2 className="h-4 w-4" />
                     Mark Covered
@@ -460,7 +490,7 @@ export function SchemeOfWorkDetailClient({
                   <button
                     type="button"
                     onClick={() => setEditTopic(topic)}
-                    className="inline-flex h-10 items-center gap-2 rounded-full border border-ink/10 bg-white px-4 text-sm font-semibold text-ink/65 transition hover:bg-sand/70"
+                    className="btn-secondary px-4"
                   >
                     <Edit3 className="h-4 w-4" />
                     Edit Topic
@@ -531,7 +561,7 @@ export function SchemeOfWorkDetailClient({
           </div>
         }
       >
-        <p className="text-[13px] leading-6 text-slate-600">
+        <p className="text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Once submitted, this scheme moves into the academic approval flow and should only be changed if it is returned for correction.
         </p>
       </Modal>

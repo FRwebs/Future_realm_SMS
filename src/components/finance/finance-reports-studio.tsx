@@ -302,13 +302,21 @@ export function FinanceReportsStudio({ dashboard }: Props) {
                 key: "paid",
                 header: "Paid",
                 align: "right",
-                render: (row) => <span className="finance-mono text-emerald-300">{formatCurrency(row.paid)}</span>,
+                render: (row) => (
+                  <span className="finance-mono" style={{ color: "var(--color-success)" }}>
+                    {formatCurrency(row.paid)}
+                  </span>
+                ),
               },
               {
                 key: "balance",
                 header: "Outstanding",
                 align: "right",
-                render: (row) => <span className="finance-mono text-rose-300">{formatCurrency(row.balance)}</span>,
+                render: (row) => (
+                  <span className="finance-mono" style={{ color: "var(--color-danger)" }}>
+                    {formatCurrency(row.balance)}
+                  </span>
+                ),
               },
               {
                 key: "overdue",

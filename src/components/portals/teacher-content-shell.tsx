@@ -35,23 +35,23 @@ export function TeacherContentShell({ children }: { children: React.ReactNode })
   const pathname = usePathname();
 
   return (
-    <div className="grid gap-6">
-      <section className="rounded-[1.85rem] border border-white/65 bg-white/92 p-5 shadow-panel">
+    <div className="portal-page">
+      <section className="surface-card p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-brand-700">
+            <p className="section-eyebrow">
               Teacher Content System
             </p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-3xl font-black tracking-tight text-ink">
+            <h1 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
               Planning, notes, and weekly coverage
             </h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/62">
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Move through one unified teaching workspace instead of jumping between unrelated
               pages. Everything here is nested around how real teachers plan, teach, and track
               curriculum delivery.
             </p>
           </div>
-          <div className="rounded-[1.35rem] border border-slate-200 bg-slate-50/80 px-4 py-3 text-sm font-semibold text-slate-600">
+          <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3 text-sm font-semibold text-[var(--color-text-secondary)]">
             Nested teacher content workspace
           </div>
         </div>
@@ -70,24 +70,31 @@ export function TeacherContentShell({ children }: { children: React.ReactNode })
                 key={tab.href}
                 href={tab.href}
                 className={cn(
-                  "min-w-[220px] rounded-[1.5rem] border px-4 py-4 transition",
+                  "min-w-[220px] rounded-[10px] border px-4 py-4 transition",
                   active
-                    ? "border-[rgb(18,33,23)] bg-[rgb(18,33,23)] text-white shadow-sm"
-                    : "border-slate-200 bg-white text-slate-800 hover:border-primary-200 hover:bg-primary-50",
+                    ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-[var(--color-text-inverse)]"
+                    : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-primary)] hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]",
                 )}
               >
                 <div className="flex items-start gap-3">
                   <span
                     className={cn(
-                      "flex h-10 w-10 items-center justify-center rounded-2xl",
-                      active ? "bg-white/12 text-white" : "bg-primary-50 text-primary-700",
+                      "flex h-10 w-10 items-center justify-center rounded-[10px]",
+                      active
+                        ? "bg-[rgba(255,255,255,0.16)] text-[var(--color-text-inverse)]"
+                        : "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
                     )}
                   >
                     <Icon className="h-4 w-4" />
                   </span>
                   <div className="min-w-0">
                     <p className="text-sm font-bold">{tab.label}</p>
-                    <p className={cn("mt-1 text-xs", active ? "text-white/75" : "text-slate-500")}>
+                    <p
+                      className={cn(
+                        "mt-1 text-xs",
+                        active ? "text-[rgba(255,255,255,0.75)]" : "text-[var(--color-text-secondary)]",
+                      )}
+                    >
                       {tab.description}
                     </p>
                   </div>

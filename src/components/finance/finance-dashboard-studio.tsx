@@ -92,8 +92,8 @@ function AreaChart({ points }: { points: Array<{ label: string; amount: number }
       <svg viewBox={`0 0 ${width} ${height}`} className="h-[260px] w-full">
         <defs>
           <linearGradient id="finance-area" x1="0" x2="0" y1="0" y2="1">
-            <stop offset="0%" stopColor="rgba(45,212,191,0.35)" />
-            <stop offset="100%" stopColor="rgba(45,212,191,0.02)" />
+            <stop offset="0%" stopColor="var(--finance-accent-primary)" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="var(--finance-accent-primary)" stopOpacity="0.02" />
           </linearGradient>
         </defs>
         {[0, 1, 2, 3].map((index) => {
@@ -101,10 +101,10 @@ function AreaChart({ points }: { points: Array<{ label: string; amount: number }
           return <line key={y} x1={padding} y1={y} x2={width - padding} y2={y} stroke="var(--finance-chart-grid)" strokeDasharray="4 6" />;
         })}
         <path d={area} fill="url(#finance-area)" />
-        <path d={line} fill="none" stroke="#2DD4BF" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
+        <path d={line} fill="none" stroke="var(--finance-accent-primary)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" />
         {coords.map((point) => (
           <g key={point.label}>
-            <circle cx={point.x} cy={point.y} r="5" fill="var(--finance-chart-point-fill)" stroke="#2DD4BF" strokeWidth="2" />
+            <circle cx={point.x} cy={point.y} r="5" fill="var(--finance-chart-point-fill)" stroke="var(--finance-accent-primary)" strokeWidth="2" />
             <text x={point.x} y={height - 6} fill="var(--finance-text-secondary)" textAnchor="middle" fontSize="11">
               {point.label}
             </text>
@@ -223,7 +223,9 @@ export function FinanceDashboardStudio({ dashboard, canManageFinance }: Props) {
                   onClick={() => setRange(option.value as RangeMode)}
                   className={cn(
                     "rounded-full px-3 py-2 text-sm font-semibold transition",
-                    range === option.value ? "bg-[#12796a] text-white" : "text-[var(--finance-text-secondary)] hover:text-[var(--finance-text-primary)]",
+                    range === option.value
+                      ? "bg-[var(--finance-accent-primary)] text-white"
+                      : "text-[var(--finance-text-secondary)] hover:text-[var(--finance-text-primary)]",
                   )}
                 >
                   {option.label}
@@ -274,7 +276,10 @@ export function FinanceDashboardStudio({ dashboard, canManageFinance }: Props) {
             <Link href="/finance/fee-structures" className="finance-soft-surface finance-soft-surface-hover group rounded-2xl px-4 py-4 transition">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-amber-500/16 text-amber-300">
+                  <div
+                    className="grid h-11 w-11 place-items-center rounded-2xl"
+                    style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+                  >
                     <BookOpenCheck className="h-5 w-5" />
                   </div>
                   <div>
@@ -288,7 +293,10 @@ export function FinanceDashboardStudio({ dashboard, canManageFinance }: Props) {
             <Link href="/finance/payroll" className="finance-soft-surface finance-soft-surface-hover group rounded-2xl px-4 py-4 transition">
               <div className="flex items-center justify-between gap-4">
                 <div className="flex items-center gap-3">
-                  <div className="grid h-11 w-11 place-items-center rounded-2xl bg-rose-500/16 text-rose-300">
+                  <div
+                    className="grid h-11 w-11 place-items-center rounded-2xl"
+                    style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                  >
                     <Wallet className="h-5 w-5" />
                   </div>
                   <div>
@@ -411,7 +419,10 @@ export function FinanceDashboardStudio({ dashboard, canManageFinance }: Props) {
               <div key={`${debtor.studentName}-${debtor.className}`} className="finance-soft-surface rounded-2xl px-4 py-3">
                 <div className="flex items-start justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <div className="grid h-11 w-11 place-items-center rounded-full bg-rose-500/14 text-sm font-bold text-rose-300">
+                    <div
+                      className="grid h-11 w-11 place-items-center rounded-full text-sm font-bold"
+                      style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                    >
                       {debtor.studentName
                         .split(" ")
                         .slice(0, 2)
@@ -423,7 +434,9 @@ export function FinanceDashboardStudio({ dashboard, canManageFinance }: Props) {
                       <p className="text-xs text-[var(--finance-text-secondary)]">{debtor.className}</p>
                     </div>
                   </div>
-                  <p className="finance-mono text-sm font-semibold text-rose-300">{formatCurrency(debtor.balance)}</p>
+                  <p className="finance-mono text-sm font-semibold" style={{ color: "var(--color-danger)" }}>
+                    {formatCurrency(debtor.balance)}
+                  </p>
                 </div>
                 <div className="mt-3 flex items-center justify-between gap-3">
                   <p className="text-xs text-[var(--finance-text-secondary)]">

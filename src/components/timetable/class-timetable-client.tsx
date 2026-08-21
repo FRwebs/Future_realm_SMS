@@ -70,29 +70,58 @@ type ActiveSlot = {
   existingSlot: Slot | null;
 };
 
-const subjectTones = [
-  { match: "english", bg: "bg-blue-50", border: "border-blue-200", text: "text-blue-900", dot: "bg-blue-500" },
-  { match: "math", bg: "bg-violet-50", border: "border-violet-200", text: "text-violet-900", dot: "bg-violet-500" },
-  { match: "science", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-900", dot: "bg-emerald-500" },
-  { match: "biology", bg: "bg-emerald-50", border: "border-emerald-200", text: "text-emerald-900", dot: "bg-emerald-500" },
-  { match: "chemistry", bg: "bg-orange-50", border: "border-orange-200", text: "text-orange-900", dot: "bg-orange-500" },
-  { match: "physics", bg: "bg-rose-50", border: "border-rose-200", text: "text-rose-900", dot: "bg-rose-500" },
-  { match: "civic", bg: "bg-cyan-50", border: "border-cyan-200", text: "text-cyan-900", dot: "bg-cyan-500" },
+type SubjectTone = { background: string; color: string; borderColor: string };
+
+const subjectTones: Array<{ match: string } & SubjectTone> = [
+  { match: "english", background: "var(--color-info-dim)", color: "var(--color-info)", borderColor: "var(--color-info)" },
+  { match: "math", background: "var(--color-accent-primary-dim)", color: "var(--color-text-accent)", borderColor: "var(--color-accent-primary)" },
+  { match: "science", background: "var(--color-success-dim)", color: "var(--color-success)", borderColor: "var(--color-success)" },
+  { match: "biology", background: "var(--color-success-dim)", color: "var(--color-success)", borderColor: "var(--color-success)" },
+  { match: "chemistry", background: "var(--color-warning-dim)", color: "var(--color-warning)", borderColor: "var(--color-warning)" },
+  { match: "physics", background: "var(--color-danger-dim)", color: "var(--color-danger)", borderColor: "var(--color-danger)" },
+  { match: "civic", background: "var(--color-bg-subtle)", color: "var(--color-text-secondary)", borderColor: "var(--color-border-default)" },
 ];
 
-function toneForSubject(subject?: string | null) {
+const defaultSubjectTone: SubjectTone = {
+  background: "var(--color-accent-primary-dim)",
+  color: "var(--color-text-accent)",
+  borderColor: "var(--color-accent-primary)",
+};
+
+function toneForSubject(subject?: string | null): SubjectTone {
   const normalized = subject?.toLowerCase() ?? "";
-  return subjectTones.find((tone) => normalized.includes(tone.match)) ?? { bg: "bg-brand-50", border: "border-brand-200", text: "text-brand-900", dot: "bg-brand-600" };
+  return subjectTones.find((tone) => normalized.includes(tone.match)) ?? defaultSubjectTone;
 }
 
 function StatusBadge({ meta }: { meta: TimetablePayload["meta"] }) {
   if (meta.is_empty) {
-    return <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs font-black text-slate-600"><AlertCircle className="h-3 w-3" />Not Set Up</span>;
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black"
+        style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}
+      >
+        <AlertCircle className="h-3 w-3" />Not Set Up
+      </span>
+    );
   }
   if (meta.is_fully_published) {
-    return <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-xs font-black text-emerald-700"><CheckCircle2 className="h-3 w-3" />Published</span>;
+    return (
+      <span
+        className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black"
+        style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}
+      >
+        <CheckCircle2 className="h-3 w-3" />Published
+      </span>
+    );
   }
-  return <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-100 px-3 py-1 text-xs font-black text-amber-700"><Clock className="h-3 w-3" />Draft {meta.published_slots}/{meta.total_lesson_slots}</span>;
+  return (
+    <span
+      className="inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black"
+      style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+    >
+      <Clock className="h-3 w-3" />Draft {meta.published_slots}/{meta.total_lesson_slots}
+    </span>
+  );
 }
 
 function TimetableCell({
@@ -113,37 +142,56 @@ function TimetableCell({
   const nonTeaching = ["break", "lunch", "assembly", "closing"].includes(period.slot_type);
   if (nonTeaching) {
     return (
-      <div className="flex h-16 items-center justify-center rounded-2xl border border-ink/8 bg-sand/75 text-xs font-black uppercase tracking-[0.16em] text-ink/40">
+      <div className="flex h-16 items-center justify-center rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-xs font-black uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
         {period.label}
       </div>
     );
   }
   if (!slot) {
     return (
-      <button type="button" onClick={canEdit ? onClick : undefined} className={cn("flex h-20 w-full items-center justify-center rounded-2xl border border-dashed border-ink/12 bg-white/45 text-xs font-bold text-ink/30", canEdit && "transition hover:border-brand-300 hover:bg-brand-50 hover:text-brand-800")}>
+      <button
+        type="button"
+        onClick={canEdit ? onClick : undefined}
+        className={cn(
+          "flex h-20 w-full items-center justify-center rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-xs font-bold text-[var(--color-text-muted)]",
+          canEdit && "transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
+        )}
+      >
         {canEdit ? <><Plus className="mr-1 h-3.5 w-3.5" />Add</> : "Free"}
       </button>
     );
   }
   if (slot.slot_type === "free" || !slot.subject_id) {
     return (
-      <button type="button" onClick={canEdit ? onClick : undefined} className={cn("flex h-20 w-full items-center justify-center rounded-2xl border border-dashed border-amber-200 bg-amber-50/70 text-xs font-bold text-amber-700", canEdit && "transition hover:bg-amber-100")}>
+      <button
+        type="button"
+        onClick={canEdit ? onClick : undefined}
+        className={cn("flex h-20 w-full items-center justify-center rounded-[10px] border border-dashed text-xs font-bold transition", canEdit && "hover:brightness-95")}
+        style={{ borderColor: "var(--color-warning)", background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+      >
         Free Period
       </button>
     );
   }
-  const tone = slot.slot_type === "sports" ? { bg: "bg-sky-50", border: "border-sky-200", text: "text-sky-900", dot: "bg-sky-500" } : toneForSubject(slot.subject_name);
+  const tone: SubjectTone =
+    slot.slot_type === "sports"
+      ? { background: "var(--color-info-dim)", color: "var(--color-info)", borderColor: "var(--color-info)" }
+      : toneForSubject(slot.subject_name);
   return (
-    <div className={cn("group relative h-20 rounded-2xl border p-3 text-left transition", tone.bg, tone.border, canEdit && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md")} onClick={canEdit ? onClick : undefined}>
+    <div
+      className={cn("group relative h-20 rounded-2xl border p-3 text-left transition", canEdit && "cursor-pointer hover:-translate-y-0.5 hover:shadow-md")}
+      style={{ background: tone.background, borderColor: tone.borderColor }}
+      onClick={canEdit ? onClick : undefined}
+    >
       <div className="flex items-start gap-2">
-        <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", tone.dot)} />
+        <span className="mt-1 h-2 w-2 shrink-0 rounded-full" style={{ background: tone.color }} />
         <div className="min-w-0">
-          <p className={cn("truncate text-xs font-black", tone.text)}>{slot.slot_type === "sports" ? "Sports / PE" : slot.subject_name}</p>
-          <p className="mt-1 truncate text-[0.68rem] font-medium text-ink/50">{slot.teacher_name ?? "No teacher assigned"}</p>
-          {slot.room ? <p className="mt-1 flex items-center gap-1 truncate text-[0.65rem] text-ink/40"><DoorOpen className="h-3 w-3" />{slot.room}</p> : null}
+          <p className="truncate text-xs font-black" style={{ color: tone.color }}>{slot.slot_type === "sports" ? "Sports / PE" : slot.subject_name}</p>
+          <p className="mt-1 truncate text-[0.68rem] font-medium text-[var(--color-text-muted)]">{slot.teacher_name ?? "No teacher assigned"}</p>
+          {slot.room ? <p className="mt-1 flex items-center gap-1 truncate text-[0.65rem] text-[var(--color-text-muted)]"><DoorOpen className="h-3 w-3" />{slot.room}</p> : null}
         </div>
       </div>
-      {!slot.is_published ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-amber-500" title="Draft" /> : null}
+      {!slot.is_published ? <span className="absolute right-2 top-2 h-2 w-2 rounded-full" style={{ background: "var(--color-warning)" }} title="Draft" /> : null}
       {canDelete ? (
         <button
           type="button"
@@ -151,7 +199,7 @@ function TimetableCell({
             event.stopPropagation();
             onDelete?.();
           }}
-          className="absolute bottom-2 right-2 hidden rounded-full bg-white/90 p-1.5 text-ink/35 shadow-sm transition hover:text-rose-600 group-hover:block"
+          className="absolute bottom-2 right-2 hidden rounded-full bg-[var(--color-bg-surface)] p-1.5 text-[var(--color-text-muted)] shadow-sm transition hover:text-[var(--color-danger)] group-hover:block"
         >
           <Trash2 className="h-3 w-3" />
         </button>
@@ -162,21 +210,21 @@ function TimetableCell({
 
 function TimetableGrid({ data, canEdit, canDelete, onEdit, onDelete }: { data: TimetablePayload; canEdit: boolean; canDelete: boolean; onEdit: (slot: ActiveSlot) => void; onDelete: (slotId: string) => void }) {
   return (
-    <section className="overflow-hidden rounded-[2rem] border border-white/70 bg-white/90 shadow-panel">
+    <section className="surface-hero overflow-hidden">
       <div className="overflow-x-auto">
         <table className="w-full min-w-[960px] border-collapse">
           <thead>
-            <tr className="border-b border-ink/8 bg-sand/70">
-              <th className="sticky left-0 z-10 w-36 bg-sand/95 px-4 py-4 text-left text-[0.68rem] font-black uppercase tracking-[0.18em] text-ink/45">Period</th>
-              {data.days.map((day) => <th key={day.number} className="px-3 py-4 text-center text-xs font-black uppercase tracking-[0.16em] text-ink/55">{day.name}</th>)}
+            <tr className="border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)]">
+              <th className="sticky left-0 z-10 w-36 bg-[var(--color-bg-subtle)] px-4 py-4 text-left text-[0.68rem] font-black uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Period</th>
+              {data.days.map((day) => <th key={day.number} className="px-3 py-4 text-center text-xs font-black uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{day.name}</th>)}
             </tr>
           </thead>
           <tbody>
             {data.grid.map((period) => (
-              <tr key={period.period_number} className="border-b border-ink/6">
-                <td className="sticky left-0 z-10 border-r border-ink/6 bg-white/95 px-4 py-3">
-                  <p className="text-sm font-black text-ink">{period.label}</p>
-                  <p className="mt-1 text-[0.68rem] font-mono text-ink/42">{formatTime(period.start_time)} - {formatTime(period.end_time)}</p>
+              <tr key={period.period_number} className="border-b border-[var(--color-border-default)]">
+                <td className="sticky left-0 z-10 border-r border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3">
+                  <p className="text-sm font-black text-[var(--color-text-primary)]">{period.label}</p>
+                  <p className="mt-1 text-[0.68rem] font-mono text-[var(--color-text-muted)]">{formatTime(period.start_time)} - {formatTime(period.end_time)}</p>
                 </td>
                 {data.days.map((day) => {
                   const slot = period.slots.find((item) => item.day_number === day.number)?.slot ?? null;
@@ -292,32 +340,46 @@ function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId
       )}
     >
       <div className="grid gap-5">
-        <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-primary-700">
+        <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.22em] text-[var(--color-text-accent)]">
             Teaching window
           </p>
-          <div className="mt-3 flex flex-wrap gap-2 text-sm text-slate-700">
-            <span className="rounded-full bg-white px-3 py-1 font-medium">{slot.dayName}</span>
-            <span className="rounded-full bg-white px-3 py-1 font-medium">{slot.periodLabel}</span>
-            <span className="rounded-full bg-white px-3 py-1 font-medium">
+          <div className="mt-3 flex flex-wrap gap-2 text-sm text-[var(--color-text-secondary)]">
+            <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 font-medium">{slot.dayName}</span>
+            <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 font-medium">{slot.periodLabel}</span>
+            <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 font-medium">
               {formatTime(slot.startTime)} - {formatTime(slot.endTime)}
             </span>
             {slot.existingSlot?.is_published ? (
-              <span className="rounded-full bg-emerald-100 px-3 py-1 font-medium text-emerald-700">
+              <span className="rounded-full px-3 py-1 font-medium" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                 Published
               </span>
             ) : (
-              <span className="rounded-full bg-amber-100 px-3 py-1 font-medium text-amber-700">
+              <span className="rounded-full px-3 py-1 font-medium" style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}>
                 Draft
               </span>
             )}
           </div>
         </div>
 
-        {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</div> : null}
+        {error ? (
+          <div className="rounded-[10px] px-4 py-3 text-sm font-semibold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+            {error}
+          </div>
+        ) : null}
         <div className="grid gap-2 sm:grid-cols-3">
           {["lesson", "free", "sports"].map((type) => (
-            <button key={type} type="button" onClick={() => setForm((current) => ({ ...current, slot_type: type }))} className={cn("rounded-2xl border px-4 py-3 text-sm font-black capitalize transition", form.slot_type === type ? "border-primary-600 bg-primary-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50")}>
+            <button
+              key={type}
+              type="button"
+              onClick={() => setForm((current) => ({ ...current, slot_type: type }))}
+              className={cn(
+                "rounded-[10px] border px-4 py-3 text-sm font-black capitalize transition",
+                form.slot_type === type
+                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary)] text-white"
+                  : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)]",
+              )}
+            >
               {type === "sports" ? "Sports / PE" : type}
             </button>
           ))}
@@ -326,16 +388,16 @@ function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId
         {form.slot_type === "lesson" ? (
           <div className="grid gap-4">
             <div className="grid gap-4 sm:grid-cols-2">
-              <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+              <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
                 Subject
-                <select value={form.subject_id} onChange={(event) => selectSubject(event.target.value)} className="field-select h-11 rounded-2xl">
+                <select value={form.subject_id} onChange={(event) => selectSubject(event.target.value)} className="field-select h-11 rounded-[10px]">
                   <option value="">Select subject</option>
                   {subjects.map((subject) => <option key={subject.subject_id} value={subject.subject_id}>{subject.name} ({subject.code})</option>)}
                 </select>
               </label>
-              <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+              <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
                 Teacher
-                <select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))} className="field-select h-11 rounded-2xl">
+                <select value={form.teacher_id} onChange={(event) => setForm((current) => ({ ...current, teacher_id: event.target.value }))} className="field-select h-11 rounded-[10px]">
                   <option value="">No teacher</option>
                   {teachers.map((teacher) => <option key={teacher.id} value={teacher.id}>{teacher.name}</option>)}
                 </select>
@@ -343,8 +405,8 @@ function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId
             </div>
 
             {form.subject_id ? (
-              <div className="rounded-[1.25rem] border border-slate-100 bg-slate-50 p-4 text-[13px] text-slate-600">
-                <p className="font-semibold text-slate-900">
+              <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 text-[13px] text-[var(--color-text-secondary)]">
+                <p className="font-semibold text-[var(--color-text-primary)]">
                   {subjects.find((subject) => subject.subject_id === form.subject_id)?.name ?? "Selected subject"}
                 </p>
                 <p className="mt-1">
@@ -358,19 +420,19 @@ function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId
         ) : null}
 
         <div className="grid gap-4 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+          <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
             Room
-            <input value={form.room} onChange={(event) => setForm((current) => ({ ...current, room: event.target.value }))} placeholder="Room 7, Lab, Field" className="field-input h-11 rounded-2xl" />
+            <input value={form.room} onChange={(event) => setForm((current) => ({ ...current, room: event.target.value }))} placeholder="Room 7, Lab, Field" className="field-input h-11 rounded-[10px]" />
           </label>
-          <label className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700">
-            <input type="checkbox" checked={form.is_double_period} onChange={(event) => setForm((current) => ({ ...current, is_double_period: event.target.checked }))} className="h-4 w-4 rounded border-slate-300 text-primary-600" />
+          <label className="flex items-center gap-3 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-sm font-semibold text-[var(--color-text-secondary)]">
+            <input type="checkbox" checked={form.is_double_period} onChange={(event) => setForm((current) => ({ ...current, is_double_period: event.target.checked }))} className="h-4 w-4 rounded border-[var(--color-border-default)] text-[var(--color-accent-primary)]" />
             Double period
           </label>
         </div>
 
-        <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+        <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
           Notes
-          <textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={4} className="field-textarea min-h-[120px] rounded-2xl" placeholder="Add any context for timetable managers, for example practical grouping or room constraints." />
+          <textarea value={form.notes} onChange={(event) => setForm((current) => ({ ...current, notes: event.target.value }))} rows={4} className="field-textarea min-h-[120px] rounded-[10px]" placeholder="Add any context for timetable managers, for example practical grouping or room constraints." />
         </label>
       </div>
     </SidePanel>
@@ -430,35 +492,54 @@ export function ClassTimetableClient({ classId }: { classId: string }) {
     }
   }
 
-  if (loading) return <div className="grid gap-4">{Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-[1.5rem] bg-white/75" />)}</div>;
-  if (error) return <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-5 text-sm font-semibold text-rose-700">{error}</div>;
+  if (loading) return <div className="grid gap-4">{Array.from({ length: 5 }).map((_, index) => <div key={index} className="h-24 animate-pulse rounded-[14px] bg-[var(--color-bg-subtle)]" />)}</div>;
+  if (error)
+    return (
+      <div className="rounded-[14px] p-5 text-sm font-semibold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+        {error}
+      </div>
+    );
   if (!data) return null;
 
   return (
-    <div className="grid gap-5">
-      <button type="button" onClick={() => router.push("/timetable" as Route)} className="inline-flex w-fit items-center gap-2 rounded-full bg-white/75 px-4 py-2 text-sm font-semibold text-ink/60 transition hover:bg-white">
+    <div className="portal-page">
+      <button
+        type="button"
+        onClick={() => router.push("/timetable" as Route)}
+        className="inline-flex w-fit items-center gap-2 rounded-full bg-[var(--color-bg-surface)] px-4 py-2 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-elevated)]"
+      >
         <ArrowLeft className="h-4 w-4" />
         Timetable
       </button>
 
-      <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/88 shadow-panel backdrop-blur-xl">
-        <div className="h-2 bg-gradient-to-r from-brand-700 via-amber to-ink" />
+      <section className="surface-hero">
+        <div className="h-2 bg-gradient-to-r from-[var(--color-accent-primary)] via-[var(--color-warning)] to-[var(--color-text-primary)]" />
         <div className="flex flex-col gap-5 p-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-700">{data.class.category}</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">{data.class.name}</h1>
-            <p className="mt-2 text-sm text-ink/58">{data.class.level} · {data.class.arm ?? "Class arm"}{data.class.class_teacher_name ? ` · Form Teacher: ${data.class.class_teacher_name}` : ""}</p>
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">{data.class.category}</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-black tracking-tight text-[var(--color-text-primary)]">{data.class.name}</h1>
+            <p className="mt-2 text-sm text-[var(--color-text-muted)]">{data.class.level} · {data.class.arm ?? "Class arm"}{data.class.class_teacher_name ? ` · Form Teacher: ${data.class.class_teacher_name}` : ""}</p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge meta={data.meta} />
             {canPublish && data.meta.is_fully_published ? (
-              <button type="button" disabled={publishing} onClick={() => publish("unpublish")} className="inline-flex h-11 items-center gap-2 rounded-full border border-ink/10 bg-white/80 px-4 text-sm font-semibold text-ink/65 transition hover:bg-white disabled:opacity-50">
+              <button
+                type="button"
+                disabled={publishing}
+                onClick={() => publish("unpublish")}
+                className="inline-flex h-11 items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 text-sm font-semibold text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-elevated)] disabled:opacity-50"
+              >
                 <EyeOff className="h-4 w-4" />
                 Unpublish
               </button>
             ) : null}
             {canPublish && !data.meta.is_fully_published ? (
-              <button type="button" disabled={publishing || data.meta.is_empty} onClick={() => publish("publish")} className="inline-flex h-11 items-center gap-2 rounded-full bg-ink px-4 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(18,33,23,0.18)] transition hover:bg-brand-800 disabled:opacity-50">
+              <button
+                type="button"
+                disabled={publishing || data.meta.is_empty}
+                onClick={() => publish("publish")}
+                className="btn-primary inline-flex h-11 items-center gap-2 rounded-full px-4 text-sm font-semibold disabled:opacity-50"
+              >
                 <Send className="h-4 w-4" />
                 {publishing ? "Publishing..." : "Publish Timetable"}
               </button>
@@ -467,18 +548,22 @@ export function ClassTimetableClient({ classId }: { classId: string }) {
         </div>
       </section>
 
-      {publishError ? <div className="rounded-[1.5rem] border border-rose-200 bg-rose-50 p-4 text-sm font-semibold text-rose-700">{publishError}</div> : null}
+      {publishError ? (
+        <div className="rounded-[14px] p-4 text-sm font-semibold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+          {publishError}
+        </div>
+      ) : null}
 
-      <section className="grid gap-3 rounded-[1.5rem] border border-white/65 bg-white/82 p-4 shadow-[0_16px_40px_rgba(18,33,23,0.06)] md:grid-cols-[1fr_auto] md:items-center">
+      <section className="surface-card grid gap-3 p-4 md:grid-cols-[1fr_auto] md:items-center">
         <div>
-          <p className="flex items-center gap-2 text-sm font-black text-ink"><Sparkles className="h-4 w-4 text-amber-600" />Completion</p>
-          <p className="mt-1 text-xs text-ink/55">{data.meta.filled_slots} of {data.meta.total_lesson_slots} teaching slots are filled.</p>
+          <p className="flex items-center gap-2 text-sm font-black text-[var(--color-text-primary)]"><Sparkles className="h-4 w-4 text-[var(--color-warning)]" />Completion</p>
+          <p className="mt-1 text-xs text-[var(--color-text-muted)]">{data.meta.filled_slots} of {data.meta.total_lesson_slots} teaching slots are filled.</p>
         </div>
         <div className="flex min-w-[240px] items-center gap-3">
-          <div className="h-2 flex-1 overflow-hidden rounded-full bg-ink/8">
-            <span className="block h-full rounded-full bg-brand-700" style={{ width: `${completion}%` }} />
+          <div className="h-2 flex-1 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+            <span className="block h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${completion}%` }} />
           </div>
-          <span className="text-sm font-black text-ink">{completion}%</span>
+          <span className="text-sm font-black text-[var(--color-text-primary)]">{completion}%</span>
         </div>
       </section>
 

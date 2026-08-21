@@ -1,6 +1,7 @@
 "use client";
 
 import type { Route } from "next";
+import type { CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { AlertCircle, BookOpen, Plus, Search } from "lucide-react";
@@ -39,13 +40,39 @@ export type PaginatedResponse<T> = {
 };
 
 const categoryOrder = ["Early Years", "Primary", "Junior Secondary", "Senior Secondary", "Other"] as const;
-const categoryStyles = {
-  "Early Years": "border-violet-200 bg-violet-50 text-violet-700",
-  Primary: "border-blue-200 bg-blue-50 text-blue-700",
-  "Junior Secondary": "border-teal-200 bg-teal-50 text-teal-700",
-  "Senior Secondary": "border-orange-200 bg-orange-50 text-orange-700",
-  Other: "border-slate-200 bg-slate-50 text-slate-700",
+const categoryTone: Record<(typeof categoryOrder)[number], CSSProperties> = {
+  "Early Years": {
+    borderColor: "rgb(var(--color-violet-rgb) / 0.35)",
+    background: "rgb(var(--color-violet-rgb) / 0.12)",
+    color: "rgb(var(--color-violet-rgb) / 1)",
+  },
+  Primary: {
+    borderColor: "rgb(var(--color-blue-rgb) / 0.35)",
+    background: "rgb(var(--color-blue-rgb) / 0.12)",
+    color: "rgb(var(--color-blue-rgb) / 1)",
+  },
+  "Junior Secondary": {
+    borderColor: "var(--color-accent-primary)",
+    background: "var(--color-accent-primary-dim)",
+    color: "var(--color-accent-primary)",
+  },
+  "Senior Secondary": {
+    borderColor: "rgb(var(--color-orange-rgb) / 0.35)",
+    background: "rgb(var(--color-orange-rgb) / 0.12)",
+    color: "rgb(var(--color-orange-rgb) / 1)",
+  },
+  Other: {
+    borderColor: "var(--color-border-default)",
+    background: "var(--color-bg-subtle)",
+    color: "var(--color-text-secondary)",
+  },
 };
+
+function capacityTone(percent: number): CSSProperties {
+  if (percent >= 90) return { background: "var(--color-danger)" };
+  if (percent >= 70) return { background: "var(--color-warning)" };
+  return { background: "var(--color-success)" };
+}
 
 function getCookie(name: string) {
   return document.cookie
@@ -82,7 +109,7 @@ function initials(name: string) {
 
 function Avatar({ name }: { name: string }) {
   return (
-    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-ink text-[0.65rem] font-bold text-white">
+    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-xl bg-[var(--color-accent-primary)] text-[0.65rem] font-bold text-[var(--color-text-inverse)]">
       {initials(name)}
     </span>
   );
@@ -107,16 +134,16 @@ function ClassRow({
   const capacityPercent = item.capacity > 0 ? Math.min(100, Math.round((studentCount / item.capacity) * 100)) : 0;
 
   return (
-    <tr className="group transition hover:bg-white/75">
-      <td className="px-4 py-3 text-xs font-medium text-ink/40">{serial}</td>
+    <tr className="group transition hover:bg-[var(--color-bg-subtle)]">
+      <td className="px-4 py-3 text-xs font-medium text-[var(--color-text-muted)]">{serial}</td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl bg-brand-50 text-[0.68rem] font-black text-brand-800 ring-1 ring-brand-100">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-2xl border border-[var(--color-accent-primary-dim)] bg-[var(--color-accent-primary-dim)] text-[0.68rem] font-black text-[var(--color-text-accent)]">
             {item.shortName}
           </div>
           <div>
-            <p className="font-semibold text-ink">{item.name}</p>
-            <p className="text-xs text-ink/48">{item.level}</p>
+            <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
+            <p className="text-xs text-[var(--color-text-muted)]">{item.level}</p>
           </div>
         </div>
       </td>
@@ -125,39 +152,39 @@ function ClassRow({
           <div className="flex items-center gap-2">
             <Avatar name={classTeacher.name} />
             <div>
-              <p className="text-xs font-semibold text-ink">{classTeacher.name}</p>
-              <p className="text-[0.68rem] text-ink/45">{classTeacher.email}</p>
+              <p className="text-xs font-semibold text-[var(--color-text-primary)]">{classTeacher.name}</p>
+              <p className="text-[0.68rem] text-[var(--color-text-muted)]">{classTeacher.email}</p>
             </div>
           </div>
         ) : (
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-2 py-1 text-xs font-semibold text-amber-700">
+          <span
+            className="inline-flex items-center gap-1.5 rounded-full px-2 py-1 text-xs font-semibold"
+            style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+          >
             <AlertCircle className="h-3 w-3" />
             Not assigned
           </span>
         )}
       </td>
-      <td className="px-4 py-3 text-xs text-ink/60">
+      <td className="px-4 py-3 text-xs text-[var(--color-text-secondary)]">
         {assistant ? (
           <div className="flex items-center gap-2">
             <Avatar name={assistant.name} />
-            <span className="font-medium text-ink/70">{assistant.name}</span>
+            <span className="font-medium text-[var(--color-text-secondary)]">{assistant.name}</span>
           </div>
         ) : (
           "None"
         )}
       </td>
       <td className="px-4 py-3">
-        <span className="rounded-full bg-sand px-2.5 py-1 text-xs font-semibold text-ink/65">{item.arm ?? item.section ?? "Section"}</span>
+        <span className="rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-xs font-semibold text-[var(--color-text-secondary)]">{item.arm ?? item.section ?? "Section"}</span>
       </td>
       <td className="px-4 py-3">
         <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-ink">{studentCount}</span>
-          <span className="text-xs text-ink/40">/ {item.capacity}</span>
-          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-ink/8">
-            <span
-              className={cn("block h-full rounded-full", capacityPercent >= 90 ? "bg-rose-500" : capacityPercent >= 70 ? "bg-amber-500" : "bg-emerald-500")}
-              style={{ width: `${capacityPercent}%` }}
-            />
+          <span className="text-sm font-bold text-[var(--color-text-primary)]">{studentCount}</span>
+          <span className="text-xs text-[var(--color-text-muted)]">/ {item.capacity}</span>
+          <span className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+            <span className="block h-full rounded-full" style={{ width: `${capacityPercent}%`, ...capacityTone(capacityPercent) }} />
           </span>
         </div>
       </td>
@@ -175,7 +202,7 @@ function ClassesSkeleton() {
   return (
     <div className="grid gap-3">
       {Array.from({ length: 4 }).map((_, index) => (
-        <div key={index} className="h-28 animate-pulse rounded-[1.5rem] bg-white/70" />
+        <div key={index} className="h-28 animate-pulse rounded-[14px] bg-[var(--color-bg-subtle)]" />
       ))}
     </div>
   );
@@ -183,10 +210,10 @@ function ClassesSkeleton() {
 
 function EmptyState({ title, message }: { title: string; message: string }) {
   return (
-    <div className="rounded-[2rem] border border-dashed border-ink/12 bg-white/70 p-10 text-center">
-      <BookOpen className="mx-auto h-8 w-8 text-ink/30" />
-      <h3 className="mt-4 font-[var(--font-heading)] text-2xl font-bold text-ink">{title}</h3>
-      <p className="mt-2 text-sm text-ink/58">{message}</p>
+    <div className="rounded-[14px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-10 text-center">
+      <BookOpen className="mx-auto h-8 w-8 text-[var(--color-text-muted)]" />
+      <h3 className="mt-4 font-[var(--font-heading)] text-2xl font-bold text-[var(--color-text-primary)]">{title}</h3>
+      <p className="mt-2 text-sm text-[var(--color-text-secondary)]">{message}</p>
     </div>
   );
 }
@@ -246,24 +273,20 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
   }
 
   return (
-    <div className="grid gap-6">
-      <section className="overflow-hidden rounded-[2rem] border border-white/65 bg-white/88 shadow-panel backdrop-blur-xl">
-        <div className="h-2 bg-gradient-to-r from-brand-700 via-amber to-ink" />
+    <div className="portal-page">
+      <section className="surface-hero overflow-hidden">
+        <div className="h-2 bg-gradient-to-r from-[var(--color-accent-primary)] via-[var(--color-gold)] to-[#0d2315]" />
         <div className="flex flex-col gap-4 p-6 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-bold uppercase tracking-[0.28em] text-brand-700">Academic Structure</p>
-            <h1 className="mt-3 font-[var(--font-heading)] text-4xl font-black tracking-tight text-ink">Classes</h1>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-ink/62">
+            <p className="text-xs font-bold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">Academic Structure</p>
+            <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black tracking-tight text-[var(--color-text-primary)]">Classes</h1>
+            <p className="mt-3 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Manage Nigerian class levels and arms from Nursery through Primary, JSS, and SS, including form teacher
               assignments, capacity, rooms, students, attendance, results, and Early Years skills.
             </p>
           </div>
           <CanDo permission="classes.create">
-            <button
-              type="button"
-              onClick={() => setCreatingClass(true)}
-              className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white shadow-[0_14px_30px_rgba(18,33,23,0.18)] transition hover:-translate-y-0.5 hover:bg-brand-800"
-            >
+            <button type="button" onClick={() => setCreatingClass(true)} className="btn-primary px-5">
               <Plus className="h-4 w-4" />
               Add Class
             </button>
@@ -271,10 +294,10 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
         </div>
       </section>
 
-      <section className="rounded-[1.75rem] border border-white/65 bg-white/82 p-4 shadow-[0_16px_40px_rgba(18,33,23,0.06)] backdrop-blur-xl">
+      <section className="surface-card p-4">
         <div className="flex flex-wrap gap-3">
           <label className="relative min-w-[220px] flex-1 md:max-w-sm">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={search}
               onChange={(event) => {
@@ -282,7 +305,7 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
                 updateFilters({ search: event.target.value });
               }}
               placeholder="Search classes, arms, short codes..."
-              className="h-11 w-full rounded-2xl border border-ink/10 bg-white/80 pl-10 pr-4 text-sm text-ink outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
+              className="field-control pl-10"
             />
           </label>
           <select
@@ -291,7 +314,7 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
               setCategory(event.target.value);
               updateFilters({ category: event.target.value });
             }}
-            className="h-11 rounded-2xl border border-ink/10 bg-white/80 px-4 text-sm font-medium text-ink/70 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
+            className="field-select"
           >
             <option value="">All categories</option>
             {categoryOrder.map((item) => (
@@ -306,7 +329,7 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
               setHasTeacher(event.target.value);
               updateFilters({ has_teacher: event.target.value });
             }}
-            className="h-11 rounded-2xl border border-ink/10 bg-white/80 px-4 text-sm font-medium text-ink/70 outline-none transition focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
+            className="field-select"
           >
             <option value="">All teacher assignments</option>
             <option value="yes">Has form teacher</option>
@@ -329,16 +352,19 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
             return (
               <section key={group} className="grid gap-3">
                 <div className="flex items-center gap-3">
-                  <span className={cn("rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em]", categoryStyles[group])}>
+                  <span
+                    className="rounded-full border px-3 py-1 text-[0.68rem] font-black uppercase tracking-[0.22em]"
+                    style={categoryTone[group]}
+                  >
                     {group}
                   </span>
-                  <span className="h-px flex-1 bg-ink/8" />
-                  <span className="text-xs font-medium text-ink/45">{items.length} classes</span>
+                  <span className="h-px flex-1 bg-[var(--color-border-default)]" />
+                  <span className="text-xs font-medium text-[var(--color-text-muted)]">{items.length} classes</span>
                 </div>
-                <div className="overflow-hidden rounded-[1.65rem] border border-white/70 bg-white/86 shadow-[0_14px_36px_rgba(18,33,23,0.06)]">
+                <div className="surface-card overflow-hidden p-0">
                   <div className="overflow-x-auto">
                     <table className="w-full min-w-[980px] text-sm">
-                      <thead className="bg-sand/70 text-left text-[0.67rem] font-black uppercase tracking-[0.18em] text-ink/42">
+                      <thead className="bg-[var(--color-bg-subtle)] text-left text-[0.67rem] font-black uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                         <tr>
                           <th className="px-4 py-3">S/N</th>
                           <th className="px-4 py-3">Class</th>
@@ -349,7 +375,7 @@ export function ClassesListClient({ initialResult }: { initialResult?: Paginated
                           <th className="px-4 py-3">Actions</th>
                         </tr>
                       </thead>
-                      <tbody className="divide-y divide-ink/6">
+                      <tbody className="divide-y divide-[var(--color-border-default)]">
                         {items.map((item, index) => (
                           <ClassRow
                             key={item.id}
@@ -439,41 +465,48 @@ function CreateClassModal({ onClose, onSaved }: { onClose: () => void; onSaved: 
       )}
     >
       <form id={formId} onSubmit={submit} className="grid gap-4">
-        <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4 text-[13px] text-slate-600">
-          <p className="font-semibold text-slate-900">Class setup</p>
+        <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4 text-[13px] text-[var(--color-text-secondary)]">
+          <p className="font-semibold text-[var(--color-text-primary)]">Class setup</p>
           <p className="mt-1">Create the class identity first, then assign teachers and timetable ownership from the class workspace.</p>
         </div>
-          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
+          {error ? (
+            <div
+              className="rounded-2xl border px-4 py-3 text-sm font-medium"
+              style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+            >
+              {error}
+            </div>
+          ) : null}
           <div className="grid gap-4 sm:grid-cols-2">
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+            <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
               Level
-              <select name="level" required className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100">
+              <select name="level" required className="field-select">
                 {["Nursery 1", "Nursery 2", "KG 1", "KG 2", "KG / Reception", "Primary 1", "Primary 2", "Primary 3", "Primary 4", "Primary 5", "Primary 6", "JSS 1", "JSS 2", "JSS 3", "SSS 1", "SSS 2", "SSS 3"].map((level) => (
                   <option key={level} value={level}>{level}</option>
                 ))}
               </select>
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+            <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
               Arm / Section
-              <input name="section" required placeholder="A, B, Science, Arts" className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+              <input name="section" required placeholder="A, B, Science, Arts" className="field-control" />
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+            <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
               Category
-              <select name="category" className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100">
+              <select name="category" className="field-select">
                 {categoryOrder.map((category) => <option key={category} value={category}>{category}</option>)}
               </select>
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+            <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
               Short name
-              <input name="shortName" placeholder="J1A" className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+              <input name="shortName" placeholder="J1A" className="field-control" />
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+            <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
               Capacity
-              <input name="capacity" type="number" min={1} max={250} defaultValue={40} className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+              <input name="capacity" type="number" min={1} max={250} defaultValue={40} className="field-control" />
             </label>
-            <label className="grid gap-1.5 text-sm font-semibold text-ink/70">
+            <label className="grid gap-1.5 text-sm font-semibold text-[var(--color-text-secondary)]">
               Room
-              <input name="room" placeholder="Block B Room 3" className="h-11 rounded-2xl border border-ink/10 bg-white px-3 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100" />
+              <input name="room" placeholder="Block B Room 3" className="field-control" />
             </label>
           </div>
       </form>
@@ -560,18 +593,25 @@ function AssignTeacherModal({
         }}
         className="grid gap-5"
       >
-          <div className="rounded-[1.5rem] border border-primary-100 bg-primary-50/70 p-4 text-[13px] text-slate-600">
-            <p className="font-semibold text-slate-900">Class ownership</p>
+          <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4 text-[13px] text-[var(--color-text-secondary)]">
+            <p className="font-semibold text-[var(--color-text-primary)]">Class ownership</p>
             <p className="mt-1">Form teachers own morning attendance, parent follow-up, and class welfare. Assistant teachers provide continuity when the class teacher is unavailable.</p>
           </div>
-          {error ? <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-medium text-rose-700">{error}</div> : null}
+          {error ? (
+            <div
+              className="rounded-2xl border px-4 py-3 text-sm font-medium"
+              style={{ borderColor: "var(--color-danger)", background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+            >
+              {error}
+            </div>
+          ) : null}
           <label className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder="Search teaching staff..."
-              className="h-11 w-full rounded-2xl border border-ink/10 bg-white pl-10 pr-4 text-sm outline-none focus:border-brand-300 focus:ring-4 focus:ring-brand-100"
+              className="field-control pl-10"
             />
           </label>
           <TeacherSelect label="Form Teacher" teachers={filteredTeachers} value={teacherId} onChange={(value) => { setTeacherId(value); if (assistantId === value) setAssistantId(""); }} />
@@ -596,14 +636,19 @@ function TeacherSelect({
 }) {
   return (
     <div>
-      <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-ink/45">
-        {label} {optional ? <span className="font-medium normal-case tracking-normal text-ink/35">(optional)</span> : null}
+      <p className="mb-2 text-xs font-black uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+        {label} {optional ? <span className="font-medium normal-case tracking-normal text-[var(--color-text-muted)]">(optional)</span> : null}
       </p>
-      <div className="grid max-h-56 gap-1 overflow-y-auto rounded-[1.25rem] border border-ink/8 bg-sand/30 p-2">
+      <div className="grid max-h-56 gap-1 overflow-y-auto rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-2">
         <button
           type="button"
           onClick={() => onChange("")}
-          className={cn("rounded-2xl px-3 py-2 text-left text-sm font-semibold transition", value === "" ? "bg-white text-brand-800 shadow-sm" : "text-ink/55 hover:bg-white/70")}
+          className={cn(
+            "rounded-2xl px-3 py-2 text-left text-sm font-semibold transition",
+            value === ""
+              ? "bg-[var(--color-bg-surface)] text-[var(--color-text-accent)] shadow-sm"
+              : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-surface)]",
+          )}
         >
           No {label.toLowerCase()}
         </button>
@@ -612,14 +657,26 @@ function TeacherSelect({
             key={teacher.id}
             type="button"
             onClick={() => onChange(teacher.id)}
-            className={cn("flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition", value === teacher.id ? "bg-white text-brand-800 shadow-sm" : "hover:bg-white/70")}
+            className={cn(
+              "flex items-center gap-3 rounded-2xl px-3 py-2 text-left transition",
+              value === teacher.id
+                ? "bg-[var(--color-bg-surface)] text-[var(--color-text-accent)] shadow-sm"
+                : "hover:bg-[var(--color-bg-surface)]",
+            )}
           >
             <Avatar name={`${teacher.firstName} ${teacher.lastName}`} />
             <span className="min-w-0 flex-1">
               <span className="block truncate text-sm font-semibold">{teacher.firstName} {teacher.lastName}</span>
-              <span className="block truncate text-xs text-ink/45">{teacher.email}</span>
+              <span className="block truncate text-xs text-[var(--color-text-muted)]">{teacher.email}</span>
             </span>
-            {teacher.currentClassName ? <span className="rounded-full bg-amber-50 px-2 py-1 text-[0.65rem] font-bold text-amber-700">{teacher.currentClassName}</span> : null}
+            {teacher.currentClassName ? (
+              <span
+                className="rounded-full px-2 py-1 text-[0.65rem] font-bold"
+                style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+              >
+                {teacher.currentClassName}
+              </span>
+            ) : null}
           </button>
         ))}
       </div>

@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, Res, UnauthorizedException } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 
@@ -22,7 +22,47 @@ export class OnboardingController {
     @Res({ passthrough: true }) response: Response
   ) {
     const { sessionUser, school } = await this.onboardingService.registerSchool(body);
+    return this.establishSession(sessionUser, school, response);
+  }
 
+  @Post("teachers")
+  async registerTeacher(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    const { sessionUser, school } = await this.onboardingService.registerTeacher(body);
+    return this.establishSession(sessionUser, school, response);
+  }
+
+  @Get("slug-check")
+  async checkSlug(@Query("slug") slug: string) {
+    const evaluation = await this.onboardingService.checkSlugAvailability(slug || "");
+    return { ok: true, data: evaluation };
+  }
+
+  @Get("plans")
+  async listPlans() {
+    const plans = await this.onboardingService.listPublicPlans();
+    return { ok: true, data: plans };
+  }
+
+  @Post("verify")
+  async verifyEmail(@Body() body: unknown) {
+    const result = await this.onboardingService.verifyEmail(body);
+    return { ok: true, data: result };
+  }
+
+  @Post("resend")
+  async resendVerification(@Body() body: unknown) {
+    const result = await this.onboardingService.resendVerification(body);
+    return { ok: true, data: result };
+  }
+
+  private async establishSession(
+    sessionUser: Parameters<typeof createSessionToken>[0],
+    school: unknown,
+    response: Response
+  ) {
     const token = await createSessionToken(sessionUser);
     const session = await verifySessionToken(token);
     if (!session) {

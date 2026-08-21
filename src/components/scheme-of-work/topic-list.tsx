@@ -4,7 +4,7 @@ import { AccordionGroup } from "@/components/ui/accordion";
 import type { SchemeOfWorkTopicView } from "@/lib/domain/types";
 import { cn } from "@/lib/utils/cn";
 
-function chips(items?: string[], tone = "border-ink/10 bg-white text-ink/65") {
+function chips(items?: string[], tone = "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-muted)]") {
   if (!items?.length) return null;
   return (
     <div className="mt-3 flex flex-wrap gap-2">
@@ -37,29 +37,29 @@ export function SchemeOfWorkTopicList({
                 className={cn(
                   "inline-flex h-8 min-w-8 items-center justify-center rounded-2xl px-2 text-xs font-black",
                   topic.isCovered
-                    ? "bg-emerald-600 text-white"
-                    : "bg-primary-100 text-primary-800",
+                    ? "bg-[var(--color-success)] text-white"
+                    : "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
                 )}
               >
                 {topic.isCovered ? <CheckCircle2 className="h-4 w-4" /> : topic.weekNumber}
               </span>
-              <span className={cn("truncate", topic.isCovered && "text-emerald-900")}>
+              <span className={cn("truncate", topic.isCovered && "text-[var(--color-success)]")}>
                 Week {topic.weekNumber}: {topic.topic}
               </span>
             </div>
           ),
           summary: (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-slate-500">
+              <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
                 {topic.weekType.toLowerCase()}
               </span>
               {topic.coveredDate ? (
-                <span className="text-[12px] font-semibold text-emerald-700">
+                <span className="text-[12px] font-semibold text-[var(--color-success)]">
                   Covered on {new Date(topic.coveredDate).toLocaleDateString("en-NG")}
                   {topic.coveredByName ? ` by ${topic.coveredByName}` : ""}
                 </span>
               ) : (
-                <span className="text-[12px] text-slate-500">Not yet covered</span>
+                <span className="text-[12px] text-[var(--color-text-muted)]">Not yet covered</span>
               )}
             </div>
           ),
@@ -67,11 +67,11 @@ export function SchemeOfWorkTopicList({
             <div className="space-y-4">
               {topic.subtopics?.length ? (
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Subtopics</p>
-                  <ul className="mt-2 grid gap-1 text-[13px] text-slate-600">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Subtopics</p>
+                  <ul className="mt-2 grid gap-1 text-[13px] text-[var(--color-text-secondary)]">
                     {topic.subtopics.map((item) => (
                       <li key={item} className="flex items-start gap-2">
-                        <span className="mt-1 text-primary-700">•</span>
+                        <span className="mt-1 text-[var(--color-text-accent)]">•</span>
                         <span>{item}</span>
                       </li>
                     ))}
@@ -80,47 +80,47 @@ export function SchemeOfWorkTopicList({
               ) : null}
 
               {!readOnlyMode && topic.behaviouralObjectives ? (
-                <div className="rounded-2xl border border-primary-100 bg-primary-50/70 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-primary-700">Behavioural Objectives</p>
-                  <p className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">{topic.behaviouralObjectives}</p>
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-accent)]">Behavioural Objectives</p>
+                  <p className="mt-2 whitespace-pre-line text-[13px] leading-6 text-[var(--color-text-secondary)]">{topic.behaviouralObjectives}</p>
                 </div>
               ) : null}
 
               {topic.content && !readOnlyMode ? (
-                <div className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Content</p>
-                  <p className="mt-2 whitespace-pre-line text-[13px] leading-6 text-slate-700">{topic.content}</p>
+                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Content</p>
+                  <p className="mt-2 whitespace-pre-line text-[13px] leading-6 text-[var(--color-text-secondary)]">{topic.content}</p>
                 </div>
               ) : null}
 
-              {chips(topic.teachingMethods, "border-cyan-200 bg-cyan-50 text-cyan-800")}
-              {chips(topic.teachingAids, "border-violet-200 bg-violet-50 text-violet-800")}
-              {chips(topic.referenceMaterials, "border-amber-200 bg-amber-50 text-amber-900")}
+              {chips(topic.teachingMethods, "border-[var(--color-info)] bg-[var(--color-info-dim)] text-[var(--color-info)]")}
+              {chips(topic.teachingAids, "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]")}
+              {chips(topic.referenceMaterials, "border-[var(--color-warning)] bg-[var(--color-warning-dim)] text-[var(--color-warning)]")}
 
               {topic.evaluation && !readOnlyMode ? (
-                <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-amber-700">Evaluation</p>
-                  <p className="mt-2 text-[13px] leading-6 text-slate-700">{topic.evaluation}</p>
+                <div className="rounded-[10px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-warning)]">Evaluation</p>
+                  <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{topic.evaluation}</p>
                 </div>
               ) : null}
 
               {topic.assignment ? (
-                <div className="rounded-2xl border border-orange-200 bg-orange-50/80 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-orange-700">Assignment</p>
-                  <p className="mt-2 text-[13px] leading-6 text-slate-700">{topic.assignment}</p>
+                <div className="rounded-[10px] border border-[var(--color-gold)] bg-[var(--color-gold-dim)] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-gold)]">Assignment</p>
+                  <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{topic.assignment}</p>
                 </div>
               ) : null}
 
               {topic.coverageNotes && !readOnlyMode ? (
-                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-emerald-700">Coverage Notes</p>
-                  <p className="mt-2 text-[13px] leading-6 text-slate-700">{topic.coverageNotes}</p>
+                <div className="rounded-[10px] border border-[var(--color-success)] bg-[var(--color-success-dim)] p-4">
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-success)]">Coverage Notes</p>
+                  <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{topic.coverageNotes}</p>
                 </div>
               ) : null}
 
               {topic.resources?.length ? (
                 <div>
-                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-slate-500">Resources</p>
+                  <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-[var(--color-text-muted)]">Resources</p>
                   <div className="mt-3 grid gap-2">
                     {topic.resources.map((resource) => (
                       <a
@@ -128,7 +128,7 @@ export function SchemeOfWorkTopicList({
                         href={resource.url ?? resource.filePath ?? "#"}
                         target="_blank"
                         rel="noreferrer"
-                        className="inline-flex items-center gap-2 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-[13px] font-semibold text-slate-700 transition hover:border-primary-200 hover:text-primary-700"
+                        className="inline-flex items-center gap-2 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-4 py-3 text-[13px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
                       >
                         <BookOpen className="h-4 w-4" />
                         {resource.title}

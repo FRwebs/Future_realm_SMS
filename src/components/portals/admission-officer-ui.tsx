@@ -54,9 +54,9 @@ export function AdmissionMetricCard({
     accent === "teal"
       ? "from-[#4fa895] to-[#12796a]"
       : accent === "amber"
-        ? "from-amber-400 to-orange-400"
+        ? "from-[var(--color-warning)] to-[#fbbf24]"
         : accent === "rose"
-          ? "from-rose-400 to-pink-400"
+          ? "from-[var(--color-danger)] to-[#fb7185]"
           : "from-slate-400 to-slate-500";
 
   return (

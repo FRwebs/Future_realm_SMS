@@ -50,13 +50,21 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6 md:p-7">
-        <p className="section-eyebrow">Access control centre</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Internal Team & Role Management</h1>
-        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Exactly who on the FutureRealm team can access Platform Admin, and precisely what each person can see and
-          do. New hires are onboarded here, departing members offboarded here.
-        </p>
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1]">
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Access control centre</p>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Internal Team & Role Management</h1>
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+            Exactly who on the FutureRealm team can access Platform Admin, and precisely what each person can see and
+            do. New hires are onboarded here, departing members offboarded here.
+          </p>
+        </div>
       </section>
 
       <DetailTabs tabs={tabs} />
@@ -206,50 +214,37 @@ async function PermissionGridTab() {
         </p>
       </section>
 
-      {modules.length === 0 ? (
-        <section className="surface-card p-8 text-center">
-          <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">Nothing to display yet</p>
-          <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">No module permissions have been set yet.</p>
-        </section>
-      ) : (
-        <section className="surface-card overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-0">
-              <thead className="bg-[var(--color-bg-subtle)]">
-                <tr>
-                  <th className="sticky left-0 border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                    Member
-                  </th>
-                  {modules.map((moduleId) => (
-                    <th key={moduleId} className="border-b border-[var(--color-border-default)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
-                      {moduleId}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {members.map((member, index) => (
-                  <tr key={member.id} className={index % 2 === 1 ? "bg-[var(--color-bg-subtle)]" : ""}>
-                    <td className="sticky left-0 border-b border-[var(--color-border-default)] bg-inherit px-4 py-3 text-[13px] font-semibold text-[var(--color-text-primary)]">
-                      {member.name}
-                      <p className="text-[11px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
-                    </td>
-                    {modules.map((moduleId) => {
-                      const level = member.access[moduleId];
-                      const tone = accessTone(level ?? "NONE");
-                      return (
-                        <td key={moduleId} className="border-b border-[var(--color-border-default)] px-4 py-3">
-                          <StatusPill bg={tone.bg} fg={tone.fg} label={level ?? "—"} />
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        </section>
-      )}
+      <TableCard
+        title="Access matrix"
+        description="Every module a permission has been explicitly set for, across every internal team member."
+        items={members}
+        getRowKey={(member) => member.id}
+        primaryColumnKey="member"
+        emptyState="No module permissions have been set yet."
+        columns={[
+          {
+            key: "member",
+            header: "Member",
+            headerClassName: "sticky left-0 z-[1] bg-[color-mix(in_srgb,var(--color-bg-subtle)_92%,transparent)]",
+            cellClassName: "sticky left-0 bg-[var(--color-bg-surface)]",
+            render: (member) => (
+              <>
+                <span className="font-semibold text-[var(--color-text-primary)]">{member.name}</span>
+                <p className="text-[11px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
+              </>
+            )
+          },
+          ...modules.map((moduleId) => ({
+            key: moduleId,
+            header: moduleId,
+            render: (member: SuperAdminPermissionGridMatrix["members"][number]) => {
+              const level = member.access[moduleId];
+              const tone = accessTone(level ?? "NONE");
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={level ?? "—"} />;
+            }
+          }))
+        ]}
+      />
     </div>
   );
 }

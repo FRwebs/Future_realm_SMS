@@ -1,14 +1,30 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Layers, Mail, MapPin, Phone, Users } from "lucide-react";
+import { ArrowRight, Building2, Check, Layers, Mail, MapPin, Phone, ShieldCheck, Users } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
+import { AddSchoolWizard } from "@/components/super-admin/add-school-wizard";
+import { SchoolBulkTable } from "@/components/super-admin/school-bulk-table";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
-import type { SuperAdminSchoolGroup, SuperAdminSchoolRow } from "@/lib/domain/types";
-import { formatDate } from "@/lib/utils/formatters";
+import type { SuperAdminPendingVerificationSchool, SuperAdminPlanRow, SuperAdminSchoolGroup, SuperAdminSchoolRow } from "@/lib/domain/types";
+
+const verificationChecklist = [
+  "Business/CAC registration number present",
+  "Ministry of Education approval number present (where applicable)",
+  "Owner phone and email reachable",
+  "Physical address and state/city recorded",
+  "School name does not conflict with an existing tenant"
+];
+
+const verificationEffects = [
+  "Verification badge appears on the school's profile",
+  "No change to trial access — schools work fully from signup regardless of review",
+  "Rejecting immediately suspends the tenant and its staff logins",
+  "Every decision is written to the audit trail with the reviewing admin's name"
+];
 
 const planOptions = [
   { label: "Basic", value: "BASIC" },
@@ -51,9 +67,10 @@ const RECENT_SIGNUP_WINDOW_HOURS = 48;
 const lifecycleFlow = [
   { label: "Signup submitted", trigger: "Self-service — automatic" },
   { label: "Trial Active", trigger: "Granted immediately · 14-day trial" },
+  { label: "Verified", trigger: "Reviewed in Approval Queue · does not block access" },
   { label: "Active", trigger: "Payment confirmed", emphasize: true },
   { label: "Grace Period", trigger: "Payment overdue" },
-  { label: "Suspended", trigger: "Grace period expired / policy violation" },
+  { label: "Suspended", trigger: "Verification rejected / grace period expired / policy violation" },
   { label: "Deactivated", trigger: "Data export completed · closure confirmed" }
 ];
 
@@ -114,12 +131,6 @@ function initials(name: string) {
   return letters || "—";
 }
 
-function riskColor(value: number) {
-  if (value >= 70) return "var(--color-danger)";
-  if (value >= 40) return "var(--color-warning)";
-  return "var(--color-success)";
-}
-
 function planLabel(plan: string) {
   return plan.charAt(0) + plan.slice(1).toLowerCase();
 }
@@ -146,6 +157,7 @@ function tabHref(tab: string) {
 export default async function SuperAdminSchoolsPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
   const params = searchParams ? await searchParams : {};
   const activeTab =
+    params.tab === "approval-queue" ? "approval-queue" :
     params.tab === "recent-signups" ? "recent-signups" :
     params.tab === "lifecycle" ? "lifecycle" :
     params.tab === "groups" ? "groups" : "directory";
@@ -168,8 +180,15 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const groupsEnvelope = await apiGetEnvelope<SuperAdminSchoolGroup[]>("/api/super-admin/schools/groups");
   const groups = groupsEnvelope.data ?? [];
 
+  const pendingVerificationEnvelope = await apiGetEnvelope<SuperAdminPendingVerificationSchool[]>("/api/super-admin/schools-pending-verification");
+  const pendingVerification = pendingVerificationEnvelope.data ?? [];
+
+  const plansEnvelope = await apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans");
+  const activePlans = (plansEnvelope.data ?? []).filter((plan) => plan.isActive).sort((a, b) => a.monthlyPrice - b.monthlyPrice);
+
   const tabs = [
     { label: "School Directory", href: tabHref("directory"), active: activeTab === "directory", badge: total },
+    { label: "Approval Queue", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
     { label: "Recent Signups", href: tabHref("recent-signups"), active: activeTab === "recent-signups", badge: recentSignups.length },
     { label: "Lifecycle & Status", href: tabHref("lifecycle"), active: activeTab === "lifecycle" },
     { label: "School Groups", href: tabHref("groups"), active: activeTab === "groups", badge: groups.length }
@@ -177,39 +196,22 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
   return (
     <div className="grid gap-5">
-      <section className="surface-hero p-6 md:p-7">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
+          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
+          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
+          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
+          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
+        </svg>
+        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="section-eyebrow">Tenant management</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-[var(--color-text-primary)]">Schools</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant management</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Schools</h1>
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
               Create, update, suspend, activate, and soft-delete school tenants across the platform.
             </p>
           </div>
-          <ResourceActionDialog
-            triggerLabel="Add New School"
-            title="Create school tenant"
-            description="Create a school account and initial administrator. The admin receives a temporary seed password."
-            endpoint="/api/super-admin/schools"
-            submitLabel="Create school"
-            confirmLabel="Confirm Create"
-            confirmMessage="Confirm this new tenant and administrator account before creating it."
-            fields={[
-              { name: "name", label: "School Name", required: true },
-              { name: "ownerName", label: "Owner Full Name", required: true },
-              { name: "ownerEmail", label: "Owner Email", type: "email", required: true },
-              { name: "ownerPhone", label: "Owner Phone" },
-              { name: "adminName", label: "Initial Admin Name" },
-              { name: "adminEmail", label: "Initial Admin Email", type: "email" },
-              { name: "plan", label: "Subscription Plan", type: "select", options: planOptions },
-              { name: "category", label: "School Type", type: "select", options: schoolTypeOptions },
-              { name: "country", label: "Country", defaultValue: "Nigeria" },
-              { name: "state", label: "State" },
-              { name: "city", label: "City" },
-              { name: "address", label: "Address", type: "textarea" },
-              { name: "trialEndDate", label: "Trial End Date", type: "date" }
-            ]}
-          />
+          <AddSchoolWizard plans={activePlans} />
         </div>
       </section>
 
@@ -227,125 +229,143 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             ]}
           />
 
-          <TableCard
-            title="All schools"
-            description={`${total} tenant(s) found.`}
-            items={schools}
-            columns={[
-              {
-                key: "name",
-                header: "School",
-                render: (item) => (
-                  <Link href={`/super-admin/schools/${item.id}`} className="group flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[12px] font-bold text-[var(--color-text-primary)]">
-                      {initials(item.name)}
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-text-accent)]">
-                        {item.name}
+          <SchoolBulkTable schools={schools} total={total} />
+        </>
+      ) : activeTab === "approval-queue" ? (
+        <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
+          <div className="grid gap-3.5">
+            {pendingVerification.length === 0 ? (
+              <section className="surface-card p-8 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl" style={{ background: "var(--color-success-dim)" }}>
+                  <ShieldCheck className="h-5 w-5" style={{ color: "var(--color-success)" }} />
+                </div>
+                <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">Queue is clear</p>
+                <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
+                  Onboarding is automatic — nothing here waits on approval. Only schools the system flags at signup
+                  (missing legitimacy documents, no address on file) land in this queue for a manual check.
+                </p>
+              </section>
+            ) : (
+              pendingVerification.map((school) => (
+                <article key={school.id} className="surface-card p-5">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[14px] font-bold text-[var(--color-text-primary)]">
+                        {initials(school.name)}
                       </span>
-                      <span className="block truncate text-[11px] text-[var(--color-text-muted)]">{item.slug}</span>
-                    </span>
-                  </Link>
-                )
-              },
-              { key: "location", header: "Location", render: (item) => [item.state, item.country].filter(Boolean).join(", ") || "—" },
-              { key: "plan", header: "Tier", render: (item) => planLabel(item.plan) },
-              { key: "students", header: "Students", render: (item) => item.totalStudents.toLocaleString() },
-              { key: "created", header: "Created", render: (item) => formatDate(item.createdAt) },
-              { key: "renewal", header: "Next Billing", render: (item) => (item.nextBillingAt ? formatDate(item.nextBillingAt) : "—") },
-              {
-                key: "status",
-                header: "Status",
-                render: (item) => {
-                  const tone = statusTone[item.status] ?? statusTone.ARCHIVED;
-                  return (
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-                      style={{ background: tone.bg, color: tone.fg }}
-                    >
-                      {tone.label}
-                    </span>
-                  );
-                }
-              },
-              {
-                key: "risk",
-                header: "Risk",
-                render: (item) => {
-                  const risk = item.healthScore ?? 0;
-                  const color = riskColor(risk);
-                  return (
-                    <div className="w-16">
-                      <span className="text-[12.5px] font-bold font-[var(--font-mono)]" style={{ color }}>
-                        {risk === 0 ? "—" : `${risk}%`}
-                      </span>
-                      <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                        <div className="h-full rounded-full transition-all" style={{ width: `${risk}%`, background: color }} />
+                      <div>
+                        <Link href={`/super-admin/schools/${school.id}`} className="text-[15px] font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
+                          {school.name}
+                        </Link>
+                        <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
+                          Submitted {timeAgo(school.createdAt)} · {categoryLabel(school.curriculum)}
+                        </p>
                       </div>
                     </div>
-                  );
-                }
-              },
-              {
-                key: "actions",
-                header: "Actions",
-                render: (item) => (
-                  <ActionMenu triggerLabel={`Actions for ${item.name}`}>
-                    <ActionMenuLink href={`/super-admin/schools/${item.id}`}>View</ActionMenuLink>
+                    <span
+                      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      style={{ background: "var(--color-warning-dim)", color: "var(--color-warning)" }}
+                    >
+                      {timeAgo(school.createdAt)}
+                    </span>
+                  </div>
+
+                  {school.flaggedForReviewReason ? (
+                    <div
+                      className="mt-3.5 rounded-[10px] px-3.5 py-2.5 text-[12px] leading-5"
+                      style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+                    >
+                      <span className="font-bold">Flagged: </span>
+                      {school.flaggedForReviewReason}
+                    </div>
+                  ) : null}
+
+                  <div className="mt-4 grid grid-cols-2 gap-3.5 border-y border-[var(--color-border-default)] py-3.5 sm:grid-cols-3">
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Owner</p>
+                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.ownerName ?? "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Contact</p>
+                      <p className="mt-1 truncate text-[12.5px] text-[var(--color-text-primary)]">{school.ownerEmail ?? "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Location</p>
+                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">CAC number</p>
+                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.cacNumber ?? "Not provided"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Ministry approval</p>
+                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.ministryApprovalNumber ?? "Not provided"}</p>
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Students declared</p>
+                      <p className="mt-1 text-[12.5px] text-[var(--color-text-primary)]">{school.studentCount.toLocaleString()}</p>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-2">
                     <ResourceActionDialog
-                      triggerLabel="Edit"
-                      title={`Edit ${item.name}`}
-                      description="Update school name or plan. Status changes require a logged reason — use the Change status action below."
-                      endpoint={`/api/super-admin/schools/${item.id}`}
-                      method="PATCH"
-                      variant="menu"
-                      submitLabel="Save changes"
-                      fields={[
-                        { name: "name", label: "School Name", defaultValue: item.name },
-                        { name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: item.plan }
-                      ]}
-                    />
-                    <ResourceActionDialog
-                      triggerLabel="Change status"
-                      title={`Change status — ${item.name}`}
-                      description="Every status change requires a logged reason and is written to the audit trail."
-                      endpoint={`/api/super-admin/schools/${item.id}/status`}
-                      method="PATCH"
-                      variant={item.status === "SUSPENDED" ? "menu" : "menuDanger"}
-                      submitLabel="Update status"
-                      confirmLabel="Confirm"
-                      confirmMessage="This changes tenant access for all school users and is fully audited."
-                      fields={[
-                        { name: "status", label: "New status", type: "select", defaultValue: item.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED", options: [
-                          { label: "Trial Active", value: "TRIAL" },
-                          { label: "Active", value: "ACTIVE" },
-                          { label: "Grace Period", value: "GRACE_PERIOD" },
-                          { label: "Suspended", value: "SUSPENDED" },
-                          { label: "Deactivated / Closed", value: "ARCHIVED" }
-                        ] },
-                        { name: "reason", label: "Reason", type: "textarea", required: true }
-                      ]}
-                    />
-                    <ResourceActionDialog
-                      triggerLabel="Delete"
-                      title={`Soft-delete ${item.name}`}
-                      description="Soft-deletes the school tenant and disables associated users without hard-deleting records."
-                      endpoint={`/api/super-admin/schools/${item.id}`}
-                      method="DELETE"
-                      variant="menuDanger"
-                      submitLabel="Delete school"
-                      confirmLabel="Confirm Delete"
-                      confirmMessage="This will hide the tenant and disable its users. Records remain in the database for audit recovery."
+                      triggerLabel="Approve & verify"
+                      title={`Verify ${school.name}`}
+                      description="Marks this school as verified. It already has full trial access — this only records that the details have been reviewed."
+                      endpoint={`/api/super-admin/schools/${school.id}/verify`}
+                      submitLabel="Confirm verification"
                       fields={[]}
                     />
-                  </ActionMenu>
-                )
-              }
-            ]}
-            emptyState="No schools match the current filters."
-          />
-        </>
+                    <ResourceActionDialog
+                      triggerLabel="Reject with reason"
+                      title={`Reject verification — ${school.name}`}
+                      description="This suspends the school immediately and logs the reason. The tenant can be reactivated later from Lifecycle & Status if the issue is resolved."
+                      endpoint={`/api/super-admin/schools/${school.id}/reject-verification`}
+                      variant="danger"
+                      submitLabel="Reject and suspend"
+                      confirmLabel="Confirm"
+                      confirmMessage="This suspends the school and all its staff logins immediately."
+                      fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
+                    />
+                    <Link href={`/super-admin/schools/${school.id}`} className="btn-link text-[12.5px]">
+                      View full profile
+                    </Link>
+                  </div>
+                </article>
+              ))
+            )}
+          </div>
+
+          <div className="grid gap-3.5">
+            <section className="surface-card p-5">
+              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Verification checklist</p>
+              <div className="mt-3.5 grid gap-2">
+                {verificationChecklist.map((item) => (
+                  <div key={item} className="flex items-start gap-2.5">
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--color-accent-primary-dim)" }}>
+                      <Check className="h-2.5 w-2.5" style={{ color: "var(--color-text-accent)" }} />
+                    </span>
+                    <p className="text-[12.5px] leading-5 text-[var(--color-text-secondary)]">{item}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3.5 text-[11.5px] leading-5 text-[var(--color-text-muted)]">
+                Every decision is logged. Rejected schools are retained for audit recovery, never hard-deleted.
+              </p>
+            </section>
+            <section className="rounded-[14px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
+              <p className="text-[13px] font-bold text-[var(--color-text-primary)]">What each action does</p>
+              <div className="mt-2.5 grid gap-2">
+                {verificationEffects.map((effect) => (
+                  <div key={effect} className="flex items-start gap-2">
+                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: "var(--color-accent-primary)" }} />
+                    <p className="text-[12.5px] leading-5 text-[var(--color-text-secondary)]">{effect}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
       ) : activeTab === "recent-signups" ? (
         <section className="surface-card p-6">
           <p className="section-eyebrow">Recent signups</p>
@@ -431,8 +451,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               How a school moves through the platform
             </h2>
             <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-              Onboarding is fully automatic — there is no manual verification step. Every other transition below is
-              either system-driven or a logged Super Admin action.
+              Onboarding is fully automatic — trial access is never gated on approval. Verification in the Approval
+              Queue is a compliance check that happens afterward; every other transition below is either
+              system-driven or a logged Super Admin action.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-2">

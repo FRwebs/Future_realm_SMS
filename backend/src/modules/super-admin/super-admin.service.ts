@@ -68,6 +68,10 @@ const accountManagerSchema = z.object({
   accountManagerEmail: z.string().trim().email()
 });
 
+const verificationRejectSchema = z.object({
+  reason: z.string().trim().min(3, "A reason is required to reject a school's verification.")
+});
+
 const schoolContactSchema = z.object({
   name: z.string().trim().min(2),
   role: z.string().trim().min(2),
@@ -553,12 +557,15 @@ function pagination(page: number, limit: number, total: number) {
   };
 }
 
-function planPrice(plan: SubscriptionPlan) {
-  if (plan === "CUSTOM") return 0;
-  if (plan === "ENTERPRISE") return 250000;
-  if (plan === "PROFESSIONAL") return 180000;
-  if (plan === "STANDARD") return 120000;
-  return 45000;
+/**
+ * Live per-tier pricing from PlatformSubscriptionPlan (the single source of
+ * truth an admin edits in Feature & Tier Config > Tier Plans). Tiers with no
+ * active plan configured resolve to 0 rather than falling back to a stale
+ * hardcoded figure.
+ */
+async function getPlanPriceMap(): Promise<Map<SubscriptionPlan, number>> {
+  const activePlans = await prisma.platformSubscriptionPlan.findMany({ where: { isActive: true } });
+  return new Map(activePlans.map((plan) => [plan.plan, Number(plan.monthlyPrice)]));
 }
 
 function featureDefaults() {
@@ -630,7 +637,7 @@ export class SuperAdminService {
       ...(parsed.status ? { status: parsed.status.toUpperCase() as TenantStatus } : {}),
       ...(parsed.plan ? { plan: parsed.plan.toUpperCase() as SubscriptionPlan } : {})
     };
-    const [schools, total] = await Promise.all([
+    const [schools, total, priceMap] = await Promise.all([
       prisma.school.findMany({
         where,
         include: { _count: { select: { users: true, students: true, staffProfiles: true } } },
@@ -638,7 +645,8 @@ export class SuperAdminService {
         skip: (parsed.page - 1) * parsed.limit,
         take: parsed.limit
       }),
-      prisma.school.count({ where })
+      prisma.school.count({ where }),
+      getPlanPriceMap()
     ]);
     return this.response(
       schools.map((school) => ({
@@ -659,7 +667,7 @@ export class SuperAdminService {
         ownerEmail: school.ownerEmail,
         ownerPhone: school.ownerPhone,
         healthScore: school.healthScore,
-        mrr: planPrice(school.plan),
+        mrr: priceMap.get(school.plan) ?? 0,
         totalUsers: school._count.users,
         totalStudents: school._count.students,
         totalTeachers: school._count.staffProfiles,
@@ -824,6 +832,7 @@ export class SuperAdminService {
         nextBillingAt: parsed.trialEndDate,
         featureFlags: featureDefaults(),
         healthScore: parsed.trialEndDate ? 62 : 78,
+        verifiedAt: new Date(),
         users: {
           create: {
             email: adminEmail,
@@ -927,6 +936,65 @@ export class SuperAdminService {
     const auditAction: AuditAction = parsed.status === "ACTIVE" ? "ACTIVATE" : parsed.status === "SUSPENDED" ? "SUSPEND" : parsed.status === "DELETED" ? "DELETE" : "UPDATE";
     await this.audit(session, auditAction, "School", school.id, { status: parsed.status, reason: parsed.reason }, school.id);
     return this.response({ id: school.id, status: school.status }, "School status updated");
+  }
+
+  async listPendingVerificationSchools(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const schools = await prisma.school.findMany({
+      where: { deletedAt: null, verifiedAt: null, verificationRejectedAt: null, flaggedForReviewReason: { not: null } },
+      orderBy: { createdAt: "asc" },
+      include: { _count: { select: { students: true } } }
+    });
+    return this.response(
+      schools.map((school) => ({
+        id: school.id,
+        name: school.name,
+        slug: school.slug,
+        category: school.category,
+        curriculum: school.category,
+        city: school.city,
+        state: school.state,
+        country: school.country,
+        ownerName: school.ownerName,
+        ownerEmail: school.ownerEmail,
+        ownerPhone: school.ownerPhone,
+        cacNumber: school.cacNumber,
+        ministryApprovalNumber: school.ministryApprovalNumber,
+        flaggedForReviewReason: school.flaggedForReviewReason,
+        studentCount: school._count.students,
+        createdAt: school.createdAt.toISOString()
+      })),
+      "Pending verification schools loaded"
+    );
+  }
+
+  async verifySchool(session: SessionPayload, schoolId: string) {
+    assertSuperAdmin(session);
+    const school = await prisma.school.update({
+      where: { id: schoolId },
+      data: { verifiedAt: new Date(), verificationRejectedAt: null, verificationRejectionReason: null }
+    });
+    await this.audit(session, "UPDATE", "School", school.id, { action: "VERIFY", note: "Verified by Super Admin" }, school.id);
+    return this.response({ id: school.id, verifiedAt: school.verifiedAt?.toISOString() }, "School verified");
+  }
+
+  async rejectSchoolVerification(session: SessionPayload, schoolId: string, payload: unknown) {
+    assertSuperAdmin(session);
+    const parsed = verificationRejectSchema.parse(payload);
+    const school = await prisma.school.update({
+      where: { id: schoolId },
+      data: {
+        verificationRejectedAt: new Date(),
+        verificationRejectionReason: parsed.reason,
+        status: "SUSPENDED",
+        billingStatus: "SUSPENDED",
+        statusReason: `Verification rejected: ${parsed.reason}`,
+        statusChangedAt: new Date(),
+        users: { updateMany: { where: { role: { notIn: Array.from(platformRoles) } }, data: { isActive: false, suspendedAt: new Date() } } }
+      }
+    });
+    await this.audit(session, "SUSPEND", "School", school.id, { action: "REJECT_VERIFICATION", reason: parsed.reason }, school.id);
+    return this.response({ id: school.id, status: school.status }, "School verification rejected");
   }
 
   async assignAccountManager(session: SessionPayload, schoolId: string, payload: unknown) {
@@ -1454,9 +1522,10 @@ export class SuperAdminService {
       deletedAt: null,
       ...(parsed.search ? { name: { contains: parsed.search, mode: "insensitive" } } : {})
     };
-    const [schools, total] = await Promise.all([
+    const [schools, total, priceMap] = await Promise.all([
       prisma.school.findMany({ where, orderBy: { createdAt: "desc" }, skip: (parsed.page - 1) * parsed.limit, take: parsed.limit }),
-      prisma.school.count({ where })
+      prisma.school.count({ where }),
+      getPlanPriceMap()
     ]);
     return this.response(
       schools.map((school) => ({
@@ -1468,7 +1537,7 @@ export class SuperAdminService {
         lastPaymentAt: school.lastPaymentAt?.toISOString(),
         nextDueAt: school.nextBillingAt?.toISOString(),
         trialEndsAt: school.trialEndsAt?.toISOString(),
-        monthlyAmount: planPrice(school.plan)
+        monthlyAmount: priceMap.get(school.plan) ?? 0
       })),
       "Billing loaded",
       pagination(parsed.page, parsed.limit, total)
@@ -1855,7 +1924,8 @@ export class SuperAdminService {
       failedSyncDrafts,
       notificationLogs,
       geographySchools,
-      auditLogs
+      auditLogs,
+      priceMap
     ] = await Promise.all([
       prisma.school.groupBy({ by: ["status"], where: { deletedAt: null }, _count: true }),
       prisma.user.groupBy({ by: ["role"], where: { deletedAt: null }, _count: true }),
@@ -1888,7 +1958,8 @@ export class SuperAdminService {
       prisma.syncDraft.count({ where: { syncedAt: null, createdAt: { lt: new Date(Date.now() - 24 * 60 * 60 * 1000) }, school: { deletedAt: null } } }),
       prisma.notificationLog.findMany({ where: { sentAt: { gte: thirtyDays } }, select: { status: true } }),
       prisma.school.findMany({ where: { deletedAt: null }, select: { state: true, plan: true, status: true } }),
-      prisma.auditLog.findMany({ include: { actor: true, school: true }, orderBy: { createdAt: "desc" }, take: 10 })
+      prisma.auditLog.findMany({ include: { actor: true, school: true }, orderBy: { createdAt: "desc" }, take: 10 }),
+      getPlanPriceMap()
     ]);
     const statusCounts = Object.fromEntries(schools.map((item) => [item.status, item._count]));
     const roleCounts = Object.fromEntries(users.map((item) => [item.role, item._count]));
@@ -1962,7 +2033,7 @@ export class SuperAdminService {
           currentTermInvoiced: Number(currentTermInvoices._sum.amount ?? 0),
           overdueBalances: Number(overdueInvoices._sum.amount ?? 0),
           monthOverMonthGrowth,
-          newMrrThisMonth: monthSignups * planPrice("BASIC"),
+          newMrrThisMonth: monthSignups * (priceMap.get("BASIC") ?? 0),
           notificationCreditRevenue: 0
         },
         subscriptionHealth: {
@@ -2019,8 +2090,11 @@ export class SuperAdminService {
   }
 
   private async revenueSummary() {
-    const paidSchools = await prisma.school.findMany({ where: { deletedAt: null, billingStatus: "ACTIVE" }, select: { plan: true } });
-    const mrr = paidSchools.reduce((sum, school) => sum + planPrice(school.plan), 0);
+    const [paidSchools, priceMap] = await Promise.all([
+      prisma.school.findMany({ where: { deletedAt: null, billingStatus: "ACTIVE" }, select: { plan: true } }),
+      getPlanPriceMap()
+    ]);
+    const mrr = paidSchools.reduce((sum, school) => sum + (priceMap.get(school.plan) ?? 0), 0);
     return { mrr, arr: mrr * 12, totalPaidSchools: paidSchools.length };
   }
 
@@ -2040,38 +2114,90 @@ export class SuperAdminService {
   async revenueReport(session: SessionPayload) {
     assertAnyPlatformRole(session, billingRoles, "Revenue reporting is restricted to platform finance roles.");
     const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000);
-    const [schools, unpaidInvoices, notificationRevenue, renewedRecently, activeSchoolCount] = await Promise.all([
+    // Only DRAFT, SENT, PARTIALLY_PAID, PAID, CANCELLED are ever actually
+    // written to PlatformInvoice.status — SENT/PARTIALLY_PAID are the only
+    // "still owed" states.
+    const [schools, unpaidInvoices, unpaidInvoiceSchools, notificationRevenue, renewedRecently, activeSchoolCount, priceMap] = await Promise.all([
       prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, city: true, billingStatus: true, createdAt: true } }),
-      prisma.platformInvoice.aggregate({ where: { status: { in: ["SENT", "PENDING_PAYMENT", "PARTIALLY_PAID", "OVERDUE", "ESCALATED"] } }, _sum: { amount: true, taxAmount: true } }),
+      prisma.platformInvoice.aggregate({ where: { status: { in: ["SENT", "PARTIALLY_PAID"] } }, _sum: { amount: true, taxAmount: true } }),
+      prisma.platformInvoice.findMany({ where: { status: { in: ["SENT", "PARTIALLY_PAID"] } }, select: { schoolId: true }, distinct: ["schoolId"] }),
       prisma.platformBillingTransaction.aggregate({ where: { status: "SUCCESS", metadata: { path: ["type"], equals: "notification_credit" } }, _sum: { amount: true } }),
       prisma.school.count({ where: { deletedAt: null, lastPaymentAt: { gte: ninetyDaysAgo } } }),
-      prisma.school.count({ where: { deletedAt: null, billingStatus: "ACTIVE" } })
+      prisma.school.count({ where: { deletedAt: null, billingStatus: "ACTIVE" } }),
+      getPlanPriceMap()
     ]);
 
+    const now = Date.now();
     const revenueByTier = new Map<string, number>();
-    const revenueByState = new Map<string, { revenue: number; schoolCount: number }>();
+    const tenureMonthsByTier = new Map<string, number[]>();
+    const revenueByState = new Map<
+      string,
+      { revenue: number; schoolCount: number; cityCounts: Map<string, number>; newSchools90d: number }
+    >();
+
+    let mrr = 0;
     for (const school of schools) {
-      const monthly = planPrice(school.plan);
+      const monthly = priceMap.get(school.plan) ?? 0;
       revenueByTier.set(school.plan, (revenueByTier.get(school.plan) ?? 0) + monthly);
+
+      if (school.billingStatus === "ACTIVE") {
+        mrr += monthly;
+        const months = (now - school.createdAt.getTime()) / (1000 * 60 * 60 * 24 * 30);
+        const tenures = tenureMonthsByTier.get(school.plan) ?? [];
+        tenures.push(months);
+        tenureMonthsByTier.set(school.plan, tenures);
+      }
+
       const state = school.state?.trim() || "Unspecified";
-      const existing = revenueByState.get(state) ?? { revenue: 0, schoolCount: 0 };
+      const existing = revenueByState.get(state) ?? { revenue: 0, schoolCount: 0, cityCounts: new Map<string, number>(), newSchools90d: 0 };
       existing.revenue += monthly;
       existing.schoolCount += 1;
+      const city = school.city?.trim();
+      if (city) existing.cityCounts.set(city, (existing.cityCounts.get(city) ?? 0) + 1);
+      if (school.createdAt >= ninetyDaysAgo) existing.newSchools90d += 1;
       revenueByState.set(state, existing);
     }
 
-    const avgTenureMonths = 18;
-    const ltvByTier = Array.from(revenueByTier.entries()).map(([plan, monthly]) => ({
-      plan,
-      ltv: (monthly / Math.max(1, revenueByTier.size)) * avgTenureMonths
-    }));
+    const ltvByTier = Array.from(revenueByTier.entries()).map(([plan, revenue]) => {
+      const tenures = tenureMonthsByTier.get(plan) ?? [];
+      const avgTenureMonths = tenures.length > 0 ? tenures.reduce((sum, months) => sum + months, 0) / tenures.length : 0;
+      const termlyValue = priceMap.get(plan as SubscriptionPlan) ?? 0;
+      return {
+        plan,
+        revenue,
+        avgTenureMonths: Math.round(avgTenureMonths * 10) / 10,
+        termlyValue,
+        ltv: termlyValue * (avgTenureMonths / 4)
+      };
+    });
+
+    const outstandingReceivables = Number(unpaidInvoices._sum.amount ?? 0) + Number(unpaidInvoices._sum.taxAmount ?? 0);
+    const unpaidSchoolCount = new Set(unpaidInvoiceSchools.map((invoice) => invoice.schoolId)).size;
+    const notificationCreditRevenue = Number(notificationRevenue._sum.amount ?? 0);
+    const paidSchoolCount = schools.filter((school) => school.billingStatus === "ACTIVE").length;
 
     return this.response({
+      mrr,
+      arpu: paidSchoolCount > 0 ? mrr / paidSchoolCount : 0,
+      paidSchoolCount,
       revenueByTier: Array.from(revenueByTier.entries()).map(([plan, revenue]) => ({ plan, revenue })),
-      revenueByState: Array.from(revenueByState.entries()).map(([state, value]) => ({ state, ...value })).sort((a, b) => b.revenue - a.revenue),
-      notificationCreditRevenue: Number(notificationRevenue._sum.amount ?? 0),
-      outstandingReceivables: Number(unpaidInvoices._sum.amount ?? 0) + Number(unpaidInvoices._sum.taxAmount ?? 0),
+      revenueByState: Array.from(revenueByState.entries())
+        .map(([state, value]) => ({
+          state,
+          revenue: value.revenue,
+          schoolCount: value.schoolCount,
+          arpu: value.schoolCount > 0 ? value.revenue / value.schoolCount : 0,
+          topCity: Array.from(value.cityCounts.entries()).sort((a, b) => b[1] - a[1])[0]?.[0] ?? null,
+          newSchools90d: value.newSchools90d
+        }))
+        .sort((a, b) => b.revenue - a.revenue),
+      notificationCreditRevenue,
+      creditRevenueSharePct: mrr + notificationCreditRevenue > 0 ? Math.round((notificationCreditRevenue / (mrr + notificationCreditRevenue)) * 1000) / 10 : 0,
+      outstandingReceivables,
+      unpaidSchoolCount,
       renewalRate: activeSchoolCount > 0 ? Math.round((renewedRecently / activeSchoolCount) * 1000) / 10 : 0,
+      renewedRecently,
+      activeSchoolCount,
       ltvByTier
     });
   }
@@ -2979,7 +3105,21 @@ export class SuperAdminService {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]));
     const existing = await prisma.platformSubscriptionPlan.findUnique({ where: { id: planId } });
     if (!existing) throw new NotFoundException("Subscription plan not found.");
-    const plan = await prisma.platformSubscriptionPlan.update({ where: { id: planId }, data: { isActive: !existing.isActive } });
+    const activating = !existing.isActive;
+
+    const plan = await prisma.$transaction(async (tx) => {
+      if (activating) {
+        // Only one live, publicly-orderable plan per tier at a time — activating this one
+        // retires any other plan sharing its tier so pricing surfaces (landing page, onboarding,
+        // billing) never see two active prices for the same tier.
+        await tx.platformSubscriptionPlan.updateMany({
+          where: { plan: existing.plan, id: { not: planId }, isActive: true },
+          data: { isActive: false }
+        });
+      }
+      return tx.platformSubscriptionPlan.update({ where: { id: planId }, data: { isActive: activating } });
+    });
+
     await this.audit(session, "SETTINGS_UPDATE", "PlatformSubscriptionPlan", plan.id, { isActive: plan.isActive }, null);
     return this.response({ id: plan.id, isActive: plan.isActive }, plan.isActive ? "Plan activated" : "Plan archived");
   }
@@ -3330,11 +3470,24 @@ export class SuperAdminService {
 
   async churnAnalysis(session: SessionPayload) {
     assertSuperAdmin(session);
-    const records = await prisma.churnRecord.findMany({ include: { school: { select: { name: true } } }, orderBy: { churnedAt: "desc" } });
+    const [records, activeByTier] = await Promise.all([
+      prisma.churnRecord.findMany({ include: { school: { select: { name: true, plan: true } } }, orderBy: { churnedAt: "desc" } }),
+      prisma.school.groupBy({ by: ["plan"], where: { deletedAt: null }, _count: true })
+    ]);
     const byReason = records.reduce((acc, r) => { acc[r.reason] = (acc[r.reason] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+    const churnedByTier = records.reduce((acc, r) => { acc[r.school.plan] = (acc[r.school.plan] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+    const activeCountByTier = new Map(activeByTier.map((row) => [row.plan, row._count]));
+    const tiers = new Set([...Object.keys(churnedByTier), ...activeCountByTier.keys()]);
+    const byTier = Array.from(tiers).map((plan) => {
+      const churned = churnedByTier[plan] ?? 0;
+      const stillActive = activeCountByTier.get(plan as SubscriptionPlan) ?? 0;
+      const everOnTier = churned + stillActive;
+      return { plan, churned, ratePct: everOnTier > 0 ? Math.round((churned / everOnTier) * 1000) / 10 : 0 };
+    }).sort((a, b) => b.ratePct - a.ratePct);
     return this.response({
       total: records.length,
       byReason: Object.entries(byReason).map(([reason, count]) => ({ reason, count, pct: records.length > 0 ? Math.round((count / records.length) * 1000) / 10 : 0 })).sort((a, b) => b.count - a.count),
+      byTier,
       recent: records.slice(0, 20).map((r) => ({ id: r.id, schoolName: r.school.name, reason: r.reason, notes: r.notes, churnedAt: r.churnedAt.toISOString() }))
     });
   }
@@ -3354,12 +3507,33 @@ export class SuperAdminService {
     const promoters = responses.filter((r) => r.score >= 9).length;
     const detractors = responses.filter((r) => r.score <= 6).length;
     const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+
+    const byTierMap = new Map<string, { score: number }[]>();
+    for (const r of responses) {
+      const list = byTierMap.get(r.school.plan) ?? [];
+      list.push({ score: r.score });
+      byTierMap.set(r.school.plan, list);
+    }
+    const byTier = Array.from(byTierMap.entries())
+      .map(([plan, scores]) => {
+        const tierPromoters = scores.filter((s) => s.score >= 9).length;
+        const tierDetractors = scores.filter((s) => s.score <= 6).length;
+        return {
+          plan,
+          responses: scores.length,
+          npsScore: scores.length > 0 ? Math.round(((tierPromoters - tierDetractors) / scores.length) * 100) : 0
+        };
+      })
+      .filter((row) => row.responses > 0)
+      .sort((a, b) => b.npsScore - a.npsScore);
+
     return this.response({
       npsScore,
       total,
       promoters,
       passives: total - promoters - detractors,
       detractors,
+      byTier,
       lowScoreFlags: responses.filter((r) => r.score <= 6).slice(0, 20).map((r) => ({ id: r.id, schoolName: r.school.name, score: r.score, comment: r.comment, createdAt: r.createdAt.toISOString() })),
       comments: responses.filter((r) => r.comment).slice(0, 30).map((r) => ({ schoolName: r.school.name, score: r.score, comment: r.comment }))
     });
@@ -3392,11 +3566,14 @@ export class SuperAdminService {
     const report = await prisma.customReport.findUnique({ where: { id: reportId } });
     if (!report) throw new NotFoundException("Report not found.");
     const dimField = report.dimension === "tier" ? "plan" : report.dimension === "state" ? "state" : "status";
-    const schools = await prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, _count: { select: { students: true } } } });
+    const [schools, priceMap] = await Promise.all([
+      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, _count: { select: { students: true } } } }),
+      getPlanPriceMap()
+    ]);
     const groups = new Map<string, number>();
     for (const s of schools) {
       const key = (dimField === "plan" ? s.plan : dimField === "state" ? (s.state?.trim() || "Unspecified") : s.status) as string;
-      const value = report.metric === "schoolCount" ? 1 : report.metric === "studentCount" ? s._count.students : planPrice(s.plan);
+      const value = report.metric === "schoolCount" ? 1 : report.metric === "studentCount" ? s._count.students : (priceMap.get(s.plan) ?? 0);
       groups.set(key, (groups.get(key) ?? 0) + value);
     }
     await prisma.customReport.update({ where: { id: reportId }, data: { generatedAt: new Date() } });

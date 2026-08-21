@@ -141,7 +141,7 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
         size="md"
         footer={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[12px] text-slate-500">Amount to pay: <span className="font-black text-slate-900">{formatCurrency(amount)}</span></p>
+            <p className="text-[12px] text-[var(--color-text-muted)]">Amount to pay: <span className="font-black text-[var(--color-text-primary)]">{formatCurrency(amount)}</span></p>
             <button type="button" onClick={handlePay} disabled={pending} className="btn-primary">
               <ShieldCheck className="h-4 w-4" />
               {pending ? "Starting secure checkout..." : `Pay ${formatCurrency(amount)}`}
@@ -150,9 +150,9 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
         }
       >
         <div className="grid gap-4">
-          <div className="rounded-2xl border border-primary-100 bg-primary-50/80 p-4">
-            <p className="text-[12px] font-semibold uppercase tracking-wide text-primary-700">Secure payment</p>
-            <p className="mt-1 text-[13px] leading-6 text-slate-600">
+          <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
+            <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-accent)]">Secure payment</p>
+            <p className="mt-1 text-[13px] leading-6 text-[var(--color-text-secondary)]">
               Card details are handled by the gateway. The SMS never stores card numbers, CVVs, or PINs.
             </p>
           </div>
@@ -167,16 +167,18 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
                   type="button"
                   onClick={() => setSelectedOption(option)}
                   className={cn(
-                    "flex items-start gap-3 rounded-2xl border p-4 text-left transition hover:border-primary-300 hover:bg-primary-50/70",
-                    selected ? "border-primary-400 bg-primary-50 ring-2 ring-primary-500/15" : "border-slate-100 bg-white"
+                    "flex items-start gap-3 rounded-[10px] border p-4 text-left transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]",
+                    selected
+                      ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] ring-2 ring-[var(--color-accent-primary-glow)]"
+                      : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
                   )}
                 >
-                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-primary-100 text-primary-700">
+                  <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
                     {option.id === "bank_transfer" ? <QrCode className="h-5 w-5" /> : <Icon className="h-5 w-5" />}
                   </span>
                   <span>
-                    <span className="block text-[13px] font-bold text-slate-900">{option.title}</span>
-                    <span className="mt-1 block text-[12px] leading-5 text-slate-500">{option.description}</span>
+                    <span className="block text-[13px] font-bold text-[var(--color-text-primary)]">{option.title}</span>
+                    <span className="mt-1 block text-[12px] leading-5 text-[var(--color-text-muted)]">{option.description}</span>
                   </span>
                 </button>
               );

@@ -40,12 +40,19 @@ export function InitializeSchemeButton({
 
   return (
     <div className="grid gap-3">
-      {error ? <p className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm font-semibold text-rose-700">{error}</p> : null}
+      {error ? (
+        <p
+          className="rounded-[10px] px-4 py-3 text-[13px] font-semibold"
+          style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}
+        >
+          {error}
+        </p>
+      ) : null}
       <button
         type="button"
         disabled={pending}
         onClick={() => void initialize()}
-        className="inline-flex h-11 items-center justify-center gap-2 rounded-full bg-ink px-5 text-sm font-semibold text-white transition hover:bg-brand-800 disabled:opacity-60"
+        className="btn-primary px-5"
       >
         <Plus className="h-4 w-4" />
         {pending ? "Initializing..." : label}

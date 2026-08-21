@@ -165,7 +165,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
         size="lg"
         footer={
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-[12px] text-slate-500">
+            <p className="text-[12px] text-[var(--color-text-secondary)]">
               {selectedInvoice ? `Balance after payment: ${formatCurrency(nextBalance)}` : "Select an invoice to continue."}
             </p>
             <div className="flex justify-end gap-3">
@@ -187,11 +187,11 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
       >
         <div className="grid gap-5">
           <div>
-            <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+            <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
               Student / invoice search
             </label>
             <div className="relative">
-              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -199,43 +199,43 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
                 className="field-control pl-10"
               />
             </div>
-            <div className="mt-3 grid max-h-56 gap-2 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50/70 p-2">
+            <div className="mt-3 grid max-h-56 gap-2 overflow-y-auto rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-2">
               {searchResults.map((invoice) => (
                 <button
                   key={invoice.id}
                   type="button"
                   onClick={() => selectInvoice(invoice)}
                   className={cn(
-                    "rounded-xl border bg-white p-3 text-left transition hover:border-primary-200 hover:bg-primary-50/70",
-                    selectedInvoiceId === invoice.id ? "border-primary-300 ring-2 ring-primary-500/15" : "border-slate-100"
+                    "rounded-[10px] border bg-[var(--color-bg-surface)] p-3 text-left transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]",
+                    selectedInvoiceId === invoice.id ? "border-[var(--color-accent-primary)] ring-2 ring-[var(--color-accent-primary)]/15" : "border-[var(--color-border-default)]"
                   )}
                 >
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <p className="text-[13px] font-bold text-slate-900">{invoice.studentName}</p>
-                      <p className="text-[12px] text-slate-500">{invoice.className} · {invoice.invoiceNumber}</p>
+                      <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{invoice.studentName}</p>
+                      <p className="text-[12px] text-[var(--color-text-secondary)]">{invoice.className} · {invoice.invoiceNumber}</p>
                     </div>
-                    <p className="text-right text-[13px] font-black text-red-600">{formatCurrency(invoice.balance)}</p>
+                    <p className="text-right text-[13px] font-black text-[var(--color-danger)]">{formatCurrency(invoice.balance)}</p>
                   </div>
                 </button>
               ))}
               {searchResults.length === 0 ? (
-                <p className="px-3 py-4 text-center text-[13px] text-slate-500">No outstanding invoice matches that search.</p>
+                <p className="px-3 py-4 text-center text-[13px] text-[var(--color-text-secondary)]">No outstanding invoice matches that search.</p>
               ) : null}
             </div>
           </div>
 
           {selectedInvoice ? (
-            <div className="rounded-2xl border border-primary-100 bg-primary-50/70 p-4">
+            <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                  <p className="text-[12px] font-semibold uppercase tracking-wide text-primary-700">Invoice overview</p>
-                  <h3 className="mt-1 text-[18px] font-black text-slate-900">{selectedInvoice.studentName}</h3>
-                  <p className="text-[13px] text-slate-600">{selectedInvoice.className} · {selectedInvoice.invoiceNumber}</p>
+                  <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-accent)]">Invoice overview</p>
+                  <h3 className="mt-1 text-[18px] font-black text-[var(--color-text-primary)]">{selectedInvoice.studentName}</h3>
+                  <p className="text-[13px] text-[var(--color-text-secondary)]">{selectedInvoice.className} · {selectedInvoice.invoiceNumber}</p>
                 </div>
                 <div className="text-left sm:text-right">
-                  <p className="text-[11px] uppercase tracking-wide text-slate-400">Outstanding</p>
-                  <p className="text-[22px] font-black text-red-600">{formatCurrency(selectedInvoice.balance)}</p>
+                  <p className="text-[11px] uppercase tracking-wide text-[var(--color-text-muted)]">Outstanding</p>
+                  <p className="text-[22px] font-black text-[var(--color-danger)]">{formatCurrency(selectedInvoice.balance)}</p>
                 </div>
               </div>
             </div>
@@ -243,7 +243,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
 
           <div className="grid gap-4 md:grid-cols-2">
             <div>
-              <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
                 Amount received
               </label>
               <input
@@ -256,7 +256,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
               />
             </div>
             <div>
-              <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+              <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
                 Reference / teller no.
               </label>
               <input
@@ -269,7 +269,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
           </div>
 
           <div>
-            <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+            <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
               Payment method
             </label>
             <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -281,13 +281,13 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
                     type="button"
                     onClick={() => setMethod(item.value)}
                     className={cn(
-                      "rounded-2xl border p-4 text-left transition hover:border-primary-300 hover:bg-primary-50",
-                      method === item.value ? "border-primary-400 bg-primary-50 ring-2 ring-primary-500/15" : "border-slate-100 bg-white"
+                      "rounded-[10px] border p-4 text-left transition hover:border-[var(--color-accent-primary)] hover:bg-[var(--color-accent-primary-dim)]",
+                      method === item.value ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] ring-2 ring-[var(--color-accent-primary)]/15" : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)]"
                     )}
                   >
-                    <Icon className="h-5 w-5 text-primary-600" />
-                    <p className="mt-2 text-[13px] font-bold text-slate-900">{item.label}</p>
-                    <p className="text-[11px] text-slate-500">{item.helper}</p>
+                    <Icon className="h-5 w-5 text-[var(--color-text-accent)]" />
+                    <p className="mt-2 text-[13px] font-bold text-[var(--color-text-primary)]">{item.label}</p>
+                    <p className="text-[11px] text-[var(--color-text-secondary)]">{item.helper}</p>
                   </button>
                 );
               })}
@@ -295,7 +295,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
           </div>
 
           <div>
-            <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-slate-500">
+            <label className="mb-2 block text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-secondary)]">
               Notes
             </label>
             <textarea

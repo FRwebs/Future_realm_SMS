@@ -169,14 +169,14 @@ export function StaffRoleManager({
 
   return (
     <>
-      <section className="rounded-[2rem] border border-white/50 bg-white/90 p-6 shadow-panel">
+      <section className="surface-hero p-6 md:p-7">
         <div className="mb-5 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
           <div>
-            <h2 className="font-[var(--font-heading)] text-2xl font-bold text-ink">Staff role assignment</h2>
-            <p className="mt-2 text-sm text-ink/60">Assign one or more roles to staff and preview their resolved permissions.</p>
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Staff role assignment</h2>
+            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Assign one or more roles to staff and preview their resolved permissions.</p>
           </div>
           <label className="relative block w-full max-w-md">
-            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-ink/35" />
+            <Search className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[var(--color-text-muted)]" />
             <input
               type="search"
               value={search}
@@ -185,14 +185,14 @@ export function StaffRoleManager({
                 setCurrentPage(1);
               }}
               placeholder="Search staff, department, or role"
-              className="h-12 w-full rounded-2xl border border-ink/10 bg-white pl-11 pr-4 text-sm font-semibold text-ink shadow-sm outline-none transition focus:border-brand-500 focus:ring-4 focus:ring-brand-100/70"
+              className="field-control h-12 pl-11"
             />
           </label>
         </div>
 
         <div className="overflow-x-auto">
           <table className="min-w-full border-separate border-spacing-y-3 text-left">
-            <thead className="text-xs uppercase tracking-[0.24em] text-ink/40">
+            <thead className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-text-muted)]">
               <tr>
                 <th className="px-4 py-2">Name</th>
                 <th className="px-4 py-2">Email</th>
@@ -203,24 +203,24 @@ export function StaffRoleManager({
             </thead>
             <tbody>
               {visibleStaff.map((member) => (
-                <tr key={member.id} className="bg-sand/55 text-sm text-ink/80">
-                  <td className="rounded-l-2xl px-4 py-4 font-semibold text-ink">{member.name}</td>
+                <tr key={member.id} className="bg-[var(--color-bg-subtle)] text-sm text-[var(--color-text-secondary)]">
+                  <td className="rounded-l-[10px] px-4 py-4 font-semibold text-[var(--color-text-primary)]">{member.name}</td>
                   <td className="px-4 py-4">{member.email}</td>
                   <td className="px-4 py-4">{member.department}</td>
                   <td className="px-4 py-4">
                     <div className="flex flex-wrap gap-2">
                       {member.roles.length ? member.roles.map((role) => (
-                        <span key={role.id} className="rounded-full bg-white px-3 py-1 text-xs font-semibold text-ink ring-1 ring-ink/8">
+                        <span key={role.id} className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-xs font-semibold text-[var(--color-text-primary)] ring-1 ring-[var(--color-border-default)]">
                           {role.name}
                         </span>
-                      )) : <span className="text-ink/45">No roles assigned</span>}
+                      )) : <span className="text-[var(--color-text-muted)]">No roles assigned</span>}
                     </div>
                   </td>
-                  <td className="rounded-r-2xl px-4 py-4">
+                  <td className="rounded-r-[10px] px-4 py-4">
                     <button
                       type="button"
                       onClick={() => openManager(member.id)}
-                      className="inline-flex items-center gap-2 rounded-full bg-ink px-4 py-2 text-xs font-semibold text-white transition hover:bg-brand-800"
+                      className="btn-primary px-4 py-2 text-xs"
                     >
                       <ShieldCheck className="h-3.5 w-3.5" />
                       Manage Roles
@@ -231,7 +231,7 @@ export function StaffRoleManager({
             </tbody>
           </table>
           {filteredStaff.length === 0 ? (
-            <div className="rounded-[1.5rem] border border-dashed border-ink/15 bg-sand/45 p-6 text-sm text-ink/60">
+            <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-6 text-sm text-[var(--color-text-secondary)]">
               No staff match your search.
             </div>
           ) : null}

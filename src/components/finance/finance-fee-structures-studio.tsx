@@ -438,7 +438,7 @@ export function FinanceFeeStructuresStudio({
                       <Send className="h-4 w-4" />
                       Generate invoices
                     </button>
-                    <button type="button" onClick={() => archiveStructure(structure)} className="finance-btn-secondary min-h-[40px] px-4 text-rose-200 hover:text-rose-100">
+                    <button type="button" onClick={() => archiveStructure(structure)} className="finance-btn-secondary min-h-[40px] px-4 text-[var(--color-danger)] hover:text-[var(--color-danger)]">
                       <Archive className="h-4 w-4" />
                       Archive
                     </button>
@@ -707,8 +707,12 @@ export function FinanceFeeStructuresStudio({
           </label>
 
           <div
-            className="rounded-[16px] border border-amber-500/18 bg-amber-500/10 p-4 text-sm leading-7"
-            style={{ color: "var(--finance-warning-text)" }}
+            className="rounded-[16px] border p-4 text-sm leading-7"
+            style={{
+              borderColor: "var(--color-warning)",
+              background: "var(--color-warning-dim)",
+              color: "var(--finance-warning-text)",
+            }}
           >
             This creates invoices only for students who do not already have a live invoice for this structure. The source structure stays linked for audit and follow-up.
           </div>

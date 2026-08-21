@@ -46,6 +46,21 @@ export class SuperAdminController {
     return this.superAdminService.getSchool(session, schoolId);
   }
 
+  @Get("schools-pending-verification")
+  listPendingVerificationSchools(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listPendingVerificationSchools(session);
+  }
+
+  @Post("schools/:schoolId/verify")
+  verifySchool(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string) {
+    return this.superAdminService.verifySchool(session, schoolId);
+  }
+
+  @Post("schools/:schoolId/reject-verification")
+  rejectSchoolVerification(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string, @Body() body: unknown) {
+    return this.superAdminService.rejectSchoolVerification(session, schoolId, body);
+  }
+
   @Post("schools")
   createSchool(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createSchool(session, body);
