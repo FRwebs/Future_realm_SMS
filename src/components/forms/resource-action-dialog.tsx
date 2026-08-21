@@ -5,7 +5,6 @@ import { AlertTriangle, Pencil, Plus } from "lucide-react";
 
 import { ResourceField, ResourceForm } from "@/components/forms/resource-form";
 import { Modal } from "@/components/ui/modal";
-import { SidePanel } from "@/components/ui/side-panel";
 import { cn } from "@/lib/utils/cn";
 
 interface ResourceActionDialogProps {
@@ -51,7 +50,6 @@ export function ResourceActionDialog({
   confirmMessage,
   offlineKey,
   variant = "primary",
-  presentation = "modal",
 }: ResourceActionDialogProps) {
   const [open, setOpen] = useState(false);
   const TriggerIcon = triggerIcons[variant];
@@ -76,55 +74,29 @@ export function ResourceActionDialog({
         <span>{triggerLabel}</span>
       </button>
 
-      {presentation === "drawer" ? (
-        <SidePanel
-          open={open}
-          onClose={() => setOpen(false)}
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title={title}
+        subtitle={description}
+        size="lg"
+      >
+        <ResourceForm
+          formId={formId}
           title={title}
-          subtitle={description}
-          size="lg"
-        >
-          <ResourceForm
-            formId={formId}
-            title={title}
-            description={description}
-            endpoint={endpoint}
-            method={method}
-            fields={fields}
-            submitLabel={submitLabel}
-            confirmLabel={confirmLabel}
-            confirmMessage={confirmMessage}
-            offlineKey={offlineKey}
-            chrome="plain"
-            showHeader={false}
-            onSuccess={() => setOpen(false)}
-          />
-        </SidePanel>
-      ) : (
-        <Modal
-          open={open}
-          onClose={() => setOpen(false)}
-          title={title}
-          subtitle={description}
-          size="lg"
-        >
-          <ResourceForm
-            formId={formId}
-            title={title}
-            description={description}
-            endpoint={endpoint}
-            method={method}
-            fields={fields}
-            submitLabel={submitLabel}
-            confirmLabel={confirmLabel}
-            confirmMessage={confirmMessage}
-            offlineKey={offlineKey}
-            chrome="plain"
-            showHeader={false}
-            onSuccess={() => setOpen(false)}
-          />
-        </Modal>
-      )}
+          description={description}
+          endpoint={endpoint}
+          method={method}
+          fields={fields}
+          submitLabel={submitLabel}
+          confirmLabel={confirmLabel}
+          confirmMessage={confirmMessage}
+          offlineKey={offlineKey}
+          chrome="plain"
+          showHeader={false}
+          onSuccess={() => setOpen(false)}
+        />
+      </Modal>
     </>
   );
 }

@@ -1,8 +1,10 @@
-import Link from "next/link";
+import { Building2, CalendarPlus, Clock3, UserRound } from "lucide-react";
 
+import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { ImpersonateUserDialog } from "@/components/super-admin/impersonate-user-dialog";
 import { apiGet } from "@/lib/api/server";
 import type { SuperAdminUserProfile } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -34,8 +36,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
           <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-[1]">
-        <Link href="/super-admin/users" className="text-[13px] font-semibold text-[rgba(255,255,255,0.85)] underline">← Back to users</Link>
-        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">User profile</p>
             <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">{user.name}</h1>
@@ -43,18 +44,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={user.status} />
-            <ResourceActionDialog
-              triggerLabel="Impersonate"
-              title={`Impersonate ${user.name}`}
-              description="Generate a 30-minute, read-only support session for this user. A reason is required and every session is fully audited."
-              endpoint={`/api/super-admin/impersonate/${user.id}`}
-              method="POST"
-              variant="danger"
-              submitLabel="Generate token"
-              confirmLabel="Confirm Impersonation"
-              confirmMessage="This creates a time-boxed, fully-logged view-as session."
-              fields={[{ name: "reason", label: "Reason for impersonation", type: "textarea", required: true }]}
-            />
+            <ImpersonateUserDialog userId={user.id} userName={user.name} />
             {user.status === "SUSPENDED" ? (
               <ResourceActionDialog
                 triggerLabel="Reinstate"
@@ -99,23 +89,10 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">School</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{user.school.name}</p>
-          <p className="mt-1 text-[11px] font-medium text-[var(--color-text-muted)]">{user.school.plan} · {user.school.status}</p>
-        </article>
-        <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Profile type</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{user.profileType}</p>
-        </article>
-        <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Last login</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"}</p>
-        </article>
-        <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Joined</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{formatDate(user.createdAt)}</p>
-        </article>
+        <StatCard label="School" value={user.school.name} detail={`${user.school.plan} · ${user.school.status}`} icon={Building2} tone="accent" />
+        <StatCard label="Profile type" value={user.profileType} detail={user.role.replaceAll("_", " ")} icon={UserRound} tone="info" />
+        <StatCard label="Last login" value={user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"} detail="Most recent successful session." icon={Clock3} tone="success" />
+        <StatCard label="Joined" value={formatDate(user.createdAt)} detail="Account creation date." icon={CalendarPlus} tone="neutral" />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">

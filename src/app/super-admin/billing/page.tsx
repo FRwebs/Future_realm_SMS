@@ -1,8 +1,11 @@
-import { MetricCard } from "@/components/dashboard/metric-card";
+import { AlertTriangle, CalendarCheck2, CreditCard, Repeat2, TrendingUp, UsersRound } from "lucide-react";
+
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { PlanEditDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
@@ -15,16 +18,16 @@ import type {
   SuperAdminRevenueReport,
   SuperAdminRevenueView
 } from "@/lib/domain/types";
-import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 const TRIAL_DAYS = 14;
 
 const planOptions = [
-  { label: "Basic", value: "BASIC" },
+  { label: "Starter", value: "BASIC" },
   { label: "Standard", value: "STANDARD" },
-  { label: "Professional", value: "PROFESSIONAL" },
-  { label: "Custom", value: "CUSTOM" },
-  { label: "Enterprise", value: "ENTERPRISE" }
+  { label: "Trial", value: "PROFESSIONAL" },
+  { label: "Elite", value: "ENTERPRISE" },
+  { label: "NGO / Mission", value: "CUSTOM" }
 ];
 
 const invoiceStatusTone: Record<string, { bg: string; fg: string; label: string }> = {
@@ -59,17 +62,54 @@ const billingRules = [
   "Trials run 14 days automatically at signup, with every feature unlocked and no card required.",
   "A school moves to Grace Period on the first missed payment, then Suspended if it lapses further.",
   "Notification (SMS/WhatsApp) credit revenue is tracked separately from subscription revenue.",
-  "Pricing here is the live, editable rate card — change it from Feature & Tier Config > Tier Plans."
+  "Pricing here is the live rate card used by onboarding, billing, and upgrades."
 ];
 
 function studentRangeLabel(plan: SuperAdminPlanRow) {
+  const slug = plan.slug.toLowerCase();
+  if (slug === "starter") return "1-250 students";
+  if (slug === "standard") return "251-700 students";
+  if (slug === "elite") return "701+ students";
+  if (slug === "ngo-mission" || slug === "trial") return "Any size";
   if (!plan.studentLimit) return "Unlimited students";
   return `Up to ${plan.studentLimit.toLocaleString()} students`;
 }
 
-function planUsd(nairaMonthly: number) {
-  const usd = nairaMonthly / 1540;
-  return `≈ $${Math.round(usd).toLocaleString()}`;
+function planDisplayRank(plan: SuperAdminPlanRow) {
+  const order = ["starter", "standard", "elite", "ngo-mission", "trial"];
+  const index = order.indexOf(plan.slug.toLowerCase());
+  return index === -1 ? 99 : index;
+}
+
+function planPriceLabel(plan: SuperAdminPlanRow) {
+  const slug = plan.slug.toLowerCase();
+  if (slug === "trial") return "Free";
+  if (slug === "ngo-mission") return "90% off tier";
+  return formatCurrency(plan.monthlyPrice);
+}
+
+function planUsd(plan: SuperAdminPlanRow) {
+  const usdLabels: Record<string, string> = {
+    starter: "$0.90",
+    standard: "$2.20",
+    elite: "$3.45",
+    "ngo-mission": "90% off",
+    trial: "Free"
+  };
+  return usdLabels[plan.slug.toLowerCase()] ?? `≈ $${Math.round(plan.monthlyPrice / 1540).toLocaleString()}`;
+}
+
+function planEntitlements(value: unknown) {
+  if (Array.isArray(value)) return { modules: value.map(String), features: [] };
+  if (typeof value === "string") return { modules: value.split(",").map((item) => item.trim()).filter(Boolean), features: [] };
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    return {
+      modules: Array.isArray(record.modules) ? record.modules.map(String) : [],
+      features: Array.isArray(record.features) ? record.features.map(String) : []
+    };
+  }
+  return { modules: [], features: [] };
 }
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
@@ -102,8 +142,10 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   const billing = billingEnvelope.data ?? [];
   const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
   const arpu = revenue.totalPaidSchools > 0 ? revenue.mrr / revenue.totalPaidSchools : 0;
-  const activePlans = (plansEnvelope.data ?? []).filter((item) => item.isActive).sort((a, b) => a.monthlyPrice - b.monthlyPrice);
+  const activePlans = (plansEnvelope.data ?? []).filter((item) => item.isActive).sort((a, b) => planDisplayRank(a) - planDisplayRank(b) || a.monthlyPrice - b.monthlyPrice);
   const planByTier = new Map(activePlans.map((item) => [item.plan, item]));
+  const schoolsWithRevenue = revenue.schoolsByPlan.filter((item) => item.count > 0);
+  const maxTierMrr = Math.max(...revenue.schoolsByPlan.map((row) => (planByTier.get(row.plan)?.monthlyPrice ?? 0) * row.count), 1);
   const churnRatePct = Math.round((100 - report.renewalRate) * 10) / 10;
   const notRenewedCount = Math.max(0, report.activeSchoolCount - report.renewedRecently);
 
@@ -140,105 +182,169 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
       {tab === "overview" ? (
         <>
           <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-            <MetricCard metric={{ label: "MRR (current month)", value: formatCurrency(revenue.mrr), change: "Monthly recurring revenue" }} />
-            <MetricCard metric={{ label: "ARR projection", value: formatCurrency(revenue.arr), change: "MRR × 12" }} />
-            <MetricCard metric={{ label: "ARPU per school", value: formatCurrency(arpu), change: "Per paying school" }} />
-            <MetricCard
-              metric={{
-                label: "Churn rate last term",
-                value: `${churnRatePct}%`,
-                change: `${notRenewedCount} of ${report.activeSchoolCount} did not renew`
-              }}
+            <StatCard
+              label="Semester revenue"
+              value={formatCompactCurrency(revenue.mrr)}
+              detail={`Current semester recurring revenue. Full value: ${formatCurrency(revenue.mrr)}.`}
+              icon={Repeat2}
+              tone="accent"
             />
-            <MetricCard metric={{ label: "Projected renewal revenue", value: formatCurrency(report.mrr), change: `Next term · ${report.activeSchoolCount} schools` }} />
-            <MetricCard metric={{ label: "Credit bundle revenue", value: formatCurrency(report.notificationCreditRevenue), change: `${report.creditRevenueSharePct}% of platform revenue` }} />
+            <StatCard
+              label="Year estimate"
+              value={formatCompactCurrency(revenue.arr)}
+              detail={`Estimated from semester billing. Full value: ${formatCurrency(revenue.arr)}.`}
+              icon={TrendingUp}
+              tone="success"
+            />
+            <StatCard
+              label="ARPU"
+              value={formatCompactCurrency(arpu)}
+              detail={`Average per paying school across ${revenue.totalPaidSchools} paid tenant${revenue.totalPaidSchools === 1 ? "" : "s"}.`}
+              icon={UsersRound}
+              tone="info"
+            />
+            <StatCard
+              label="Churn rate"
+              value={`${churnRatePct}%`}
+              detail={`${notRenewedCount} of ${report.activeSchoolCount} active schools did not renew last term.`}
+              icon={AlertTriangle}
+              tone="warning"
+            />
+            <StatCard
+              label="Renewal pipeline"
+              value={formatCompactCurrency(report.mrr)}
+              detail={`Projected next-term renewal value from ${report.activeSchoolCount} active schools.`}
+              icon={CalendarCheck2}
+              tone="success"
+            />
+            <StatCard
+              label="Credit revenue"
+              value={formatCompactCurrency(report.notificationCreditRevenue)}
+              detail={`${report.creditRevenueSharePct}% of platform revenue from notification credit bundles.`}
+              icon={CreditCard}
+              tone="accent"
+            />
           </section>
 
-          <section className="grid gap-5 lg:grid-cols-[1fr_1.35fr]">
-            <section className="surface-card p-6">
-              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Revenue split by tier</p>
-              <div className="mt-4 grid gap-3.5">
-                {revenue.schoolsByPlan
-                  .filter((item) => item.count > 0)
-                  .map((item) => {
+          <section className="grid gap-5 xl:grid-cols-[0.9fr_1.4fr]">
+            <section className="surface-card overflow-hidden">
+              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                <p className="section-eyebrow">Revenue composition</p>
+                <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Semester revenue by active tier</h2>
+              </div>
+              <div className="grid gap-4 p-5">
+                {schoolsWithRevenue.length === 0 ? (
+                  <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">
+                    No active paid subscriptions yet.
+                  </p>
+                ) : (
+                  schoolsWithRevenue.map((item) => {
                     const price = planByTier.get(item.plan)?.monthlyPrice ?? 0;
                     const tierMrr = price * item.count;
-                    const maxTierMrr = Math.max(
-                      ...revenue.schoolsByPlan.map((row) => (planByTier.get(row.plan)?.monthlyPrice ?? 0) * row.count),
-                      1
-                    );
                     return (
-                      <div key={item.plan}>
-                        <div className="flex items-center justify-between text-[12.5px]">
-                          <span className="text-[var(--color-text-secondary)]">
-                            {item.plan} · {item.count} subscription{item.count === 1 ? "" : "s"}
-                          </span>
-                          <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{formatCurrency(tierMrr)}</span>
+                      <div key={item.plan} className="grid gap-2">
+                        <div className="flex items-start justify-between gap-4">
+                          <div>
+                            <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{item.plan}</p>
+                            <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
+                              {item.count} subscription{item.count === 1 ? "" : "s"} at {formatCurrency(price)}
+                            </p>
+                          </div>
+                          <p className="font-[var(--font-mono)] text-[14px] font-bold text-[var(--color-text-primary)]">{formatCurrency(tierMrr)}</p>
                         </div>
-                        <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                          <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(tierMrr / maxTierMrr) * 100}%` }} />
+                        <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                          <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${Math.max(6, (tierMrr / maxTierMrr) * 100)}%` }} />
                         </div>
                       </div>
                     );
-                  })}
+                  })
+                )}
               </div>
-              <div className="mt-5 border-t border-[var(--color-border-default)] pt-4">
-                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Additional billing rules</p>
-                <div className="mt-2.5 grid gap-2">
+              <div className="border-t border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
+                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Billing rules</p>
+                <div className="mt-2 grid gap-2">
                   {billingRules.map((rule) => (
-                    <div key={rule} className="flex items-start gap-2">
-                      <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-[var(--color-accent-primary)]" />
-                      <p className="text-[12px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
-                    </div>
+                    <p key={rule} className="text-[12px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
                   ))}
                 </div>
               </div>
             </section>
 
             <section className="surface-card overflow-hidden">
-              <div className="flex items-center justify-between border-b border-[var(--color-border-default)] px-5 py-4">
-                <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Subscription structure</p>
-                <p className="text-[11.5px] text-[var(--color-text-muted)]">
-                  Live rate card ·{" "}
-                  <a href="/super-admin/feature-flags?tab=plans" className="font-semibold text-[var(--color-text-accent)] hover:underline">
-                    Edit in Tier Plans
-                  </a>
-                </p>
+              <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
+                <div>
+                  <p className="section-eyebrow">Live rate card</p>
+                  <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
+                </div>
+                <a href="/super-admin/feature-flags?tab=plans" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+                  Open Tier Plans
+                </a>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
-                  <thead className="bg-[var(--color-bg-subtle)]">
-                    <tr>
-                      {["Tier", "Student range", "Naira", "USD", "Key add-ons unlocked"].map((header) => (
-                        <th key={header} className="border-b border-[var(--color-border-default)] px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                          {header}
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {activePlans.length === 0 ? (
-                      <tr>
-                        <td colSpan={5} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
-                          No active plans — configure one in Feature & Tier Config &gt; Tier Plans.
-                        </td>
-                      </tr>
-                    ) : (
-                      activePlans.map((plan) => (
-                        <tr key={plan.id} className="border-b border-[var(--color-border-muted)] last:border-b-0">
-                          <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{plan.name}</td>
-                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">{studentRangeLabel(plan)}</td>
-                          <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(plan.monthlyPrice)} / term</td>
-                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">{planUsd(plan.monthlyPrice)}</td>
-                          <td className="px-4 py-3 text-[var(--color-text-secondary)]">
-                            {plan.apiAccess ? "API access" : "Core modules"}
-                            {plan.customBranding ? ", custom branding" : ""}
-                          </td>
-                        </tr>
-                      ))
-                    )}
-                  </tbody>
-                </table>
+              <div className="grid gap-3 p-5 md:grid-cols-2">
+                {activePlans.length === 0 ? (
+                  <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)] md:col-span-2">
+                    No active plans. Configure one in Feature & Tier Management.
+                  </p>
+                ) : (
+                  activePlans.map((plan) => {
+                    const entitlements = planEntitlements(plan.includedModules);
+                    const featureSummary = entitlements.features.length
+                      ? entitlements.features.slice(0, 3).join(", ")
+                      : entitlements.modules.slice(0, 3).join(", ");
+                    return (
+                    <article key={plan.id} className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
+                          <h3 className="mt-1 truncate text-[15px] font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
+                          <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">{plan.slug}</p>
+                        </div>
+                        <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Active" />
+                      </div>
+
+                      <div className="mt-4 grid grid-cols-2 gap-3">
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
+                          <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
+                          <p className="text-[11.5px] text-[var(--color-text-muted)]">per student</p>
+                        </div>
+                        <div>
+                          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
+                          <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planUsd(plan)}</p>
+                          <p className="text-[11.5px] text-[var(--color-text-muted)]">{plan.subscriberCount} subscriber{plan.subscriberCount === 1 ? "" : "s"}</p>
+                        </div>
+                      </div>
+
+                      <div className="mt-4 grid gap-2 border-t border-[var(--color-border-default)] pt-3 text-[12px] text-[var(--color-text-secondary)]">
+                        <div className="flex justify-between gap-3">
+                          <span>Students</span>
+                          <span className="font-semibold text-[var(--color-text-primary)]">{studentRangeLabel(plan)}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span>Staff</span>
+                          <span className="font-semibold text-[var(--color-text-primary)]">{plan.staffLimit ? `${plan.staffLimit.toLocaleString()} staff` : "Unlimited"}</span>
+                        </div>
+                        <div className="flex justify-between gap-3">
+                          <span>Support</span>
+                          <span className="font-semibold text-[var(--color-text-primary)]">{plan.supportTier}</span>
+                        </div>
+                        {featureSummary ? (
+                          <p className="border-t border-[var(--color-border-default)] pt-2 leading-5">{featureSummary}</p>
+                        ) : null}
+                      </div>
+
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex flex-wrap gap-1.5">
+                          {plan.apiAccess ? <StatusPill bg="var(--color-info-dim)" fg="var(--color-info)" label="API" /> : null}
+                          {plan.customBranding ? <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label="Branding" /> : null}
+                          {!plan.apiAccess && !plan.customBranding ? <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label="Core" /> : null}
+                        </div>
+                        <PlanEditDialog plan={plan} />
+                      </div>
+                    </article>
+                    );
+                  })
+                )}
               </div>
             </section>
           </section>
@@ -739,7 +845,7 @@ async function NotificationCreditsTab({ billing }: { billing: SuperAdminBillingR
                 { title: "Bundles are purchased off-platform", detail: "A school pays for an SMS/WhatsApp bundle by transfer, then a Super Admin confirms and tops up here." },
                 { title: "Balances deduct per send", detail: "Every notification sent debits the school's SMS or WhatsApp balance by one unit." },
                 { title: "Low balance blocks nothing else", detail: "Only outbound notifications are affected — attendance, results, and fees keep working normally." },
-                { title: "Revenue is tracked separately", detail: "Credit top-ups are notification revenue, kept apart from subscription MRR in Revenue Reporting." }
+                { title: "Revenue is tracked separately", detail: "Credit top-ups are notification revenue, kept apart from subscription revenue in Revenue Reporting." }
               ].map((rule) => (
                 <div key={rule.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
                   <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{rule.title}</p>
@@ -771,9 +877,9 @@ async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   return (
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3">
-        <MetricCard metric={{ label: "Active promo codes", value: String(activeCodeCount), change: `${codes.length} total code${codes.length === 1 ? "" : "s"} created` }} />
-        <MetricCard metric={{ label: "Total redemptions", value: String(totalRedemptions), change: `${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted` }} />
-        <MetricCard metric={{ label: "Total discount issued", value: formatCurrency(totalDiscountIssued), change: "Across all codes" }} />
+        <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="success" />
+        <StatCard label="Total redemptions" value={totalRedemptions} detail={`${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted`} tone="accent" />
+        <StatCard label="Total discount issued" value={formatCurrency(totalDiscountIssued)} detail="Across all codes" tone="warning" />
       </section>
 
       <TableCard
@@ -853,25 +959,41 @@ async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView })
   return (
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <MetricCard
-          metric={{
-            label: "Outstanding receivables",
-            value: formatCurrency(report.outstandingReceivables),
-            change: `${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance`
-          }}
+        <StatCard
+          label="Outstanding"
+          value={formatCompactCurrency(report.outstandingReceivables)}
+          detail={`${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance. Full value: ${formatCurrency(report.outstandingReceivables)}.`}
+          icon={AlertTriangle}
+          tone="warning"
         />
-        <MetricCard
-          metric={{ label: "Renewal rate (90d)", value: `${report.renewalRate}%`, change: `${report.renewedRecently} of ${report.activeSchoolCount} renewed` }}
+        <StatCard
+          label="Renewal rate"
+          value={`${report.renewalRate}%`}
+          detail={`${report.renewedRecently} of ${report.activeSchoolCount} renewed in the last 90 days.`}
+          icon={Repeat2}
+          tone="success"
         />
-        <MetricCard metric={{ label: "ARPU", value: formatCurrency(report.arpu), change: "Per paying school, monthly" }} />
-        <MetricCard
-          metric={{
-            label: "Credit revenue share",
-            value: `${report.creditRevenueSharePct}%`,
-            change: `${formatCurrency(report.notificationCreditRevenue)} of platform revenue`
-          }}
+        <StatCard
+          label="ARPU"
+          value={formatCompactCurrency(report.arpu)}
+          detail={`Per paying school, per semester. Full value: ${formatCurrency(report.arpu)}.`}
+          icon={UsersRound}
+          tone="info"
         />
-        <MetricCard metric={{ label: "Projected next term", value: formatCurrency(report.mrr), change: "Active schools × confirmed tiers" }} />
+        <StatCard
+          label="Credit share"
+          value={`${report.creditRevenueSharePct}%`}
+          detail={`${formatCompactCurrency(report.notificationCreditRevenue)} of platform revenue from credit bundles.`}
+          icon={CreditCard}
+          tone="accent"
+        />
+        <StatCard
+          label="Next term"
+          value={formatCompactCurrency(report.mrr)}
+          detail={`Active schools × confirmed tiers. Full value: ${formatCurrency(report.mrr)}.`}
+          icon={TrendingUp}
+          tone="success"
+        />
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
@@ -896,47 +1018,17 @@ async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView })
             ))}
           </div>
         </section>
-        <section className="surface-card overflow-hidden">
-          <div className="p-6 pb-0">
-            <p className="section-eyebrow">Projected value</p>
-            <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">LTV projection by tier</h3>
-            <p className="mt-1.5 text-[12px] text-[var(--color-text-muted)]">Based on average subscription duration per tier.</p>
-          </div>
-          <div className="mt-4 overflow-x-auto">
-            <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
-              <thead className="bg-[var(--color-bg-subtle)]">
-                <tr>
-                  {["Tier", "Avg duration", "Termly value", "Projected LTV"].map((header) => (
-                    <th key={header} className="border-b border-[var(--color-border-default)] px-4 py-2.5 text-left text-[10.5px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">
-                      {header}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {report.ltvByTier.length === 0 ? (
-                  <tr>
-                    <td colSpan={4} className="px-4 py-6 text-center text-[var(--color-text-muted)]">
-                      No active subscriptions yet.
-                    </td>
-                  </tr>
-                ) : (
-                  report.ltvByTier.map((item) => (
-                    <tr key={item.plan} className="border-b border-[var(--color-border-muted)] last:border-b-0">
-                      <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{item.plan}</td>
-                      <td className="px-4 py-3 text-[var(--color-text-secondary)]">{(item.avgTenureMonths / 4).toFixed(1)} terms</td>
-                      <td className="px-4 py-3 text-[var(--color-text-secondary)]">{formatCurrency(item.termlyValue)}</td>
-                      <td className="px-4 py-3 font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.ltv)}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-          <p className="border-t border-[var(--color-border-default)] px-6 py-4 text-[11.5px] leading-5 text-[var(--color-text-muted)]">
-            Tenure is measured from each active school&apos;s signup date — a tier gaining longer-tenured schools is the strongest argument for investing in upgrade paths rather than pure acquisition.
-          </p>
-        </section>
+        <TableCard
+          title="LTV projection by tier"
+          items={report.ltvByTier}
+          columns={[
+            { key: "tier", header: "Tier", render: (item) => item.plan },
+            { key: "duration", header: "Avg duration", render: (item) => `${(item.avgTenureMonths / 4).toFixed(1)} terms` },
+            { key: "termly", header: "Termly value", render: (item) => formatCurrency(item.termlyValue) },
+            { key: "ltv", header: "Projected LTV", render: (item) => formatCurrency(item.ltv) }
+          ]}
+          emptyState="No active subscriptions yet."
+        />
       </section>
 
       <TableCard
@@ -947,7 +1039,7 @@ async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView })
           { key: "state", header: "State", render: (item) => item.state },
           { key: "topCity", header: "Top city", render: (item) => item.topCity ?? "—" },
           { key: "schools", header: "Schools", render: (item) => item.schoolCount },
-          { key: "revenue", header: "Monthly revenue", render: (item) => formatCurrency(item.revenue) },
+          { key: "revenue", header: "Semester revenue", render: (item) => formatCurrency(item.revenue) },
           { key: "arpu", header: "ARPU", render: (item) => formatCurrency(item.arpu) },
           {
             key: "trend",

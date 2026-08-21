@@ -241,6 +241,28 @@ const tierFeatureSchema = z.object({
   eliteAccess: zBool(true)
 });
 
+function normalizePlanEntitlements(value: unknown) {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return { modules: [], features: [] };
+    try {
+      return normalizePlanEntitlements(JSON.parse(trimmed));
+    } catch {
+      return { modules: trimmed.split(",").map((module) => module.trim()).filter(Boolean), features: [] };
+    }
+  }
+  if (Array.isArray(value)) {
+    return { modules: value.map((item) => String(item).trim()).filter(Boolean), features: [] };
+  }
+  if (value && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const modules = Array.isArray(record.modules) ? record.modules.map((item) => String(item).trim()).filter(Boolean) : [];
+    const features = Array.isArray(record.features) ? record.features.map((item) => String(item).trim()).filter(Boolean) : [];
+    return { modules, features };
+  }
+  return { modules: [], features: [] };
+}
+
 const featureOverrideRequestSchema = z.object({
   schoolId: z.string().min(1),
   flagId: z.string().min(1),
@@ -424,12 +446,9 @@ const planConfigSchema = z.object({
   supportTier: z.enum(["COMMUNITY", "EMAIL", "PRIORITY", "DEDICATED"]).default("EMAIL"),
   apiAccess: zBool(false),
   customBranding: zBool(false),
-  includedModules: z
-    .string()
-    .trim()
-    .default("")
-    .transform((value) => (value.length ? value.split(",").map((module) => module.trim()).filter(Boolean) : []))
+  includedModules: z.unknown().default({ modules: [], features: [] }).transform(normalizePlanEntitlements)
 });
+const planConfigUpdateSchema = planConfigSchema.partial();
 
 const privacyRequestSchema = z.object({
   schoolId: zOptionalId(),
@@ -2260,14 +2279,23 @@ export class SuperAdminService {
     if (!user) throw new NotFoundException("User not found or inactive.");
     if (platformRoles.has(user.role)) throw new BadRequestException("Cannot impersonate another platform admin account.");
     const maxAgeSeconds = 30 * 60;
+    const startedAt = new Date();
     const token = await createSessionToken({
       userId: user.id,
       schoolId: user.schoolId,
       role: user.role as Role,
       email: user.email,
-      name: `${user.firstName} ${user.lastName}`
+      name: `${user.firstName} ${user.lastName}`,
+      impersonation: {
+        impersonatorUserId: session.userId,
+        impersonatorName: session.name,
+        impersonatorEmail: session.email,
+        startedAt: startedAt.toISOString(),
+        expiresAt: new Date(startedAt.getTime() + maxAgeSeconds * 1000).toISOString(),
+        reason: parsed.reason
+      }
     }, { maxAgeSeconds });
-    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId, reason: parsed.reason, startedAt: new Date().toISOString(), maxAgeSeconds }, user.schoolId);
+    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId, reason: parsed.reason, startedAt: startedAt.toISOString(), maxAgeSeconds }, user.schoolId);
     return this.response({ token, expiresInSeconds: maxAgeSeconds, user: { id: user.id, email: user.email, role: user.role, schoolName: user.school.name } }, "Impersonation token generated");
   }
 
@@ -3099,6 +3127,32 @@ export class SuperAdminService {
     const plan = await prisma.platformSubscriptionPlan.create({ data: parsed as Prisma.PlatformSubscriptionPlanCreateInput });
     await this.audit(session, "CREATE", "PlatformSubscriptionPlan", plan.id, { slug: parsed.slug, monthlyPrice: parsed.monthlyPrice }, null);
     return this.response({ id: plan.id }, "Subscription plan created");
+  }
+
+  async updatePlan(session: SessionPayload, planId: string, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]));
+    const parsed = planConfigUpdateSchema.parse(payload);
+    if (Object.keys(parsed).length === 0) {
+      throw new BadRequestException("Provide at least one plan field to update.");
+    }
+
+    const existing = await prisma.platformSubscriptionPlan.findUnique({ where: { id: planId } });
+    if (!existing) throw new NotFoundException("Subscription plan not found.");
+
+    if (parsed.slug && parsed.slug !== existing.slug) {
+      const duplicate = await prisma.platformSubscriptionPlan.findFirst({
+        where: { slug: parsed.slug, id: { not: planId } },
+        select: { id: true }
+      });
+      if (duplicate) throw new BadRequestException("Plan slug is already in use.");
+    }
+
+    const plan = await prisma.platformSubscriptionPlan.update({
+      where: { id: planId },
+      data: parsed as Prisma.PlatformSubscriptionPlanUpdateInput
+    });
+    await this.audit(session, "SETTINGS_UPDATE", "PlatformSubscriptionPlan", plan.id, { slug: plan.slug, monthlyPrice: plan.monthlyPrice }, null);
+    return this.response({ id: plan.id }, "Subscription plan updated");
   }
 
   async togglePlanActive(session: SessionPayload, planId: string) {

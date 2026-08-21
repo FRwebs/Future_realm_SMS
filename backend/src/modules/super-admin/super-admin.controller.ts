@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuard
 import { ApiTags } from "@nestjs/swagger";
 import type { Response } from "express";
 
-import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { CSRF_COOKIE_NAME, getCookieOptions, SESSION_COOKIE_NAME, verifySessionToken, type SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { Roles } from "../../auth/roles.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
@@ -468,8 +468,14 @@ export class SuperAdminController {
   }
 
   @Post("impersonate/:userId")
-  impersonate(@CurrentSession() session: SessionPayload, @Param("userId") userId: string, @Body() body: unknown) {
-    return this.superAdminService.impersonate(session, userId, body);
+  async impersonate(@CurrentSession() session: SessionPayload, @Param("userId") userId: string, @Body() body: unknown, @Res({ passthrough: true }) response: Response) {
+    const result = await this.superAdminService.impersonate(session, userId, body);
+    const impersonationSession = await verifySessionToken(result.data.token);
+    if (impersonationSession) {
+      response.cookie(SESSION_COOKIE_NAME, result.data.token, getCookieOptions(true));
+      response.cookie(CSRF_COOKIE_NAME, impersonationSession.csrfToken, getCookieOptions(false));
+    }
+    return result;
   }
 
   @Get("settings")
@@ -765,6 +771,11 @@ export class SuperAdminController {
   @Post("plans")
   createPlan(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createPlan(session, body);
+  }
+
+  @Patch("plans/:planId")
+  updatePlan(@CurrentSession() session: SessionPayload, @Param("planId") planId: string, @Body() body: unknown) {
+    return this.superAdminService.updatePlan(session, planId, body);
   }
 
   @Patch("plans/:planId/toggle")

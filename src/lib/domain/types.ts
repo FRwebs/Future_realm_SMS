@@ -56,6 +56,14 @@ export interface SessionUser {
   email: string;
   name: string;
   csrfToken: string;
+  impersonation?: {
+    impersonatorUserId: string;
+    impersonatorName: string;
+    impersonatorEmail: string;
+    startedAt: string;
+    expiresAt: string;
+    reason?: string | null;
+  };
 }
 
 export interface SchoolContextView {
