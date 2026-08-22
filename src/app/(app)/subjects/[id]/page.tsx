@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { BookOpenCheck, ClipboardCheck, GraduationCap, UsersRound, type LucideIcon } from "lucide-react";
 
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
@@ -45,14 +46,21 @@ function StatCard({
   label,
   value,
   note,
+  icon: Icon,
 }: {
   label: string;
   value: string | number;
   note: string;
+  icon: LucideIcon;
 }) {
   return (
     <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-accent)]">
+          <Icon className="h-4 w-4" aria-hidden="true" />
+        </span>
+      </div>
       <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
       <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{note}</p>
     </article>
@@ -173,10 +181,10 @@ export default async function SubjectDetailPage({ params }: { params: Promise<{ 
       />
 
       <section id="summary" className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Classes offering" value={subject.classAssignments.length} note="How many class streams currently take this subject." />
-        <StatCard label="Teaching owners" value={assignedTeachers} note="Assignments with a named subject teacher already attached." />
-        <StatCard label="SOWs initialized" value={initializedSows} note="Class-specific schemes of work already created for this term." />
-        <StatCard label="Approved SOWs" value={approvedSows} note="Approved planning sheets already cleared for classroom use." />
+        <StatCard label="Classes offering" value={subject.classAssignments.length} note="How many class streams currently take this subject." icon={GraduationCap} />
+        <StatCard label="Teaching owners" value={assignedTeachers} note="Assignments with a named subject teacher already attached." icon={UsersRound} />
+        <StatCard label="SOWs initialized" value={initializedSows} note="Class-specific schemes of work already created for this term." icon={BookOpenCheck} />
+        <StatCard label="Approved SOWs" value={approvedSows} note="Approved planning sheets already cleared for classroom use." icon={ClipboardCheck} />
       </section>
 
       <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">

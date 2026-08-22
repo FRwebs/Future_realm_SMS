@@ -79,6 +79,7 @@ export class DashboardService {
       session.schoolId,
       {
       schoolName: school.name,
+      schoolSlug: school.slug,
       currentSession: school.academicSessions[0]?.name ?? "No active session",
       currentTerm: school.academicSessions[0]?.terms[0]?.name ?? "No active term",
       },

@@ -181,7 +181,32 @@ export class ProfileService {
     const user = await prisma.user.findFirst({
       where: { id: userId, schoolId: session.schoolId, deletedAt: null },
       include: {
-        school: { select: { name: true, schoolCode: true } },
+        school: {
+          select: {
+            name: true,
+            slug: true,
+            schoolCode: true,
+            category: true,
+            address: true,
+            city: true,
+            state: true,
+            country: true,
+            cacNumber: true,
+            ministryApprovalNumber: true,
+            verifiedAt: true,
+            verificationRejectedAt: true,
+            verificationRejectionReason: true,
+            flaggedForReviewReason: true,
+            plan: true,
+            status: true,
+            billingStatus: true,
+            trialEndsAt: true,
+            nextBillingAt: true,
+            staffLimit: true,
+            createdAt: true,
+            _count: { select: { students: true, users: true } }
+          }
+        },
         staffProfile: { include: { department: true, campus: true } },
         student: { include: { currentClass: true, guardians: { include: { guardian: true } } } },
         guardian: { include: { students: { include: { student: { include: { currentClass: true } } } } } },
@@ -194,13 +219,17 @@ export class ProfileService {
     if (!user) throw new NotFoundException("Profile not found.");
     this.assertSchoolScope(session, user.schoolId);
 
-    const classSubjects = user.staffProfile
-      ? await prisma.classSubject.findMany({
-          where: { schoolId: session.schoolId, teacherId: user.id, isActive: true },
-          include: { subject: true, classRoom: true },
-          orderBy: { assignedAt: "desc" },
-        })
-      : [];
+    const [classSubjects, wallet, activePlan] = await Promise.all([
+      user.staffProfile
+        ? prisma.classSubject.findMany({
+            where: { schoolId: session.schoolId, teacherId: user.id, isActive: true },
+            include: { subject: true, classRoom: true },
+            orderBy: { assignedAt: "desc" },
+          })
+        : Promise.resolve([]),
+      prisma.notificationWallet.findUnique({ where: { schoolId: user.schoolId } }),
+      prisma.platformSubscriptionPlan.findFirst({ where: { plan: user.school.plan, isActive: true } }),
+    ]);
 
     return {
       id: user.id,
@@ -221,8 +250,22 @@ export class ProfileService {
       isActive: user.isActive,
       suspendedAt: user.suspendedAt?.toISOString(),
       lastLoginAt: user.lastLoginAt?.toISOString(),
+      emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
       createdAt: user.createdAt.toISOString(),
-      school: user.school,
+      school: {
+        ...user.school,
+        verifiedAt: user.school.verifiedAt?.toISOString(),
+        verificationRejectedAt: user.school.verificationRejectedAt?.toISOString(),
+        trialEndsAt: user.school.trialEndsAt?.toISOString(),
+        nextBillingAt: user.school.nextBillingAt?.toISOString(),
+        createdAt: user.school.createdAt.toISOString(),
+        studentCount: user.school._count.students,
+        userCount: user.school._count.users,
+        planName: activePlan?.name ?? null,
+        smsBalance: wallet?.smsBalance ?? 0,
+        whatsappBalance: wallet?.whatsappBalance ?? 0,
+        walletLastToppedUpAt: wallet?.lastToppedUpAt?.toISOString() ?? null
+      },
       identity: {
         gender: user.gender,
         dateOfBirth: user.dateOfBirth?.toISOString(),

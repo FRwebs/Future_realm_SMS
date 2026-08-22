@@ -1,3 +1,5 @@
+import { Activity, AlertTriangle, Banknote, Building2, CircleDollarSign, ClipboardList, Gauge, MessageCircle, PackageOpen, ShieldAlert, SmilePlus, Target, TrendingDown, Trophy, UserCog, Users, UsersRound } from "lucide-react";
+
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
@@ -102,11 +104,11 @@ async function OverviewTab() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Active schools" value={activeSchools} detail={`of ${overview.schools.total} total · ${weeklyActivePct}% active`} tone={weeklyActivePct >= 80 ? "success" : weeklyActivePct >= 60 ? "warning" : "danger"} />
-        <StatCard label="Students" value={overview.users.students.toLocaleString()} detail={`${overview.users.teachers.toLocaleString()} teachers · ${overview.users.parents.toLocaleString()} parents`} />
-        <StatCard label="MRR" value={formatCurrency(revenue.mrr)} detail={`ARR ${formatCurrency(revenue.arr)}`} tone="success" />
-        <StatCard label="School admins" value={overview.users.schoolAdmins.toLocaleString()} detail="Primary platform owners" />
-        <StatCard label="Top activity" value={topSchools[0]?.logins ?? 0} detail={topSchools[0]?.schoolName ?? "No school"} />
+        <StatCard label="Active schools" value={activeSchools} detail={`of ${overview.schools.total} total · ${weeklyActivePct}% active`} tone={weeklyActivePct >= 80 ? "success" : weeklyActivePct >= 60 ? "warning" : "danger"} icon={Building2} />
+        <StatCard label="Students" value={overview.users.students.toLocaleString()} detail={`${overview.users.teachers.toLocaleString()} teachers · ${overview.users.parents.toLocaleString()} parents`} icon={UsersRound} />
+        <StatCard label="MRR" value={formatCurrency(revenue.mrr)} detail={`ARR ${formatCurrency(revenue.arr)}`} tone="success" icon={CircleDollarSign} />
+        <StatCard label="School admins" value={overview.users.schoolAdmins.toLocaleString()} detail="Primary platform owners" icon={UserCog} />
+        <StatCard label="Top activity" value={topSchools[0]?.logins ?? 0} detail={topSchools[0]?.schoolName ?? "No school"} icon={Activity} tone="accent" />
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
@@ -174,11 +176,11 @@ async function OverviewTab() {
 }
 
 const adoptionStats = [
-  { label: "Weekly active schools", value: "782", detail: "of 894 active · 87.5% — a school counts as active on 3+ sessions" },
-  { label: "Platform adoption index", value: "68", detail: "Weighted across 12 modules · +4 pts this term" },
-  { label: "Modules below the 40% floor", value: "4", detail: "CBT, payroll, predictive, biometric — all paid features", danger: true },
-  { label: "Paid features never switched on", value: "₦28.4m", detail: "Annualised value of entitlements schools pay for but never open" },
-  { label: "Sprint candidates flagged", value: "3", detail: "Auto-nominated from this grid on Monday rollup" }
+  { label: "Weekly active schools", value: "782", detail: "of 894 active · 87.5% — a school counts as active on 3+ sessions", icon: Building2 },
+  { label: "Platform adoption index", value: "68", detail: "Weighted across 12 modules · +4 pts this term", icon: Gauge },
+  { label: "Modules below the 40% floor", value: "4", detail: "CBT, payroll, predictive, biometric — all paid features", danger: true, icon: PackageOpen },
+  { label: "Paid features never switched on", value: "₦28.4m", detail: "Annualised value of entitlements schools pay for but never open", icon: Banknote },
+  { label: "Sprint candidates flagged", value: "3", detail: "Auto-nominated from this grid on Monday rollup", icon: Target }
 ];
 
 const tierHeaders = [
@@ -264,7 +266,7 @@ async function AdoptionTab() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        {adoptionStats.map((stat) => <StatCard key={stat.label} label={stat.label} value={stat.value} detail={stat.detail} tone={stat.danger ? "danger" : "neutral"} />)}
+        {adoptionStats.map((stat) => <StatCard key={stat.label} label={stat.label} value={stat.value} detail={stat.detail} tone={stat.danger ? "danger" : "neutral"} icon={stat.icon} />)}
       </section>
 
       <section className="surface-card overflow-hidden">
@@ -463,7 +465,7 @@ async function FunnelTab() {
             { key: "owner", header: "Owner", render: (item) => item.owner, sortValue: (item) => item.owner }
           ]}
         />
-        <StatCard label="Largest drop" value="−22%" detail="Trial started to trial active" tone="danger" />
+        <StatCard label="Largest drop" value="−22%" detail="Trial started to trial active" tone="danger" icon={TrendingDown} />
       </section>
     </section>
   );
@@ -505,9 +507,9 @@ async function CohortsTab() {
         ]}
       />
       <section className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Best mature cohort" value="81%" detail="Term 1 2025 · term 3" tone="success" />
-        <StatCard label="Newest watch cohort" value="71%" detail="Term 1 2026 · term 2" tone="warning" />
-        <StatCard label="Largest cohort" value="218" detail="Term 3 2026 schools" />
+        <StatCard label="Best mature cohort" value="81%" detail="Term 1 2025 · term 3" tone="success" icon={Trophy} />
+        <StatCard label="Newest watch cohort" value="71%" detail="Term 1 2026 · term 2" tone="warning" icon={ShieldAlert} />
+        <StatCard label="Largest cohort" value="218" detail="Term 3 2026 schools" icon={Users} />
       </section>
     </section>
   );
@@ -663,11 +665,11 @@ async function NpsTab() {
   const npsScore = nps.npsScore || 52;
   const responseTotal = nps.total || 458;
   const scoreCards = [
-    { label: "Platform NPS", value: `${npsScore >= 0 ? "+" : ""}${npsScore}`, detail: "Termly survey · up 6 points", tone: "good" as const },
-    { label: "Promoters", value: "64%", detail: "Score 9-10", tone: "good" as const },
-    { label: "Passives", value: "24%", detail: "Score 7-8", tone: "warn" as const },
-    { label: "Detractors", value: "12%", detail: "Score 0-6 · flagged for outreach", tone: "bad" as const },
-    { label: "Response rate", value: "71%", detail: `${responseTotal} of 642 school admins`, tone: "neutral" as const }
+    { label: "Platform NPS", value: `${npsScore >= 0 ? "+" : ""}${npsScore}`, detail: "Termly survey · up 6 points", tone: "good" as const, icon: SmilePlus },
+    { label: "Promoters", value: "64%", detail: "Score 9-10", tone: "good" as const, icon: Trophy },
+    { label: "Passives", value: "24%", detail: "Score 7-8", tone: "warn" as const, icon: MessageCircle },
+    { label: "Detractors", value: "12%", detail: "Score 0-6 · flagged for outreach", tone: "bad" as const, icon: AlertTriangle },
+    { label: "Response rate", value: "71%", detail: `${responseTotal} of 642 school admins`, tone: "neutral" as const, icon: ClipboardList }
   ];
   const tierRegionScores = [
     { label: "Elite tier", value: "+68", pct: 68 },
@@ -704,7 +706,7 @@ async function NpsTab() {
       </section>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        {scoreCards.map((card) => <StatCard key={card.label} label={card.label} value={card.value} detail={card.detail} tone={card.tone === "good" ? "success" : card.tone === "warn" ? "warning" : card.tone === "bad" ? "danger" : "neutral"} />)}
+        {scoreCards.map((card) => <StatCard key={card.label} label={card.label} value={card.value} detail={card.detail} tone={card.tone === "good" ? "success" : card.tone === "warn" ? "warning" : card.tone === "bad" ? "danger" : "neutral"} icon={card.icon} />)}
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">

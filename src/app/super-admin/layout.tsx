@@ -1,7 +1,9 @@
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { SuperAdminShell } from "@/components/super-admin/super-admin-shell";
+import { apiGet } from "@/lib/api/server";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
+import type { SuperAdminAnalyticsOverview } from "@/lib/domain/types";
 import { platformRoles } from "@/lib/navigation/registry";
 
 export default async function SuperAdminLayout({ children }: { children: React.ReactNode }) {
@@ -15,5 +17,17 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     );
   }
 
-  return <SuperAdminShell session={session}>{children}</SuperAdminShell>;
+  const overview = await apiGet<SuperAdminAnalyticsOverview>("/api/super-admin/analytics/overview").catch(() => null);
+
+  return (
+    <SuperAdminShell
+      session={session}
+      platformStats={{
+        totalSchools: overview?.schools.total,
+        reviewQueueCount: overview?.commandCenter?.onboardingPipeline.pendingVerification,
+      }}
+    >
+      {children}
+    </SuperAdminShell>
+  );
 }

@@ -1,13 +1,14 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   AlertCircle,
   Award,
   BarChart2,
   Bell,
+  BellRing,
   BookMarked,
   BookOpen,
   Brain,
@@ -60,7 +61,6 @@ import type {
   StudentPortalNotificationView,
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
-import { getWorkflowNavItemForPath } from "@/lib/navigation/workflows";
 import { cn } from "@/lib/utils/cn";
 
 type TopbarProps = {
@@ -69,8 +69,13 @@ type TopbarProps = {
   permissions?: string[];
   portalType?: PortalType;
   schoolName?: string;
+  schoolSlug?: string;
   currentSessionName?: string;
   currentTermName?: string;
+  platformStats?: {
+    totalSchools?: number;
+    reviewQueueCount?: number;
+  };
   theme?: "default" | "finance-dark" | "finance-light";
   onToggleTheme?: () => void;
   currentThemeMode?: "dark" | "light";
@@ -132,10 +137,8 @@ const iconMap = {
   Zap,
 };
 
-function chromeButton(theme: "default" | "finance-dark" | "finance-light") {
-  return theme === "finance-light"
-    ? "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--finance-border)] bg-white text-[var(--finance-text-secondary)] shadow-sm transition hover:border-[var(--finance-border-active)] hover:text-[var(--finance-text-primary)]"
-    : "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--finance-border)] bg-[var(--finance-surface)] text-[var(--finance-text-secondary)] shadow-sm transition hover:border-[var(--finance-border-active)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]";
+function chromeButton() {
+  return "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]";
 }
 
 function initials(name: string) {
@@ -147,18 +150,13 @@ function initials(name: string) {
     .join("");
 }
 
-function pageTitle(pathname: string) {
-  const workflowItem = getWorkflowNavItemForPath(pathname);
-  // Only trust the matched nav item when it's an exact match — registry
-  // lookups fall back to the longest matching prefix, which for a route with
-  // no dedicated entry (e.g. a profile page) resolves to its portal's
-  // dashboard and would mislabel the page as "Dashboard".
-  if (workflowItem?.label && workflowItem.href === pathname) return workflowItem.label;
-  const segment = pathname.split("/").filter(Boolean).at(-1);
-  if (!segment) return "Dashboard";
-  return segment
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+function compactAcademicSession(value?: string) {
+  if (!value) return null;
+  return value.replace(/\/20(\d{2})$/, "/$1");
+}
+
+function formatCount(value: number | undefined, fallback: string) {
+  return typeof value === "number" ? value.toLocaleString() : fallback;
 }
 
 function notificationsEndpoint(session: SessionUser, portalType: PortalType) {
@@ -206,6 +204,14 @@ export function dropdownItemsFor(session: SessionUser): DropdownItem[] {
     },
   ];
 
+  if (session.role === "PRINCIPAL") {
+    return [
+      ...common,
+      { label: "Verification", icon: "Shield", path: `${profilePath}?tab=verification` },
+      { label: "Security & sessions", icon: "Lock", path: `${profilePath}?tab=security` },
+    ];
+  }
+
   return [
     ...common,
   ];
@@ -249,11 +255,9 @@ function DropdownShell({
 function NotificationBell({
   session,
   portalType,
-  theme,
 }: {
   session: SessionUser;
   portalType: PortalType;
-  theme: "default" | "finance-dark" | "finance-light";
 }) {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<
@@ -289,6 +293,8 @@ function NotificationBell({
     return () => document.removeEventListener("mousedown", handleOutsideClick);
   }, []);
 
+  if (!endpoint) return null;
+
   const count = notifications.filter((item) => item.status !== "READ").length;
 
   return (
@@ -296,7 +302,7 @@ function NotificationBell({
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className={cn(chromeButton(theme), "relative")}
+        className={cn(chromeButton(), "relative")}
         aria-label={`${count} unread notifications`}
         aria-expanded={open}
       >
@@ -309,15 +315,10 @@ function NotificationBell({
       </button>
 
       <DropdownShell open={open} className="w-72">
-        <div className={cn(
-          "overflow-hidden rounded-[1.5rem] backdrop-blur-xl",
-          theme === "finance-light"
-            ? "border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.98))] shadow-[0_16px_34px_rgba(15,23,42,0.10)]"
-            : "border border-[var(--finance-border)] bg-[linear-gradient(180deg,rgba(26,46,32,0.98),rgba(18,33,23,0.98))] shadow-[0_24px_50px_rgba(0,0,0,0.45)]"
-        )}>
-          <div className="border-b border-[var(--finance-border)] px-4 py-3.5">
-            <p className="text-sm font-semibold text-[var(--finance-text-primary)]">Notifications</p>
-            <p className="text-xs text-[var(--finance-text-secondary)]">{count} unread updates</p>
+        <div className="overflow-hidden rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)]">
+          <div className="border-b border-[var(--color-border-default)] px-4 py-3.5">
+            <p className="text-sm font-semibold text-[var(--color-text-primary)]">Notifications</p>
+            <p className="text-xs text-[var(--color-text-secondary)]">{count} unread updates</p>
           </div>
 
           <div className="max-h-72 overflow-y-auto p-2">
@@ -325,21 +326,18 @@ function NotificationBell({
               notifications.slice(0, 6).map((notification) => (
                 <div
                   key={notification.id}
-                  className={cn(
-                    "rounded-2xl px-3 py-2.5 text-left transition",
-                    theme === "finance-light" ? "hover:bg-black/[0.03]" : "hover:bg-[var(--finance-surface-soft)]",
-                  )}
+                  className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-[var(--color-bg-subtle)]"
                 >
-                  <p className="text-xs font-semibold text-[var(--finance-text-primary)]">
+                  <p className="text-xs font-semibold text-[var(--color-text-primary)]">
                     {notification.title}
                   </p>
-                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--finance-text-secondary)]">
+                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
                     {notification.body}
                   </p>
                 </div>
               ))
             ) : (
-              <p className="px-3 py-6 text-center text-xs text-[var(--finance-text-secondary)]">
+              <p className="px-3 py-6 text-center text-xs text-[var(--color-text-secondary)]">
                 No notifications yet.
               </p>
             )}
@@ -355,13 +353,11 @@ function ProfileDropdown({
   schoolName,
   permissions,
   onClose,
-  theme,
 }: {
   session: SessionUser;
   schoolName?: string;
   permissions: string[];
   onClose: () => void;
-  theme: "default" | "finance-dark" | "finance-light";
 }) {
   const router = useRouter();
 
@@ -392,39 +388,29 @@ function ProfileDropdown({
   }
 
   return (
-    <div className={cn(
-      "w-72 overflow-hidden rounded-[16px]",
-      theme === "finance-light"
-          ? "border border-[var(--finance-border)] bg-white shadow-[0_18px_40px_rgba(15,23,42,0.14)]"
-        : "border border-[var(--finance-border)] bg-[var(--finance-surface)] shadow-[0_24px_50px_rgba(0,0,0,0.38)]"
-    )}>
-      <div className="border-b border-[var(--finance-border)] px-4 py-4">
+    <div className="w-72 overflow-hidden rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)]">
+      <div className="border-b border-[var(--color-border-default)] px-4 py-4">
         <div className="flex items-center gap-3">
-          <div className={cn(
-            "flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] text-xs font-black text-white",
-            theme === "finance-light"
-              ? "bg-[#12796a] shadow-[0_10px_24px_rgba(18,121,106,0.18)]"
-              : "bg-[#4fa895] shadow-[0_10px_24px_rgba(18,121,106,0.22)]"
-          )}>
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-[#0d2315] text-xs font-black text-white shadow-[0_10px_24px_-8px_rgba(13,35,21,0.4)]">
             {initials(session.name)}
           </div>
 
           <div className="min-w-0">
-            <p className="truncate text-[0.84rem] font-semibold text-[var(--finance-text-primary)]">
+            <p className="truncate text-[0.84rem] font-semibold text-[var(--color-text-primary)]">
               {session.name}
             </p>
-            <p className="truncate text-[0.72rem] text-[var(--finance-text-secondary)]">
+            <p className="truncate text-[0.72rem] text-[var(--color-text-secondary)]">
               {roleLabels[session.role]}
             </p>
             {schoolName ? (
-              <p className="truncate text-[0.72rem] text-[var(--finance-text-muted)]">
+              <p className="truncate text-[0.72rem] text-[var(--color-text-muted)]">
                 {schoolName}
               </p>
             ) : null}
           </div>
         </div>
         {session.impersonation ? (
-          <div className="mt-3 rounded-[12px] border border-amber-300/70 bg-amber-50 px-3 py-2 text-[11.5px] font-semibold text-amber-900">
+          <div className="mt-3 rounded-[12px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-3 py-2 text-[11.5px] font-semibold text-[var(--color-warning)]">
             Impersonating account
           </div>
         ) : null}
@@ -440,21 +426,19 @@ function ProfileDropdown({
               "flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold transition",
               item.danger
                 ? "text-[var(--color-danger)] hover:bg-[var(--color-danger-dim)]"
-                : theme === "finance-light"
-                  ? "text-[var(--finance-text-secondary)] hover:bg-black/[0.03] hover:text-[var(--finance-text-primary)]"
-                  : "text-[var(--finance-text-secondary)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]",
+                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]",
             )}
           >
             <Icon
               name={item.icon}
-              className={item.danger ? "text-[var(--color-danger)]" : "text-[var(--finance-text-muted)]"}
+              className={item.danger ? "text-[var(--color-danger)]" : "text-[var(--color-text-muted)]"}
             />
             <span>{item.label}</span>
           </button>
         ))}
       </div>
 
-      <div className="border-t border-[var(--finance-border)] p-2">
+      <div className="border-t border-[var(--color-border-default)] p-2">
         <button
           type="button"
           onClick={() =>
@@ -481,20 +465,33 @@ export function Topbar({
   permissions = [],
   portalType = "school",
   schoolName,
+  schoolSlug,
   currentSessionName,
   currentTermName,
-  theme = "default",
+  platformStats,
   onToggleTheme,
   currentThemeMode,
 }: TopbarProps) {
-  const pathname = usePathname();
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const [timeZone, setTimeZone] = useState("Africa/Lagos");
+  const compactSession = compactAcademicSession(currentSessionName);
   const academicContextLabel =
-    currentTermName && currentSessionName
-      ? `${currentTermName} · ${currentSessionName}`
-      : currentTermName ?? currentSessionName ?? null;
+    currentTermName && compactSession
+      ? `${currentTermName} ${compactSession}`
+      : currentTermName ?? compactSession ?? null;
+  const schoolAddress = schoolSlug ? `${schoolSlug}.futurerealm.school` : "futurerealm.school";
+  const contextTitle = portalType === "super_admin" ? "FutureRealm Platform Admin" : (schoolName ?? "School Admin");
+  const contextMeta =
+    portalType === "super_admin"
+      ? [
+          `${formatCount(platformStats?.totalSchools, "All")} schools`,
+          `${formatCount(platformStats?.reviewQueueCount, "0")} in review queue`,
+          timeZone,
+        ]
+      : [schoolAddress, academicContextLabel].filter(Boolean);
+  const isProduction = process.env.NODE_ENV === "production";
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -512,70 +509,61 @@ export function Topbar({
 
   useEffect(() => {
     setMounted(true);
+    setTimeZone(Intl.DateTimeFormat().resolvedOptions().timeZone || "Africa/Lagos");
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-transparent px-3 pt-3 md:px-4 md:pt-3">
-      <div className={cn(
-        "relative flex h-[var(--layout-topbar-height)] items-center justify-between gap-4 overflow-visible rounded-[16px] px-4 backdrop-blur-xl md:px-5",
-        theme === "finance-light"
-            ? "border border-[var(--finance-border)] bg-white/95 shadow-[0_10px_24px_rgba(15,23,42,0.08)]"
-          : "border border-[var(--finance-border)] bg-[var(--finance-surface)]/95 shadow-[0_14px_34px_rgba(0,0,0,0.28)]",
-      )}>
-        <span
-          className={cn(
-            "absolute inset-y-3 left-0 w-1 rounded-r-full",
-            theme === "finance-light"
-              ? "bg-gradient-to-b from-[#12796a] via-[#12796a] to-[#0d2315]"
-              : "bg-gradient-to-b from-[#4fa895] via-[#12796a] to-[#0d2315]",
-          )}
-        />
-
+    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+      <div className="relative flex h-[var(--layout-topbar-height)] items-center justify-between gap-4 overflow-visible px-4 md:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <button
             type="button"
             onClick={onOpenMobileSidebar}
-            className={cn(chromeButton(theme), "md:hidden")}
+            className={cn(chromeButton(), "md:hidden")}
             aria-label="Toggle menu"
           >
             <Menu className="h-4 w-4" />
           </button>
 
           <div className="min-w-0">
-            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.18em] text-[var(--finance-text-muted)]">
-              {portalType === "super_admin"
-                ? "Platform workspace"
-                : "School workspace"}
-            </p>
-            <h1 className="truncate text-[1.06rem] font-black leading-tight text-[var(--finance-text-primary)]">
-              {pageTitle(pathname)}
+            <h1 className="truncate text-[0.98rem] font-bold leading-tight text-[var(--color-text-primary)]">
+              {contextTitle}
             </h1>
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] font-medium leading-tight text-[var(--color-text-secondary)]">
+              {contextMeta.map((item, index) => (
+                <span key={item} className="inline-flex min-w-0 items-center gap-1.5">
+                  {index > 0 ? <span className="text-[var(--color-text-muted)]">·</span> : null}
+                  <span className="truncate">{item}</span>
+                </span>
+              ))}
+            </div>
           </div>
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
-          {academicContextLabel ? (
-            <div className="hidden xl:flex">
-              <span
-                className={cn(
-                  "inline-flex items-center rounded-full border px-3 py-2 text-[11px] font-semibold",
-                  theme === "finance-light"
-                    ? "border-[var(--finance-border)] bg-[var(--finance-surface-soft)] text-[var(--finance-accent-primary)] shadow-[0_10px_20px_rgba(15,23,42,0.08)]"
-                    : "border-[var(--finance-border)] bg-[var(--finance-surface-soft)] text-[var(--finance-accent-primary)] shadow-[0_10px_20px_rgba(0,0,0,0.2)]"
-                )}
-              >
-                {academicContextLabel}
+          {portalType === "super_admin" ? (
+            <div className="hidden items-center gap-2 lg:flex">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-2 text-[12px] font-semibold text-[var(--color-success)]">
+                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
+                {isProduction ? "Production" : "Development"}
               </span>
+              <Link
+                href="/super-admin"
+                className="inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] px-2.5 py-2 text-[12.5px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]"
+              >
+                <BellRing className="h-3.5 w-3.5" />
+                Alerts
+              </Link>
             </div>
           ) : null}
 
-          <NotificationBell session={session} portalType={portalType} theme={theme} />
+          <NotificationBell session={session} portalType={portalType} />
 
           {onToggleTheme ? (
             <button
               type="button"
               onClick={onToggleTheme}
-              className={chromeButton(theme)}
+              className={chromeButton()}
               aria-label={`Switch to ${currentThemeMode === "dark" ? "light" : "dark"} mode`}
               title={`Switch to ${currentThemeMode === "dark" ? "light" : "dark"} mode`}
             >
@@ -589,45 +577,28 @@ export function Topbar({
                 ? "/super-admin/support"
                 : "/communications"
             }
-            className={chromeButton(theme)}
+            className={chromeButton()}
             aria-label="Help"
           >
             <HelpCircle className="h-4 w-4" />
           </Link>
 
-          <div className={cn("mx-1 hidden h-7 w-px md:block", theme === "finance-light" ? "bg-[var(--finance-border)]" : "bg-white/10")} />
+          <div className="mx-1 hidden h-7 w-px bg-[var(--color-border-default)] md:block" />
 
           <div ref={dropdownRef} className="relative">
             <button
               type="button"
               onClick={() => setDropdownOpen((value) => !value)}
               aria-expanded={dropdownOpen}
-              className={cn(
-                "flex h-11 items-center gap-2 rounded-[12px] py-1.5 pl-1.5 pr-3 transition-all duration-200",
-                theme === "finance-light"
-                    ? "border border-[var(--finance-border)] bg-white text-[var(--finance-text-secondary)] shadow-sm hover:border-[var(--finance-border-active)] hover:text-[var(--finance-text-primary)]"
-                  : "border border-[var(--finance-border)] bg-[var(--finance-surface)] text-[var(--finance-text-secondary)] shadow-sm hover:border-[var(--finance-border-active)] hover:bg-[var(--finance-surface-soft)] hover:text-[var(--finance-text-primary)]",
-              )}
+              className="flex items-center gap-1.5 rounded-[10px] p-1 transition hover:bg-[var(--color-bg-subtle)]"
             >
-              <span
-                className={cn(
-                  "flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] text-[0.65rem] font-black text-white",
-                  theme === "finance-light"
-                    ? "bg-[#12796a]"
-                    : "bg-[#4fa895]"
-                )}
-              >
+              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#0d2315] text-[0.65rem] font-black text-white">
                 {initials(session.name)}
-              </span>
-
-              <span className="hidden max-w-[130px] truncate text-[0.83rem] font-medium text-[var(--finance-text-primary)] md:block">
-                {session.name.split(" ")[0]}
               </span>
 
               <ChevronDown
                 className={cn(
-                  "h-3.5 w-3.5 transition-transform duration-200",
-                  "text-[var(--finance-text-muted)]",
+                  "h-3.5 w-3.5 text-[var(--color-text-muted)] transition-transform duration-200",
                   dropdownOpen && "rotate-180",
                 )}
               />
@@ -639,7 +610,6 @@ export function Topbar({
                 schoolName={schoolName}
                 permissions={permissions}
                 onClose={() => setDropdownOpen(false)}
-                theme={theme}
               />
             </DropdownShell>
           </div>
