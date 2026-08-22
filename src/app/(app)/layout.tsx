@@ -43,6 +43,7 @@ export default async function AppLayout({
       session={session}
       permissions={permissions}
       schoolName={schoolContext?.schoolName}
+      schoolSlug={schoolContext?.schoolSlug}
       currentSessionName={schoolContext?.currentSession}
       currentTermName={schoolContext?.currentTerm}
     >

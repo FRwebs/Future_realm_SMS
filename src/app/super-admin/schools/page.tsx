@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Check, Clock3, FileWarning, Layers, Mail, MapPin, Phone, Users } from "lucide-react";
+import { ArrowRight, Building2, Clock3, FileWarning, Layers, Mail, MapPin, Phone, Users } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
@@ -11,21 +11,6 @@ import { SchoolBulkTable } from "@/components/super-admin/school-bulk-table";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminPendingVerificationSchool, SuperAdminPlanRow, SuperAdminSchoolGroup, SuperAdminSchoolRow } from "@/lib/domain/types";
-
-const verificationChecklist = [
-  "Business/CAC registration number present",
-  "Ministry of Education approval number present (where applicable)",
-  "Owner phone and email reachable",
-  "Physical address and state/city recorded",
-  "School name does not conflict with an existing tenant"
-];
-
-const verificationEffects = [
-  "Verification badge appears on the school's profile",
-  "No change to trial access — schools work fully from signup regardless of review",
-  "Rejecting immediately suspends the tenant and its staff logins",
-  "Every decision is written to the audit trail with the reviewing admin's name"
-];
 
 const planOptions = [
   { label: "Starter", value: "BASIC" },
@@ -68,7 +53,7 @@ const RECENT_SIGNUP_WINDOW_HOURS = 48;
 const lifecycleFlow = [
   { label: "Signup submitted", trigger: "Self-service — automatic" },
   { label: "Trial Active", trigger: "Granted immediately · 14-day trial" },
-  { label: "Verified", trigger: "Reviewed in Approval Queue · does not block access" },
+  { label: "Verified", trigger: "Reviewed in Review Queue · does not block access" },
   { label: "Active", trigger: "Payment confirmed", emphasize: true },
   { label: "Grace Period", trigger: "Payment overdue" },
   { label: "Suspended", trigger: "Verification rejected / grace period expired / policy violation" },
@@ -191,7 +176,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
   const tabs = [
     { label: "School Directory", href: tabHref("directory"), active: activeTab === "directory", badge: total },
-    { label: "Approval Queue", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
+    { label: "Review Queue", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
     { label: "Recent Signups", href: tabHref("recent-signups"), active: activeTab === "recent-signups", badge: recentSignups.length },
     { label: "Lifecycle & Status", href: tabHref("lifecycle"), active: activeTab === "lifecycle" },
     { label: "School Groups", href: tabHref("groups"), active: activeTab === "groups", badge: groups.length }
@@ -301,36 +286,6 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               }
             ]}
           />
-
-          <div className="grid gap-3.5 lg:grid-cols-2">
-            <section className="surface-card p-5">
-              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Verification checklist</p>
-              <div className="mt-3.5 grid gap-2">
-                {verificationChecklist.map((item) => (
-                  <div key={item} className="flex items-start gap-2.5">
-                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: "var(--color-accent-primary-dim)" }}>
-                      <Check className="h-2.5 w-2.5" style={{ color: "var(--color-text-accent)" }} />
-                    </span>
-                    <p className="text-[12.5px] leading-5 text-[var(--color-text-secondary)]">{item}</p>
-                  </div>
-                ))}
-              </div>
-              <p className="mt-3.5 text-[11.5px] leading-5 text-[var(--color-text-muted)]">
-                Every decision is logged. Rejected schools are retained for audit recovery, never hard-deleted.
-              </p>
-            </section>
-            <section className="rounded-[14px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
-              <p className="text-[13px] font-bold text-[var(--color-text-primary)]">What each action does</p>
-              <div className="mt-2.5 grid gap-2">
-                {verificationEffects.map((effect) => (
-                  <div key={effect} className="flex items-start gap-2">
-                    <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full" style={{ background: "var(--color-accent-primary)" }} />
-                    <p className="text-[12.5px] leading-5 text-[var(--color-text-secondary)]">{effect}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
-          </div>
         </section>
       ) : activeTab === "recent-signups" ? (
         <section className="surface-card p-6">

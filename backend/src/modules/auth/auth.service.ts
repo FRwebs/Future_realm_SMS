@@ -1,13 +1,21 @@
-import { Injectable } from "@nestjs/common";
+import { createHash, randomBytes } from "crypto";
+
+import { BadRequestException, Injectable } from "@nestjs/common";
 
 import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
-import { verifyPassword } from "../../../../src/lib/auth/password";
+import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { SessionUser } from "../../../../src/lib/domain/types";
 
 export interface LoginContext {
   ipAddress?: string;
   device?: string;
+}
+
+const PASSWORD_RESET_TTL_MINUTES = 30;
+
+function hashResetToken(token: string) {
+  return createHash("sha256").update(token).digest("hex");
 }
 
 @Injectable()
@@ -95,5 +103,93 @@ export class AuthService {
       email: user.email,
       name: `${user.firstName} ${user.lastName}`
     };
+  }
+
+  async requestPasswordReset(email: string, context: LoginContext = {}) {
+    const normalizedEmail = email.toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: normalizedEmail } });
+
+    if (!user || user.deletedAt || !user.isActive) {
+      return { resetUrl: null };
+    }
+
+    const token = randomBytes(32).toString("base64url");
+    const expiresAt = new Date(Date.now() + PASSWORD_RESET_TTL_MINUTES * 60 * 1000);
+
+    await prisma.passwordResetToken.updateMany({
+      where: {
+        userId: user.id,
+        consumedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      data: { consumedAt: new Date() }
+    });
+
+    await prisma.passwordResetToken.create({
+      data: {
+        userId: user.id,
+        schoolId: user.schoolId,
+        tokenHash: hashResetToken(token),
+        ipAddress: context.ipAddress,
+        device: context.device,
+        expiresAt
+      }
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        schoolId: user.schoolId,
+        action: "RESET_PASSWORD",
+        entityType: "User",
+        entityId: user.id,
+        ipAddress: context.ipAddress,
+        metadata: { email: user.email, stage: "REQUESTED", expiresAt: expiresAt.toISOString() }
+      }
+    });
+
+    return { resetUrl: `/reset-password?token=${token}` };
+  }
+
+  async resetPassword(token: string, password: string, context: LoginContext = {}) {
+    const tokenHash = hashResetToken(token);
+    const record = await prisma.passwordResetToken.findUnique({
+      where: { tokenHash },
+      include: { user: true }
+    });
+
+    if (!record || record.consumedAt || record.expiresAt <= new Date() || record.user.deletedAt || !record.user.isActive) {
+      throw new BadRequestException("This reset link is invalid or has expired.");
+    }
+
+    await prisma.$transaction([
+      prisma.user.update({
+        where: { id: record.userId },
+        data: {
+          passwordHash: hashPassword(password),
+          passwordResetRequired: false
+        }
+      }),
+      prisma.passwordResetToken.update({
+        where: { id: record.id },
+        data: { consumedAt: new Date() }
+      }),
+      prisma.platformSession.updateMany({
+        where: { userId: record.userId, revokedAt: null },
+        data: { revokedAt: new Date() }
+      }),
+      prisma.auditLog.create({
+        data: {
+          schoolId: record.schoolId,
+          actorId: record.userId,
+          action: "RESET_PASSWORD",
+          entityType: "User",
+          entityId: record.userId,
+          ipAddress: context.ipAddress,
+          metadata: { email: record.user.email, stage: "COMPLETED" }
+        }
+      })
+    ]);
+
+    return true;
   }
 }

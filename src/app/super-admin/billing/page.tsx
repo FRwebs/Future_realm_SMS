@@ -1,4 +1,4 @@
-import { AlertTriangle, CalendarCheck2, CreditCard, Repeat2, TrendingUp, UsersRound } from "lucide-react";
+import { AlertTriangle, BadgePercent, CalendarCheck2, CreditCard, Gift, Repeat2, TicketPercent, TrendingUp, UsersRound } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
@@ -877,9 +877,9 @@ async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   return (
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="success" />
-        <StatCard label="Total redemptions" value={totalRedemptions} detail={`${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted`} tone="accent" />
-        <StatCard label="Total discount issued" value={formatCurrency(totalDiscountIssued)} detail="Across all codes" tone="warning" />
+        <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="success" icon={TicketPercent} />
+        <StatCard label="Total redemptions" value={totalRedemptions} detail={`${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted`} tone="accent" icon={Gift} />
+        <StatCard label="Total discount issued" value={formatCurrency(totalDiscountIssued)} detail="Across all codes" tone="warning" icon={BadgePercent} />
       </section>
 
       <TableCard

@@ -769,6 +769,7 @@ model School {
   npsResponses                  NpsResponse[]
   dataPrivacyRequests           DataPrivacyRequest[]
   platformSessions              PlatformSession[]
+  passwordResetTokens           PasswordResetToken[]
   loginAttempts                 LoginAttempt[]
   backupRecords                 BackupRecord[]
   apiUsageLogs                  ApiUsageLog[]
@@ -1199,6 +1200,7 @@ model User {
   platformAnnouncements        PlatformAnnouncement[]        @relation("PlatformAnnouncementAuthor")
   featureFlagsCreated          PlatformFeatureFlag[]         @relation("FeatureFlagCreatedBy")
   platformSessions             PlatformSession[]
+  passwordResetTokens          PasswordResetToken[]
   loginAttempts                LoginAttempt[]
   suspiciousActivityFlags      SuspiciousActivityFlag[]
   duplicateFlagsAsA            DuplicateFlag[]               @relation("DuplicateFlagUserA")
@@ -4357,6 +4359,23 @@ model PlatformSession {
 
   @@index([userId, revokedAt, expiresAt])
   @@index([schoolId, lastActivityAt])
+}
+
+model PasswordResetToken {
+  id         String    @id @default(cuid())
+  userId     String
+  schoolId   String?
+  tokenHash  String    @unique
+  ipAddress  String?
+  device     String?
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  school     School?   @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+
+  @@index([userId, consumedAt, expiresAt])
+  @@index([schoolId, createdAt])
 }
 
 model LoginAttempt {

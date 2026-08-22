@@ -19,7 +19,8 @@ import {
   CSRF_COOKIE_NAME,
   getCookieOptions,
   SESSION_COOKIE_NAME,
-  SESSION_MAX_AGE
+  SESSION_MAX_AGE,
+  TRUSTED_DEVICE_MAX_AGE
 } from "../../../../src/lib/auth/session-core";
 import { verifySessionToken } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -35,6 +36,16 @@ function clientIp(request: Request) {
 
 const loginSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(8),
+  trustDevice: z.boolean().optional()
+});
+
+const forgotPasswordSchema = z.object({
+  email: z.string().email()
+});
+
+const resetPasswordSchema = z.object({
+  token: z.string().min(24),
   password: z.string().min(8)
 });
 
@@ -58,7 +69,8 @@ export class AuthController {
       throw new UnauthorizedException("Invalid email or password");
     }
 
-    const token = await createSessionToken(user);
+    const maxAgeSeconds = payload.trustDevice ? TRUSTED_DEVICE_MAX_AGE : SESSION_MAX_AGE;
+    const token = await createSessionToken(user, { maxAgeSeconds });
     const session = await verifySessionToken(token);
     if (!session) {
       throw new UnauthorizedException("Unable to create session");
@@ -71,17 +83,50 @@ export class AuthController {
         tokenHash: createHash("sha256").update(token).digest("hex"),
         ipAddress,
         device,
-        expiresAt: new Date(Date.now() + SESSION_MAX_AGE * 1000)
+        expiresAt: new Date(Date.now() + maxAgeSeconds * 1000)
       }
     });
 
-    response.cookie(SESSION_COOKIE_NAME, token, getCookieOptions(true));
-    response.cookie(CSRF_COOKIE_NAME, session.csrfToken, getCookieOptions(false));
+    response.cookie(SESSION_COOKIE_NAME, token, getCookieOptions(true, maxAgeSeconds));
+    response.cookie(CSRF_COOKIE_NAME, session.csrfToken, getCookieOptions(false, maxAgeSeconds));
 
     return {
       ok: true,
       data: {
         user: session
+      }
+    };
+  }
+
+  @Post("forgot-password")
+  async forgotPassword(@Body() body: Record<string, unknown>, @Req() request: Request) {
+    const payload = forgotPasswordSchema.parse(body);
+    const result = await this.authService.requestPasswordReset(payload.email, {
+      ipAddress: clientIp(request),
+      device: request.headers["user-agent"]
+    });
+
+    return {
+      ok: true,
+      data: {
+        message: "If an active account exists for that email, a reset link will be sent.",
+        resetUrl: process.env.NODE_ENV === "production" ? null : result.resetUrl
+      }
+    };
+  }
+
+  @Post("reset-password")
+  async resetPassword(@Body() body: Record<string, unknown>, @Req() request: Request) {
+    const payload = resetPasswordSchema.parse(body);
+    await this.authService.resetPassword(payload.token, payload.password, {
+      ipAddress: clientIp(request),
+      device: request.headers["user-agent"]
+    });
+
+    return {
+      ok: true,
+      data: {
+        message: "Your password has been changed. You can now sign in."
       }
     };
   }

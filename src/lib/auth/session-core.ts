@@ -6,6 +6,7 @@ import { env } from "@/lib/utils/env";
 export const SESSION_COOKIE_NAME = "fr_session";
 export const CSRF_COOKIE_NAME = "fr_csrf";
 export const SESSION_MAX_AGE = 60 * 60 * 8;
+export const TRUSTED_DEVICE_MAX_AGE = 60 * 60 * 24 * 30;
 
 export interface SessionPayload extends SessionUser {
   exp: number;
@@ -67,12 +68,12 @@ export function getSessionTokenFromCookieValue(cookieValue?: string) {
   return cookieValue ?? null;
 }
 
-export function getCookieOptions(httpOnly: boolean) {
+export function getCookieOptions(httpOnly: boolean, maxAgeSeconds = SESSION_MAX_AGE) {
   return {
     httpOnly,
     sameSite: "lax" as const,
     secure: process.env.NODE_ENV === "production",
     path: "/",
-    maxAge: SESSION_MAX_AGE * 1000
+    maxAge: maxAgeSeconds * 1000
   };
 }

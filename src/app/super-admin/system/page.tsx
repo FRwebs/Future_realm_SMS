@@ -1,4 +1,6 @@
 import Link from "next/link";
+import type { LucideIcon } from "lucide-react";
+import { Activity, Clock3, DatabaseBackup, Server, Timer, UploadCloud, WifiOff, XCircle } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -15,14 +17,25 @@ function statusTone(status: string): "success" | "warning" | "danger" | "neutral
   return "neutral";
 }
 
-function StatCard({ label, value, detail, status }: { label: string; value: string; detail?: string; status?: string }) {
+function StatCard({ label, value, detail, status, icon: Icon }: { label: string; value: string; detail?: string; status?: string; icon?: LucideIcon }) {
   return (
     <article className="surface-card p-4">
       <div className="flex items-center justify-between gap-3">
         <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
-        {status ? <StatusBadge status={status} tone={statusTone(status)} /> : null}
+        {status ? <StatusBadge status={status} tone={statusTone(status)} /> : Icon ? (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
       </div>
-      <p className="mt-3 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+      <div className="mt-3 flex items-end justify-between gap-3">
+        <p className="font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+        {status && Icon ? (
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]">
+            <Icon className="h-4 w-4" />
+          </span>
+        ) : null}
+      </div>
       {detail ? <p className="mt-1 text-[11px] font-medium text-[var(--color-text-muted)]">{detail}</p> : null}
     </article>
   );
@@ -97,14 +110,16 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
           value={`${data.uptime.apiUptime}%`}
           detail={`${data.uptime.requestsLast24h.toLocaleString()} requests`}
           status={data.uptime.apiUptimeStatus}
+          icon={Server}
         />
         <StatCard
           label="Avg response"
           value={`${data.uptime.avgResponseMs}ms`}
           detail="Warning >1.5s · Critical >3s"
           status={data.uptime.responseStatus}
+          icon={Timer}
         />
-        <StatCard label="Data as of" value={formatDate(data.generatedAt)} detail="Last refreshed" />
+        <StatCard label="Data as of" value={formatDate(data.generatedAt)} detail="Last refreshed" icon={Clock3} />
       </section>
       <section className="surface-card p-6">
         <p className="section-eyebrow">Reliability</p>
@@ -122,13 +137,14 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Pending records" value={String(data.syncQueue.pending)} status={data.syncQueue.status} />
-        <StatCard label="Failed (24h)" value={String(data.syncQueue.failedOver24h)} />
-        <StatCard label="Failure rate" value={`${data.syncQueue.failureRate}%`} />
+        <StatCard label="Pending records" value={String(data.syncQueue.pending)} status={data.syncQueue.status} icon={UploadCloud} />
+        <StatCard label="Failed (24h)" value={String(data.syncQueue.failedOver24h)} icon={XCircle} />
+        <StatCard label="Failure rate" value={`${data.syncQueue.failureRate}%`} icon={Activity} />
         <StatCard
           label="Oldest pending"
           value={`${data.syncQueue.oldestAgeHours}h`}
           detail={data.syncQueue.oldestSchool ?? "No pending records"}
+          icon={WifiOff}
         />
       </section>
       <section className="surface-card p-6">
@@ -167,6 +183,7 @@ function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
       <StatCard
         label="Last successful backup"
         value={data.backups.lastSuccessfulAt ? formatDate(data.backups.lastSuccessfulAt) : "None logged"}
+        icon={DatabaseBackup}
       />
       <TableCard
         title="Backup log"

@@ -68,6 +68,7 @@ export interface SessionUser {
 
 export interface SchoolContextView {
   schoolName: string;
+  schoolSlug?: string;
   currentSession: string;
   currentTerm: string;
 }
@@ -1245,6 +1246,8 @@ export interface ReportCardView {
   studentId: string;
   studentName: string;
   className: string;
+  classId?: string;
+  broadsheetId?: string;
   term: string;
   session?: string;
   status: "DRAFT" | "GENERATED" | "PUBLISHED" | "LOCKED";
@@ -1253,6 +1256,11 @@ export interface ReportCardView {
   grade?: string;
   reportCardUrl?: string;
   publishedAt?: string;
+  lockedAt?: string;
+  /** Present when the underlying result sheet recorded a class-teacher comment for this student's term. */
+  classTeacherRemark?: string;
+  /** Present when the underlying result sheet recorded a principal comment for this student's term. */
+  principalRemark?: string;
 }
 
 export interface ResultApprovalView {
@@ -1273,6 +1281,7 @@ export interface ResultAnalyticsView {
   subjectSummaries: Array<{ subject: string; average: number; passRate: number; entries: number }>;
   statusBreakdown: Array<{ status: string; count: number }>;
   missingScores: Array<{ studentName: string; className: string; subject: string }>;
+  topPerformers?: Array<{ studentName: string; className: string; average: number; grade?: string; position?: number }>;
 }
 
 export interface ExamOfficerExamView {

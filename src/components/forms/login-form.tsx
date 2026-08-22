@@ -39,7 +39,8 @@ export function LoginForm() {
         },
         body: JSON.stringify({
           email: formData.get("email"),
-          password: formData.get("password")
+          password: formData.get("password"),
+          trustDevice
         })
       });
 
@@ -106,9 +107,9 @@ export function LoginForm() {
 
       <div className="mb-[7px] flex items-center justify-between">
         <label className="text-[11.5px] font-semibold text-[#435048]">Password</label>
-        <button type="button" className="text-[11.5px] font-semibold text-[#12796a] hover:underline">
+        <Link href="/forgot-password" className="text-[11.5px] font-semibold text-[#12796a] hover:underline">
           Forgot password?
-        </button>
+        </Link>
       </div>
       <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
         <Lock className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
@@ -136,8 +137,8 @@ export function LoginForm() {
           onChange={(event) => setTrustDevice(event.target.checked)}
           className="peer sr-only"
         />
-        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] bg-[#0d2315] peer-focus-visible:ring-2 peer-focus-visible:ring-[#12796a]/40">
-          <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round">
+        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border border-[#b9c9c0] bg-white transition peer-checked:border-[#0d2315] peer-checked:bg-[#0d2315] peer-checked:[&>svg]:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-[#12796a]/40">
+          <svg className="opacity-0 transition" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="m5 12 5 5 9-10" />
           </svg>
         </span>

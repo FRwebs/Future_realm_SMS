@@ -2556,12 +2556,20 @@ export class AcademicsService {
       take: 200
     });
     return cards.map((card) => {
-      const data = card.data as { total?: number; average?: number; subjects?: Array<{ grade?: string }> };
+      const data = card.data as {
+        total?: number;
+        average?: number;
+        subjects?: Array<{ grade?: string }>;
+        classTeacherRemark?: string;
+        principalRemark?: string;
+      };
       return {
         id: card.id,
         studentId: card.studentId,
         studentName: formatStudentName(card.student),
         className: formatClassName(card.classRoom),
+        classId: card.classId,
+        broadsheetId: card.broadsheetId ?? undefined,
         term: card.term.name,
         session: card.term.academicSession?.name,
         status: card.status,
@@ -2569,7 +2577,10 @@ export class AcademicsService {
         average: Number(data.average ?? 0),
         grade: data.subjects?.[0]?.grade,
         reportCardUrl: `/api/v1/reports/report-card/${card.studentId}`,
-        publishedAt: card.publishedAt?.toISOString()
+        publishedAt: card.publishedAt?.toISOString(),
+        lockedAt: card.lockedAt?.toISOString(),
+        classTeacherRemark: data.classTeacherRemark || undefined,
+        principalRemark: data.principalRemark || undefined
       };
     });
   }
@@ -2764,14 +2775,15 @@ export class AcademicsService {
   }
 
   async getResultAnalytics(session: SessionPayload): Promise<ResultAnalyticsView> {
-    const [sheets, classSubjects, students] = await Promise.all([
+    const [sheets, classSubjects, students, currentTerm] = await Promise.all([
       prisma.resultSheet.findMany({
         where: { schoolId: session.schoolId },
-        include: { classRoom: true, scoreEntries: { include: { subject: true } } },
+        include: { classRoom: true, student: true, scoreEntries: { include: { subject: true } } },
         take: 500
       }),
       prisma.classSubject.findMany({ where: { schoolId: session.schoolId }, include: { classRoom: true, subject: true } }),
-      prisma.student.findMany({ where: { schoolId: session.schoolId, status: "ACTIVE" }, include: { currentClass: true } })
+      prisma.student.findMany({ where: { schoolId: session.schoolId, status: "ACTIVE" }, include: { currentClass: true } }),
+      prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true } })
     ]);
 
     const statusCounts = new Map<string, number>();
@@ -2808,6 +2820,19 @@ export class AcademicsService {
         }))
     );
 
+    const termScopedSheets = currentTerm ? sheets.filter((sheet) => sheet.termId === currentTerm.id) : sheets;
+    const topPerformers = termScopedSheets
+      .filter((sheet) => sheet.scoreEntries.length > 0)
+      .sort((a, b) => Number(b.averageScore) - Number(a.averageScore))
+      .slice(0, 5)
+      .map((sheet, index) => ({
+        studentName: formatStudentName(sheet.student),
+        className: formatClassName(sheet.classRoom),
+        average: Number(sheet.averageScore),
+        grade: sheet.grade ?? undefined,
+        position: sheet.position ?? index + 1
+      }));
+
     return {
       metrics: [
         { label: "Result sheets", value: String(sheets.length), tone: "neutral" },
@@ -2829,7 +2854,8 @@ export class AcademicsService {
         entries: row.count
       })),
       statusBreakdown: Array.from(statusCounts.entries()).map(([status, count]) => ({ status, count })),
-      missingScores: missingScores.slice(0, 100)
+      missingScores: missingScores.slice(0, 100),
+      topPerformers
     };
   }
 }

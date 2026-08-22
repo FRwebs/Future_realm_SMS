@@ -61,6 +61,8 @@ export type NavigationRegistryItem = {
   group: NavigationGroup | null;
   requireAny?: boolean;
   hideFromSidebar?: boolean;
+  /** Shows for portal-restricted roles (Principal, nurse, librarian, etc.) too, as long as they hold the required permissions — bypasses the portal-prefix lockdown that otherwise limits those roles to their own `/portals/*` nav items. */
+  sharedAcrossPortals?: boolean;
   badge?: string;
   order: number;
 };
@@ -375,6 +377,18 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     order: 10.8,
   },
   {
+    id: "school_structure",
+    label: "Class & Timetable",
+    icon: "LayoutGrid",
+    path: "/school/structure",
+    requiredPermissions: ["classes.view", "timetable.view"],
+    requireAny: true,
+    portalType: "school",
+    group: "Academic Operations",
+    sharedAcrossPortals: true,
+    order: 10.9,
+  },
+  {
     id: "attendance",
     label: "Attendance",
     icon: "ClipboardCheck",
@@ -383,7 +397,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requireAny: true,
     portalType: "school",
     group: "Academic Operations",
-    hideFromSidebar: true,
+    sharedAcrossPortals: true,
     order: 11,
   },
   {
@@ -432,13 +446,13 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "results",
-    label: "Results & Broadsheets",
+    label: "Score Entry & Results",
     icon: "Award",
     path: "/academics/results",
     requiredPermissions: ["results.view"],
     portalType: "school",
     group: "Academic Operations",
-    hideFromSidebar: true,
+    sharedAcrossPortals: true,
     order: 15,
   },
   {
@@ -505,7 +519,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requiredPermissions: ["results.export"],
     portalType: "school",
     group: "Academic Operations",
-    hideFromSidebar: true,
+    sharedAcrossPortals: true,
     order: 15.6,
   },
   {
@@ -1189,7 +1203,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "configuration",
-    label: "Configuration",
+    label: "School Configuration",
     icon: "Settings2",
     path: "/school/configuration",
     requiredPermissions: [
@@ -1205,6 +1219,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requireAny: true,
     portalType: "school",
     group: "Management",
+    sharedAcrossPortals: true,
     order: 70.5,
   },
   {
@@ -3221,22 +3236,22 @@ export function buildNavigation(
   const items = NAV_REGISTRY.filter((item) => item.portalType === portalType)
     .filter((item) => {
       if (role === "PRINCIPAL" && portalType === "school") {
-        return item.path.startsWith("/portals/principal");
+        return item.path.startsWith("/portals/principal") || item.sharedAcrossPortals;
       }
       if (nursePortalRoles.has(role) && portalType === "school") {
-        return item.path.startsWith("/portals/nurse");
+        return item.path.startsWith("/portals/nurse") || item.sharedAcrossPortals;
       }
       if (librarianPortalRoles.has(role) && portalType === "school") {
-        return item.path.startsWith("/portals/librarian");
+        return item.path.startsWith("/portals/librarian") || item.sharedAcrossPortals;
       }
       if (frontDeskPortalRoles.has(role) && portalType === "school") {
-        return item.path.startsWith("/portals/front-desk");
+        return item.path.startsWith("/portals/front-desk") || item.sharedAcrossPortals;
       }
       if (hostelPortalRoles.has(role) && portalType === "school") {
-        return item.path.startsWith("/portals/hostel");
+        return item.path.startsWith("/portals/hostel") || item.sharedAcrossPortals;
       }
       if (transportPortalRoles.has(role) && portalType === "school") {
-        return item.path.startsWith("/portals/transport");
+        return item.path.startsWith("/portals/transport") || item.sharedAcrossPortals;
       }
       return true;
     })
