@@ -14,7 +14,7 @@ import { SessionGuard } from "../../auth/session.guard";
 import { PaymentRecordingRateLimitGuard } from "../../common/guards/payment-recording-rate-limit.guard";
 import { FinanceService } from "./finance.service";
 
-const bursaryRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
+const bursaryRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
 const bursaryOversightRoles = [...bursaryRoles, "PRINCIPAL"] as const;
 
 function assertBursaryRole(session: SessionPayload) {

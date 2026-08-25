@@ -20,6 +20,7 @@ import {
   BudgetAllocationView,
   ExpenditureView,
   FeeAssignmentView,
+  FeesModuleDiscountView,
   FeeStructureView,
   FinanceDashboardView,
   FinanceSettingsView,
@@ -1189,6 +1190,59 @@ export class FinanceService {
     ]);
     await this.audit(schoolId, actorId, "APPROVE", "InvoiceAdjustment", invoice.id, { type: parsed.type, amount, reason: parsed.reason });
     return this.listInvoices(schoolId);
+  }
+
+  /**
+   * Real applied discounts/waivers/scholarship credits, sourced from
+   * `InvoiceAdjustment` — the table `applyAdjustment` actually writes to.
+   * (`FeeWaiver`/`Scholarship`/`StudentScholarship` exist in the schema but
+   * nothing in the app currently writes to them, so they would always be
+   * empty; adjustments are the real, populated discount ledger.)
+   */
+  async listDiscounts(schoolId: string): Promise<FeesModuleDiscountView[]> {
+    const adjustments = await prisma.invoiceAdjustment.findMany({
+      where: { schoolId },
+      include: {
+        invoice: {
+          include: {
+            student: { include: { currentClass: { include: { classLevel: true } } } },
+            classRoom: { include: { classLevel: true } },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+      take: 200,
+    });
+
+    const actorIds = Array.from(
+      new Set(adjustments.flatMap((adjustment) => [adjustment.appliedById, adjustment.approvedById]).filter((id): id is string => Boolean(id)))
+    );
+    const actors = actorIds.length
+      ? await prisma.user.findMany({ where: { id: { in: actorIds } }, select: { id: true, firstName: true, lastName: true } })
+      : [];
+    const actorNames = new Map(actors.map((actor) => [actor.id, `${actor.firstName} ${actor.lastName}`]));
+
+    return adjustments.map((adjustment) => ({
+      id: adjustment.id,
+      type: adjustment.type,
+      valueType: adjustment.valueType,
+      value: Number(adjustment.value),
+      amount: Number(adjustment.amount),
+      reason: adjustment.reason,
+      studentId: adjustment.invoice.studentId ?? undefined,
+      studentName: adjustment.invoice.student ? studentName(adjustment.invoice.student) : "Walk-in student",
+      admissionNumber: adjustment.invoice.student?.admissionNumber ?? undefined,
+      className: adjustment.invoice.classRoom
+        ? className(adjustment.invoice.classRoom)
+        : adjustment.invoice.student?.currentClass
+          ? className(adjustment.invoice.student.currentClass)
+          : undefined,
+      invoiceId: adjustment.invoiceId,
+      invoiceNumber: adjustment.invoice.invoiceNumber,
+      appliedByName: adjustment.appliedById ? actorNames.get(adjustment.appliedById) : undefined,
+      approvedByName: adjustment.approvedById ? actorNames.get(adjustment.approvedById) : undefined,
+      createdAt: adjustment.createdAt.toISOString(),
+    }));
   }
 
   async createInstallmentPlan(schoolId: string, createdById: string, payload: unknown): Promise<InstallmentPlanView> {
