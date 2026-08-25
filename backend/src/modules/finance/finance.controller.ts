@@ -13,8 +13,8 @@ import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { FinanceService } from "./finance.service";
 
-const financeOversightRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
-const financeManagerRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
+const financeOversightRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
+const financeManagerRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
 
 @ApiTags("finance")
 @Controller("v1/finance")
@@ -135,6 +135,12 @@ export class FinanceController {
   async applyWaiver(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.applyWaiver(session.schoolId, session.userId, body) };
+  }
+
+  @Get("discounts")
+  @Roles(...financeOversightRoles)
+  async listDiscounts(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.financeService.listDiscounts(session.schoolId) };
   }
 
   @Get("installment-plans")

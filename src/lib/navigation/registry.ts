@@ -364,6 +364,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requiredPermissions: ["classes.view"],
     portalType: "school",
     group: "Academic Operations",
+    hideFromSidebar: true,
     order: 10.5,
   },
   {
@@ -374,6 +375,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requiredPermissions: ["timetable.view"],
     portalType: "school",
     group: "Academic Operations",
+    hideFromSidebar: true,
     order: 10.8,
   },
   {
@@ -630,7 +632,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "finance",
-    label: "Fee Management",
+    label: "Fee & Financial Management",
     icon: "CreditCard",
     path: "/finance",
     requiredPermissions: ["fees.view"],
@@ -646,6 +648,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requiredPermissions: ["fees.view"],
     portalType: "school",
     group: "Finance",
+    hideFromSidebar: true,
     order: 31,
   },
   {
@@ -656,6 +659,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requiredPermissions: ["fees.view"],
     portalType: "school",
     group: "Finance",
+    hideFromSidebar: true,
     order: 32,
   },
   {
@@ -666,6 +670,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     requiredPermissions: ["fees.view"],
     portalType: "school",
     group: "Finance",
+    hideFromSidebar: true,
     order: 33,
   },
   {

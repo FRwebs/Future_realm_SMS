@@ -1552,6 +1552,30 @@ export interface ExpenditureView {
   notes?: string;
 }
 
+/**
+ * A real, applied invoice adjustment (discount, waiver, or scholarship credit)
+ * — sourced from `InvoiceAdjustment`, the table the finance module actually
+ * writes to when a discount/waiver is applied to an invoice. Prefixed
+ * `FeesModule` to avoid name collisions with parallel work on other modules.
+ */
+export interface FeesModuleDiscountView {
+  id: string;
+  type: string;
+  valueType: string;
+  value: number;
+  amount: number;
+  reason: string;
+  studentId?: string;
+  studentName: string;
+  admissionNumber?: string;
+  className?: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  appliedByName?: string;
+  approvedByName?: string;
+  createdAt: string;
+}
+
 export interface PayrollItemView {
   id: string;
   staffId: string;
