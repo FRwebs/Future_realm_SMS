@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { LucideIcon } from "lucide-react";
-import { Activity, Clock3, DatabaseBackup, Server, Timer, UploadCloud, WifiOff, XCircle } from "lucide-react";
+import { Activity, Cpu, Clock3, DatabaseBackup, FileStack, Layers3, Server, Timer, UploadCloud, WifiOff, XCircle } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
-import type { SuperAdminFeatureFlagRow, SuperAdminInfraMonitoring } from "@/lib/domain/types";
+import type { SuperAdminComputationMonitoring, SuperAdminFeatureFlagRow, SuperAdminInfraMonitoring } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
@@ -50,12 +50,11 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
   const data = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
 
   const tabs = [
-    { label: "Uptime & Performance", href: tabHref("health"), active: tab === "health" },
-    { label: "Offline Sync Queue", href: tabHref("sync"), active: tab === "sync" },
-    { label: "Notification Delivery", href: tabHref("delivery"), active: tab === "delivery" },
-    { label: "Backups", href: tabHref("backups"), active: tab === "backups" },
-    { label: "Integrations", href: tabHref("integrations"), active: tab === "integrations" },
-    { label: "Flag Status", href: tabHref("flags"), active: tab === "flags" }
+    { label: "Health", href: tabHref("health"), active: tab === "health" },
+    { label: "Sync", href: tabHref("sync"), active: tab === "sync" },
+    { label: "Computation", href: tabHref("computation"), active: tab === "computation" },
+    { label: "Delivery", href: tabHref("delivery"), active: tab === "delivery" },
+    { label: "Backups", href: tabHref("backups"), active: tab === "backups" }
   ];
 
   return (
@@ -70,9 +69,9 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
         <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
             <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Technical operations</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">System & Infrastructure</h1>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Infrastructure</h1>
             <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-              Uptime, offline sync queue, notification delivery, third-party integrations, and backups.
+              Health, offline sync queue, result-computation pipeline, delivery &amp; integrations, and backups.
             </p>
           </div>
           <ResourceActionDialog
@@ -93,9 +92,9 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
 
       {tab === "health" ? <UptimeTab data={data} /> : null}
       {tab === "sync" ? <SyncQueueTab data={data} /> : null}
+      {tab === "computation" ? <ComputationTab /> : null}
       {tab === "delivery" ? <DeliveryTab data={data} /> : null}
       {tab === "backups" ? <BackupsTab data={data} /> : null}
-      {tab === "integrations" ? <IntegrationsTab data={data} /> : null}
       {tab === "flags" ? <FlagStatusTab /> : null}
     </div>
   );
@@ -162,18 +161,76 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
 
 function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
-    <TableCard
-      title="Notification delivery health"
-      description="Delivery failure rate by channel over the last 30 days."
-      items={data.deliveryHealth}
-      columns={[
-        { key: "channel", header: "Channel", render: (item) => item.channel },
-        { key: "total", header: "Messages", render: (item) => item.total },
-        { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
-      ]}
-      emptyState="No notification activity recorded."
-    />
+    <div className="grid gap-5">
+      <TableCard
+        title="Notification delivery health"
+        description="Delivery failure rate by channel over the last 30 days."
+        items={data.deliveryHealth}
+        columns={[
+          { key: "channel", header: "Channel", render: (item) => item.channel },
+          { key: "total", header: "Messages", render: (item) => item.total },
+          { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
+        ]}
+        emptyState="No notification activity recorded."
+      />
+      <TableCard
+        title="Third-party integration status"
+        description="Health of the external providers the delivery pipeline depends on."
+        items={data.integrations}
+        columns={[
+          { key: "name", header: "Integration", render: (item) => item.name },
+          { key: "freq", header: "Check frequency", render: (item) => item.checkFrequency },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> },
+          { key: "onfail", header: "On failure", render: (item) => item.onFailure }
+        ]}
+      />
+    </div>
+  );
+}
+
+function computationStatCard(label: string, pending: number, oldestAgeHours: number | null, oldestLabel: string | null, status: string, icon: LucideIcon, extra?: string) {
+  const oldestDetail = oldestAgeHours === null
+    ? "Nothing pending"
+    : oldestAgeHours >= 48
+      ? `Oldest: ${Math.round((oldestAgeHours / 24) * 10) / 10}d · ${oldestLabel}`
+      : `Oldest: ${oldestAgeHours}h · ${oldestLabel}`;
+  return (
+    <StatCard label={label} value={String(pending)} detail={extra ?? oldestDetail} status={status} icon={icon} />
+  );
+}
+
+async function ComputationTab() {
+  const data = await apiGet<SuperAdminComputationMonitoring>("/api/super-admin/infra-extras/computation");
+
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        {computationStatCard("Assessments awaiting approval", data.assessments.pendingApproval, data.assessments.oldestAgeHours, data.assessments.oldestLabel, data.assessments.status, Layers3)}
+        {computationStatCard("Broadsheets in compilation", data.broadsheets.pending, data.broadsheets.oldestAgeHours, data.broadsheets.oldestLabel, data.broadsheets.status, Cpu)}
+        {computationStatCard("Report cards pending generation", data.reportCards.pending, data.reportCards.oldestAgeHours, data.reportCards.oldestLabel, data.reportCards.status, FileStack)}
+      </section>
+      {data.broadsheets.avgCompileHours !== null ? (
+        <StatCard
+          label="Avg broadsheet compile time (90d)"
+          value={data.broadsheets.avgCompileHours >= 48 ? `${Math.round((data.broadsheets.avgCompileHours / 24) * 10) / 10}d` : `${data.broadsheets.avgCompileHours}h`}
+          detail="Time from broadsheet creation to approval, across schools approved in the last 90 days."
+          icon={Activity}
+        />
+      ) : null}
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Result computation pipeline</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">How this is measured</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          There is no separate background job queue for result computation &mdash; broadsheet compilation and report
+          card generation are workflow steps schools trigger directly. This view counts assessments marked but not yet
+          approved, broadsheets still in draft/review/correction, and report cards not yet generated, across every
+          school. A stage is flagged <strong>Warning</strong> once its oldest pending record has sat for more than 14
+          days, and <strong>Critical</strong> past 30 days &mdash; long compared to a typical termly turnaround.
+        </p>
+        <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Data as of {formatDate(data.generatedAt)}.</p>
+      </section>
+    </div>
   );
 }
 
@@ -199,22 +256,6 @@ function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
         emptyState="No backups have been logged yet."
       />
     </div>
-  );
-}
-
-function IntegrationsTab({ data }: { data: SuperAdminInfraMonitoring }) {
-  return (
-    <TableCard
-      title="Third-party integration status"
-      description="Health of the external providers the platform depends on."
-      items={data.integrations}
-      columns={[
-        { key: "name", header: "Integration", render: (item) => item.name },
-        { key: "freq", header: "Check frequency", render: (item) => item.checkFrequency },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> },
-        { key: "onfail", header: "On failure", render: (item) => item.onFailure }
-      ]}
-    />
   );
 }
 

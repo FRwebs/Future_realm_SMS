@@ -6,7 +6,7 @@ import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
-import type { SuperAdminCannedResponse, SuperAdminDataCorrectionRow, SuperAdminInternalMember, SuperAdminSchoolRow, SuperAdminTicketAnalytics, SuperAdminTicketRow } from "@/lib/domain/types";
+import type { SuperAdminCannedResponse, SuperAdminDataCorrectionRow, SuperAdminInternalMember, SuperAdminKnowledgeBaseArticle, SuperAdminSchoolRow, SuperAdminTicketAnalytics, SuperAdminTicketRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 const categoryOptions = ["BILLING", "TECHNICAL_BUG", "FEATURE_REQUEST", "ACCOUNT_ACCESS", "DATA_ISSUE", "RESULT_COMPUTATION", "NOTIFICATION_DELIVERY", "SYNC_OFFLINE_ISSUE", "DATA_CORRECTION_REQUEST", "OTHER"].map((value) => ({ label: value.replaceAll("_", " "), value }));
@@ -45,6 +45,16 @@ const correctionStatusTone: Record<string, { bg: string; fg: string; label: stri
   REJECTED: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Rejected" }
 };
 
+const articleStatusTone: Record<string, { bg: string; fg: string }> = {
+  PUBLISHED: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
+  DRAFT: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
+};
+
+const articleStatusOptions = [
+  { label: "Published", value: "PUBLISHED" },
+  { label: "Draft", value: "DRAFT" }
+];
+
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
@@ -60,25 +70,31 @@ function tabHref(tab: string) {
 export default async function SupportTicketsPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
   const params = searchParams ? await searchParams : {};
   const tab = params.tab ?? "board";
-  const showCreateTicket = tab === "board" || tab === "queue";
-  const [schoolsEnvelope, agentsEnvelope] = showCreateTicket
-    ? await Promise.all([
-        apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
-        apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE")
-      ])
-    : [{ data: [] }, { data: [] }];
+  const showCreateTicket = tab === "board" || tab === "tickets";
+  const [schoolsEnvelope, agentsEnvelope, openTicketsEnvelope, correctionsEnvelope] = await Promise.all([
+    showCreateTicket
+      ? apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+      : Promise.resolve({ data: [] as SuperAdminSchoolRow[] }),
+    showCreateTicket
+      ? apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE")
+      : Promise.resolve({ data: [] as SuperAdminInternalMember[] }),
+    apiGetEnvelope<SuperAdminTicketRow[]>("/api/super-admin/support/tickets?status=OPEN&limit=1"),
+    apiGetEnvelope<SuperAdminDataCorrectionRow[]>("/api/super-admin/support/data-corrections")
+  ]);
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
   const agentOptions = [
     { label: "Unassigned", value: "" },
     ...(agentsEnvelope.data ?? []).map((agent) => ({ label: `${agent.name} (${agent.role.replaceAll("_", " ")})`, value: agent.id }))
   ];
+  const openTicketCount = openTicketsEnvelope.pagination?.total ?? (openTicketsEnvelope.data ?? []).length;
+  const correctionRecords = correctionsEnvelope.data ?? [];
+  const pendingCorrectionCount = correctionRecords.filter((record) => record.status === "PENDING").length;
 
   const tabs = [
-    { label: "Ticket Board", href: tabHref("board"), active: tab === "board" },
-    { label: "All Tickets", href: tabHref("queue"), active: tab === "queue" },
-    { label: "Data Corrections", href: tabHref("corrections"), active: tab === "corrections" },
-    { label: "Canned Responses", href: tabHref("canned"), active: tab === "canned" },
-    { label: "Analytics", href: tabHref("analytics"), active: tab === "analytics" }
+    { label: "Board", href: tabHref("board"), active: tab === "board", badge: openTicketCount },
+    { label: "Tickets", href: tabHref("tickets"), active: tab === "tickets" },
+    { label: "Data Corrections", href: tabHref("corrections"), active: tab === "corrections", badge: pendingCorrectionCount },
+    { label: "Knowledge", href: tabHref("knowledge"), active: tab === "knowledge" }
   ];
 
   return (
@@ -98,7 +114,7 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
               Support queue for school issues, internal notes, SLA tracking, and escalation to platform admins or developers.
             </p>
           </div>
-          {tab === "board" || tab === "queue" ? (
+          {tab === "board" || tab === "tickets" ? (
             <ResourceActionDialog
               triggerLabel="Create Ticket"
               title="Create support ticket"
@@ -123,10 +139,9 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
       <DetailTabs tabs={tabs} />
 
       {tab === "board" ? <TicketBoardTab /> : null}
-      {tab === "queue" ? <TicketQueueTab params={params} schoolOptions={schoolOptions} /> : null}
-      {tab === "corrections" ? <DataCorrectionsTab /> : null}
-      {tab === "canned" ? <CannedResponsesTab /> : null}
-      {tab === "analytics" ? <AnalyticsTab /> : null}
+      {tab === "tickets" ? <TicketQueueTab params={params} schoolOptions={schoolOptions} /> : null}
+      {tab === "corrections" ? <DataCorrectionsTab records={correctionRecords} /> : null}
+      {tab === "knowledge" ? <KnowledgeTab /> : null}
     </div>
   );
 }
@@ -140,7 +155,8 @@ async function TicketBoardTab() {
   }
 
   return (
-    <div className="overflow-x-auto pb-2">
+    <div className="grid gap-5">
+      <div className="overflow-x-auto pb-2">
       <div className="grid grid-flow-col auto-cols-[260px] gap-3">
         {boardColumns.map((column) => {
           const columnTickets = byColumn.get(column.status) ?? [];
@@ -189,6 +205,77 @@ async function TicketBoardTab() {
         })}
       </div>
     </div>
+
+      <TicketAnalyticsSection />
+    </div>
+  );
+}
+
+async function TicketAnalyticsSection() {
+  const analytics = await apiGet<SuperAdminTicketAnalytics>("/api/super-admin/support/analytics");
+  const slaRate = analytics.totalResolved > 0 ? Math.round((analytics.resolvedWithinSla / analytics.totalResolved) * 1000) / 10 : 0;
+
+  return (
+    <section className="grid gap-5">
+      <div>
+        <p className="section-eyebrow">Support performance</p>
+        <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Analytics (last 30 days)</h2>
+      </div>
+
+      <section className="grid gap-3 md:grid-cols-4">
+        {[
+          { label: "Opened (30d)", value: analytics.totalOpened },
+          { label: "Resolved (30d)", value: analytics.totalResolved },
+          { label: "Resolved within SLA", value: `${slaRate}%` },
+          { label: "Categories tracked", value: analytics.categoryBreakdown.length }
+        ].map((item) => (
+          <article key={item.label} className="surface-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{item.label}</p>
+            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{item.value}</p>
+          </article>
+        ))}
+      </section>
+
+      <section className="grid gap-5 lg:grid-cols-2">
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Response time</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Avg resolution time by priority</h3>
+          <div className="mt-4 grid gap-2">
+            {Object.entries(analytics.avgResolutionByPriority).map(([priority, hours]) => (
+              <div key={priority} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{priority}</span>
+                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{hours}h</span>
+              </div>
+            ))}
+          </div>
+        </section>
+        <section className="surface-card p-6">
+          <p className="section-eyebrow">Issue mix</p>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Category breakdown (30d)</h3>
+          <div className="mt-4 grid gap-2">
+            {analytics.categoryBreakdown.map((item) => (
+              <div key={item.category} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.category.replaceAll("_", " ")}</span>
+                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{item.count}</span>
+              </div>
+            ))}
+            {analytics.categoryBreakdown.length === 0 ? <p className="text-center text-[13px] text-[var(--color-text-muted)]">No tickets in the last 30 days.</p> : null}
+          </div>
+        </section>
+      </section>
+
+      <TableCard
+        title="Per-agent performance (30d)"
+        description="Ticket volume and average CSAT per assigned agent."
+        items={analytics.perAgent}
+        columns={[
+          { key: "agent", header: "Agent", render: (item) => item.agentName },
+          { key: "tickets", header: "Tickets handled", render: (item) => item.ticketsHandled },
+          { key: "csat", header: "Avg CSAT", render: (item) => (item.avgCsat !== null ? `${item.avgCsat} / 5` : "No ratings yet") }
+        ]}
+        emptyState="No agent activity in the last 30 days."
+      />
+    </section>
   );
 }
 
@@ -253,10 +340,7 @@ async function TicketQueueTab({ params, schoolOptions }: { params: Record<string
   );
 }
 
-async function DataCorrectionsTab() {
-  const envelope = await apiGetEnvelope<SuperAdminDataCorrectionRow[]>("/api/super-admin/support/data-corrections");
-  const records = envelope.data ?? [];
-
+async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrectionRow[] }) {
   return (
     <section className="grid gap-5">
       <section className="surface-card p-6">
@@ -328,120 +412,95 @@ async function DataCorrectionsTab() {
   );
 }
 
-async function CannedResponsesTab() {
-  const envelope = await apiGetEnvelope<SuperAdminCannedResponse[]>("/api/super-admin/support/canned-responses");
-  const responses = envelope.data ?? [];
+async function KnowledgeTab() {
+  const [articlesEnvelope, responsesEnvelope] = await Promise.all([
+    apiGetEnvelope<SuperAdminKnowledgeBaseArticle[]>("/api/super-admin/support/knowledge-base"),
+    apiGetEnvelope<SuperAdminCannedResponse[]>("/api/super-admin/support/canned-responses")
+  ]);
+  const articles = articlesEnvelope.data ?? [];
+  const responses = responsesEnvelope.data ?? [];
 
   return (
-    <TableCard
-      title="Canned responses"
-      description="Pre-written responses agents can personalize and send for common questions in each category."
-      items={responses}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="New canned response"
-          title="Create canned response"
-          description="Add a reusable response for a ticket category."
-          endpoint="/api/super-admin/support/canned-responses"
-          method="POST"
-          submitLabel="Create"
-          fields={[
-            { name: "category", label: "Category", type: "select", defaultValue: "OTHER", options: categoryOptions },
-            { name: "title", label: "Title", required: true },
-            { name: "body", label: "Response body", type: "textarea", required: true }
-          ]}
-        />
-      }
-      columns={[
-        { key: "category", header: "Category", render: (item) => item.category.replaceAll("_", " ") },
-        { key: "title", header: "Title", render: (item) => item.title },
-        { key: "body", header: "Body", render: (item) => <span className="line-clamp-2 text-[13px] text-[var(--color-text-secondary)]">{item.body}</span> },
-        { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) => (
-            <ResourceActionDialog
-              triggerLabel="Edit"
-              title={`Edit ${item.title}`}
-              description="Update this canned response."
-              endpoint={`/api/super-admin/support/canned-responses/${item.id}`}
-              method="PATCH"
-              variant="secondary"
-              submitLabel="Save"
-              fields={[
-                { name: "category", label: "Category", type: "select", defaultValue: item.category, options: categoryOptions },
-                { name: "title", label: "Title", defaultValue: item.title, required: true },
-                { name: "body", label: "Response body", type: "textarea", defaultValue: item.body, required: true }
-              ]}
-            />
-          )
+    <div className="grid gap-8">
+      <TableCard
+        title="Knowledge base articles"
+        description="Help-center articles visible to school staff and support agents."
+        items={articles}
+        getRowKey={(item) => item.id}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="New article"
+            title="Create knowledge base article"
+            description="Publish a help article for school staff or the internal support team."
+            endpoint="/api/super-admin/support/knowledge-base"
+            method="POST"
+            submitLabel="Create article"
+            fields={[
+              { name: "title", label: "Title", required: true },
+              { name: "category", label: "Category", required: true, placeholder: "e.g. Billing, Attendance, Getting started" },
+              { name: "body", label: "Content", type: "textarea", required: true },
+              { name: "status", label: "Status", type: "select", defaultValue: "PUBLISHED", options: articleStatusOptions }
+            ]}
+          />
         }
-      ]}
-      emptyState="No canned responses yet — the Support Lead maintains this library."
-    />
-  );
-}
-
-async function AnalyticsTab() {
-  const analytics = await apiGet<SuperAdminTicketAnalytics>("/api/super-admin/support/analytics");
-  const slaRate = analytics.totalResolved > 0 ? Math.round((analytics.resolvedWithinSla / analytics.totalResolved) * 1000) / 10 : 0;
-
-  return (
-    <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-4">
-        {[
-          { label: "Opened (30d)", value: analytics.totalOpened },
-          { label: "Resolved (30d)", value: analytics.totalResolved },
-          { label: "Resolved within SLA", value: `${slaRate}%` },
-          { label: "Categories tracked", value: analytics.categoryBreakdown.length }
-        ].map((item) => (
-          <article key={item.label} className="surface-card p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{item.label}</p>
-            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{item.value}</p>
-          </article>
-        ))}
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-2">
-        <section className="surface-card p-6">
-          <p className="section-eyebrow">Response time</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Avg resolution time by priority</h3>
-          <div className="mt-4 grid gap-2">
-            {Object.entries(analytics.avgResolutionByPriority).map(([priority, hours]) => (
-              <div key={priority} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{priority}</span>
-                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{hours}h</span>
-              </div>
-            ))}
-          </div>
-        </section>
-        <section className="surface-card p-6">
-          <p className="section-eyebrow">Issue mix</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Category breakdown (30d)</h3>
-          <div className="mt-4 grid gap-2">
-            {analytics.categoryBreakdown.map((item) => (
-              <div key={item.category} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.category.replaceAll("_", " ")}</span>
-                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{item.count}</span>
-              </div>
-            ))}
-            {analytics.categoryBreakdown.length === 0 ? <p className="text-center text-[13px] text-[var(--color-text-muted)]">No tickets in the last 30 days.</p> : null}
-          </div>
-        </section>
-      </section>
+        columns={[
+          { key: "title", header: "Title", render: (item) => item.title },
+          { key: "category", header: "Category", render: (item) => item.category },
+          { key: "status", header: "Status", render: (item) => { const tone = articleStatusTone[item.status] ?? articleStatusTone.DRAFT; return <StatusPill bg={tone.bg} fg={tone.fg} label={item.status} />; } },
+          { key: "author", header: "Author", render: (item) => item.author },
+          { key: "views", header: "Views", render: (item) => item.views },
+          { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) }
+        ]}
+        emptyState="No knowledge base articles yet — create the first one for school staff."
+      />
 
       <TableCard
-        title="Per-agent performance (30d)"
-        description="Ticket volume and average CSAT per assigned agent."
-        items={analytics.perAgent}
+        title="Canned responses"
+        description="Pre-written responses agents can personalize and send for common questions in each category."
+        items={responses}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="New canned response"
+            title="Create canned response"
+            description="Add a reusable response for a ticket category."
+            endpoint="/api/super-admin/support/canned-responses"
+            method="POST"
+            submitLabel="Create"
+            fields={[
+              { name: "category", label: "Category", type: "select", defaultValue: "OTHER", options: categoryOptions },
+              { name: "title", label: "Title", required: true },
+              { name: "body", label: "Response body", type: "textarea", required: true }
+            ]}
+          />
+        }
         columns={[
-          { key: "agent", header: "Agent", render: (item) => item.agentName },
-          { key: "tickets", header: "Tickets handled", render: (item) => item.ticketsHandled },
-          { key: "csat", header: "Avg CSAT", render: (item) => (item.avgCsat !== null ? `${item.avgCsat} / 5` : "No ratings yet") }
+          { key: "category", header: "Category", render: (item) => item.category.replaceAll("_", " ") },
+          { key: "title", header: "Title", render: (item) => item.title },
+          { key: "body", header: "Body", render: (item) => <span className="line-clamp-2 text-[13px] text-[var(--color-text-secondary)]">{item.body}</span> },
+          { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (item) => (
+              <ResourceActionDialog
+                triggerLabel="Edit"
+                title={`Edit ${item.title}`}
+                description="Update this canned response."
+                endpoint={`/api/super-admin/support/canned-responses/${item.id}`}
+                method="PATCH"
+                variant="secondary"
+                submitLabel="Save"
+                fields={[
+                  { name: "category", label: "Category", type: "select", defaultValue: item.category, options: categoryOptions },
+                  { name: "title", label: "Title", defaultValue: item.title, required: true },
+                  { name: "body", label: "Response body", type: "textarea", defaultValue: item.body, required: true }
+                ]}
+              />
+            )
+          }
         ]}
-        emptyState="No agent activity in the last 30 days."
+        emptyState="No canned responses yet — the Support Lead maintains this library."
       />
-    </section>
+    </div>
   );
 }

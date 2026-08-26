@@ -46,20 +46,25 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
 }
 
 function tabHref(tab: string) {
-  return tab === "compose" ? "/super-admin/communications" : `/super-admin/communications?tab=${tab}`;
+  return tab === "campaigns" ? "/super-admin/communications" : `/super-admin/communications?tab=${tab}`;
 }
 
 export default async function SuperAdminCommunicationsPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
-  const { tab = "compose" } = searchParams ? await searchParams : {};
+  const { tab = "campaigns" } = searchParams ? await searchParams : {};
 
+  const campaigns = (await apiGet<SuperAdminCampaignRow[]>("/api/super-admin/communications/campaigns")) ?? [];
+  const sentCampaigns = campaigns.filter((c) => c.status === "SENT");
+  const scheduledCampaigns = campaigns.filter((c) => Boolean(c.scheduledAt));
+  const recentDeliveryFailures = sentCampaigns.reduce((sum, c) => sum + c.failedCount, 0);
+
+  // "Platform Notices" (in-app announcements & maintenance windows) doesn't map to any of the
+  // 5 mockup tabs below — it stays fully functional at ?tab=notices, just no longer a visible tab.
   const tabs = [
-    { label: "Compose", href: tabHref("compose"), active: tab === "compose" },
-    { label: "Campaign Queue", href: tabHref("campaigns"), active: tab === "campaigns" },
-    { label: "WhatsApp Templates", href: tabHref("templates"), active: tab === "templates" },
-    { label: "Delivery & Engagement", href: tabHref("delivery"), active: tab === "delivery" },
-    { label: "Consent & Opt-out", href: tabHref("consent"), active: tab === "consent" },
-    { label: "Commercial (Phase 2)", href: tabHref("commercial"), active: tab === "commercial" },
-    { label: "Platform Notices", href: tabHref("notices"), active: tab === "notices" }
+    { label: "Campaigns", href: tabHref("campaigns"), active: tab === "campaigns" },
+    { label: "Templates", href: tabHref("templates"), active: tab === "templates" },
+    { label: "Triggers", href: tabHref("triggers"), active: tab === "triggers" },
+    { label: "Delivery", href: tabHref("delivery"), active: tab === "delivery", badge: recentDeliveryFailures },
+    { label: "Consent", href: tabHref("consent"), active: tab === "consent" }
   ];
 
   return (
@@ -71,49 +76,22 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
           <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
           <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
         </svg>
-        <div className="relative z-[1]">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Platform messaging</p>
-          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Notification & Communication Command Center</h1>
-          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-            FutureRealm&apos;s own broadcast channel into every school, teacher, parent, and student — targeted campaigns with
-            an approval workflow, a WhatsApp template library, delivery and consent tracking. Operational today; a
-            commercial channel as the platform scales.
-          </p>
-        </div>
-      </section>
-
-      <DetailTabs tabs={tabs} />
-
-      {tab === "compose" ? <ComposeTab /> : null}
-      {tab === "campaigns" ? <CampaignsTab /> : null}
-      {tab === "templates" ? <TemplatesTab /> : null}
-      {tab === "delivery" ? <DeliveryTab /> : null}
-      {tab === "consent" ? <ConsentTab /> : null}
-      {tab === "commercial" ? <CommercialTab /> : null}
-      {tab === "notices" ? <NoticesTab announcementTypes={announcementTypes} /> : null}
-    </div>
-  );
-}
-
-async function ComposeTab() {
-  return (
-    <div className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">New campaign</p>
-        <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Compose a campaign</h3>
-        <p className="mt-2 max-w-md text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Write a message and define the audience. SMS is limited to 160 characters. The recipient count is computed
-          from your filters when the draft is saved — review it in Campaign Queue before approving.
-        </p>
-        <div className="mt-5">
+        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div>
+            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Platform messaging</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Notification & Communication Command Center</h1>
+            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+              FutureRealm&apos;s own broadcast channel into every school, teacher, parent, and student — targeted campaigns with
+              an approval workflow, a message template library, delivery and consent tracking.
+            </p>
+          </div>
           <ResourceActionDialog
-            triggerLabel="Compose message"
+            triggerLabel="New campaign"
             title="Compose a campaign"
-            description="Compose a message and define the audience. SMS is limited to 160 characters. The recipient count is computed from your filters when the draft is saved — review it in Campaign Queue before approving."
+            description="Write a message and define the audience. SMS is limited to 160 characters. The recipient count is computed from your filters when the draft is saved — review it in the Campaigns tab before approving. Set a schedule time to queue it as a triggered send instead of a manual one."
             endpoint="/api/super-admin/communications/campaigns"
             submitLabel="Save draft"
             confirmLabel="Confirm draft"
-            presentation="drawer"
             fields={[
               { name: "name", label: "Campaign name", required: true, placeholder: "e.g. Term 2 fee reminder" },
               { name: "type", label: "Type", type: "select", defaultValue: "OPERATIONAL", options: campaignTypeOptions },
@@ -122,18 +100,83 @@ async function ComposeTab() {
               { name: "body", label: "Message body", type: "textarea", required: true },
               { name: "role", label: "Audience: role (optional)", placeholder: "e.g. SCHOOL_ADMIN, PARENT" },
               { name: "plan", label: "Audience: tier (optional)", type: "select", options: planFilterOptions },
-              { name: "state", label: "Audience: state (optional)" }
+              { name: "state", label: "Audience: state (optional)" },
+              { name: "scheduledAt", label: "Schedule for (optional)", type: "date" }
             ]}
           />
         </div>
       </section>
+
+      <DetailTabs tabs={tabs} />
+
+      {tab === "campaigns" ? <CampaignsTab campaigns={campaigns} /> : null}
+      {tab === "templates" ? <TemplatesTab /> : null}
+      {tab === "triggers" ? <TriggersTab scheduled={scheduledCampaigns} totalCampaigns={campaigns.length} /> : null}
+      {tab === "delivery" ? <DeliveryTab sent={sentCampaigns} /> : null}
+      {tab === "consent" ? <ConsentTab /> : null}
+      {tab === "notices" ? <NoticesTab announcementTypes={announcementTypes} /> : null}
+    </div>
+  );
+}
+
+function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-[1.3fr_0.9fr]">
+      <TableCard
+        title="Campaign queue"
+        description="Draft → approve (operational: dept lead; promotional: Super Admin/Marketing) → send. Promotional sends honour opt-outs automatically."
+        items={campaigns}
+        emptyState="No campaigns yet — use New campaign above to draft one."
+        columns={[
+          { key: "name", header: "Campaign", render: (item) => item.name },
+          { key: "type", header: "Type", render: (item) => item.type },
+          { key: "channel", header: "Channel", render: (item) => item.channel },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+          { key: "recipients", header: "Recipients", render: (item) => item.recipientCount },
+          { key: "delivered", header: "Delivered", render: (item) => (item.status === "SENT" ? `${item.deliveredCount} (${item.failedCount} failed)` : "-") },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (item) => (
+              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+                {item.status === "DRAFT" ? (
+                  <ResourceActionDialog
+                    triggerLabel="Approve"
+                    title={`Approve ${item.name}`}
+                    description={item.type === "PROMOTIONAL" ? "Promotional campaigns require Super Admin / Marketing Lead sign-off." : "Operational campaigns require department-lead approval."}
+                    endpoint={`/api/super-admin/communications/campaigns/${item.id}/approve`}
+                    method="PATCH"
+                    variant="menu"
+                    submitLabel="Approve"
+                    fields={[]}
+                  />
+                ) : null}
+                {item.status === "APPROVED" || item.status === "SCHEDULED" ? (
+                  <ResourceActionDialog
+                    triggerLabel="Send now"
+                    title={`Send ${item.name}`}
+                    description="Delivers the campaign to the computed audience immediately."
+                    endpoint={`/api/super-admin/communications/campaigns/${item.id}/send`}
+                    method="POST"
+                    variant="menu"
+                    submitLabel="Send now"
+                    confirmLabel="Confirm send"
+                    confirmMessage="This sends the campaign to all matching recipients."
+                    fields={[]}
+                  />
+                ) : null}
+              </ActionMenu>
+            )
+          }
+        ]}
+      />
 
       <section className="surface-card p-6">
         <p className="section-eyebrow">How sending works</p>
         <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Draft → approve → send</h3>
         <div className="mt-4 grid gap-3">
           {[
-            { step: "1. Draft", detail: "Composed here, saved with a computed recipient count based on your audience filters." },
+            { step: "1. Draft", detail: "Composed from New campaign, saved with a computed recipient count based on your audience filters." },
             { step: "2. Approve", detail: "Operational campaigns need a department lead; promotional campaigns need Super Admin or Marketing Lead sign-off." },
             { step: "3. Send", detail: "Delivered immediately to the computed audience. Promotional sends automatically honour opt-outs." }
           ].map((item) => (
@@ -143,66 +186,11 @@ async function ComposeTab() {
             </div>
           ))}
         </div>
-        <a href="/super-admin/communications?tab=campaigns" className="btn-secondary mt-4 w-full justify-center">
-          Go to Campaign Queue
+        <a href="/super-admin/communications?tab=triggers" className="btn-secondary mt-4 w-full justify-center">
+          View scheduled sends in Triggers
         </a>
       </section>
     </div>
-  );
-}
-
-async function CampaignsTab() {
-  const campaigns = await apiGet<SuperAdminCampaignRow[]>("/api/super-admin/communications/campaigns");
-
-  return (
-    <TableCard
-      title="Campaign queue"
-      description="Draft → approve (operational: dept lead; promotional: Super Admin/Marketing) → send. Promotional sends honour opt-outs automatically."
-      items={campaigns ?? []}
-      emptyState="No campaigns yet — start in Compose."
-      columns={[
-        { key: "name", header: "Campaign", render: (item) => item.name },
-        { key: "type", header: "Type", render: (item) => item.type },
-        { key: "channel", header: "Channel", render: (item) => item.channel },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-        { key: "recipients", header: "Recipients", render: (item) => item.recipientCount },
-        { key: "delivered", header: "Delivered", render: (item) => (item.status === "SENT" ? `${item.deliveredCount} (${item.failedCount} failed)` : "-") },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) => (
-            <ActionMenu triggerLabel={`Actions for ${item.name}`}>
-              {item.status === "DRAFT" ? (
-                <ResourceActionDialog
-                  triggerLabel="Approve"
-                  title={`Approve ${item.name}`}
-                  description={item.type === "PROMOTIONAL" ? "Promotional campaigns require Super Admin / Marketing Lead sign-off." : "Operational campaigns require department-lead approval."}
-                  endpoint={`/api/super-admin/communications/campaigns/${item.id}/approve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Approve"
-                  fields={[]}
-                />
-              ) : null}
-              {item.status === "APPROVED" || item.status === "SCHEDULED" ? (
-                <ResourceActionDialog
-                  triggerLabel="Send now"
-                  title={`Send ${item.name}`}
-                  description="Delivers the campaign to the computed audience immediately."
-                  endpoint={`/api/super-admin/communications/campaigns/${item.id}/send`}
-                  method="POST"
-                  variant="menu"
-                  submitLabel="Send now"
-                  confirmLabel="Confirm send"
-                  confirmMessage="This sends the campaign to all matching recipients."
-                  fields={[]}
-                />
-              ) : null}
-            </ActionMenu>
-          )
-        }
-      ]}
-    />
   );
 }
 
@@ -212,7 +200,7 @@ async function TemplatesTab() {
   return (
     <TableCard
       title="Message templates"
-      description="WhatsApp templates require Meta approval before use. Only Super Admin can add or retire templates."
+      description="Reusable message bodies for Email, SMS, and WhatsApp. WhatsApp templates additionally require Meta approval before use. Only Super Admin can add or retire templates."
       items={templates ?? []}
       actions={
         <ResourceActionDialog
@@ -257,9 +245,43 @@ async function TemplatesTab() {
   );
 }
 
-async function DeliveryTab() {
-  const campaigns = await apiGet<SuperAdminCampaignRow[]>("/api/super-admin/communications/campaigns");
-  const sent = (campaigns ?? []).filter((c) => c.status === "SENT");
+function TriggersTab({ scheduled, totalCampaigns }: { scheduled: SuperAdminCampaignRow[]; totalCampaigns: number }) {
+  const manualCount = totalCampaigns - scheduled.length;
+
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        {[
+          { label: "Time-triggered campaigns", value: scheduled.length },
+          { label: "Manually-sent campaigns", value: manualCount },
+          { label: "Already dispatched (of triggered)", value: scheduled.filter((c) => Boolean(c.sentAt)).length }
+        ].map((item) => (
+          <article key={item.label} className="surface-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{item.label}</p>
+            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{item.value}</p>
+          </article>
+        ))}
+      </section>
+
+      <TableCard
+        title="Scheduled sends"
+        description="Campaigns composed with a Schedule for time, instead of being sent manually. Scheduling sets the campaign's intended send time — approval and dispatch (Send now, in Campaigns) still trigger the actual delivery once that time is reached."
+        items={scheduled}
+        emptyState="No campaign has a schedule time set. Add one from New campaign → Schedule for (optional) to see it here."
+        columns={[
+          { key: "name", header: "Campaign", render: (item) => item.name },
+          { key: "type", header: "Type", render: (item) => item.type },
+          { key: "channel", header: "Channel", render: (item) => item.channel },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+          { key: "scheduledAt", header: "Scheduled for", render: (item) => (item.scheduledAt ? formatDate(item.scheduledAt) : "—") },
+          { key: "sentAt", header: "Dispatched", render: (item) => (item.sentAt ? formatDate(item.sentAt) : "Not yet sent") }
+        ]}
+      />
+    </div>
+  );
+}
+
+function DeliveryTab({ sent }: { sent: SuperAdminCampaignRow[] }) {
   const totalRecipients = sent.reduce((sum, c) => sum + c.recipientCount, 0);
   const totalDelivered = sent.reduce((sum, c) => sum + c.deliveredCount, 0);
   const totalOpened = sent.reduce((sum, c) => sum + c.openedCount, 0);
@@ -284,7 +306,7 @@ async function DeliveryTab() {
 
       <TableCard
         title="Delivery & engagement by campaign"
-        description="Delivery and open rates for every sent campaign, most recent first."
+        description="Delivery and open rates for every sent campaign, most recent first. The Delivery tab badge is the total number of failed deliveries across sent campaigns."
         items={sent}
         emptyState="No campaigns have been sent yet."
         columns={[
@@ -384,25 +406,26 @@ async function ConsentTab() {
           { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) }
         ]}
       />
-    </div>
-  );
-}
 
-function CommercialTab() {
-  return (
-    <section className="surface-card p-8 text-center">
-      <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[var(--color-accent-primary-dim)]">
-        <span className="text-[22px]">🚀</span>
-      </div>
-      <p className="section-eyebrow mt-4">Roadmap</p>
-      <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Commercial messaging — Phase 2</h2>
-      <p className="mx-auto mt-3 max-w-xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-        The Notification & Communication Command Center is operational infrastructure today — reminders, alerts, and
-        platform announcements. As the platform scales, this channel is planned to open to monetised commercial
-        messaging: sponsored placements, partner offers, and paid promotional sends to opted-in schools. Not yet
-        available in this build.
-      </p>
-    </section>
+      <section className="surface-card p-6">
+        <div className="flex items-start gap-4">
+          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-primary-dim)]">
+            <span className="text-[18px]">🚀</span>
+          </div>
+          <div>
+            <p className="section-eyebrow">Commercial messaging — consent-gated</p>
+            <h3 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Roadmap: paid promotional sends</h3>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              The Command Center is operational infrastructure today — reminders, alerts, and platform announcements. As
+              the platform scales, this channel is planned to open to monetised commercial messaging: sponsored
+              placements, partner offers, and paid promotional sends. Any such messaging is gated by this same consent
+              registry — promotional sends already exclude opted-out recipients above, and that rule will not change.
+              Not yet available as a paid product in this build.
+            </p>
+          </div>
+        </div>
+      </section>
+    </div>
   );
 }
 

@@ -7,6 +7,7 @@ import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
 export function SuperAdminShell({
   session,
   platformStats,
+  navBadges,
   children,
 }: {
   session: SessionUser;
@@ -14,6 +15,7 @@ export function SuperAdminShell({
     totalSchools?: number;
     reviewQueueCount?: number;
   };
+  navBadges?: Record<string, number | undefined>;
   children: React.ReactNode;
 }) {
   return (
@@ -22,6 +24,7 @@ export function SuperAdminShell({
       permissions={getDefaultPermissionsForRole(session.role)}
       portalType="super_admin"
       platformStats={platformStats}
+      navBadges={navBadges}
     >
       {children}
     </DashboardShell>

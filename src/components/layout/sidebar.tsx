@@ -3,7 +3,8 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ChevronDown, LogOut, PanelLeftClose, PanelLeftOpen, Search, User, X } from "lucide-react";
+import { createPortal } from "react-dom";
+import { BookOpen, ChevronDown, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings2, User, X } from "lucide-react";
 
 import { roleLabels } from "@/lib/auth/roles";
 import { dropdownItemsFor } from "@/components/layout/topbar";
@@ -21,6 +22,7 @@ type SidebarProps = {
   onCloseMobile: () => void;
   portalType?: PortalType;
   theme?: "default" | "finance-dark" | "finance-light";
+  navBadges?: Record<string, number | undefined>;
 };
 
 function normalizePath(path: string) {
@@ -45,6 +47,7 @@ function SidebarContent({
   onCloseMobile,
   portalType = "school",
   isMobile = false,
+  navBadges,
 }: {
   session: SessionUser;
   permissions?: string[];
@@ -54,9 +57,11 @@ function SidebarContent({
   onCloseMobile: () => void;
   portalType?: PortalType;
   isMobile?: boolean;
+  navBadges?: Record<string, number | undefined>;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
+  const [tooltip, setTooltip] = useState<{ label: string; top: number; left: number } | null>(null);
   const [signingOut, setSigningOut] = useState(false);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement>(null);
@@ -229,7 +234,7 @@ function SidebarContent({
             "sidebar-scroll h-full",
             collapsed && !isMobile
               ? "overflow-x-visible overflow-y-auto pr-0"
-              : "overflow-y-auto pr-1",
+              : "-ml-3 overflow-y-auto pl-3 pr-1",
           )}
         >
           <div className="grid gap-5 py-2 pb-4">
@@ -250,10 +255,21 @@ function SidebarContent({
                     const active = bestMatch === normalizedHref;
 
                     return (
-                      <div key={item.href} className="group/item relative">
+                      <div
+                        key={item.href}
+                        className="group/item relative"
+                        onMouseEnter={
+                          collapsed && !isMobile
+                            ? (event) => {
+                                const rect = event.currentTarget.getBoundingClientRect();
+                                setTooltip({ label: item.label, top: rect.top + rect.height / 2, left: rect.right + 12 });
+                              }
+                            : undefined
+                        }
+                        onMouseLeave={collapsed && !isMobile ? () => setTooltip(null) : undefined}
+                      >
                         <Link
                           href={item.href}
-                          title={collapsed ? item.label : undefined}
                           onClick={isMobile ? onCloseMobile : undefined}
                           className={cn(
                             "group relative flex items-center rounded-[11px] text-[13.2px] transition-all duration-200",
@@ -288,16 +304,21 @@ function SidebarContent({
                               {item.label}
                             </span>
                           )}
+
+                          {!collapsed && navBadges?.[item.id] ? (
+                            <span
+                              className={cn(
+                                "relative z-[1] inline-flex min-w-[1.35rem] shrink-0 items-center justify-center rounded-full px-1.5 py-0.5 text-[10.5px] font-bold",
+                                active
+                                  ? "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
+                                  : "bg-[rgba(255,255,255,0.14)] text-white",
+                              )}
+                            >
+                              {navBadges[item.id]}
+                            </span>
+                          ) : null}
                         </Link>
 
-                        {collapsed && !isMobile && (
-                          <div className="pointer-events-none absolute left-full top-1/2 z-50 ml-3 -translate-y-1/2 translate-x-1 opacity-0 transition-all duration-200 group-hover/item:translate-x-0 group-hover/item:opacity-100">
-                            <div className="relative whitespace-nowrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-medium text-[var(--color-text-primary)] shadow-[0_12px_24px_rgba(15,23,42,0.08)]">
-                              {item.label}
-                              <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-[var(--color-border-default)] bg-[var(--color-bg-surface)]" />
-                            </div>
-                          </div>
-                        )}
                       </div>
                     );
                   })}
@@ -305,12 +326,53 @@ function SidebarContent({
               </section>
             ))}
 
+            {collapsed && !isMobile && tooltip
+              ? createPortal(
+                  <div
+                    className="pointer-events-none fixed z-[var(--z-dropdown)] -translate-y-1/2"
+                    style={{ top: tooltip.top, left: tooltip.left }}
+                  >
+                    <div className="relative whitespace-nowrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-medium text-[var(--color-text-primary)] shadow-[0_12px_24px_rgba(15,23,42,0.08)]">
+                      {tooltip.label}
+                      <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-[var(--color-border-default)] bg-[var(--color-bg-surface)]" />
+                    </div>
+                  </div>,
+                  document.body,
+                )
+              : null}
+
             {query && filteredGroups.length === 0 ? (
               <p className="px-3 text-[12.5px] text-[rgba(255,255,255,0.5)]">No pages match &ldquo;{search}&rdquo;.</p>
             ) : null}
           </div>
         </nav>
       </div>
+
+      {portalType === "super_admin" && !collapsed ? (
+        <div className="flex items-center gap-1 border-t border-[rgba(255,255,255,0.13)] px-4 py-2.5">
+          <Link
+            href="/super-admin/support?tab=knowledge"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
+          >
+            <BookOpen className="h-[15px] w-[15px] shrink-0" />
+            Docs
+          </Link>
+          <Link
+            href="/super-admin/settings"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
+          >
+            <Settings2 className="h-[15px] w-[15px] shrink-0" />
+            Settings
+          </Link>
+          <Link
+            href="/super-admin/support"
+            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
+          >
+            <HelpCircle className="h-[15px] w-[15px] shrink-0" />
+            Help
+          </Link>
+        </div>
+      ) : null}
 
       <div ref={accountMenuRef} className="relative border-t border-[rgba(255,255,255,0.13)] px-4 py-3.5">
         {accountMenuOpen && (
@@ -386,6 +448,7 @@ export function Sidebar({
   onToggleCollapse,
   onCloseMobile,
   portalType = "school",
+  navBadges,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -408,6 +471,7 @@ export function Sidebar({
           onToggleCollapse={onToggleCollapse}
           onCloseMobile={onCloseMobile}
           portalType={portalType}
+          navBadges={navBadges}
         />
       </aside>
 
@@ -421,6 +485,7 @@ export function Sidebar({
             onToggleCollapse={onToggleCollapse}
             onCloseMobile={onCloseMobile}
             portalType={portalType}
+            navBadges={navBadges}
             isMobile
           />
         </aside>

@@ -644,6 +644,8 @@ model School {
   createdAt                     DateTime                       @default(now())
   updatedAt                     DateTime                       @updatedAt
   contacts                      SchoolContact[]
+  migrationJobs                 MigrationJob[]
+  partnerDeals                  PartnerDeal[]
   campuses                      Campus[]
   academicSessions              AcademicSession[]
   terms                         Term[]
@@ -1197,6 +1199,10 @@ model User {
   crmInteractionsCreated       CrmInteraction[]              @relation("CrmInteractionCreator")
   crmNotesCreated              CrmNote[]                     @relation("CrmNoteCreator")
   leadsAssigned                Lead[]                        @relation("LeadAssignedTo")
+  partnerDealsCreated          PartnerDeal[]                 @relation("PartnerDealCreatedBy")
+  migrationJobsAsSpecialist    MigrationJob[]                @relation("MigrationJobSpecialist")
+  migrationJobsSignedOff       MigrationJob[]                @relation("MigrationJobSignedOffBy")
+  migrationJobsCreated         MigrationJob[]                @relation("MigrationJobCreatedBy")
   platformAnnouncements        PlatformAnnouncement[]        @relation("PlatformAnnouncementAuthor")
   featureFlagsCreated          PlatformFeatureFlag[]         @relation("FeatureFlagCreatedBy")
   platformSessions             PlatformSession[]
@@ -4124,6 +4130,52 @@ model Lead {
   @@index([stage, assignedToId])
 }
 
+enum PartnerDealStatus {
+  REGISTERED
+  CONVERTED
+  EXPIRED
+  COMMISSION_PAID
+}
+
+model Partner {
+  id                    String        @id @default(cuid())
+  name                  String
+  territory             String?
+  agreementReference    String?
+  agreementValidTo      DateTime?
+  commissionRatePercent Decimal       @default(20) @db.Decimal(5, 2)
+  isActive              Boolean       @default(true)
+  createdAt             DateTime      @default(now())
+  deals                 PartnerDeal[]
+
+  @@index([isActive])
+}
+
+model PartnerDeal {
+  id                    String            @id @default(cuid())
+  partnerId             String
+  schoolId              String?
+  prospectSchoolName    String
+  prospectLocation      String?
+  expectedTier          String?
+  stream                String?
+  introductionEvidence  String?
+  registeredAt          DateTime          @default(now())
+  validUntil            DateTime
+  status                PartnerDealStatus @default(REGISTERED)
+  commissionRatePercent Decimal           @default(20) @db.Decimal(5, 2)
+  convertedAt           DateTime?
+  createdById           String?
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  partner               Partner           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  school                School?           @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  createdBy             User?             @relation("PartnerDealCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, status])
+  @@index([schoolId])
+}
+
 model NpsResponse {
   id        String   @id @default(cuid())
   schoolId  String
@@ -4268,6 +4320,58 @@ model OnboardingChecklistItem {
   school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, key])
+}
+
+enum MigrationJobStatus {
+  INVITED
+  FILES_AWAITED
+  IN_PROGRESS
+  PREVIEW_READY
+  SIGNED_OFF
+  COMPLETED
+  ROLLED_BACK
+}
+
+model MigrationJob {
+  id                        String             @id @default(cuid())
+  schoolId                  String
+  sourceSystem              String
+  specialistId              String?
+  status                    MigrationJobStatus @default(INVITED)
+  studentsExpected          Int?
+  resultsExpected           Int?
+  includeStudentsGuardians  Boolean            @default(true)
+  includeStaffAccounts      Boolean            @default(true)
+  includeHistoricalResults  Boolean            @default(true)
+  includeFeesBalances       Boolean            @default(true)
+  includeAttendanceHistory  Boolean            @default(false)
+  includeBehaviouralRecords Boolean            @default(false)
+  filesReceivedAt           DateTime?
+  retentionClockStartsAt    DateTime?
+  previewSharedAt           DateTime?
+  signedOffAt               DateTime?
+  signedOffById             String?
+  rolledBackAt              DateTime?
+  rollbackReason            String?
+  notes                     String?
+  createdById               String?
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  school                    School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  specialist                User?              @relation("MigrationJobSpecialist", fields: [specialistId], references: [id], onDelete: SetNull)
+  signedOffBy               User?              @relation("MigrationJobSignedOffBy", fields: [signedOffById], references: [id], onDelete: SetNull)
+  createdBy                 User?              @relation("MigrationJobCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status])
+  @@index([status])
+}
+
+model MigrationSourceAdapter {
+  id        String   @id @default(cuid())
+  name      String   @unique
+  status    String
+  notes     String?
+  createdAt DateTime @default(now())
 }
 
 model SchoolGroup {

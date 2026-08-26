@@ -133,11 +133,12 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   const params = searchParams ? await searchParams : {};
   const tab = params.tab ?? "overview";
 
-  const [billingEnvelope, revenue, plansEnvelope, report] = await Promise.all([
+  const [billingEnvelope, revenue, plansEnvelope, report, invoicesEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminBillingRow[]>("/api/super-admin/billing"),
     apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
     apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans"),
-    apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report")
+    apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report"),
+    apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices")
   ]);
   const billing = billingEnvelope.data ?? [];
   const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
@@ -148,15 +149,18 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   const maxTierMrr = Math.max(...revenue.schoolsByPlan.map((row) => (planByTier.get(row.plan)?.monthlyPrice ?? 0) * row.count), 1);
   const churnRatePct = Math.round((100 - report.renewalRate) * 10) / 10;
   const notRenewedCount = Math.max(0, report.activeSchoolCount - report.renewedRecently);
+  const allInvoices = invoicesEnvelope.data ?? [];
+  const outstandingInvoiceCount = allInvoices.filter((item) => item.status === "ISSUED" || item.status === "PARTIALLY_PAID" || item.status === "OVERDUE").length;
+
+  const validTabs = new Set(["overview", "invoices", "trials", "wallets", "pricing"]);
+  const activeTab = validTabs.has(tab) ? tab : "overview";
 
   const tabs = [
-    { label: "Subscription Dashboard", href: tabHref("overview"), active: tab === "overview" },
-    { label: "Invoices", href: tabHref("invoices"), active: tab === "invoices" },
-    { label: "Trials", href: tabHref("trials"), active: tab === "trials", badge: trialBilling.length },
-    { label: "Churn Risk", href: tabHref("churn"), active: tab === "churn" },
-    { label: "Credit Wallets", href: tabHref("credits"), active: tab === "credits" },
-    { label: "Promo Codes", href: tabHref("promo"), active: tab === "promo" },
-    { label: "Revenue Reporting", href: tabHref("report"), active: tab === "report" }
+    { label: "Overview", href: tabHref("overview"), active: activeTab === "overview" },
+    { label: "Invoices", href: tabHref("invoices"), active: activeTab === "invoices", badge: outstandingInvoiceCount },
+    { label: "Trials", href: tabHref("trials"), active: activeTab === "trials", badge: trialBilling.length },
+    { label: "Wallets", href: tabHref("wallets"), active: activeTab === "wallets" },
+    { label: "Pricing & Promotions", href: tabHref("pricing"), active: activeTab === "pricing" }
   ];
 
   return (
@@ -179,7 +183,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
 
       <DetailTabs tabs={tabs} />
 
-      {tab === "overview" ? (
+      {activeTab === "overview" ? (
         <>
           <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
             <StatCard
@@ -226,7 +230,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
             />
           </section>
 
-          <section className="grid gap-5 xl:grid-cols-[0.9fr_1.4fr]">
+          <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
             <section className="surface-card overflow-hidden">
               <div className="border-b border-[var(--color-border-default)] px-5 py-4">
                 <p className="section-eyebrow">Revenue composition</p>
@@ -273,78 +277,35 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
             <section className="surface-card overflow-hidden">
               <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
                 <div>
-                  <p className="section-eyebrow">Live rate card</p>
-                  <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
+                  <p className="section-eyebrow">Collections</p>
+                  <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Receivables &amp; renewals</h2>
                 </div>
-                <a href="/super-admin/feature-flags?tab=plans" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
-                  Open Tier Plans
+                <a href={tabHref("pricing")} className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+                  View rate card
                 </a>
               </div>
-              <div className="grid gap-3 p-5 md:grid-cols-2">
-                {activePlans.length === 0 ? (
-                  <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)] md:col-span-2">
-                    No active plans. Configure one in Feature & Tier Management.
+              <div className="grid gap-4 p-5">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[12.5px] text-[var(--color-text-secondary)]">Outstanding receivables</p>
+                  <p className="font-[var(--font-mono)] text-[15px] font-bold" style={{ color: "var(--color-warning)" }}>
+                    {formatCurrency(report.outstandingReceivables)}
                   </p>
-                ) : (
-                  activePlans.map((plan) => {
-                    const entitlements = planEntitlements(plan.includedModules);
-                    const featureSummary = entitlements.features.length
-                      ? entitlements.features.slice(0, 3).join(", ")
-                      : entitlements.modules.slice(0, 3).join(", ");
-                    return (
-                    <article key={plan.id} className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
-                          <h3 className="mt-1 truncate text-[15px] font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
-                          <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">{plan.slug}</p>
-                        </div>
-                        <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Active" />
-                      </div>
-
-                      <div className="mt-4 grid grid-cols-2 gap-3">
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
-                          <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
-                          <p className="text-[11.5px] text-[var(--color-text-muted)]">per student</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
-                          <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planUsd(plan)}</p>
-                          <p className="text-[11.5px] text-[var(--color-text-muted)]">{plan.subscriberCount} subscriber{plan.subscriberCount === 1 ? "" : "s"}</p>
-                        </div>
-                      </div>
-
-                      <div className="mt-4 grid gap-2 border-t border-[var(--color-border-default)] pt-3 text-[12px] text-[var(--color-text-secondary)]">
-                        <div className="flex justify-between gap-3">
-                          <span>Students</span>
-                          <span className="font-semibold text-[var(--color-text-primary)]">{studentRangeLabel(plan)}</span>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <span>Staff</span>
-                          <span className="font-semibold text-[var(--color-text-primary)]">{plan.staffLimit ? `${plan.staffLimit.toLocaleString()} staff` : "Unlimited"}</span>
-                        </div>
-                        <div className="flex justify-between gap-3">
-                          <span>Support</span>
-                          <span className="font-semibold text-[var(--color-text-primary)]">{plan.supportTier}</span>
-                        </div>
-                        {featureSummary ? (
-                          <p className="border-t border-[var(--color-border-default)] pt-2 leading-5">{featureSummary}</p>
-                        ) : null}
-                      </div>
-
-                      <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex flex-wrap gap-1.5">
-                          {plan.apiAccess ? <StatusPill bg="var(--color-info-dim)" fg="var(--color-info)" label="API" /> : null}
-                          {plan.customBranding ? <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label="Branding" /> : null}
-                          {!plan.apiAccess && !plan.customBranding ? <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label="Core" /> : null}
-                        </div>
-                        <PlanEditDialog plan={plan} />
-                      </div>
-                    </article>
-                    );
-                  })
-                )}
+                </div>
+                <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+                  {report.unpaidSchoolCount} school{report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance.
+                </p>
+                <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-4">
+                  <p className="text-[12.5px] text-[var(--color-text-secondary)]">Renewal rate</p>
+                  <p className="font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{report.renewalRate}%</p>
+                </div>
+                <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+                  {report.renewedRecently} of {report.activeSchoolCount} active schools renewed in the last 90 days.
+                </p>
+                <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-4">
+                  <p className="text-[12.5px] text-[var(--color-text-secondary)]">Notification credit revenue</p>
+                  <p className="font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{formatCompactCurrency(report.notificationCreditRevenue)}</p>
+                </div>
+                <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">{report.creditRevenueSharePct}% of platform revenue, kept separate from subscriptions.</p>
               </div>
             </section>
           </section>
@@ -400,22 +361,38 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               }
             ]}
           />
+
+          <div className="grid gap-1.5">
+            <p className="section-eyebrow">Retention</p>
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Churn risk</h2>
+          </div>
+          <ChurnRiskTab />
+
+          <div className="grid gap-1.5">
+            <p className="section-eyebrow">Reporting</p>
+            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Revenue reporting</h2>
+          </div>
+          <RevenueReportTab revenue={revenue} report={report} />
         </>
       ) : null}
 
-      {tab === "invoices" ? <InvoicesTab billing={billing} params={params} /> : null}
-      {tab === "trials" ? <TrialsTab trialBilling={trialBilling} /> : null}
-      {tab === "churn" ? <ChurnRiskTab /> : null}
-      {tab === "credits" ? <NotificationCreditsTab billing={billing} /> : null}
-      {tab === "promo" ? <PromoCodesTab billing={billing} /> : null}
-      {tab === "report" ? <RevenueReportTab revenue={revenue} /> : null}
+      {activeTab === "invoices" ? <InvoicesTab billing={billing} params={params} allInvoices={allInvoices} /> : null}
+      {activeTab === "trials" ? <TrialsTab trialBilling={trialBilling} /> : null}
+      {activeTab === "wallets" ? <WalletsTab billing={billing} /> : null}
+      {activeTab === "pricing" ? <PricingPromotionsTab billing={billing} activePlans={activePlans} /> : null}
     </div>
   );
 }
 
-async function InvoicesTab({ billing, params }: { billing: SuperAdminBillingRow[]; params: Record<string, string | undefined> }) {
-  const envelope = await apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices");
-  const allInvoices = envelope.data ?? [];
+function InvoicesTab({
+  billing,
+  params,
+  allInvoices
+}: {
+  billing: SuperAdminBillingRow[];
+  params: Record<string, string | undefined>;
+  allInvoices: SuperAdminInvoiceRow[];
+}) {
   const search = params.invoiceSearch?.trim().toLowerCase();
   const invoices = search
     ? allInvoices.filter((item) => item.invoiceNo.toLowerCase().includes(search) || item.schoolName.toLowerCase().includes(search))
@@ -767,7 +744,7 @@ async function ChurnRiskTab() {
   );
 }
 
-async function NotificationCreditsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
+async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   const wallets = await Promise.all(
     billing.slice(0, 25).map(async (item) => {
       const wallet = await apiGet<SuperAdminNotificationWallet>(`/api/super-admin/billing/${item.schoolId}/wallet`);
@@ -860,7 +837,7 @@ async function NotificationCreditsTab({ billing }: { billing: SuperAdminBillingR
   );
 }
 
-async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
+async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAdminBillingRow[]; activePlans: SuperAdminPlanRow[] }) {
   const [codesEnvelope, reportEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminPromoCodeRow[]>("/api/super-admin/billing/promo-codes"),
     apiGetEnvelope<Array<{ campaignName: string; totalRedemptions: number; totalDiscountIssued: number; schoolsConverted: number }>>("/api/super-admin/billing/promo-codes/report")
@@ -876,6 +853,84 @@ async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
 
   return (
     <section className="grid gap-5">
+      <section className="surface-card overflow-hidden">
+        <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
+          <div>
+            <p className="section-eyebrow">Live rate card</p>
+            <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
+          </div>
+          <a href="/super-admin/feature-flags?tab=plans" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+            Open Tier Plans
+          </a>
+        </div>
+        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+          {activePlans.length === 0 ? (
+            <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
+              No active plans. Configure one in Feature &amp; Tier Management.
+            </p>
+          ) : (
+            activePlans.map((plan) => {
+              const entitlements = planEntitlements(plan.includedModules);
+              const featureSummary = entitlements.features.length
+                ? entitlements.features.slice(0, 3).join(", ")
+                : entitlements.modules.slice(0, 3).join(", ");
+              return (
+              <article key={plan.id} className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
+                    <h3 className="mt-1 truncate text-[15px] font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
+                    <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">{plan.slug}</p>
+                  </div>
+                  <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Active" />
+                </div>
+
+                <div className="mt-4 grid grid-cols-2 gap-3">
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
+                    <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
+                    <p className="text-[11.5px] text-[var(--color-text-muted)]">per student</p>
+                  </div>
+                  <div>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
+                    <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planUsd(plan)}</p>
+                    <p className="text-[11.5px] text-[var(--color-text-muted)]">{plan.subscriberCount} subscriber{plan.subscriberCount === 1 ? "" : "s"}</p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-2 border-t border-[var(--color-border-default)] pt-3 text-[12px] text-[var(--color-text-secondary)]">
+                  <div className="flex justify-between gap-3">
+                    <span>Students</span>
+                    <span className="font-semibold text-[var(--color-text-primary)]">{studentRangeLabel(plan)}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>Staff</span>
+                    <span className="font-semibold text-[var(--color-text-primary)]">{plan.staffLimit ? `${plan.staffLimit.toLocaleString()} staff` : "Unlimited"}</span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span>Support</span>
+                    <span className="font-semibold text-[var(--color-text-primary)]">{plan.supportTier}</span>
+                  </div>
+                  {featureSummary ? (
+                    <p className="border-t border-[var(--color-border-default)] pt-2 leading-5">{featureSummary}</p>
+                  ) : null}
+                </div>
+
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <div className="flex flex-wrap gap-1.5">
+                    {plan.apiAccess ? <StatusPill bg="var(--color-info-dim)" fg="var(--color-info)" label="API" /> : null}
+                    {plan.customBranding ? <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label="Branding" /> : null}
+                    {!plan.apiAccess && !plan.customBranding ? <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label="Core" /> : null}
+                  </div>
+                  <PlanEditDialog plan={plan} />
+                </div>
+              </article>
+              );
+            })
+          )}
+        </div>
+      </section>
+
       <section className="grid gap-3 md:grid-cols-3">
         <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="success" icon={TicketPercent} />
         <StatCard label="Total redemptions" value={totalRedemptions} detail={`${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted`} tone="accent" icon={Gift} />
@@ -951,8 +1006,7 @@ async function PromoCodesTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   );
 }
 
-async function RevenueReportTab({ revenue }: { revenue: SuperAdminRevenueView }) {
-  const report = await apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report");
+function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView; report: SuperAdminRevenueReport }) {
   const subscriberCounts = new Map<string, number>(revenue.schoolsByPlan.map((item) => [item.plan, item.count]));
   const maxTierRevenue = Math.max(...report.revenueByTier.map((item) => item.revenue), 1);
 

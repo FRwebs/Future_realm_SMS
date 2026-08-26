@@ -414,6 +414,54 @@ export interface SuperAdminSchoolGroup {
   branches: Array<{ id: string; name: string; totalStudents: number; plan: SubscriptionPlan; status: TenantStatus }>;
 }
 
+export type MigrationJobStatus =
+  | "INVITED"
+  | "FILES_AWAITED"
+  | "IN_PROGRESS"
+  | "PREVIEW_READY"
+  | "SIGNED_OFF"
+  | "COMPLETED"
+  | "ROLLED_BACK";
+
+export interface MigrationJobRow {
+  id: string;
+  schoolId: string;
+  schoolName: string;
+  sourceSystem: string;
+  status: MigrationJobStatus;
+  studentsExpected?: number | null;
+  resultsExpected?: number | null;
+  includeStudentsGuardians: boolean;
+  includeStaffAccounts: boolean;
+  includeHistoricalResults: boolean;
+  includeFeesBalances: boolean;
+  includeAttendanceHistory: boolean;
+  includeBehaviouralRecords: boolean;
+  filesReceivedAt?: string | null;
+  retentionClockStartsAt?: string | null;
+  previewSharedAt?: string | null;
+  signedOffAt?: string | null;
+  signedOffById?: string | null;
+  signedOffByName?: string | null;
+  rolledBackAt?: string | null;
+  rollbackReason?: string | null;
+  notes?: string | null;
+  specialistId?: string | null;
+  specialistName?: string | null;
+  createdById?: string | null;
+  createdByName?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MigrationSourceAdapterRow {
+  id: string;
+  name: string;
+  status: string;
+  notes?: string | null;
+  createdAt: string;
+}
+
 export interface SuperAdminSchoolDetail {
   id: string;
   name: string;
@@ -580,6 +628,7 @@ export interface SuperAdminAnalyticsOverview {
       currentTermCollected: number;
       currentTermInvoiced: number;
       overdueBalances: number;
+      overdueAging: Array<{ band: string; amount: number; count: number }>;
       monthOverMonthGrowth: number;
       newMrrThisMonth: number;
       notificationCreditRevenue: number;
@@ -2145,6 +2194,80 @@ export interface DemoUserCredential {
   name: string;
 }
 
+export type MyWorkTone = "neutral" | "accent" | "success" | "warning" | "danger" | "info" | "brand";
+export type MyWorkNowIcon = "tickets" | "approvals" | "schools" | "deals";
+
+export interface MyWorkNowCard {
+  id: string;
+  icon: MyWorkNowIcon;
+  pill: string;
+  tone: MyWorkTone;
+  value: number;
+  unit: string;
+  label: string;
+  note: string;
+  action: string;
+  link: string;
+}
+
+export interface MyWorkSchoolRow {
+  id: string;
+  name: string;
+  meta: string;
+  status: string;
+  signal: string;
+  action: string;
+  link: string;
+}
+
+export interface MyWorkCaseRow {
+  id: string;
+  subject: string;
+  module: string;
+  type: string;
+  sla: string;
+  slaTone: MyWorkTone;
+  age: string;
+  link: string;
+}
+
+export interface MyWorkApprovalItem {
+  id: string;
+  title: string;
+  meta: string;
+  pill: string;
+  tone: MyWorkTone;
+  approveEndpoint: string;
+  approveMethod: "PATCH" | "POST";
+  approveBody?: Record<string, unknown>;
+  approveLabel: string;
+  declineEndpoint: string;
+  declineMethod: "PATCH" | "POST";
+  declineBody?: Record<string, unknown>;
+  declineNeedsReason: boolean;
+}
+
+export interface MyWorkTicketBreakdownRow {
+  priority: string;
+  tone: MyWorkTone;
+  count: number;
+  percent: number;
+}
+
+export interface MyWorkSummary {
+  refreshedAt: string;
+  now: MyWorkNowCard[];
+  schools: {
+    source: "account_manager" | "open_case";
+    portfolioTotal: number;
+    signalTotal: number;
+    rows: MyWorkSchoolRow[];
+  };
+  cases: MyWorkCaseRow[];
+  approvals: MyWorkApprovalItem[];
+  tickets: MyWorkTicketBreakdownRow[];
+}
+
 export interface SuperAdminTicketRow {
   id: string;
   ticketNo: string;
@@ -2205,6 +2328,21 @@ export interface SuperAdminCannedResponse {
   title: string;
   body: string;
   updatedAt: string;
+}
+
+export interface SuperAdminKnowledgeBaseArticle {
+  id: string;
+  title: string;
+  slug: string;
+  category: string;
+  roleTarget?: string | null;
+  status: string;
+  views: number;
+  helpfulYes: number;
+  helpfulNo: number;
+  author: string;
+  updatedAt: string;
+  publishedAt: string | null;
 }
 
 export interface SuperAdminTicketAnalytics {
@@ -2382,6 +2520,13 @@ export interface SuperAdminInfraMonitoring {
   generatedAt: string;
 }
 
+export interface SuperAdminComputationMonitoring {
+  assessments: { pendingApproval: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string };
+  broadsheets: { pending: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string; avgCompileHours: number | null };
+  reportCards: { pending: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string };
+  generatedAt: string;
+}
+
 export interface SuperAdminConfigLibrary {
   curricula: Array<{ id: string; name: string; country: string; subjectCount: number; calendarType: string; version: string; isActive: boolean }>;
   gradingScales: Array<{ id: string; name: string; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean }>;
@@ -2422,4 +2567,81 @@ export interface SuperAdminTeamActivity {
 export interface SuperAdminPermissionGridMatrix {
   modules: string[];
   members: Array<{ id: string; name: string; role: string; access: Record<string, string> }>;
+}
+
+export interface SuperAdminInternalSession {
+  id: string;
+  userId: string;
+  name: string;
+  email: string;
+  role: string;
+  ipAddress: string | null;
+  device: string | null;
+  lastActivityAt: string;
+  expiresAt: string;
+  createdAt: string;
+}
+
+export interface SuperAdminIpAccessRule {
+  id: string;
+  ipAddress: string;
+  type: string;
+  reason: string | null;
+  createdAt: string;
+}
+
+export type PartnerDealStatus = "REGISTERED" | "CONVERTED" | "EXPIRED" | "COMMISSION_PAID";
+
+export interface SuperAdminPartnerRow {
+  id: string;
+  name: string;
+  territory: string | null;
+  agreementReference: string | null;
+  agreementValidTo: string | null;
+  commissionRatePercent: number;
+  isActive: boolean;
+  createdAt: string;
+  dealCount: number;
+}
+
+export interface SuperAdminPartnerDealRow {
+  id: string;
+  partnerId: string;
+  partnerName: string;
+  schoolId: string | null;
+  schoolName: string | null;
+  prospectSchoolName: string;
+  prospectLocation: string | null;
+  expectedTier: string | null;
+  stream: string | null;
+  introductionEvidence: string | null;
+  registeredAt: string;
+  validUntil: string;
+  status: PartnerDealStatus;
+  commissionRatePercent: number;
+  convertedAt: string | null;
+  createdAt: string;
+  grossRevenue: number;
+  commissionOwed: number;
+}
+
+export interface SuperAdminPartnerCommissionStatement {
+  dealId: string;
+  schoolId: string;
+  schoolName: string;
+  commissionRatePercent: number;
+  grossRevenue: number;
+  commissionOwed: number;
+  status: PartnerDealStatus;
+}
+
+export interface SuperAdminPartnerCommissionSummaryRow {
+  partnerId: string;
+  partnerName: string;
+  territory: string | null;
+  convertedDealCount: number;
+  totalCommissionOwed: number;
+  totalCommissionPaid: number;
+  totalCommissionPending: number;
+  statements: SuperAdminPartnerCommissionStatement[];
 }

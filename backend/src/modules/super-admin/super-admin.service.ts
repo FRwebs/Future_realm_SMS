@@ -1929,6 +1929,7 @@ export class SuperAdminService {
       previousMonthPayments,
       currentTermInvoices,
       overdueInvoices,
+      notificationCreditThisMonth,
       trialsExpiring,
       churnRiskSchools,
       gracePeriodSchools,
@@ -1962,7 +1963,8 @@ export class SuperAdminService {
       prisma.platformBillingTransaction.aggregate({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: monthStart } }, _sum: { amount: true } }),
       prisma.platformBillingTransaction.aggregate({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: previousMonthStart, lte: previousMonthEnd } }, _sum: { amount: true } }),
       prisma.platformInvoice.aggregate({ where: { issuedAt: { gte: monthStart } }, _sum: { amount: true } }),
-      prisma.platformInvoice.aggregate({ where: { status: { in: ["PENDING", "OVERDUE"] }, dueAt: { lt: new Date() } }, _sum: { amount: true } }),
+      prisma.platformInvoice.findMany({ where: { status: { in: ["PENDING", "OVERDUE"] }, dueAt: { lt: new Date() } }, select: { amount: true, dueAt: true } }),
+      prisma.platformBillingTransaction.aggregate({ where: { status: "SUCCESS", metadata: { path: ["type"], equals: "notification_credit" }, processedAt: { gte: monthStart } }, _sum: { amount: true } }),
       prisma.school.count({ where: { deletedAt: null, status: "TRIAL", trialEndsAt: { gte: new Date(), lte: nextSevenDays } } }),
       prisma.school.count({ where: { deletedAt: null, healthScore: { lt: 50 } } }),
       prisma.school.count({ where: { deletedAt: null, billingStatus: { in: ["OVERDUE", "SUSPENDED"] } } }),
@@ -1980,6 +1982,15 @@ export class SuperAdminService {
       prisma.auditLog.findMany({ include: { actor: true, school: true }, orderBy: { createdAt: "desc" }, take: 10 }),
       getPlanPriceMap()
     ]);
+    const overdueTotal = overdueInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0);
+    const overdueAgingBuckets = { "0-30 days": { amount: 0, count: 0 }, "31-60 days": { amount: 0, count: 0 }, "60+ days": { amount: 0, count: 0 } };
+    for (const invoice of overdueInvoices) {
+      const daysOverdue = Math.floor((Date.now() - invoice.dueAt.getTime()) / (24 * 60 * 60 * 1000));
+      const bucket = daysOverdue <= 30 ? "0-30 days" : daysOverdue <= 60 ? "31-60 days" : "60+ days";
+      overdueAgingBuckets[bucket].amount += Number(invoice.amount);
+      overdueAgingBuckets[bucket].count += 1;
+    }
+    const overdueAging = Object.entries(overdueAgingBuckets).map(([band, value]) => ({ band, amount: value.amount, count: value.count }));
     const statusCounts = Object.fromEntries(schools.map((item) => [item.status, item._count]));
     const roleCounts = Object.fromEntries(users.map((item) => [item.role, item._count]));
     const currentMonthRevenue = Number(currentMonthPayments._sum.amount ?? 0);
@@ -2014,7 +2025,7 @@ export class SuperAdminService {
     ).map(([, value]) => value).sort((left, right) => right.schoolCount - left.schoolCount);
     const alerts = [
       trialsExpiring ? { id: "trials-expiring", severity: "warning", title: "Trials expiring soon", detail: `${trialsExpiring} school(s) have trials ending within 7 days.`, actionHref: "/super-admin/schools?status=TRIAL" } : null,
-      Number(overdueInvoices._sum.amount ?? 0) > 0 ? { id: "overdue-invoices", severity: "danger", title: "Overdue platform invoices", detail: `${Number(overdueInvoices._sum.amount ?? 0).toLocaleString()} outstanding beyond due date.`, actionHref: "/super-admin/billing" } : null,
+      overdueTotal > 0 ? { id: "overdue-invoices", severity: "danger", title: "Overdue platform invoices", detail: `${overdueTotal.toLocaleString()} outstanding beyond due date.`, actionHref: "/super-admin/billing" } : null,
       failedSyncDrafts ? { id: "sync-backlog", severity: "warning", title: "Offline sync backlog", detail: `${failedSyncDrafts} sync record(s) have been pending for more than 24 hours.`, actionHref: "/super-admin/analytics" } : null,
       supportSlaBreaching ? { id: "support-sla", severity: "danger", title: "Support SLA breach", detail: `${supportSlaBreaching} support ticket(s) are beyond SLA.`, actionHref: "/super-admin/support" } : null,
       churnRiskSchools ? { id: "churn-risk", severity: "warning", title: "Churn risk schools", detail: `${churnRiskSchools} school(s) have health scores below 50.`, actionHref: "/super-admin/crm" } : null
@@ -2050,10 +2061,11 @@ export class SuperAdminService {
           currentMonthRevenue,
           currentTermCollected: currentMonthRevenue,
           currentTermInvoiced: Number(currentTermInvoices._sum.amount ?? 0),
-          overdueBalances: Number(overdueInvoices._sum.amount ?? 0),
+          overdueBalances: overdueTotal,
+          overdueAging,
           monthOverMonthGrowth,
           newMrrThisMonth: monthSignups * (priceMap.get("BASIC") ?? 0),
-          notificationCreditRevenue: 0
+          notificationCreditRevenue: Number(notificationCreditThisMonth._sum.amount ?? 0)
         },
         subscriptionHealth: {
           trialsExpiringNext7Days: trialsExpiring,

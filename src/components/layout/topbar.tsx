@@ -88,6 +88,8 @@ type DropdownItem = {
   action?: "logout";
   permission?: string;
   danger?: boolean;
+  note?: string;
+  badge?: number;
 };
 
 const iconMap = {
@@ -168,7 +170,25 @@ function notificationsEndpoint(session: SessionUser, portalType: PortalType) {
   return null;
 }
 
-export function dropdownItemsFor(session: SessionUser): DropdownItem[] {
+export function dropdownItemsFor(
+  session: SessionUser,
+  context?: { reviewQueueCount?: number },
+): DropdownItem[] {
+  if (session.role === "SUPER_ADMIN" || session.role.startsWith("PLATFORM_")) {
+    return [
+      { label: "Your admin profile", icon: "User", path: "/super-admin/profile", note: "Role, portfolio, logged actions" },
+      {
+        label: "Risk review queue",
+        icon: "List",
+        path: "/super-admin/schools?tab=approval-queue",
+        note: "Flagged schools — never gating",
+        badge: context?.reviewQueueCount,
+      },
+      { label: "Security & audit", icon: "Shield", path: "/super-admin/security", note: "Your sessions and audit trail" },
+      { label: "Internal team", icon: "Users", path: "/super-admin/internal-team", note: "Who else has Platform Admin access" },
+    ];
+  }
+
   const profilePath =
     session.role === "PARENT"
       ? "/portals/parent/profile"
@@ -192,8 +212,6 @@ export function dropdownItemsFor(session: SessionUser): DropdownItem[] {
           ? "/portals/hostel/profile"
         : ["TRANSPORT_COORDINATOR", "TRANSPORT_MANAGER"].includes(session.role)
           ? "/portals/transport/profile"
-        : session.role.startsWith("PLATFORM_") || session.role === "SUPER_ADMIN"
-          ? "/super-admin/profile"
           : "/school/profile";
 
   const common: DropdownItem[] = [
@@ -352,21 +370,26 @@ function ProfileDropdown({
   session,
   schoolName,
   permissions,
+  portalType,
+  reviewQueueCount,
   onClose,
 }: {
   session: SessionUser;
   schoolName?: string;
   permissions: string[];
+  portalType: PortalType;
+  reviewQueueCount?: number;
   onClose: () => void;
 }) {
   const router = useRouter();
+  const isSuperAdmin = portalType === "super_admin";
 
   const items = useMemo(
     () =>
-      dropdownItemsFor(session).filter(
+      dropdownItemsFor(session, { reviewQueueCount }).filter(
         (item) => !item.permission || permissions.includes(item.permission),
       ),
-    [permissions, session],
+    [permissions, session, reviewQueueCount],
   );
 
   async function handleAction(item: DropdownItem) {
@@ -399,9 +422,15 @@ function ProfileDropdown({
             <p className="truncate text-[0.84rem] font-semibold text-[var(--color-text-primary)]">
               {session.name}
             </p>
-            <p className="truncate text-[0.72rem] text-[var(--color-text-secondary)]">
-              {roleLabels[session.role]}
-            </p>
+            {isSuperAdmin ? (
+              <p className="truncate text-[0.72rem] text-[var(--color-text-secondary)]">
+                {session.email}
+              </p>
+            ) : (
+              <p className="truncate text-[0.72rem] text-[var(--color-text-secondary)]">
+                {roleLabels[session.role]}
+              </p>
+            )}
             {schoolName ? (
               <p className="truncate text-[0.72rem] text-[var(--color-text-muted)]">
                 {schoolName}
@@ -409,6 +438,13 @@ function ProfileDropdown({
             ) : null}
           </div>
         </div>
+        {isSuperAdmin ? (
+          <div className="mt-3 flex flex-wrap items-center gap-1.5">
+            <span className="rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[0.66rem] font-bold text-[var(--color-text-secondary)]">
+              {roleLabels[session.role]}
+            </span>
+          </div>
+        ) : null}
         {session.impersonation ? (
           <div className="mt-3 rounded-[12px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-3 py-2 text-[11.5px] font-semibold text-[var(--color-warning)]">
             Impersonating account
@@ -423,7 +459,7 @@ function ProfileDropdown({
             type="button"
             onClick={() => handleAction(item)}
             className={cn(
-              "flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold transition",
+              "flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition",
               item.danger
                 ? "text-[var(--color-danger)] hover:bg-[var(--color-danger-dim)]"
                 : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]",
@@ -433,7 +469,26 @@ function ProfileDropdown({
               name={item.icon}
               className={item.danger ? "text-[var(--color-danger)]" : "text-[var(--color-text-muted)]"}
             />
-            <span>{item.label}</span>
+            <span className="min-w-0 flex-1">
+              <span
+                className={cn(
+                  "block text-[0.82rem] font-semibold",
+                  item.danger ? "text-[var(--color-danger)]" : "text-[var(--color-text-primary)]",
+                )}
+              >
+                {item.label}
+              </span>
+              {item.note ? (
+                <span className="mt-0.5 block truncate text-[0.68rem] font-normal text-[var(--color-text-muted)]">
+                  {item.note}
+                </span>
+              ) : null}
+            </span>
+            {typeof item.badge === "number" && item.badge > 0 ? (
+              <span className="shrink-0 rounded-full bg-[var(--color-warning-dim)] px-2 py-0.5 text-[0.66rem] font-bold text-[var(--color-warning)]">
+                {item.badge} open
+              </span>
+            ) : null}
           </button>
         ))}
       </div>
@@ -525,6 +580,12 @@ export function Topbar({
             <Menu className="h-4 w-4" />
           </button>
 
+          {portalType === "super_admin" ? (
+            <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#0d2315] text-[0.68rem] font-black text-white sm:flex">
+              FR
+            </span>
+          ) : null}
+
           <div className="min-w-0">
             <h1 className="truncate text-[0.98rem] font-bold leading-tight text-[var(--color-text-primary)]">
               {contextTitle}
@@ -548,11 +609,16 @@ export function Topbar({
                 {isProduction ? "Production" : "Development"}
               </span>
               <Link
-                href="/super-admin"
-                className="inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] px-2.5 py-2 text-[12.5px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]"
+                href="/super-admin/schools?tab=approval-queue"
+                className="relative inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] px-2.5 py-2 text-[12.5px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]"
               >
                 <BellRing className="h-3.5 w-3.5" />
                 Alerts
+                {platformStats?.reviewQueueCount ? (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[0.6rem] font-bold leading-none text-white">
+                    {platformStats.reviewQueueCount > 99 ? "99+" : platformStats.reviewQueueCount}
+                  </span>
+                ) : null}
               </Link>
             </div>
           ) : null}
@@ -590,11 +656,32 @@ export function Topbar({
               type="button"
               onClick={() => setDropdownOpen((value) => !value)}
               aria-expanded={dropdownOpen}
-              className="flex items-center gap-1.5 rounded-[10px] p-1 transition hover:bg-[var(--color-bg-subtle)]"
+              className={cn(
+                "flex items-center gap-1.5 transition",
+                portalType === "super_admin"
+                  ? "rounded-full border border-[var(--color-border-default)] py-1 pl-1 pr-2.5 hover:border-[var(--color-border-strong)]"
+                  : "rounded-[10px] p-1 hover:bg-[var(--color-bg-subtle)]",
+              )}
             >
-              <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[9px] bg-[#0d2315] text-[0.65rem] font-black text-white">
+              <span
+                className={cn(
+                  "flex shrink-0 items-center justify-center bg-[#0d2315] font-black text-white",
+                  portalType === "super_admin" ? "h-7 w-7 rounded-full text-[0.6rem]" : "h-8 w-8 rounded-[9px] text-[0.65rem]",
+                )}
+              >
                 {initials(session.name)}
               </span>
+
+              {portalType === "super_admin" ? (
+                <span className="hidden text-left leading-tight sm:block">
+                  <span className="block truncate text-[0.76rem] font-semibold text-[var(--color-text-primary)]">
+                    {session.name}
+                  </span>
+                  <span className="block truncate text-[0.64rem] text-[var(--color-text-muted)]">
+                    {roleLabels[session.role]}
+                  </span>
+                </span>
+              ) : null}
 
               <ChevronDown
                 className={cn(
@@ -607,6 +694,8 @@ export function Topbar({
             <DropdownShell open={dropdownOpen}>
               <ProfileDropdown
                 session={session}
+                portalType={portalType}
+                reviewQueueCount={platformStats?.reviewQueueCount}
                 schoolName={schoolName}
                 permissions={permissions}
                 onClose={() => setDropdownOpen(false)}

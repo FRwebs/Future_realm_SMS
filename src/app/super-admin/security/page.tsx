@@ -3,7 +3,7 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
-import type { SuperAdminSchoolRow } from "@/lib/domain/types";
+import type { SuperAdminAuditLogRow, SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 type PlatformSession = {
@@ -69,6 +69,15 @@ const incidentStatusOptions = [
   { label: "Resolved", value: "RESOLVED" }
 ];
 
+const privacyRequestTypeOptions = ["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"].map((v) => ({ label: v, value: v }));
+
+const privacyStatusOptions = [
+  { label: "Open", value: "OPEN" },
+  { label: "In review", value: "IN_REVIEW" },
+  { label: "Completed", value: "COMPLETED" },
+  { label: "Rejected", value: "REJECTED" }
+];
+
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
@@ -86,22 +95,35 @@ function KpiTile({ label, value }: { label: string; value: string }) {
   );
 }
 
+function auditActionTone(action: string) {
+  if (["SUSPEND", "DELETE", "REJECT"].includes(action)) return { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
+  if (["ACTIVATE", "APPROVE", "PAYMENT"].includes(action)) return { bg: "var(--color-success-dim)", fg: "var(--color-success)" };
+  if (["RESET_PASSWORD", "IMPERSONATE", "SETTINGS_UPDATE", "BILLING_UPDATE"].includes(action)) return { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" };
+  return { bg: "var(--color-accent-primary-dim)", fg: "var(--color-text-accent)" };
+}
+
+function AuditDetailsPreview({ details }: { details: unknown }) {
+  if (details === null || details === undefined) return <span className="text-[var(--color-text-muted)]">—</span>;
+  if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+  const text = typeof details === "string" ? details : JSON.stringify(details);
+  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[11px] text-[var(--color-text-secondary)]">{text}</span>;
+}
+
 function tabHref(tab: string) {
-  return tab === "overview" ? "/super-admin/security" : `/super-admin/security?tab=${tab}`;
+  return tab === "audit" ? "/super-admin/security" : `/super-admin/security?tab=${tab}`;
 }
 
 export default async function SuperAdminSecurityPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
-  const { tab = "overview" } = searchParams ? await searchParams : {};
+  const { tab = "audit" } = searchParams ? await searchParams : {};
   const data = await apiGet<SecurityView>("/api/super-admin/security");
-  const failedAttempts = (data.attempts ?? []).filter((attempt) => attempt.status === "FAILED").length;
   const openIncidents = (data.incidents ?? []).filter((incident) => incident.status !== "RESOLVED").length;
-  const criticalIncidents = (data.incidents ?? []).filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length;
+  const pendingRequests = (data.privacy ?? []).filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW").length;
 
   const tabs = [
-    { label: "Overview", href: tabHref("overview"), active: tab === "overview" },
-    { label: "Admin Login Security", href: tabHref("login"), active: tab === "login" },
-    { label: "Security Incidents", href: tabHref("incidents"), active: tab === "incidents" },
-    { label: "NDPC Compliance", href: tabHref("ndpc"), active: tab === "ndpc" }
+    { label: "Audit Log", href: tabHref("audit"), active: tab === "audit" },
+    { label: "Incidents", href: tabHref("incidents"), active: tab === "incidents", badge: openIncidents || undefined },
+    { label: "Compliance", href: tabHref("compliance"), active: tab === "compliance" },
+    { label: "Requests", href: tabHref("requests"), active: tab === "requests", badge: pendingRequests || undefined }
   ];
 
   return (
@@ -114,38 +136,34 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
           <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-[1]">
-        <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Security & compliance</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Security, Audit & Compliance</h1>
-        <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-          The accountability layer — active sessions, login activity, security incidents tracked from detection to
-          resolution, and NDPC-compliant data deletion evidence. For the full immutable platform action log, see{" "}
-          <a href="/super-admin/audit-logs" className="font-semibold text-white underline">
-            Audit Logs
-          </a>
-          .
-        </p>
+          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Security & compliance</p>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Security & Compliance</h1>
+          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+            The accountability layer — active sessions, login activity and the platform audit trail, security
+            incidents tracked from detection to resolution, NDPC-compliant data deletion evidence, and data subject
+            requests.
+          </p>
         </div>
       </section>
 
       <DetailTabs tabs={tabs} />
 
-      {tab === "overview" ? (
-        <section className="grid gap-3 md:grid-cols-4">
-          <KpiTile label="Active sessions" value={String(data.sessions?.length ?? 0)} />
-          <KpiTile label="Failed logins (recent)" value={String(failedAttempts)} />
-          <KpiTile label="Open incidents" value={String(openIncidents)} />
-          <KpiTile label="Critical incidents" value={String(criticalIncidents)} />
-        </section>
-      ) : null}
-
-      {tab === "login" ? <LoginSecurityTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} /> : null}
       {tab === "incidents" ? <IncidentsTab incidents={data.incidents ?? []} /> : null}
-      {tab === "ndpc" ? <NdpcTab privacy={data.privacy ?? []} /> : null}
+      {tab === "compliance" ? (
+        <ComplianceTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} incidents={data.incidents ?? []} />
+      ) : null}
+      {tab === "requests" ? <RequestsTab privacy={data.privacy ?? []} /> : null}
+      {tab === "audit" || !["incidents", "compliance", "requests"].includes(tab) ? (
+        <AuditLogTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} />
+      ) : null}
     </div>
   );
 }
 
-function LoginSecurityTab({ sessions, attempts }: { sessions: PlatformSession[]; attempts: LoginAttempt[] }) {
+async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]; attempts: LoginAttempt[] }) {
+  const envelope = await apiGetEnvelope<SuperAdminAuditLogRow[]>("/api/super-admin/audit-logs?limit=30");
+  const logs = envelope.data ?? [];
+
   return (
     <div className="grid gap-5">
       <section className="surface-card p-6">
@@ -209,6 +227,37 @@ function LoginSecurityTab({ sessions, attempts }: { sessions: PlatformSession[];
           { key: "ip", header: "IP", render: (item) => item.ipAddress ?? "-" },
           { key: "reason", header: "Reason", render: (item) => item.failureReason ?? "-" },
           { key: "created", header: "Date", render: (item) => formatDate(item.createdAt) }
+        ]}
+      />
+
+      <TableCard
+        title="Platform audit trail"
+        description={
+          <>
+            Every significant action taken on the platform, logged immutably — most recent {logs.length} shown. For
+            the full filterable history, see{" "}
+            <a href="/super-admin/audit-logs" className="font-semibold text-[var(--color-text-accent)] underline">
+              Audit Logs
+            </a>
+            .
+          </>
+        }
+        items={logs}
+        emptyState="No audit events recorded yet."
+        columns={[
+          { key: "timestamp", header: "Timestamp", render: (item) => formatDate(item.timestamp) },
+          { key: "admin", header: "Super Admin", render: (item) => item.superAdmin },
+          {
+            key: "action",
+            header: "Action",
+            render: (item) => {
+              const tone = auditActionTone(item.action);
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
+            }
+          },
+          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[12px]">{item.target}</span> },
+          { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
+          { key: "details", header: "Details", render: (item) => <AuditDetailsPreview details={item.details} /> }
         ]}
       />
     </div>
@@ -282,18 +331,34 @@ function IncidentsTab({ incidents }: { incidents: SecurityIncident[] }) {
   );
 }
 
-async function NdpcTab({ privacy }: { privacy: PrivacyRequest[] }) {
-  const [report, schoolsEnvelope] = await Promise.all([
-    apiGet<ComplianceReport>("/api/super-admin/security/compliance-report"),
-    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
-  ]);
-  const schoolOptions = [
-    { label: "Platform-wide (no specific school)", value: "" },
-    ...(schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }))
-  ];
+async function ComplianceTab({ sessions, attempts, incidents }: { sessions: PlatformSession[]; attempts: LoginAttempt[]; incidents: SecurityIncident[] }) {
+  const report = await apiGet<ComplianceReport>("/api/super-admin/security/compliance-report");
+  const failedAttempts = attempts.filter((attempt) => attempt.status === "FAILED").length;
+  const openIncidents = incidents.filter((incident) => incident.status !== "RESOLVED").length;
+  const criticalIncidents = incidents.filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length;
 
   return (
     <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-4">
+        <KpiTile label="Active sessions" value={String(sessions.length)} />
+        <KpiTile label="Failed logins (recent)" value={String(failedAttempts)} />
+        <KpiTile label="Open incidents" value={String(openIncidents)} />
+        <KpiTile label="Critical incidents" value={String(criticalIncidents)} />
+      </section>
+
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">NDPC data-retention compliance</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Data deletion &amp; retention</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Erasure completion requires export delivery, purge, and a logged confirmation hash — this cannot be
+          bypassed. Manage individual requests from the{" "}
+          <a href="/super-admin/security?tab=requests" className="font-semibold text-[var(--color-text-accent)] underline">
+            Requests
+          </a>{" "}
+          tab.
+        </p>
+      </section>
+
       <section className="grid gap-3 md:grid-cols-4">
         <KpiTile label="Deletion requests" value={String(report.totalDeletionRequests)} />
         <KpiTile label="Completed" value={String(report.byStatus.COMPLETED ?? 0)} />
@@ -302,8 +367,34 @@ async function NdpcTab({ privacy }: { privacy: PrivacyRequest[] }) {
       </section>
 
       <TableCard
+        title="Completed deletions — NDPC evidence"
+        description="Every completed deletion records who deleted it, when, and a confirmation hash for audit."
+        items={report.completed}
+        columns={[
+          { key: "school", header: "School", render: (item) => item.schoolName },
+          { key: "subject", header: "Subject", render: (item) => item.subject },
+          { key: "by", header: "Completed by", render: (item) => item.completedBy },
+          { key: "at", header: "Completed at", render: (item) => (item.completedAt ? formatDate(item.completedAt) : "-") },
+          { key: "hash", header: "Confirmation hash", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.confirmationHash ?? "-"}</span> }
+        ]}
+        emptyState="No completed deletions yet."
+      />
+    </div>
+  );
+}
+
+async function RequestsTab({ privacy }: { privacy: PrivacyRequest[] }) {
+  const schoolsEnvelope = await apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100");
+  const schoolOptions = [
+    { label: "Platform-wide (no specific school)", value: "" },
+    ...(schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }))
+  ];
+
+  return (
+    <div className="grid gap-5">
+      <TableCard
         title="Data privacy requests"
-        description="Access, export, erasure, and rectification requests. Erasure completion requires export delivery, purge, and a logged confirmation hash — this cannot be bypassed."
+        description="Access, export, erasure, and rectification requests raised by data subjects. Erasure completion requires export delivery, purge, and a logged confirmation hash — this cannot be bypassed."
         items={privacy}
         actions={
           <ResourceActionDialog
@@ -315,7 +406,7 @@ async function NdpcTab({ privacy }: { privacy: PrivacyRequest[] }) {
             submitLabel="Create request"
             fields={[
               { name: "schoolId", label: "School", type: "select", defaultValue: "", options: schoolOptions },
-              { name: "type", label: "Type", type: "select", options: ["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"].map((v) => ({ label: v, value: v })) },
+              { name: "type", label: "Type", type: "select", options: privacyRequestTypeOptions },
               { name: "subject", label: "Subject", required: true },
               { name: "details", label: "Details", type: "textarea" }
             ]}
@@ -330,42 +421,53 @@ async function NdpcTab({ privacy }: { privacy: PrivacyRequest[] }) {
           {
             key: "actions",
             header: "Actions",
-            render: (item) =>
-              item.type === "ERASURE" && item.status !== "COMPLETED" ? (
-                <ResourceActionDialog
-                  triggerLabel="Complete deletion"
-                  title="Complete data deletion"
-                  description="Confirms the export was delivered and data purged. Generates a confirmation hash and logs it immutably for NDPC compliance."
-                  endpoint={`/api/super-admin/security/privacy-requests/${item.id}/complete`}
-                  method="PATCH"
-                  variant="danger"
-                  submitLabel="Confirm deletion"
-                  confirmLabel="Confirm"
-                  confirmMessage="This is a Super Admin-only, audited, irreversible compliance action."
-                  fields={[]}
-                />
-              ) : item.status === "COMPLETED" ? (
-                <span className="text-xs" style={{ color: "var(--color-success)" }}>Completed {item.completedAt ? formatDate(item.completedAt) : ""}</span>
-              ) : (
-                <span className="text-xs text-[var(--color-text-muted)]">-</span>
-              )
+            render: (item) => {
+              if (item.status === "COMPLETED") {
+                return <span className="text-xs" style={{ color: "var(--color-success)" }}>Completed {item.completedAt ? formatDate(item.completedAt) : ""}</span>;
+              }
+              if (item.status === "REJECTED") {
+                return <span className="text-xs text-[var(--color-text-muted)]">Rejected</span>;
+              }
+              return (
+                <div className="flex flex-wrap items-center gap-2">
+                  <ResourceActionDialog
+                    triggerLabel="Update status"
+                    title={`Update request — ${item.subject}`}
+                    description="Move this request through the review workflow (approve, keep in review, or reject)."
+                    endpoint={`/api/super-admin/security/privacy-requests/${item.id}/status`}
+                    method="PATCH"
+                    variant="secondary"
+                    submitLabel="Update"
+                    fields={[
+                      {
+                        name: "status",
+                        label: "Status",
+                        type: "select",
+                        defaultValue: item.status,
+                        options: item.type === "ERASURE" ? privacyStatusOptions.filter((option) => option.value !== "COMPLETED") : privacyStatusOptions
+                      }
+                    ]}
+                  />
+                  {item.type === "ERASURE" ? (
+                    <ResourceActionDialog
+                      triggerLabel="Complete deletion"
+                      title="Complete data deletion"
+                      description="Confirms the export was delivered and data purged. Generates a confirmation hash and logs it immutably for NDPC compliance."
+                      endpoint={`/api/super-admin/security/privacy-requests/${item.id}/complete`}
+                      method="PATCH"
+                      variant="danger"
+                      submitLabel="Confirm deletion"
+                      confirmLabel="Confirm"
+                      confirmMessage="This is a Super Admin-only, audited, irreversible compliance action."
+                      fields={[]}
+                    />
+                  ) : null}
+                </div>
+              );
+            }
           }
         ]}
         emptyState="No data privacy requests recorded."
-      />
-
-      <TableCard
-        title="Completed deletions — NDPC evidence"
-        description="Every completed deletion records who deleted it, when, and a confirmation hash for audit."
-        items={report.completed}
-        columns={[
-          { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "subject", header: "Subject", render: (item) => item.subject },
-          { key: "by", header: "Completed by", render: (item) => item.completedBy },
-          { key: "at", header: "Completed at", render: (item) => (item.completedAt ? formatDate(item.completedAt) : "-") },
-          { key: "hash", header: "Confirmation hash", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.confirmationHash ?? "-"}</span> }
-        ]}
-        emptyState="No completed deletions yet."
       />
     </div>
   );
