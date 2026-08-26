@@ -4,15 +4,18 @@ import type { Route } from "next";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import {
-  Building2,
   Camera,
   Check,
   ClipboardList,
   CreditCard,
+  GraduationCap,
+  Mail,
   MessageSquareText,
   Minus,
   Plus,
   School,
+  Smartphone,
+  UserPlus,
 } from "lucide-react";
 
 import { useToast } from "@/components/ui/toast-provider";
@@ -20,21 +23,29 @@ import { cn } from "@/lib/utils/cn";
 
 const INK = "#0d2315";
 const TEAL = "#12796a";
+const MINT = "#3ee08a";
 
 const navLinks = [
   { label: "Home", href: "#top" },
   { label: "Features", href: "#features" },
+  { label: "Messaging", href: "#messaging" },
+  { label: "Flexible setup", href: "#flexible" },
   { label: "Pricing", href: "#pricing" },
   { label: "FAQ", href: "#faq" },
 ] as const;
 
-const heroKpis = [
-  { label: "Attendance", value: "96.2%", dark: false },
-  { label: "Fees collected", value: "₦4.2M", dark: false },
-  { label: "Active students", value: "1,284", dark: true },
+const heroBadges = [
+  { label: "NDPC-compliant" },
+  { label: "Any curriculum, WAEC-ready" },
 ] as const;
 
-const trustPlaces = ["Lagos", "Abuja", "Port Harcourt", "Ibadan"] as const;
+const heroChecklist = ["No card required", "Full access to every feature", "Set up in under an hour"] as const;
+
+const heroKpis = [
+  { label: "Attendance", value: "96.2%", dark: false },
+  { label: "Fees collected", value: "88%", dark: false },
+  { label: "Active students", value: "1,284", dark: true },
+] as const;
 
 const bandStats = [
   { value: "14 days", detail: "Keeps working with no internet, then syncs" },
@@ -44,10 +55,10 @@ const bandStats = [
 ] as const;
 
 const pillars = [
-  { title: "Admissions", subtitle: "Application to enrollment" },
-  { title: "Academics", subtitle: "Results, periods, attendance" },
-  { title: "Finance", subtitle: "Fees, invoices, receipts" },
-  { title: "Communication", subtitle: "Parent and staff visibility" },
+  { title: "Admissions", subtitle: "Application to enrollment", icon: UserPlus },
+  { title: "Academics", subtitle: "Results, periods, attendance", icon: GraduationCap },
+  { title: "Finance", subtitle: "Fees, invoices, receipts", icon: CreditCard },
+  { title: "Communication", subtitle: "Parent and staff visibility", icon: MessageSquareText },
 ] as const;
 
 interface FeatureCard {
@@ -56,6 +67,7 @@ interface FeatureCard {
   title: string;
   desc: string;
   photoCaption?: string;
+  photoSrc?: string;
   icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
 }
 
@@ -66,6 +78,7 @@ const featureCards: FeatureCard[] = [
     title: "Student enrollment",
     desc: "Handle inquiry to admission with digital forms, screening workflows and clean onboarding built for Nigerian schools.",
     photoCaption: "Admissions officer welcoming a parent",
+    photoSrc: "/images/landing/admissions.jpg",
   },
   {
     span: 1,
@@ -101,14 +114,43 @@ const featureCards: FeatureCard[] = [
     title: "Parent portal",
     desc: "Give parents visibility into fees, attendance, announcements and published results from a mobile-friendly portal.",
     photoCaption: "Parent checking the app on a mobile phone",
+    photoSrc: "/images/landing/parent-app.jpg",
   },
 ];
 
 const offlinePoints = [
-  { title: "Works for 14 days offline", desc: "A full fortnight of attendance and scores held safely on device." },
-  { title: "Conflict-safe sync", desc: "Two teachers, one record — the system resolves it and shows you what changed." },
-  { title: "Low-data by design", desc: "Built to run on a modest phone bundle, not office fibre." },
-  { title: "Nothing silently lost", desc: "Every pending record is visible and counted until it lands." },
+  { n: "01", title: "14 days offline", desc: "A full fortnight of attendance and scores held safely on device." },
+  { n: "02", title: "Conflict-safe sync", desc: "Two teachers, one record — the system resolves it and shows you what changed." },
+  { n: "03", title: "Low-data by design", desc: "Built to run on a modest phone bundle, not office fibre." },
+  { n: "04", title: "Nothing silently lost", desc: "Every pending record is visible and counted until it lands." },
+] as const;
+
+const flexibilityCards = [
+  { title: "Any curriculum", desc: "National, WAEC, NECO, British and IGCSE-style grading scales, configured per school.", dark: false },
+  { title: "Any calendar", desc: "Three terms, two semesters or four quarters, with your own resumption and exam dates.", dark: false },
+  { title: "Naira-native payments", desc: "Invoice and collect in Naira, settled straight to your school's bank account.", dark: false },
+  { title: "Configurable policies", desc: "Report card sections, promotion rules and result-publishing policy, set the way your school actually works.", dark: false },
+  { title: "Data you control", desc: "Every record exportable at any time — nothing locked in.", dark: true },
+] as const;
+
+const messagingChannels = [
+  { label: "WhatsApp", icon: MessageSquareText },
+  { label: "SMS", icon: Smartphone },
+  { label: "Email", icon: Mail },
+] as const;
+
+const messagingPoints = [
+  { n: "01", title: "One audience picker", desc: "A class, a year group, unpaid balances, or all staff — built from your live school data." },
+  { n: "02", title: "Templates, ready to send", desc: "Approved wording with student, balance and date merged in automatically." },
+  { n: "03", title: "Every channel, one send", desc: "Announcements, fee reminders and result notices reach WhatsApp, SMS and email together." },
+  { n: "04", title: "Delivery you can see", desc: "Sent and delivered status logged per recipient, per channel." },
+] as const;
+
+const messagingStats = [
+  { value: "368", label: "WhatsApp delivered" },
+  { value: "44", label: "Also sent as SMS" },
+  { value: "412", label: "Logged to record" },
+  { value: "78%", label: "Read in 2 hours" },
 ] as const;
 
 const howItWorks = [
@@ -120,12 +162,12 @@ const howItWorks = [
 
 const roleTabs = [
   {
-    label: "For proprietors",
-    title: "See the whole business, not just one class",
+    label: "For leadership",
+    title: "See the whole school, not just one class",
     points: [
       "Real-time revenue and enrollment across every branch",
       "Staff performance and attendance in one view",
-      "Custom reports for board and investor updates",
+      "Board-ready reporting, consolidated across campuses",
     ],
     panelLabel: "Leadership view · Second Term",
     rows: [
@@ -176,6 +218,15 @@ const parentPoints = [
   { title: "SMS for families without smartphones", rest: " — no parent is left out." },
 ] as const;
 
+const commitments = [
+  { title: "It works offline", desc: "Attendance and results never stop when the network does." },
+  { title: "Results you can defend", desc: "Every score change is approved and permanently recorded." },
+  { title: "Your data is yours", desc: "Full export any time, without asking permission." },
+  { title: "Every action is logged", desc: "A permanent audit trail no one can alter — not even us." },
+  { title: "No surprise costs", desc: "Message credits shown before every send, always." },
+  { title: "Built to standard", desc: "NDPC-compliant, encrypted in transit and at rest." },
+] as const;
+
 const testimonials = [
   {
     quote: "We closed our accounts office spreadsheet the week we switched. Fee collection is up 30%.",
@@ -208,6 +259,8 @@ interface Plan {
   cta: string;
   popular: boolean;
   features: string[];
+  badge: string;
+  accent: string;
 }
 
 interface PublicPlan {
@@ -223,23 +276,29 @@ interface PublicPlan {
 // /api/v1/onboarding/plans (backed by PlatformSubscriptionPlan) so an
 // admin's pricing changes in Super Admin > Feature & Tier Config show up
 // here, in onboarding, and anywhere else that reads the same source.
-const planCopy: Record<string, { desc: string; cta: string; popular: boolean; features: string[] }> = {
+const planCopy: Record<string, { desc: string; cta: string; popular: boolean; features: string[]; badge: string; accent: string }> = {
   Basic: {
     desc: "For growing single-campus schools getting organized for the first time.",
     cta: "Get started",
     popular: false,
+    badge: "Start here",
+    accent: "#d3dfd7",
     features: ["Admissions workflow", "Attendance tracking", "Parent portal", "Basic reports"],
   },
   Standard: {
     desc: "For established schools running academics, finance and communication in one place.",
     cta: "Get started",
     popular: true,
+    badge: "Most popular",
+    accent: MINT,
     features: ["Everything in Basic", "Results & broadsheets", "Fee management", "Role-based portals", "Priority onboarding"],
   },
   Premium: {
     desc: "For multi-branch institutions that need deeper control, visibility and premium support.",
     cta: "Talk to sales",
     popular: false,
+    badge: "Full control",
+    accent: TEAL,
     features: ["Everything in Standard", "Multi-campus support", "Advanced operations modules", "Executive reporting", "Dedicated success support"],
   },
 };
@@ -261,7 +320,7 @@ const faqs = [
   },
   {
     q: "Does it work well when internet connectivity is unstable?",
-    a: "Yes. FutureRealm is built with low-bandwidth realities in mind — attendance and grading work offline and sync automatically once a connection is available.",
+    a: "Yes. Attendance and grading keep working for up to 14 days offline on the device, then sync automatically once a connection returns.",
   },
   {
     q: "Will parents be able to see fees, attendance and results?",
@@ -271,9 +330,19 @@ const faqs = [
     q: "Can your team help with setup and onboarding for our staff?",
     a: "Yes — hands-on onboarding support is included as part of every plan's rollout.",
   },
+  {
+    q: "Where is our data stored, and can we take it with us?",
+    a: "Your records stay with your school. Export everything in a standard format at any time, with no restrictions.",
+  },
 ] as const;
 
-function ImagePlaceholder({ caption, className }: { caption: string; className?: string }) {
+function ImagePlaceholder({ caption, className, src }: { caption: string; className?: string; src?: string }) {
+  if (src) {
+    return (
+      <img src={src} alt={caption} className={cn("block h-full w-full overflow-hidden rounded-[20px] object-cover", className)} loading="lazy" />
+    );
+  }
+
   return (
     <div
       className={cn("relative flex items-end overflow-hidden rounded-[20px] bg-[#f3f7f4]", className)}
@@ -311,6 +380,41 @@ function RevealSection({
   );
 }
 
+function NumberedRow({
+  n,
+  title,
+  desc,
+  dark,
+}: {
+  n: string;
+  title: string;
+  desc: string;
+  dark: boolean;
+}) {
+  return (
+    <div
+      className="flex items-baseline gap-5 py-[18px]"
+      style={{ borderTop: `1px solid ${dark ? "rgba(255,255,255,0.16)" : "#dce6df"}` }}
+    >
+      <span
+        className="w-[26px] shrink-0 font-[var(--font-heading)] text-xs font-bold tracking-[0.04em]"
+        style={{ color: MINT }}
+      >
+        {n}
+      </span>
+      <span
+        className="w-[190px] shrink-0 text-[15px] font-semibold"
+        style={{ color: dark ? "#fff" : INK }}
+      >
+        {title}
+      </span>
+      <span className="text-sm leading-[1.5]" style={{ color: dark ? "#9fb8a7" : "#435048" }}>
+        {desc}
+      </span>
+    </div>
+  );
+}
+
 export function FutureRealmLandingPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
@@ -324,9 +428,18 @@ export function FutureRealmLandingPage() {
       .then((response) => response.json())
       .then((body: { data?: PublicPlan[] }) => {
         if (cancelled || !body.data || body.data.length === 0) return;
-        const live = body.data
-          .filter((item) => planCopy[item.name])
-          .map((item) => ({ name: item.name, price: formatNaira(item.annualPrice), ...planCopy[item.name] }));
+        // The live plan catalog can carry more than one row per tier name (e.g. an
+        // older price alongside a current one) — keep only the last (most recent)
+        // row per name so tiers never render with a duplicate React key.
+        const byName = new Map<string, PublicPlan>();
+        for (const item of body.data) {
+          if (planCopy[item.name]) byName.set(item.name, item);
+        }
+        const live = Array.from(byName.values()).map((item) => ({
+          name: item.name,
+          price: formatNaira(item.annualPrice),
+          ...planCopy[item.name],
+        }));
         if (live.length > 0) setPlans(live);
       })
       .catch(() => {
@@ -371,9 +484,9 @@ export function FutureRealmLandingPage() {
             FutureRealm <span style={{ color: TEAL }}>SMS</span>
           </span>
         </Link>
-        <div className="hidden items-center gap-9 lg:flex">
+        <div className="hidden items-center gap-8 lg:flex">
           {navLinks.map((link) => (
-            <a key={link.href} href={link.href} className="text-[15px] font-medium" style={{ color: INK }}>
+            <a key={link.href} href={link.href} className="whitespace-nowrap text-[15px] font-medium" style={{ color: INK }}>
               {link.label}
             </a>
           ))}
@@ -395,26 +508,39 @@ export function FutureRealmLandingPage() {
       {/* Hero */}
       <RevealSection className="mx-auto grid max-w-[1360px] items-center gap-10 px-6 pb-10 pt-12 sm:px-14 lg:grid-cols-[1fr_0.95fr]">
         <div>
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#d3dfd7] bg-[#eaf0ec] py-[7px] pl-2 pr-3.5">
-            <span className="flex h-5 w-5 items-center justify-center rounded-full text-[11px] font-bold text-white" style={{ background: INK }}>
-              ✓
+          <div className="mb-7 flex flex-wrap items-center gap-[11px] rounded-full border border-[#c9dacf] bg-white py-1.5 pl-1.5 pr-4 shadow-[0_2px_10px_-4px_rgba(13,35,21,0.18)]">
+            <span className="flex items-center gap-[7px] rounded-full py-[5px] pl-2 pr-3" style={{ background: INK }}>
+              <Check className="h-3 w-3" style={{ color: MINT }} strokeWidth={3} />
+              <span className="whitespace-nowrap text-[12.5px] font-semibold tracking-[0.02em] text-white">
+                Offline-first school management
+              </span>
             </span>
-            <span className="text-[13px] font-semibold text-[#17604f]">Built for Nigerian schools · NDPC-compliant</span>
+            {heroBadges.map((badge, index) => (
+              <span key={badge.label} className="flex items-center gap-[11px]">
+                {index > 0 ? <span className="h-[13px] w-px shrink-0 bg-[#d3dfd7]" /> : null}
+                <span className="whitespace-nowrap text-[13px] font-medium text-[#435048]">{badge.label}</span>
+              </span>
+            ))}
           </div>
-          <h1 className="mb-[22px] font-[var(--font-heading)] text-[42px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-[52px] lg:text-[60px]">
-            Run your school on <span style={{ color: TEAL }}>one clear system</span>, not six spreadsheets.
+          <p className="mb-4 font-[var(--font-heading)] text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "#17604f" }}>
+            Redefining school management
+          </p>
+          <h1 className="mb-[22px] font-[var(--font-heading)] text-[42px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-[52px] lg:text-[58px]">
+            No student should be
+            <br />
+            <span style={{ color: TEAL }}>a row in a spreadsheet.</span>
           </h1>
           <p className="mb-8 max-w-[520px] text-[17px] leading-[1.6] text-[#435048] sm:text-lg">
-            Admissions, academics, fees and communication — one modern operating system built for private,
-            faith-based and multi-branch schools across Nigeria.
+            Admissions, attendance, results, fees and parent communication in one system — built to keep working,
+            even when the internet doesn&apos;t.
           </p>
-          <div className="mb-10 flex flex-wrap items-center gap-4">
+          <div className="mb-[26px] flex flex-wrap items-center gap-4">
             <Link
               href="/onboarding"
-              className="rounded-full px-7 py-4 text-[15px] font-semibold text-white shadow-[0_12px_24px_-8px_rgba(13,35,21,0.55)]"
+              className="whitespace-nowrap rounded-full px-7 py-4 text-[15px] font-semibold text-white shadow-[0_12px_24px_-8px_rgba(13,35,21,0.55)]"
               style={{ background: INK }}
             >
-              Start free trial
+              Start your 14-day free trial
             </Link>
             <a href="#features" className="flex items-center gap-2.5 py-4 text-[15px] font-semibold" style={{ color: INK }}>
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full border-[1.5px]" style={{ borderColor: INK }}>
@@ -422,18 +548,16 @@ export function FutureRealmLandingPage() {
                   <path d="M10.5 6 0 12V0z" />
                 </svg>
               </span>
-              Watch 90s demo
+              Watch 90-second demo
             </a>
           </div>
-          <div className="flex flex-wrap items-center gap-7">
-            <span className="text-[13px] text-[#77857c]">Trusted by school groups across</span>
-            <div className="flex flex-wrap gap-[18px]">
-              {trustPlaces.map((place) => (
-                <span key={place} className="font-[var(--font-heading)] text-sm font-semibold text-[#435048]">
-                  {place}
-                </span>
-              ))}
-            </div>
+          <div className="flex flex-wrap items-center gap-x-[22px] gap-y-2">
+            {heroChecklist.map((item) => (
+              <div key={item} className="flex items-center gap-2">
+                <Check className="h-3.5 w-3.5" style={{ color: TEAL }} strokeWidth={2.6} />
+                <span className="text-[13.5px] font-medium text-[#435048]">{item}</span>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -505,7 +629,11 @@ export function FutureRealmLandingPage() {
 
       {/* Campus photo strip */}
       <div className="mx-auto max-w-[1360px] px-6 pt-8 sm:px-14">
-        <ImagePlaceholder caption="Students and teachers on a Nigerian school campus" className="h-[280px] sm:h-[380px]" />
+        <ImagePlaceholder
+          caption="Students and teachers on a Nigerian school campus"
+          src="/images/landing/campus.jpg"
+          className="h-[280px] sm:h-[380px]"
+        />
       </div>
 
       {/* Stat band */}
@@ -543,7 +671,7 @@ export function FutureRealmLandingPage() {
             {pillars.map((pillar) => (
               <div key={pillar.title} className="rounded-[18px] border border-[#e3ece6] bg-[#f3f7f4] p-7">
                 <span className="mb-[18px] flex h-[42px] w-[42px] items-center justify-center rounded-xl" style={{ background: INK }}>
-                  <Building2 className="h-[18px] w-[18px] text-white" strokeWidth={1.9} />
+                  <pillar.icon className="h-[18px] w-[18px] text-white" strokeWidth={1.9} />
                 </span>
                 <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{pillar.title}</p>
                 <p className="text-[13.5px] text-[#435048]">{pillar.subtitle}</p>
@@ -576,7 +704,7 @@ export function FutureRealmLandingPage() {
                 style={{ background: feature.bg }}
               >
                 {feature.photoCaption ? (
-                  <ImagePlaceholder caption={feature.photoCaption} className="h-[180px] rounded-none" />
+                  <ImagePlaceholder caption={feature.photoCaption} src={feature.photoSrc} className="h-[180px] rounded-none" />
                 ) : null}
                 <div className="p-7">
                   {Icon ? (
@@ -601,35 +729,75 @@ export function FutureRealmLandingPage() {
         <div className="mx-auto grid max-w-[1360px] items-center gap-14 lg:grid-cols-2">
           <div>
             <div className="mb-[26px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.09)] px-3.5 py-[7px]">
-              <span className="h-[7px] w-[7px] rounded-full" style={{ background: "#3ee08a" }} />
-              <span className="text-[12.5px] font-semibold text-white">Why schools stay</span>
+              <span className="h-[7px] w-[7px] rounded-full" style={{ background: MINT }} />
+              <span className="text-[12.5px] font-semibold text-white">Built for real conditions</span>
             </div>
             <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
               The power goes out. The register still opens.
             </h2>
-            <p className="mb-[34px] max-w-[520px] text-[16.5px] leading-[1.65] text-[#eaf0ec]">
+            <p className="mb-[10px] max-w-[520px] text-[16.5px] leading-[1.65] text-[#eaf0ec]">
               Most school software assumes a stable connection. Yours does not have one. FutureRealm stores the
               working day on the device, so teachers mark attendance and enter scores whether or not there is
               network — then reconciles everything the moment a connection returns.
             </p>
-            <div className="grid grid-cols-1 gap-[22px] sm:grid-cols-2">
+            <div className="mt-4 flex flex-col border-b border-[rgba(255,255,255,0.16)]">
               {offlinePoints.map((point) => (
-                <div key={point.title} className="border-t border-[rgba(255,255,255,0.16)] pt-4">
-                  <p className="mb-1.5 text-sm font-semibold text-white">{point.title}</p>
-                  <p className="text-[13px] leading-[1.5] text-[#9fb8a7]">{point.desc}</p>
-                </div>
+                <NumberedRow key={point.n} n={point.n} title={point.title} desc={point.desc} dark />
               ))}
             </div>
           </div>
           <ImagePlaceholder
             caption="A Nigerian teacher marking attendance on a tablet in a classroom"
+            src="/images/landing/teacher-offline.jpg"
             className="h-[340px] sm:h-[430px]"
           />
         </div>
       </RevealSection>
 
+      {/* Flexible setup */}
+      <RevealSection id="flexible" className="px-6 py-24 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <div className="mb-[52px] grid items-end gap-14 lg:grid-cols-[1fr_1.1fr]">
+            <div>
+              <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
+                Configurable, not hard-coded
+              </p>
+              <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+                Built to fit your school&apos;s structure
+              </h2>
+            </div>
+            <p className="text-base leading-[1.6] text-[#435048]">
+              Curriculum, calendar, grading and fee policy are settings your school controls from School
+              Configuration — not a request to our engineering team.
+            </p>
+          </div>
+          <div className="grid gap-[18px] sm:grid-cols-2 lg:grid-cols-5">
+            {flexibilityCards.map((card) => (
+              <div
+                key={card.title}
+                className="rounded-[18px] border p-[26px]"
+                style={{
+                  background: card.dark ? INK : "#f3f7f4",
+                  borderColor: card.dark ? INK : "#e3ece6",
+                }}
+              >
+                <p
+                  className="mb-[9px] font-[var(--font-heading)] text-[15.5px] font-bold"
+                  style={{ color: card.dark ? "#fff" : INK }}
+                >
+                  {card.title}
+                </p>
+                <p className="text-[13.5px] leading-[1.55]" style={{ color: card.dark ? "#9fb8a7" : "#435048" }}>
+                  {card.desc}
+                </p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </RevealSection>
+
       {/* Fees & payments */}
-      <RevealSection className="px-6 py-24 sm:px-14">
+      <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#f3f7f4" }}>
         <div className="mx-auto max-w-[1360px]">
           <div className="mb-[52px] max-w-[680px]">
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
@@ -644,7 +812,7 @@ export function FutureRealmLandingPage() {
             </p>
           </div>
           <div className="grid gap-6 lg:grid-cols-[1.15fr_1fr]">
-            <div className="rounded-[20px] border border-[#e3ece6] bg-[#f3f7f4] p-[34px]">
+            <div className="rounded-[20px] border border-[#e3ece6] bg-white p-[34px]">
               <div className="grid gap-[26px] sm:grid-cols-2">
                 {[
                   { title: "Card, transfer or USSD", desc: "Naira-native rails parents already trust, plus bank transfer for the ones who prefer it." },
@@ -662,7 +830,7 @@ export function FutureRealmLandingPage() {
                 <span className="text-[12.5px] text-[#77857c]">Settles through</span>
                 <div className="flex flex-wrap gap-3">
                   {["Paystack", "Flutterwave", "Bank transfer"].map((rail) => (
-                    <span key={rail} className="rounded-[9px] border border-[#dce6df] bg-white px-4 py-2.5 text-[13px] font-semibold text-[#435048]">
+                    <span key={rail} className="rounded-[9px] border border-[#dce6df] bg-[#f3f7f4] px-4 py-2.5 text-[13px] font-semibold text-[#435048]">
                       {rail}
                     </span>
                   ))}
@@ -674,7 +842,7 @@ export function FutureRealmLandingPage() {
                 <p className="mb-2.5 text-[12.5px] text-[#9fb8a7]">Collection rate, this term</p>
                 <p className="font-[var(--font-heading)] text-[52px] font-extrabold leading-none tracking-[-0.02em]">88%</p>
                 <div className="my-5 h-[9px] overflow-hidden rounded-full bg-[rgba(255,255,255,0.16)]">
-                  <div className="h-full rounded-full" style={{ width: "88%", background: "#3ee08a" }} />
+                  <div className="h-full rounded-full" style={{ width: "88%", background: MINT }} />
                 </div>
                 <p className="text-[13px] text-[#eaf0ec]">₦412M of ₦468M expected</p>
               </div>
@@ -688,12 +856,127 @@ export function FutureRealmLandingPage() {
                     <span className="text-[13px] text-[#eaf0ec]">{row.label}</span>
                     <span
                       className="font-[var(--font-heading)] text-[15px] font-bold"
-                      style={{ color: row.accent ? "#3ee08a" : "#fff" }}
+                      style={{ color: row.accent ? MINT : "#fff" }}
                     >
                       {row.value}
                     </span>
                   </div>
                 ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Messaging */}
+      <RevealSection id="messaging" className="px-6 py-24 sm:px-14" style={{ background: INK }}>
+        <div className="mx-auto max-w-[1360px]">
+          <div className="grid items-center gap-14 lg:grid-cols-[1fr_1.05fr]">
+            <div>
+              <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: MINT }}>
+                Messaging
+              </p>
+              <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+                One message. Every channel. One click.
+              </h2>
+              <p className="mb-[26px] max-w-[480px] text-[16.5px] leading-[1.6] text-[#eaf0ec]">
+                Announcements, fee reminders and result notices reach parents and staff on WhatsApp, SMS and email
+                from a single send — and every delivery is logged against the student record.
+              </p>
+              <div className="mb-[10px] flex flex-wrap gap-2.5">
+                {messagingChannels.map((channel) => (
+                  <div
+                    key={channel.label}
+                    className="flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] py-2 pl-3 pr-4"
+                  >
+                    <channel.icon className="h-4 w-4" style={{ color: MINT }} strokeWidth={1.8} />
+                    <span className="text-[13.5px] font-semibold text-white">{channel.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 flex flex-col border-b border-[rgba(255,255,255,0.16)]">
+                {messagingPoints.map((point) => (
+                  <NumberedRow key={point.n} n={point.n} title={point.title} desc={point.desc} dark />
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <div className="overflow-hidden rounded-[20px] border border-[#dce6df] bg-white shadow-[0_40px_80px_-28px_rgba(0,0,0,0.55)]">
+                <div className="flex items-center justify-between border-b border-[#e3ece6] px-6 py-[18px]">
+                  <p className="font-[var(--font-heading)] text-[14.5px] font-bold" style={{ color: INK }}>
+                    New message
+                  </p>
+                  <span className="rounded-full border border-[#e3ece6] bg-[#f3f7f4] px-2.5 py-[5px] text-[11.5px] font-semibold text-[#435048]">
+                    Template · Fee reminder
+                  </span>
+                </div>
+                <div className="p-6">
+                  <div className="mb-4 flex flex-wrap items-center gap-2.5">
+                    <span className="shrink-0 text-[12.5px] text-[#77857c]">To</span>
+                    <span className="rounded-full border border-[#d3dfd7] bg-[#eaf0ec] px-3 py-1.5 text-[12.5px] font-semibold" style={{ color: INK }}>
+                      Year 8 Gold · parents
+                    </span>
+                    <span className="rounded-full border border-[#d3dfd7] bg-[#eaf0ec] px-3 py-1.5 text-[12.5px] font-semibold" style={{ color: INK }}>
+                      Unpaid balance
+                    </span>
+                    <span className="text-[12.5px] font-semibold" style={{ color: TEAL }}>412 recipients</span>
+                  </div>
+                  <div className="mb-[18px] rounded-[14px] border border-[#e3ece6] bg-[#f7faf8] p-[18px] text-[13.5px] leading-[1.6]" style={{ color: INK }}>
+                    Dear <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{parent_name}"}</span>, the
+                    Term 2 balance for <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{student}"}</span> is{" "}
+                    <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{balance}"}</span>, due{" "}
+                    <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{due_date}"}</span>. Tap to pay
+                    securely.
+                  </div>
+                  <p className="mb-[11px] text-[11px] font-bold uppercase tracking-[0.08em] text-[#9fb8a7]">Send over</p>
+                  <div className="mb-5 grid grid-cols-3 gap-2.5">
+                    {messagingChannels.map((channel, index) => (
+                      <div
+                        key={channel.label}
+                        className="flex items-center gap-2 rounded-[11px] border px-3 py-[11px]"
+                        style={
+                          index < 2
+                            ? { background: INK, borderColor: INK }
+                            : { background: "#fff", borderColor: "#dce6df" }
+                        }
+                      >
+                        {index < 2 ? (
+                          <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full" style={{ background: MINT }}>
+                            <Check className="h-2.5 w-2.5" style={{ color: INK }} strokeWidth={4} />
+                          </span>
+                        ) : (
+                          <span className="h-4 w-4 shrink-0 rounded-full border-[1.5px] border-[#cfddd5]" />
+                        )}
+                        <span className="text-[12.5px] font-semibold" style={{ color: index < 2 ? "#fff" : "#435048" }}>
+                          {channel.label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <div className="flex-1 rounded-full py-3.5 text-center text-sm font-semibold text-white" style={{ background: INK }}>
+                      Send to 412 recipients
+                    </div>
+                    <div className="shrink-0 rounded-full border border-[#dce6df] px-5 py-3.5 text-center text-sm font-semibold text-[#435048]">
+                      Schedule
+                    </div>
+                  </div>
+                </div>
+                <div className="grid grid-cols-4 gap-3 border-t border-[#e3ece6] bg-[#f7faf8] px-6 py-[18px]">
+                  {messagingStats.map((stat) => (
+                    <div key={stat.label}>
+                      <p className="font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.01em]" style={{ color: INK }}>
+                        {stat.value}
+                      </p>
+                      <p className="mt-[3px] text-[11px] text-[#77857c]">{stat.label}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <div className="mt-4 flex items-center justify-center gap-2.5">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: MINT }} />
+                <p className="text-[12.5px] text-[#9fb8a7]">Two-way replies land in the school inbox, attached to the student record</p>
               </div>
             </div>
           </div>
@@ -798,7 +1081,11 @@ export function FutureRealmLandingPage() {
       {/* For parents */}
       <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#eaf0ec" }}>
         <div className="mx-auto grid max-w-[1360px] items-center gap-16 lg:grid-cols-[0.85fr_1fr]">
-          <ImagePlaceholder caption="A Nigerian parent holding a phone, warm and candid" className="h-[340px] sm:h-[460px]" />
+          <ImagePlaceholder
+            caption="A Nigerian parent holding a phone, warm and candid"
+            src="/images/landing/parent-phone.jpg"
+            className="h-[340px] sm:h-[460px]"
+          />
           <div>
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
               For parents
@@ -831,8 +1118,64 @@ export function FutureRealmLandingPage() {
         </div>
       </RevealSection>
 
-      {/* Testimonials */}
+      {/* Commitments */}
       <RevealSection className="px-6 py-24 sm:px-14">
+        <div className="mx-auto max-w-[1360px]">
+          <div className="grid gap-14 lg:grid-cols-[0.85fr_1.15fr]">
+            <div>
+              <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
+                Our commitments
+              </p>
+              <h2 className="mb-[18px] font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+                What we commit to, in writing.
+              </h2>
+              <p className="mb-[26px] text-base leading-[1.6] text-[#435048]">
+                Six commitments we hold ourselves to — the terms your school can hold us to from day one.
+              </p>
+              <div className="border-l-2 pl-[18px]" style={{ borderColor: INK }}>
+                <p className="text-[14.5px] font-medium leading-[1.6]" style={{ color: INK }}>
+                  If we ever break one of these, you can export everything and leave the same day — no notice
+                  period, no exit fee.
+                </p>
+              </div>
+            </div>
+            <div className="overflow-hidden rounded-[20px] border border-[#dce6df] shadow-[0_24px_60px_-34px_rgba(23,20,38,0.28)]">
+              <div className="grid sm:grid-cols-2">
+                {commitments.map((item, index) => (
+                  <div
+                    key={item.title}
+                    className={cn(
+                      "p-[26px]",
+                      index % 2 === 0 && "sm:border-r sm:border-[#edf3ef]",
+                      index < commitments.length - 2 && "border-b border-[#edf3ef]",
+                    )}
+                  >
+                    <div className="mb-2.5 flex items-center gap-2.5">
+                      <Check className="h-[17px] w-[17px] shrink-0" style={{ color: TEAL }} strokeWidth={2.4} />
+                      <p className="font-[var(--font-heading)] text-base font-bold" style={{ color: INK }}>
+                        {item.title}
+                      </p>
+                    </div>
+                    <p className="text-[13.5px] leading-[1.55] text-[#435048]">{item.desc}</p>
+                  </div>
+                ))}
+              </div>
+              <div className="flex flex-wrap items-center justify-between gap-5 px-[26px] py-[18px]" style={{ background: INK }}>
+                <p className="text-[13px] text-[#eaf0ec]">Published as part of every school agreement</p>
+                <div className="flex items-center gap-2">
+                  <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: MINT }} />
+                  <p className="font-[var(--font-heading)] text-[12.5px] font-bold tracking-[0.02em] text-white">
+                    FutureRealm · Service commitments v1.0
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </RevealSection>
+
+      {/* Testimonials */}
+      <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#f3f7f4" }}>
         <div className="mx-auto max-w-[1360px]">
           <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
             Trusted by school leaders across Nigeria
@@ -840,7 +1183,7 @@ export function FutureRealmLandingPage() {
           <p className="mb-12 text-center text-base text-[#435048]">Heads of school don&apos;t go back to spreadsheets.</p>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {testimonials.map((item) => (
-              <div key={item.name} className="rounded-[18px] border border-[#e3ece6] bg-[#f7faf8] p-[30px]">
+              <div key={item.name} className="rounded-[18px] border border-[#e3ece6] bg-white p-[30px]">
                 <p className="mb-3.5 font-[var(--font-heading)] text-[38px] font-extrabold leading-[0.7] text-[#cfddd5]">&ldquo;</p>
                 <p className="mb-6 text-[15.5px] leading-[1.62]">{item.quote}</p>
                 <div className="flex items-center gap-3">
@@ -867,7 +1210,7 @@ export function FutureRealmLandingPage() {
       </RevealSection>
 
       {/* Trust & compliance */}
-      <RevealSection className="border-t border-[#e3ece6] px-6 py-24 sm:px-14" style={{ background: "#f3f7f4" }}>
+      <RevealSection className="border-t border-[#e3ece6] px-6 py-24 sm:px-14">
         <div className="mx-auto max-w-[1360px]">
           <div className="mb-[52px] max-w-[680px]">
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
@@ -883,7 +1226,7 @@ export function FutureRealmLandingPage() {
           </div>
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {trustCards.map((card) => (
-              <div key={card.title} className="rounded-[18px] border border-[#e3ece6] bg-white p-7">
+              <div key={card.title} className="rounded-[18px] border border-[#e3ece6] bg-[#f3f7f4] p-7">
                 <p className="mb-2.5 font-[var(--font-heading)] text-base font-bold">{card.title}</p>
                 <p className="text-[13.5px] leading-[1.55] text-[#435048]">{card.desc}</p>
               </div>
@@ -897,55 +1240,74 @@ export function FutureRealmLandingPage() {
         <div className="mx-auto max-w-[1360px]">
           <div className="mb-12 text-center">
             <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
-              Pricing that grows with your school
+              Simple pricing, per student
             </h2>
             <p className="mx-auto mt-2.5 max-w-[520px] text-base text-[#9fb8a7]">
-              Choose the plan that matches your size and operational depth. Billed per academic year.
+              One price per student, per year. No setup fee, no per-module upsell.
             </p>
           </div>
           <div className="grid gap-6 lg:grid-cols-3">
             {plans.map((plan) => (
               <div
                 key={plan.name}
-                className="rounded-[20px] p-8"
-                style={
-                  plan.popular
-                    ? { background: "#fff", boxShadow: "0 30px 60px -20px rgba(0,0,0,0.5)", transform: "scale(1.03)" }
-                    : { background: "#fff", border: "1px solid #e3ece6" }
-                }
+                className="overflow-hidden rounded-[20px] bg-white"
+                style={plan.popular ? { boxShadow: "0 30px 60px -20px rgba(0,0,0,0.5)" } : { border: "1px solid #e3ece6" }}
               >
-                {plan.popular ? (
-                  <span
-                    className="mb-3.5 inline-block rounded-full px-3 py-[5px] text-[11px] font-bold uppercase tracking-[0.04em] text-white"
-                    style={{ background: INK }}
+                <div className="h-1" style={{ background: plan.accent }} />
+                <div className="p-8">
+                  {plan.popular ? (
+                    <span
+                      className="mb-3.5 inline-flex items-center gap-[7px] rounded-full px-3 py-[5px] text-[11px] font-bold uppercase tracking-[0.04em] text-white"
+                      style={{ background: INK }}
+                    >
+                      <span className="h-[5px] w-[5px] shrink-0 rounded-full" style={{ background: MINT }} />
+                      {plan.badge}
+                    </span>
+                  ) : (
+                    <span
+                      className="mb-3.5 inline-flex items-center rounded-full border px-3 py-[5px] text-[11px] font-bold uppercase tracking-[0.04em]"
+                      style={{ borderColor: "#e3ece6", color: TEAL, background: "#f3f7f4" }}
+                    >
+                      {plan.badge}
+                    </span>
+                  )}
+                  <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{plan.name}</p>
+                  <p className="mb-5 min-h-9 text-[13px] text-[#435048]">{plan.desc}</p>
+                  <div className="mb-6 flex items-baseline gap-1.5">
+                    <span className="font-[var(--font-heading)] text-[36px] font-extrabold tracking-[-0.02em]">{plan.price}</span>
+                    <span className="text-[13px] text-[#435048]">/ student · year</span>
+                  </div>
+                  <Link
+                    href="/onboarding"
+                    className="block rounded-full py-[13px] text-center text-sm font-semibold"
+                    style={
+                      plan.popular
+                        ? { background: INK, color: "#fff", boxShadow: "0 10px 22px -10px rgba(13,35,21,0.7)" }
+                        : { background: "#f3f7f4", color: INK }
+                    }
                   >
-                    Most popular
-                  </span>
-                ) : null}
-                <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{plan.name}</p>
-                <p className="mb-5 min-h-9 text-[13px] text-[#435048]">{plan.desc}</p>
-                <div className="mb-6 flex items-baseline gap-1.5">
-                  <span className="font-[var(--font-heading)] text-[32px] font-bold">{plan.price}</span>
-                  <span className="text-[13px] text-[#435048]">/year</span>
-                </div>
-                <Link
-                  href="/onboarding"
-                  className="block rounded-full py-[13px] text-center text-sm font-semibold"
-                  style={{ background: "#f3f7f4", color: INK }}
-                >
-                  {plan.cta}
-                </Link>
-                <div className="my-6 h-px bg-[#e3ece6]" />
-                <div className="flex flex-col gap-3">
-                  {plan.features.map((feature) => (
-                    <div key={feature} className="flex items-start gap-2.5">
-                      <span className="mt-px text-[13px]" style={{ color: TEAL }}>✓</span>
-                      <span className="text-[13.5px] leading-[1.4] text-[#435048]">{feature}</span>
-                    </div>
-                  ))}
+                    {plan.cta}
+                  </Link>
+                  <div className="my-6 h-px bg-[#e3ece6]" />
+                  <div className="flex flex-col gap-3">
+                    {plan.features.map((feature) => (
+                      <div key={feature} className="flex items-start gap-2.5">
+                        <span className="mt-px text-[13px]" style={{ color: TEAL }}>✓</span>
+                        <span className="text-[13.5px] leading-[1.4] text-[#435048]">{feature}</span>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             ))}
+          </div>
+          <div className="mt-9 flex flex-wrap items-center justify-center gap-8 border-t border-[rgba(255,255,255,0.16)] pt-7">
+            <span className="text-[13px] text-[#9fb8a7]">Every plan includes</span>
+            <div className="flex flex-wrap gap-6">
+              {["14-day free trial", "Guided onboarding", "Offline mode", "Unlimited staff accounts", "Data export"].map((item) => (
+                <span key={item} className="text-[13.5px] font-medium text-[#eaf0ec]">{item}</span>
+              ))}
+            </div>
           </div>
         </div>
       </RevealSection>
@@ -984,7 +1346,11 @@ export function FutureRealmLandingPage() {
 
       {/* Bottom campus photo */}
       <div className="mx-auto max-w-[1360px] px-6 pb-10 sm:px-14">
-        <ImagePlaceholder caption="Wide shot of a Nigerian school assembly or campus grounds" className="h-[220px] sm:h-[300px]" />
+        <ImagePlaceholder
+          caption="Wide shot of a Nigerian school assembly or campus grounds"
+          src="/images/landing/assembly.jpg"
+          className="h-[220px] sm:h-[300px]"
+        />
       </div>
 
       {/* CTA band */}
@@ -1042,9 +1408,9 @@ export function FutureRealmLandingPage() {
               <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Product</p>
               <div className="flex flex-col gap-[11px] text-sm">
                 <a href="#features" style={{ color: INK }}>Features</a>
+                <a href="#messaging" style={{ color: INK }}>Messaging</a>
                 <a href="#pricing" style={{ color: INK }}>Pricing</a>
                 <a href="#" style={{ color: INK }}>Parent app</a>
-                <a href="#" style={{ color: INK }}>Report cards</a>
               </div>
             </div>
             <div>
