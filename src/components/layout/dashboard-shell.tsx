@@ -24,6 +24,7 @@ export function DashboardShell({
   currentSessionName,
   currentTermName,
   platformStats,
+  navBadges,
   children,
 }: {
   session: SessionUser;
@@ -37,6 +38,7 @@ export function DashboardShell({
     totalSchools?: number;
     reviewQueueCount?: number;
   };
+  navBadges?: Record<string, number | undefined>;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -100,6 +102,7 @@ export function DashboardShell({
           onCloseMobile={() => setMobileSidebarOpen(false)}
           portalType={portalType}
           theme={theme}
+          navBadges={navBadges}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

@@ -11,14 +11,6 @@ import { ResourceActionDialog } from "@/components/forms/resource-action-dialog"
 import type { SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
-const planOptions = [
-  { label: "Starter", value: "BASIC" },
-  { label: "Standard", value: "STANDARD" },
-  { label: "Trial", value: "PROFESSIONAL" },
-  { label: "Elite", value: "ENTERPRISE" },
-  { label: "NGO / Mission", value: "CUSTOM" }
-];
-
 const statusTone: Record<string, { bg: string; fg: string; label: string }> = {
   TRIAL: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Trial Active" },
   ACTIVE: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Active" },
@@ -107,7 +99,7 @@ function downloadCsv(schools: SuperAdminSchoolRow[]) {
   URL.revokeObjectURL(url);
 }
 
-export function SchoolBulkTable({ schools, total }: { schools: SuperAdminSchoolRow[]; total: number }) {
+export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] }) {
   const { showToast } = useToast();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -139,6 +131,10 @@ export function SchoolBulkTable({ schools, total }: { schools: SuperAdminSchoolR
 
   function clearSelection() {
     setSelected({});
+  }
+
+  function selectOnly(id: string) {
+    setSelected({ [id]: true });
   }
 
   async function submitBatchStatus() {
@@ -218,12 +214,6 @@ export function SchoolBulkTable({ schools, total }: { schools: SuperAdminSchoolR
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-5 md:px-6">
-        <p className="section-eyebrow">Data overview</p>
-        <h3 className="mt-2 font-[var(--font-display)] text-[20px] font-bold text-[var(--color-text-primary)]">All schools</h3>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">{total} tenant(s) found.</p>
-      </div>
-
       <div className="p-5 md:p-6">
         {selectedIds.length > 0 ? (
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-[#0d2315] px-4 py-3">
@@ -436,23 +426,31 @@ export function SchoolBulkTable({ schools, total }: { schools: SuperAdminSchoolR
                             </td>
                             <td className="px-4 py-3 align-top">
                               <ActionMenu triggerLabel={`Actions for ${school.name}`}>
-                                <ActionMenuLink href={`/super-admin/schools/${school.id}`}>View</ActionMenuLink>
+                                <ActionMenuLink href="/super-admin/schools?tab=approval-queue">Review verification</ActionMenuLink>
+                                <ActionMenuLink href={`/super-admin/schools/${school.id}`}>Open school profile</ActionMenuLink>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    selectOnly(school.id);
+                                    setNotifyDialogOpen(true);
+                                  }}
+                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+                                >
+                                  Send notification
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    selectOnly(school.id);
+                                    setManagerDialogOpen(true);
+                                  }}
+                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+                                >
+                                  Assign account manager
+                                </button>
                                 <ResourceActionDialog
-                                  triggerLabel="Edit"
-                                  title={`Edit ${school.name}`}
-                                  description="Update school name or plan. Status changes require a logged reason — use the Change status action below."
-                                  endpoint={`/api/super-admin/schools/${school.id}`}
-                                  method="PATCH"
-                                  variant="menu"
-                                  submitLabel="Save changes"
-                                  fields={[
-                                    { name: "name", label: "School Name", defaultValue: school.name },
-                                    { name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: school.plan }
-                                  ]}
-                                />
-                                <ResourceActionDialog
-                                  triggerLabel="Change status"
-                                  title={`Change status — ${school.name}`}
+                                  triggerLabel={school.status === "SUSPENDED" ? "Reactivate account" : "Suspend account"}
+                                  title={`${school.status === "SUSPENDED" ? "Reactivate" : "Suspend"} — ${school.name}`}
                                   description="Every status change requires a logged reason and is written to the audit trail."
                                   endpoint={`/api/super-admin/schools/${school.id}/status`}
                                   method="PATCH"
@@ -464,18 +462,6 @@ export function SchoolBulkTable({ schools, total }: { schools: SuperAdminSchoolR
                                     { name: "status", label: "New status", type: "select", defaultValue: school.status === "SUSPENDED" ? "ACTIVE" : "SUSPENDED", options: statusChangeOptions },
                                     { name: "reason", label: "Reason", type: "textarea", required: true }
                                   ]}
-                                />
-                                <ResourceActionDialog
-                                  triggerLabel="Delete"
-                                  title={`Soft-delete ${school.name}`}
-                                  description="Soft-deletes the school tenant and disables associated users without hard-deleting records."
-                                  endpoint={`/api/super-admin/schools/${school.id}`}
-                                  method="DELETE"
-                                  variant="menuDanger"
-                                  submitLabel="Delete school"
-                                  confirmLabel="Confirm Delete"
-                                  confirmMessage="This will hide the tenant and disable its users. Records remain in the database for audit recovery."
-                                  fields={[]}
                                 />
                               </ActionMenu>
                             </td>

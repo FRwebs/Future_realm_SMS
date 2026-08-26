@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Building2, Clock3, FileWarning, Layers, Mail, MapPin, Phone, Users } from "lucide-react";
+import { ArrowRight, Building2, Clock3, FileWarning, Globe2, Layers, Mail, MapPin, Moon, Phone, Users } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
@@ -11,6 +11,20 @@ import { SchoolBulkTable } from "@/components/super-admin/school-bulk-table";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminPendingVerificationSchool, SuperAdminPlanRow, SuperAdminSchoolGroup, SuperAdminSchoolRow } from "@/lib/domain/types";
+
+// The backend already returns `subdomain` / `schoolCode` on every school row (see
+// backend/src/modules/super-admin/super-admin.service.ts `listSchools`) but the shared
+// `SuperAdminSchoolRow` type doesn't declare them yet. Extending locally here avoids
+// touching the shared types file while still reflecting real API data.
+type SchoolWithWebFields = SuperAdminSchoolRow & { subdomain?: string | null; schoolCode?: string | null };
+
+interface SchoolDormancyRow {
+  id: string;
+  name: string;
+  status: string;
+  createdAt: string;
+  lastSuccessfulLoginAt: string | null;
+}
 
 const planOptions = [
   { label: "Starter", value: "BASIC" },
@@ -53,7 +67,7 @@ const RECENT_SIGNUP_WINDOW_HOURS = 48;
 const lifecycleFlow = [
   { label: "Signup submitted", trigger: "Self-service — automatic" },
   { label: "Trial Active", trigger: "Granted immediately · 14-day trial" },
-  { label: "Verified", trigger: "Reviewed in Review Queue · does not block access" },
+  { label: "Verified", trigger: "Reviewed in Reviews & Cases · does not block access" },
   { label: "Active", trigger: "Payment confirmed", emphasize: true },
   { label: "Grace Period", trigger: "Payment overdue" },
   { label: "Suspended", trigger: "Verification rejected / grace period expired / policy violation" },
@@ -144,7 +158,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const params = searchParams ? await searchParams : {};
   const activeTab =
     params.tab === "approval-queue" ? "approval-queue" :
-    params.tab === "recent-signups" ? "recent-signups" :
+    params.tab === "provisioning" ? "provisioning" :
+    params.tab === "web-addresses" ? "web-addresses" :
+    params.tab === "dormancy" ? "dormancy" :
     params.tab === "lifecycle" ? "lifecycle" :
     params.tab === "groups" ? "groups" : "directory";
 
@@ -157,11 +173,17 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const schools = envelope.data ?? [];
   const total = envelope.pagination?.total ?? schools.length;
 
+  // Provisioning: every school still on a trial plan is, by definition, mid-setup — not yet
+  // converted to a paid, fully-configured tenant. We surface the whole trial cohort (not just a
+  // recency window) and separately flag which of those are brand new for visibility.
   const trialEnvelope = await apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?status=TRIAL&limit=100");
-  const windowStart = Date.now() - RECENT_SIGNUP_WINDOW_HOURS * 60 * 60 * 1000;
-  const recentSignups = (trialEnvelope.data ?? [])
-    .filter((school) => new Date(school.createdAt).getTime() >= windowStart)
+  const provisioningSchools = (trialEnvelope.data ?? [])
+    .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const provisioningTotal = trialEnvelope.pagination?.total ?? provisioningSchools.length;
+  const windowStart = Date.now() - RECENT_SIGNUP_WINDOW_HOURS * 60 * 60 * 1000;
+  const newlyOnboardedCount = provisioningSchools.filter((school) => new Date(school.createdAt).getTime() >= windowStart).length;
+  const provisioningContactGaps = provisioningSchools.filter((school) => !school.ownerEmail || !school.ownerPhone).length;
 
   const groupsEnvelope = await apiGetEnvelope<SuperAdminSchoolGroup[]>("/api/super-admin/schools/groups");
   const groups = groupsEnvelope.data ?? [];
@@ -174,12 +196,33 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const plansEnvelope = await apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans");
   const activePlans = (plansEnvelope.data ?? []).filter((plan) => plan.isActive).sort((a, b) => a.monthlyPrice - b.monthlyPrice);
 
+  // Web Addresses: the school directory endpoint already returns `subdomain` per row — reuse it
+  // rather than adding a new backend call. Pulled with the API's max page size (100).
+  const webAddressEnvelope = await apiGetEnvelope<SchoolWithWebFields[]>("/api/super-admin/schools?limit=100");
+  const webAddressSchools = webAddressEnvelope.data ?? [];
+  const webAddressTotal = webAddressEnvelope.pagination?.total ?? webAddressSchools.length;
+  const missingSubdomainCount = webAddressSchools.filter((school) => !school.subdomain).length;
+
+  // Dormancy: a real, isolated backend endpoint (school-directory-extras) computes the most
+  // recent *successful* LoginAttempt per school. No fabricated "days inactive" figure — we only
+  // ever render a real timestamp (via timeAgo) or an honest "no recorded logins" label. This
+  // endpoint lives in its own newly-added module, so we fetch it defensively: if it's ever
+  // unreachable (e.g. not yet deployed), the rest of the Schools page still renders.
+  let dormancySchools: SchoolDormancyRow[] = [];
+  try {
+    const dormancyEnvelope = await apiGetEnvelope<SchoolDormancyRow[]>("/api/school-directory-extras/dormancy");
+    dormancySchools = dormancyEnvelope.data ?? [];
+  } catch {
+    dormancySchools = [];
+  }
+  const neverLoggedInCount = dormancySchools.filter((school) => school.lastSuccessfulLoginAt === null).length;
+
   const tabs = [
-    { label: "School Directory", href: tabHref("directory"), active: activeTab === "directory", badge: total },
-    { label: "Review Queue", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
-    { label: "Recent Signups", href: tabHref("recent-signups"), active: activeTab === "recent-signups", badge: recentSignups.length },
-    { label: "Lifecycle & Status", href: tabHref("lifecycle"), active: activeTab === "lifecycle" },
-    { label: "School Groups", href: tabHref("groups"), active: activeTab === "groups", badge: groups.length }
+    { label: "Directory", href: tabHref("directory"), active: activeTab === "directory", badge: total },
+    { label: "Provisioning", href: tabHref("provisioning"), active: activeTab === "provisioning", badge: provisioningTotal },
+    { label: "Reviews & Cases", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
+    { label: "Web Addresses", href: tabHref("web-addresses"), active: activeTab === "web-addresses", badge: webAddressTotal },
+    { label: "Dormancy", href: tabHref("dormancy"), active: activeTab === "dormancy", badge: neverLoggedInCount }
   ];
 
   return (
@@ -217,7 +260,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             ]}
           />
 
-          <SchoolBulkTable schools={schools} total={total} />
+          <SchoolBulkTable schools={schools} />
         </>
       ) : activeTab === "approval-queue" ? (
         <section className="grid gap-5">
@@ -228,7 +271,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           </section>
 
           <TableCard
-            title="Review Queue"
+            title="Reviews & Cases"
             items={pendingVerification}
             emptyState="Queue is clear. Schools flagged at signup will appear here for a manual check."
             columns={[
@@ -287,30 +330,38 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             ]}
           />
         </section>
-      ) : activeTab === "recent-signups" ? (
-        <section className="surface-card p-6">
-          <p className="section-eyebrow">Recent signups</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
-            New trial schools — last {RECENT_SIGNUP_WINDOW_HOURS} hours
-          </h2>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-            Onboarding is automatic — every signup below is already live on a trial plan. Nothing here is waiting on
-            approval; this is a visibility view so the team can spot-check new tenants and their declared details.
-          </p>
+      ) : activeTab === "provisioning" ? (
+        <section className="grid gap-5">
+          <section className="grid gap-3 md:grid-cols-3">
+            <StatCard label="Mid-setup schools" value={provisioningTotal} detail="Live on a trial plan, not yet converted to paid." icon={Building2} tone="info" />
+            <StatCard label="Onboarded in last 48h" value={newlyOnboardedCount} detail="Newest arrivals in the provisioning cohort." icon={Clock3} tone="warning" />
+            <StatCard label="Contact gaps" value={provisioningContactGaps} detail="Owner email or phone still missing." icon={Users} tone="danger" />
+          </section>
 
-          <div className="mt-6 grid gap-3">
-            {recentSignups.length === 0 ? (
-              <div className="empty-state">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                  <Building2 className="h-5 w-5" />
+          <section className="surface-card p-6">
+            <p className="section-eyebrow">Provisioning</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
+              Schools still mid-setup
+            </h2>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+              Onboarding is automatic — every school below is already live on a trial plan. None of this is waiting on
+              approval; it's a visibility view of tenants that haven't yet converted to a paid, fully-configured
+              account, sorted with the most recently onboarded first.
+            </p>
+
+            <div className="mt-6 grid gap-3">
+              {provisioningSchools.length === 0 ? (
+                <div className="empty-state">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+                    <Building2 className="h-5 w-5" />
+                  </div>
+                  <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">No schools mid-setup</p>
+                  <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
+                    Every school on the platform has already converted off the trial plan.
+                  </p>
                 </div>
-                <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">No new signups yet</p>
-                <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
-                  No schools have self-onboarded in the last {RECENT_SIGNUP_WINDOW_HOURS} hours.
-                </p>
-              </div>
-            ) : (
-              recentSignups.map((school) => (
+              ) : (
+                provisioningSchools.map((school) => (
                 <article key={school.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
@@ -361,8 +412,127 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   </div>
                 </article>
               ))
-            )}
-          </div>
+              )}
+            </div>
+          </section>
+        </section>
+      ) : activeTab === "web-addresses" ? (
+        <section className="grid gap-5">
+          <section className="grid gap-3 md:grid-cols-2">
+            <StatCard label="Schools with a web address" value={webAddressTotal} detail="Every non-deleted tenant on the platform." icon={Globe2} tone="info" />
+            <StatCard
+              label="Missing subdomain"
+              value={missingSubdomainCount}
+              detail={missingSubdomainCount === 0 ? "Every school has a subdomain on record." : "No subdomain recorded — assigned automatically during onboarding."}
+              icon={FileWarning}
+              tone={missingSubdomainCount === 0 ? "success" : "warning"}
+            />
+          </section>
+
+          <TableCard
+            title="Web Addresses"
+            description={
+              webAddressTotal > webAddressSchools.length
+                ? `Showing ${webAddressSchools.length} of ${webAddressTotal} schools.`
+                : `${webAddressSchools.length} school(s) found.`
+            }
+            items={webAddressSchools}
+            emptyState="No schools found."
+            columns={[
+              {
+                key: "school",
+                header: "School",
+                render: (school) => (
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">
+                      {initials(school.name)}
+                    </span>
+                    <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
+                      {school.name}
+                    </Link>
+                  </div>
+                )
+              },
+              {
+                key: "subdomain",
+                header: "Subdomain",
+                render: (school) =>
+                  school.subdomain ? (
+                    <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--color-text-primary)]">
+                      {school.subdomain}
+                    </span>
+                  ) : (
+                    <span className="text-[12px] font-semibold text-[var(--color-warning)]">Not assigned</span>
+                  )
+              },
+              { key: "schoolCode", header: "School code", render: (school) => school.schoolCode ?? "—" },
+              {
+                key: "status",
+                header: "Status",
+                render: (school) => {
+                  const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
+                  return (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                      {tone.label}
+                    </span>
+                  );
+                }
+              }
+            ]}
+          />
+        </section>
+      ) : activeTab === "dormancy" ? (
+        <section className="grid gap-5">
+          <section className="grid gap-3 md:grid-cols-2">
+            <StatCard label="Never logged in" value={neverLoggedInCount} detail="No successful login recorded for any user at the school." icon={Moon} tone={neverLoggedInCount === 0 ? "success" : "danger"} />
+            <StatCard label="Tracked schools" value={dormancySchools.length} detail="Non-deleted schools checked for login activity." icon={Building2} tone="info" />
+          </section>
+
+          <TableCard
+            title="Dormancy"
+            description="Most recent successful login by any staff or owner account at the school, oldest first."
+            items={dormancySchools}
+            emptyState="No schools to show."
+            columns={[
+              {
+                key: "school",
+                header: "School",
+                render: (school) => (
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">
+                      {initials(school.name)}
+                    </span>
+                    <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
+                      {school.name}
+                    </Link>
+                  </div>
+                )
+              },
+              {
+                key: "status",
+                header: "Status",
+                render: (school) => {
+                  const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
+                  return (
+                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                      {tone.label}
+                    </span>
+                  );
+                }
+              },
+              {
+                key: "lastLogin",
+                header: "Last successful login",
+                render: (school) =>
+                  school.lastSuccessfulLoginAt ? (
+                    <span className="text-[12.5px] text-[var(--color-text-primary)]">{timeAgo(school.lastSuccessfulLoginAt)}</span>
+                  ) : (
+                    <span className="text-[12.5px] font-semibold text-[var(--color-danger)]">No recorded logins</span>
+                  )
+              },
+              { key: "createdAt", header: "School created", render: (school) => timeAgo(school.createdAt) }
+            ]}
+          />
         </section>
       ) : activeTab === "lifecycle" ? (
         <>

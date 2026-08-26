@@ -44,7 +44,7 @@ export function StatCard({ label, value, detail, tone = "neutral", icon: Icon }:
     <article className="surface-card group relative min-h-[112px] overflow-hidden p-4 transition-all duration-200 hover:border-[var(--color-border-strong)] hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="truncate text-[10px] font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{label}</p>
+          <p className="line-clamp-2 text-[10px] font-bold uppercase leading-tight tracking-[0.14em] text-[var(--color-text-muted)]" title={label}>{label}</p>
           <p className={`mt-3 font-[var(--font-mono)] text-[23px] font-black leading-none ${style.value}`}>{value}</p>
         </div>
         {Icon ? (

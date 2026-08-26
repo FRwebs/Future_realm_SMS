@@ -8,6 +8,8 @@ import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
   SuperAdminDepartmentRow,
   SuperAdminInternalMember,
+  SuperAdminInternalSession,
+  SuperAdminIpAccessRule,
   SuperAdminPermissionGridMatrix,
   SuperAdminPermissionTemplateRow,
   SuperAdminTeamActivity
@@ -16,6 +18,7 @@ import { formatDate } from "@/lib/utils/formatters";
 
 const roleOptions = ["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER", "DEVELOPER", "SUPER_ADMIN"].map((v) => ({ label: v.replaceAll("_", " "), value: v }));
 const accessLevels = ["NONE", "VIEW", "EDIT", "FULL"].map((v) => ({ label: v, value: v }));
+const ipRuleTypes = [{ label: "Allow", value: "ALLOW" }, { label: "Deny", value: "DENY" }];
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
@@ -32,6 +35,10 @@ function accessTone(level: string) {
   return { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" };
 }
 
+function ipRuleTone(type: string) {
+  return type === "DENY" ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" } : { bg: "var(--color-success-dim)", fg: "var(--color-success)" };
+}
+
 function tabHref(tab: string) {
   return tab === "accounts" ? "/super-admin/internal-team" : `/super-admin/internal-team?tab=${tab}`;
 }
@@ -40,12 +47,10 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
   const params = searchParams ? await searchParams : {};
   const tab = params.tab ?? "accounts";
   const tabs = [
-    { label: "Internal Accounts", href: tabHref("accounts"), active: tab === "accounts" },
-    { label: "Permission Grid", href: tabHref("grid"), active: tab === "grid" },
-    { label: "Role Templates", href: tabHref("templates"), active: tab === "templates" },
-    { label: "Onboarding & Offboarding", href: tabHref("lifecycle"), active: tab === "lifecycle" },
-    { label: "Team Activity", href: tabHref("activity"), active: tab === "activity" },
-    { label: "Departments", href: tabHref("departments"), active: tab === "departments" }
+    { label: "People", href: tabHref("accounts"), active: tab === "accounts" },
+    { label: "Roles & Scopes", href: tabHref("roles"), active: tab === "roles" },
+    { label: "Activity", href: tabHref("activity"), active: tab === "activity" },
+    { label: "Security Settings", href: tabHref("security"), active: tab === "security" }
   ];
 
   return (
@@ -59,7 +64,7 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
         </svg>
         <div className="relative z-[1]">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Access control centre</p>
-          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Internal Team & Role Management</h1>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Team &amp; Access</h1>
           <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
             Exactly who on the FutureRealm team can access Platform Admin, and precisely what each person can see and
             do. New hires are onboarded here, departing members offboarded here.
@@ -69,25 +74,35 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
 
       <DetailTabs tabs={tabs} />
 
-      {tab === "accounts" ? <MembersTab params={params} /> : null}
-      {tab === "grid" ? <PermissionGridTab /> : null}
-      {tab === "templates" ? <TemplatesTab /> : null}
-      {tab === "lifecycle" ? <LifecycleTab /> : null}
+      {tab === "accounts" ? <PeopleTab params={params} /> : null}
+      {tab === "roles" ? <RolesTab /> : null}
       {tab === "activity" ? <ActivityTab /> : null}
+      {tab === "security" ? <SecurityTab /> : null}
       {tab === "departments" ? <DepartmentsTab /> : null}
     </div>
   );
 }
 
-async function MembersTab({ params }: { params: Record<string, string | undefined> }) {
+async function PeopleTab({ params }: { params: Record<string, string | undefined> }) {
   const query = new URLSearchParams();
   for (const key of ["search", "role", "status"]) {
     if (params[key]) query.set(key, params[key] as string);
   }
-  const envelope = await apiGetEnvelope<SuperAdminInternalMember[]>(`/api/super-admin/internal-team?${query.toString()}`);
+  const [envelope, allMembers] = await Promise.all([
+    apiGetEnvelope<SuperAdminInternalMember[]>(`/api/super-admin/internal-team?${query.toString()}`),
+    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team")
+  ]);
   const members = envelope.data ?? [];
   const activeCount = members.filter((m) => m.status === "ACTIVE").length;
   const revokedCount = members.filter((m) => m.status === "REVOKED").length;
+
+  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
+  const onboarded = (allMembers ?? [])
+    .filter((m) => m.status !== "REVOKED" && new Date(m.createdAt).getTime() >= thirtyDaysAgo)
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  const offboarded = (allMembers ?? [])
+    .filter((m) => m.status === "REVOKED")
+    .sort((a, b) => new Date(b.revokedAt ?? 0).getTime() - new Date(a.revokedAt ?? 0).getTime());
 
   return (
     <div className="grid gap-5">
@@ -194,111 +209,14 @@ async function MembersTab({ params }: { params: Record<string, string | undefine
         ]}
         emptyState="No internal team members match the current filters."
       />
-    </div>
-  );
-}
 
-async function PermissionGridTab() {
-  const matrix = await apiGet<SuperAdminPermissionGridMatrix>("/api/super-admin/internal-team/permission-grid");
-  const modules = matrix.modules ?? [];
-  const members = matrix.members ?? [];
-
-  return (
-    <div className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Access matrix</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Who can access what</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Every module a permission has been explicitly set for, across every internal team member. Set or change a
-          cell from the &quot;Set module permission&quot; action on a member in Internal Accounts.
-        </p>
-      </section>
-
-      <TableCard
-        title="Access matrix"
-        description="Every module a permission has been explicitly set for, across every internal team member."
-        items={members}
-        getRowKey={(member) => member.id}
-        primaryColumnKey="member"
-        emptyState="No module permissions have been set yet."
-        columns={[
-          {
-            key: "member",
-            header: "Member",
-            headerClassName: "sticky left-0 z-[1] bg-[color-mix(in_srgb,var(--color-bg-subtle)_92%,transparent)]",
-            cellClassName: "sticky left-0 bg-[var(--color-bg-surface)]",
-            render: (member) => (
-              <>
-                <span className="font-semibold text-[var(--color-text-primary)]">{member.name}</span>
-                <p className="text-[11px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
-              </>
-            )
-          },
-          ...modules.map((moduleId) => ({
-            key: moduleId,
-            header: moduleId,
-            render: (member: SuperAdminPermissionGridMatrix["members"][number]) => {
-              const level = member.access[moduleId];
-              const tone = accessTone(level ?? "NONE");
-              return <StatusPill bg={tone.bg} fg={tone.fg} label={level ?? "—"} />;
-            }
-          }))
-        ]}
-      />
-    </div>
-  );
-}
-
-async function TemplatesTab() {
-  const templates = await apiGet<SuperAdminPermissionTemplateRow[]>("/api/super-admin/internal-team/permission-templates");
-
-  return (
-    <TableCard
-      title="Role templates"
-      description="Default permission grids per role, applied automatically when a new account is created."
-      items={templates ?? []}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="Add / update template"
-          title="Add or update a permission template"
-          description="Grid is a JSON map of module → access level, e.g. { &quot;M3&quot;: &quot;FULL&quot;, &quot;M6&quot;: &quot;VIEW&quot; }."
-          endpoint="/api/super-admin/internal-team/permission-templates"
-          submitLabel="Save template"
-          fields={[
-            { name: "roleName", label: "Role", type: "select", options: roleOptions },
-            { name: "defaultGrid", label: "Default grid (JSON)", type: "textarea", parse: "json", required: true, defaultValue: "{\n  \"M2\": \"VIEW\",\n  \"M6\": \"FULL\"\n}" }
-          ]}
-        />
-      }
-      columns={[
-        { key: "role", header: "Role", render: (item) => item.roleName.replaceAll("_", " ") },
-        { key: "modules", header: "Modules set", render: (item) => item.modules },
-        { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) }
-      ]}
-      emptyState="No role templates yet."
-    />
-  );
-}
-
-async function LifecycleTab() {
-  const members = await apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team");
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
-  const onboarded = (members ?? [])
-    .filter((m) => m.status !== "REVOKED" && new Date(m.createdAt).getTime() >= thirtyDaysAgo)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const offboarded = (members ?? [])
-    .filter((m) => m.status === "REVOKED")
-    .sort((a, b) => new Date(b.revokedAt ?? 0).getTime() - new Date(a.revokedAt ?? 0).getTime());
-
-  return (
-    <div className="grid gap-5">
       <section className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="section-eyebrow">Lifecycle</p>
           <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Onboarding &amp; offboarding</h2>
           <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
             New hires from the last 30 days, and everyone whose access has been revoked. Start a new hire or offboard
-            a member from Internal Accounts.
+            a member from the roster above.
           </p>
         </div>
       </section>
@@ -333,6 +251,86 @@ async function LifecycleTab() {
   );
 }
 
+async function RolesTab() {
+  const [templates, matrix] = await Promise.all([
+    apiGet<SuperAdminPermissionTemplateRow[]>("/api/super-admin/internal-team/permission-templates"),
+    apiGet<SuperAdminPermissionGridMatrix>("/api/super-admin/internal-team/permission-grid")
+  ]);
+  const modules = matrix.modules ?? [];
+  const members = matrix.members ?? [];
+
+  return (
+    <div className="grid gap-5">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Roles &amp; scopes</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What each role can do</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Role templates define the reusable default permission grid applied when a new account is created. The
+          access matrix below shows the resulting per-person permissions, which can differ from the template once
+          adjusted for an individual.
+        </p>
+      </section>
+
+      <TableCard
+        title="Role templates"
+        description="Default permission grids per role, applied automatically when a new account is created."
+        items={templates ?? []}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Add / update template"
+            title="Add or update a permission template"
+            description="Grid is a JSON map of module → access level, e.g. { &quot;M3&quot;: &quot;FULL&quot;, &quot;M6&quot;: &quot;VIEW&quot; }."
+            endpoint="/api/super-admin/internal-team/permission-templates"
+            submitLabel="Save template"
+            fields={[
+              { name: "roleName", label: "Role", type: "select", options: roleOptions },
+              { name: "defaultGrid", label: "Default grid (JSON)", type: "textarea", parse: "json", required: true, defaultValue: "{\n  \"M2\": \"VIEW\",\n  \"M6\": \"FULL\"\n}" }
+            ]}
+          />
+        }
+        columns={[
+          { key: "role", header: "Role", render: (item) => item.roleName.replaceAll("_", " ") },
+          { key: "modules", header: "Modules set", render: (item) => item.modules },
+          { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) }
+        ]}
+        emptyState="No role templates yet."
+      />
+
+      <TableCard
+        title="Access matrix"
+        description="Every module a permission has been explicitly set for, across every internal team member. Set or change a cell from the &quot;Set module permission&quot; action on a member in People."
+        items={members}
+        getRowKey={(member) => member.id}
+        primaryColumnKey="member"
+        emptyState="No module permissions have been set yet."
+        columns={[
+          {
+            key: "member",
+            header: "Member",
+            headerClassName: "sticky left-0 z-[1] bg-[color-mix(in_srgb,var(--color-bg-subtle)_92%,transparent)]",
+            cellClassName: "sticky left-0 bg-[var(--color-bg-surface)]",
+            render: (member) => (
+              <>
+                <span className="font-semibold text-[var(--color-text-primary)]">{member.name}</span>
+                <p className="text-[11px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
+              </>
+            )
+          },
+          ...modules.map((moduleId) => ({
+            key: moduleId,
+            header: moduleId,
+            render: (member: SuperAdminPermissionGridMatrix["members"][number]) => {
+              const level = member.access[moduleId];
+              const tone = accessTone(level ?? "NONE");
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={level ?? "—"} />;
+            }
+          }))
+        ]}
+      />
+    </div>
+  );
+}
+
 async function ActivityTab() {
   const activity = await apiGet<SuperAdminTeamActivity>("/api/super-admin/internal-team/activity");
 
@@ -361,6 +359,124 @@ async function ActivityTab() {
           { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") }
         ]}
         emptyState="No team activity recorded."
+      />
+    </div>
+  );
+}
+
+async function SecurityTab() {
+  const [sessions, ipRules] = await Promise.all([
+    apiGet<SuperAdminInternalSession[]>("/api/super-admin/internal-team/sessions"),
+    apiGet<SuperAdminIpAccessRule[]>("/api/super-admin/internal-team/ip-rules")
+  ]);
+
+  return (
+    <div className="grid gap-5">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Security settings</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Sessions &amp; network access</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Every currently active sign-in session for a Platform Admin account, and the IP allow/deny rules that gate
+          access to the platform admin panel.
+        </p>
+      </section>
+
+      <TableCard
+        title="Active sessions"
+        description={`${sessions.length} active session${sessions.length === 1 ? "" : "s"} across the internal team. Revoking a session logs that device out immediately.`}
+        items={sessions}
+        emptyState="No active internal-team sessions right now."
+        columns={[
+          {
+            key: "member",
+            header: "Team member",
+            render: (item) => (
+              <div>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.email}</p>
+              </div>
+            )
+          },
+          { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
+          { key: "ip", header: "IP address", render: (item) => item.ipAddress ?? "—" },
+          { key: "device", header: "Device", render: (item) => item.device ?? "—" },
+          { key: "lastActivity", header: "Last activity", render: (item) => formatDate(item.lastActivityAt) },
+          { key: "expires", header: "Expires", render: (item) => formatDate(item.expiresAt) },
+          {
+            key: "actions",
+            header: "",
+            render: (item) => (
+              <ActionMenu triggerLabel={`Manage session for ${item.name}`} triggerText="Manage" align="right">
+                <ResourceActionDialog
+                  triggerLabel="Revoke session"
+                  title={`Revoke session — ${item.name}`}
+                  description="Immediately ends this session and logs the device out."
+                  endpoint={`/api/super-admin/internal-team/sessions/${item.id}/revoke`}
+                  method="PATCH"
+                  variant="menuDanger"
+                  submitLabel="Revoke session"
+                  confirmLabel="Confirm revoke"
+                  confirmMessage="This immediately logs the device out."
+                  fields={[]}
+                />
+              </ActionMenu>
+            )
+          }
+        ]}
+      />
+
+      <TableCard
+        title="IP access rules"
+        description="Allow or deny rules for platform admin sign-in, checked at login."
+        items={ipRules}
+        emptyState="No IP access rules configured — access is not restricted by IP."
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Add IP rule"
+            title="Add or update an IP access rule"
+            description="Adding a rule for an IP address + type combination that already exists updates its reason."
+            endpoint="/api/super-admin/internal-team/ip-rules"
+            submitLabel="Save rule"
+            fields={[
+              { name: "ipAddress", label: "IP address", required: true, placeholder: "e.g. 197.210.0.0" },
+              { name: "type", label: "Type", type: "select", options: ipRuleTypes },
+              { name: "reason", label: "Reason (optional)" }
+            ]}
+          />
+        }
+        columns={[
+          { key: "ip", header: "IP address", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.ipAddress}</span> },
+          {
+            key: "type",
+            header: "Type",
+            render: (item) => {
+              const tone = ipRuleTone(item.type);
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={item.type} />;
+            }
+          },
+          { key: "reason", header: "Reason", render: (item) => item.reason ?? "—" },
+          { key: "created", header: "Added", render: (item) => formatDate(item.createdAt) },
+          {
+            key: "actions",
+            header: "",
+            render: (item) => (
+              <ActionMenu triggerLabel={`Manage rule for ${item.ipAddress}`} triggerText="Manage" align="right">
+                <ResourceActionDialog
+                  triggerLabel="Delete rule"
+                  title={`Delete IP rule — ${item.ipAddress}`}
+                  description="Removes this IP access rule."
+                  endpoint={`/api/super-admin/internal-team/ip-rules/${item.id}`}
+                  method="DELETE"
+                  variant="menuDanger"
+                  submitLabel="Delete rule"
+                  confirmLabel="Confirm delete"
+                  confirmMessage="This removes the rule immediately."
+                  fields={[]}
+                />
+              </ActionMenu>
+            )
+          }
+        ]}
       />
     </div>
   );

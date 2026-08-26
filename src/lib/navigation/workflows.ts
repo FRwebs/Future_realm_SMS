@@ -15,7 +15,9 @@ import {
   FileClock,
   FileText,
   Flag,
+  FolderInput,
   GraduationCap,
+  Handshake,
   Headphones,
   HeartPulse,
   Key,
@@ -47,6 +49,7 @@ import {
 } from "@/lib/navigation/registry";
 
 export type WorkflowNavItem = {
+  id: string;
   href: Route;
   label: string;
   description: string;
@@ -77,7 +80,9 @@ const iconMap: Record<string, LucideIcon> = {
   FileClock,
   FileText,
   Flag,
+  FolderInput,
   GraduationCap,
+  Handshake,
   Headphones,
   HeartPulse,
   Key,
@@ -118,6 +123,7 @@ function descriptionFor(item: NavigationRegistryItem) {
 
 function mapItem(item: NavigationRegistryItem): WorkflowNavItem {
   return {
+    id: item.id,
     href: item.path as Route,
     label: item.label,
     description: descriptionFor(item),

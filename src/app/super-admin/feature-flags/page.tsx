@@ -37,16 +37,28 @@ function tabHref(tab: string) {
 }
 
 export default async function SuperAdminFeatureFlagsPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
-  const { tab = "plans" } = searchParams ? await searchParams : {};
+  const params = searchParams ? await searchParams : {};
+  const validTabs = new Set(["plans", "matrix", "exceptions", "rollout"]);
+  const tab = validTabs.has(params.tab ?? "") ? (params.tab as string) : "plans";
+
+  // Fetched once here (in addition to inside ExceptionsTab) purely to compute the "Exceptions"
+  // tab badge, which must be visible regardless of which tab is currently active.
+  const [overridesForBadge, brandingForBadge] = await Promise.all([
+    apiGet<SuperAdminFeatureOverrideRow[]>("/api/super-admin/feature-flags/overrides"),
+    apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding")
+  ]);
+  const now = Date.now();
+  const activeOverrideCount = (overridesForBadge ?? []).filter(
+    (item) => item.status === "APPROVED" && (!item.expiryDate || new Date(item.expiryDate).getTime() > now)
+  ).length;
+  const activeBrandingCount = (brandingForBadge ?? []).filter((item) => item.status === "APPLIED").length;
+  const exceptionsCount = activeOverrideCount + activeBrandingCount;
 
   const tabs = [
-    { label: "Tier Plans", href: tabHref("plans"), active: tab === "plans" },
-    { label: "Plan Builder", href: tabHref("builder"), active: tab === "builder" },
-    { label: "Tier-Feature Matrix", href: tabHref("matrix"), active: tab === "matrix" },
-    { label: "Lifecycle & Migration", href: tabHref("lifecycle"), active: tab === "lifecycle" },
-    { label: "School Overrides", href: tabHref("overrides"), active: tab === "overrides" },
-    { label: "Feature Flags", href: tabHref("flags"), active: tab === "flags" },
-    { label: "Custom Branding", href: tabHref("branding"), active: tab === "branding" }
+    { label: "Plans", href: tabHref("plans"), active: tab === "plans" },
+    { label: "Feature Matrix", href: tabHref("matrix"), active: tab === "matrix" },
+    { label: "Exceptions", href: tabHref("exceptions"), active: tab === "exceptions", badge: exceptionsCount },
+    { label: "Rollout", href: tabHref("rollout"), active: tab === "rollout" }
   ];
 
   return (
@@ -60,10 +72,11 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
         </svg>
         <div className="relative z-[1]">
           <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Release controls</p>
-          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Feature & Tier Management</h1>
+          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Plans & Features</h1>
           <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-            Central control over what each subscription tier can access — pricing, staged feature-flag rollouts with instant
-            rollback, per-school overrides, and Elite custom branding. None of it requires a code deployment.
+            Central control over what each subscription tier can access — pricing, the tier-feature matrix, per-school
+            exceptions such as overrides and Elite custom branding, and staged feature-flag / plan rollouts. None of it
+            requires a code deployment.
           </p>
         </div>
       </section>
@@ -71,12 +84,9 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
       <DetailTabs tabs={tabs} />
 
       {tab === "plans" ? <PlansTab /> : null}
-      {tab === "builder" ? <PlanBuilderTab /> : null}
       {tab === "matrix" ? <TierMatrixTab /> : null}
-      {tab === "lifecycle" ? <LifecycleTab /> : null}
-      {tab === "overrides" ? <OverridesTab /> : null}
-      {tab === "flags" ? <FlagsTab /> : null}
-      {tab === "branding" ? <BrandingTab /> : null}
+      {tab === "exceptions" ? <ExceptionsTab /> : null}
+      {tab === "rollout" ? <RolloutTab /> : null}
     </div>
   );
 }
@@ -86,10 +96,11 @@ async function PlansTab() {
 
   return (
     <TableCard
-      title="Tier plans"
+      title="Plans"
       description="Pricing, limits, and entitlements for every subscription tier. New subscriptions and upgrades use these terms."
       items={plans ?? []}
-      emptyState="No subscription plans configured yet — start in Plan Builder."
+      actions={<PlanCreateDialog />}
+      emptyState="No subscription plans configured yet — build one to get started."
       columns={[
         {
           key: "plan",
@@ -173,50 +184,13 @@ async function PlansTab() {
   );
 }
 
-async function PlanBuilderTab() {
-  const plans = await apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans");
-
-  return (
-    <div className="grid gap-5">
-      <section className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="section-eyebrow">Plan builder</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Build a new subscription plan</h2>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-            Define pricing, usage limits, support tier, and entitlements for a new plan. It appears immediately in Tier Plans
-            and becomes selectable for new school signups and upgrades.
-          </p>
-        </div>
-        <PlanCreateDialog />
-      </section>
-
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Reference</p>
-        <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Existing plans</h3>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
-          {(plans ?? []).map((plan) => (
-            <div key={plan.id} className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-              <p className="text-xs font-bold uppercase tracking-[0.14em] text-[var(--color-text-muted)]">{plan.plan}</p>
-              <p className="mt-1 font-semibold text-[var(--color-text-primary)]">{plan.name}</p>
-              <p className="mt-1 font-[var(--font-mono)] text-[13px] text-[var(--color-text-secondary)]">{formatCurrency(plan.monthlyPrice)} / semester</p>
-            </div>
-          ))}
-          {(plans ?? []).length === 0 ? (
-            <p className="text-[13px] text-[var(--color-text-muted)]">No plans yet — the one you build here will show up first.</p>
-          ) : null}
-        </div>
-      </section>
-    </div>
-  );
-}
-
 async function TierMatrixTab() {
   const features = await apiGet<SuperAdminTierFeatureRow[]>("/api/super-admin/feature-flags/tier-matrix");
   const check = (on: boolean) => (on ? <span className="font-bold text-[var(--color-success)]">✓</span> : <span className="text-[var(--color-danger)]">✕</span>);
 
   return (
     <TableCard
-      title="Tier-feature matrix"
+      title="Feature matrix"
       description="Which features are available on each subscription tier. Changes apply to new subscriptions and upgrades."
       items={features ?? []}
       actions={
@@ -247,37 +221,60 @@ async function TierMatrixTab() {
   );
 }
 
-async function LifecycleTab() {
-  const migrations = await apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle");
-
+async function RolloutTab() {
   return (
     <div className="grid gap-5">
       <section className="surface-card p-6">
-        <p className="section-eyebrow">Tier migration history</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Lifecycle & migration</h2>
+        <p className="section-eyebrow">Rollout</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Feature flag & plan rollout</h2>
         <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Every time a school&apos;s subscription tier is changed on its profile, it is recorded here — who changed it, to
-          which tier, and when.
+          How changes reach schools over time: staged feature-flag rollouts with instant rollback, and the history of
+          schools migrating between subscription tiers.
         </p>
       </section>
-
-      <TableCard
-        title="Recent tier changes"
-        description={`${(migrations ?? []).length} tier change(s) recorded, most recent first.`}
-        items={migrations ?? []}
-        emptyState="No tier migrations recorded yet. Change a school's plan from its profile to see it here."
-        columns={[
-          { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "to", header: "Migrated to", render: (item) => <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label={item.toPlan} /> },
-          { key: "by", header: "Changed by", render: (item) => item.changedBy },
-          { key: "when", header: "Changed", render: (item) => formatDate(item.changedAt) }
-        ]}
-      />
+      <FlagsSection />
+      <LifecycleSection />
     </div>
   );
 }
 
-async function OverridesTab() {
+async function LifecycleSection() {
+  const migrations = await apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle");
+
+  return (
+    <TableCard
+      title="Recent tier changes"
+      description={`${(migrations ?? []).length} tier change(s) recorded, most recent first.`}
+      items={migrations ?? []}
+      emptyState="No tier migrations recorded yet. Change a school's plan from its profile to see it here."
+      columns={[
+        { key: "school", header: "School", render: (item) => item.schoolName },
+        { key: "to", header: "Migrated to", render: (item) => <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label={item.toPlan} /> },
+        { key: "by", header: "Changed by", render: (item) => item.changedBy },
+        { key: "when", header: "Changed", render: (item) => formatDate(item.changedAt) }
+      ]}
+    />
+  );
+}
+
+async function ExceptionsTab() {
+  return (
+    <div className="grid gap-5">
+      <section className="surface-card p-6">
+        <p className="section-eyebrow">Exceptions</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Per-school exceptions to the standard tier</h2>
+        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Where a school departs from its plan&apos;s default rules — a feature flag granted or restricted outside the
+          tier-feature matrix, or Elite custom branding applied to the live account.
+        </p>
+      </section>
+      <OverridesSection />
+      <BrandingSection />
+    </div>
+  );
+}
+
+async function OverridesSection() {
   const [overrides, flags, schoolsEnvelope] = await Promise.all([
     apiGet<SuperAdminFeatureOverrideRow[]>("/api/super-admin/feature-flags/overrides"),
     apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags"),
@@ -340,7 +337,7 @@ async function OverridesTab() {
   );
 }
 
-async function FlagsTab() {
+async function FlagsSection() {
   const flags = await apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags");
 
   return (
@@ -407,7 +404,7 @@ async function FlagsTab() {
   );
 }
 
-async function BrandingTab() {
+async function BrandingSection() {
   const [assets, schoolsEnvelope] = await Promise.all([
     apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding"),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
