@@ -314,6 +314,16 @@ export class SuperAdminController {
     return this.superAdminService.biOverview(session);
   }
 
+  @Get("analytics/displacement")
+  displacementAnalysis(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.displacementAnalysis(session);
+  }
+
+  @Get("analytics/product-adoption")
+  productAdoption(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.productAdoption(session);
+  }
+
   @Get("analytics/churn")
   churnAnalysis(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.churnAnalysis(session);

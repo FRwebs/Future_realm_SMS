@@ -181,7 +181,7 @@ export function TableCardBody({
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-separate border-spacing-0 text-[12.5px]">
                     <caption className="sr-only">{title}</caption>
-                    <thead className="bg-[var(--color-bg-subtle)]">
+                    <thead className="bg-[#F7FAF8]">
                       <tr>
                         {columns.map((column) => {
                           const isActive = sortKey === column.key;
@@ -192,7 +192,7 @@ export function TableCardBody({
                               scope="col"
                               aria-sort={isActive ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                               className={[
-                                "border-b border-[var(--color-border-default)] px-4 py-3 text-left text-[10.5px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]",
+                                "border-b border-[#E6EEE9] px-5 py-[11px] text-left text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]",
                                 column.headerClassName ?? "",
                               ].join(" ")}
                             >
@@ -232,7 +232,7 @@ export function TableCardBody({
                             <td
                               key={column.key}
                               className={[
-                                "border-b border-[var(--color-border-muted)] px-4 py-3 align-top",
+                                "border-b border-[#F2F7F4] px-5 py-[13px] align-top",
                                 column.cellClassName ?? "",
                               ].join(" ")}
                             >

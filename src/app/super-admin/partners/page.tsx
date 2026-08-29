@@ -1,6 +1,7 @@
 import { Building2, Handshake, PiggyBank, ReceiptText } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -77,58 +78,47 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Referral network</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Partners &amp; Commission</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-              Track external referral partners, the school-introduction deals they register, and the commission owed —
-              computed live from reconciled billing transactions, never a static figure.
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {activeTab === "registrations" ? (
-              <ResourceActionDialog
-                triggerLabel="Register a deal"
-                title="Register a partner deal"
-                description="Log a school introduction from a referral partner. The deal stays open for 90 days before it expires."
-                endpoint="/api/super-admin/partners/deals"
-                submitLabel="Register deal"
-                fields={[
-                  { name: "partnerId", label: "Partner", type: "select", required: true, options: partnerOptions },
-                  { name: "prospectSchoolName", label: "Prospect school name", required: true },
-                  { name: "prospectLocation", label: "Location" },
-                  { name: "expectedTier", label: "Expected tier", type: "select", options: expectedTierOptions },
-                  { name: "stream", label: "Stream / referral channel" },
-                  { name: "introductionEvidence", label: "Introduction evidence", type: "textarea", placeholder: "Email thread, call notes, or reference link proving the introduction" }
-                ]}
-              />
-            ) : (
-              <ResourceActionDialog
-                triggerLabel="Register partner"
-                title="Register a referral partner"
-                description="Add an external partner who introduces schools to the platform in exchange for commission."
-                endpoint="/api/super-admin/partners"
-                submitLabel="Register partner"
-                fields={[
-                  { name: "name", label: "Partner name", required: true },
-                  { name: "territory", label: "Territory" },
-                  { name: "agreementReference", label: "Agreement reference" },
-                  { name: "agreementValidTo", label: "Agreement valid to", type: "date" },
-                  { name: "commissionRatePercent", label: "Commission rate (%)", type: "number", defaultValue: 20, min: 0, max: 100, step: 0.5 }
-                ]}
-              />
-            )}
-          </div>
-        </div>
-      </section>
+      <ModuleHero
+        eyebrow="Referral network"
+        title="Partners & Commission"
+        description="Track external referral partners, the school-introduction deals they register, and the commission owed — computed live from reconciled billing transactions, never a static figure."
+        action={
+          activeTab === "registrations" ? (
+            <ResourceActionDialog
+              triggerLabel="Register a deal"
+              title="Register a partner deal"
+              description="Log a school introduction from a referral partner. The deal stays open for 90 days before it expires."
+              endpoint="/api/super-admin/partners/deals"
+              submitLabel="Register deal"
+              variant="heroWhite"
+              fields={[
+                { name: "partnerId", label: "Partner", type: "select", required: true, options: partnerOptions },
+                { name: "prospectSchoolName", label: "Prospect school name", required: true },
+                { name: "prospectLocation", label: "Location" },
+                { name: "expectedTier", label: "Expected tier", type: "select", options: expectedTierOptions },
+                { name: "stream", label: "Stream / referral channel" },
+                { name: "introductionEvidence", label: "Introduction evidence", type: "textarea", placeholder: "Email thread, call notes, or reference link proving the introduction" }
+              ]}
+            />
+          ) : (
+            <ResourceActionDialog
+              triggerLabel="Register partner"
+              title="Register a referral partner"
+              description="Add an external partner who introduces schools to the platform in exchange for commission."
+              endpoint="/api/super-admin/partners"
+              submitLabel="Register partner"
+              variant="heroWhite"
+              fields={[
+                { name: "name", label: "Partner name", required: true },
+                { name: "territory", label: "Territory" },
+                { name: "agreementReference", label: "Agreement reference" },
+                { name: "agreementValidTo", label: "Agreement valid to", type: "date" },
+                { name: "commissionRatePercent", label: "Commission rate (%)", type: "number", defaultValue: 20, min: 0, max: 100, step: 0.5 }
+              ]}
+            />
+          )
+        }
+      />
 
       <DetailTabs tabs={tabs} />
 

@@ -3547,15 +3547,46 @@ export class SuperAdminService {
     assertSuperAdmin(session);
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const [schools, totalSchools, verifiedOrActive, trials, activeSchools, secondTerm, featureRequests, weeklyLogins] = await Promise.all([
+    const fourteenDaysAgo = new Date(now.getTime() - 14 * 24 * 60 * 60 * 1000);
+    const nextSevenDays = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const [
+      schools,
+      totalSchools,
+      verified,
+      trialActiveWithLogin,
+      approachingTrialEnd,
+      activeSchools,
+      secondTerm,
+      featureRequests,
+      weeklyLogins,
+      signedUpThisWeek,
+      signedUpLastWeek,
+      verifiedThisWeek,
+      verifiedLastWeek,
+      trialActiveThisWeek,
+      trialActiveLastWeek,
+      convertedThisWeek,
+      convertedLastWeek
+    ] = await Promise.all([
       prisma.school.findMany({ where: { deletedAt: null }, select: { createdAt: true, status: true, featureFlags: true } }),
       prisma.school.count({ where: { deletedAt: null } }),
-      prisma.school.count({ where: { deletedAt: null, status: { in: ["TRIAL", "ACTIVE", "GRACE_PERIOD"] } } }),
-      prisma.school.count({ where: { deletedAt: null, status: "TRIAL" } }),
+      prisma.school.count({ where: { deletedAt: null, verifiedAt: { not: null } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL", users: { some: { lastLoginAt: { not: null } } } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL", trialEndsAt: { gte: now, lte: nextSevenDays } } }),
       prisma.school.count({ where: { deletedAt: null, status: "ACTIVE" } }),
       prisma.school.count({ where: { deletedAt: null, status: "ACTIVE", createdAt: { lt: new Date(now.getFullYear(), now.getMonth() - 4, 1) } } }),
       prisma.supportTicket.findMany({ where: { category: "FEATURE_REQUEST" }, include: { school: { select: { plan: true } } } }),
-      prisma.auditLog.groupBy({ by: ["schoolId"], where: { action: "LOGIN", createdAt: { gte: sevenDaysAgo } }, _count: true })
+      prisma.auditLog.groupBy({ by: ["schoolId"], where: { action: "LOGIN", createdAt: { gte: sevenDaysAgo } }, _count: true }),
+      // Week-over-week funnel movement — inflow into each stage during the current vs
+      // previous 7-day window, not the cumulative stage total above.
+      prisma.school.count({ where: { deletedAt: null, createdAt: { gte: sevenDaysAgo } } }),
+      prisma.school.count({ where: { deletedAt: null, createdAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+      prisma.school.count({ where: { deletedAt: null, verifiedAt: { gte: sevenDaysAgo } } }),
+      prisma.school.count({ where: { deletedAt: null, verifiedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL", users: { some: { lastLoginAt: { gte: sevenDaysAgo } } } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "TRIAL", users: { some: { lastLoginAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "ACTIVE", statusChangedAt: { gte: sevenDaysAgo } } }),
+      prisma.school.count({ where: { deletedAt: null, status: "ACTIVE", statusChangedAt: { gte: fourteenDaysAgo, lt: sevenDaysAgo } } })
     ]);
 
     // Product adoption heatmap: average enabled-module adoption across schools per module.
@@ -3571,14 +3602,28 @@ export class SuperAdminService {
       return { module, schoolsUsing: count, adoptionPct: Math.round(pct * 1000) / 10, level: pct >= 0.66 ? "HIGH" : pct >= 0.33 ? "MEDIUM" : "LOW" };
     }).sort((a, b) => b.adoptionPct - a.adoptionPct);
 
-    // Conversion funnel.
+    // Conversion funnel. "Trial started" and "Signed up" are the same count on this
+    // platform — trial access is granted automatically at signup (P1, offline-first /
+    // instant-provisioning), so there is no separate trial-activation step to measure.
     const funnel = [
-      { stage: "Signed Up", count: totalSchools },
-      { stage: "Verified", count: verifiedOrActive },
-      { stage: "Trial Active", count: trials + activeSchools },
-      { stage: "Converted to Paid", count: activeSchools },
-      { stage: "Active 2nd Term", count: secondTerm }
+      { stage: "Signed up", count: totalSchools },
+      { stage: "Trial started", count: totalSchools },
+      { stage: "Verified", count: verified },
+      { stage: "Trial active (recorded a login)", count: trialActiveWithLogin },
+      { stage: "Approaching trial end", count: approachingTrialEnd },
+      { stage: "Converted to paid", count: activeSchools },
+      { stage: "Active 2nd term", count: secondTerm }
     ];
+
+    const weekOverWeek = [
+      { stage: "Signed up", thisWeek: signedUpThisWeek, lastWeek: signedUpLastWeek },
+      { stage: "Verified", thisWeek: verifiedThisWeek, lastWeek: verifiedLastWeek },
+      { stage: "Trial active (recorded a login)", thisWeek: trialActiveThisWeek, lastWeek: trialActiveLastWeek },
+      { stage: "Converted to paid", thisWeek: convertedThisWeek, lastWeek: convertedLastWeek }
+    ].map((row) => ({
+      ...row,
+      changePct: row.lastWeek > 0 ? Math.round(((row.thisWeek - row.lastWeek) / row.lastWeek) * 1000) / 10 : row.thisWeek > 0 ? 100 : 0
+    }));
 
     // Cohort retention: group by join month, count still-active.
     const cohortMap = new Map<string, { joined: number; active: number }>();
@@ -3614,9 +3659,69 @@ export class SuperAdminService {
     return this.response({
       heatmap,
       funnel,
+      weekOverWeek,
       cohorts,
       featureRequests: featureRequestsRanked,
       schoolsActiveThisWeek: weeklyLogins.length
+    });
+  }
+
+  // Growth > Displacement: which system a school moved from, computed from real migration
+  // records rather than a market-research estimate. "Won" = the migration was signed off
+  // or completed; "Lost" = it was rolled back and the school reverted to its old system.
+  async displacementAnalysis(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const [jobs, totalSchools, adapters] = await Promise.all([
+      prisma.migrationJob.findMany({ include: { school: { select: { name: true } } }, orderBy: { createdAt: "desc" } }),
+      prisma.school.count({ where: { deletedAt: null } }),
+      prisma.migrationSourceAdapter.findMany()
+    ]);
+
+    const availableAdapterNames = new Set(adapters.filter((a) => a.status === "available").map((a) => a.name.toLowerCase()));
+    const bySource = new Map<string, { won: number; lost: number; inProgress: number }>();
+    for (const job of jobs) {
+      const entry = bySource.get(job.sourceSystem) ?? { won: 0, lost: 0, inProgress: 0 };
+      if (job.status === "SIGNED_OFF" || job.status === "COMPLETED") entry.won += 1;
+      else if (job.status === "ROLLED_BACK") entry.lost += 1;
+      else entry.inProgress += 1;
+      bySource.set(job.sourceSystem, entry);
+    }
+
+    const bySourceSystem = Array.from(bySource.entries())
+      .map(([sourceSystem, v]) => {
+        const total = v.won + v.lost;
+        return {
+          sourceSystem,
+          won: v.won,
+          lost: v.lost,
+          inProgress: v.inProgress,
+          migrationRatePct: total > 0 ? Math.round((v.won / total) * 1000) / 10 : null,
+          adapterAvailable: availableAdapterNames.has(sourceSystem.toLowerCase())
+        };
+      })
+      .sort((a, b) => b.won - a.won);
+
+    const totalWon = jobs.filter((j) => j.status === "SIGNED_OFF" || j.status === "COMPLETED").length;
+    const totalLost = jobs.filter((j) => j.status === "ROLLED_BACK").length;
+    const completionRate = totalWon + totalLost > 0 ? Math.round((totalWon / (totalWon + totalLost)) * 1000) / 10 : 0;
+    const paperOrSpreadsheet = jobs.filter((j) => /paper|spreadsheet|excel|manual/i.test(j.sourceSystem) && (j.status === "SIGNED_OFF" || j.status === "COMPLETED")).length;
+    const displacedFromSystem = totalWon - paperOrSpreadsheet;
+    const unreadableSourceCount = bySourceSystem.filter((s) => s.lost > 0 && s.won === 0 && !s.adapterAvailable).length;
+
+    const lossAnalysis = jobs
+      .filter((j) => j.status === "ROLLED_BACK")
+      .slice(0, 20)
+      .map((j) => ({ schoolName: j.school.name, sourceSystem: j.sourceSystem, reason: j.rollbackReason ?? "No reason recorded" }));
+
+    return this.response({
+      displacementRatePct: totalWon > 0 ? Math.round((displacedFromSystem / totalWon) * 1000) / 10 : 0,
+      paperOrSpreadsheetPct: totalWon > 0 ? Math.round((paperOrSpreadsheet / totalWon) * 1000) / 10 : 0,
+      migrationCompletionRatePct: completionRate,
+      trialledAndReturned: totalLost,
+      unreadableSourceCount,
+      totalSchools,
+      bySourceSystem,
+      lossAnalysis
     });
   }
 
@@ -3631,7 +3736,7 @@ export class SuperAdminService {
   async churnAnalysis(session: SessionPayload) {
     assertSuperAdmin(session);
     const [records, activeByTier] = await Promise.all([
-      prisma.churnRecord.findMany({ include: { school: { select: { name: true, plan: true } } }, orderBy: { churnedAt: "desc" } }),
+      prisma.churnRecord.findMany({ include: { school: { select: { name: true, plan: true, createdAt: true } } }, orderBy: { churnedAt: "desc" } }),
       prisma.school.groupBy({ by: ["plan"], where: { deletedAt: null }, _count: true })
     ]);
     const byReason = records.reduce((acc, r) => { acc[r.reason] = (acc[r.reason] ?? 0) + 1; return acc; }, {} as Record<string, number>);
@@ -3644,11 +3749,29 @@ export class SuperAdminService {
       const everOnTier = churned + stillActive;
       return { plan, churned, ratePct: everOnTier > 0 ? Math.round((churned / everOnTier) * 1000) / 10 : 0 };
     }).sort((a, b) => b.ratePct - a.ratePct);
+
+    // Churn by tenure: how long each school had been on the platform before it churned,
+    // bucketed into ~4-month terms. Shown as a share of all churn (composition), not a
+    // survival rate — there's no separate "converted to paid at" timestamp to build a true
+    // cohort-survival denominator from.
+    const tenureBuckets = ["Term 1 (0-4 months)", "Term 2 (4-8 months)", "Term 3 (8-12 months)", "Term 4+ (12+ months)"];
+    const tenureCounts = new Map<string, number>(tenureBuckets.map((label) => [label, 0]));
+    for (const r of records) {
+      const months = (r.churnedAt.getTime() - r.school.createdAt.getTime()) / (30 * 24 * 60 * 60 * 1000);
+      const bucket = months < 4 ? tenureBuckets[0] : months < 8 ? tenureBuckets[1] : months < 12 ? tenureBuckets[2] : tenureBuckets[3];
+      tenureCounts.set(bucket, (tenureCounts.get(bucket) ?? 0) + 1);
+    }
+    const byTenure = tenureBuckets.map((label) => ({
+      bucket: label,
+      count: tenureCounts.get(label) ?? 0,
+      pct: records.length > 0 ? Math.round(((tenureCounts.get(label) ?? 0) / records.length) * 1000) / 10 : 0
+    }));
+
     return this.response({
       total: records.length,
       byReason: Object.entries(byReason).map(([reason, count]) => ({ reason, count, pct: records.length > 0 ? Math.round((count / records.length) * 1000) / 10 : 0 })).sort((a, b) => b.count - a.count),
       byTier,
-      recent: records.slice(0, 20).map((r) => ({ id: r.id, schoolName: r.school.name, reason: r.reason, notes: r.notes, churnedAt: r.churnedAt.toISOString() }))
+      byTenure
     });
   }
 
@@ -3662,30 +3785,44 @@ export class SuperAdminService {
 
   async npsAnalytics(session: SessionPayload) {
     assertSuperAdmin(session);
-    const responses = await prisma.npsResponse.findMany({ include: { school: { select: { name: true, plan: true, state: true } } }, orderBy: { createdAt: "desc" } });
+    const [responses, eligibleSchoolCount] = await Promise.all([
+      prisma.npsResponse.findMany({ include: { school: { select: { name: true, plan: true, state: true } } }, orderBy: { createdAt: "desc" } }),
+      // Response rate denominator: every non-deleted school has exactly one admin who could
+      // answer a survey, so a school count is the real, honest eligible-respondent count.
+      prisma.school.count({ where: { deletedAt: null } })
+    ]);
     const total = responses.length;
     const promoters = responses.filter((r) => r.score >= 9).length;
     const detractors = responses.filter((r) => r.score <= 6).length;
     const npsScore = total > 0 ? Math.round(((promoters - detractors) / total) * 100) : 0;
+    const responseRatePct = eligibleSchoolCount > 0 ? Math.round((total / eligibleSchoolCount) * 1000) / 10 : 0;
 
-    const byTierMap = new Map<string, { score: number }[]>();
+    function scoreNps(scores: number[]) {
+      const p = scores.filter((s) => s >= 9).length;
+      const d = scores.filter((s) => s <= 6).length;
+      return scores.length > 0 ? Math.round(((p - d) / scores.length) * 100) : 0;
+    }
+
+    const byTierMap = new Map<string, number[]>();
+    const byStateMap = new Map<string, number[]>();
     for (const r of responses) {
-      const list = byTierMap.get(r.school.plan) ?? [];
-      list.push({ score: r.score });
-      byTierMap.set(r.school.plan, list);
+      byTierMap.set(r.school.plan, [...(byTierMap.get(r.school.plan) ?? []), r.score]);
+      const state = r.school.state?.trim() || "Unspecified";
+      byStateMap.set(state, [...(byStateMap.get(state) ?? []), r.score]);
     }
     const byTier = Array.from(byTierMap.entries())
-      .map(([plan, scores]) => {
-        const tierPromoters = scores.filter((s) => s.score >= 9).length;
-        const tierDetractors = scores.filter((s) => s.score <= 6).length;
-        return {
-          plan,
-          responses: scores.length,
-          npsScore: scores.length > 0 ? Math.round(((tierPromoters - tierDetractors) / scores.length) * 100) : 0
-        };
-      })
-      .filter((row) => row.responses > 0)
+      .map(([plan, scores]) => ({ plan, responses: scores.length, npsScore: scoreNps(scores) }))
       .sort((a, b) => b.npsScore - a.npsScore);
+
+    // Combined tier + region breakdown for a single bars panel, matching the mockup's
+    // "NPS by tier and region" — tagged so the frontend can label each row's kind.
+    const byTierAndRegion = [
+      ...byTier.map((row) => ({ label: `${row.plan} tier`, kind: "tier" as const, responses: row.responses, npsScore: row.npsScore })),
+      ...Array.from(byStateMap.entries())
+        .map(([state, scores]) => ({ label: state, kind: "region" as const, responses: scores.length, npsScore: scoreNps(scores) }))
+        .sort((a, b) => b.responses - a.responses)
+        .slice(0, 6)
+    ];
 
     return this.response({
       npsScore,
@@ -3693,9 +3830,79 @@ export class SuperAdminService {
       promoters,
       passives: total - promoters - detractors,
       detractors,
+      responseRatePct,
       byTier,
+      byTierAndRegion,
       lowScoreFlags: responses.filter((r) => r.score <= 6).slice(0, 20).map((r) => ({ id: r.id, schoolName: r.school.name, score: r.score, comment: r.comment, createdAt: r.createdAt.toISOString() })),
       comments: responses.filter((r) => r.comment).slice(0, 30).map((r) => ({ schoolName: r.school.name, score: r.score, comment: r.comment }))
+    });
+  }
+
+  // Product > Adoption. Every school gets every module flag at signup and toggles them
+  // voluntarily from their own configuration — there is no tier-based entitlement gate in
+  // this codebase. So "adoption" here is genuinely a usage signal, not an entitlement gap,
+  // and there is no real per-module price to attribute a fabricated "value at risk" figure
+  // to; the gaps table instead reports the real school counts on each side of the gap.
+  private readonly coreModules = ["admissions", "students", "staff", "classes", "subjects", "timetable", "attendance", "academics", "finance", "communications", "configuration", "operations"];
+  private readonly stateHeatmapModules = ["attendance", "academics", "finance", "communications", "students", "timetable"];
+
+  async productAdoption(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const [schools, weeklyLogins] = await Promise.all([
+      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, featureFlags: true } }),
+      prisma.auditLog.groupBy({ by: ["schoolId"], where: { action: "LOGIN", createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }, _count: true })
+    ]);
+
+    const totalSchools = schools.length;
+    const isEnabled = (school: (typeof schools)[number], module: string) => Boolean((school.featureFlags as Record<string, boolean> | null)?.[module]);
+
+    const overallAdoption = this.coreModules.map((module) => {
+      const using = schools.filter((s) => isEnabled(s, module)).length;
+      return { module, schoolsUsing: using, adoptionPct: totalSchools > 0 ? Math.round((using / totalSchools) * 1000) / 10 : 0 };
+    });
+    const adoptionIndex = overallAdoption.length > 0 ? Math.round(overallAdoption.reduce((sum, m) => sum + m.adoptionPct, 0) / overallAdoption.length) : 0;
+    const belowFloor = overallAdoption.filter((m) => m.adoptionPct < 40);
+
+    const tiers: SubscriptionPlan[] = ["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"];
+    const schoolsByTier = new Map(tiers.map((tier) => [tier, schools.filter((s) => s.plan === tier)]));
+    const heatmapByTier = this.coreModules.map((module) => ({
+      module,
+      cells: tiers.map((tier) => {
+        const group = schoolsByTier.get(tier) ?? [];
+        if (group.length === 0) return null;
+        return Math.round((group.filter((s) => isEnabled(s, module)).length / group.length) * 1000) / 10;
+      })
+    }));
+    const tierColumns = tiers.map((tier) => ({ plan: tier, schoolCount: (schoolsByTier.get(tier) ?? []).length }));
+
+    const gaps = belowFloor
+      .map((m) => ({ module: m.module, adoptionPct: m.adoptionPct, schoolsUsing: m.schoolsUsing, schoolsNotUsing: totalSchools - m.schoolsUsing }))
+      .sort((a, b) => a.adoptionPct - b.adoptionPct);
+
+    const byState = new Map<string, (typeof schools)[number][]>();
+    for (const school of schools) {
+      const state = school.state?.trim() || "Unspecified";
+      byState.set(state, [...(byState.get(state) ?? []), school]);
+    }
+    const heatmapByState = Array.from(byState.entries())
+      .map(([state, group]) => ({
+        state,
+        schoolCount: group.length,
+        cells: this.stateHeatmapModules.map((module) => Math.round((group.filter((s) => isEnabled(s, module)).length / group.length) * 1000) / 10)
+      }))
+      .sort((a, b) => b.schoolCount - a.schoolCount);
+
+    return this.response({
+      schoolsActiveThisWeek: weeklyLogins.length,
+      adoptionIndex,
+      modulesTracked: this.coreModules.length,
+      modulesBelowFloor: belowFloor.length,
+      topModule: overallAdoption.slice().sort((a, b) => b.adoptionPct - a.adoptionPct)[0] ?? null,
+      tierColumns,
+      heatmapByTier,
+      heatmapByState,
+      stateHeatmapModules: this.stateHeatmapModules,
+      gaps
     });
   }
 

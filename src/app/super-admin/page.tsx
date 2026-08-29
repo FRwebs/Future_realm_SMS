@@ -373,30 +373,29 @@ export default async function SuperAdminDashboardPage() {
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-8">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 220" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 200 Q 200 130 400 190 T 850 155" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="720" cy="20" r="160" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="720" cy="20" r="100" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1] grid gap-6 xl:grid-cols-[1.3fr_0.7fr] xl:items-end">
-          <div>
-            <div className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.15)] bg-white/10 px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-white/75">
-              <Sparkles className="h-3.5 w-3.5" />
-              {profile.eyebrow}
+      <section className="relative overflow-hidden rounded-[20px] bg-[#0d2315] px-6 py-[30px] text-white md:px-8">
+        <div className="pointer-events-none absolute -right-[110px] -top-40 h-[420px] w-[420px] rounded-full border border-[rgba(95,214,180,0.13)]" />
+        <div className="pointer-events-none absolute -right-10 -top-[90px] h-[270px] w-[270px] rounded-full border border-[rgba(95,214,180,0.09)]" />
+        <div className="pointer-events-none absolute -bottom-40 -left-[70px] h-[300px] w-[300px] rounded-full border border-white/5" />
+        <div className="relative z-[1] flex flex-wrap items-end justify-between gap-[30px]">
+          <div className="min-w-0 flex-1">
+            <div className="mb-[17px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-white/[0.09] px-[14px] py-[6px]">
+              <Sparkles className="h-3.5 w-3.5 shrink-0 text-[#5FD6B4]" />
+              <span className="whitespace-nowrap text-[10.5px] font-bold uppercase tracking-[0.13em] text-white/[0.84]">{profile.eyebrow}</span>
             </div>
-            <h2 className="mt-4 font-[var(--font-heading)] text-4xl font-black tracking-tight text-white md:text-5xl">{platformGreeting(session?.role ?? "SUPER_ADMIN", session?.name)}</h2>
-            <p className="mt-3 max-w-3xl text-sm leading-6 text-[rgba(255,255,255,0.74)]">
+            <h2 className="max-w-[600px] text-pretty font-[var(--font-heading)] text-[26px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[33px]">
+              {platformGreeting(session?.role ?? "SUPER_ADMIN", session?.name)}
+            </h2>
+            <p className="mt-3 max-w-[560px] text-pretty text-[13.5px] leading-[1.55] text-white/62">
               {profile.mission} {session ? `Current internal role: ${roleLabels[session.role]}.` : ""}
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-2 xl:justify-end">
+          <div className="flex flex-none flex-wrap items-center gap-2">
             {profile.actions.map((action) => (
               <Link
                 key={action.href}
                 href={action.href as Route}
-                className="rounded-[10px] border border-white/20 bg-white/10 px-4 py-2.5 text-[12.5px] font-bold text-white backdrop-blur-xl transition hover:bg-white/20"
+                className="whitespace-nowrap rounded-full border border-[rgba(255,255,255,0.18)] bg-white/10 px-4 py-2.5 text-[12.5px] font-semibold text-white transition hover:bg-white/20"
               >
                 {action.label}
               </Link>

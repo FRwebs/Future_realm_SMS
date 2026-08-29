@@ -81,10 +81,14 @@ function SidebarContent({
 
   const bestMatch =
     allNavHrefs
-      .filter(
-        (href) =>
-          normalizedPath === href || normalizedPath.startsWith(`${href}/`),
-      )
+      .filter((href) => {
+        if (normalizedPath === href) return true;
+        // A single-segment href (e.g. the portal root "/super-admin") is a prefix of
+        // every nested route, including ones with no dedicated nav item (like Profile).
+        // Only exact matches count for it — deeper hrefs can still prefix-match normally.
+        if (href.split("/").filter(Boolean).length <= 1) return false;
+        return normalizedPath.startsWith(`${href}/`);
+      })
       .sort((a, b) => b.length - a.length)[0] ?? null;
 
   const query = search.trim().toLowerCase();

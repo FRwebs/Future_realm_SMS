@@ -1,20 +1,20 @@
-import { Activity, AlertTriangle, Banknote, Building2, CircleDollarSign, ClipboardList, CreditCard, Gauge, Lightbulb, MessageCircle, PackageOpen, Repeat2, ShieldAlert, SmilePlus, TrendingDown, TrendingUp, Trophy, UserCog, Users, UsersRound } from "lucide-react";
+import { AlertTriangle, Banknote, Building2, ClipboardList, CreditCard, Gauge, Lightbulb, MessageCircle, PackageOpen, Repeat2, SmilePlus, TrendingDown, TrendingUp, Trophy, UsersRound } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
-  SuperAdminAnalyticsOverview,
   SuperAdminBiOverview,
   SuperAdminChurnAnalysis,
   SuperAdminCustomReportRow,
+  SuperAdminDisplacementAnalysis,
   SuperAdminNpsAnalytics,
+  SuperAdminProductAdoption,
   SuperAdminRevenueReport,
-  SuperAdminRevenueView,
-  SuperAdminSchoolRow,
-  SuperAdminUsageRow
+  SuperAdminSchoolRow
 } from "@/lib/domain/types";
 import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/utils/formatters";
 
@@ -29,17 +29,43 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
 }
 
 function heatCellStyle(pct: number) {
-  if (pct >= 66) return { background: "var(--color-success-dim)", color: "var(--color-success)" };
-  if (pct >= 33) return { background: "var(--color-warning-dim)", color: "var(--color-warning)" };
-  return { background: "var(--color-danger-dim)", color: "var(--color-danger)" };
+  if (pct < 45) {
+    const alpha = (0.07 + (pct / 45) * 0.33).toFixed(3);
+    return { background: `rgba(18,121,106,${alpha})`, color: "#0d2315" };
+  }
+  const t = (pct - 45) / 55;
+  const lerp = (a: number, b: number) => Math.round(a + (b - a) * t);
+  return { background: `rgb(${lerp(18, 6)},${lerp(121, 56)},${lerp(106, 47)})`, color: "#fff" };
 }
 
-function PercentCell({ value }: { value: number | null }) {
+function HeatCell({ value }: { value: number | null }) {
   if (value === null) {
-    return <span className="inline-flex min-w-14 justify-center rounded-[8px] bg-[var(--color-bg-subtle)] px-2 py-1 text-[12px] font-bold text-[var(--color-text-muted)]">—</span>;
+    return <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] border border-[#E9F0EC] bg-[#F2F7F4] px-1 py-[9px] font-[var(--font-heading)] text-[11.5px] font-semibold text-[#C2D2C8]">—</span>;
   }
   const style = heatCellStyle(value);
-  return <span className="inline-flex min-w-14 justify-center rounded-[8px] px-2 py-1 text-[12px] font-black" style={{ background: style.background, color: style.color }}>{value}%</span>;
+  return (
+    <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] px-1 py-[9px] font-[var(--font-heading)] text-[11.5px] font-semibold" style={{ background: style.background, color: style.color }}>
+      {value}%
+    </span>
+  );
+}
+
+const barToneColors: Record<"good" | "warn" | "bad", string> = { good: "#22A06B", warn: "#D9A22C", bad: "#DB5555" };
+
+function BarCell({ value }: { value: number | null }) {
+  if (value === null) {
+    return <span className="text-[12.5px] text-[var(--color-text-muted)]">—</span>;
+  }
+  const tone: "good" | "warn" | "bad" = value >= 80 ? "good" : value >= 60 ? "warn" : "bad";
+  const color = barToneColors[tone];
+  return (
+    <div className="flex items-center gap-[9px]">
+      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EDF3EF]">
+        <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
+      </div>
+      <div className="whitespace-nowrap text-[12px] font-semibold" style={{ color }}>{value}%</div>
+    </div>
+  );
 }
 
 function SectionHeader({ eyebrow, title, description, aside }: { eyebrow?: string; title: string; description?: string; aside?: string }) {
@@ -74,21 +100,11 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1]">
-          <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Platform intelligence</p>
-          <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Analytics &amp; BI</h1>
-          <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-            Growth and conversion, cohort/churn/NPS retention signals, revenue reporting, product adoption, and saved reports.
-          </p>
-        </div>
-      </section>
+      <ModuleHero
+        eyebrow="Platform intelligence"
+        title="Analytics & BI"
+        description="Growth and conversion, cohort/churn/NPS retention signals, revenue reporting, product adoption, and saved reports."
+      />
 
       <DetailTabs tabs={tabs} />
 
@@ -102,136 +118,125 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
 }
 
 async function GrowthTab() {
-  const [overview, usage, revenue, bi] = await Promise.all([
-    apiGet<SuperAdminAnalyticsOverview>("/api/super-admin/analytics/overview"),
-    apiGet<SuperAdminUsageRow[]>("/api/super-admin/analytics/usage"),
-    apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
-    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi")
+  const [bi, displacement] = await Promise.all([
+    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
+    apiGet<SuperAdminDisplacementAnalysis>("/api/super-admin/analytics/displacement")
   ]);
-  const activeSchools = overview.schools.active ?? overview.schools.total;
-  const weeklyActivePct = overview.schools.total > 0 ? Math.round((activeSchools / overview.schools.total) * 100) : 0;
-  const topSchools = usage.slice(0, 8);
-  const recentRevenue = revenue.monthlyRevenue.slice(-6);
-  const maxRevenue = Math.max(...recentRevenue.map((item) => item.amount), 1);
 
   const funnelStages = bi.funnel.map((stage, index) => {
     const previous = bi.funnel[index - 1];
-    const dropPct = previous && previous.count > 0 ? Math.round(((previous.count - stage.count) / previous.count) * 1000) / 10 : null;
+    // Positive = the stage count grew versus the one before it (these stages track
+    // different, non-nested populations — e.g. "converted to paid" isn't a strict subset
+    // of "approaching trial end" — so a real funnel here isn't always monotonic).
+    const changePct = previous && previous.count > 0 ? Math.round(((stage.count - previous.count) / previous.count) * 1000) / 10 : null;
     const ofFirstPct = bi.funnel[0]?.count > 0 ? Math.round((stage.count / bi.funnel[0].count) * 1000) / 10 : null;
-    return { ...stage, dropPct, ofFirstPct };
+    return { ...stage, changePct, ofFirstPct };
   });
-  const worstDrop = funnelStages.reduce<{ stage: string; dropPct: number } | null>((worst, stage) => {
-    if (stage.dropPct === null) return worst;
-    if (!worst || stage.dropPct > worst.dropPct) return { stage: stage.stage, dropPct: stage.dropPct };
-    return worst;
-  }, null);
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Active schools" value={activeSchools} detail={`of ${overview.schools.total} total · ${weeklyActivePct}% active`} tone={weeklyActivePct >= 80 ? "success" : weeklyActivePct >= 60 ? "warning" : "danger"} icon={Building2} />
-        <StatCard label="Students" value={overview.users.students.toLocaleString()} detail={`${overview.users.teachers.toLocaleString()} teachers · ${overview.users.parents.toLocaleString()} parents`} icon={UsersRound} />
-        <StatCard label="MRR" value={formatCurrency(revenue.mrr)} detail={`ARR ${formatCurrency(revenue.arr)}`} tone="success" icon={CircleDollarSign} />
-        <StatCard label="School admins" value={overview.users.schoolAdmins.toLocaleString()} detail="Primary platform owners" icon={UserCog} />
-        <StatCard label="Top activity" value={topSchools[0]?.logins ?? 0} detail={topSchools[0]?.schoolName ?? "No school"} icon={Activity} tone="accent" />
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
-        <section className="surface-card overflow-hidden">
-          <SectionHeader title="Revenue and school growth signal" aside={`MRR now ${formatCurrency(revenue.mrr)}`} />
-          <div className="grid gap-3 p-5 sm:grid-cols-3">
-            {recentRevenue.map((item) => (
-              <div key={item.month} className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11px] font-bold text-[var(--color-text-muted)]">{item.month}</p>
-                  <p className="font-[var(--font-mono)] text-[12px] font-black text-[var(--color-text-primary)]">{formatCurrency(item.amount)}</p>
+      <section className="surface-card overflow-hidden">
+        <SectionHeader title="Growth and conversion funnel" description="Each stage is a real school count, clickable through to the schools behind it — not a sample." />
+        <div className="flex items-end gap-2.5 px-5 pb-[22px] pt-2.5">
+          {funnelStages.map((stage, index) => {
+            const barPct = Math.max(stage.ofFirstPct ?? 100, 2);
+            const isLast = index === funnelStages.length - 1;
+            return (
+              <div key={stage.stage} className="min-w-0 flex-1">
+                <div className="flex h-[132px] items-end">
+                  <div
+                    className="w-full rounded-t-[8px]"
+                    style={{ height: `${barPct}%`, background: isLast ? "#0d2315" : `rgba(18,121,106,${0.28 + index * 0.1})` }}
+                  />
                 </div>
-                <div className="mt-3 h-2 overflow-hidden rounded-full bg-white">
-                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${Math.max((item.amount / maxRevenue) * 100, 8)}%` }} />
-                </div>
+                <p className="mt-[11px] font-[var(--font-display)] text-[15px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
+                <p className="mt-1 text-pretty text-[11px] leading-[1.35] text-[#77857C]">{stage.stage}</p>
+                <p className="mt-[5px] text-[11px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
+                  {stage.changePct === null ? "—" : stage.changePct < 0 ? `−${Math.abs(stage.changePct)}% drop` : `+${stage.changePct}%`}
+                </p>
               </div>
-            ))}
-          </div>
-        </section>
-
-        <section className="surface-card overflow-hidden">
-          <SectionHeader title="Role split" aside="Live snapshot" />
-          <div className="grid gap-3 p-5">
-            {[
-              ["Parents", overview.users.parents],
-              ["Teachers", overview.users.teachers],
-              ["Students", overview.users.students],
-              ["Admins", overview.users.schoolAdmins]
-            ].map(([label, value]) => (
-              <div key={label} className="flex items-center justify-between rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">{label}</span>
-                <span className="font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">{Number(value).toLocaleString()}</span>
-              </div>
-            ))}
-          </div>
-        </section>
+            );
+          })}
+        </div>
       </section>
 
       <TableCard
-        title="Top active schools"
-        items={topSchools}
+        title="Week-over-week funnel movement"
+        description="Tracked so the team can see whether conversion is genuinely improving."
+        items={bi.weekOverWeek}
         pageSize={false}
-        getRowKey={(item) => item.schoolId}
+        getRowKey={(item) => item.stage}
         columns={[
-          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolName}</span>, sortValue: (item) => item.schoolName },
-          { key: "logins", header: "Logins", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.logins}</span>, sortValue: (item) => item.logins },
-          { key: "users", header: "Active users", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.activeUsers}</span>, sortValue: (item) => item.activeUsers },
-          { key: "modules", header: "Modules used", render: (item) => item.modulesUsed.join(", ") || "—" },
+          { key: "stage", header: "Stage", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.stage}</span>, sortValue: (item) => item.stage },
+          { key: "thisWeek", header: "This week", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.thisWeek}</span>, sortValue: (item) => item.thisWeek },
+          { key: "lastWeek", header: "Last week", render: (item) => item.lastWeek, sortValue: (item) => item.lastWeek },
           {
-            key: "readout",
-            header: "Readout",
-            sortable: false,
+            key: "change",
+            header: "Change",
             render: (item) => (
-              <StatusPill
-                bg={item.logins >= 100 ? "var(--color-success-dim)" : item.logins >= 40 ? "var(--color-warning-dim)" : "var(--color-danger-dim)"}
-                fg={item.logins >= 100 ? "var(--color-success)" : item.logins >= 40 ? "var(--color-warning)" : "var(--color-danger)"}
-                label={item.logins >= 100 ? "Daily habit" : item.logins >= 40 ? "Watch" : "At risk"}
-              />
+              <span className="font-bold" style={{ color: item.changePct >= 0 ? "var(--color-success)" : "var(--color-danger)" }}>
+                {item.changePct >= 0 ? "+" : ""}{item.changePct}%
+              </span>
+            ),
+            sortValue: (item) => item.changePct
+          }
+        ]}
+      />
+
+      <div className="grid gap-1.5">
+        <p className="section-eyebrow">Displacement</p>
+        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Where schools switched from</h2>
+        <p className="text-[12.5px] text-[var(--color-text-secondary)]">Computed from real migration records — which system a school moved from, and whether the move stuck.</p>
+      </div>
+
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Displaced a system" value={`${displacement.displacementRatePct}%`} detail="Of migrated schools, arrived from another platform" icon={Repeat2} tone="accent" />
+        <StatCard label="From paper or spreadsheets" value={`${displacement.paperOrSpreadsheetPct}%`} detail="The discovery half of the market" icon={ClipboardList} />
+        <StatCard label="Migration completion" value={`${displacement.migrationCompletionRatePct}%`} detail="Across all source systems" tone="success" icon={TrendingUp} />
+        <StatCard label="Trialled and returned" value={displacement.trialledAndReturned} detail="Rolled-back migrations, reason recorded" tone={displacement.trialledAndReturned > 0 ? "warning" : "success"} icon={TrendingDown} />
+        <StatCard label="Sources we cannot read" value={displacement.unreadableSourceCount} detail="No adapter available, every attempt rolled back" tone={displacement.unreadableSourceCount > 0 ? "danger" : "success"} icon={PackageOpen} />
+      </section>
+
+      <TableCard
+        title="Win analysis by displaced system"
+        description="Which system we take schools from, and whether our import tooling can actually read it."
+        items={displacement.bySourceSystem}
+        pageSize={false}
+        getRowKey={(item) => item.sourceSystem}
+        emptyState="No migrations logged yet."
+        columns={[
+          { key: "source", header: "Previous system", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.sourceSystem}</span>, sortValue: (item) => item.sourceSystem },
+          { key: "won", header: "Won", render: (item) => item.won, sortValue: (item) => item.won },
+          { key: "lost", header: "Lost", render: (item) => item.lost, sortValue: (item) => item.lost },
+          {
+            key: "rate",
+            header: "Migration rate",
+            render: (item) => (item.migrationRatePct === null ? "—" : <BarCell value={item.migrationRatePct} />),
+            sortValue: (item) => item.migrationRatePct ?? 0
+          },
+          {
+            key: "adapter",
+            header: "Adapter",
+            render: (item) => (
+              <StatusPill bg={item.adapterAvailable ? "var(--color-success-dim)" : "var(--color-danger-dim)"} fg={item.adapterAvailable ? "var(--color-success)" : "var(--color-danger)"} label={item.adapterAvailable ? "Available" : "None"} />
             )
           }
         ]}
       />
 
-      <section className="surface-card overflow-hidden">
-        <SectionHeader title="Growth and conversion funnel" description="Live counts from signup through to a second paid term — each stage is a real school count, not a sample." />
-        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-5">
-          {funnelStages.map((stage, index) => (
-            <article key={stage.stage} className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
-              <p className="font-[var(--font-heading)] text-[24px] font-black text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
-              <p className="mt-1 min-h-10 text-[12px] font-bold leading-5 text-[var(--color-text-primary)]">{stage.stage}</p>
-              <p className="mt-2 text-[11.5px] font-bold" style={{ color: stage.dropPct !== null && stage.dropPct >= 20 ? "var(--color-danger)" : "var(--color-text-muted)" }}>
-                {stage.dropPct === null ? "—" : `−${stage.dropPct}% drop`}
-              </p>
-              {index < funnelStages.length - 1 ? <div className="mt-3 h-1 rounded-full bg-[var(--color-accent-primary)] opacity-60" /> : null}
-            </article>
-          ))}
-        </div>
-      </section>
-
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_0.75fr]">
-        <TableCard
-          title="Funnel stage detail"
-          items={funnelStages}
-          pageSize={false}
-          getRowKey={(item) => item.stage}
-          columns={[
-            { key: "stage", header: "Stage", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.stage}</span>, sortValue: (item) => item.stage },
-            { key: "count", header: "Schools", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.count.toLocaleString()}</span>, sortValue: (item) => item.count },
-            { key: "ofFirst", header: "Share of signups", render: (item) => (item.ofFirstPct === null ? "—" : `${item.ofFirstPct}%`), sortValue: (item) => item.ofFirstPct ?? 0 },
-            { key: "drop", header: "Drop from previous stage", render: (item) => (item.dropPct === null ? "—" : <span className="font-bold" style={{ color: item.dropPct >= 20 ? "var(--color-danger)" : "var(--color-text-primary)" }}>−{item.dropPct}%</span>), sortValue: (item) => item.dropPct ?? 0 }
-          ]}
-        />
-        {worstDrop ? (
-          <StatCard label="Largest drop" value={`−${worstDrop.dropPct}%`} detail={worstDrop.stage} tone="danger" icon={TrendingDown} />
-        ) : (
-          <StatCard label="Largest drop" value="—" detail="Not enough funnel stages recorded yet" tone="neutral" icon={TrendingDown} />
-        )}
-      </section>
+      <TableCard
+        title="Loss analysis — returned to previous system"
+        description="Every rolled-back migration, with the reason recorded."
+        items={displacement.lossAnalysis}
+        pageSize={false}
+        getRowKey={(item, index) => `${item.schoolName}-${index}`}
+        emptyState="No school has rolled back a migration."
+        columns={[
+          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolName}</span> },
+          { key: "returnedTo", header: "Returned to", render: (item) => item.sourceSystem },
+          { key: "reason", header: "Reason given", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.reason}</span> }
+        ]}
+      />
     </section>
   );
 }
@@ -246,9 +251,6 @@ async function RetentionTab() {
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
 
   const cohorts = bi.cohorts;
-  const bestCohort = cohorts.reduce<typeof cohorts[number] | null>((best, item) => (!best || item.retentionPct > best.retentionPct ? item : best), null);
-  const largestCohort = cohorts.reduce<typeof cohorts[number] | null>((largest, item) => (!largest || item.joined > largest.joined ? item : largest), null);
-  const newestCohort = cohorts[cohorts.length - 1] ?? null;
 
   const npsScore = nps.npsScore;
   const npsPassives = Math.max(0, nps.total - nps.promoters - nps.detractors);
@@ -256,7 +258,8 @@ async function RetentionTab() {
   const passivePct = nps.total > 0 ? Math.round((npsPassives / nps.total) * 100) : 0;
   const detractorPct = nps.total > 0 ? Math.round((nps.detractors / nps.total) * 100) : 0;
   const maxTierChurn = Math.max(...churn.byTier.map((item) => item.ratePct), 1);
-  const maxTierNps = Math.max(...nps.byTier.map((item) => Math.abs(item.npsScore)), 1);
+  const maxTenureChurn = Math.max(...churn.byTenure.map((item) => item.pct), 1);
+  const maxTierRegionNps = Math.max(...nps.byTierAndRegion.map((item) => Math.abs(item.npsScore)), 1);
 
   return (
     <section className="grid gap-5">
@@ -276,15 +279,9 @@ async function RetentionTab() {
           { key: "cohort", header: "Cohort (join month)", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.cohort}</span>, sortValue: (item) => item.cohort },
           { key: "joined", header: "Joined", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.joined}</span>, sortValue: (item) => item.joined },
           { key: "active", header: "Still active", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.stillActive}</span>, sortValue: (item) => item.stillActive },
-          { key: "retention", header: "Retention", render: (item) => <PercentCell value={item.retentionPct} />, sortValue: (item) => item.retentionPct }
+          { key: "retention", header: "Retention", render: (item) => <BarCell value={item.retentionPct} />, sortValue: (item) => item.retentionPct }
         ]}
       />
-      <section className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Best retaining cohort" value={bestCohort ? `${bestCohort.retentionPct}%` : "—"} detail={bestCohort?.cohort ?? "No cohorts yet"} tone="success" icon={Trophy} />
-        <StatCard label="Newest cohort" value={newestCohort ? `${newestCohort.retentionPct}%` : "—"} detail={newestCohort?.cohort ?? "No cohorts yet"} tone="warning" icon={ShieldAlert} />
-        <StatCard label="Largest cohort" value={largestCohort?.joined ?? 0} detail={largestCohort ? `${largestCohort.cohort} schools` : "No cohorts yet"} icon={Users} />
-      </section>
-
       {/* Churn analysis */}
       <div className="mt-2 grid gap-1.5">
         <p className="section-eyebrow">Churn analysis</p>
@@ -341,19 +338,21 @@ async function RetentionTab() {
           </div>
         </section>
         <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Recently churned schools</p>
-          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Most recent 20 churn log entries.</p>
-          <div className="mt-4 grid gap-3 max-h-[320px] overflow-y-auto pr-1">
-            {churn.recent.length === 0 ? (
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Churn rate by tenure</p>
+          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Share of all churn, by how long the school had been on the platform.</p>
+          <div className="mt-4 grid gap-3.5">
+            {churn.byTenure.every((item) => item.count === 0) ? (
               <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No churn logged yet.</p>
             ) : (
-              churn.recent.map((item) => (
-                <div key={item.id} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.schoolName}</p>
-                    <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(item.churnedAt)}</span>
+              churn.byTenure.map((item) => (
+                <div key={item.bucket}>
+                  <div className="flex items-center justify-between text-[12.5px]">
+                    <span className="text-[var(--color-text-secondary)]">{item.bucket}</span>
+                    <span className="font-[var(--font-mono)] text-[13px] font-black" style={{ color: item.pct >= 40 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>
                   </div>
-                  <p className="mt-1 text-[11.5px] text-[var(--color-text-secondary)]">{item.reason.replaceAll("_", " ")}{item.notes ? ` — ${item.notes}` : ""}</p>
+                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <div className="h-full rounded-full" style={{ width: `${(item.pct / maxTenureChurn) * 100}%`, background: item.pct >= 40 ? "var(--color-danger)" : "var(--color-accent-primary)" }} />
+                  </div>
                 </div>
               ))
             )}
@@ -387,25 +386,25 @@ async function RetentionTab() {
         <StatCard label="Promoters" value={`${promoterPct}%`} detail={`${nps.promoters} of ${nps.total} · score 9-10`} tone="success" icon={Trophy} />
         <StatCard label="Passives" value={`${passivePct}%`} detail={`${npsPassives} of ${nps.total} · score 7-8`} tone="warning" icon={MessageCircle} />
         <StatCard label="Detractors" value={`${detractorPct}%`} detail={`${nps.detractors} of ${nps.total} · score 0-6`} tone="danger" icon={AlertTriangle} />
-        <StatCard label="Responses logged" value={nps.total} detail="All time, across all schools" tone="neutral" icon={ClipboardList} />
+        <StatCard label="Response rate" value={`${nps.responseRatePct}%`} detail={`${nps.total} of every non-deleted school's admin`} tone="neutral" icon={ClipboardList} />
       </section>
 
       <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
         <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">NPS by tier</p>
+          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">NPS by tier and region</p>
           <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
           <div className="mt-4 grid gap-3.5">
-            {nps.byTier.length === 0 ? (
+            {nps.byTierAndRegion.length === 0 ? (
               <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
             ) : (
-              nps.byTier.map((item) => (
-                <div key={item.plan}>
+              nps.byTierAndRegion.map((item) => (
+                <div key={`${item.kind}-${item.label}`}>
                   <div className="flex items-center justify-between text-[12.5px]">
-                    <span className="text-[var(--color-text-secondary)]">{item.plan}</span>
+                    <span className="text-[var(--color-text-secondary)]">{item.label}</span>
                     <span className="font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">{item.npsScore >= 0 ? "+" : ""}{item.npsScore} · {item.responses} resp.</span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                    <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(Math.abs(item.npsScore) / maxTierNps) * 100}%` }} />
+                    <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(Math.abs(item.npsScore) / maxTierRegionNps) * 100}%` }} />
                   </div>
                 </div>
               ))
@@ -441,12 +440,7 @@ async function RetentionTab() {
 }
 
 async function RevenueTab() {
-  const [revenue, report] = await Promise.all([
-    apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
-    apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report")
-  ]);
-  const subscriberCounts = new Map<string, number>(revenue.schoolsByPlan.map((item) => [item.plan, item.count]));
-  const maxTierRevenue = Math.max(...report.revenueByTier.map((item) => item.revenue), 1);
+  const report = await apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report");
 
   return (
     <section className="grid gap-5">
@@ -489,31 +483,31 @@ async function RevenueTab() {
       </section>
 
       <section className="grid gap-5 lg:grid-cols-2">
-        <section className="surface-card p-6">
-          <p className="section-eyebrow">Tier split</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Revenue by tier</h3>
-          <div className="mt-4 grid gap-3">
-            {report.revenueByTier.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No active paid subscriptions yet.</p>
-            ) : (
-              report.revenueByTier.map((item) => (
-                <div key={item.plan}>
-                  <div className="flex items-center justify-between text-[13px] font-semibold text-[var(--color-text-primary)]">
-                    <span className="flex items-center gap-2">
-                      <span className="h-2 w-2 rounded-[3px] bg-[var(--color-accent-primary)]" />
-                      {item.plan}
-                      <span className="text-[11px] font-medium text-[var(--color-text-muted)]">{subscriberCounts.get(item.plan) ?? 0} subs</span>
-                    </span>
-                    <span className="font-[var(--font-mono)]">{formatCurrency(item.revenue)}</span>
-                  </div>
-                  <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                    <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(item.revenue / maxTierRevenue) * 100}%` }} />
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </section>
+        <TableCard
+          title="Revenue by state"
+          description="Where the platform's schools and revenue are concentrated, and where growth is coming from."
+          items={report.revenueByState}
+          columns={[
+            { key: "state", header: "State", render: (item) => item.state },
+            { key: "topCity", header: "Top city", render: (item) => item.topCity ?? "—" },
+            { key: "schools", header: "Schools", render: (item) => item.schoolCount },
+            { key: "revenue", header: "Semester revenue", render: (item) => formatCurrency(item.revenue) },
+            { key: "arpu", header: "ARPU", render: (item) => formatCurrency(item.arpu) },
+            {
+              key: "trend",
+              header: "Trend (90d)",
+              render: (item) =>
+                item.newSchools90d > 0 ? (
+                  <span className="font-semibold" style={{ color: "var(--color-success)" }}>
+                    +{item.newSchools90d} school{item.newSchools90d === 1 ? "" : "s"}
+                  </span>
+                ) : (
+                  <span className="text-[var(--color-text-muted)]">Steady</span>
+                )
+            }
+          ]}
+          emptyState="No school location data yet."
+        />
         <TableCard
           title="LTV projection by tier"
           items={report.ltvByTier}
@@ -526,75 +520,101 @@ async function RevenueTab() {
           emptyState="No active subscriptions yet."
         />
       </section>
-
-      <TableCard
-        title="Revenue by state"
-        description="Where the platform's schools and revenue are concentrated, and where growth is coming from."
-        items={report.revenueByState}
-        columns={[
-          { key: "state", header: "State", render: (item) => item.state },
-          { key: "topCity", header: "Top city", render: (item) => item.topCity ?? "—" },
-          { key: "schools", header: "Schools", render: (item) => item.schoolCount },
-          { key: "revenue", header: "Semester revenue", render: (item) => formatCurrency(item.revenue) },
-          { key: "arpu", header: "ARPU", render: (item) => formatCurrency(item.arpu) },
-          {
-            key: "trend",
-            header: "Trend (90d)",
-            render: (item) =>
-              item.newSchools90d > 0 ? (
-                <span className="font-semibold" style={{ color: "var(--color-success)" }}>
-                  +{item.newSchools90d} school{item.newSchools90d === 1 ? "" : "s"}
-                </span>
-              ) : (
-                <span className="text-[var(--color-text-muted)]">Steady</span>
-              )
-          }
-        ]}
-        emptyState="No school location data yet."
-      />
     </section>
   );
 }
 
+function moduleLabel(module: string) {
+  return module.charAt(0).toUpperCase() + module.slice(1);
+}
+
 async function ProductTab() {
-  const bi = await apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi");
-  const totalModules = bi.heatmap.length;
-  const belowFloor = bi.heatmap.filter((item) => item.adoptionPct < 40).length;
-  const topModule = bi.heatmap[0] ?? null;
+  const [adoption, bi] = await Promise.all([
+    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
+    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi")
+  ]);
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Schools active this week" value={bi.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} />
-        <StatCard label="Modules tracked" value={totalModules} detail="Feature flags enabled by at least one school" icon={Gauge} />
-        <StatCard label="Modules below the 40% floor" value={belowFloor} detail="Enabled by fewer than 4 in 10 schools" tone={belowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />
-        <StatCard label="Top adopted module" value={topModule ? `${topModule.adoptionPct}%` : "—"} detail={topModule?.module ?? "No module usage recorded yet"} tone="success" icon={Banknote} />
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="accent" />
+        <StatCard label="Platform adoption index" value={adoption.adoptionIndex} detail={`Weighted across ${adoption.modulesTracked} modules`} icon={Gauge} />
+        <StatCard label="Modules below the 40% floor" value={adoption.modulesBelowFloor} detail="Enabled by fewer than 4 in 10 schools" tone={adoption.modulesBelowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />
+        <StatCard label="Top adopted module" value={adoption.topModule ? `${adoption.topModule.adoptionPct}%` : "—"} detail={adoption.topModule ? moduleLabel(adoption.topModule.module) : "No module usage recorded yet"} tone="success" icon={Banknote} />
+        <StatCard label="Modules tracked" value={adoption.modulesTracked} detail="Toggleable in every school's configuration" icon={CreditCard} />
       </section>
 
       <section>
         <TableCard
-          title="Module adoption heatmap"
-          description="Share of all schools with each feature flag enabled — computed live from every school's feature flags."
-          items={bi.heatmap}
+          title="Module adoption by tier"
+          description="Share of schools on each tier with the module switched on — a real usage signal, not an entitlement gate. Every school gets every module at signup and enables or disables it from its own configuration."
+          items={adoption.heatmapByTier}
           pageSize={false}
           getRowKey={(item) => item.module}
           emptyState="No module usage recorded yet."
           columns={[
-            { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.module}</span>, sortValue: (item) => item.module },
-            { key: "schools", header: "Schools using", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.schoolsUsing}</span>, sortValue: (item) => item.schoolsUsing },
-            { key: "adoption", header: "Adoption", render: (item) => <PercentCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
-            {
-              key: "level",
-              header: "Level",
-              render: (item) => (
-                <StatusPill
-                  bg={item.level === "HIGH" ? "var(--color-success-dim)" : item.level === "MEDIUM" ? "var(--color-warning-dim)" : "var(--color-danger-dim)"}
-                  fg={item.level === "HIGH" ? "var(--color-success)" : item.level === "MEDIUM" ? "var(--color-warning)" : "var(--color-danger)"}
-                  label={item.level}
-                />
-              ),
-              sortValue: (item) => item.level
-            }
+            { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
+            ...adoption.tierColumns.map((tier, tierIndex) => ({
+              key: `tier-${tier.plan}`,
+              header: `${tier.plan} (${tier.schoolCount})`,
+              render: (item: (typeof adoption.heatmapByTier)[number]) => <HeatCell value={item.cells[tierIndex] ?? null} />,
+              sortValue: (item: (typeof adoption.heatmapByTier)[number]) => item.cells[tierIndex] ?? -1
+            }))
+          ]}
+        />
+      </section>
+
+      <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
+        <TableCard
+          title="Adoption gaps"
+          description="Every module sitting below the 40% floor across the whole platform."
+          items={adoption.gaps}
+          pageSize={false}
+          getRowKey={(item) => item.module}
+          emptyState="No module is below the 40% floor."
+          columns={[
+            { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
+            { key: "adoption", header: "Adoption", render: (item) => <BarCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
+            { key: "using", header: "Schools using", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
+            { key: "notUsing", header: "Schools not using", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing }
+          ]}
+        />
+        <section className="surface-card overflow-hidden">
+          <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How this grid is read</p>
+            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Three rules keep the comparison honest</p>
+          </div>
+          <div className="grid gap-3 p-5">
+            {[
+              { title: "Compare down a column, or across a row — every school can toggle every module", detail: "There is no tier-based entitlement gate in this product, so a low cell is a genuine usage gap, not a locked feature." },
+              { title: "Adoption is measured per school, not per user", detail: "One teacher using a module does not make a school an adopter of it." },
+              { title: "Below 40% for two tiers running is worth a product conversation", detail: "The floor is a prompt to ask why, not an automatic verdict." }
+            ].map((row) => (
+              <div key={row.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.title}</p>
+                <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{row.detail}</p>
+              </div>
+            ))}
+          </div>
+        </section>
+      </section>
+
+      <section>
+        <TableCard
+          title="Adoption by state"
+          description="Same metric grouped by region, to separate a product problem from a connectivity or training problem."
+          items={adoption.heatmapByState}
+          pageSize={false}
+          getRowKey={(item) => item.state}
+          emptyState="No school location data yet."
+          columns={[
+            { key: "state", header: "State", render: (item) => <div><span className="font-bold text-[var(--color-text-primary)]">{item.state}</span><p className="text-[11px] text-[var(--color-text-muted)]">{item.schoolCount} school{item.schoolCount === 1 ? "" : "s"}</p></div>, sortValue: (item) => item.state },
+            ...adoption.stateHeatmapModules.map((module, moduleIndex) => ({
+              key: `module-${module}`,
+              header: moduleLabel(module),
+              render: (item: (typeof adoption.heatmapByState)[number]) => <HeatCell value={item.cells[moduleIndex] ?? null} />,
+              sortValue: (item: (typeof adoption.heatmapByState)[number]) => item.cells[moduleIndex] ?? -1
+            }))
           ]}
         />
       </section>
@@ -654,23 +674,26 @@ async function ReportsTab() {
         ]}
       />
 
-      <section className="surface-card overflow-hidden">
-        <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How custom reports work</p>
-        </div>
-        <div className="grid gap-3 p-5">
-          {[
-            { title: "Pick a metric and a grouping", detail: "School count, student count, or MRR — grouped by tier, state, or subscription status." },
-            { title: "Computed live from Prisma", detail: "Every report re-reads the schools table at run time — there is no cached or sample data." },
-            { title: "Saved for reuse", detail: "A saved report keeps its metric and grouping so it can be regenerated any time." }
-          ].map((row) => (
-            <div key={row.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.title}</p>
-              <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{row.detail}</p>
-            </div>
-          ))}
-        </div>
-      </section>
+      <TableCard
+        title="Reporting cadence"
+        description="Every figure on this page is computed live at request time — there is no scheduled rollup job or cached snapshot behind any of it."
+        items={[
+          { type: "Custom reports", frequency: "Computed live when run" },
+          { type: "Funnel / conversion", frequency: "Computed live on page load" },
+          { type: "Displacement", frequency: "Computed live on page load" },
+          { type: "Cohort retention", frequency: "Computed live on page load" },
+          { type: "Revenue (MRR / ARR)", frequency: "Computed live on page load" },
+          { type: "Churn analysis", frequency: "Computed live on page load" },
+          { type: "NPS", frequency: "Computed live on page load" },
+          { type: "Product adoption", frequency: "Computed live on page load" }
+        ]}
+        pageSize={false}
+        getRowKey={(item) => item.type}
+        columns={[
+          { key: "type", header: "Report type", render: (item) => item.type },
+          { key: "frequency", header: "Frequency", render: (item) => <span className="text-[var(--color-text-muted)]">{item.frequency}</span> }
+        ]}
+      />
     </section>
   );
 }

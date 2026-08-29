@@ -1,6 +1,7 @@
 import { CheckCircle2, Circle, FileClock, FileWarning, RotateCcw } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
@@ -63,25 +64,12 @@ export default async function MigrationPage({ searchParams }: { searchParams?: P
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant onboarding</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Onboarding &amp; Migration</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-              Track a school&apos;s historical data migration from invitation through sign-off — who&apos;s assigned,
-              what&apos;s in scope, and when the retention clock starts.
-            </p>
-          </div>
-          <NewMigrationJobAction />
-        </div>
-      </section>
+      <ModuleHero
+        eyebrow="Tenant onboarding"
+        title="Onboarding & Migration"
+        description="Track a school's historical data migration from invitation through sign-off — who's assigned, what's in scope, and when the retention clock starts."
+        action={<NewMigrationJobAction />}
+      />
 
       <DetailTabs tabs={tabs} />
 
@@ -121,6 +109,7 @@ async function NewMigrationJobAction() {
       description="Invite a school onto the migration track and set the scope of data that will be brought over."
       endpoint="/api/super-admin/migration/jobs"
       submitLabel="Create job"
+      variant="heroWhite"
       fields={[
         { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
         { name: "sourceSystem", label: "Source system", type: "text", required: true, placeholder: "e.g. Spreadsheet register, another SIS" },
