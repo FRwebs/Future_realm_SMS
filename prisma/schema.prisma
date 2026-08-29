@@ -607,6 +607,9 @@ model School {
   cacNumber                     String?
   ministryApprovalNumber        String?
   flaggedForReviewReason        String?
+  riskScore                     Int?
+  riskSignals                   Json?
+  signupIp                      String?
   verifiedAt                    DateTime?
   verificationRejectedAt        DateTime?
   verificationRejectionReason   String?
@@ -781,6 +784,8 @@ model School {
   brandingAssets                BrandingAsset[]
   schoolGroup                   SchoolGroup?                   @relation(fields: [schoolGroupId], references: [id], onDelete: SetNull)
   accountManager                User?                          @relation("SchoolAccountManager", fields: [accountManagerId], references: [id], onDelete: SetNull)
+  webAddressRecords             WebAddressRecord[]
+  ownershipTransfers            OwnershipTransfer[]
 
   @@index([status, billingStatus])
   @@index([country, state])
@@ -1075,176 +1080,181 @@ model StudentSkill {
 }
 
 model User {
-  id                           String                        @id @default(cuid())
-  schoolId                     String
-  school                       School                        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  email                        String                        @unique
-  phone                        String?
-  username                     String?
-  firstName                    String
-  middleName                   String?
-  lastName                     String
-  preferredName                String?
-  gender                       Gender?
-  dateOfBirth                  DateTime?
-  nationality                  String?
-  stateOfOrigin                String?
-  lga                          String?
-  religion                     String?
-  maritalStatus                String?
-  bloodGroup                   String?
-  genotype                     String?
-  avatarUrl                    String?
-  alternateEmail               String?
-  secondaryPhone               String?
-  homeAddress                  String?
-  residentialAddress           String?
-  city                         String?
-  country                      String?
-  accountStatus                String                        @default("ACTIVE")
-  nextOfKinFirstName           String?
-  nextOfKinLastName            String?
-  nextOfKinOtherName           String?
-  nextOfKinPhone               String?
-  nextOfKinEmail               String?
-  nextOfKinRelationship        String?
-  nextOfKinAddress             String?
-  nextOfKinOccupation          String?
-  passwordHash                 String
-  role                         UserRole
-  isActive                     Boolean                       @default(true)
-  deletedAt                    DateTime?
-  suspendedAt                  DateTime?
-  passwordResetRequired        Boolean                       @default(false)
-  lastLoginAt                  DateTime?
-  emailVerifiedAt              DateTime?
-  createdAt                    DateTime                      @default(now())
-  updatedAt                    DateTime                      @updatedAt
-  verificationCodes            EmailVerificationCode[]
-  guardian                     Guardian?
-  student                      Student?
-  staffProfile                 StaffProfile?
-  admissionsReviewed           AdmissionReview[]
-  admissionScreeningsAssigned  AdmissionScreening[]          @relation("AdmissionScreeningInterviewer")
-  admissionComments            AdmissionComment[]            @relation("AdmissionCommentAuthor")
-  admissionStatusChanges       AdmissionStatusHistory[]      @relation("AdmissionStatusChangedBy")
-  admissionOffersIssued        AdmissionOffer[]              @relation("AdmissionOfferIssuedBy")
-  admissionPaymentsVerified    AdmissionPaymentLink[]        @relation("AdmissionPaymentVerifiedBy")
-  enrollmentConversions        EnrollmentConversionLog[]     @relation("EnrollmentConvertedBy")
-  resultSheets                 ResultSheet[]                 @relation("ResultSheetCreatedBy")
-  scoresEntered                ScoreEntry[]                  @relation("ScoreEntryCreatedBy")
-  academicAssessmentsAssigned  AcademicAssessment[]          @relation("AcademicAssessmentTeacher")
-  academicAssessmentsCreated   AcademicAssessment[]          @relation("AcademicAssessmentCreatedBy")
-  assessmentScoresEntered      AssessmentCandidate[]         @relation("AssessmentScoreEnteredBy")
-  assessmentScoresEdited       AssessmentCandidate[]         @relation("AssessmentScoreLastEditedBy")
-  assessmentScoreAudits        AssessmentScoreAudit[]        @relation("AssessmentScoreAuditActor")
-  resultApprovals              ResultApproval[]              @relation("ResultApprovalActor")
-  resultPublications           ResultPublication[]           @relation("ResultPublicationActor")
-  broadsheetsCompiled          Broadsheet[]                  @relation("BroadsheetCompiledBy")
-  broadsheetApprovals          BroadsheetApprovalHistory[]   @relation("BroadsheetApprovalActor")
-  reportCardsGenerated         ReportCard[]                  @relation("ReportCardGeneratedBy")
-  attendanceMarked             StudentAttendance[]           @relation("AttendanceMarkedBy")
-  assignmentsCreated           Assignment[]                  @relation("AssignmentCreatedBy")
-  invoicesCreated              Invoice[]                     @relation("InvoiceCreatedBy")
-  paymentsRecorded             Payment[]                     @relation("PaymentRecordedBy")
-  paymentGatewayConfigsCreated PaymentGatewayConfig[]        @relation("PaymentGatewayConfigCreatedBy")
-  feeWaiversRequested          FeeWaiver[]                   @relation("FeeWaiverRequestedBy")
-  feeWaiversApproved           FeeWaiver[]                   @relation("FeeWaiverApprovedBy")
-  scholarshipsApproved         StudentScholarship[]          @relation("StudentScholarshipApprovedBy")
-  paymentsReversed             Payment[]                     @relation("PaymentReversedBy")
-  receiptsIssued               Receipt[]                     @relation("ReceiptIssuedBy")
-  announcements                Announcement[]
-  messagesSent                 InternalMessage[]             @relation("MessageSender")
-  messagesReceived             InternalMessage[]             @relation("MessageRecipient")
-  logs                         AuditLog[]
-  drafts                       SyncDraft[]
-  staffAttendance              StaffAttendance[]
-  staffAttendanceAudits        StaffAttendanceAudit[]        @relation("StaffAttendanceAuditActor")
-  trainingProgramsCreated      TrainingProgram[]             @relation("TrainingProgramCreatedBy")
-  trainingParticipants         TrainingParticipant[]
-  rolesCreated                 Role[]                        @relation("RoleCreatedBy")
-  roleAssignments              UserRoleAssignment[]
-  rolesAssigned                UserRoleAssignment[]          @relation("UserRoleAssignedBy")
-  permissionOverrides          UserPermissionOverride[]      @relation("UserPermissionOverrideTarget")
-  permissionOverridesCreated   UserPermissionOverride[]      @relation("UserPermissionOverrideSetBy")
-  classesLed                   ClassRoom[]                   @relation("ClassRoomClassTeacher")
-  classesAssisted              ClassRoom[]                   @relation("ClassRoomAssistantTeacher")
-  classAssignmentsLed          ClassAcademicAssignment[]     @relation("ClassAcademicAssignmentTeacher")
-  classAssignmentsAssisted     ClassAcademicAssignment[]     @relation("ClassAcademicAssignmentAssistant")
-  timetableCreated             TimetableEntry[]              @relation("TimetableCreatedBy")
-  timetableUpdated             TimetableEntry[]              @relation("TimetableUpdatedBy")
-  timetablePublishLogs         TimetablePublishLog[]         @relation("TimetablePublishedBy")
-  disciplineReports            DisciplineRecord[]            @relation("DisciplineReporter")
-  disciplineEscalations        DisciplineRecord[]            @relation("DisciplineEscalatedTo")
-  disciplineCounselorRefs      DisciplineRecord[]            @relation("DisciplineCounselor")
-  counselingRecords            CounselingRecord[]            @relation("CounselingCounselor")
-  healthVisits                 HealthVisit[]                 @relation("HealthVisitNurse")
-  learningMaterials            LearningMaterial[]            @relation("LearningMaterialTeacher")
-  lessonPlans                  LessonPlan[]                  @relation("LessonPlanTeacher")
-  lessonPlansApproved          LessonPlan[]                  @relation("LessonPlanApprover")
-  questionBankItems            QuestionBankItem[]            @relation("QuestionBankTeacher")
-  questionBankApproved         QuestionBankItem[]            @relation("QuestionBankApprover")
-  visitorLogsCreated           VisitorLog[]                  @relation("VisitorLogCreator")
-  visitorHosts                 VisitorLog[]                  @relation("VisitorHost")
-  facilityReports              FacilityMaintenanceLog[]      @relation("FacilityReportedBy")
-  idCards                      IdCard[]
-  parentMeetingsScheduled      ParentMeeting[]               @relation("ParentMeetingScheduler")
-  budgetsApproved              Budget[]                      @relation("BudgetApprover")
-  resultEntryWindowsCreated    ResultEntryWindow[]           @relation("ResultEntryWindowCreator")
-  subjectCombinationsApproved  SubjectCombination[]          @relation("SubjectCombinationApprover")
-  schoolsManaged               School[]                      @relation("SchoolAccountManager")
-  assignedSupportTickets       SupportTicket[]               @relation("TicketAssignedAgent")
-  createdSupportTickets        SupportTicket[]               @relation("TicketCreatedBy")
-  ticketMessages               TicketMessage[]
-  crmInteractionsCreated       CrmInteraction[]              @relation("CrmInteractionCreator")
-  crmNotesCreated              CrmNote[]                     @relation("CrmNoteCreator")
-  leadsAssigned                Lead[]                        @relation("LeadAssignedTo")
-  partnerDealsCreated          PartnerDeal[]                 @relation("PartnerDealCreatedBy")
-  migrationJobsAsSpecialist    MigrationJob[]                @relation("MigrationJobSpecialist")
-  migrationJobsSignedOff       MigrationJob[]                @relation("MigrationJobSignedOffBy")
-  migrationJobsCreated         MigrationJob[]                @relation("MigrationJobCreatedBy")
-  platformAnnouncements        PlatformAnnouncement[]        @relation("PlatformAnnouncementAuthor")
-  featureFlagsCreated          PlatformFeatureFlag[]         @relation("FeatureFlagCreatedBy")
-  platformSessions             PlatformSession[]
-  passwordResetTokens          PasswordResetToken[]
-  loginAttempts                LoginAttempt[]
-  suspiciousActivityFlags      SuspiciousActivityFlag[]
-  duplicateFlagsAsA            DuplicateFlag[]               @relation("DuplicateFlagUserA")
-  duplicateFlagsAsB            DuplicateFlag[]               @relation("DuplicateFlagUserB")
-  accountRecoveryRecords       AccountRecoveryRecord[]       @relation("AccountRecoveryTarget")
-  accountRecoveriesVerified    AccountRecoveryRecord[]       @relation("AccountRecoveryVerifier")
-  cannedResponsesUpdated       CannedResponse[]
-  dataCorrectionsRequested     DataCorrectionRecord[]        @relation("DataCorrectionRequestedBy")
-  dataCorrectionsApproved      DataCorrectionRecord[]        @relation("DataCorrectionApprovedBy")
-  privacyRequestsCompleted     DataPrivacyRequest[]          @relation("PrivacyRequestCompletedBy")
-  securityIncidentsReported    SecurityIncident[]            @relation("SecurityIncidentReporter")
-  securityIncidentsResolved    SecurityIncident[]            @relation("SecurityIncidentResolver")
-  featureOverridesRequested    PlatformFeatureFlagOverride[] @relation("FeatureOverrideRequestedBy")
-  featureOverridesApproved     PlatformFeatureFlagOverride[] @relation("FeatureOverrideApprovedBy")
-  brandingAssetsApproved       BrandingAsset[]               @relation("BrandingAssetApprovedBy")
-  campaignsCreated             Campaign[]                    @relation("CampaignCreatedBy")
-  campaignsApproved            Campaign[]                    @relation("CampaignApprovedBy")
-  consentRecords               ConsentRecord[]
-  churnRecordsLogged           ChurnRecord[]                 @relation("ChurnRecordLoggedBy")
-  customReportsCreated         CustomReport[]                @relation("CustomReportCreatedBy")
-  internalDepartmentsLed       InternalDepartment[]          @relation("InternalDepartmentLead")
-  internalPermissionGrid       InternalPermissionGrid[]      @relation("InternalPermissionGridUser")
-  internalAccessGrants         InternalAccessGrant[]         @relation("InternalAccessGrantUser")
-  internalAccessGrantsGiven    InternalAccessGrant[]         @relation("InternalAccessGrantGrantedBy")
-  profileDocuments             ProfileDocument[]             @relation("ProfileDocumentUser")
-  uploadedProfileDocuments     ProfileDocument[]             @relation("ProfileDocumentUploadedBy")
-  profileEditRequests          ProfileEditRequest[]          @relation("ProfileEditRequestTarget")
-  profileEditRequestsMade      ProfileEditRequest[]          @relation("ProfileEditRequestRequester")
-  profileEditRequestsReviewed  ProfileEditRequest[]          @relation("ProfileEditRequestReviewer")
-  privacyRequestsHandled       DataPrivacyRequest[]          @relation("PrivacyRequestHandler")
-  knowledgeBaseArticles        KnowledgeBaseArticle[]        @relation("KnowledgeBaseAuthor")
-  maintenanceWindowsCreated    MaintenanceWindow[]           @relation("MaintenanceWindowCreator")
-  teachingSchemeOfWork         SchemeOfWork[]                @relation("SchemeOfWorkTeacher")
-  submittedSchemeOfWork        SchemeOfWork[]                @relation("SchemeOfWorkSubmittedBy")
-  approvedSchemeOfWork         SchemeOfWork[]                @relation("SchemeOfWorkApprovedBy")
-  coveredSowTopics             SowTopic[]                    @relation("SowTopicCoveredBy")
-  uploadedSowTopicResources    SowTopicResource[]            @relation("SowTopicResourceUploadedBy")
-  assessedStudentTopicProgress StudentTopicProgress[]        @relation("StudentTopicProgressAssessedBy")
+  id                               String                        @id @default(cuid())
+  schoolId                         String
+  school                           School                        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  email                            String                        @unique
+  phone                            String?
+  username                         String?
+  firstName                        String
+  middleName                       String?
+  lastName                         String
+  preferredName                    String?
+  gender                           Gender?
+  dateOfBirth                      DateTime?
+  nationality                      String?
+  stateOfOrigin                    String?
+  lga                              String?
+  religion                         String?
+  maritalStatus                    String?
+  bloodGroup                       String?
+  genotype                         String?
+  avatarUrl                        String?
+  alternateEmail                   String?
+  secondaryPhone                   String?
+  homeAddress                      String?
+  residentialAddress               String?
+  city                             String?
+  country                          String?
+  accountStatus                    String                        @default("ACTIVE")
+  nextOfKinFirstName               String?
+  nextOfKinLastName                String?
+  nextOfKinOtherName               String?
+  nextOfKinPhone                   String?
+  nextOfKinEmail                   String?
+  nextOfKinRelationship            String?
+  nextOfKinAddress                 String?
+  nextOfKinOccupation              String?
+  passwordHash                     String
+  role                             UserRole
+  isActive                         Boolean                       @default(true)
+  deletedAt                        DateTime?
+  suspendedAt                      DateTime?
+  passwordResetRequired            Boolean                       @default(false)
+  lastLoginAt                      DateTime?
+  emailVerifiedAt                  DateTime?
+  createdAt                        DateTime                      @default(now())
+  updatedAt                        DateTime                      @updatedAt
+  verificationCodes                EmailVerificationCode[]
+  guardian                         Guardian?
+  student                          Student?
+  staffProfile                     StaffProfile?
+  admissionsReviewed               AdmissionReview[]
+  admissionScreeningsAssigned      AdmissionScreening[]          @relation("AdmissionScreeningInterviewer")
+  admissionComments                AdmissionComment[]            @relation("AdmissionCommentAuthor")
+  admissionStatusChanges           AdmissionStatusHistory[]      @relation("AdmissionStatusChangedBy")
+  admissionOffersIssued            AdmissionOffer[]              @relation("AdmissionOfferIssuedBy")
+  admissionPaymentsVerified        AdmissionPaymentLink[]        @relation("AdmissionPaymentVerifiedBy")
+  enrollmentConversions            EnrollmentConversionLog[]     @relation("EnrollmentConvertedBy")
+  resultSheets                     ResultSheet[]                 @relation("ResultSheetCreatedBy")
+  scoresEntered                    ScoreEntry[]                  @relation("ScoreEntryCreatedBy")
+  academicAssessmentsAssigned      AcademicAssessment[]          @relation("AcademicAssessmentTeacher")
+  academicAssessmentsCreated       AcademicAssessment[]          @relation("AcademicAssessmentCreatedBy")
+  assessmentScoresEntered          AssessmentCandidate[]         @relation("AssessmentScoreEnteredBy")
+  assessmentScoresEdited           AssessmentCandidate[]         @relation("AssessmentScoreLastEditedBy")
+  assessmentScoreAudits            AssessmentScoreAudit[]        @relation("AssessmentScoreAuditActor")
+  resultApprovals                  ResultApproval[]              @relation("ResultApprovalActor")
+  resultPublications               ResultPublication[]           @relation("ResultPublicationActor")
+  broadsheetsCompiled              Broadsheet[]                  @relation("BroadsheetCompiledBy")
+  broadsheetApprovals              BroadsheetApprovalHistory[]   @relation("BroadsheetApprovalActor")
+  reportCardsGenerated             ReportCard[]                  @relation("ReportCardGeneratedBy")
+  attendanceMarked                 StudentAttendance[]           @relation("AttendanceMarkedBy")
+  assignmentsCreated               Assignment[]                  @relation("AssignmentCreatedBy")
+  invoicesCreated                  Invoice[]                     @relation("InvoiceCreatedBy")
+  paymentsRecorded                 Payment[]                     @relation("PaymentRecordedBy")
+  paymentGatewayConfigsCreated     PaymentGatewayConfig[]        @relation("PaymentGatewayConfigCreatedBy")
+  feeWaiversRequested              FeeWaiver[]                   @relation("FeeWaiverRequestedBy")
+  feeWaiversApproved               FeeWaiver[]                   @relation("FeeWaiverApprovedBy")
+  scholarshipsApproved             StudentScholarship[]          @relation("StudentScholarshipApprovedBy")
+  paymentsReversed                 Payment[]                     @relation("PaymentReversedBy")
+  receiptsIssued                   Receipt[]                     @relation("ReceiptIssuedBy")
+  announcements                    Announcement[]
+  messagesSent                     InternalMessage[]             @relation("MessageSender")
+  messagesReceived                 InternalMessage[]             @relation("MessageRecipient")
+  logs                             AuditLog[]
+  drafts                           SyncDraft[]
+  staffAttendance                  StaffAttendance[]
+  staffAttendanceAudits            StaffAttendanceAudit[]        @relation("StaffAttendanceAuditActor")
+  trainingProgramsCreated          TrainingProgram[]             @relation("TrainingProgramCreatedBy")
+  trainingParticipants             TrainingParticipant[]
+  rolesCreated                     Role[]                        @relation("RoleCreatedBy")
+  roleAssignments                  UserRoleAssignment[]
+  rolesAssigned                    UserRoleAssignment[]          @relation("UserRoleAssignedBy")
+  permissionOverrides              UserPermissionOverride[]      @relation("UserPermissionOverrideTarget")
+  permissionOverridesCreated       UserPermissionOverride[]      @relation("UserPermissionOverrideSetBy")
+  classesLed                       ClassRoom[]                   @relation("ClassRoomClassTeacher")
+  classesAssisted                  ClassRoom[]                   @relation("ClassRoomAssistantTeacher")
+  classAssignmentsLed              ClassAcademicAssignment[]     @relation("ClassAcademicAssignmentTeacher")
+  classAssignmentsAssisted         ClassAcademicAssignment[]     @relation("ClassAcademicAssignmentAssistant")
+  timetableCreated                 TimetableEntry[]              @relation("TimetableCreatedBy")
+  timetableUpdated                 TimetableEntry[]              @relation("TimetableUpdatedBy")
+  timetablePublishLogs             TimetablePublishLog[]         @relation("TimetablePublishedBy")
+  disciplineReports                DisciplineRecord[]            @relation("DisciplineReporter")
+  disciplineEscalations            DisciplineRecord[]            @relation("DisciplineEscalatedTo")
+  disciplineCounselorRefs          DisciplineRecord[]            @relation("DisciplineCounselor")
+  counselingRecords                CounselingRecord[]            @relation("CounselingCounselor")
+  healthVisits                     HealthVisit[]                 @relation("HealthVisitNurse")
+  learningMaterials                LearningMaterial[]            @relation("LearningMaterialTeacher")
+  lessonPlans                      LessonPlan[]                  @relation("LessonPlanTeacher")
+  lessonPlansApproved              LessonPlan[]                  @relation("LessonPlanApprover")
+  questionBankItems                QuestionBankItem[]            @relation("QuestionBankTeacher")
+  questionBankApproved             QuestionBankItem[]            @relation("QuestionBankApprover")
+  visitorLogsCreated               VisitorLog[]                  @relation("VisitorLogCreator")
+  visitorHosts                     VisitorLog[]                  @relation("VisitorHost")
+  facilityReports                  FacilityMaintenanceLog[]      @relation("FacilityReportedBy")
+  idCards                          IdCard[]
+  parentMeetingsScheduled          ParentMeeting[]               @relation("ParentMeetingScheduler")
+  budgetsApproved                  Budget[]                      @relation("BudgetApprover")
+  resultEntryWindowsCreated        ResultEntryWindow[]           @relation("ResultEntryWindowCreator")
+  subjectCombinationsApproved      SubjectCombination[]          @relation("SubjectCombinationApprover")
+  schoolsManaged                   School[]                      @relation("SchoolAccountManager")
+  assignedSupportTickets           SupportTicket[]               @relation("TicketAssignedAgent")
+  createdSupportTickets            SupportTicket[]               @relation("TicketCreatedBy")
+  ticketMessages                   TicketMessage[]
+  crmInteractionsCreated           CrmInteraction[]              @relation("CrmInteractionCreator")
+  crmNotesCreated                  CrmNote[]                     @relation("CrmNoteCreator")
+  leadsAssigned                    Lead[]                        @relation("LeadAssignedTo")
+  partnerDealsCreated              PartnerDeal[]                 @relation("PartnerDealCreatedBy")
+  migrationJobsAsSpecialist        MigrationJob[]                @relation("MigrationJobSpecialist")
+  migrationJobsSignedOff           MigrationJob[]                @relation("MigrationJobSignedOffBy")
+  migrationJobsCreated             MigrationJob[]                @relation("MigrationJobCreatedBy")
+  platformAnnouncements            PlatformAnnouncement[]        @relation("PlatformAnnouncementAuthor")
+  featureFlagsCreated              PlatformFeatureFlag[]         @relation("FeatureFlagCreatedBy")
+  platformSessions                 PlatformSession[]
+  passwordResetTokens              PasswordResetToken[]
+  loginAttempts                    LoginAttempt[]
+  suspiciousActivityFlags          SuspiciousActivityFlag[]
+  duplicateFlagsAsA                DuplicateFlag[]               @relation("DuplicateFlagUserA")
+  duplicateFlagsAsB                DuplicateFlag[]               @relation("DuplicateFlagUserB")
+  accountRecoveryRecords           AccountRecoveryRecord[]       @relation("AccountRecoveryTarget")
+  accountRecoveriesVerified        AccountRecoveryRecord[]       @relation("AccountRecoveryVerifier")
+  cannedResponsesUpdated           CannedResponse[]
+  dataCorrectionsRequested         DataCorrectionRecord[]        @relation("DataCorrectionRequestedBy")
+  dataCorrectionsApproved          DataCorrectionRecord[]        @relation("DataCorrectionApprovedBy")
+  privacyRequestsCompleted         DataPrivacyRequest[]          @relation("PrivacyRequestCompletedBy")
+  securityIncidentsReported        SecurityIncident[]            @relation("SecurityIncidentReporter")
+  securityIncidentsResolved        SecurityIncident[]            @relation("SecurityIncidentResolver")
+  addressDisputesDecided           AddressDispute[]              @relation("AddressDisputeDecidedBy")
+  ownershipTransfersOutgoing       OwnershipTransfer[]           @relation("OwnershipTransferOutgoingOwner")
+  ownershipTransfersIncoming       OwnershipTransfer[]           @relation("OwnershipTransferIncomingOwner")
+  ownershipTransfersApprovedFirst  OwnershipTransfer[]           @relation("OwnershipTransferApprover1")
+  ownershipTransfersApprovedSecond OwnershipTransfer[]           @relation("OwnershipTransferApprover2")
+  featureOverridesRequested        PlatformFeatureFlagOverride[] @relation("FeatureOverrideRequestedBy")
+  featureOverridesApproved         PlatformFeatureFlagOverride[] @relation("FeatureOverrideApprovedBy")
+  brandingAssetsApproved           BrandingAsset[]               @relation("BrandingAssetApprovedBy")
+  campaignsCreated                 Campaign[]                    @relation("CampaignCreatedBy")
+  campaignsApproved                Campaign[]                    @relation("CampaignApprovedBy")
+  consentRecords                   ConsentRecord[]
+  churnRecordsLogged               ChurnRecord[]                 @relation("ChurnRecordLoggedBy")
+  customReportsCreated             CustomReport[]                @relation("CustomReportCreatedBy")
+  internalDepartmentsLed           InternalDepartment[]          @relation("InternalDepartmentLead")
+  internalPermissionGrid           InternalPermissionGrid[]      @relation("InternalPermissionGridUser")
+  internalAccessGrants             InternalAccessGrant[]         @relation("InternalAccessGrantUser")
+  internalAccessGrantsGiven        InternalAccessGrant[]         @relation("InternalAccessGrantGrantedBy")
+  profileDocuments                 ProfileDocument[]             @relation("ProfileDocumentUser")
+  uploadedProfileDocuments         ProfileDocument[]             @relation("ProfileDocumentUploadedBy")
+  profileEditRequests              ProfileEditRequest[]          @relation("ProfileEditRequestTarget")
+  profileEditRequestsMade          ProfileEditRequest[]          @relation("ProfileEditRequestRequester")
+  profileEditRequestsReviewed      ProfileEditRequest[]          @relation("ProfileEditRequestReviewer")
+  privacyRequestsHandled           DataPrivacyRequest[]          @relation("PrivacyRequestHandler")
+  knowledgeBaseArticles            KnowledgeBaseArticle[]        @relation("KnowledgeBaseAuthor")
+  maintenanceWindowsCreated        MaintenanceWindow[]           @relation("MaintenanceWindowCreator")
+  teachingSchemeOfWork             SchemeOfWork[]                @relation("SchemeOfWorkTeacher")
+  submittedSchemeOfWork            SchemeOfWork[]                @relation("SchemeOfWorkSubmittedBy")
+  approvedSchemeOfWork             SchemeOfWork[]                @relation("SchemeOfWorkApprovedBy")
+  coveredSowTopics                 SowTopic[]                    @relation("SowTopicCoveredBy")
+  uploadedSowTopicResources        SowTopicResource[]            @relation("SowTopicResourceUploadedBy")
+  assessedStudentTopicProgress     StudentTopicProgress[]        @relation("StudentTopicProgressAssessedBy")
 }
 
 model ProfileDocument {
@@ -4382,6 +4392,89 @@ model SchoolGroup {
   billingMode String   @default("GROUP")
   createdAt   DateTime @default(now())
   schools     School[]
+}
+
+// Platform Admin Panel BRD v4.0 · Module 2.10 — Web Address Registry & Dispute Resolution.
+// Every address ever issued lives here (not only the one currently on the School record), so a
+// held, retired, reserved or blocked address still has a place to carry its own history.
+model WebAddressRecord {
+  id                  String           @id @default(cuid())
+  address             String           @unique
+  schoolId            String?
+  state               String           @default("LIVE") // LIVE, HELD, RETIRED, RESERVED, BLOCKED
+  countryScope        String           @default("Nigeria")
+  reservedReason      String?
+  issuedAt            DateTime         @default(now())
+  retiredAt           DateTime?
+  releaseEligibleAt   DateTime?
+  redirectFromAddress String?
+  redirectExpiresAt   DateTime?
+  changeReason        String?
+  changedById         String?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+  school              School?          @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  disputes            AddressDispute[]
+
+  @@index([state])
+  @@index([schoolId])
+}
+
+model AddressDispute {
+  id                      String            @id @default(cuid())
+  claimedAddress          String
+  webAddressRecordId      String?
+  claimantSchoolName      String
+  claimantContactName     String
+  claimantContactEmail    String
+  claimantContactPhone    String?
+  evidenceNotes           String
+  status                  String            @default("EVIDENCE_PENDING") // EVIDENCE_PENDING, HOLDER_CONTACTED, DECIDED
+  holderNotifiedAt        DateTime?
+  holderResponseDueAt     DateTime?
+  holderRespondedAt       DateTime?
+  holderResponse          String?
+  outcome                 String? // NEGOTIATED, REASSIGNED, DECLINED
+  qualifiedAddressOffered String?
+  decidedById             String?
+  decidedAt               DateTime?
+  createdAt               DateTime          @default(now())
+  updatedAt               DateTime          @updatedAt
+  webAddressRecord        WebAddressRecord? @relation(fields: [webAddressRecordId], references: [id], onDelete: SetNull)
+  decidedBy               User?             @relation("AddressDisputeDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  @@index([status])
+}
+
+// Platform Admin Panel BRD v4.0 · Module 2.11 — School Ownership Transfer.
+// Never a field edit: evidence, notice, dual approval, and a new incoming-owner account rather
+// than a handed-over login, so the audit trail never straddles two different people.
+model OwnershipTransfer {
+  id              String    @id @default(cuid())
+  schoolId        String
+  outgoingOwnerId String
+  incomingOwnerId String?
+  triggerType     String // VOLUNTARY_SALE, OWNER_INCAPACITATED, OWNER_DECEASED, DISPUTE
+  evidenceNotes   String
+  status          String    @default("EVIDENCE_COLLECTED") // EVIDENCE_COLLECTED, NOTICE_SENT, OBJECTION_RAISED, APPROVED, EXECUTED, FROZEN
+  noticeSentAt    DateTime?
+  holdExpiresAt   DateTime?
+  objectionNote   String?
+  approver1Id     String?
+  approver1At     DateTime?
+  approver2Id     String?
+  approver2At     DateTime?
+  executedAt      DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  school          School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  outgoingOwner   User      @relation("OwnershipTransferOutgoingOwner", fields: [outgoingOwnerId], references: [id])
+  incomingOwner   User?     @relation("OwnershipTransferIncomingOwner", fields: [incomingOwnerId], references: [id], onDelete: SetNull)
+  approver1       User?     @relation("OwnershipTransferApprover1", fields: [approver1Id], references: [id], onDelete: SetNull)
+  approver2       User?     @relation("OwnershipTransferApprover2", fields: [approver2Id], references: [id], onDelete: SetNull)
+
+  @@index([schoolId])
+  @@index([status])
 }
 
 model DataPrivacyRequest {

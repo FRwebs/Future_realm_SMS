@@ -11,6 +11,7 @@ import { ClassesModule } from "./modules/classes/classes.module";
 import { CurriculumExtrasModule } from "./modules/curriculum-extras/curriculum-extras.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { ExamOfficerModule } from "./modules/exam-officer/exam-officer.module";
+import { FeatureFlagExtrasModule } from "./modules/feature-flag-extras/feature-flag-extras.module";
 import { FinanceModule } from "./modules/finance/finance.module";
 import { InfraExtrasModule } from "./modules/infra-extras/infra-extras.module";
 import { KnowledgeBaseModule } from "./modules/knowledge-base/knowledge-base.module";
@@ -18,6 +19,7 @@ import { MigrationModule } from "./modules/migration/migration.module";
 import { MyWorkModule } from "./modules/my-work/my-work.module";
 import { NigeriaOperationsModule } from "./modules/nigeria-operations/nigeria-operations.module";
 import { OnboardingModule } from "./modules/onboarding/onboarding.module";
+import { OwnershipTransferModule } from "./modules/ownership-transfer/ownership-transfer.module";
 import { ParentPortalModule } from "./modules/parent-portal/parent-portal.module";
 import { ParentsModule } from "./modules/parents/parents.module";
 import { OperationsModule } from "./modules/operations/operations.module";
@@ -36,6 +38,8 @@ import { TeamExtrasModule } from "./modules/team-extras/team-extras.module";
 import { StudentsModule } from "./modules/students/students.module";
 import { TeachersModule } from "./modules/teachers/teachers.module";
 import { TimetableModule } from "./modules/timetable/timetable.module";
+import { UserCaseContextModule } from "./modules/user-case-context/user-case-context.module";
+import { WebAddressRegistryModule } from "./modules/web-address-registry/web-address-registry.module";
 
 @Module({
   imports: [
@@ -49,6 +53,7 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     ClassesModule,
     CurriculumExtrasModule,
     AcademicsModule,
+    FeatureFlagExtrasModule,
     FinanceModule,
     InfraExtrasModule,
     KnowledgeBaseModule,
@@ -56,6 +61,7 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     MyWorkModule,
     NigeriaOperationsModule,
     OnboardingModule,
+    OwnershipTransferModule,
     CommunicationsModule,
     ConfigurationModule,
     ReportsModule,
@@ -74,7 +80,9 @@ import { TimetableModule } from "./modules/timetable/timetable.module";
     TeacherPortalModule,
     TeachersModule,
     TeamExtrasModule,
-    TimetableModule
+    TimetableModule,
+    UserCaseContextModule,
+    WebAddressRegistryModule
   ]
 })
 export class AppModule {}

@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
@@ -56,7 +57,7 @@ const resendVerificationSchema = z.object({
   email: z.string().trim().email("Enter a valid email address")
 });
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 30;
 const OTP_LENGTH = 6;
 const OTP_TTL_MINUTES = 15;
 const OTP_MAX_ATTEMPTS = 3;
@@ -108,28 +109,100 @@ function splitName(value: string) {
 
 const FREE_EMAIL_DOMAINS = new Set(["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com", "yahoo.co.uk"]);
 
-function flagSchoolForReview(input: {
+// M2.9.1 — signal set, weights and thresholds are the country-configurable part of risk
+// assessment. This is the Nigeria configuration; a second country adds a parallel function
+// and a lookup by school.country, not an edit to the validators below.
+const NIGERIA_PHONE_PATTERN = /^(\+?234|0)[7-9][0-1]\d{8}$/;
+
+function isValidNigerianPhone(phone: string) {
+  return NIGERIA_PHONE_PATTERN.test(phone.replace(/[\s-]/g, ""));
+}
+
+function normalizeSchoolName(name: string) {
+  return name
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+interface RiskSignal {
+  label: string;
+  weight: number;
+  triggered: boolean;
+}
+
+interface RiskAssessment {
+  score: number;
+  signals: RiskSignal[];
+  flaggedForReviewReason: string | null;
+}
+
+// M2.9.1/2.9.2 — automated multi-signal scoring. Runs once at signup (fast, in-database
+// checks only — no outbound fetch, so it never delays provisioning). Score starts at 100
+// and each triggered negative signal deducts its weight; below RISK_SCORE_THRESHOLD the
+// school enters the back-office review queue (M2.9.2) while continuing to work normally.
+const RISK_SCORE_THRESHOLD = 80;
+
+async function computeRiskAssessment(input: {
+  schoolName: string;
+  state?: string;
   cacNumber?: string;
   ministryApprovalNumber?: string;
   address?: string;
   city?: string;
-  state?: string;
   ownerEmail: string;
-}): string | null {
-  const reasons: string[] = [];
-
-  if (!input.cacNumber && !input.ministryApprovalNumber) {
-    reasons.push("No CAC or Ministry of Education approval number provided");
-  }
-  if (!input.address && !input.city && !input.state) {
-    reasons.push("No physical address on file");
-  }
+  ownerPhone?: string;
+  signupIp?: string;
+}): Promise<RiskAssessment> {
   const emailDomain = input.ownerEmail.split("@")[1]?.toLowerCase();
-  if (emailDomain && FREE_EMAIL_DOMAINS.has(emailDomain) && !input.cacNumber) {
-    reasons.push("Owner registered with a personal webmail address and no CAC number");
+  const hasRegistration = Boolean(input.cacNumber || input.ministryApprovalNumber);
+  const hasAddress = Boolean(input.address || input.city || input.state);
+  const isFreeEmail = Boolean(emailDomain && FREE_EMAIL_DOMAINS.has(emailDomain));
+  const phoneMissingOrInvalid = !input.ownerPhone || !isValidNigerianPhone(input.ownerPhone);
+
+  const duplicateOwner = await prisma.school.findFirst({
+    where: {
+      deletedAt: null,
+      OR: [{ ownerEmail: input.ownerEmail }, ...(input.ownerPhone ? [{ ownerPhone: input.ownerPhone }] : [])]
+    },
+    select: { id: true }
+  });
+
+  let duplicateName = false;
+  if (input.state) {
+    const normalized = normalizeSchoolName(input.schoolName);
+    const candidates = await prisma.school.findMany({
+      where: { deletedAt: null, state: input.state },
+      select: { name: true }
+    });
+    duplicateName = candidates.some((candidate) => normalizeSchoolName(candidate.name) === normalized);
   }
 
-  return reasons.length > 0 ? reasons.join("; ") : null;
+  let repeatedSignupsFromConnection = false;
+  if (input.signupIp) {
+    const since = new Date(Date.now() - 24 * 60 * 60 * 1000);
+    const count = await prisma.school.count({ where: { signupIp: input.signupIp, createdAt: { gte: since } } });
+    repeatedSignupsFromConnection = count >= 2;
+  }
+
+  const signals: RiskSignal[] = [
+    { label: "No CAC or Ministry of Education approval number provided", weight: -25, triggered: !hasRegistration },
+    { label: "No physical address on file", weight: -15, triggered: !hasAddress },
+    { label: "Owner registered with a personal webmail address and no CAC number", weight: -20, triggered: isFreeEmail && !hasRegistration },
+    { label: "Phone number missing or not a recognised Nigerian format", weight: -10, triggered: phoneMissingOrInvalid },
+    { label: "Same person (email or phone) already registered another school", weight: -30, triggered: Boolean(duplicateOwner) },
+    { label: "School name closely matches an existing school in the same state", weight: -20, triggered: duplicateName },
+    { label: "Several signups from the same connection within 24 hours", weight: -15, triggered: repeatedSignupsFromConnection }
+  ];
+
+  const score = Math.max(0, 100 + signals.filter((signal) => signal.triggered).reduce((sum, signal) => sum + signal.weight, 0));
+  const triggeredReasons = signals.filter((signal) => signal.triggered).map((signal) => signal.label);
+
+  return {
+    score,
+    signals,
+    flaggedForReviewReason: score < RISK_SCORE_THRESHOLD ? triggeredReasons.join("; ") : null
+  };
 }
 
 function featureDefaults() {
@@ -240,7 +313,7 @@ export class OnboardingService {
     });
   }
 
-  async registerSchool(payload: unknown) {
+  async registerSchool(payload: unknown, signupIp?: string) {
     const parsed = registerSchoolSchema.parse(payload);
     const ownerEmail = parsed.ownerEmail.toLowerCase();
 
@@ -264,13 +337,16 @@ export class OnboardingService {
     const schoolCode = `SCH-${Date.now().toString(36).toUpperCase()}`;
     const ownerNameParts = splitName(parsed.ownerName);
     const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
-    const flaggedForReviewReason = flagSchoolForReview({
+    const riskAssessment = await computeRiskAssessment({
+      schoolName: parsed.schoolName,
+      state: parsed.state,
       cacNumber: parsed.cacNumber,
       ministryApprovalNumber: parsed.ministryApprovalNumber,
       address: parsed.address,
       city: parsed.city,
-      state: parsed.state,
-      ownerEmail
+      ownerEmail,
+      ownerPhone: parsed.ownerPhone,
+      signupIp
     });
 
     const school = await prisma.school.create({
@@ -288,7 +364,10 @@ export class OnboardingService {
         state: parsed.state,
         cacNumber: parsed.cacNumber,
         ministryApprovalNumber: parsed.ministryApprovalNumber,
-        flaggedForReviewReason,
+        flaggedForReviewReason: riskAssessment.flaggedForReviewReason,
+        riskScore: riskAssessment.score,
+        riskSignals: riskAssessment.signals as unknown as Prisma.InputJsonValue,
+        signupIp: signupIp ?? null,
         country: "Nigeria",
         plan: "BASIC",
         status: "TRIAL",
@@ -331,7 +410,7 @@ export class OnboardingService {
       channel: "EMAIL",
       recipient: ownerEmail,
       title: "Welcome to FutureRealm SMS",
-      body: `Your school workspace for ${school.name} is ready. Your 14-day trial ends on ${trialEndsAt.toDateString()}.`
+      body: `Your school workspace for ${school.name} is ready. Your 30-day trial ends on ${trialEndsAt.toDateString()}.`
     });
 
     await this.issueVerificationCode(owner.id, ownerEmail);

@@ -1,6 +1,6 @@
-import { Body, Controller, Get, Post, Query, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
-import type { Response } from "express";
+import type { Request, Response } from "express";
 
 import {
   createSessionToken,
@@ -19,9 +19,10 @@ export class OnboardingController {
   @Post("schools")
   async registerSchool(
     @Body() body: unknown,
+    @Req() request: Request,
     @Res({ passthrough: true }) response: Response
   ) {
-    const { sessionUser, school } = await this.onboardingService.registerSchool(body);
+    const { sessionUser, school } = await this.onboardingService.registerSchool(body, request.ip);
     return this.establishSession(sessionUser, school, response);
   }
 

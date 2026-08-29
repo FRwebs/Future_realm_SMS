@@ -20,7 +20,7 @@ import type {
 } from "@/lib/domain/types";
 import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/utils/formatters";
 
-const TRIAL_DAYS = 14;
+const TRIAL_DAYS = 30;
 
 const planOptions = [
   { label: "Starter", value: "BASIC" },
@@ -59,7 +59,7 @@ const churnSignalReference = [
 
 const billingRules = [
   "Billed per student, per term — confirmed against the enrolled headcount at the start of each term.",
-  "Trials run 14 days automatically at signup, with every feature unlocked and no card required.",
+  "Trials run 30 days automatically at signup, with every feature unlocked and no card required.",
   "A school moves to Grace Period on the first missed payment, then Suspended if it lapses further.",
   "Notification (SMS/WhatsApp) credit revenue is tracked separately from subscription revenue.",
   "Pricing here is the live rate card used by onboarding, billing, and upgrades."
