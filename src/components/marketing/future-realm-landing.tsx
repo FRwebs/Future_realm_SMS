@@ -630,8 +630,8 @@ export function FutureRealmLandingPage() {
       {/* Campus photo strip */}
       <div className="mx-auto max-w-[1360px] px-6 pt-8 sm:px-14">
         <ImagePlaceholder
-          caption="Students and teachers on a Nigerian school campus"
-          src="/images/landing/campus.jpg"
+          caption="School staff and students, from the proprietor to the classroom"
+          src="/images/landing/school-team.jpg"
           className="h-[280px] sm:h-[380px]"
         />
       </div>
