@@ -747,8 +747,8 @@ export function FutureRealmLandingPage() {
             </div>
           </div>
           <ImagePlaceholder
-            caption="A Nigerian teacher marking attendance on a tablet in a classroom"
-            src="/images/landing/teacher-offline.jpg"
+            caption="A family visiting a Nigerian school, greeted at the entrance"
+            src="/images/landing/school-visit.jpg"
             className="h-[340px] sm:h-[430px]"
           />
         </div>
@@ -1082,8 +1082,8 @@ export function FutureRealmLandingPage() {
       <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#eaf0ec" }}>
         <div className="mx-auto grid max-w-[1360px] items-center gap-16 lg:grid-cols-[0.85fr_1fr]">
           <ImagePlaceholder
-            caption="A Nigerian parent holding a phone, warm and candid"
-            src="/images/landing/parent-phone.jpg"
+            caption="Parents notified the moment first term results are ready"
+            src="/images/landing/results-notification.jpg"
             className="h-[340px] sm:h-[460px]"
           />
           <div>
@@ -1347,8 +1347,8 @@ export function FutureRealmLandingPage() {
       {/* Bottom campus photo */}
       <div className="mx-auto max-w-[1360px] px-6 pb-10 sm:px-14">
         <ImagePlaceholder
-          caption="Wide shot of a Nigerian school assembly or campus grounds"
-          src="/images/landing/assembly.jpg"
+          caption="A teacher preparing for class with a tablet in hand"
+          src="/images/landing/teacher-tablet.jpg"
           className="h-[220px] sm:h-[300px]"
         />
       </div>
