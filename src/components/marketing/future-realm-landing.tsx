@@ -77,8 +77,8 @@ const featureCards: FeatureCard[] = [
     bg: "#f3f7f4",
     title: "Student enrollment",
     desc: "Handle inquiry to admission with digital forms, screening workflows and clean onboarding built for Nigerian schools.",
-    photoCaption: "Admissions officer welcoming a parent",
-    photoSrc: "/images/landing/admissions.jpg",
+    photoCaption: "A school leader welcoming a family at the gate",
+    photoSrc: "/images/landing/school-visit.jpg",
   },
   {
     span: 1,
@@ -113,8 +113,8 @@ const featureCards: FeatureCard[] = [
     bg: "#f3f7f4",
     title: "Parent portal",
     desc: "Give parents visibility into fees, attendance, announcements and published results from a mobile-friendly portal.",
-    photoCaption: "Parent checking the app on a mobile phone",
-    photoSrc: "/images/landing/parent-app.jpg",
+    photoCaption: "Parents notified the moment first term results are ready",
+    photoSrc: "/images/landing/results-notification.jpg",
   },
 ];
 
@@ -747,8 +747,8 @@ export function FutureRealmLandingPage() {
             </div>
           </div>
           <ImagePlaceholder
-            caption="A family visiting a Nigerian school, greeted at the entrance"
-            src="/images/landing/school-visit.jpg"
+            caption="A teacher preparing for class with a tablet in hand"
+            src="/images/landing/teacher-tablet.jpg"
             className="h-[340px] sm:h-[430px]"
           />
         </div>
@@ -1082,8 +1082,8 @@ export function FutureRealmLandingPage() {
       <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#eaf0ec" }}>
         <div className="mx-auto grid max-w-[1360px] items-center gap-16 lg:grid-cols-[0.85fr_1fr]">
           <ImagePlaceholder
-            caption="Parents notified the moment first term results are ready"
-            src="/images/landing/results-notification.jpg"
+            caption="A parent smiling at a fee reminder on their phone"
+            src="/images/landing/parent-app-phone.jpg"
             className="h-[340px] sm:h-[460px]"
           />
           <div>
@@ -1347,8 +1347,8 @@ export function FutureRealmLandingPage() {
       {/* Bottom campus photo */}
       <div className="mx-auto max-w-[1360px] px-6 pb-10 sm:px-14">
         <ImagePlaceholder
-          caption="A teacher preparing for class with a tablet in hand"
-          src="/images/landing/teacher-tablet.jpg"
+          caption="Wide shot of a Nigerian school assembly or campus grounds"
+          src="/images/landing/assembly.jpg"
           className="h-[220px] sm:h-[300px]"
         />
       </div>
