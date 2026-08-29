@@ -30,7 +30,7 @@ const ADMIN_STEPS = [
   { label: "About you", sub: "Your name, role and email" },
   { label: "About your school", sub: "Details and your web address" },
   { label: "Create password", sub: "Minimum 8 characters" },
-  { label: "Free trial", sub: "14 days, every feature" }
+  { label: "Free trial", sub: "30 days, every feature" }
 ];
 
 const TEACHER_STEPS = [
@@ -56,7 +56,7 @@ const AUTO_SETUP_ADMIN = [
   "Curriculum and grading templates loaded for your country",
   "Default staff role templates installed",
   "Admin account created — permanent login issued",
-  "Trial record created, every feature unlocked for 14 days"
+  "Trial record created, every feature unlocked for 30 days"
 ];
 
 function resolveLandingPath(role: string) {
@@ -423,7 +423,7 @@ export function OnboardingWizard() {
                   {[
                     "Your school's own web address, instantly",
                     "Full admin dashboard, ready to configure",
-                    "14-day free trial · no card required",
+                    "30-day free trial · no card required",
                     "Permanent login, issued immediately"
                   ].map((line) => (
                     <div key={line} className="flex items-center gap-[9px] text-[12.5px] text-[#435048]">
@@ -895,7 +895,7 @@ export function OnboardingWizard() {
 
             {step === 4 && admin ? (
               <div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 14-day free trial</div>
+                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 30-day free trial</div>
                 <p className="mb-7 text-[13.5px] text-[#77857c]">Every feature unlocked. No card required. No charge at the end.</p>
                 <div className="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
                   <div className="relative overflow-hidden rounded-[18px] p-7" style={{ background: "#0d2315" }}>
@@ -964,7 +964,7 @@ export function OnboardingWizard() {
     const doneRows = doneRole === "admin"
       ? [
           { k: "Your web address", v: `${doneSchoolSlug}.futurerealm.school` },
-          { k: "Trial", v: "14 days · every feature unlocked" }
+          { k: "Trial", v: "30 days · every feature unlocked" }
         ]
       : [
           { k: "Where you work", v: "app.futurerealm.school" },

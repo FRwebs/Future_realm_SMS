@@ -1736,7 +1736,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   },
   {
     id: "principal_home",
-    label: "Executive Dashboard",
+    label: "Command Center",
     icon: "LayoutDashboard",
     path: "/portals/principal",
     requiredPermissions: [],

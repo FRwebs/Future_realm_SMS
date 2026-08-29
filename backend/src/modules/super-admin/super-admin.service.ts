@@ -458,6 +458,10 @@ const privacyRequestSchema = z.object({
   details: z.string().optional()
 });
 
+const riskClosureSchema = z.object({
+  evidenceNotes: z.string().trim().min(1, "Evidence is required to close a risk-flagged account.")
+});
+
 const privacyStatusSchema = z.object({
   status: z.enum(["OPEN", "IN_REVIEW", "COMPLETED", "REJECTED"])
 });
@@ -891,6 +895,7 @@ export class SuperAdminService {
 
   async activateSchool(session: SessionPayload, schoolId: string) {
     assertSuperAdmin(session);
+    await this.assertNoUnresolvedRiskFlag(schoolId);
     const school = await prisma.school.update({
       where: { id: schoolId },
       data: { status: "ACTIVE", billingStatus: "ACTIVE", users: { updateMany: { where: { deletedAt: null }, data: { isActive: true, suspendedAt: null } } } }
@@ -913,9 +918,25 @@ export class SuperAdminService {
     return this.response({ id: school.id }, "School soft-deleted");
   }
 
+  // M2.9.4 — a flagged school may not convert to paid while the flag stands. The block
+  // sits here, in the billing-adjacent status transition, rather than in the school's own
+  // interface: the school always sees a normal payment path.
+  private async assertNoUnresolvedRiskFlag(schoolId: string) {
+    const school = await prisma.school.findUnique({
+      where: { id: schoolId },
+      select: { flaggedForReviewReason: true, verifiedAt: true, verificationRejectedAt: true }
+    });
+    if (school?.flaggedForReviewReason && !school.verifiedAt && !school.verificationRejectedAt) {
+      throw new BadRequestException("This school has an open risk flag and cannot convert to paid until it clears review.");
+    }
+  }
+
   async updateSchoolStatus(session: SessionPayload, schoolId: string, payload: unknown) {
     assertSuperAdmin(session);
     const parsed = schoolStatusChangeSchema.parse(payload);
+    if (parsed.status === "ACTIVE") {
+      await this.assertNoUnresolvedRiskFlag(schoolId);
+    }
     const closingStatuses: TenantStatus[] = ["ARCHIVED", "DELETED"];
     if (closingStatuses.includes(parsed.status)) {
       const existing = await prisma.school.findFirst({ where: { id: schoolId, deletedAt: null } });
@@ -961,28 +982,38 @@ export class SuperAdminService {
     assertSuperAdmin(session);
     const schools = await prisma.school.findMany({
       where: { deletedAt: null, verifiedAt: null, verificationRejectedAt: null, flaggedForReviewReason: { not: null } },
-      orderBy: { createdAt: "asc" },
+      orderBy: [{ riskScore: "asc" }, { createdAt: "asc" }],
       include: { _count: { select: { students: true } } }
     });
+    const now = Date.now();
     return this.response(
-      schools.map((school) => ({
-        id: school.id,
-        name: school.name,
-        slug: school.slug,
-        category: school.category,
-        curriculum: school.category,
-        city: school.city,
-        state: school.state,
-        country: school.country,
-        ownerName: school.ownerName,
-        ownerEmail: school.ownerEmail,
-        ownerPhone: school.ownerPhone,
-        cacNumber: school.cacNumber,
-        ministryApprovalNumber: school.ministryApprovalNumber,
-        flaggedForReviewReason: school.flaggedForReviewReason,
-        studentCount: school._count.students,
-        createdAt: school.createdAt.toISOString()
-      })),
+      schools.map((school) => {
+        // M2.9.4 — the internal SLA is "cleared before trial end", surfaced at 7 days
+        // remaining and auto-escalated to the Onboarding Lead and Super Admin at 3 days.
+        const daysRemaining = school.trialEndsAt ? Math.ceil((school.trialEndsAt.getTime() - now) / (24 * 60 * 60 * 1000)) : null;
+        return {
+          id: school.id,
+          name: school.name,
+          slug: school.slug,
+          category: school.category,
+          curriculum: school.category,
+          city: school.city,
+          state: school.state,
+          country: school.country,
+          ownerName: school.ownerName,
+          ownerEmail: school.ownerEmail,
+          ownerPhone: school.ownerPhone,
+          cacNumber: school.cacNumber,
+          ministryApprovalNumber: school.ministryApprovalNumber,
+          flaggedForReviewReason: school.flaggedForReviewReason,
+          riskScore: school.riskScore,
+          riskSignals: school.riskSignals,
+          studentCount: school._count.students,
+          slaDaysRemaining: daysRemaining,
+          slaEscalated: daysRemaining !== null && daysRemaining <= 3,
+          createdAt: school.createdAt.toISOString()
+        };
+      }),
       "Pending verification schools loaded"
     );
   }
@@ -1014,6 +1045,47 @@ export class SuperAdminService {
     });
     await this.audit(session, "SUSPEND", "School", school.id, { action: "REJECT_VERIFICATION", reason: parsed.reason }, school.id);
     return this.response({ id: school.id, status: school.status }, "School verification rejected");
+  }
+
+  // M2.9.4 — closing an account under risk review is Super Admin only (literally, not the
+  // broader platform-staff set `assertSuperAdmin` actually permits), requires the recorded
+  // evidence, and triggers immediate deletion scheduling rather than the standard retention
+  // clock — there is no legitimate school whose records would be worth preserving.
+  async closeRiskFlaggedAccount(session: SessionPayload, schoolId: string, payload: unknown) {
+    if (session.role !== "SUPER_ADMIN") {
+      throw new ForbiddenException("Closing a risk-flagged account is restricted to Super Admin.");
+    }
+    const parsed = riskClosureSchema.parse(payload);
+    const school = await prisma.school.findFirst({ where: { id: schoolId, deletedAt: null } });
+    if (!school) throw new NotFoundException("School not found.");
+    if (!school.flaggedForReviewReason || school.verifiedAt || school.verificationRejectedAt) {
+      throw new BadRequestException("This school has no open risk flag to close under.");
+    }
+
+    await prisma.school.update({
+      where: { id: schoolId },
+      data: {
+        status: "SUSPENDED",
+        billingStatus: "SUSPENDED",
+        statusReason: `Closed under risk review: ${parsed.evidenceNotes}`,
+        statusChangedAt: new Date(),
+        verificationRejectedAt: new Date(),
+        verificationRejectionReason: parsed.evidenceNotes,
+        users: { updateMany: { where: { deletedAt: null }, data: { isActive: false, suspendedAt: new Date() } } }
+      }
+    });
+
+    const privacyRequest = await prisma.dataPrivacyRequest.create({
+      data: {
+        schoolId,
+        type: "ERASURE",
+        subject: school.name,
+        details: `M2.9 risk closure — immediate deletion, no standard retention clock. Evidence: ${parsed.evidenceNotes}`
+      }
+    });
+
+    await this.audit(session, "DELETE", "School", schoolId, { action: "CLOSE_RISK_FLAGGED_ACCOUNT", evidenceNotes: parsed.evidenceNotes, privacyRequestId: privacyRequest.id }, schoolId);
+    return this.response({ id: schoolId, privacyRequestId: privacyRequest.id }, "Account closed. Deletion scheduled immediately.");
   }
 
   async assignAccountManager(session: SessionPayload, schoolId: string, payload: unknown) {
@@ -1935,6 +2007,8 @@ export class SuperAdminService {
       gracePeriodSchools,
       stuckTrialSchools,
       convertedThisWeek,
+      riskFlaggedPending,
+      riskFlaggedEscalated,
       supportOpen,
       supportCriticalOpen,
       supportSlaBreaching,
@@ -1970,6 +2044,15 @@ export class SuperAdminService {
       prisma.school.count({ where: { deletedAt: null, billingStatus: { in: ["OVERDUE", "SUSPENDED"] } } }),
       prisma.school.count({ where: { deletedAt: null, status: "TRIAL", updatedAt: { lt: fiveDays } } }),
       prisma.school.count({ where: { deletedAt: null, status: "ACTIVE", updatedAt: { gte: thisWeek } } }),
+      // M2.9.4 — the internal review SLA, surfaced here at 7 days remaining and escalated
+      // (below) at 3 days. flaggedForReviewReason is cleared by verify/reject, so an unset
+      // verifiedAt/verificationRejectedAt with a flag still means "awaiting review."
+      prisma.school.count({
+        where: { deletedAt: null, verifiedAt: null, verificationRejectedAt: null, flaggedForReviewReason: { not: null }, trialEndsAt: { lte: nextSevenDays } }
+      }),
+      prisma.school.count({
+        where: { deletedAt: null, verifiedAt: null, verificationRejectedAt: null, flaggedForReviewReason: { not: null }, trialEndsAt: { lte: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000) } }
+      }),
       prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] } } }),
       prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] }, priority: "CRITICAL" } }),
       prisma.supportTicket.count({ where: { status: { in: ["OPEN", "IN_PROGRESS"] }, slaDueAt: { lt: new Date() } } }),
@@ -2028,7 +2111,18 @@ export class SuperAdminService {
       overdueTotal > 0 ? { id: "overdue-invoices", severity: "danger", title: "Overdue platform invoices", detail: `${overdueTotal.toLocaleString()} outstanding beyond due date.`, actionHref: "/super-admin/billing" } : null,
       failedSyncDrafts ? { id: "sync-backlog", severity: "warning", title: "Offline sync backlog", detail: `${failedSyncDrafts} sync record(s) have been pending for more than 24 hours.`, actionHref: "/super-admin/analytics" } : null,
       supportSlaBreaching ? { id: "support-sla", severity: "danger", title: "Support SLA breach", detail: `${supportSlaBreaching} support ticket(s) are beyond SLA.`, actionHref: "/super-admin/support" } : null,
-      churnRiskSchools ? { id: "churn-risk", severity: "warning", title: "Churn risk schools", detail: `${churnRiskSchools} school(s) have health scores below 50.`, actionHref: "/super-admin/crm" } : null
+      churnRiskSchools ? { id: "churn-risk", severity: "warning", title: "Churn risk schools", detail: `${churnRiskSchools} school(s) have health scores below 50.`, actionHref: "/super-admin/crm" } : null,
+      riskFlaggedPending
+        ? {
+            id: "risk-review-sla",
+            severity: riskFlaggedEscalated ? "danger" : "warning",
+            title: riskFlaggedEscalated ? "Risk review escalated" : "Risk-flagged accounts awaiting review",
+            detail: riskFlaggedEscalated
+              ? `${riskFlaggedEscalated} of ${riskFlaggedPending} flagged school(s) are within 3 days of trial end — escalated to the Onboarding Lead and Super Admin.`
+              : `${riskFlaggedPending} flagged school(s) must clear review within 7 days, before trial end.`,
+            actionHref: "/super-admin/schools?tab=approval-queue"
+          }
+        : null
     ].filter(Boolean);
 
     return this.response({

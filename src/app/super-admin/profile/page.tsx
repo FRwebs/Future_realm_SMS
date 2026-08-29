@@ -1,8 +1,60 @@
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { apiGet } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { roleLabels } from "@/lib/auth/roles";
+import { getServerSession } from "@/lib/auth/session";
+import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
+import type { SuperAdminInternalSession } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
+
+type AuditLogRow = {
+  id: string;
+  timestamp: string;
+  action: string;
+  superAdmin: string;
+  target: string;
+  schoolName?: string | null;
+};
+
+function moduleLabelFor(key: string) {
+  const labels: Record<string, string> = {
+    dashboard: "Command Center",
+    schools: "School Accounts",
+    migration: "Onboarding & Migration",
+    billing: "Subscriptions & Billing",
+    partners: "Partners & Commission",
+    users: "Users",
+    communications: "Communications",
+    support: "Support",
+    feature_flags: "Plans & Features",
+    security: "Security & Compliance",
+    crm: "CRM & Sales",
+    settings: "Settings",
+    audit_logs: "Audit Logs",
+    revenue_reports: "Revenue Reports",
+    my_work: "My Work"
+  };
+  return labels[key] ?? key.replaceAll("_", " ");
+}
+
+function permissionSummary(permissions: string[]) {
+  if (permissions.includes("sa.*")) {
+    return [{ label: "Every platform module", level: "Full" }];
+  }
+  const byModule = new Map<string, Set<string>>();
+  for (const permission of permissions) {
+    const [, moduleKey, action] = permission.split(".");
+    if (!moduleKey) continue;
+    const set = byModule.get(moduleKey) ?? new Set<string>();
+    if (action) set.add(action);
+    byModule.set(moduleKey, set);
+  }
+  return Array.from(byModule.entries()).map(([moduleKey, actions]) => {
+    const hasWrite = ["manage", "edit", "create", "reset_password", "edit_plan"].some((verb) => actions.has(verb));
+    return { label: moduleLabelFor(moduleKey), level: hasWrite ? "Full" : "View" };
+  });
+}
 
 type SuperAdminMyProfile = {
   id: string;
@@ -43,7 +95,18 @@ function FieldLine({ label, value }: { label: string; value?: React.ReactNode })
 }
 
 export default async function SuperAdminProfilePage() {
-  const profile = await apiGet<SuperAdminMyProfile>("/api/v1/profile/me");
+  const session = await getServerSession();
+  const [profile, sessionsEnvelope, auditEnvelope] = await Promise.all([
+    apiGet<SuperAdminMyProfile>("/api/v1/profile/me"),
+    apiGetEnvelope<SuperAdminInternalSession[]>("/api/super-admin/internal-team/sessions").catch(() => null),
+    apiGetEnvelope<AuditLogRow[]>("/api/super-admin/audit-logs?limit=50").catch(() => null)
+  ]);
+
+  const myPermissions = session ? getDefaultPermissionsForRole(session.role) : [];
+  const permissionRows = permissionSummary(myPermissions);
+  const mySessions = (sessionsEnvelope?.data ?? []).filter((item) => item.userId === session?.userId);
+  const myActions = (auditEnvelope?.data ?? []).filter((log) => log.superAdmin === profile.fullName).slice(0, 8);
+  const isProduction = process.env.NODE_ENV === "production";
 
   return (
     <div className="grid gap-5">
@@ -63,6 +126,14 @@ export default async function SuperAdminProfilePage() {
               <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">My profile</p>
               <h1 className="mt-1 font-[var(--font-heading)] text-[26px] font-bold text-white">{profile.fullName}</h1>
               <p className="mt-1 text-[13px] text-[rgba(255,255,255,0.74)]">{profile.role.replaceAll("_", " ")} · {profile.email}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="rounded-full bg-white/14 px-2.5 py-1 text-[10.5px] font-bold text-white">
+                  {session ? roleLabels[session.role] : profile.role.replaceAll("_", " ")}
+                </span>
+                <span className="rounded-full bg-white/14 px-2.5 py-1 text-[10.5px] font-bold text-white">
+                  {isProduction ? "Production access" : "Development access"}
+                </span>
+              </div>
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
@@ -130,6 +201,96 @@ export default async function SuperAdminProfilePage() {
           </div>
         </article>
       </section>
+
+      <section className="grid gap-5 xl:grid-cols-2">
+        <article className="surface-card p-6">
+          <p className="section-eyebrow">Access</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What you can do</h2>
+          <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">Derived from your role's real permission grant — not editable here.</p>
+          <div className="mt-4 overflow-hidden rounded-[10px] border border-[var(--color-border-default)]">
+            {permissionRows.length ? (
+              permissionRows.map((row) => (
+                <div key={row.label} className="flex items-center justify-between gap-4 px-4 py-3 odd:bg-[var(--color-bg-subtle)]">
+                  <dt className="text-[12.5px] font-medium text-[var(--color-text-secondary)]">{row.label}</dt>
+                  <dd>
+                    <span
+                      className={
+                        row.level === "Full"
+                          ? "rounded-full bg-[var(--color-success-dim)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-success)]"
+                          : "rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-secondary)]"
+                      }
+                    >
+                      {row.level}
+                    </span>
+                  </dd>
+                </div>
+              ))
+            ) : (
+              <p className="px-4 py-6 text-center text-[12.5px] text-[var(--color-text-secondary)]">No platform permissions granted.</p>
+            )}
+          </div>
+        </article>
+
+        <article className="surface-card p-6">
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="section-eyebrow">Immutable audit trail</p>
+              <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Recent actions by you</h2>
+            </div>
+          </div>
+          <div className="mt-4 grid gap-1">
+            {myActions.length ? (
+              myActions.map((log) => (
+                <div key={log.id} className="flex items-start gap-3 border-b border-[var(--color-border-default)] py-2.5 last:border-b-0">
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent-primary)]" />
+                  <div className="min-w-0 flex-1">
+                    <p className="text-[12.5px] text-[var(--color-text-primary)]">
+                      {log.action.replaceAll("_", " ")} — {log.target}
+                      {log.schoolName ? ` · ${log.schoolName}` : ""}
+                    </p>
+                    <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{formatDate(log.timestamp)}</p>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="py-6 text-center text-[12.5px] text-[var(--color-text-secondary)]">No actions recorded yet.</p>
+            )}
+          </div>
+        </article>
+      </section>
+
+      <TableCard
+        title="Sessions & security"
+        description="Every currently active sign-in session on your account. Revoking a session logs that device out immediately."
+        items={mySessions}
+        emptyState="No active sessions found."
+        getRowKey={(item) => item.id}
+        columns={[
+          { key: "device", header: "Device", render: (item) => item.device ?? "Unknown device" },
+          { key: "ip", header: "IP address", render: (item) => item.ipAddress ?? "—" },
+          { key: "lastActivity", header: "Last activity", render: (item) => formatDate(item.lastActivityAt) },
+          { key: "expires", header: "Expires", render: (item) => formatDate(item.expiresAt) },
+          {
+            key: "action",
+            header: "",
+            sortable: false,
+            render: (item) => (
+              <ResourceActionDialog
+                triggerLabel="Revoke"
+                title="Revoke session"
+                description="This immediately signs this device out. You'll need to sign in again there."
+                endpoint={`/api/super-admin/internal-team/sessions/${item.id}/revoke`}
+                method="PATCH"
+                variant="danger"
+                submitLabel="Revoke session"
+                confirmLabel="Confirm"
+                confirmMessage="This device will be signed out immediately."
+                fields={[]}
+              />
+            )
+          }
+        ]}
+      />
 
       <TableCard
         title="Recent login activity"

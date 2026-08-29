@@ -388,7 +388,11 @@ export interface SuperAdminPendingVerificationSchool {
   cacNumber?: string | null;
   ministryApprovalNumber?: string | null;
   flaggedForReviewReason?: string | null;
+  riskScore?: number | null;
+  riskSignals?: Array<{ label: string; weight: number; triggered: boolean }> | null;
   studentCount: number;
+  slaDaysRemaining?: number | null;
+  slaEscalated?: boolean;
   createdAt: string;
 }
 
@@ -573,6 +577,32 @@ export interface SuperAdminAccountRecoveryRow {
   verifiedBy: string;
   completedAt?: string;
   createdAt: string;
+}
+
+export interface SuperAdminUserCaseReviewContext {
+  suspicious: Array<{
+    flagId: string;
+    schoolId: string;
+    schoolName: string;
+    accountStatus: string;
+    isActive: boolean;
+    suspendedAt?: string | null;
+    passwordResetRequired: boolean;
+    lastLoginAt?: string | null;
+    loginAttempts: Array<{ success: boolean; reason?: string | null; ipAddress?: string | null; device?: string | null; createdAt: string }>;
+  }>;
+  duplicates: Array<{
+    flagId: string;
+    userA: { schoolId: string; schoolName: string; accountStatus: string; isActive: boolean };
+    userB: { schoolId: string; schoolName: string; accountStatus: string; isActive: boolean };
+  }>;
+  recovery: Array<{
+    recordId: string;
+    schoolId: string;
+    schoolName: string;
+    accountStatus: string;
+    isActive: boolean;
+  }>;
 }
 
 export interface SuperAdminImpersonationLogRow {
@@ -2424,6 +2454,16 @@ export interface SuperAdminPlanRow {
   isActive: boolean;
   subscriberCount: number;
   createdAt: string;
+}
+
+export interface SuperAdminFeatureFlagCaseHistoryEvent {
+  what: string;
+  when: string;
+}
+
+export interface SuperAdminFeatureFlagCaseHistory {
+  overrides: Record<string, SuperAdminFeatureFlagCaseHistoryEvent[]>;
+  branding: Record<string, SuperAdminFeatureFlagCaseHistoryEvent[]>;
 }
 
 export interface SuperAdminPlanLifecycleRow {

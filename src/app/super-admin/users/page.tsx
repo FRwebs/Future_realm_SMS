@@ -1,4 +1,6 @@
+import type { ReactNode } from "react";
 import { ShieldAlert, Copy, LifeBuoy } from "lucide-react";
+import { CaseReviewBoard, type CaseRecord, type CaseSignal, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -13,9 +15,37 @@ import type {
   SuperAdminImpersonationLogRow,
   SuperAdminSchoolRow,
   SuperAdminSuspiciousActivityRow,
+  SuperAdminUserCaseReviewContext,
   SuperAdminUserRow
 } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
+
+function caseInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  return parts.slice(0, 2).map((part) => part[0]?.toUpperCase() ?? "").join("");
+}
+
+function timeAgo(value?: string | null) {
+  if (!value) return "—";
+  const ms = Date.now() - new Date(value).getTime();
+  if (ms < 60_000) return "just now";
+  const minutes = Math.floor(ms / 60_000);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+function DecisionAction({ action, note }: { action: ReactNode; note: string }) {
+  return (
+    <div className="grid gap-1.5">
+      {action}
+      <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{note}</p>
+    </div>
+  );
+}
 
 const roleTabs = [
   { label: "All Users", value: "" },
@@ -222,7 +252,7 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
   );
 }
 
-function ReviewsAndCasesTab({
+async function ReviewsAndCasesTab({
   suspiciousFlags,
   duplicateFlags,
   recoveryRecords,
@@ -233,6 +263,246 @@ function ReviewsAndCasesTab({
   recoveryRecords: SuperAdminAccountRecoveryRow[];
   openCaseCount: number;
 }) {
+  const contextEnvelope = await apiGetEnvelope<SuperAdminUserCaseReviewContext>("/api/super-admin/user-case-review-context");
+  const caseContext = contextEnvelope.data;
+  const suspiciousContextById = new Map((caseContext?.suspicious ?? []).map((entry) => [entry.flagId, entry]));
+  const duplicateContextById = new Map((caseContext?.duplicates ?? []).map((entry) => [entry.flagId, entry]));
+  const recoveryContextById = new Map((caseContext?.recovery ?? []).map((entry) => [entry.recordId, entry]));
+
+  const suspiciousCases: CaseRecord[] = suspiciousFlags.map((flag) => {
+    const ctx = suspiciousContextById.get(flag.id);
+    const signals: CaseSignal[] = [{ text: flag.detail ?? flag.flagType.replaceAll("_", " "), tone: "bad" }];
+    if (ctx && !ctx.isActive) signals.push({ text: "Account already suspended", tone: "warn" });
+    if (ctx?.passwordResetRequired) signals.push({ text: "Password reset already required on next login", tone: "good" });
+
+    return {
+      id: `susp-${flag.id}`,
+      subject: flag.userName,
+      meta: flag.userEmail,
+      type: "suspicious",
+      initials: caseInitials(flag.userName),
+      assignee: "Unassigned",
+      age: timeAgo(flag.detectedAt),
+      facts: [
+        { label: "User", value: `${flag.userName} (${flag.userEmail})` },
+        { label: "School", value: ctx?.schoolName ?? "Unknown" },
+        { label: "Last login", value: ctx?.lastLoginAt ? formatDate(ctx.lastLoginAt) : "Never logged in" },
+        { label: "MFA status", value: "Not tracked by this system" }
+      ],
+      signals,
+      evidence: (ctx?.loginAttempts ?? []).map((attempt) => ({
+        name: `${attempt.success ? "Successful" : "Failed"} login${attempt.reason ? ` — ${attempt.reason}` : ""} (${attempt.ipAddress ?? "unknown IP"}${attempt.device ? `, ${attempt.device}` : ""})`,
+        who: formatDate(attempt.createdAt)
+      })),
+      checks: [
+        { label: "Account locked / suspended pending review", done: ctx ? !ctx.isActive : false, who: ctx?.suspendedAt ? `Suspended ${formatDate(ctx.suspendedAt)}` : undefined },
+        { label: "Password reset issued", done: ctx?.passwordResetRequired ?? false },
+        { label: "School contacted", done: false, who: "Not tracked by this system" }
+      ],
+      history: [],
+      decisions: (
+        <>
+          <DecisionAction
+            note="Marks this flag reviewed with no action needed."
+            action={
+              <ResourceActionDialog
+                triggerLabel="Dismiss flag"
+                title="Dismiss flag"
+                description="Mark this flag as reviewed with no action needed."
+                endpoint={`/api/super-admin/users/suspicious-activity/${flag.id}/resolve`}
+                method="PATCH"
+                variant="secondary"
+                submitLabel="Dismiss"
+                fields={[{ name: "action", label: "Action", type: "select", defaultValue: "DISMISS", options: [{ label: "Dismiss", value: "DISMISS" }] }]}
+              />
+            }
+          />
+          <DecisionAction
+            note="Resolves the flag and forces a password reset for this user."
+            action={
+              <ResourceActionDialog
+                triggerLabel="Force password reset"
+                title="Force password reset"
+                description="Resolves the flag and forces a password reset for this user."
+                endpoint={`/api/super-admin/users/suspicious-activity/${flag.id}/resolve`}
+                method="PATCH"
+                variant="primary"
+                submitLabel="Force reset"
+                fields={[{ name: "action", label: "Action", type: "select", defaultValue: "FORCE_RESET", options: [{ label: "Force password reset", value: "FORCE_RESET" }] }]}
+              />
+            }
+          />
+          <DecisionAction
+            note="Resolves the flag and suspends this account pending investigation."
+            action={
+              <ResourceActionDialog
+                triggerLabel="Suspend pending investigation"
+                title="Suspend account"
+                description="Resolves the flag and suspends this account pending investigation."
+                endpoint={`/api/super-admin/users/suspicious-activity/${flag.id}/resolve`}
+                method="PATCH"
+                variant="danger"
+                submitLabel="Suspend"
+                fields={[{ name: "action", label: "Action", type: "select", defaultValue: "SUSPEND", options: [{ label: "Suspend account", value: "SUSPEND" }] }]}
+              />
+            }
+          />
+        </>
+      )
+    };
+  });
+
+  const duplicateCases: CaseRecord[] = duplicateFlags.map((flag) => {
+    const ctx = duplicateContextById.get(flag.id);
+    const sameSchool = ctx ? ctx.userA.schoolId === ctx.userB.schoolId : undefined;
+    const signals: CaseSignal[] = [{ text: `Matched on: ${flag.matchCriteria}`, tone: "warn" }];
+
+    return {
+      id: `dup-${flag.id}`,
+      subject: `${flag.userA.name} ↔ ${flag.userB.name}`,
+      meta: `${flag.userA.email} · ${flag.userB.email}`,
+      type: "duplicates",
+      initials: caseInitials(flag.userA.name),
+      assignee: "Unassigned",
+      age: timeAgo(flag.createdAt),
+      facts: [
+        { label: "Account A", value: `${flag.userA.name} (${flag.userA.email})${flag.userA.phone ? ` · ${flag.userA.phone}` : ""}` },
+        { label: "Account B", value: `${flag.userB.name} (${flag.userB.email})${flag.userB.phone ? ` · ${flag.userB.phone}` : ""}` },
+        { label: "Match basis", value: flag.matchCriteria },
+        { label: "Schools", value: ctx ? `${ctx.userA.schoolName} / ${ctx.userB.schoolName}` : "Unknown" }
+      ],
+      signals,
+      evidence: [],
+      checks: [
+        { label: "Match basis confirmed", done: true, who: flag.matchCriteria },
+        { label: "Same school tenant", done: sameSchool ?? false, who: sameSchool === undefined ? "Not tracked by this system" : sameSchool ? undefined : "Different schools" }
+      ],
+      history: [],
+      decisions: (
+        <>
+          <DecisionAction
+            note={`Keeps ${flag.userA.name} and deactivates ${flag.userB.name}.`}
+            action={
+              <ResourceActionDialog
+                triggerLabel={`Keep ${flag.userA.name}`}
+                title="Merge accounts"
+                description={`Keep ${flag.userA.name} and deactivate ${flag.userB.name}.`}
+                endpoint={`/api/super-admin/users/duplicates/${flag.id}/resolve`}
+                method="PATCH"
+                variant="secondary"
+                submitLabel="Merge"
+                fields={[
+                  { name: "action", label: "Action", type: "select", defaultValue: "MERGE", options: [{ label: "Merge", value: "MERGE" }] },
+                  { name: "keepUserId", label: "Keep user ID", defaultValue: flag.userA.id }
+                ]}
+              />
+            }
+          />
+          <DecisionAction
+            note={`Keeps ${flag.userB.name} and deactivates ${flag.userA.name}.`}
+            action={
+              <ResourceActionDialog
+                triggerLabel={`Keep ${flag.userB.name}`}
+                title="Merge accounts"
+                description={`Keep ${flag.userB.name} and deactivate ${flag.userA.name}.`}
+                endpoint={`/api/super-admin/users/duplicates/${flag.id}/resolve`}
+                method="PATCH"
+                variant="secondary"
+                submitLabel="Merge"
+                fields={[
+                  { name: "action", label: "Action", type: "select", defaultValue: "MERGE", options: [{ label: "Merge", value: "MERGE" }] },
+                  { name: "keepUserId", label: "Keep user ID", defaultValue: flag.userB.id }
+                ]}
+              />
+            }
+          />
+          <DecisionAction
+            note="These are not duplicate accounts."
+            action={
+              <ResourceActionDialog
+                triggerLabel="Dismiss"
+                title="Dismiss duplicate flag"
+                description="These are not duplicate accounts."
+                endpoint={`/api/super-admin/users/duplicates/${flag.id}/resolve`}
+                method="PATCH"
+                variant="secondary"
+                submitLabel="Dismiss"
+                fields={[{ name: "action", label: "Action", type: "select", defaultValue: "DISMISS", options: [{ label: "Dismiss", value: "DISMISS" }] }]}
+              />
+            }
+          />
+          <DecisionAction
+            note="Flags this pair for the school's own admin to resolve."
+            action={
+              <ResourceActionDialog
+                triggerLabel="Escalate to school"
+                title="Escalate to school admin"
+                description="Flag this pair for the school's own admin to resolve."
+                endpoint={`/api/super-admin/users/duplicates/${flag.id}/resolve`}
+                method="PATCH"
+                variant="danger"
+                submitLabel="Escalate"
+                fields={[{ name: "action", label: "Action", type: "select", defaultValue: "ESCALATE", options: [{ label: "Escalate", value: "ESCALATE" }] }]}
+              />
+            }
+          />
+        </>
+      )
+    };
+  });
+
+  const recoveryCases: CaseRecord[] = recoveryRecords.map((record) => {
+    const ctx = recoveryContextById.get(record.id);
+    const completed = Boolean(record.completedAt);
+    const signals: CaseSignal[] = [
+      completed
+        ? { text: "Recovery completed — password reset and user notified", tone: "good" }
+        : { text: "Recovery not yet completed", tone: "warn" }
+    ];
+    if (record.newEmail) signals.push({ text: `Inbox recovery included an email change to ${record.newEmail}`, tone: "warn" });
+
+    return {
+      id: `rec-${record.id}`,
+      subject: record.userName,
+      meta: record.userEmail,
+      type: "recovery",
+      initials: caseInitials(record.userName),
+      assignee: "Unassigned",
+      age: timeAgo(record.createdAt),
+      facts: [
+        { label: "User", value: `${record.userName} (${record.userEmail})` },
+        { label: "School", value: ctx?.schoolName ?? "Unknown" },
+        { label: "Verified via", value: record.verificationMethod },
+        { label: "New email", value: record.newEmail ?? "No email change" }
+      ],
+      signals,
+      evidence: [],
+      checks: [
+        { label: "Identity verified", done: true, who: record.verificationMethod },
+        { label: "Temporary password issued", done: completed },
+        { label: "User notified by email", done: completed }
+      ],
+      history: [
+        { what: `${completed ? "Completed" : "Initiated"} by ${record.verifiedBy}`, when: formatDate(record.completedAt ?? record.createdAt) }
+      ],
+      decisions: (
+        <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+          No further action is available on this record — the temporary password and notification are issued the
+          moment a recovery is created, so there is nothing left pending here. To recover a different account, use
+          &quot;Recover account&quot; from the Directory tab.
+        </p>
+      )
+    };
+  });
+
+  const allCases: CaseRecord[] = [...suspiciousCases, ...duplicateCases, ...recoveryCases];
+  const typeFilters: CaseTypeFilter[] = [
+    { label: "All open", value: "all", count: allCases.length },
+    { label: "Suspicious activity", value: "suspicious", count: suspiciousCases.length },
+    { label: "Duplicate accounts", value: "duplicates", count: duplicateCases.length },
+    { label: "Account recovery", value: "recovery", count: recoveryCases.length }
+  ];
+
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3">
@@ -241,165 +511,41 @@ function ReviewsAndCasesTab({
         <StatCard label="Duplicate accounts" value={duplicateFlags.length} detail="Pending match review." icon={Copy} tone="info" />
       </section>
 
-      <TableCard
-        title="Suspicious activity"
-        description="Excessive failed logins, simultaneous sessions from different locations, and sensitive account actions taken outside business hours."
-        items={suspiciousFlags}
-        actions={
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
+        <p className="max-w-2xl text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">
+          Suspicious activity flags excessive failed logins, simultaneous sessions from different locations, and
+          sensitive account actions taken outside business hours. Duplicate accounts are matched by shared phone
+          number. Account recovery lists every support-completed recovery for audit.
+        </p>
+        <div className="flex shrink-0 flex-wrap gap-2">
           <ResourceActionDialog
-            triggerLabel="Run scan now"
+            triggerLabel="Run suspicious activity scan"
             title="Recalculate suspicious activity"
             description="Scan for new suspicious activity signals across all users."
             endpoint="/api/super-admin/users/suspicious-activity/recalculate"
             method="POST"
+            variant="secondary"
             submitLabel="Run scan"
             fields={[]}
           />
-        }
-        columns={[
-          { key: "user", header: "User", render: (item) => `${item.userName} (${item.userEmail})` },
-          { key: "type", header: "Flag type", render: (item) => item.flagType.replaceAll("_", " ") },
-          { key: "detail", header: "Detail", render: (item) => item.detail ?? "-" },
-          { key: "detected", header: "Detected", render: (item) => formatDate(item.detectedAt) },
-          {
-            key: "actions",
-            header: "Actions",
-            render: (item) => (
-              <ActionMenu triggerLabel={`Resolve flag for ${item.userName}`}>
-                <ResourceActionDialog
-                  triggerLabel="Dismiss flag"
-                  title="Dismiss flag"
-                  description="Mark this flag as reviewed with no action needed."
-                  endpoint={`/api/super-admin/users/suspicious-activity/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Dismiss"
-                  fields={[{ name: "action", label: "Action", type: "select", defaultValue: "DISMISS", options: [{ label: "Dismiss", value: "DISMISS" }] }]}
-                />
-                <ResourceActionDialog
-                  triggerLabel="Force password reset"
-                  title="Force password reset"
-                  description="Resolves the flag and forces a password reset for this user."
-                  endpoint={`/api/super-admin/users/suspicious-activity/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Force reset"
-                  fields={[{ name: "action", label: "Action", type: "select", defaultValue: "FORCE_RESET", options: [{ label: "Force password reset", value: "FORCE_RESET" }] }]}
-                />
-                <ResourceActionDialog
-                  triggerLabel="Suspend pending investigation"
-                  title="Suspend account"
-                  description="Resolves the flag and suspends this account pending investigation."
-                  endpoint={`/api/super-admin/users/suspicious-activity/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menuDanger"
-                  submitLabel="Suspend"
-                  fields={[{ name: "action", label: "Action", type: "select", defaultValue: "SUSPEND", options: [{ label: "Suspend account", value: "SUSPEND" }] }]}
-                />
-              </ActionMenu>
-            )
-          }
-        ]}
-        emptyState="No suspicious activity flagged. Run a scan to check for new signals."
-      />
-
-      <TableCard
-        title="Duplicate accounts"
-        description="Accounts sharing the same phone number. Merge keeps one account and deactivates the other; the deactivated account's records are preserved for audit."
-        items={duplicateFlags}
-        actions={
           <ResourceActionDialog
-            triggerLabel="Run scan now"
+            triggerLabel="Run duplicate scan"
             title="Recalculate duplicate accounts"
             description="Scan for new potential duplicate accounts."
             endpoint="/api/super-admin/users/duplicates/recalculate"
             method="POST"
+            variant="secondary"
             submitLabel="Run scan"
             fields={[]}
           />
-        }
-        columns={[
-          { key: "a", header: "Account A", render: (item) => `${item.userA.name} (${item.userA.email})` },
-          { key: "b", header: "Account B", render: (item) => `${item.userB.name} (${item.userB.email})` },
-          { key: "criteria", header: "Match", render: (item) => item.matchCriteria },
-          { key: "created", header: "Flagged", render: (item) => formatDate(item.createdAt) },
-          {
-            key: "actions",
-            header: "Actions",
-            render: (item) => (
-              <ActionMenu triggerLabel="Resolve duplicate">
-                <ResourceActionDialog
-                  triggerLabel={`Keep ${item.userA.name}`}
-                  title="Merge accounts"
-                  description={`Keep ${item.userA.name} and deactivate ${item.userB.name}.`}
-                  endpoint={`/api/super-admin/users/duplicates/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Merge"
-                  fields={[
-                    { name: "action", label: "Action", type: "select", defaultValue: "MERGE", options: [{ label: "Merge", value: "MERGE" }] },
-                    { name: "keepUserId", label: "Keep user ID", defaultValue: item.userA.id }
-                  ]}
-                />
-                <ResourceActionDialog
-                  triggerLabel={`Keep ${item.userB.name}`}
-                  title="Merge accounts"
-                  description={`Keep ${item.userB.name} and deactivate ${item.userA.name}.`}
-                  endpoint={`/api/super-admin/users/duplicates/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Merge"
-                  fields={[
-                    { name: "action", label: "Action", type: "select", defaultValue: "MERGE", options: [{ label: "Merge", value: "MERGE" }] },
-                    { name: "keepUserId", label: "Keep user ID", defaultValue: item.userB.id }
-                  ]}
-                />
-                <ResourceActionDialog
-                  triggerLabel="Dismiss"
-                  title="Dismiss duplicate flag"
-                  description="These are not duplicate accounts."
-                  endpoint={`/api/super-admin/users/duplicates/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Dismiss"
-                  fields={[{ name: "action", label: "Action", type: "select", defaultValue: "DISMISS", options: [{ label: "Dismiss", value: "DISMISS" }] }]}
-                />
-                <ResourceActionDialog
-                  triggerLabel="Escalate to school"
-                  title="Escalate to school admin"
-                  description="Flag this pair for the school's own admin to resolve."
-                  endpoint={`/api/super-admin/users/duplicates/${item.id}/resolve`}
-                  method="PATCH"
-                  variant="menuDanger"
-                  submitLabel="Escalate"
-                  fields={[{ name: "action", label: "Action", type: "select", defaultValue: "ESCALATE", options: [{ label: "Escalate", value: "ESCALATE" }] }]}
-                />
-              </ActionMenu>
-            )
-          }
-        ]}
-        emptyState="No duplicate accounts flagged. Run a scan to check for new matches."
-      />
+        </div>
+      </section>
 
-      <TableCard
-        title="Account recovery"
-        description="Every account recovered by support is logged here — who verified identity, how, and when. Start a new recovery from the &quot;Recover account&quot; action in the Directory."
-        items={recoveryRecords}
-        emptyState="No account recoveries have been completed yet."
-        columns={[
-          { key: "user", header: "User", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.userName}</p><p className="text-xs text-[var(--color-text-muted)]">{item.userEmail}</p></div> },
-          { key: "method", header: "Verified via", render: (item) => item.verificationMethod },
-          { key: "newEmail", header: "New email", render: (item) => item.newEmail ?? "—" },
-          { key: "verifiedBy", header: "Verified by", render: (item) => item.verifiedBy },
-          {
-            key: "status",
-            header: "Status",
-            render: (item) => item.completedAt
-              ? <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Completed" />
-              : <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="In progress" />
-          },
-          { key: "completed", header: "Completed", render: (item) => (item.completedAt ? formatDate(item.completedAt) : "—") }
-        ]}
+      <CaseReviewBoard
+        types={typeFilters}
+        cases={allCases}
+        emptyState="No open cases right now. Run a scan to check for new suspicious activity or duplicate accounts."
+        footerNote="Suspicious activity and duplicate accounts are detected by periodic scans; account recovery cases are logged the moment support completes a recovery."
       />
     </div>
   );

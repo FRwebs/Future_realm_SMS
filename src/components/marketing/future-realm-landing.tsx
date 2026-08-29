@@ -540,7 +540,7 @@ export function FutureRealmLandingPage() {
               className="whitespace-nowrap rounded-full px-7 py-4 text-[15px] font-semibold text-white shadow-[0_12px_24px_-8px_rgba(13,35,21,0.55)]"
               style={{ background: INK }}
             >
-              Start your 14-day free trial
+              Start your 30-day free trial
             </Link>
             <a href="#features" className="flex items-center gap-2.5 py-4 text-[15px] font-semibold" style={{ color: INK }}>
               <span className="flex h-[38px] w-[38px] items-center justify-center rounded-full border-[1.5px]" style={{ borderColor: INK }}>
@@ -1304,7 +1304,7 @@ export function FutureRealmLandingPage() {
           <div className="mt-9 flex flex-wrap items-center justify-center gap-8 border-t border-[rgba(255,255,255,0.16)] pt-7">
             <span className="text-[13px] text-[#9fb8a7]">Every plan includes</span>
             <div className="flex flex-wrap gap-6">
-              {["14-day free trial", "Guided onboarding", "Offline mode", "Unlimited staff accounts", "Data export"].map((item) => (
+              {["30-day free trial", "Guided onboarding", "Offline mode", "Unlimited staff accounts", "Data export"].map((item) => (
                 <span key={item} className="text-[13.5px] font-medium text-[#eaf0ec]">{item}</span>
               ))}
             </div>
@@ -1361,7 +1361,7 @@ export function FutureRealmLandingPage() {
           <h2 className="relative mb-4 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
             Ready to run a calmer school office?
           </h2>
-          <p className="relative mb-8 text-base text-[#eaf0ec]">Set up in a day. Free for your first 14 days.</p>
+          <p className="relative mb-8 text-base text-[#eaf0ec]">Set up in a day. Free for your first 30 days.</p>
           <div className="relative inline-flex flex-wrap justify-center gap-3.5">
             <Link
               href="/onboarding"

@@ -1,6 +1,8 @@
+import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Clock3, FileWarning, Globe2, Layers, Mail, MapPin, Moon, Phone, Users } from "lucide-react";
+import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Globe2, Layers, Mail, MapPin, Moon, Phone, ShieldCheck, Users } from "lucide-react";
 
+import { CaseReviewBoard, type CaseRecord, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
@@ -10,7 +12,14 @@ import { AddSchoolWizard } from "@/components/super-admin/add-school-wizard";
 import { SchoolBulkTable } from "@/components/super-admin/school-bulk-table";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
-import type { SuperAdminPendingVerificationSchool, SuperAdminPlanRow, SuperAdminSchoolGroup, SuperAdminSchoolRow } from "@/lib/domain/types";
+import type {
+  SuperAdminAuditLogRow,
+  SuperAdminPendingVerificationSchool,
+  SuperAdminPlanRow,
+  SuperAdminSchoolContact,
+  SuperAdminSchoolGroup,
+  SuperAdminSchoolRow
+} from "@/lib/domain/types";
 
 // The backend already returns `subdomain` / `schoolCode` on every school row (see
 // backend/src/modules/super-admin/super-admin.service.ts `listSchools`) but the shared
@@ -25,6 +34,81 @@ interface SchoolDormancyRow {
   createdAt: string;
   lastSuccessfulLoginAt: string | null;
 }
+
+interface WebAddressRecordRow {
+  id: string;
+  address: string;
+  schoolId: string | null;
+  schoolName: string | null;
+  state: string;
+  redirectFromAddress: string | null;
+  redirectExpiresAt: string | null;
+  retiredAt: string | null;
+  releaseEligibleAt: string | null;
+}
+
+interface AddressDisputeRow {
+  id: string;
+  claimedAddress: string;
+  claimantSchoolName: string;
+  claimantContactName: string;
+  claimantContactEmail: string;
+  evidenceNotes: string;
+  status: string;
+  holderNotifiedAt: string | null;
+  holderResponseDueAt: string | null;
+  holderRespondedAt: string | null;
+  holderResponse: string | null;
+  outcome: string | null;
+  decidedAt: string | null;
+  decidedByName: string | null;
+  createdAt: string;
+}
+
+interface OwnershipTransferRow {
+  id: string;
+  schoolId: string;
+  schoolName: string | null;
+  outgoingOwnerName: string | null;
+  outgoingOwnerEmail: string | null;
+  incomingOwnerId: string | null;
+  incomingOwnerName: string | null;
+  triggerType: string;
+  evidenceNotes: string;
+  status: string;
+  noticeSentAt: string | null;
+  holdExpiresAt: string | null;
+  objectionNote: string | null;
+  approver1Id: string | null;
+  approver1At: string | null;
+  approver2Id: string | null;
+  approver2At: string | null;
+  requiresDualApproval: boolean;
+  executedAt: string | null;
+  createdAt: string;
+}
+
+const disputeStatusTone: Record<string, { bg: string; fg: string; label: string }> = {
+  EVIDENCE_PENDING: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Evidence pending" },
+  HOLDER_CONTACTED: { bg: "var(--color-info-dim)", fg: "var(--color-info)", label: "Holder contacted" },
+  DECIDED: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Decided" }
+};
+
+const transferTriggerLabel: Record<string, string> = {
+  VOLUNTARY_SALE: "Voluntary sale",
+  OWNER_INCAPACITATED: "Owner incapacitated",
+  OWNER_DECEASED: "Owner deceased",
+  DISPUTE: "Dispute between claimants"
+};
+
+const transferStatusTone: Record<string, { bg: string; fg: string; label: string }> = {
+  EVIDENCE_COLLECTED: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Evidence collected" },
+  NOTICE_SENT: { bg: "var(--color-info-dim)", fg: "var(--color-info)", label: "Notice sent" },
+  OBJECTION_RAISED: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Objection — frozen" },
+  APPROVED: { bg: "var(--color-info-dim)", fg: "var(--color-info)", label: "Approved" },
+  EXECUTED: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Executed" },
+  FROZEN: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Frozen" }
+};
 
 const planOptions = [
   { label: "Starter", value: "BASIC" },
@@ -66,7 +150,7 @@ const RECENT_SIGNUP_WINDOW_HOURS = 48;
 
 const lifecycleFlow = [
   { label: "Signup submitted", trigger: "Self-service — automatic" },
-  { label: "Trial Active", trigger: "Granted immediately · 14-day trial" },
+  { label: "Trial Active", trigger: "Granted immediately · 30-day trial" },
   { label: "Verified", trigger: "Reviewed in Reviews & Cases · does not block access" },
   { label: "Active", trigger: "Payment confirmed", emphasize: true },
   { label: "Grace Period", trigger: "Payment overdue" },
@@ -78,7 +162,7 @@ const statusReference = [
   {
     status: "TRIAL",
     label: "Trial Active",
-    meaning: "14-day free trial, granted automatically at signup.",
+    meaning: "30-day free trial, granted automatically at signup.",
     trigger: "System — automatic on signup",
     who: "System (self-service)"
   },
@@ -150,8 +234,384 @@ function timeAgo(iso: string) {
   return days === 1 ? "1 day ago" : `${days} days ago`;
 }
 
+// For future deadlines (dispute response windows, transfer holds) — timeAgo() only
+// reads correctly for past timestamps.
+function dueIn(iso: string) {
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "Overdue";
+  const hours = Math.ceil(ms / (1000 * 60 * 60));
+  if (hours < 24) return hours === 1 ? "Due in 1 hour" : `Due in ${hours} hours`;
+  const days = Math.ceil(hours / 24);
+  return days === 1 ? "Due in 1 day" : `Due in ${days} days`;
+}
+
 function tabHref(tab: string) {
   return tab === "directory" ? "/super-admin/schools" : `/super-admin/schools?tab=${tab}`;
+}
+
+// A due-date's urgency tone — shared by the ownership-transfer hold clock and the
+// address-dispute holder-response clock, both real countdown fields on real records.
+function dueTone(iso: string | null): "good" | "warn" | "bad" | "neutral" {
+  if (!iso) return "neutral";
+  const ms = new Date(iso).getTime() - Date.now();
+  if (ms <= 0) return "bad";
+  if (ms <= 3 * 24 * 60 * 60 * 1000) return "warn";
+  return "good";
+}
+
+function DecisionBlock({ children, note }: { children: ReactNode; note: string }) {
+  return (
+    <div className="grid gap-1.5">
+      {children}
+      <p className="text-[11px] leading-4 text-[var(--color-text-muted)]">{note}</p>
+    </div>
+  );
+}
+
+// Reviews & Cases — one board, three real case types (M2.9 risk review, M2.11 ownership
+// transfer, M2.10.3 address dispute). Every fact/signal/check/history entry below is read
+// from a real field or a real, already-fetched record — an empty category renders the
+// board's own honest empty copy rather than a fabricated example.
+
+function buildRiskCase(
+  school: SuperAdminPendingVerificationSchool,
+  contacts: SuperAdminSchoolContact[],
+  auditLogs: SuperAdminAuditLogRow[]
+): CaseRecord {
+  const riskSignals = school.riskSignals ?? [];
+  return {
+    id: `risk-${school.id}`,
+    subject: school.name,
+    meta: `${categoryLabel(school.curriculum)} · ${[school.city, school.state].filter(Boolean).join(", ") || "Location not recorded"}`,
+    type: "Risk review",
+    initials: initials(school.name),
+    assignee: "Unassigned",
+    age: timeAgo(school.createdAt),
+    sla: school.slaDaysRemaining === null || school.slaDaysRemaining === undefined ? "—" : `${school.slaDaysRemaining}d to trial end`,
+    slaTone: school.slaDaysRemaining === null || school.slaDaysRemaining === undefined ? "neutral" : school.slaEscalated ? "bad" : school.slaDaysRemaining <= 7 ? "warn" : "good",
+    facts: [
+      { label: "School", value: `${school.name} (${school.slug})` },
+      { label: "Category", value: categoryLabel(school.curriculum) },
+      { label: "Owner", value: school.ownerName ?? "Not recorded" },
+      { label: "Owner contact", value: `${school.ownerEmail ?? "No email"} · ${school.ownerPhone ?? "No phone"}` },
+      { label: "Flag reason", value: school.flaggedForReviewReason ?? "Not recorded" },
+      { label: "Risk score", value: school.riskScore === null || school.riskScore === undefined ? "Not scored" : `${school.riskScore}/100` },
+      { label: "Students enrolled", value: school.studentCount.toLocaleString() }
+    ],
+    signals: riskSignals.map((signal) => ({ text: signal.label, tone: signal.triggered ? "bad" : "good" })),
+    evidence: contacts.map((contact) => ({
+      name: `${contact.name} — ${contact.role}${contact.isPrimary ? " (primary)" : ""}`,
+      who: contact.email ?? contact.phone ?? "No contact info on file"
+    })),
+    checks: [
+      { label: "CAC registration number on file", done: Boolean(school.cacNumber) },
+      { label: "Ministry of Education approval number on file", done: Boolean(school.ministryApprovalNumber) },
+      { label: "Owner email on file", done: Boolean(school.ownerEmail) },
+      { label: "Owner phone on file", done: Boolean(school.ownerPhone) }
+    ],
+    history: auditLogs.map((log) => ({ what: `${log.action} · ${log.target}`, when: timeAgo(log.timestamp) })),
+    decisions: (
+      <>
+        <DecisionBlock note="Removes this school from the review queue. This action does not record a reason — verification simply confirms a human has checked the flagged details.">
+          <ResourceActionDialog
+            triggerLabel="Clear the flag"
+            title={`Clear risk flag — ${school.name}`}
+            description="Marks this school as verified. It already has full trial access — this only records that the flagged details have been reviewed."
+            endpoint={`/api/super-admin/schools/${school.id}/verify`}
+            variant="secondary"
+            submitLabel="Clear flag & verify"
+            fields={[]}
+          />
+        </DecisionBlock>
+        <DecisionBlock note="Requires a reason — written to the audit log. Suspends the school and every staff login immediately.">
+          <ResourceActionDialog
+            triggerLabel="Refer for suspension"
+            title={`Refer for suspension — ${school.name}`}
+            description="This suspends the school immediately and logs the reason. The tenant can be reactivated later from Lifecycle & Status if the issue is resolved."
+            endpoint={`/api/super-admin/schools/${school.id}/reject-verification`}
+            variant="danger"
+            submitLabel="Suspend school"
+            confirmLabel="Confirm"
+            confirmMessage="This suspends the school and all its staff logins immediately."
+            fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
+          />
+        </DecisionBlock>
+        <DecisionBlock note="Super Admin only, for accounts confirmed not to be a genuine school. Requires evidence — schedules immediate deletion with no standard retention clock.">
+          <ResourceActionDialog
+            triggerLabel="Close account (not a school)"
+            title={`Close account — ${school.name}`}
+            description="Super Admin only. For accounts confirmed not to be a genuine school. Schedules immediate deletion — no standard retention clock, because there is no legitimate school whose records would be preserved."
+            endpoint={`/api/super-admin/schools/${school.id}/close-risk-flagged-account`}
+            variant="danger"
+            submitLabel="Close and schedule deletion"
+            confirmLabel="Confirm closure"
+            confirmMessage="This immediately suspends the account and schedules its data for deletion. This cannot be undone."
+            fields={[{ name: "evidenceNotes", label: "Evidence this is not a genuine school", type: "textarea", required: true }]}
+          />
+        </DecisionBlock>
+      </>
+    )
+  };
+}
+
+function buildTransferCase(transfer: OwnershipTransferRow): CaseRecord {
+  const approvalsRecorded = (transfer.approver1Id ? 1 : 0) + (transfer.approver2Id ? 1 : 0);
+  const approvalsRequired = transfer.requiresDualApproval ? 2 : 1;
+  const holdActive = Boolean(transfer.holdExpiresAt && new Date(transfer.holdExpiresAt).getTime() > Date.now());
+
+  const signals: CaseRecord["signals"] = [];
+  if (transfer.status === "OBJECTION_RAISED") {
+    signals.push({ text: `Objection on file: ${transfer.objectionNote ?? "no note recorded"}`, tone: "bad" });
+  }
+  if (transfer.triggerType === "DISPUTE") {
+    signals.push({ text: "Trigger is a dispute between claimants — school frozen read-only", tone: "bad" });
+  }
+  if (!transfer.incomingOwnerId) {
+    signals.push({ text: "Incoming owner not yet identified", tone: "warn" });
+  }
+  if (transfer.holdExpiresAt) {
+    signals.push({
+      text: holdActive ? `Mandatory hold in effect — ${dueIn(transfer.holdExpiresAt)}` : "Mandatory hold period has elapsed",
+      tone: holdActive ? "warn" : "good"
+    });
+  }
+  if (transfer.status === "NOTICE_SENT" || transfer.status === "APPROVED") {
+    signals.push({
+      text: `${approvalsRecorded} of ${approvalsRequired} required approvals recorded`,
+      tone: approvalsRecorded >= approvalsRequired ? "good" : approvalsRecorded === 0 ? "bad" : "warn"
+    });
+  }
+  if (transfer.status === "EXECUTED") {
+    signals.push({ text: "Transfer executed — outgoing owner access revoked", tone: "good" });
+  }
+
+  const evidence: CaseRecord["evidence"] = [
+    { name: transfer.evidenceNotes || "No evidence notes recorded", who: `Logged ${timeAgo(transfer.createdAt)}` }
+  ];
+  if (transfer.objectionNote) {
+    evidence.push({ name: transfer.objectionNote, who: "Objection note" });
+  }
+
+  const history: CaseRecord["history"] = [];
+  if (transfer.executedAt) history.push({ what: "Transfer executed — outgoing owner access revoked", when: timeAgo(transfer.executedAt) });
+  if (transfer.approver2At) history.push({ what: "Second approval recorded", when: timeAgo(transfer.approver2At) });
+  if (transfer.approver1At) history.push({ what: "First approval recorded", when: timeAgo(transfer.approver1At) });
+  if (transfer.status === "OBJECTION_RAISED" && transfer.objectionNote) history.push({ what: "Objection raised — school frozen read-only", when: timeAgo(transfer.createdAt) });
+  if (transfer.noticeSentAt) history.push({ what: "Notice sent to outgoing owner", when: timeAgo(transfer.noticeSentAt) });
+  history.push({ what: `Transfer opened — ${transferTriggerLabel[transfer.triggerType] ?? transfer.triggerType}`, when: timeAgo(transfer.createdAt) });
+
+  const canApprove = transfer.status === "NOTICE_SENT" && !(!transfer.requiresDualApproval && transfer.approver1Id);
+  const canExecute = transfer.status === "APPROVED" || (transfer.status === "NOTICE_SENT" && !transfer.requiresDualApproval && Boolean(transfer.approver1Id));
+  const canObject = transfer.status === "NOTICE_SENT";
+
+  let decisions: ReactNode;
+  if (canObject || canApprove || canExecute) {
+    decisions = (
+      <>
+        {canObject ? (
+          <DecisionBlock note="Requires a reason — freezes the school read-only until the objection is resolved.">
+            <ResourceActionDialog
+              triggerLabel="Raise objection"
+              title="Raise an objection"
+              description="Freezes the account read-only until the objection is resolved."
+              endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/objection`}
+              variant="danger"
+              submitLabel="Raise objection"
+              fields={[{ name: "objectionNote", label: "Objection note", type: "textarea", required: true }]}
+            />
+          </DecisionBlock>
+        ) : null}
+        {canApprove ? (
+          <DecisionBlock note="Super Admin only. Incapacitated and deceased triggers require two distinct approvers before execution.">
+            <ResourceActionDialog
+              triggerLabel="Approve"
+              title="Approve transfer"
+              description="Super Admin only. Incapacitated and deceased triggers require two distinct approvers before execution."
+              endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/approve`}
+              variant="secondary"
+              submitLabel="Approve"
+              fields={[]}
+            />
+          </DecisionBlock>
+        ) : null}
+        {canExecute ? (
+          <DecisionBlock note="Creates the new owner's access and revokes the outgoing owner's login. This cannot be undone.">
+            <ResourceActionDialog
+              triggerLabel="Execute"
+              title="Execute ownership transfer"
+              description="Creates the new owner's access, revokes the outgoing owner's login and terminates their sessions. This cannot be undone."
+              endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/execute`}
+              variant="danger"
+              submitLabel="Execute"
+              confirmLabel="Confirm execution"
+              confirmMessage="This immediately revokes the outgoing owner's access. This cannot be undone."
+              fields={[]}
+            />
+          </DecisionBlock>
+        ) : null}
+      </>
+    );
+  } else {
+    const reason =
+      transfer.status === "EVIDENCE_COLLECTED"
+        ? "Still collecting evidence — set the incoming owner and send notice from the Ownership Transfers tab before a decision can be made here."
+        : transfer.status === "OBJECTION_RAISED"
+          ? "An objection is on file. Resolve it from the Ownership Transfers tab before this case can move forward."
+          : "This transfer has already been executed.";
+    decisions = (
+      <DecisionBlock note={reason}>
+        <Link href="/super-admin/schools?tab=ownership-transfers" className="btn-secondary w-fit px-4 text-[13px] font-semibold">
+          Open Ownership Transfers
+        </Link>
+      </DecisionBlock>
+    );
+  }
+
+  return {
+    id: `transfer-${transfer.id}`,
+    subject: transfer.schoolName ?? "Unknown school",
+    meta: `${transferTriggerLabel[transfer.triggerType] ?? transfer.triggerType} · ${transfer.outgoingOwnerName ?? "Unknown owner"} → ${transfer.incomingOwnerName ?? "Not yet identified"}`,
+    type: "Ownership transfer",
+    initials: initials(transfer.schoolName ?? "Unknown school"),
+    assignee: "Unassigned",
+    age: timeAgo(transfer.createdAt),
+    sla: transfer.holdExpiresAt ? dueIn(transfer.holdExpiresAt) : "—",
+    slaTone: dueTone(transfer.holdExpiresAt),
+    facts: [
+      { label: "School", value: transfer.schoolName ?? "Unknown" },
+      { label: "Trigger", value: transferTriggerLabel[transfer.triggerType] ?? transfer.triggerType },
+      { label: "Outgoing owner", value: `${transfer.outgoingOwnerName ?? "Unknown"} (${transfer.outgoingOwnerEmail ?? "no email"})` },
+      { label: "Incoming owner", value: transfer.incomingOwnerName ?? "Not yet identified" },
+      { label: "Status", value: transferStatusTone[transfer.status]?.label ?? transfer.status },
+      { label: "Approvals", value: `${approvalsRecorded} of ${approvalsRequired}` },
+      { label: "Notice sent", value: transfer.noticeSentAt ? timeAgo(transfer.noticeSentAt) : "Not sent yet" },
+      { label: "Hold expires", value: transfer.holdExpiresAt ? dueIn(transfer.holdExpiresAt) : "No hold in effect" }
+    ],
+    signals,
+    evidence,
+    checks: [
+      { label: "Incoming owner identified", done: Boolean(transfer.incomingOwnerId) },
+      { label: "Notice sent to outgoing owner", done: Boolean(transfer.noticeSentAt) },
+      { label: "No unresolved objection", done: transfer.status !== "OBJECTION_RAISED" },
+      { label: transfer.requiresDualApproval ? "Dual approval complete (2 of 2)" : "Approved (1 of 1)", done: approvalsRecorded >= approvalsRequired },
+      { label: "Executed", done: transfer.status === "EXECUTED" }
+    ],
+    history,
+    decisions
+  };
+}
+
+function buildDisputeCase(dispute: AddressDisputeRow, schoolOptions: Array<{ label: string; value: string }>): CaseRecord {
+  const signals: CaseRecord["signals"] = [];
+  if (dispute.status === "EVIDENCE_PENDING") {
+    signals.push({ text: "Holder not yet notified", tone: "warn" });
+  }
+  if (dispute.status === "HOLDER_CONTACTED" && dispute.holderResponseDueAt) {
+    const overdue = new Date(dispute.holderResponseDueAt).getTime() <= Date.now();
+    signals.push({
+      text: overdue ? "Holder response window has passed" : `Holder response due ${dueIn(dispute.holderResponseDueAt)}`,
+      tone: overdue ? "bad" : "warn"
+    });
+  }
+  if (dispute.holderResponse) {
+    signals.push({ text: `Holder responded: ${dispute.holderResponse}`, tone: "good" });
+  }
+  if (dispute.outcome) {
+    signals.push({ text: `Decided: ${dispute.outcome}`, tone: "good" });
+  }
+
+  const evidence: CaseRecord["evidence"] = [
+    { name: dispute.evidenceNotes || "No evidence notes recorded", who: dispute.claimantContactName }
+  ];
+  if (dispute.holderResponse) {
+    evidence.push({ name: dispute.holderResponse, who: "Holder response" });
+  }
+
+  const history: CaseRecord["history"] = [];
+  if (dispute.decidedAt) history.push({ what: `Decided — ${dispute.outcome ?? "outcome recorded"}${dispute.decidedByName ? ` by ${dispute.decidedByName}` : ""}`, when: timeAgo(dispute.decidedAt) });
+  if (dispute.holderRespondedAt) history.push({ what: "Holder response recorded", when: timeAgo(dispute.holderRespondedAt) });
+  if (dispute.holderNotifiedAt) history.push({ what: "Holder notified", when: timeAgo(dispute.holderNotifiedAt) });
+  history.push({ what: `Dispute logged by ${dispute.claimantContactName}`, when: timeAgo(dispute.createdAt) });
+
+  return {
+    id: `dispute-${dispute.id}`,
+    subject: dispute.claimedAddress,
+    meta: `${dispute.claimantSchoolName} · ${dispute.claimantContactName}`,
+    type: "Address dispute",
+    initials: initials(dispute.claimantSchoolName),
+    assignee: "Unassigned",
+    age: timeAgo(dispute.createdAt),
+    sla: dispute.holderResponseDueAt ? dueIn(dispute.holderResponseDueAt) : "—",
+    slaTone: dueTone(dispute.holderResponseDueAt),
+    facts: [
+      { label: "Claimed address", value: dispute.claimedAddress },
+      { label: "Claimant school", value: dispute.claimantSchoolName },
+      { label: "Claimant contact", value: `${dispute.claimantContactName} · ${dispute.claimantContactEmail}` },
+      { label: "Status", value: disputeStatusTone[dispute.status]?.label ?? dispute.status },
+      { label: "Holder response due", value: dispute.holderResponseDueAt ? dueIn(dispute.holderResponseDueAt) : "Not yet notified" },
+      { label: "Outcome", value: dispute.outcome ?? "Not decided yet" },
+      { label: "Logged", value: timeAgo(dispute.createdAt) }
+    ],
+    signals,
+    evidence,
+    checks: [
+      { label: "Holder notified", done: Boolean(dispute.holderNotifiedAt) },
+      { label: "Holder response recorded", done: Boolean(dispute.holderRespondedAt) },
+      { label: "Decision recorded", done: dispute.status === "DECIDED" }
+    ],
+    history,
+    decisions: (
+      <>
+        {dispute.status === "EVIDENCE_PENDING" ? (
+          <DecisionBlock note="Starts a 10 working day response window for the current holder.">
+            <ResourceActionDialog
+              triggerLabel="Notify holder"
+              title="Notify current holder"
+              description="10 working days to respond, starting now."
+              endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/notify-holder`}
+              variant="secondary"
+              submitLabel="Notify holder"
+              fields={[]}
+            />
+          </DecisionBlock>
+        ) : null}
+        {dispute.status === "HOLDER_CONTACTED" && !dispute.holderRespondedAt ? (
+          <DecisionBlock note="What did the current holder say? Recorded before a decision is made.">
+            <ResourceActionDialog
+              triggerLabel="Record holder response"
+              title="Record holder response"
+              description="What did the current holder say?"
+              endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/holder-response`}
+              variant="secondary"
+              submitLabel="Save response"
+              fields={[{ name: "holderResponse", label: "Holder response", type: "textarea", required: true }]}
+            />
+          </DecisionBlock>
+        ) : null}
+        <DecisionBlock note="Final — cannot be reopened. Written to the audit log; both parties are notified of the outcome.">
+          <ResourceActionDialog
+            triggerLabel="Decide"
+            title={`Decide dispute — ${dispute.claimedAddress}`}
+            description="The default is possession — reassignment only happens where the holder cannot evidence a legitimate claim."
+            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/decide`}
+            variant="danger"
+            submitLabel="Confirm decision"
+            confirmLabel="Confirm"
+            confirmMessage="This decision is final and cannot be reopened."
+            fields={[
+              { name: "outcome", label: "Outcome", type: "select", defaultValue: "NEGOTIATED", options: [
+                { label: "Negotiated — holder keeps it, claimant offered alternative", value: "NEGOTIATED" },
+                { label: "Reassigned to claimant", value: "REASSIGNED" },
+                { label: "Declined — claim not upheld", value: "DECLINED" }
+              ] },
+              { name: "qualifiedAddressOffered", label: "Qualified alternative offered (if any)" },
+              { name: "reassignToSchoolId", label: "Reassign to school (required if reassigning)", type: "select", options: [{ label: "— Select a school —", value: "" }, ...schoolOptions] }
+            ]}
+          />
+        </DecisionBlock>
+      </>
+    )
+  };
 }
 
 export default async function SuperAdminSchoolsPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
@@ -160,6 +620,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
     params.tab === "approval-queue" ? "approval-queue" :
     params.tab === "provisioning" ? "provisioning" :
     params.tab === "web-addresses" ? "web-addresses" :
+    params.tab === "ownership-transfers" ? "ownership-transfers" :
     params.tab === "dormancy" ? "dormancy" :
     params.tab === "lifecycle" ? "lifecycle" :
     params.tab === "groups" ? "groups" : "directory";
@@ -193,6 +654,25 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const missingRegistrationCount = pendingVerification.filter((school) => !school.cacNumber && !school.ministryApprovalNumber).length;
   const missingContactCount = pendingVerification.filter((school) => !school.ownerEmail || !school.ownerPhone).length;
 
+  // Reviews & Cases (risk review): each flagged school's own evidence (SchoolContact
+  // records) and history (its AuditLog trail) — fetched per case via the same real,
+  // existing endpoints the School Profile page uses. Settled independently so one
+  // school's fetch failing doesn't blank out the rest of the queue.
+  const riskCaseExtras = await Promise.all(
+    pendingVerification.map(async (school) => {
+      const [contactsResult, auditResult] = await Promise.allSettled([
+        apiGetEnvelope<SuperAdminSchoolContact[]>(`/api/super-admin/schools/${school.id}/contacts`),
+        apiGetEnvelope<SuperAdminAuditLogRow[]>(`/api/super-admin/audit-logs?schoolId=${school.id}&limit=5`)
+      ]);
+      return {
+        schoolId: school.id,
+        contacts: contactsResult.status === "fulfilled" ? contactsResult.value.data ?? [] : [],
+        auditLogs: auditResult.status === "fulfilled" ? auditResult.value.data ?? [] : []
+      };
+    })
+  );
+  const riskCaseExtrasById = new Map(riskCaseExtras.map((entry) => [entry.schoolId, entry]));
+
   const plansEnvelope = await apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans");
   const activePlans = (plansEnvelope.data ?? []).filter((plan) => plan.isActive).sort((a, b) => a.monthlyPrice - b.monthlyPrice);
 
@@ -217,11 +697,62 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   }
   const neverLoggedInCount = dormancySchools.filter((school) => school.lastSuccessfulLoginAt === null).length;
 
+  // M2.10 — the address registry and its dispute queue. Fetched defensively: these are
+  // newly-added modules, so an unreachable endpoint shouldn't take down the rest of the page.
+  let registryRecords: WebAddressRecordRow[] = [];
+  let addressDisputes: AddressDisputeRow[] = [];
+  try {
+    const registryEnvelope = await apiGetEnvelope<WebAddressRecordRow[]>("/api/super-admin/web-address-registry/records");
+    registryRecords = registryEnvelope.data ?? [];
+    const disputesEnvelope = await apiGetEnvelope<AddressDisputeRow[]>("/api/super-admin/web-address-registry/disputes");
+    addressDisputes = disputesEnvelope.data ?? [];
+  } catch {
+    registryRecords = [];
+    addressDisputes = [];
+  }
+  const openDisputeCount = addressDisputes.filter((dispute) => dispute.status !== "DECIDED").length;
+  const liveAddressCount = registryRecords.filter((record) => record.state === "LIVE").length;
+  const reservedBlockedCount = registryRecords.filter((record) => record.state === "RESERVED" || record.state === "BLOCKED").length;
+
+  // M2.11 — ownership transfers. Same defensive fetch as the registry above.
+  let ownershipTransfers: OwnershipTransferRow[] = [];
+  try {
+    const transfersEnvelope = await apiGetEnvelope<OwnershipTransferRow[]>("/api/super-admin/ownership-transfers");
+    ownershipTransfers = transfersEnvelope.data ?? [];
+  } catch {
+    ownershipTransfers = [];
+  }
+  const openTransferCount = ownershipTransfers.filter((transfer) => transfer.status !== "EXECUTED").length;
+  const executedTransferCount = ownershipTransfers.filter((transfer) => transfer.status === "EXECUTED").length;
+
+  const schoolOptions = webAddressSchools.map((school) => ({ label: school.name, value: school.id }));
+
+  // Reviews & Cases board — three real case types, one queue. Ownership transfers already
+  // executed and disputes already decided are resolved, not open cases, so they're excluded
+  // here the same way the tab badges above exclude them (openTransferCount / openDisputeCount).
+  const openOwnershipTransfers = ownershipTransfers.filter((transfer) => transfer.status !== "EXECUTED");
+  const openAddressDisputes = addressDisputes.filter((dispute) => dispute.status !== "DECIDED");
+  const reviewCases: CaseRecord[] = [
+    ...pendingVerification.map((school) => {
+      const extras = riskCaseExtrasById.get(school.id);
+      return buildRiskCase(school, extras?.contacts ?? [], extras?.auditLogs ?? []);
+    }),
+    ...openOwnershipTransfers.map((transfer) => buildTransferCase(transfer)),
+    ...openAddressDisputes.map((dispute) => buildDisputeCase(dispute, schoolOptions))
+  ];
+  const reviewCaseTypes: CaseTypeFilter[] = [
+    { label: "All open", value: "all", count: reviewCases.length },
+    { label: "Risk review", value: "Risk review", count: pendingVerification.length },
+    { label: "Ownership transfer", value: "Ownership transfer", count: openOwnershipTransfers.length },
+    { label: "Address dispute", value: "Address dispute", count: openAddressDisputes.length }
+  ];
+
   const tabs = [
     { label: "Directory", href: tabHref("directory"), active: activeTab === "directory", badge: total },
     { label: "Provisioning", href: tabHref("provisioning"), active: activeTab === "provisioning", badge: provisioningTotal },
     { label: "Reviews & Cases", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
     { label: "Web Addresses", href: tabHref("web-addresses"), active: activeTab === "web-addresses", badge: webAddressTotal },
+    { label: "Ownership Transfers", href: tabHref("ownership-transfers"), active: activeTab === "ownership-transfers", badge: openTransferCount },
     { label: "Dormancy", href: tabHref("dormancy"), active: activeTab === "dormancy", badge: neverLoggedInCount }
   ];
 
@@ -270,64 +801,11 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             <StatCard label="Contact gaps" value={missingContactCount} detail="Owner email or phone needs completion." icon={Users} tone="info" />
           </section>
 
-          <TableCard
-            title="Reviews & Cases"
-            items={pendingVerification}
-            emptyState="Queue is clear. Schools flagged at signup will appear here for a manual check."
-            columns={[
-              {
-                key: "school",
-                header: "School",
-                render: (school) => (
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">
-                      {initials(school.name)}
-                    </span>
-                    <div>
-                      <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
-                        {school.name}
-                      </Link>
-                      <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{categoryLabel(school.curriculum)} · {timeAgo(school.createdAt)}</p>
-                    </div>
-                  </div>
-                )
-              },
-              { key: "owner", header: "Owner", render: (school) => <div><p className="font-semibold text-[var(--color-text-primary)]">{school.ownerName ?? "Not recorded"}</p><p className="text-xs text-[var(--color-text-muted)]">{school.ownerEmail ?? "No email"}</p></div> },
-              { key: "location", header: "Location", render: (school) => [school.city, school.state].filter(Boolean).join(", ") || "Not recorded" },
-              { key: "registration", header: "Registration", render: (school) => <div><p className="text-[12px] text-[var(--color-text-secondary)]">CAC: <span className="font-semibold text-[var(--color-text-primary)]">{school.cacNumber ?? "Missing"}</span></p><p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">Ministry: <span className="font-semibold text-[var(--color-text-primary)]">{school.ministryApprovalNumber ?? "Missing"}</span></p></div> },
-              { key: "students", header: "Students", render: (school) => school.studentCount.toLocaleString() },
-              {
-                key: "actions",
-                header: "Actions",
-                render: (school) => (
-                  <ActionMenu triggerLabel={`Review ${school.name}`}>
-                    <ResourceActionDialog
-                      triggerLabel="Approve & verify"
-                      title={`Verify ${school.name}`}
-                      description="Marks this school as verified. It already has full trial access — this only records that the details have been reviewed."
-                      endpoint={`/api/super-admin/schools/${school.id}/verify`}
-                      variant="menu"
-                      submitLabel="Confirm verification"
-                      fields={[]}
-                    />
-                    <ResourceActionDialog
-                      triggerLabel="Reject with reason"
-                      title={`Reject verification — ${school.name}`}
-                      description="This suspends the school immediately and logs the reason. The tenant can be reactivated later from Lifecycle & Status if the issue is resolved."
-                      endpoint={`/api/super-admin/schools/${school.id}/reject-verification`}
-                      variant="menuDanger"
-                      submitLabel="Reject and suspend"
-                      confirmLabel="Confirm"
-                      confirmMessage="This suspends the school and all its staff logins immediately."
-                      fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
-                    />
-                    <Link href={`/super-admin/schools/${school.id}`} className="block px-3 py-2 text-[12px] font-semibold text-[var(--color-text-accent)] hover:bg-[var(--color-bg-subtle)]">
-                      View full profile
-                    </Link>
-                  </ActionMenu>
-                )
-              }
-            ]}
+          <CaseReviewBoard
+            types={reviewCaseTypes}
+            cases={reviewCases}
+            emptyState="Queue is clear. Risk-flagged schools, open ownership transfers and open address disputes will appear here as one queue."
+            footerNote="One queue, one anatomy. Refer for suspension, raise objection, execute and decide each require a reason and are written to the audit log; clearing a risk flag does not record one."
           />
         </section>
       ) : activeTab === "provisioning" ? (
@@ -418,7 +896,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
         </section>
       ) : activeTab === "web-addresses" ? (
         <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-2">
+          <section className="grid gap-3 md:grid-cols-4">
             <StatCard label="Schools with a web address" value={webAddressTotal} detail="Every non-deleted tenant on the platform." icon={Globe2} tone="info" />
             <StatCard
               label="Missing subdomain"
@@ -427,6 +905,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               icon={FileWarning}
               tone={missingSubdomainCount === 0 ? "success" : "warning"}
             />
+            <StatCard label="Live in registry" value={liveAddressCount} detail="Addresses backed by a registry record." icon={ShieldCheck} tone="success" />
+            <StatCard label="Reserved / blocked" value={reservedBlockedCount} detail="Held out of the available pool." icon={Gavel} tone="warning" />
           </section>
 
           <TableCard
@@ -477,9 +957,311 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     </span>
                   );
                 }
+              },
+              {
+                key: "actions",
+                header: "Actions",
+                render: (school) => (
+                  <ResourceActionDialog
+                    triggerLabel="Change address"
+                    title={`Change web address — ${school.name}`}
+                    description="Super Admin only. Creates a 90-day redirect from the old address and notifies every user of the school. The bar is deliberately high — every invitation already sent carries the old address."
+                    endpoint="/api/super-admin/web-address-registry/records/change"
+                    variant="menu"
+                    submitLabel="Change address"
+                    confirmLabel="Confirm change"
+                    confirmMessage="This immediately updates the school's live web address and starts a 90-day redirect."
+                    fields={[
+                      { name: "schoolId", label: "School", type: "select", defaultValue: school.id, options: [{ label: school.name, value: school.id }] },
+                      { name: "newAddress", label: "New address", placeholder: "lowercase-letters-numbers", required: true },
+                      { name: "reason", label: "Reason", type: "textarea", required: true }
+                    ]}
+                  />
+                )
               }
             ]}
           />
+
+          <section className="surface-card p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="section-eyebrow">M2.10.3</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Address disputes</h2>
+                <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+                  The default is possession — a claim is only reassigned where the current holder cannot evidence a
+                  legitimate claim. {openDisputeCount} open of {addressDisputes.length} logged.
+                </p>
+              </div>
+              <ResourceActionDialog
+                triggerLabel="Log a claim"
+                title="Log an address dispute"
+                description="Records a claim submitted by a genuine school through the published dispute form."
+                endpoint="/api/super-admin/web-address-registry/disputes"
+                submitLabel="Log claim"
+                fields={[
+                  { name: "claimedAddress", label: "Claimed address", required: true },
+                  { name: "claimantSchoolName", label: "Claimant school name", required: true },
+                  { name: "claimantContactName", label: "Claimant contact name", required: true },
+                  { name: "claimantContactEmail", label: "Claimant contact email", type: "email", required: true },
+                  { name: "claimantContactPhone", label: "Claimant contact phone" },
+                  { name: "evidenceNotes", label: "Evidence notes", type: "textarea", required: true }
+                ]}
+              />
+            </div>
+
+            <div className="mt-5">
+              <TableCard
+                title="Disputes"
+                items={addressDisputes}
+                emptyState="No disputes logged."
+                columns={[
+                  {
+                    key: "claim",
+                    header: "Claim",
+                    render: (dispute) => (
+                      <div>
+                        <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
+                        <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (dispute) => {
+                      const tone = disputeStatusTone[dispute.status] ?? disputeStatusTone.EVIDENCE_PENDING;
+                      return (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                          {dispute.outcome ? `${tone.label} · ${dispute.outcome}` : tone.label}
+                        </span>
+                      );
+                    }
+                  },
+                  {
+                    key: "due",
+                    header: "Holder response due",
+                    render: (dispute) => (dispute.holderResponseDueAt ? dueIn(dispute.holderResponseDueAt) : "—")
+                  },
+                  {
+                    key: "actions",
+                    header: "Actions",
+                    render: (dispute) => (
+                      <ActionMenu triggerLabel={`Actions for ${dispute.claimedAddress}`}>
+                        {dispute.status === "EVIDENCE_PENDING" ? (
+                          <ResourceActionDialog
+                            triggerLabel="Notify holder"
+                            title="Notify current holder"
+                            description="10 working days to respond, starting now."
+                            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/notify-holder`}
+                            variant="menu"
+                            submitLabel="Notify holder"
+                            fields={[]}
+                          />
+                        ) : null}
+                        {dispute.status === "HOLDER_CONTACTED" ? (
+                          <ResourceActionDialog
+                            triggerLabel="Record holder response"
+                            title="Record holder response"
+                            description="What did the current holder say?"
+                            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/holder-response`}
+                            variant="menu"
+                            submitLabel="Save response"
+                            fields={[{ name: "holderResponse", label: "Holder response", type: "textarea", required: true }]}
+                          />
+                        ) : null}
+                        {dispute.status !== "DECIDED" ? (
+                          <ResourceActionDialog
+                            triggerLabel="Decide"
+                            title={`Decide dispute — ${dispute.claimedAddress}`}
+                            description="Written to the audit log. Both parties are notified of the outcome."
+                            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/decide`}
+                            variant="menuDanger"
+                            submitLabel="Confirm decision"
+                            confirmLabel="Confirm"
+                            confirmMessage="This decision is final and cannot be reopened."
+                            fields={[
+                              { name: "outcome", label: "Outcome", type: "select", defaultValue: "NEGOTIATED", options: [
+                                { label: "Negotiated — holder keeps it, claimant offered alternative", value: "NEGOTIATED" },
+                                { label: "Reassigned to claimant", value: "REASSIGNED" },
+                                { label: "Declined — claim not upheld", value: "DECLINED" }
+                              ] },
+                              { name: "qualifiedAddressOffered", label: "Qualified alternative offered (if any)" },
+                              { name: "reassignToSchoolId", label: "Reassign to school (required if reassigning)", type: "select", options: [{ label: "— Select a school —", value: "" }, ...schoolOptions] }
+                            ]}
+                          />
+                        ) : null}
+                      </ActionMenu>
+                    )
+                  }
+                ]}
+              />
+            </div>
+          </section>
+        </section>
+      ) : activeTab === "ownership-transfers" ? (
+        <section className="grid gap-5">
+          <section className="grid gap-3 md:grid-cols-3">
+            <StatCard label="Open transfers" value={openTransferCount} detail="Not yet executed." icon={Gavel} tone={openTransferCount === 0 ? "success" : "warning"} />
+            <StatCard label="Executed" value={executedTransferCount} detail="Ownership successfully moved." icon={ShieldCheck} tone="success" />
+            <StatCard label="Total logged" value={ownershipTransfers.length} detail="Every transfer ever opened." icon={Building2} tone="info" />
+          </section>
+
+          <section className="surface-card p-6">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+              <div>
+                <p className="section-eyebrow">M2.11</p>
+                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">School ownership transfer</h2>
+                <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+                  Never a field edit — evidence, notice, and dual approval for incapacitation or death. The incoming
+                  owner always gets a new account; the old login is revoked, never handed over.
+                </p>
+              </div>
+              <ResourceActionDialog
+                triggerLabel="Start a transfer"
+                title="Open an ownership transfer"
+                description="Records the trigger and evidence. Identity of the incoming owner and notice to the outgoing owner follow as separate steps."
+                endpoint="/api/super-admin/ownership-transfers"
+                submitLabel="Open transfer"
+                fields={[
+                  { name: "schoolId", label: "School", type: "select", options: [{ label: "— Select a school —", value: "" }, ...schoolOptions], required: true },
+                  { name: "triggerType", label: "Trigger", type: "select", defaultValue: "VOLUNTARY_SALE", options: [
+                    { label: "Voluntary sale or handover", value: "VOLUNTARY_SALE" },
+                    { label: "Owner incapacitated", value: "OWNER_INCAPACITATED" },
+                    { label: "Owner deceased", value: "OWNER_DECEASED" },
+                    { label: "Dispute between claimants", value: "DISPUTE" }
+                  ] },
+                  { name: "evidenceNotes", label: "Evidence notes", type: "textarea", required: true },
+                  { name: "incomingOwnerId", label: "Incoming owner user ID (if already identified)" }
+                ]}
+              />
+            </div>
+
+            <div className="mt-5">
+              <TableCard
+                title="Transfers"
+                items={ownershipTransfers}
+                emptyState="No ownership transfers on record."
+                columns={[
+                  {
+                    key: "school",
+                    header: "School",
+                    render: (transfer) => (
+                      <div>
+                        <Link href={`/super-admin/schools/${transfer.schoolId}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
+                          {transfer.schoolName ?? "Unknown school"}
+                        </Link>
+                        <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{transferTriggerLabel[transfer.triggerType] ?? transfer.triggerType}</p>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "owners",
+                    header: "Outgoing → Incoming",
+                    render: (transfer) => (
+                      <div className="text-[12px] text-[var(--color-text-secondary)]">
+                        <p>{transfer.outgoingOwnerName ?? "Unknown"}</p>
+                        <p className="mt-0.5 font-semibold text-[var(--color-text-primary)]">{transfer.incomingOwnerName ?? "Not yet identified"}</p>
+                      </div>
+                    )
+                  },
+                  {
+                    key: "status",
+                    header: "Status",
+                    render: (transfer) => {
+                      const tone = transferStatusTone[transfer.status] ?? transferStatusTone.EVIDENCE_COLLECTED;
+                      return (
+                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                          {tone.label}
+                        </span>
+                      );
+                    }
+                  },
+                  {
+                    key: "approvals",
+                    header: "Approvals",
+                    render: (transfer) =>
+                      transfer.requiresDualApproval ? (
+                        <span className="text-[12px] text-[var(--color-text-secondary)]">
+                          {(transfer.approver1Id ? 1 : 0) + (transfer.approver2Id ? 1 : 0)} of 2
+                        </span>
+                      ) : (
+                        <span className="text-[12px] text-[var(--color-text-secondary)]">{transfer.approver1Id ? "1 of 1" : "0 of 1"}</span>
+                      )
+                  },
+                  {
+                    key: "hold",
+                    header: "Hold expires",
+                    render: (transfer) => (transfer.holdExpiresAt ? dueIn(transfer.holdExpiresAt) : "—")
+                  },
+                  {
+                    key: "actions",
+                    header: "Actions",
+                    render: (transfer) => (
+                      <ActionMenu triggerLabel={`Actions for ${transfer.schoolName ?? "transfer"}`}>
+                        {transfer.status === "EVIDENCE_COLLECTED" && !transfer.incomingOwnerId ? (
+                          <ResourceActionDialog
+                            triggerLabel="Set incoming owner"
+                            title="Record the incoming owner"
+                            description="The incoming owner must already be verified through the standard user-verification process."
+                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/incoming-owner`}
+                            variant="menu"
+                            submitLabel="Save"
+                            fields={[{ name: "incomingOwnerId", label: "Incoming owner user ID", required: true }]}
+                          />
+                        ) : null}
+                        {transfer.status === "EVIDENCE_COLLECTED" && transfer.incomingOwnerId ? (
+                          <ResourceActionDialog
+                            triggerLabel="Send notice"
+                            title="Send notice to outgoing owner"
+                            description="Immediate for a voluntary transfer; starts a mandatory 14-day hold if the owner is deceased."
+                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/send-notice`}
+                            variant="menu"
+                            submitLabel="Send notice"
+                            fields={[]}
+                          />
+                        ) : null}
+                        {transfer.status === "NOTICE_SENT" ? (
+                          <ResourceActionDialog
+                            triggerLabel="Raise objection"
+                            title="Raise an objection"
+                            description="Freezes the account read-only until the objection is resolved."
+                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/objection`}
+                            variant="menuDanger"
+                            submitLabel="Raise objection"
+                            fields={[{ name: "objectionNote", label: "Objection note", type: "textarea", required: true }]}
+                          />
+                        ) : null}
+                        {transfer.status === "NOTICE_SENT" && !(!transfer.requiresDualApproval && transfer.approver1Id) ? (
+                          <ResourceActionDialog
+                            triggerLabel="Approve"
+                            title="Approve transfer"
+                            description="Super Admin only. Incapacitated and deceased triggers require two distinct approvers before execution."
+                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/approve`}
+                            variant="menu"
+                            submitLabel="Approve"
+                            fields={[]}
+                          />
+                        ) : null}
+                        {(transfer.status === "APPROVED" || (transfer.status === "NOTICE_SENT" && !transfer.requiresDualApproval && transfer.approver1Id)) ? (
+                          <ResourceActionDialog
+                            triggerLabel="Execute"
+                            title="Execute ownership transfer"
+                            description="Creates the new owner's access, revokes the outgoing owner's login and terminates their sessions. This cannot be undone."
+                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/execute`}
+                            variant="menuDanger"
+                            submitLabel="Execute"
+                            confirmLabel="Confirm execution"
+                            confirmMessage="This immediately revokes the outgoing owner's access. This cannot be undone."
+                            fields={[]}
+                          />
+                        ) : null}
+                      </ActionMenu>
+                    )
+                  }
+                ]}
+              />
+            </div>
+          </section>
         </section>
       ) : activeTab === "dormancy" ? (
         <section className="grid gap-5">

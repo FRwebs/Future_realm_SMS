@@ -61,6 +61,11 @@ export class SuperAdminController {
     return this.superAdminService.rejectSchoolVerification(session, schoolId, body);
   }
 
+  @Post("schools/:schoolId/close-risk-flagged-account")
+  closeRiskFlaggedAccount(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string, @Body() body: unknown) {
+    return this.superAdminService.closeRiskFlaggedAccount(session, schoolId, body);
+  }
+
   @Post("schools")
   createSchool(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createSchool(session, body);

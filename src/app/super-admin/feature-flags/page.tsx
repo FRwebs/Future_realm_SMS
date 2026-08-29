@@ -1,3 +1,6 @@
+import type { ReactNode } from "react";
+
+import { type CaseRecord, type CaseTypeFilter, CaseReviewBoard } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
@@ -7,6 +10,7 @@ import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
   SuperAdminBrandingAssetRow,
+  SuperAdminFeatureFlagCaseHistory,
   SuperAdminFeatureFlagRow,
   SuperAdminFeatureOverrideRow,
   SuperAdminPlanLifecycleRow,
@@ -15,6 +19,23 @@ import type {
   SuperAdminTierFeatureRow
 } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
+
+function daysBetween(fromMs: number, toMs: number) {
+  return Math.round((toMs - fromMs) / (1000 * 60 * 60 * 24));
+}
+
+function formatAge(createdAt: string) {
+  const days = daysBetween(new Date(createdAt).getTime(), Date.now());
+  if (days <= 0) return "Today";
+  return days === 1 ? "1d" : `${days}d`;
+}
+
+function initialsFrom(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "—";
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
+}
 
 const rolloutOptions = [
   { label: "Off", value: "OFF" },
@@ -265,36 +286,240 @@ async function ExceptionsTab() {
         <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Per-school exceptions to the standard tier</h2>
         <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
           Where a school departs from its plan&apos;s default rules — a feature flag granted or restricted outside the
-          tier-feature matrix, or Elite custom branding applied to the live account.
+          tier-feature matrix, or custom branding applied to the live account. One queue, one case anatomy — the same
+          review pattern used for Schools and Users.
         </p>
       </section>
-      <OverridesSection />
-      <BrandingSection />
+      <ExceptionsCaseBoard />
     </div>
   );
 }
 
-async function OverridesSection() {
-  const [overrides, flags, schoolsEnvelope] = await Promise.all([
+function overrideDecisions(item: SuperAdminFeatureOverrideRow): ReactNode {
+  if (item.status === "PENDING") {
+    return (
+      <>
+        <ResourceActionDialog
+          triggerLabel="Approve"
+          title={`Approve override for ${item.schoolName}`}
+          description="Approve this feature override request."
+          endpoint={`/api/super-admin/feature-flags/overrides/${item.id}/approve`}
+          method="PATCH"
+          variant="secondary"
+          submitLabel="Approve"
+          confirmLabel="Confirm"
+          fields={[]}
+        />
+        <ResourceActionDialog
+          triggerLabel="Reject"
+          title={`Reject override for ${item.schoolName}`}
+          description="Reject this pending override request. A reason is required and recorded on the case history."
+          endpoint={`/api/super-admin/feature-flag-extras/overrides/${item.id}/reject`}
+          method="PATCH"
+          variant="danger"
+          submitLabel="Reject override"
+          confirmLabel="Confirm rejection"
+          fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
+        />
+      </>
+    );
+  }
+  if (item.status === "APPROVED") {
+    return (
+      <ResourceActionDialog
+        triggerLabel="Revoke"
+        title={`Revoke override for ${item.schoolName}`}
+        description="Immediately disables this override. A reason is required and recorded on the case history."
+        endpoint={`/api/super-admin/feature-flag-extras/overrides/${item.id}/revoke`}
+        method="PATCH"
+        variant="danger"
+        submitLabel="Revoke override"
+        confirmLabel="Confirm revoke"
+        confirmMessage="This disables the override for this school immediately."
+        fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
+      />
+    );
+  }
+  return <p className="text-[12px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
+}
+
+function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
+  if (item.status === "PENDING") {
+    return (
+      <ResourceActionDialog
+        triggerLabel="Approve"
+        title={`Approve branding for ${item.schoolName}`}
+        description="Mark these assets as reviewed and approved for quality."
+        endpoint={`/api/super-admin/feature-flags/branding/${item.id}/approve`}
+        method="PATCH"
+        variant="secondary"
+        submitLabel="Approve"
+        fields={[]}
+      />
+    );
+  }
+  if (item.status === "APPROVED") {
+    return (
+      <ResourceActionDialog
+        triggerLabel="Apply to live account"
+        title={`Apply branding for ${item.schoolName}`}
+        description="Applies the approved logo and colours to the school's live account."
+        endpoint={`/api/super-admin/feature-flags/branding/${item.id}/apply`}
+        method="PATCH"
+        variant="secondary"
+        submitLabel="Apply now"
+        confirmLabel="Confirm apply"
+        confirmMessage="This updates the school's live branding immediately."
+        fields={[]}
+      />
+    );
+  }
+  return <p className="text-[12px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
+}
+
+async function ExceptionsCaseBoard() {
+  const [overrides, branding, flags, schoolsEnvelope, plans, caseHistory] = await Promise.all([
     apiGet<SuperAdminFeatureOverrideRow[]>("/api/super-admin/feature-flags/overrides"),
+    apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding"),
     apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags"),
-    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
+    apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
+    apiGet<SuperAdminFeatureFlagCaseHistory>("/api/super-admin/feature-flag-extras/case-history")
   ]);
-  const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
+
+  const schools = schoolsEnvelope.data ?? [];
+  const schoolOptions = schools.map((school) => ({ label: school.name, value: school.id }));
   const flagOptions = (flags ?? []).map((flag) => ({ label: flag.name, value: flag.id }));
+  const schoolById = new Map(schools.map((school) => [school.id, school]));
+  const planCatalog = plans ?? [];
+  const now = Date.now();
+
+  const overrideRows = overrides ?? [];
+  const brandingRows = branding ?? [];
+
+  const overrideCases: CaseRecord[] = overrideRows.map((item) => {
+    const school = schoolById.get(item.schoolId);
+    const signals: CaseRecord["signals"] = [];
+    if (!item.expiryDate) {
+      signals.push({ text: "No expiry date set — overrides must not be granted without an expiry.", tone: "bad" });
+    } else if (new Date(item.expiryDate).getTime() < now && item.status === "APPROVED") {
+      signals.push({ text: `Expired on ${formatDate(item.expiryDate)} but is still marked Approved.`, tone: "bad" });
+    }
+
+    let sla: string;
+    let slaTone: NonNullable<CaseRecord["slaTone"]>;
+    if (!item.expiryDate) {
+      sla = "No expiry set";
+      slaTone = "bad";
+    } else {
+      const daysLeft = daysBetween(now, new Date(item.expiryDate).getTime());
+      sla = daysLeft < 0 ? `Expired ${Math.abs(daysLeft)}d ago` : `${daysLeft}d left`;
+      slaTone = daysLeft < 0 ? "bad" : daysLeft <= 7 ? "warn" : "good";
+    }
+
+    const history = (caseHistory?.overrides?.[item.id] ?? []).map((event) => ({ what: event.what, when: formatDate(event.when) }));
+
+    return {
+      id: item.id,
+      subject: item.flagName,
+      meta: `${school?.name ?? item.schoolName} · ${item.overrideStatus === "GRANTED" ? "Grants" : "Restricts"} access`,
+      type: "feature-override",
+      initials: initialsFrom(school?.name ?? item.schoolName),
+      assignee: item.status === "PENDING" ? "Awaiting Product Lead / Super Admin" : item.approvedBy ?? item.requestedBy,
+      age: formatAge(item.createdAt),
+      sla,
+      slaTone,
+      facts: [
+        { label: "School", value: school?.name ?? item.schoolName },
+        { label: "School tier", value: school?.plan ?? "Unknown" },
+        { label: "Capability", value: `${item.flagName} (${item.flagKey})` },
+        { label: "Type", value: item.overrideStatus === "GRANTED" ? "Grant access" : "Restrict access" },
+        { label: "Requested by", value: item.requestedBy },
+        { label: "Expiry", value: item.expiryDate ? formatDate(item.expiryDate) : "Not set" }
+      ],
+      signals,
+      evidence: item.reason ? [{ name: item.reason, who: item.requestedBy }] : [],
+      checks: [
+        { label: "Reason recorded", done: Boolean(item.reason), who: item.requestedBy },
+        { label: "Expiry date set", done: Boolean(item.expiryDate) },
+        { label: "Reviewed by Product Lead / Super Admin", done: item.status !== "PENDING", who: item.approvedBy ?? undefined }
+      ],
+      history,
+      decisions: overrideDecisions(item)
+    };
+  });
+
+  const brandingCases: CaseRecord[] = brandingRows.map((item) => {
+    const school = schoolById.get(item.schoolId);
+    const planRecord = school ? planCatalog.find((plan) => plan.plan === school.plan && plan.isActive) : undefined;
+    const signals: CaseRecord["signals"] = [];
+    if (planRecord && !planRecord.customBranding) {
+      signals.push({
+        text: `${school?.name ?? item.schoolName} is on the ${planRecord.name} plan, which does not include custom branding — data-integrity issue.`,
+        tone: "bad"
+      });
+    }
+    if (!item.logoUrl) {
+      signals.push({ text: "No logo URL provided — colour-only branding.", tone: "warn" });
+    }
+
+    const history = (caseHistory?.branding?.[item.id] ?? []).map((event) => ({ what: event.what, when: formatDate(event.when) }));
+
+    return {
+      id: item.id,
+      subject: school?.name ?? item.schoolName,
+      meta: `Custom branding · ${item.appliedTo.replaceAll("_", " ")}`,
+      type: "custom-branding",
+      initials: initialsFrom(school?.name ?? item.schoolName),
+      assignee: item.status === "PENDING" ? "Awaiting Super Admin review" : item.approvedBy ?? "Super Admin",
+      age: formatAge(item.createdAt),
+      slaTone: "neutral",
+      facts: [
+        { label: "School", value: school?.name ?? item.schoolName },
+        { label: "School tier", value: school?.plan ?? "Unknown" },
+        { label: "Applies to", value: item.appliedTo.replaceAll("_", " ") },
+        { label: "Colours", value: `${item.primaryColour} / ${item.secondaryColour}` },
+        { label: "Logo", value: item.logoUrl ? "Provided" : "Not provided" }
+      ],
+      signals,
+      evidence: item.logoUrl ? [{ name: item.logoUrl, who: school?.name ?? item.schoolName }] : [],
+      checks: [
+        { label: "Brand colours submitted", done: true },
+        { label: "Logo provided", done: Boolean(item.logoUrl) },
+        { label: "Reviewed by Super Admin", done: item.status !== "PENDING", who: item.approvedBy ?? undefined },
+        { label: "Applied to live account", done: item.status === "APPLIED", who: item.appliedAt ? formatDate(item.appliedAt) : undefined }
+      ],
+      history,
+      decisions: brandingDecisions(item)
+    };
+  });
+
+  // The "types" pill counts mirror the Exceptions tab badge's own open/active definition
+  // (see the badge computation above SuperAdminFeatureFlagsPage): an override is "open" while
+  // APPROVED and not expired, branding is "open" once APPLIED to the school's live account.
+  // The case list itself stays the full queue (pending, approved, rejected, applied, revoked)
+  // so nothing that could previously be reviewed from the flat tables disappears here.
+  const activeOverrideCount = overrideRows.filter(
+    (item) => item.status === "APPROVED" && (!item.expiryDate || new Date(item.expiryDate).getTime() > now)
+  ).length;
+  const activeBrandingCount = brandingRows.filter((item) => item.status === "APPLIED").length;
+
+  const types: CaseTypeFilter[] = [
+    { label: "All open", value: "all", count: activeOverrideCount + activeBrandingCount },
+    { label: "Feature override", value: "feature-override", count: activeOverrideCount },
+    { label: "Custom branding", value: "custom-branding", count: activeBrandingCount }
+  ];
 
   return (
-    <TableCard
-      title="Per-school feature overrides"
-      description="Sales can request an override (with a mandatory expiry); Product Lead / Super Admin approve before it takes effect."
-      items={overrides ?? []}
-      actions={
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center justify-end gap-2">
         <ResourceActionDialog
           triggerLabel="Request override"
           title="Request a per-school feature override"
           description="Grant or restrict a specific flag for one school. Requires an expiry date and approval."
           endpoint="/api/super-admin/feature-flags/overrides"
           submitLabel="Request override"
+          variant="secondary"
           fields={[
             { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
             { name: "flagId", label: "Feature flag", type: "select", required: true, options: flagOptions },
@@ -303,37 +528,28 @@ async function OverridesSection() {
             { name: "expiryDate", label: "Expiry date", type: "date", required: true }
           ]}
         />
-      }
-      emptyState="No feature overrides requested."
-      columns={[
-        { key: "school", header: "School", render: (item) => item.schoolName },
-        { key: "flag", header: "Flag", render: (item) => item.flagName },
-        { key: "type", header: "Type", render: (item) => item.overrideStatus },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-        { key: "expiry", header: "Expires", render: (item) => (item.expiryDate ? formatDate(item.expiryDate) : "-") },
-        { key: "requested", header: "Requested by", render: (item) => item.requestedBy },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) =>
-            item.status === "PENDING" ? (
-              <ResourceActionDialog
-                triggerLabel="Approve"
-                title={`Approve override for ${item.schoolName}`}
-                description="Approve this feature override request."
-                endpoint={`/api/super-admin/feature-flags/overrides/${item.id}/approve`}
-                method="PATCH"
-                variant="secondary"
-                submitLabel="Approve"
-                confirmLabel="Confirm"
-                fields={[]}
-              />
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">{item.approvedBy ? `by ${item.approvedBy}` : item.status}</span>
-            )
-        }
-      ]}
-    />
+        <ResourceActionDialog
+          triggerLabel="Submit branding"
+          title="Submit branding assets"
+          description="Record a school's logo URL and brand colours for review."
+          endpoint="/api/super-admin/feature-flags/branding"
+          submitLabel="Submit for review"
+          variant="secondary"
+          fields={[
+            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
+            { name: "logoUrl", label: "Logo URL (PNG, min 300px)" },
+            { name: "primaryColour", label: "Primary colour (hex)", required: true, placeholder: "#25593f" },
+            { name: "secondaryColour", label: "Secondary colour (hex)", required: true, placeholder: "#c28c3d" }
+          ]}
+        />
+      </div>
+      <CaseReviewBoard
+        types={types}
+        cases={[...overrideCases, ...brandingCases]}
+        emptyState="No feature overrides or branding exceptions on record."
+        footerNote={`${overrideRows.length} override(s) · ${brandingRows.length} branding asset(s), most recent first.`}
+      />
+    </div>
   );
 }
 
@@ -404,80 +620,3 @@ async function FlagsSection() {
   );
 }
 
-async function BrandingSection() {
-  const [assets, schoolsEnvelope] = await Promise.all([
-    apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding"),
-    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
-  ]);
-  const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
-
-  return (
-    <TableCard
-      title="Custom branding (Elite tier)"
-      description="Review a school's logo and brand colours, approve them, then apply to their live account (Super Admin confirms)."
-      items={assets ?? []}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="Submit branding"
-          title="Submit branding assets"
-          description="Record an Elite school's logo URL and brand colours for review."
-          endpoint="/api/super-admin/feature-flags/branding"
-          submitLabel="Submit for review"
-          fields={[
-            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-            { name: "logoUrl", label: "Logo URL (PNG, min 300px)" },
-            { name: "primaryColour", label: "Primary colour (hex)", required: true, placeholder: "#25593f" },
-            { name: "secondaryColour", label: "Secondary colour (hex)", required: true, placeholder: "#c28c3d" }
-          ]}
-        />
-      }
-      emptyState="No branding assets submitted."
-      columns={[
-        { key: "school", header: "School", render: (item) => item.schoolName },
-        { key: "colours", header: "Colours", render: (item) => (
-          <span className="inline-flex items-center gap-2">
-            <span className="inline-block h-4 w-4 rounded-full border border-[var(--color-border-default)]" style={{ backgroundColor: item.primaryColour }} />
-            <span className="inline-block h-4 w-4 rounded-full border border-[var(--color-border-default)]" style={{ backgroundColor: item.secondaryColour }} />
-            <span className="text-xs text-[var(--color-text-muted)]">{item.primaryColour} / {item.secondaryColour}</span>
-          </span>
-        ) },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-        { key: "created", header: "Submitted", render: (item) => formatDate(item.createdAt) },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) => (
-            <ActionMenu triggerLabel={`Actions for ${item.schoolName}`}>
-              {item.status === "PENDING" ? (
-                <ResourceActionDialog
-                  triggerLabel="Approve"
-                  title={`Approve branding for ${item.schoolName}`}
-                  description="Mark these assets as reviewed and approved for quality."
-                  endpoint={`/api/super-admin/feature-flags/branding/${item.id}/approve`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Approve"
-                  fields={[]}
-                />
-              ) : null}
-              {item.status === "APPROVED" ? (
-                <ResourceActionDialog
-                  triggerLabel="Apply to live account"
-                  title={`Apply branding for ${item.schoolName}`}
-                  description="Applies the approved logo and colours to the school's live account."
-                  endpoint={`/api/super-admin/feature-flags/branding/${item.id}/apply`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Apply now"
-                  confirmLabel="Confirm apply"
-                  confirmMessage="This updates the school's live branding immediately."
-                  fields={[]}
-                />
-              ) : null}
-            </ActionMenu>
-          )
-        }
-      ]}
-    />
-  );
-}
