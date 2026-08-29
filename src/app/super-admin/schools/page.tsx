@@ -4,6 +4,7 @@ import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Globe2, Layers, Mail
 
 import { CaseReviewBoard, type CaseRecord, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
@@ -758,24 +759,12 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant management</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Schools</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-              Create, update, suspend, activate, and soft-delete school tenants across the platform.
-            </p>
-          </div>
-          <AddSchoolWizard plans={activePlans} />
-        </div>
-      </section>
+      <ModuleHero
+        eyebrow="Tenant management"
+        title="Schools"
+        description="Create, update, suspend, activate, and soft-delete school tenants across the platform."
+        action={<AddSchoolWizard plans={activePlans} />}
+      />
 
       <DetailTabs tabs={tabs} />
 

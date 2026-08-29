@@ -282,7 +282,11 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
 
   return (
     <>
-      <button type="button" onClick={openWizard} className="btn-secondary px-5">
+      <button
+        type="button"
+        onClick={openWizard}
+        className="inline-flex items-center gap-2 whitespace-nowrap rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] transition hover:bg-[#eaf3ee]"
+      >
         <Plus className="h-4 w-4" />
         Add school
       </button>

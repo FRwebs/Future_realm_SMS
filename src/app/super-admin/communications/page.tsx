@@ -1,4 +1,5 @@
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -69,27 +70,17 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Platform messaging</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Notification & Communication Command Center</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
-              FutureRealm&apos;s own broadcast channel into every school, teacher, parent, and student — targeted campaigns with
-              an approval workflow, a message template library, delivery and consent tracking.
-            </p>
-          </div>
+      <ModuleHero
+        eyebrow="Platform messaging"
+        title="Notification & Communication Command Center"
+        description="FutureRealm's own broadcast channel into every school, teacher, parent, and student — targeted campaigns with an approval workflow, a message template library, delivery and consent tracking."
+        action={
           <ResourceActionDialog
             triggerLabel="New campaign"
             title="Compose a campaign"
             description="Write a message and define the audience. SMS is limited to 160 characters. The recipient count is computed from your filters when the draft is saved — review it in the Campaigns tab before approving. Set a schedule time to queue it as a triggered send instead of a manual one."
             endpoint="/api/super-admin/communications/campaigns"
+            variant="heroWhite"
             submitLabel="Save draft"
             confirmLabel="Confirm draft"
             fields={[
@@ -104,8 +95,8 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
               { name: "scheduledAt", label: "Schedule for (optional)", type: "date" }
             ]}
           />
-        </div>
-      </section>
+        }
+      />
 
       <DetailTabs tabs={tabs} />
 

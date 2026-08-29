@@ -2518,16 +2518,41 @@ export interface SuperAdminConsentRow {
 export interface SuperAdminBiOverview {
   heatmap: Array<{ module: string; schoolsUsing: number; adoptionPct: number; level: string }>;
   funnel: Array<{ stage: string; count: number }>;
+  weekOverWeek: Array<{ stage: string; thisWeek: number; lastWeek: number; changePct: number }>;
   cohorts: Array<{ cohort: string; joined: number; stillActive: number; retentionPct: number }>;
   featureRequests: Array<{ keyword: string; requestCount: number; schoolsRequesting: number; priorityScore: number }>;
   schoolsActiveThisWeek: number;
+}
+
+export interface SuperAdminDisplacementAnalysis {
+  displacementRatePct: number;
+  paperOrSpreadsheetPct: number;
+  migrationCompletionRatePct: number;
+  trialledAndReturned: number;
+  unreadableSourceCount: number;
+  totalSchools: number;
+  bySourceSystem: Array<{ sourceSystem: string; won: number; lost: number; inProgress: number; migrationRatePct: number | null; adapterAvailable: boolean }>;
+  lossAnalysis: Array<{ schoolName: string; sourceSystem: string; reason: string }>;
+}
+
+export interface SuperAdminProductAdoption {
+  schoolsActiveThisWeek: number;
+  adoptionIndex: number;
+  modulesTracked: number;
+  modulesBelowFloor: number;
+  topModule: { module: string; schoolsUsing: number; adoptionPct: number } | null;
+  tierColumns: Array<{ plan: string; schoolCount: number }>;
+  heatmapByTier: Array<{ module: string; cells: Array<number | null> }>;
+  heatmapByState: Array<{ state: string; schoolCount: number; cells: number[] }>;
+  stateHeatmapModules: string[];
+  gaps: Array<{ module: string; adoptionPct: number; schoolsUsing: number; schoolsNotUsing: number }>;
 }
 
 export interface SuperAdminChurnAnalysis {
   total: number;
   byReason: Array<{ reason: string; count: number; pct: number }>;
   byTier: Array<{ plan: string; churned: number; ratePct: number }>;
-  recent: Array<{ id: string; schoolName: string; reason: string; notes?: string | null; churnedAt: string }>;
+  byTenure: Array<{ bucket: string; count: number; pct: number }>;
 }
 
 export interface SuperAdminNpsAnalytics {
@@ -2536,7 +2561,9 @@ export interface SuperAdminNpsAnalytics {
   promoters: number;
   passives: number;
   detractors: number;
+  responseRatePct: number;
   byTier: Array<{ plan: string; responses: number; npsScore: number }>;
+  byTierAndRegion: Array<{ label: string; kind: "tier" | "region"; responses: number; npsScore: number }>;
   lowScoreFlags: Array<{ id: string; schoolName: string; score: number; comment?: string | null; createdAt: string }>;
   comments: Array<{ schoolName: string; score: number; comment?: string | null }>;
 }
