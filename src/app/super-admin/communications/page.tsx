@@ -186,10 +186,28 @@ function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
 }
 
 async function TemplatesTab() {
-  const templates = await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates");
+  const templates = (await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? [];
+  const approved = templates.filter((t) => t.approvalStatus === "APPROVED").length;
+  const awaitingMeta = templates.filter((t) => t.approvalStatus === "PENDING_META_APPROVAL").length;
+  const rejected = templates.filter((t) => t.approvalStatus === "REJECTED").length;
 
   return (
-    <TableCard
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-4">
+        {[
+          { label: "Templates in the library", value: templates.length },
+          { label: "Approved and in use", value: approved },
+          { label: "Awaiting Meta approval", value: awaitingMeta },
+          { label: "Rejected — needs revision", value: rejected }
+        ].map((item) => (
+          <article key={item.label} className="surface-card p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{item.label}</p>
+            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{item.value}</p>
+          </article>
+        ))}
+      </section>
+
+      <TableCard
       title="Message templates"
       description="Reusable message bodies for Email, SMS, and WhatsApp. WhatsApp templates additionally require Meta approval before use. Only Super Admin can add or retire templates."
       items={templates ?? []}
@@ -233,8 +251,57 @@ async function TemplatesTab() {
         }
       ]}
     />
+
+    <ReferenceList
+      title="What editing a template can and cannot do"
+      sub="What this platform actually lets you change today — not a description of an ideal system."
+      items={[
+        { label: "You can create a new template", detail: "Any Super Admin or Platform Owner can add one from New template above.", tone: "good" },
+        { label: "You can change its approval status", detail: "Reflects Meta's real decision for WhatsApp templates — this doesn't send anything itself.", tone: "good" },
+        { label: "You cannot edit the body, name, or channel of an existing template", detail: "There's no update endpoint for those fields — the only way to change the wording is to create a new template.", tone: "bad" },
+        { label: "You cannot delete or retire a template", detail: "No delete endpoint exists yet — an old template just stops being referenced.", tone: "bad" }
+      ]}
+    />
+    </div>
   );
 }
+
+function ReferenceList({ title, sub, items }: { title: string; sub?: string; items: Array<{ label: string; detail: string; tone: "good" | "warn" | "bad" | "mute" }> }) {
+  const tone: Record<string, { bg: string; fg: string }> = {
+    good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
+    warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
+    bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" },
+    mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
+  };
+  return (
+    <section className="surface-card p-6">
+      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
+      {sub ? <p className="mt-1.5 max-w-2xl text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
+      <div className="mt-4 grid gap-2">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-start justify-between gap-3 rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+            <div>
+              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+              <p className="mt-1 text-[11.5px] leading-snug text-[var(--color-text-secondary)]">{item.detail}</p>
+            </div>
+            <span className="shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold" style={{ background: tone[item.tone].bg, color: tone[item.tone].fg }}>
+              {item.tone === "good" ? "Allowed" : item.tone === "bad" ? "Not built" : item.tone === "warn" ? "Partial" : "Not tracked"}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
+const triggerRows: Array<{ event: string; recipient: string; channel: string; firesFrom: string }> = [
+  { event: "Invoice issued", recipient: "Guardian", channel: "Per guardian's notification preference", firesFrom: "Finance — staff creates an invoice" },
+  { event: "Invoice reminder sent", recipient: "Guardian", channel: "Per guardian's notification preference", firesFrom: "Finance — staff clicks \"Send reminder\"" },
+  { event: "Payment recorded / receipt ready", recipient: "Guardian", channel: "Per guardian's notification preference", firesFrom: "Finance — staff records a payment" },
+  { event: "Student marked absent", recipient: "Parent", channel: "SMS", firesFrom: "Attendance — teacher marks the register" },
+  { event: "Admissions lifecycle (submitted, screening, decision, offer, enrollment — 7 steps)", recipient: "Guardian", channel: "Email, falling back to SMS", firesFrom: "Admissions — staff advances the application" },
+  { event: "Welcome email at signup", recipient: "New account owner", channel: "Email", firesFrom: "Onboarding — self-service signup, once" }
+];
 
 function TriggersTab({ scheduled, totalCampaigns }: { scheduled: SuperAdminCampaignRow[]; totalCampaigns: number }) {
   const manualCount = totalCampaigns - scheduled.length;
@@ -253,6 +320,19 @@ function TriggersTab({ scheduled, totalCampaigns }: { scheduled: SuperAdminCampa
           </article>
         ))}
       </section>
+
+      <TableCard
+        title="Automated trigger points"
+        description="Every place this codebase sends a notification as a side effect of something else — not from a Communications campaign. None of these run on a schedule or a cron job: each one fires synchronously, inline, the moment a staff member performs the triggering action. The underlying send is fully mocked for every channel here — nothing actually leaves the system through this path."
+        items={triggerRows}
+        getRowKey={(row) => row.event}
+        columns={[
+          { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
+          { key: "recipient", header: "Recipient", render: (row) => row.recipient },
+          { key: "channel", header: "Channel", render: (row) => row.channel },
+          { key: "firesFrom", header: "Fires from", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.firesFrom}</span> }
+        ]}
+      />
 
       <TableCard
         title="Scheduled sends"
@@ -398,24 +478,43 @@ async function ConsentTab() {
         ]}
       />
 
-      <section className="surface-card p-6">
-        <div className="flex items-start gap-4">
-          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[var(--color-accent-primary-dim)]">
-            <span className="text-[18px]">🚀</span>
-          </div>
-          <div>
-            <p className="section-eyebrow">Commercial messaging — consent-gated</p>
-            <h3 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Roadmap: paid promotional sends</h3>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-              The Command Center is operational infrastructure today — reminders, alerts, and platform announcements. As
-              the platform scales, this channel is planned to open to monetised commercial messaging: sponsored
-              placements, partner offers, and paid promotional sends. Any such messaging is gated by this same consent
-              registry — promotional sends already exclude opted-out recipients above, and that rule will not change.
-              Not yet available as a paid product in this build.
-            </p>
-          </div>
-        </div>
-      </section>
+      <TableCard
+        title="Third-party commercial messaging — the only form in which this ships"
+        description="Third-party commercial campaigns to parents are not built in this version. Every row below is either enforced today or genuinely not implemented — nothing here is aspirational marketing copy."
+        items={[
+          { requirement: "School opts in as controller", spec: "A school explicitly enabling third-party communications to its own parent community, with a named category list.", state: "Not built" },
+          { requirement: "Instruction is documented", spec: "A recorded processing instruction with version, acceptor and timestamp.", state: "Not built" },
+          { requirement: "Revenue is shared with the school", spec: "A defined share paid back to the school for access to its parent community.", state: "Not built" },
+          { requirement: "Parents keep an independent opt-out", spec: "A parent's own opt-out always overrides anything a school enables.", state: "Enforced" },
+          { requirement: "Withdrawal is one action", spec: "A school can withdraw consent for its community at any time, taking effect immediately.", state: "Not built" },
+          { requirement: "Category restrictions", spec: "No categories touching children's health, finance, religion or political content; no offers directed at students.", state: "Not applicable yet" },
+          { requirement: "Separate reporting", spec: "Commercial revenue tracked and disclosed to the school separately from platform billing.", state: "Not built" }
+        ]}
+        getRowKey={(row) => row.requirement}
+        columns={[
+          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
+          {
+            key: "state",
+            header: "State",
+            render: (row) => {
+              const tone = row.state === "Enforced" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)" } : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" };
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={row.state} />;
+            }
+          }
+        ]}
+      />
+
+      <ReferenceList
+        title="What sending is actually permitted today, and to whom"
+        sub="Set by who a campaign's audience is, not decided at send time."
+        items={[
+          { label: "Operational — to school staff", detail: "Maintenance, billing, security notices. Bypasses promotional opt-out, because it concerns the service the school is paying for.", tone: "good" },
+          { label: "Promotional — FutureRealm's own offers, to school staff only", detail: "Tier upgrade offers, training, feature launches. Excludes anyone opted out.", tone: "warn" },
+          { label: "Third-party commercial — to parents", detail: "Not permitted in this build, in any form.", tone: "bad" },
+          { label: "No role can override an opt-out", detail: "The function doesn't exist in this codebase, so it can't be granted to anyone.", tone: "bad" }
+        ]}
+      />
     </div>
   );
 }

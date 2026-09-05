@@ -463,7 +463,14 @@ export interface MigrationSourceAdapterRow {
   name: string;
   status: string;
   notes?: string | null;
+  jobsRun: number;
+  completionRatePct: number | null;
   createdAt: string;
+}
+
+export interface SuperAdminSetupProgress {
+  steps: Array<{ key: string; label: string; reached: number; completed: number; completionRatePct: number }>;
+  stalled: Array<{ schoolName: string; daysSinceSignup: number; incompleteCount: number }>;
 }
 
 export interface SuperAdminSchoolDetail {
@@ -659,9 +666,24 @@ export interface SuperAdminAnalyticsOverview {
       currentTermInvoiced: number;
       overdueBalances: number;
       overdueAging: Array<{ band: string; amount: number; count: number }>;
+      overdueSchoolCount: number;
+      newlyOverdueLast30Days: number;
       monthOverMonthGrowth: number;
       newMrrThisMonth: number;
+      newMrrDeltaPct: number | null;
+      newMrrBars: number[];
       notificationCreditRevenue: number;
+      notificationCreditDeltaPct: number | null;
+      notificationCreditBars: number[];
+      reconciledToBank: number;
+      reconciledCount: number;
+      reconciledDeltaPct: number | null;
+      reconciledBars: number[];
+      unreconciledTotal: number;
+      unreconciledCount: number;
+      unreconciledOverSevenDays: number;
+      oldestUnreconciledDays: number | null;
+      unreconciledBars: number[];
     };
     subscriptionHealth: {
       trialsExpiringNext7Days: number;
@@ -723,6 +745,18 @@ export interface SuperAdminRevenueView {
   monthlyRevenue: Array<{ month: string; amount: number }>;
 }
 
+export interface SuperAdminReconciliationTransaction {
+  id: string;
+  schoolName: string;
+  invoiceNo: string | null;
+  amount: number;
+  recordedBy: string;
+  recordedById: string | null;
+  reference: string;
+  processedAt: string;
+  ageDays: number;
+}
+
 export interface SuperAdminInvoiceRow {
   id: string;
   invoiceNo: string;
@@ -755,6 +789,15 @@ export interface SuperAdminNotificationWallet {
   lowBalanceThreshold: number;
   isLow: boolean;
   lastToppedUpAt: string | null;
+}
+
+export interface SuperAdminWalletTopUpEntry {
+  id: string;
+  schoolName: string;
+  actorName: string;
+  smsCredits: number;
+  whatsappCredits: number;
+  createdAt: string;
 }
 
 export interface SuperAdminPromoCodeRow {

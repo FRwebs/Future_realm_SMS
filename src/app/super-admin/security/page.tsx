@@ -356,6 +356,27 @@ async function ComplianceTab({ sessions, attempts, incidents }: { sessions: Plat
       </section>
 
       <TableCard
+        title="Regulatory obligations register"
+        description="What a real data-protection compliance program tracks — cadence, owner, and current state. None of this is modelled in the software yet; there's no obligations-tracker table, so nothing here is a claim about the school's actual legal status, only about what this system does and doesn't track."
+        items={[
+          { obligation: "Registration as controller/processor with the regulator", cadence: "At launch, then per cycle", owner: "Data Protection Officer" },
+          { obligation: "Annual compliance audit filing", cadence: "Annual", owner: "DPO with Finance" },
+          { obligation: "DPO appointed and registered", cadence: "At launch; on change", owner: "Super Admin" },
+          { obligation: "Data protection impact assessment", cadence: "Before launch; on new processing", owner: "DPO with CTO" },
+          { obligation: "Record of processing activities", cadence: "Continuous", owner: "Data Protection Officer" },
+          { obligation: "Breach notification", cadence: "Within the applicable window", owner: "CTO and DPO" },
+          { obligation: "Data processing agreement with every school", cadence: "At onboarding; on version change", owner: "Legal with Onboarding" }
+        ]}
+        getRowKey={(row) => row.obligation}
+        columns={[
+          { key: "obligation", header: "Obligation", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.obligation}</span> },
+          { key: "cadence", header: "Cadence", render: (row) => row.cadence },
+          { key: "owner", header: "Owner", render: (row) => row.owner },
+          { key: "state", header: "State", render: () => <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label="Not tracked in this system" /> }
+        ]}
+      />
+
+      <TableCard
         title="Completed deletions — NDPC evidence"
         description="Every completed deletion records who deleted it, when, and a confirmation hash for audit."
         items={report.completed}

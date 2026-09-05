@@ -64,6 +64,36 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
   );
 }
 
+const flowToneStyle: Record<string, { bg: string; fg: string }> = {
+  mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" },
+  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
+  ink: { bg: "var(--color-bg-elevated)", fg: "var(--color-text-primary)" },
+  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" }
+};
+
+function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: string }> }) {
+  return (
+    <section className="surface-card p-6">
+      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
+      {sub ? <p className="mt-1.5 max-w-2xl text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
+      <div className="mt-5 flex flex-wrap items-stretch gap-2.5">
+        {steps.map((step, index) => {
+          const tone = flowToneStyle[step.tone ?? "mute"];
+          return (
+            <div key={step.label} className="flex items-center gap-2.5">
+              <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
+                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
+              </div>
+              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 function tabHref(tab: string) {
   return tab === "board" ? "/super-admin/support" : `/super-admin/support?tab=${tab}`;
 }
@@ -197,8 +227,79 @@ async function TicketBoardTab() {
       </div>
     </div>
 
-      <TicketAnalyticsSection />
+      <SlaSection tickets={tickets} />
     </div>
+  );
+}
+
+const priorityLabel: Record<string, string> = { CRITICAL: "Critical", HIGH: "High", MEDIUM: "Standard", LOW: "Low" };
+const slaTargetHours: Record<string, number> = { CRITICAL: 1, HIGH: 4, MEDIUM: 8, LOW: 24 };
+const priorityDefinition: Record<string, string> = {
+  CRITICAL: "Result or data visibility issue, login failure, data loss",
+  HIGH: "Core workflow broken — results, fees, attendance — with no workaround",
+  MEDIUM: "Feature not behaving as expected; a workaround exists",
+  LOW: "How-to question, minor inconvenience, feature request"
+};
+
+function SlaSection({ tickets }: { tickets: SuperAdminTicketRow[] }) {
+  const openTickets = tickets.filter((ticket) => !["RESOLVED", "CLOSED"].includes(ticket.status));
+  const priorityRows = (["CRITICAL", "HIGH", "MEDIUM", "LOW"] as const).map((priority) => ({
+    priority,
+    openNow: openTickets.filter((ticket) => ticket.priority === priority).length
+  }));
+  const categoryCounts = new Map<string, number>();
+  for (const ticket of openTickets) {
+    categoryCounts.set(ticket.category, (categoryCounts.get(ticket.category) ?? 0) + 1);
+  }
+  const categoryRows = Array.from(categoryCounts.entries())
+    .map(([category, count]) => ({ category, count }))
+    .sort((a, b) => b.count - a.count);
+
+  return (
+    <section className="grid gap-5">
+      <div>
+        <p className="section-eyebrow">Service levels</p>
+        <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Priority and service levels</h2>
+        <p className="mt-1 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          Targets below are the real resolution windows this platform sets on ticket creation — not a description, the actual{" "}
+          <code className="font-[var(--font-mono)] text-[12px]">slaDueAt</code> calculation. There is no automated intra-window warning at
+          the halfway or three-quarter mark like a more mature setup might have — the only automated signal is a monitoring alert once a
+          ticket is already past due, visible on the Command Center and Infrastructure feeds.
+        </p>
+      </div>
+
+      <TableCard
+        title="Priority and service levels"
+        items={priorityRows}
+        getRowKey={(row) => row.priority}
+        columns={[
+          {
+            key: "priority",
+            header: "Priority",
+            render: (row) => {
+              const tone = priorityTone[row.priority] ?? priorityTone.LOW;
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={priorityLabel[row.priority]} />;
+            }
+          },
+          { key: "target", header: "Target", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{slaTargetHours[row.priority]} hour(s)</span> },
+          { key: "definition", header: "Definition", render: (row) => <span className="text-[var(--color-text-secondary)]">{priorityDefinition[row.priority]}</span> },
+          { key: "openNow", header: "Open now", render: (row) => row.openNow }
+        ]}
+        emptyState="—"
+      />
+
+      <TableCard
+        title="Issue categories"
+        description="Every open ticket, grouped by the category set at creation."
+        items={categoryRows}
+        getRowKey={(row) => row.category}
+        columns={[
+          { key: "category", header: "Category", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.category.replaceAll("_", " ")}</span> },
+          { key: "count", header: "Open volume", render: (row) => row.count }
+        ]}
+        emptyState="No open tickets right now."
+      />
+    </section>
   );
 }
 
@@ -327,6 +428,8 @@ async function TicketQueueTab({ params, schoolOptions }: { params: Record<string
           }
         ]}
       />
+
+      <TicketAnalyticsSection />
     </>
   );
 }
@@ -334,15 +437,16 @@ async function TicketQueueTab({ params, schoolOptions }: { params: Record<string
 async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrectionRow[] }) {
   return (
     <section className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Accountability workflow</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Data correction requests</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Every correction request carries the requesting agent, the exact before and after values, and the approving
-          Super Admin. No correction is ever made without explicit approval — this cannot be bypassed. Requests are
-          raised from a ticket via the &quot;Request data correction&quot; action.
-        </p>
-      </section>
+      <FlowSteps
+        title="Data correction request workflow"
+        sub="No correction is ever made without explicit approval and a logged audit entry — this cannot be bypassed in the code."
+        steps={[
+          { label: "Raised from a ticket", note: "Any support agent can request one via the ticket's \"Request data correction\" action.", tone: "mute" },
+          { label: "Platform Owner or Super Admin approves", note: "Mandatory — the approve/reject endpoints reject any other role.", tone: "ink" },
+          { label: "Correction recorded", note: "An audit log entry is written with the field, old value and new value.", tone: "good" },
+          { label: "School notified", note: "Not automated — there's no notification sent to the school on completion today.", tone: "warn" }
+        ]}
+      />
 
       <TableCard
         title="All requests"

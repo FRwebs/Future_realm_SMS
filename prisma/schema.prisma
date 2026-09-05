@@ -1221,6 +1221,8 @@ model User {
   cannedResponsesUpdated           CannedResponse[]
   dataCorrectionsRequested         DataCorrectionRecord[]        @relation("DataCorrectionRequestedBy")
   dataCorrectionsApproved          DataCorrectionRecord[]        @relation("DataCorrectionApprovedBy")
+  platformTransactionsRecorded     PlatformBillingTransaction[]  @relation("PlatformTransactionRecordedBy")
+  platformTransactionsReconciled   PlatformBillingTransaction[]  @relation("PlatformTransactionReconciledBy")
   privacyRequestsCompleted         DataPrivacyRequest[]          @relation("PrivacyRequestCompletedBy")
   securityIncidentsReported        SecurityIncident[]            @relation("SecurityIncidentReporter")
   securityIncidentsResolved        SecurityIncident[]            @relation("SecurityIncidentResolver")
@@ -3793,20 +3795,26 @@ model PlatformSubscriptionPlan {
 }
 
 model PlatformBillingTransaction {
-  id          String           @id @default(cuid())
-  schoolId    String
-  invoiceId   String?
-  amount      Decimal          @db.Decimal(12, 2)
-  currency    String           @default("NGN")
-  method      String
-  status      String
-  reference   String           @unique
-  processedAt DateTime         @default(now())
-  metadata    Json?
-  school      School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  invoice     PlatformInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  id             String           @id @default(cuid())
+  schoolId       String
+  invoiceId      String?
+  amount         Decimal          @db.Decimal(12, 2)
+  currency       String           @default("NGN")
+  method         String
+  status         String
+  reference      String           @unique
+  processedAt    DateTime         @default(now())
+  recordedById   String?
+  reconciledAt   DateTime?
+  reconciledById String?
+  metadata       Json?
+  school         School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  invoice        PlatformInvoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  recordedBy     User?            @relation("PlatformTransactionRecordedBy", fields: [recordedById], references: [id], onDelete: SetNull)
+  reconciledBy   User?            @relation("PlatformTransactionReconciledBy", fields: [reconciledById], references: [id], onDelete: SetNull)
 
   @@index([schoolId, status, processedAt])
+  @@index([reconciledAt])
 }
 
 model PlatformInvoice {

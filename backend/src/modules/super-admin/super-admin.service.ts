@@ -22,6 +22,7 @@ const pageSchema = z.object({
   schoolId: z.string().trim().optional(),
   status: z.string().trim().optional(),
   plan: z.string().trim().optional(),
+  state: z.string().trim().optional(),
   role: z.string().trim().optional(),
   action: z.string().trim().optional(),
   dateFrom: z.coerce.date().optional(),
@@ -658,7 +659,8 @@ export class SuperAdminService {
       deletedAt: null,
       ...(parsed.search ? { name: { contains: parsed.search, mode: "insensitive" } } : {}),
       ...(parsed.status ? { status: parsed.status.toUpperCase() as TenantStatus } : {}),
-      ...(parsed.plan ? { plan: parsed.plan.toUpperCase() as SubscriptionPlan } : {})
+      ...(parsed.plan ? { plan: parsed.plan.toUpperCase() as SubscriptionPlan } : {}),
+      ...(parsed.state ? { state: { equals: parsed.state, mode: "insensitive" } } : {})
     };
     const [schools, total, priceMap] = await Promise.all([
       prisma.school.findMany({
@@ -1752,7 +1754,8 @@ export class SuperAdminService {
         method: parsed.method,
         status: "SUCCESS",
         reference: parsed.reference,
-        processedAt: parsed.paidOn
+        processedAt: parsed.paidOn,
+        recordedById: session.userId
       }
     });
 
@@ -1790,6 +1793,44 @@ export class SuperAdminService {
     const updated = await prisma.platformInvoice.update({ where: { id: invoiceId }, data: { status: "CANCELLED", metadata: { ...(invoice.metadata as object ?? {}), cancelReason: parsed.reason } } });
     await this.audit(session, "UPDATE", "PlatformInvoice", invoice.id, { status: "CANCELLED", reason: parsed.reason }, invoice.schoolId);
     return this.response({ id: updated.id, status: updated.status }, "Invoice cancelled");
+  }
+
+  async listReconciliationQueue(session: SessionPayload) {
+    assertAnyPlatformRole(session, billingRoles, "Reconciliation is restricted to platform finance roles.");
+    const transactions = await prisma.platformBillingTransaction.findMany({
+      where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, reconciledAt: null },
+      include: { school: { select: { name: true } }, invoice: { select: { invoiceNo: true } }, recordedBy: { select: { firstName: true, lastName: true } } },
+      orderBy: { processedAt: "asc" }
+    });
+    return this.response(
+      transactions.map((t) => ({
+        id: t.id,
+        schoolName: t.school.name,
+        invoiceNo: t.invoice?.invoiceNo ?? null,
+        amount: Number(t.amount),
+        recordedBy: t.recordedBy ? `${t.recordedBy.firstName} ${t.recordedBy.lastName}` : "Unknown",
+        recordedById: t.recordedById,
+        reference: t.reference,
+        processedAt: t.processedAt.toISOString(),
+        ageDays: Math.floor((Date.now() - t.processedAt.getTime()) / (24 * 60 * 60 * 1000))
+      }))
+    );
+  }
+
+  async reconcileTransaction(session: SessionPayload, transactionId: string) {
+    assertAnyPlatformRole(session, billingRoles, "Reconciliation is restricted to platform finance roles.");
+    const transaction = await prisma.platformBillingTransaction.findUnique({ where: { id: transactionId } });
+    if (!transaction) throw new NotFoundException("Transaction not found.");
+    if (transaction.reconciledAt) throw new BadRequestException("This payment has already been reconciled.");
+    if (transaction.recordedById && transaction.recordedById === session.userId) {
+      throw new BadRequestException("Reconciliation must be performed by someone other than whoever recorded the payment.");
+    }
+    const updated = await prisma.platformBillingTransaction.update({
+      where: { id: transactionId },
+      data: { reconciledAt: new Date(), reconciledById: session.userId }
+    });
+    await this.audit(session, "UPDATE", "PlatformBillingTransaction", transaction.id, { reconciled: true, reference: transaction.reference }, transaction.schoolId);
+    return this.response({ id: updated.id, reconciledAt: updated.reconciledAt }, "Payment reconciled to bank");
   }
 
   async recalculateChurnRisk(session: SessionPayload) {
@@ -1901,6 +1942,34 @@ export class SuperAdminService {
     return this.response({ schoolId, smsBalance: wallet.smsBalance, whatsappBalance: wallet.whatsappBalance }, "Notification credits topped up");
   }
 
+  // Billing > Wallets — "Automatic top-up history". Every manual top-up is already
+  // audit-logged in topUpNotificationWallet above; this reads that trail rather than
+  // keeping a second, parallel ledger. There is no automatic/gateway-charged top-up in
+  // this system yet — every entry here was added by hand, which the source column says
+  // plainly rather than implying a payment gateway retry that doesn't exist.
+  async notificationWalletTopUpHistory(session: SessionPayload) {
+    assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Wallet top-up history is restricted to commercial and finance platform roles.");
+    const entries = await prisma.auditLog.findMany({
+      where: { entityType: "NotificationWallet", action: "UPDATE" },
+      include: { school: { select: { name: true } }, actor: { select: { firstName: true, lastName: true } } },
+      orderBy: { createdAt: "desc" },
+      take: 100
+    });
+    return this.response(
+      entries.map((entry) => {
+        const metadata = (entry.metadata ?? {}) as { smsCredits?: number; whatsappCredits?: number };
+        return {
+          id: entry.id,
+          schoolName: entry.school?.name ?? "Unknown school",
+          actorName: entry.actor ? `${entry.actor.firstName} ${entry.actor.lastName}` : "System",
+          smsCredits: metadata.smsCredits ?? 0,
+          whatsappCredits: metadata.whatsappCredits ?? 0,
+          createdAt: entry.createdAt.toISOString()
+        };
+      })
+    );
+  }
+
   async listPromoCodes(session: SessionPayload) {
     assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Promo code views are restricted to commercial and finance platform roles.");
     const codes = await prisma.promoCode.findMany({ orderBy: { createdAt: "desc" }, include: { redemptions: true } });
@@ -1986,6 +2055,7 @@ export class SuperAdminService {
     const previousMonthStart = new Date(monthStart);
     previousMonthStart.setMonth(previousMonthStart.getMonth() - 1);
     const previousMonthEnd = new Date(monthStart.getTime() - 1);
+    const eightWeeksAgo = new Date(Date.now() - 8 * 7 * 24 * 60 * 60 * 1000);
 
     const [
       schools,
@@ -2002,6 +2072,15 @@ export class SuperAdminService {
       currentTermInvoices,
       overdueInvoices,
       notificationCreditThisMonth,
+      notificationCreditLastMonth,
+      notificationCreditRecent,
+      reconciledThisMonth,
+      reconciledLastMonth,
+      reconciledRecent,
+      unreconciledAll,
+      newSchoolsThisMonth,
+      newSchoolsLastMonth,
+      newSchoolsRecent,
       trialsExpiring,
       churnRiskSchools,
       gracePeriodSchools,
@@ -2037,8 +2116,17 @@ export class SuperAdminService {
       prisma.platformBillingTransaction.aggregate({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: monthStart } }, _sum: { amount: true } }),
       prisma.platformBillingTransaction.aggregate({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: previousMonthStart, lte: previousMonthEnd } }, _sum: { amount: true } }),
       prisma.platformInvoice.aggregate({ where: { issuedAt: { gte: monthStart } }, _sum: { amount: true } }),
-      prisma.platformInvoice.findMany({ where: { status: { in: ["PENDING", "OVERDUE"] }, dueAt: { lt: new Date() } }, select: { amount: true, dueAt: true } }),
+      prisma.platformInvoice.findMany({ where: { status: { in: ["PENDING", "OVERDUE"] }, dueAt: { lt: new Date() } }, select: { schoolId: true, amount: true, dueAt: true } }),
       prisma.platformBillingTransaction.aggregate({ where: { status: "SUCCESS", metadata: { path: ["type"], equals: "notification_credit" }, processedAt: { gte: monthStart } }, _sum: { amount: true } }),
+      prisma.platformBillingTransaction.aggregate({ where: { status: "SUCCESS", metadata: { path: ["type"], equals: "notification_credit" }, processedAt: { gte: previousMonthStart, lte: previousMonthEnd } }, _sum: { amount: true } }),
+      prisma.platformBillingTransaction.findMany({ where: { status: "SUCCESS", metadata: { path: ["type"], equals: "notification_credit" }, processedAt: { gte: eightWeeksAgo } }, select: { amount: true, processedAt: true } }),
+      prisma.platformBillingTransaction.aggregate({ where: { reconciledAt: { gte: monthStart } }, _sum: { amount: true }, _count: true }),
+      prisma.platformBillingTransaction.aggregate({ where: { reconciledAt: { gte: previousMonthStart, lte: previousMonthEnd } }, _sum: { amount: true } }),
+      prisma.platformBillingTransaction.findMany({ where: { reconciledAt: { gte: eightWeeksAgo } }, select: { amount: true, reconciledAt: true } }),
+      prisma.platformBillingTransaction.findMany({ where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, reconciledAt: null }, select: { amount: true, processedAt: true } }),
+      prisma.school.findMany({ where: { deletedAt: null, createdAt: { gte: monthStart } }, select: { plan: true } }),
+      prisma.school.findMany({ where: { deletedAt: null, createdAt: { gte: previousMonthStart, lte: previousMonthEnd } }, select: { plan: true } }),
+      prisma.school.findMany({ where: { deletedAt: null, createdAt: { gte: eightWeeksAgo } }, select: { plan: true, createdAt: true } }),
       prisma.school.count({ where: { deletedAt: null, status: "TRIAL", trialEndsAt: { gte: new Date(), lte: nextSevenDays } } }),
       prisma.school.count({ where: { deletedAt: null, healthScore: { lt: 50 } } }),
       prisma.school.count({ where: { deletedAt: null, billingStatus: { in: ["OVERDUE", "SUSPENDED"] } } }),
@@ -2066,14 +2154,60 @@ export class SuperAdminService {
       getPlanPriceMap()
     ]);
     const overdueTotal = overdueInvoices.reduce((sum, invoice) => sum + Number(invoice.amount), 0);
-    const overdueAgingBuckets = { "0-30 days": { amount: 0, count: 0 }, "31-60 days": { amount: 0, count: 0 }, "60+ days": { amount: 0, count: 0 } };
+    const overdueAgingBuckets = {
+      "0-30 days": { amount: 0, schoolIds: new Set<string>() },
+      "31-60 days": { amount: 0, schoolIds: new Set<string>() },
+      "60+ days": { amount: 0, schoolIds: new Set<string>() }
+    };
+    let newlyOverdueLast30Days = 0;
+    const thirtyDaysAgoMs = Date.now() - 30 * 24 * 60 * 60 * 1000;
     for (const invoice of overdueInvoices) {
       const daysOverdue = Math.floor((Date.now() - invoice.dueAt.getTime()) / (24 * 60 * 60 * 1000));
       const bucket = daysOverdue <= 30 ? "0-30 days" : daysOverdue <= 60 ? "31-60 days" : "60+ days";
       overdueAgingBuckets[bucket].amount += Number(invoice.amount);
-      overdueAgingBuckets[bucket].count += 1;
+      overdueAgingBuckets[bucket].schoolIds.add(invoice.schoolId);
+      if (invoice.dueAt.getTime() >= thirtyDaysAgoMs) newlyOverdueLast30Days += Number(invoice.amount);
     }
-    const overdueAging = Object.entries(overdueAgingBuckets).map(([band, value]) => ({ band, amount: value.amount, count: value.count }));
+    const overdueAging = Object.entries(overdueAgingBuckets).map(([band, value]) => ({ band, amount: value.amount, count: value.schoolIds.size }));
+    const overdueSchoolCount = new Set(overdueInvoices.map((invoice) => invoice.schoolId)).size;
+
+    // 8 weekly buckets ending now, oldest first — used for the Command Center's revenue trend sparklines.
+    const weeklyBuckets = (items: Array<{ amount: number; date: Date }>, weeks = 8) => {
+      const bucketMs = 7 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      const totals = Array.from({ length: weeks }, () => 0);
+      for (const item of items) {
+        const age = now - item.date.getTime();
+        const index = weeks - 1 - Math.floor(age / bucketMs);
+        if (index >= 0 && index < weeks) totals[index] += item.amount;
+      }
+      return totals;
+    };
+
+    const reconciledBars = weeklyBuckets(reconciledRecent.map((t) => ({ amount: Number(t.amount), date: t.reconciledAt as Date })));
+    const unreconciledBars = weeklyBuckets(unreconciledAll.map((t) => ({ amount: Number(t.amount), date: t.processedAt })));
+    const notificationCreditBars = weeklyBuckets(notificationCreditRecent.map((t) => ({ amount: Number(t.amount), date: t.processedAt })));
+    const newMrrBars = weeklyBuckets(newSchoolsRecent.map((s) => ({ amount: priceMap.get(s.plan) ?? 0, date: s.createdAt })));
+
+    const reconciledThisMonthAmount = Number(reconciledThisMonth._sum.amount ?? 0);
+    const reconciledLastMonthAmount = Number(reconciledLastMonth._sum.amount ?? 0);
+    const reconciledDeltaPct = reconciledLastMonthAmount > 0 ? Math.round(((reconciledThisMonthAmount - reconciledLastMonthAmount) / reconciledLastMonthAmount) * 1000) / 10 : null;
+
+    const unreconciledTotal = unreconciledAll.reduce((sum, t) => sum + Number(t.amount), 0);
+    const unreconciledOverSevenDays = unreconciledAll.filter((t) => Date.now() - t.processedAt.getTime() > 7 * 24 * 60 * 60 * 1000).length;
+    const oldestUnreconciledDays = unreconciledAll.length
+      ? Math.floor((Date.now() - Math.min(...unreconciledAll.map((t) => t.processedAt.getTime()))) / (24 * 60 * 60 * 1000))
+      : null;
+
+    const newMrrThisMonthAmount = newSchoolsThisMonth.reduce((sum, s) => sum + (priceMap.get(s.plan) ?? 0), 0);
+    const newMrrLastMonthAmount = newSchoolsLastMonth.reduce((sum, s) => sum + (priceMap.get(s.plan) ?? 0), 0);
+    const newMrrDeltaPct = newMrrLastMonthAmount > 0 ? Math.round(((newMrrThisMonthAmount - newMrrLastMonthAmount) / newMrrLastMonthAmount) * 1000) / 10 : null;
+
+    const notificationCreditThisMonthAmount = Number(notificationCreditThisMonth._sum.amount ?? 0);
+    const notificationCreditLastMonthAmount = Number(notificationCreditLastMonth._sum.amount ?? 0);
+    const notificationCreditDeltaPct = notificationCreditLastMonthAmount > 0
+      ? Math.round(((notificationCreditThisMonthAmount - notificationCreditLastMonthAmount) / notificationCreditLastMonthAmount) * 1000) / 10
+      : null;
     const statusCounts = Object.fromEntries(schools.map((item) => [item.status, item._count]));
     const roleCounts = Object.fromEntries(users.map((item) => [item.role, item._count]));
     const currentMonthRevenue = Number(currentMonthPayments._sum.amount ?? 0);
@@ -2157,9 +2291,24 @@ export class SuperAdminService {
           currentTermInvoiced: Number(currentTermInvoices._sum.amount ?? 0),
           overdueBalances: overdueTotal,
           overdueAging,
+          overdueSchoolCount,
+          newlyOverdueLast30Days,
           monthOverMonthGrowth,
-          newMrrThisMonth: monthSignups * (priceMap.get("BASIC") ?? 0),
-          notificationCreditRevenue: Number(notificationCreditThisMonth._sum.amount ?? 0)
+          newMrrThisMonth: newMrrThisMonthAmount,
+          newMrrDeltaPct,
+          newMrrBars,
+          notificationCreditRevenue: notificationCreditThisMonthAmount,
+          notificationCreditDeltaPct,
+          notificationCreditBars,
+          reconciledToBank: reconciledThisMonthAmount,
+          reconciledCount: reconciledThisMonth._count,
+          reconciledDeltaPct,
+          reconciledBars,
+          unreconciledTotal,
+          unreconciledCount: unreconciledAll.length,
+          unreconciledOverSevenDays,
+          oldestUnreconciledDays,
+          unreconciledBars
         },
         subscriptionHealth: {
           trialsExpiringNext7Days: trialsExpiring,
@@ -2225,14 +2374,35 @@ export class SuperAdminService {
 
   async revenue(session: SessionPayload) {
     assertSuperAdmin(session);
-    const schoolsByPlan = await prisma.school.groupBy({ by: ["plan"], where: { deletedAt: null }, _count: true });
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 11);
+    twelveMonthsAgo.setDate(1);
+    twelveMonthsAgo.setHours(0, 0, 0, 0);
+
+    const [schoolsByPlan, transactions] = await Promise.all([
+      prisma.school.groupBy({ by: ["plan"], where: { deletedAt: null }, _count: true }),
+      prisma.platformBillingTransaction.findMany({
+        where: { status: { in: ["SUCCESS", "PAID", "COMPLETED"] }, processedAt: { gte: twelveMonthsAgo } },
+        select: { amount: true, processedAt: true }
+      })
+    ]);
+
+    const monthBuckets = Array.from({ length: 12 }, (_, index) => {
+      const date = new Date(twelveMonthsAgo);
+      date.setMonth(date.getMonth() + index);
+      return { key: `${date.getFullYear()}-${date.getMonth()}`, month: date.toLocaleString("en", { month: "short" }), amount: 0 };
+    });
+    const bucketByKey = new Map(monthBuckets.map((bucket) => [bucket.key, bucket]));
+    for (const transaction of transactions) {
+      const key = `${transaction.processedAt.getFullYear()}-${transaction.processedAt.getMonth()}`;
+      const bucket = bucketByKey.get(key);
+      if (bucket) bucket.amount += Number(transaction.amount);
+    }
+
     return this.response({
       ...(await this.revenueSummary()),
       schoolsByPlan: schoolsByPlan.map((item) => ({ plan: item.plan, count: item._count })),
-      monthlyRevenue: Array.from({ length: 12 }, (_, index) => ({
-        month: new Date(2026, index, 1).toLocaleString("en", { month: "short" }),
-        amount: (index + 1) * 125000
-      }))
+      monthlyRevenue: monthBuckets.map((bucket) => ({ month: bucket.month, amount: bucket.amount }))
     });
   }
 
@@ -3988,13 +4158,19 @@ export class SuperAdminService {
       return { channel: ch, total: logs.length, failureRate, status: failureRate > threshold ? "CRITICAL" : failureRate > threshold / 2 ? "WARNING" : "HEALTHY" };
     });
 
-    // Integration status derived from recent delivery + last backup.
+    // Integration status: real for the two payment gateways (env-key gated) and
+    // transactional email (SMTP, console-log fallback when unconfigured); SMS and
+    // WhatsApp are not wired to a real provider yet — every send there goes through
+    // the same mock notifier, so their status reflects that honestly rather than
+    // claiming a live channel.
     const lastSuccessfulBackup = backups.find((b) => ["SUCCESS", "COMPLETED", "COMPLETED_SUCCESSFULLY"].includes(b.status.toUpperCase()));
     const integrations = [
-      { name: "Email Service (Brevo)", checkFrequency: "Every 5 minutes", status: deliveryHealth.find((d) => d.channel === "EMAIL")!.status, onFailure: "Alert CTO" },
-      { name: "SMS Gateway (Termii)", checkFrequency: "Every 5 minutes", status: deliveryHealth.find((d) => d.channel === "SMS")!.status, onFailure: "Alert CTO + switch to email fallback" },
-      { name: "WhatsApp Business API", checkFrequency: "Every 5 minutes", status: deliveryHealth.find((d) => d.channel === "WHATSAPP")!.status, onFailure: "Alert CTO + pause all WhatsApp sends" },
-      { name: "Paystack (Phase 2)", checkFrequency: "Every 5 minutes", status: "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" }
+      { name: "Transactional email (SMTP)", checkFrequency: "Every 5 minutes", status: process.env.SMTP_HOST ? deliveryHealth.find((d) => d.channel === "EMAIL")!.status : "NOT_CONNECTED", onFailure: process.env.SMTP_HOST ? "Alert CTO" : "Falls back to a console log entry — nothing is actually sent" },
+      { name: "SMS", checkFrequency: "Not applicable", status: "MOCKED", onFailure: "No real provider wired in yet — every send is simulated" },
+      { name: "WhatsApp Business API", checkFrequency: "Not applicable", status: "MOCKED", onFailure: "No real provider wired in yet — every send is simulated" },
+      { name: "Paystack", checkFrequency: "Every 5 minutes", status: process.env.PAYSTACK_SECRET_KEY ? "HEALTHY" : "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" },
+      { name: "Flutterwave", checkFrequency: "Every 5 minutes", status: process.env.FLUTTERWAVE_SECRET_KEY ? "HEALTHY" : "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" },
+      { name: "Object storage (S3-compatible)", checkFrequency: "Not applicable", status: process.env.S3_BUCKET ? "PARTIAL" : "NOT_CONNECTED", onFailure: "Falls back to a local mock path — no upload actually occurs" }
     ];
 
     return this.response({

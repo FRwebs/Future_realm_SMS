@@ -264,6 +264,16 @@ export class SuperAdminController {
     return this.superAdminService.cancelInvoice(session, invoiceId, body);
   }
 
+  @Get("billing/transactions/reconciliation-queue")
+  listReconciliationQueue(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listReconciliationQueue(session);
+  }
+
+  @Patch("billing/transactions/:transactionId/reconcile")
+  reconcileTransaction(@CurrentSession() session: SessionPayload, @Param("transactionId") transactionId: string) {
+    return this.superAdminService.reconcileTransaction(session, transactionId);
+  }
+
   @Post("billing/churn/recalculate")
   recalculateChurnRisk(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.recalculateChurnRisk(session);
@@ -282,6 +292,11 @@ export class SuperAdminController {
   @Post("billing/:schoolId/wallet/top-up")
   topUpNotificationWallet(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string, @Body() body: unknown) {
     return this.superAdminService.topUpNotificationWallet(session, schoolId, body);
+  }
+
+  @Get("billing/wallets/top-up-history")
+  notificationWalletTopUpHistory(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.notificationWalletTopUpHistory(session);
   }
 
   @Get("billing/promo-codes")

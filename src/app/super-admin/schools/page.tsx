@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Globe2, Layers, Mail, MapPin, Moon, Phone, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Globe2, Layers, Mail, MapPin, Moon, Phone, Repeat2, ShieldCheck, Users } from "lucide-react";
 
 import { CaseReviewBoard, type CaseRecord, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
@@ -630,6 +630,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   if (params.search) query.set("search", params.search);
   if (params.status) query.set("status", params.status);
   if (params.plan) query.set("plan", params.plan);
+  if (params.state) query.set("state", params.state);
   if (params.page) query.set("page", params.page);
   const envelope = await apiGetEnvelope<SuperAdminSchoolRow[]>(`/api/super-admin/schools?${query.toString()}`);
   const schools = envelope.data ?? [];
@@ -714,6 +715,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const openDisputeCount = addressDisputes.filter((dispute) => dispute.status !== "DECIDED").length;
   const liveAddressCount = registryRecords.filter((record) => record.state === "LIVE").length;
   const reservedBlockedCount = registryRecords.filter((record) => record.state === "RESERVED" || record.state === "BLOCKED").length;
+  const activeRedirectCount = registryRecords.filter((record) => record.redirectExpiresAt && new Date(record.redirectExpiresAt) > new Date()).length;
 
   // M2.11 — ownership transfers. Same defensive fetch as the registry above.
   let ownershipTransfers: OwnershipTransferRow[] = [];
@@ -770,6 +772,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
       {activeTab === "directory" ? (
         <>
+          {params.state ? (
+            <div className="flex items-center gap-2 rounded-[10px] bg-[var(--color-accent-primary-dim)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--color-text-accent)]">
+              Filtered to schools in {params.state}
+              <a href="/super-admin/schools" className="ml-auto text-[11.5px] font-bold underline">
+                Clear
+              </a>
+            </div>
+          ) : null}
           <FilterToolbar
             action="/super-admin/schools"
             resultCount={total}
@@ -804,6 +814,48 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             <StatCard label="Onboarded in last 48h" value={newlyOnboardedCount} detail="Newest arrivals in the provisioning cohort." icon={Clock3} tone="warning" />
             <StatCard label="Contact gaps" value={provisioningContactGaps} detail="Owner email or phone still missing." icon={Users} tone="danger" />
           </section>
+
+          <TableCard
+            title="Provisioning steps"
+            description="On this platform, signup is a single atomic write — every step below succeeds together or the whole signup fails together. There is no partial state a school can be left in."
+            items={[
+              { step: "Email availability checked", handling: "Hard — signup is rejected immediately with a clear message if the email is already registered." },
+              { step: "Web address reserved", handling: "Hard — reservation is part of the same write as school creation, never a separate step that can drift out of sync." },
+              { step: "School record created, every module enabled by default", handling: "Hard — part of the same transaction." },
+              { step: "Owner account created", handling: "Hard — part of the same transaction." },
+              { step: "Onboarding checklist items created", handling: "Hard — part of the same transaction." },
+              { step: "Automated risk assessment scored", handling: "Runs synchronously in-request, in-database only — never calls an external service, so it never delays or blocks provisioning." },
+              { step: "30-day trial activated", handling: "Always granted at creation — there is no separate activation step to fail." },
+              { step: "Audit log entry written", handling: "Hard — a school account that isn't being audited from creation is not handed to a user." }
+            ]}
+            pageSize={false}
+            getRowKey={(item) => item.step}
+            columns={[
+              { key: "step", header: "Step", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.step}</span> },
+              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.handling}</span> }
+            ]}
+          />
+
+          <TableCard
+            title="Recent signups"
+            description="Every one of these provisioned in the same request that created it — there is no separate elapsed-time metric to show because there is no separate provisioning step to time."
+            items={webAddressSchools.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8)}
+            emptyState="No schools signed up yet."
+            pageSize={false}
+            getRowKey={(school) => school.id}
+            columns={[
+              { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
+              { key: "signedUp", header: "Signed up", render: (school) => timeAgo(school.createdAt) },
+              {
+                key: "status",
+                header: "State",
+                render: (school) => {
+                  const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
+                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                }
+              }
+            ]}
+          />
 
           <section className="surface-card p-6">
             <p className="section-eyebrow">Provisioning</p>
@@ -885,7 +937,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
         </section>
       ) : activeTab === "web-addresses" ? (
         <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-4">
+          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
             <StatCard label="Schools with a web address" value={webAddressTotal} detail="Every non-deleted tenant on the platform." icon={Globe2} tone="info" />
             <StatCard
               label="Missing subdomain"
@@ -896,6 +948,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             />
             <StatCard label="Live in registry" value={liveAddressCount} detail="Addresses backed by a registry record." icon={ShieldCheck} tone="success" />
             <StatCard label="Reserved / blocked" value={reservedBlockedCount} detail="Held out of the available pool." icon={Gavel} tone="warning" />
+            <StatCard label="Active redirects" value={activeRedirectCount} detail="90 days from the change date." icon={Repeat2} tone="info" />
           </section>
 
           <TableCard
@@ -998,7 +1051,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               />
             </div>
 
-            <div className="mt-5">
+            <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_1fr]">
               <TableCard
                 title="Disputes"
                 items={addressDisputes}
@@ -1084,6 +1137,33 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   }
                 ]}
               />
+
+              <section className="surface-card overflow-hidden">
+                <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                  <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Accepted evidence — any two</p>
+                  <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Supplied by the claimant with the published form.</p>
+                </div>
+                <div className="grid gap-3 p-5">
+                  {[
+                    "Letterhead or official communication bearing the name",
+                    "Business or charity registration document",
+                    "Ministry or education authority approval",
+                    "Email from a verified domain matching the school website"
+                  ].map((item) => (
+                    <div key={item} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-text-accent)" }} />
+                      <p className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item}</p>
+                    </div>
+                  ))}
+                  <div className="flex items-start gap-2.5 border-t border-[var(--color-border-default)] pt-3">
+                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
+                    <div>
+                      <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">The default is possession</p>
+                      <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">Reassigned only where the holder cannot evidence any legitimate claim.</p>
+                    </div>
+                  </div>
+                </div>
+              </section>
             </div>
           </section>
         </section>

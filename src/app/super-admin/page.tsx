@@ -226,9 +226,24 @@ export default async function SuperAdminDashboardPage() {
       currentTermInvoiced: overview.revenue.mrr,
       overdueBalances: 0,
       overdueAging: [],
+      overdueSchoolCount: 0,
+      newlyOverdueLast30Days: 0,
       monthOverMonthGrowth: 0,
       newMrrThisMonth: 0,
-      notificationCreditRevenue: 0
+      newMrrDeltaPct: null,
+      newMrrBars: [],
+      notificationCreditRevenue: 0,
+      notificationCreditDeltaPct: null,
+      notificationCreditBars: [],
+      reconciledToBank: 0,
+      reconciledCount: 0,
+      reconciledDeltaPct: null,
+      reconciledBars: [],
+      unreconciledTotal: 0,
+      unreconciledCount: 0,
+      unreconciledOverSevenDays: 0,
+      oldestUnreconciledDays: null,
+      unreconciledBars: []
     },
     subscriptionHealth: {
       trialsExpiringNext7Days: 0,
@@ -275,13 +290,46 @@ export default async function SuperAdminDashboardPage() {
     : 0;
   const collectionGap = Math.max(0, commandCenter.revenueSnapshot.currentTermInvoiced - commandCenter.revenueSnapshot.currentTermCollected);
   const overdueAgingMax = Math.max(...commandCenter.revenueSnapshot.overdueAging.map((band) => band.amount), 1);
-  const overdueInvoiceCount = commandCenter.revenueSnapshot.overdueAging.reduce((sum, band) => sum + band.count, 0);
+  const overdueBandTone: Record<string, "warn" | "bad"> = { "0-30 days": "warn", "31-60 days": "warn", "60+ days": "bad" };
 
-  const revenueTrendTiles = [
-    { label: "New MRR added this month", value: formatCurrency(commandCenter.revenueSnapshot.newMrrThisMonth), secondary: `${overview.signups.last30Days} new signup(s), 30d` },
-    { label: "Notification credit revenue", value: formatCurrency(commandCenter.revenueSnapshot.notificationCreditRevenue), secondary: `${formatPercent(revenueReport.creditRevenueSharePct)} of platform revenue` },
-    { label: "Term invoiced (total)", value: formatCurrency(commandCenter.revenueSnapshot.currentTermInvoiced), secondary: `${formatCurrency(commandCenter.revenueSnapshot.currentTermCollected)} collected so far` },
-    { label: "Month-over-month growth", value: `${commandCenter.revenueSnapshot.monthOverMonthGrowth >= 0 ? "+" : ""}${formatPercent(commandCenter.revenueSnapshot.monthOverMonthGrowth)}`, secondary: "Collected revenue vs prior month" }
+  type RevenueTile = { label: string; value: string; secondary: string; delta: string; since: string; positive: boolean; bars: number[] };
+  const revenueTiles: RevenueTile[] = [
+    {
+      label: "Reconciled to bank",
+      value: formatCurrency(commandCenter.revenueSnapshot.reconciledToBank),
+      secondary: "this month",
+      delta: commandCenter.revenueSnapshot.reconciledDeltaPct === null ? "—" : `${commandCenter.revenueSnapshot.reconciledDeltaPct >= 0 ? "+" : ""}${commandCenter.revenueSnapshot.reconciledDeltaPct}%`,
+      since: "vs last month",
+      positive: (commandCenter.revenueSnapshot.reconciledDeltaPct ?? 0) >= 0,
+      bars: commandCenter.revenueSnapshot.reconciledBars
+    },
+    {
+      label: "Recorded, not yet matched",
+      value: formatCurrency(commandCenter.revenueSnapshot.unreconciledTotal),
+      secondary: `${commandCenter.revenueSnapshot.unreconciledCount} payment${commandCenter.revenueSnapshot.unreconciledCount === 1 ? "" : "s"}`,
+      delta: `${commandCenter.revenueSnapshot.unreconciledOverSevenDays} over 7 days`,
+      since: commandCenter.revenueSnapshot.oldestUnreconciledDays === null ? "none pending" : `oldest is ${commandCenter.revenueSnapshot.oldestUnreconciledDays}d`,
+      positive: commandCenter.revenueSnapshot.unreconciledOverSevenDays === 0,
+      bars: commandCenter.revenueSnapshot.unreconciledBars
+    },
+    {
+      label: "New recurring revenue",
+      value: formatCurrency(commandCenter.revenueSnapshot.newMrrThisMonth),
+      secondary: `${overview.signups.last30Days} school(s) signed up`,
+      delta: commandCenter.revenueSnapshot.newMrrDeltaPct === null ? "—" : `${commandCenter.revenueSnapshot.newMrrDeltaPct >= 0 ? "+" : ""}${commandCenter.revenueSnapshot.newMrrDeltaPct}%`,
+      since: "vs last month",
+      positive: (commandCenter.revenueSnapshot.newMrrDeltaPct ?? 0) >= 0,
+      bars: commandCenter.revenueSnapshot.newMrrBars
+    },
+    {
+      label: "Notification credit revenue",
+      value: formatCurrency(commandCenter.revenueSnapshot.notificationCreditRevenue),
+      secondary: `${formatPercent(revenueReport.creditRevenueSharePct)} of platform revenue`,
+      delta: commandCenter.revenueSnapshot.notificationCreditDeltaPct === null ? "—" : `${commandCenter.revenueSnapshot.notificationCreditDeltaPct >= 0 ? "+" : ""}${commandCenter.revenueSnapshot.notificationCreditDeltaPct}%`,
+      since: "vs last month",
+      positive: (commandCenter.revenueSnapshot.notificationCreditDeltaPct ?? 0) >= 0,
+      bars: commandCenter.revenueSnapshot.notificationCreditBars
+    }
   ];
 
   const tierTotal = revenue.schoolsByPlan.reduce((sum, item) => sum + item.count, 0) || 1;
@@ -365,7 +413,7 @@ export default async function SuperAdminDashboardPage() {
     { section: "Revenue", label: "Revenue collected this month", value: formatCurrency(commandCenter.revenueSnapshot.currentTermCollected) },
     { section: "Revenue", label: "Term invoiced", value: formatCurrency(commandCenter.revenueSnapshot.currentTermInvoiced) },
     { section: "Revenue", label: "Overdue balances", value: formatCurrency(commandCenter.revenueSnapshot.overdueBalances) },
-    ...revenueTrendTiles.map((tile) => ({ section: "Revenue", label: tile.label, value: tile.value })),
+    ...revenueTiles.map((tile) => ({ section: "Revenue", label: tile.label, value: tile.value })),
     { section: "Support", label: "Open tickets", value: String(commandCenter.supportQueue.totalOpenTickets) },
     { section: "Support", label: "SLA breaches", value: String(commandCenter.supportQueue.ticketsBreachingSla) },
     ...systemHealthRows.map((row) => ({ section: "System health", label: row.label, value: String(row.value) }))
@@ -438,7 +486,7 @@ export default async function SuperAdminDashboardPage() {
           </div>
           <div className="mt-5">
             <div className="h-[9px] overflow-hidden rounded-full bg-white/10">
-              <div className="h-full rounded-full bg-[#5FD6B4]" style={{ width: `${collectedPct}%` }} />
+              <div className="h-full rounded-full" style={{ width: `${collectedPct}%`, background: "linear-gradient(90deg,#2FA98F,#5FD6B4)" }} />
             </div>
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-baseline gap-1.5">
@@ -461,9 +509,15 @@ export default async function SuperAdminDashboardPage() {
               <p className="text-[11px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#a4726f" }}>Overdue balances</p>
               <div className="mt-2.5 flex items-baseline gap-2">
                 <p className="font-[var(--font-heading)] text-[28px] font-extrabold text-[var(--color-text-primary)]">{formatCurrency(commandCenter.revenueSnapshot.overdueBalances)}</p>
-                <p className="text-[12px] text-[var(--color-text-muted)]">{overdueInvoiceCount} invoice{overdueInvoiceCount === 1 ? "" : "s"}</p>
+                <p className="text-[12px] text-[#9fb8a7]">{commandCenter.revenueSnapshot.overdueSchoolCount} school{commandCenter.revenueSnapshot.overdueSchoolCount === 1 ? "" : "s"}</p>
               </div>
             </div>
+            {commandCenter.revenueSnapshot.newlyOverdueLast30Days > 0 ? (
+              <div className="flex shrink-0 flex-col items-end gap-0.5">
+                <span className="font-[var(--font-heading)] text-[12.5px] font-bold" style={{ color: "#B23B3B" }}>+{formatCurrency(commandCenter.revenueSnapshot.newlyOverdueLast30Days)}</span>
+                <span className="text-right text-[10.5px] text-[#a9b6ae]">new overdue (30d)</span>
+              </div>
+            ) : null}
           </div>
           <div className="mt-4 flex flex-col gap-2.5">
             {commandCenter.revenueSnapshot.overdueAging.map((band) => (
@@ -472,11 +526,14 @@ export default async function SuperAdminDashboardPage() {
                   <span className="text-[var(--color-text-muted)]">{band.band}</span>
                   <span className="flex items-baseline gap-1.5">
                     <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{formatCurrency(band.amount)}</span>
-                    <span className="text-[10.5px] text-[var(--color-text-muted)]">{band.count}</span>
+                    <span className="text-[10.5px] text-[var(--color-text-muted)]">{band.count} school{band.count === 1 ? "" : "s"}</span>
                   </span>
                 </div>
                 <div className="h-[5px] overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                  <div className="h-full rounded-full" style={{ width: `${(band.amount / overdueAgingMax) * 100}%`, background: "var(--color-danger)" }} />
+                  <div
+                    className="h-full rounded-full"
+                    style={{ width: `${(band.amount / overdueAgingMax) * 100}%`, background: overdueBandTone[band.band] === "bad" ? "#B23B3B" : "#D9A22B" }}
+                  />
                 </div>
               </div>
             ))}
@@ -490,13 +547,25 @@ export default async function SuperAdminDashboardPage() {
       </section>
 
       <section className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-4">
-        {revenueTrendTiles.map((tile) => (
-          <article key={tile.label} className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-5 py-[18px]">
-            <p className="min-h-[31px] text-[11.5px] leading-[1.35] text-[var(--color-text-muted)]">{tile.label}</p>
-            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{tile.value}</p>
-            <p className="mt-1.5 truncate text-[11px] text-[var(--color-text-muted)]">{tile.secondary}</p>
-          </article>
-        ))}
+        {revenueTiles.map((tile) => {
+          const color = tile.positive ? "#12796A" : "#B23B3B";
+          return (
+            <article key={tile.label} className="rounded-[14px] border px-[18px] pb-[14px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
+              <p className="min-h-[31px] text-[11.5px] leading-[1.35] text-[#77857C]">{tile.label}</p>
+              <div className="mt-[9px] flex items-baseline gap-[7px]">
+                <p className="font-[var(--font-heading)] text-[24px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
+                <p className="min-w-0 truncate text-[11.5px] text-[#9FB8A7]">{tile.secondary}</p>
+              </div>
+              <div className="mt-3 flex min-w-0 items-end justify-between gap-2.5">
+                <div className="flex shrink-0 flex-col gap-0.5">
+                  <span className="font-[var(--font-heading)] text-[12px] font-bold" style={{ color }}>{tile.delta}</span>
+                  <span className="whitespace-nowrap text-[10.5px] text-[#a9b6ae]">{tile.since}</span>
+                </div>
+                <Sparkline values={tile.bars} stroke={color} fill={tile.positive ? "rgba(18,121,106,0.10)" : "rgba(178,59,59,0.09)"} dot={color} />
+              </div>
+            </article>
+          );
+        })}
       </section>
 
       <section className="grid gap-3.5 xl:grid-cols-[1.35fr_1fr]">
