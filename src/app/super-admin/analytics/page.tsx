@@ -485,7 +485,7 @@ async function RevenueTab() {
       <section className="grid gap-5 lg:grid-cols-2">
         <TableCard
           title="Revenue by state"
-          description="Where the platform's schools and revenue are concentrated, and where growth is coming from."
+          description="Where the platform's schools and revenue are concentrated, and where growth is coming from. A state figure that cannot be traced to named schools is not a figure anyone should act on — open any row to see them."
           items={report.revenueByState}
           columns={[
             { key: "state", header: "State", render: (item) => item.state },
@@ -504,6 +504,15 @@ async function RevenueTab() {
                 ) : (
                   <span className="text-[var(--color-text-muted)]">Steady</span>
                 )
+            },
+            {
+              key: "open",
+              header: "",
+              render: (item) => (
+                <a href={`/super-admin/schools?state=${encodeURIComponent(item.state)}`} className="font-semibold text-[var(--color-text-accent)] underline">
+                  View schools
+                </a>
+              )
             }
           ]}
           emptyState="No school location data yet."

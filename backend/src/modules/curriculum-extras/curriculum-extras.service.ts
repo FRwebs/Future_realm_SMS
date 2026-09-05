@@ -50,9 +50,16 @@ export interface AssessmentFrameworkStats {
   schoolsWithFrameworks: number;
 }
 
+export interface WeightPatternRow {
+  pattern: string;
+  componentNames: string;
+  schoolCount: number;
+}
+
 export interface CurriculumExtrasOverview {
   countrySettings: CountrySettingsRow[];
   assessmentFrameworkStats: AssessmentFrameworkStats;
+  weightPatterns: WeightPatternRow[];
 }
 
 @Injectable()
@@ -68,14 +75,40 @@ export class CurriculumExtrasService {
   async getOverview(session: SessionPayload): Promise<CurriculumExtrasOverview> {
     assertPlatformRole(session);
 
-    const [schools, curricula, componentsCount, sectionComponentsCount, schoolsWithComponents, schoolsWithSectionComponents] = await Promise.all([
+    const [schools, curricula, componentsCount, sectionComponentsCount, schoolsWithComponents, schoolsWithSectionComponents, activeComponents] = await Promise.all([
       prisma.school.findMany({ where: { deletedAt: null }, select: { country: true, timezone: true, currency: true } }),
       prisma.curriculumTemplate.findMany({ select: { country: true, calendarType: true } }),
       prisma.assessmentComponent.count(),
       prisma.sectionAssessmentComponent.count(),
       prisma.assessmentComponent.findMany({ distinct: ["schoolId"], select: { schoolId: true } }),
-      prisma.sectionAssessmentComponent.findMany({ distinct: ["schoolId"], select: { schoolId: true } })
+      prisma.sectionAssessmentComponent.findMany({ distinct: ["schoolId"], select: { schoolId: true } }),
+      prisma.assessmentComponent.findMany({
+        where: { isActive: true },
+        orderBy: { order: "asc" },
+        select: { schoolId: true, name: true, weight: true }
+      })
     ]);
+
+    const bySchool = new Map<string, Array<{ name: string; weight: number }>>();
+    for (const component of activeComponents) {
+      const list = bySchool.get(component.schoolId) ?? [];
+      list.push({ name: component.name, weight: component.weight });
+      bySchool.set(component.schoolId, list);
+    }
+    const patternGroups = new Map<string, { componentNames: string; schoolCount: number }>();
+    for (const components of bySchool.values()) {
+      const pattern = components.map((c) => c.weight).join(" / ");
+      if (!pattern) continue;
+      const existing = patternGroups.get(pattern);
+      if (existing) {
+        existing.schoolCount += 1;
+      } else {
+        patternGroups.set(pattern, { componentNames: components.map((c) => c.name).join(", "), schoolCount: 1 });
+      }
+    }
+    const weightPatterns: WeightPatternRow[] = Array.from(patternGroups.entries())
+      .map(([pattern, v]) => ({ pattern, componentNames: v.componentNames, schoolCount: v.schoolCount }))
+      .sort((a, b) => b.schoolCount - a.schoolCount);
 
     const countries = new Set<string>([...schools.map((s) => s.country), ...curricula.map((c) => c.country)]);
 
@@ -111,7 +144,8 @@ export class CurriculumExtrasService {
         totalComponents: componentsCount,
         totalSectionComponents: sectionComponentsCount,
         schoolsWithFrameworks: schoolIdsWithFrameworks.size
-      }
+      },
+      weightPatterns
     };
   }
 }

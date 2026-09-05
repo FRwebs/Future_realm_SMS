@@ -14,8 +14,10 @@ import type {
   SuperAdminChurnRiskRow,
   SuperAdminInvoiceRow,
   SuperAdminNotificationWallet,
+  SuperAdminWalletTopUpEntry,
   SuperAdminPlanRow,
   SuperAdminPromoCodeRow,
+  SuperAdminReconciliationTransaction,
   SuperAdminRevenueReport,
   SuperAdminRevenueView
 } from "@/lib/domain/types";
@@ -124,6 +126,29 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
 function InvoiceStatusPill({ status }: { status: string }) {
   const tone = invoiceStatusTone[status] ?? invoiceStatusTone.DRAFT;
   return <StatusPill bg={tone.bg} fg={tone.fg} label={tone.label} />;
+}
+
+function ReferenceListSimple({ title, sub, items }: { title: string; sub?: string; items: Array<{ label: string; detail: string; tone: "good" | "warn" | "bad" }> }) {
+  const toneColor = { good: "var(--color-success)", warn: "var(--color-warning)", bad: "var(--color-danger)" } as const;
+  return (
+    <section className="surface-card overflow-hidden">
+      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
+        {sub ? <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
+      </div>
+      <div className="grid gap-3 p-5">
+        {items.map((item) => (
+          <div key={item.label} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+            <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: toneColor[item.tone] }} />
+            <div>
+              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+              <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
 }
 
 function tabHref(tab: string) {
@@ -375,7 +400,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   );
 }
 
-function InvoicesTab({
+async function InvoicesTab({
   billing,
   params,
   allInvoices
@@ -384,6 +409,8 @@ function InvoicesTab({
   params: Record<string, string | undefined>;
   allInvoices: SuperAdminInvoiceRow[];
 }) {
+  const reconciliationQueue = (await apiGet<SuperAdminReconciliationTransaction[]>("/api/super-admin/billing/transactions/reconciliation-queue")) ?? [];
+  const unreconciledOverSevenDays = reconciliationQueue.filter((t) => t.ageDays > 7).length;
   const search = params.invoiceSearch?.trim().toLowerCase();
   const invoices = search
     ? allInvoices.filter((item) => item.invoiceNo.toLowerCase().includes(search) || item.schoolName.toLowerCase().includes(search))
@@ -515,6 +542,50 @@ function InvoicesTab({
             })}
           </div>
         </section>
+      </div>
+
+      <div className="col-span-full grid gap-3.5">
+        <div className="grid gap-3 md:grid-cols-3">
+          <StatCard label="Recorded, awaiting reconciliation" value={reconciliationQueue.length} detail="Segregation of duties enforced" />
+          <StatCard label="Unreconciled beyond 7 days" value={unreconciledOverSevenDays} detail="On the Finance Lead exception list" tone={unreconciledOverSevenDays > 0 ? "warning" : "success"} />
+          <StatCard
+            label="Recorded, not yet matched"
+            value={formatCurrency(reconciliationQueue.reduce((sum, t) => sum + t.amount, 0))}
+            detail={`Across ${reconciliationQueue.length} payment(s)`}
+          />
+        </div>
+        <TableCard
+          title="Reconciliation queue"
+          description="Reconciliation is a separate action, performed by a different person from whoever recorded the payment — enforced by the system, not by policy."
+          items={reconciliationQueue}
+          getRowKey={(item) => item.id}
+          emptyState="Nothing waiting on reconciliation."
+          columns={[
+            { key: "school", header: "School", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.schoolName}</span> },
+            { key: "invoice", header: "Invoice", render: (item) => item.invoiceNo ?? "—" },
+            { key: "amount", header: "Amount", render: (item) => formatCurrency(item.amount) },
+            { key: "recordedBy", header: "Recorded by", render: (item) => item.recordedBy },
+            { key: "reference", header: "Bank reference", render: (item) => <span className="font-[var(--font-mono)] text-[12px]">{item.reference}</span> },
+            { key: "age", header: "Age", render: (item) => `${item.ageDays}d` },
+            {
+              key: "actions",
+              header: "",
+              render: (item) => (
+                <ResourceActionDialog
+                  triggerLabel="Reconcile"
+                  title={`Reconcile ${item.reference}`}
+                  description="Confirms this payment against the bank statement. Must be performed by someone other than whoever recorded it."
+                  endpoint={`/api/super-admin/billing/transactions/${item.id}/reconcile`}
+                  method="PATCH"
+                  variant="secondary"
+                  submitLabel="Reconcile"
+                  confirmLabel="Confirm"
+                  fields={[]}
+                />
+              )
+            }
+          ]}
+        />
       </div>
     </div>
   );
@@ -736,12 +807,15 @@ async function ChurnRiskTab() {
 }
 
 async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
-  const wallets = await Promise.all(
-    billing.slice(0, 25).map(async (item) => {
-      const wallet = await apiGet<SuperAdminNotificationWallet>(`/api/super-admin/billing/${item.schoolId}/wallet`);
-      return { ...wallet, schoolName: item.schoolName };
-    })
-  );
+  const [wallets, topUpHistory] = await Promise.all([
+    Promise.all(
+      billing.slice(0, 25).map(async (item) => {
+        const wallet = await apiGet<SuperAdminNotificationWallet>(`/api/super-admin/billing/${item.schoolId}/wallet`);
+        return { ...wallet, schoolName: item.schoolName };
+      })
+    ),
+    apiGet<SuperAdminWalletTopUpEntry[]>("/api/super-admin/billing/wallets/top-up-history")
+  ]);
   const lowBalanceWallets = wallets.filter((wallet) => wallet.isLow);
 
   return (
@@ -807,12 +881,12 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
 
         <div className="grid gap-3.5 self-start">
           <section className="surface-card p-5">
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How credits work</p>
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How credits work today</p>
             <div className="mt-3.5 grid gap-3">
               {[
                 { title: "Bundles are purchased off-platform", detail: "A school pays for an SMS/WhatsApp bundle by transfer, then a Super Admin confirms and tops up here." },
-                { title: "Balances deduct per send", detail: "Every notification sent debits the school's SMS or WhatsApp balance by one unit." },
-                { title: "Low balance blocks nothing else", detail: "Only outbound notifications are affected — attendance, results, and fees keep working normally." },
+                { title: "Balances only move on a manual top-up", detail: "Nothing yet debits a balance when a notification sends — SMS and WhatsApp delivery is still mocked platform-wide, so there is no real send event to deduct against." },
+                { title: "The low-balance flag is informational for now", detail: "A wallet is marked low once it drops under its threshold, but nothing currently blocks a send because of it — there is no enforcement gate yet, only a warning label." },
                 { title: "Revenue is tracked separately", detail: "Credit top-ups are notification revenue, kept apart from subscription revenue in Revenue Reporting." }
               ].map((rule) => (
                 <div key={rule.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
@@ -823,6 +897,49 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
             </div>
           </section>
         </div>
+      </div>
+
+      <TableCard
+        title="Top-up history"
+        description="Every credit added, and who added it — this is the register to check when a school says a message never went out."
+        items={topUpHistory}
+        emptyState="No top-ups recorded yet."
+        columns={[
+          { key: "when", header: "When", render: (item) => formatDate(item.createdAt) },
+          { key: "school", header: "School", render: (item) => item.schoolName },
+          { key: "sms", header: "SMS credits", render: (item) => item.smsCredits.toLocaleString() },
+          { key: "whatsapp", header: "WhatsApp credits", render: (item) => item.whatsappCredits.toLocaleString() },
+          { key: "by", header: "Added by", render: (item) => item.actorName }
+        ]}
+      />
+
+      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+        <TableCard
+          title="Provider rate card"
+          description="What this platform pays a provider per unit against what a school pays, per channel. Not configured as structured pricing yet — every top-up today is a manually agreed amount, not computed from a stored rate."
+          items={[
+            { channel: "SMS · Nigeria", note: "No real SMS provider is connected yet — see Settings → Integrations." },
+            { channel: "WhatsApp · template", note: "No real WhatsApp provider is connected yet — see Settings → Integrations." },
+            { channel: "Email", note: "Included in every tier — never draws on a wallet." }
+          ]}
+          pageSize={false}
+          getRowKey={(item) => item.channel}
+          columns={[
+            { key: "channel", header: "Channel", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.channel}</span> },
+            { key: "cost", header: "Cost to platform", render: () => <span className="text-[var(--color-text-muted)]">Not configured</span> },
+            { key: "price", header: "Price to school", render: () => <span className="text-[var(--color-text-muted)]">Not configured</span> },
+            { key: "note", header: "Note", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.note}</span> }
+          ]}
+        />
+        <ReferenceListSimple
+          title="What actually happens on a low balance, today"
+          sub="The intended sequence versus what's real right now."
+          items={[
+            { label: "Balance reaches the low-balance threshold", detail: "The wallet shows a “Low balance” status here. No message is sent to the school yet.", tone: "warn" },
+            { label: "Balance reaches zero", detail: "Nothing stops — because nothing checks the balance before a send in the first place.", tone: "bad" },
+            { label: "Credit added by hand", detail: "The balance updates immediately and is reflected here and on the school's own billing view.", tone: "good" }
+          ]}
+        />
       </div>
     </div>
   );

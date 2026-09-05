@@ -30,9 +30,16 @@ interface AssessmentFrameworkStats {
   schoolsWithFrameworks: number;
 }
 
+interface WeightPatternRow {
+  pattern: string;
+  componentNames: string;
+  schoolCount: number;
+}
+
 interface CurriculumExtrasOverview {
   countrySettings: CountrySettingsRow[];
   assessmentFrameworkStats: AssessmentFrameworkStats;
+  weightPatterns: WeightPatternRow[];
 }
 
 function tabHref(tab: string) {
@@ -45,12 +52,12 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
 
   // Defensive fetch: this endpoint lives in its own newly-added module, so if it's ever
   // unreachable (e.g. not yet deployed) the rest of the page still renders.
-  let extras: CurriculumExtrasOverview = { countrySettings: [], assessmentFrameworkStats: { totalComponents: 0, totalSectionComponents: 0, schoolsWithFrameworks: 0 } };
+  let extras: CurriculumExtrasOverview = { countrySettings: [], assessmentFrameworkStats: { totalComponents: 0, totalSectionComponents: 0, schoolsWithFrameworks: 0 }, weightPatterns: [] };
   try {
     const extrasEnvelope = await apiGetEnvelope<CurriculumExtrasOverview>("/api/curriculum-extras/overview");
     if (extrasEnvelope.data) extras = extrasEnvelope.data;
   } catch {
-    extras = { countrySettings: [], assessmentFrameworkStats: { totalComponents: 0, totalSectionComponents: 0, schoolsWithFrameworks: 0 } };
+    extras = { countrySettings: [], assessmentFrameworkStats: { totalComponents: 0, totalSectionComponents: 0, schoolsWithFrameworks: 0 }, weightPatterns: [] };
   }
 
   const tabs = [
@@ -72,6 +79,24 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
       <DetailTabs tabs={tabs} />
 
       {tab === "curricula" ? (
+        <div className="grid gap-5">
+        <TableCard
+          title="Versioning — what's real today"
+          description="A mature curriculum library would version templates, assign a version per class, and keep historical results immutable against the version they were computed under. Stated plainly against this codebase, not the aspiration."
+          items={[
+            { requirement: "Templates carry a version", spec: "The version field is free text (default \"1.0\") with no effective-from/effective-to dates.", state: "Partial" },
+            { requirement: "A change creates a new version", spec: "Saving a template with the same name updates it in place — there's no history kept.", state: "Not built" },
+            { requirement: "Assignment is per class", spec: "There's no link from a class or cohort to a specific curriculum template version.", state: "Not built" },
+            { requirement: "Historical results are immutable to their version", spec: "Results aren't tagged with the curriculum version that was active when computed.", state: "Not built" },
+            { requirement: "Migration path between versions is explicit", spec: "No subject-mapping record exists between template versions.", state: "Not built" }
+          ]}
+          getRowKey={(row) => row.requirement}
+          columns={[
+            { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
+            { key: "spec", header: "What actually happens", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
+            { key: "state", header: "State", render: (row) => <StatusBadge status={row.state} tone={row.state === "Partial" ? "warning" : "neutral"} /> }
+          ]}
+        />
         <TableCard
           title="Curriculum templates"
           description="Pre-populate grading scale, subject list, class structure, and calendar per country/curriculum."
@@ -102,6 +127,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           ]}
           emptyState="No curriculum templates yet."
         />
+        </div>
       ) : null}
 
       {tab === "assessment-frameworks" ? (
@@ -111,6 +137,18 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             <StatCard label="Class-level assessment components" value={String(extras.assessmentFrameworkStats.totalComponents)} />
             <StatCard label="Section-level assessment components" value={String(extras.assessmentFrameworkStats.totalSectionComponents)} />
           </div>
+          <TableCard
+            title="Weight patterns schools have actually built"
+            description="Every school configures its own CA/exam weighting today — there's no platform preset library. This groups real, active per-school configurations by their weight pattern, most common first."
+            items={extras.weightPatterns}
+            getRowKey={(row) => row.pattern}
+            columns={[
+              { key: "pattern", header: "Weights", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{row.pattern}</span> },
+              { key: "components", header: "Component names (example school)", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.componentNames}</span> },
+              { key: "schools", header: "Schools using it", render: (row) => row.schoolCount }
+            ]}
+            emptyState="No school has configured class-level assessment components yet."
+          />
           <div className="rounded-[var(--radius-card)] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-6">
             <div className="flex items-start gap-3">
               <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">

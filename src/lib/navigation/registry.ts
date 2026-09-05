@@ -384,6 +384,28 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     hideFromSidebar: true,
     order: 15.9,
   },
+  {
+    id: "sa_help",
+    label: "Help",
+    icon: "HelpCircle",
+    path: "/super-admin/help",
+    requiredPermissions: ["sa.help.view"],
+    portalType: "super_admin",
+    group: "Platform",
+    hideFromSidebar: true,
+    order: 15.95,
+  },
+  {
+    id: "sa_standards",
+    label: "Standards",
+    icon: "BookOpen",
+    path: "/super-admin/standards",
+    requiredPermissions: ["sa.standards.view"],
+    portalType: "super_admin",
+    group: "Platform",
+    hideFromSidebar: true,
+    order: 15.96,
+  },
 
   {
     id: "dashboard",

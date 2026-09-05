@@ -281,16 +281,71 @@ export class MigrationService {
       });
     }
 
-    const adapters = await prisma.migrationSourceAdapter.findMany({ orderBy: { createdAt: "asc" } });
+    const [adapters, jobs] = await Promise.all([
+      prisma.migrationSourceAdapter.findMany({ orderBy: { createdAt: "asc" } }),
+      prisma.migrationJob.findMany({ select: { sourceSystem: true, status: true } })
+    ]);
     return {
       ok: true,
-      data: adapters.map((adapter) => ({
-        id: adapter.id,
-        name: adapter.name,
-        status: adapter.status,
-        notes: adapter.notes,
-        createdAt: adapter.createdAt.toISOString()
-      }))
+      data: adapters.map((adapter) => {
+        const matchingJobs = jobs.filter((job) => job.sourceSystem.toLowerCase() === adapter.name.toLowerCase());
+        const completed = matchingJobs.filter((job) => job.status === "SIGNED_OFF" || job.status === "COMPLETED").length;
+        return {
+          id: adapter.id,
+          name: adapter.name,
+          status: adapter.status,
+          notes: adapter.notes,
+          jobsRun: matchingJobs.length,
+          completionRatePct: matchingJobs.length > 0 ? Math.round((completed / matchingJobs.length) * 1000) / 10 : null,
+          createdAt: adapter.createdAt.toISOString()
+        };
+      })
     };
+  }
+
+  // Setup Progress — real completion data from the school's own onboarding checklist
+  // (the same six steps every school sees after signup), aggregated across every
+  // school that has one. This is the platform-wide "where do schools stall" view.
+  async setupProgress(session: SessionPayload) {
+    assertPlatformRole(session);
+    const items = await prisma.onboardingChecklistItem.findMany({
+      select: { key: true, label: true, completedAt: true, schoolId: true, school: { select: { name: true, createdAt: true } } }
+    });
+
+    const byKey = new Map<string, { label: string; reached: number; completed: number }>();
+    for (const item of items) {
+      const entry = byKey.get(item.key) ?? { label: item.label, reached: 0, completed: 0 };
+      entry.reached += 1;
+      if (item.completedAt) entry.completed += 1;
+      byKey.set(item.key, entry);
+    }
+    // Canonical order matches the checklist as created at signup (onboarding.service.ts) —
+    // findMany doesn't guarantee row order, so re-sort explicitly rather than trust it.
+    const stepOrder = ["SCHOOL_PROFILE", "ACADEMIC_SESSION", "CLASSES", "STAFF", "STUDENTS", "FEES"];
+    const steps = Array.from(byKey.entries())
+      .map(([key, v]) => ({
+        key,
+        label: v.label,
+        reached: v.reached,
+        completed: v.completed,
+        completionRatePct: v.reached > 0 ? Math.round((v.completed / v.reached) * 1000) / 10 : 0
+      }))
+      .sort((a, b) => stepOrder.indexOf(a.key) - stepOrder.indexOf(b.key));
+
+    // Stalled: a school with at least one incomplete checklist item, older than 5 days.
+    const fiveDaysAgo = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
+    const bySchool = new Map<string, { schoolName: string; createdAt: Date; incompleteKeys: string[] }>();
+    for (const item of items) {
+      if (item.completedAt) continue;
+      const entry = bySchool.get(item.schoolId) ?? { schoolName: item.school.name, createdAt: item.school.createdAt, incompleteKeys: [] };
+      entry.incompleteKeys.push(item.key);
+      bySchool.set(item.schoolId, entry);
+    }
+    const stalled = Array.from(bySchool.values())
+      .filter((s) => s.createdAt < fiveDaysAgo)
+      .map((s) => ({ schoolName: s.schoolName, daysSinceSignup: Math.floor((Date.now() - s.createdAt.getTime()) / (24 * 60 * 60 * 1000)), incompleteCount: s.incompleteKeys.length }))
+      .sort((a, b) => b.daysSinceSignup - a.daysSinceSignup);
+
+    return { ok: true, data: { steps, stalled } };
   }
 }

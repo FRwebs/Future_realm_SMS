@@ -355,7 +355,7 @@ function SidebarContent({
       {portalType === "super_admin" && !collapsed ? (
         <div className="flex items-center gap-1 border-t border-[rgba(255,255,255,0.13)] px-4 py-2.5">
           <Link
-            href="/super-admin/support?tab=knowledge"
+            href="/super-admin/standards"
             className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
           >
             <BookOpen className="h-[15px] w-[15px] shrink-0" />
@@ -369,7 +369,7 @@ function SidebarContent({
             Settings
           </Link>
           <Link
-            href="/super-admin/support"
+            href="/super-admin/help"
             className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
           >
             <HelpCircle className="h-[15px] w-[15px] shrink-0" />

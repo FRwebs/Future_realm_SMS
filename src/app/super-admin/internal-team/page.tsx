@@ -262,6 +262,24 @@ async function RolesTab() {
       </section>
 
       <TableCard
+        title="How access is actually enforced — the real dimensions"
+        description="What this system checks, and where, for an internal team member."
+        items={[
+          { dimension: "Role", question: "Which of the seven platform roles is this person?", enforcedWhere: "Set on the account at creation; drives the default permission template and most endpoint guards.", state: "Real" },
+          { dimension: "Module access", question: "Can this person open a given module at all?", enforcedWhere: "The per-module permission grid (People → Set module permission), checked server-side.", state: "Real" },
+          { dimension: "Time-bound access", question: "Is a temporary grant still valid?", enforcedWhere: "Access grants with an expiry date (People → Grant time-bound access).", state: "Real" },
+          { dimension: "Data scope (regional/school row-level)", question: "Of the records a function can touch, which ones belong to this person?", enforcedWhere: "Not built for internal team members — no per-region or per-portfolio row filter exists; a role either sees the full platform or is gated at the module level, nothing in between.", state: "Not built" }
+        ]}
+        getRowKey={(row) => row.dimension}
+        columns={[
+          { key: "dimension", header: "Dimension", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.dimension}</span> },
+          { key: "question", header: "Question it answers", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.question}</span> },
+          { key: "enforcedWhere", header: "Enforced where", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.enforcedWhere}</span> },
+          { key: "state", header: "State", render: (row) => <StatusPill bg={row.state === "Real" ? "var(--color-success-dim)" : "var(--color-bg-subtle)"} fg={row.state === "Real" ? "var(--color-success)" : "var(--color-text-muted)"} label={row.state} /> }
+        ]}
+      />
+
+      <TableCard
         title="Role templates"
         description="Default permission grids per role, applied automatically when a new account is created."
         items={templates ?? []}

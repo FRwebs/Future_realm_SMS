@@ -49,4 +49,9 @@ export class MigrationController {
   listSourceAdapters(@CurrentSession() session: SessionPayload) {
     return this.migrationService.listSourceAdapters(session);
   }
+
+  @Get("setup-progress")
+  setupProgress(@CurrentSession() session: SessionPayload) {
+    return this.migrationService.setupProgress(session);
+  }
 }

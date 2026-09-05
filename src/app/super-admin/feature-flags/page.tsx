@@ -79,7 +79,7 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
   const tabs = [
     { label: "Plans", href: tabHref("plans"), active: tab === "plans" },
     { label: "Feature Matrix", href: tabHref("matrix"), active: tab === "matrix" },
-    { label: "Exceptions", href: tabHref("exceptions"), active: tab === "exceptions", badge: exceptionsCount },
+    { label: "Plan Exceptions", href: tabHref("exceptions"), active: tab === "exceptions", badge: exceptionsCount },
     { label: "Rollout", href: tabHref("rollout"), active: tab === "rollout" }
   ];
 
