@@ -93,9 +93,12 @@ services:
         fromDatabase:
           name: futurerealm-db
           property: connectionString
-    # Runs before every deploy, using the same image, so migrations land before
-    # traffic switches over.
-    preDeployCommand: npx prisma migrate deploy
+    # preDeployCommand isn't available on the free plan, so migrations run as part of
+    # the container's own start command instead — `prisma migrate deploy` is safe to
+    # run on every boot (it's a no-op once the schema is current). If you move this
+    # service to a paid plan later, you can switch back to preDeployCommand and drop
+    # the migrate step from here.
+    dockerCommand: sh -c "npx prisma migrate deploy && node dist/api/backend/src/main.js"
     # No health-check route exists yet (everything sits behind app.setGlobalPrefix("api")
     # with no unauthenticated endpoint) — Render falls back to a plain TCP check on the
     # port, which is fine. Add a real GET /api/health controller later and set
