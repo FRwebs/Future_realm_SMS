@@ -79,9 +79,8 @@ services:
     dockerContext: .
     plan: starter
     region: oregon
-    envVarGroups:
-      - futurerealm-shared
     envVars:
+      - fromGroup: futurerealm-shared
       - key: NODE_ENV
         value: production
       - key: API_PORT
@@ -109,9 +108,8 @@ services:
     dockerContext: .
     plan: starter
     region: oregon
-    envVarGroups:
-      - futurerealm-shared
     envVars:
+      - fromGroup: futurerealm-shared
       - key: NODE_ENV
         value: production
       - key: DATABASE_URL
