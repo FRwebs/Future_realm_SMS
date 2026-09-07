@@ -16,4 +16,8 @@ COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/dist/api ./dist/api
 COPY --from=builder /app/prisma ./prisma
 EXPOSE 4000
-CMD ["node", "dist/api/backend/src/main.js"]
+# Runs migrations before every boot (idempotent — a no-op once the schema is
+# current). Needed because Render's free plan doesn't support preDeployCommand;
+# a JSON-array CMD with an explicit shell avoids the argv-splitting quirks that
+# a service-level `dockerCommand:` override in render.yaml runs into.
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/api/backend/src/main.js"]
