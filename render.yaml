@@ -1,0 +1,130 @@
+# Render Blueprint for FutureRealm SMS.
+#
+# Deploys three resources:
+#   1. futurerealm-db   — managed PostgreSQL
+#   2. futurerealm-api  — the NestJS backend (backend/Dockerfile), on the private network
+#   3. futurerealm-web  — the Next.js app (root Dockerfile), the public-facing service
+#
+# The web app talks to the API two ways (both already built into this repo, see
+# next.config.ts and src/lib/api/direct.ts):
+#   - Most requests: the Next.js server rewrites /api/* to NEST_API_URL.
+#   - A handful of hot paths (dashboard, students, teachers, finance, timetable,
+#     classes): the Next.js server calls backend service classes in-process, which
+#     is why futurerealm-web also needs DATABASE_URL/DIRECT_URL directly.
+#
+# JWT_SECRET must be identical on both services (session tokens are verified by
+# both processes) — the shared env var group below guarantees that; do not move
+# it into a per-service generateValue.
+#
+# To deploy: push this file to the repo root, then in the Render dashboard choose
+# "New > Blueprint" and point it at this repo. Render will ask you to fill in every
+# env var marked `sync: false` before the first deploy.
+
+databases:
+  - name: futurerealm-db
+    databaseName: futurerealm_sms
+    user: futurerealm
+    plan: starter # Render's free Postgres plan expires after 30 days — use starter (or higher) for anything real
+    region: oregon # change to match wherever you put the two services below
+
+envVarGroups:
+  - name: futurerealm-shared
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: APP_URL
+        value: https://futurerealm-web.onrender.com # update if you attach a custom domain
+      - key: DEMO_MODE
+        value: "false"
+      - key: DEFAULT_SCHOOL_SLUG
+        value: greenfield-college
+      - key: PAYSTACK_PUBLIC_KEY
+        sync: false
+      - key: PAYSTACK_SECRET_KEY
+        sync: false
+      - key: PAYSTACK_WEBHOOK_SECRET
+        sync: false
+      - key: FLUTTERWAVE_PUBLIC_KEY
+        sync: false
+      - key: FLUTTERWAVE_SECRET_KEY
+        sync: false
+      - key: FLUTTERWAVE_WEBHOOK_SECRET
+        sync: false
+      - key: SMTP_HOST
+        sync: false
+      - key: SMTP_PORT
+        value: "587"
+      - key: SMTP_USER
+        sync: false
+      - key: SMTP_PASSWORD
+        sync: false
+      - key: SMTP_FROM
+        value: "FutureRealm SMS <noreply@futurerealm.local>"
+      - key: S3_ENDPOINT
+        sync: false
+      - key: S3_REGION
+        value: us-east-1
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+
+services:
+  - type: web
+    name: futurerealm-api
+    runtime: docker
+    dockerfilePath: ./backend/Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVarGroups:
+      - futurerealm-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: API_PORT
+        value: "4000"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: futurerealm-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: futurerealm-db
+          property: connectionString
+    # Runs before every deploy, using the same image, so migrations land before
+    # traffic switches over.
+    preDeployCommand: npx prisma migrate deploy
+    # No health-check route exists yet (everything sits behind app.setGlobalPrefix("api")
+    # with no unauthenticated endpoint) — Render falls back to a plain TCP check on the
+    # port, which is fine. Add a real GET /api/health controller later and set
+    # healthCheckPath here once it exists.
+
+  - type: web
+    name: futurerealm-web
+    runtime: docker
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    plan: starter
+    region: oregon
+    envVarGroups:
+      - futurerealm-shared
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        fromDatabase:
+          name: futurerealm-db
+          property: connectionString
+      - key: DIRECT_URL
+        fromDatabase:
+          name: futurerealm-db
+          property: connectionString
+      # Points the built-in /api/* rewrite (next.config.ts) at the API service.
+      # This is the service's public onrender.com URL; once both services are up you can
+      # switch this to Render's internal address for that service (Dashboard > futurerealm-api
+      # > Connect) to keep the traffic off the public internet and cut latency.
+      - key: NEST_API_URL
+        value: https://futurerealm-api.onrender.com
