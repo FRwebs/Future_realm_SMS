@@ -7,6 +7,12 @@ COPY package.json package-lock.json* ./
 RUN npm install
 
 FROM base AS builder
+# Render injects each service env var as a Docker build arg, but only variables
+# declared with ARG are visible to `next build` — and next.config.ts's rewrites()
+# reads NEST_API_URL at build time to decide the /api/* proxy target. Without this,
+# the build sees an empty NEST_API_URL and bakes zero rewrites into the image.
+ARG NEST_API_URL
+ENV NEST_API_URL=$NEST_API_URL
 COPY . .
 RUN npm run prisma:generate && npm run build:web
 
