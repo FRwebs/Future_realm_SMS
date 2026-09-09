@@ -170,6 +170,7 @@ export default async function SuperAdminProfilePage() {
           <FieldLine label="City" value={profile.contact.city} />
           <FieldLine label="Country" value={profile.contact.country} />
           <FieldLine label="Member since" value={formatDate(profile.createdAt)} />
+          <FieldLine label="Last sign-in" value={profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"} />
         </article>
 
         <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
@@ -250,6 +251,13 @@ export default async function SuperAdminProfilePage() {
           </div>
           <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
             <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Two-factor authentication</p>
+              <p className="text-pretty mt-0.5 text-[11px] text-[#8C9A92]">Not required for this account type — sign-in is email and password only.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-secondary)]">Not enforced</span>
+          </div>
+          <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
+            <div className="min-w-0">
               <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Password</p>
               <p className="text-pretty mt-0.5 text-[11px] text-[#8C9A92]">Keep your account secure with a strong password.</p>
             </div>
@@ -295,6 +303,13 @@ export default async function SuperAdminProfilePage() {
           ) : (
             <p className="px-5 py-4 text-[12px] text-[var(--color-text-secondary)]">No other active sessions.</p>
           )}
+          <div className="flex items-center justify-between gap-3.5 px-5 py-3">
+            <div className="min-w-0">
+              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Production access</p>
+              <p className="text-pretty mt-0.5 text-[11px] text-[#8C9A92]">Granted {formatDate(profile.createdAt)} · every action is written to the audit log.</p>
+            </div>
+            <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-secondary)]">Audited</span>
+          </div>
         </article>
       </div>
 

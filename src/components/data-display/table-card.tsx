@@ -54,6 +54,11 @@ interface TableCardProps<TItem> {
   actions?: ReactNode;
 
   /**
+   * Optional filter/search toolbar rendered between the header and the table body.
+   */
+  filterBar?: ReactNode;
+
+  /**
    * Rows per page. Set to `false` to disable pagination entirely.
    * Defaults to 10.
    */
@@ -82,6 +87,7 @@ export function TableCard<TItem>({
   primaryColumnKey,
   featuredColumnKeys = [],
   actions,
+  filterBar,
   pageSize = 10,
 }: TableCardProps<TItem>) {
   const preparedColumns: PreparedColumn[] = columns.map((column) => {
@@ -129,6 +135,7 @@ export function TableCard<TItem>({
       description={description}
       emptyState={emptyState}
       actions={actions}
+      filterBar={filterBar}
       columns={preparedColumns}
       rows={rows}
       primaryColumnKey={primaryKey}

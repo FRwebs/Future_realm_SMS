@@ -6,7 +6,7 @@ import {
   Injectable,
   NotFoundException
 } from "@nestjs/common";
-import { AuditAction, Prisma, SubscriptionPlan, TenantStatus, UserRole } from "@prisma/client";
+import { AuditAction, Prisma, SchoolCategory, SubscriptionPlan, TenantStatus, UserRole } from "@prisma/client";
 import { z } from "zod";
 
 import { hashPassword } from "../../../../src/lib/auth/password";
@@ -23,6 +23,7 @@ const pageSchema = z.object({
   status: z.string().trim().optional(),
   plan: z.string().trim().optional(),
   state: z.string().trim().optional(),
+  category: z.string().trim().optional(),
   role: z.string().trim().optional(),
   action: z.string().trim().optional(),
   dateFrom: z.coerce.date().optional(),
@@ -660,7 +661,11 @@ export class SuperAdminService {
       ...(parsed.search ? { name: { contains: parsed.search, mode: "insensitive" } } : {}),
       ...(parsed.status ? { status: parsed.status.toUpperCase() as TenantStatus } : {}),
       ...(parsed.plan ? { plan: parsed.plan.toUpperCase() as SubscriptionPlan } : {}),
-      ...(parsed.state ? { state: { equals: parsed.state, mode: "insensitive" } } : {})
+      ...(parsed.state ? { state: { equals: parsed.state, mode: "insensitive" } } : {}),
+      ...(parsed.category ? { category: parsed.category.toUpperCase() as SchoolCategory } : {}),
+      ...(parsed.dateFrom || parsed.dateTo
+        ? { createdAt: { ...(parsed.dateFrom ? { gte: parsed.dateFrom } : {}), ...(parsed.dateTo ? { lte: parsed.dateTo } : {}) } }
+        : {})
     };
     const [schools, total, priceMap] = await Promise.all([
       prisma.school.findMany({
@@ -673,6 +678,12 @@ export class SuperAdminService {
       prisma.school.count({ where }),
       getPlanPriceMap()
     ]);
+    const lastLogins = await prisma.loginAttempt.groupBy({
+      by: ["schoolId"],
+      where: { success: true, schoolId: { in: schools.map((school) => school.id) } },
+      _max: { createdAt: true }
+    });
+    const lastLoginMap = new Map(lastLogins.filter((row) => row.schoolId).map((row) => [row.schoolId as string, row._max.createdAt]));
     return this.response(
       schools.map((school) => ({
         id: school.id,
@@ -699,7 +710,8 @@ export class SuperAdminService {
         createdAt: school.createdAt.toISOString(),
         trialEndsAt: school.trialEndsAt?.toISOString(),
         lastPaymentAt: school.lastPaymentAt?.toISOString(),
-        nextBillingAt: school.nextBillingAt?.toISOString()
+        nextBillingAt: school.nextBillingAt?.toISOString(),
+        lastSuccessfulLoginAt: lastLoginMap.get(school.id)?.toISOString() ?? null
       })),
       "Schools loaded",
       pagination(parsed.page, parsed.limit, total)
@@ -716,7 +728,7 @@ export class SuperAdminService {
           select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, createdAt: true }
         },
         schoolGroup: { select: { id: true, name: true } },
-        _count: { select: { users: true, students: true, staffProfiles: true, invoices: true, payments: true } }
+        _count: { select: { users: true, students: true, staffProfiles: true, invoices: true, payments: true, guardians: true } }
       }
     });
     if (!school) throw new NotFoundException("School not found.");
@@ -735,7 +747,8 @@ export class SuperAdminService {
       lastLoginUser,
       notificationCount,
       supportTicketCount,
-      loginCountLast30Days
+      loginCountLast30Days,
+      partnerDeal
     ] = await Promise.all([
       school.accountManagerId ? prisma.user.findUnique({ where: { id: school.accountManagerId }, select: { id: true, firstName: true, lastName: true, email: true } }) : null,
       prisma.schoolContact.findMany({ where: { schoolId }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] }),
@@ -749,7 +762,8 @@ export class SuperAdminService {
       prisma.user.findFirst({ where: { schoolId }, orderBy: { lastLoginAt: "desc" }, select: { lastLoginAt: true } }),
       prisma.notificationLog.count({ where: { schoolId, sentAt: { gte: thirtyDaysAgo } } }),
       prisma.supportTicket.count({ where: { schoolId } }),
-      prisma.auditLog.count({ where: { schoolId, action: "LOGIN", createdAt: { gte: thirtyDaysAgo } } })
+      prisma.auditLog.count({ where: { schoolId, action: "LOGIN", createdAt: { gte: thirtyDaysAgo } } }),
+      prisma.partnerDeal.findFirst({ where: { schoolId }, orderBy: { createdAt: "asc" }, include: { partner: { select: { name: true } } } })
     ]);
 
     return this.response({
@@ -766,6 +780,16 @@ export class SuperAdminService {
       country: school.country,
       timezone: school.timezone,
       currency: school.currency,
+      subdomain: school.subdomain,
+      cacNumber: school.cacNumber,
+      ministryApprovalNumber: school.ministryApprovalNumber,
+      flaggedForReviewReason: school.flaggedForReviewReason,
+      riskScore: school.riskScore,
+      riskSignals: school.riskSignals,
+      verifiedAt: school.verifiedAt?.toISOString() ?? null,
+      verificationRejectedAt: school.verificationRejectedAt?.toISOString() ?? null,
+      verificationRejectionReason: school.verificationRejectionReason,
+      acquisitionSource: partnerDeal ? `Partner referral · ${partnerDeal.partner.name}` : "Direct signup",
       plan: school.plan,
       status: school.status,
       billingStatus: school.billingStatus,
@@ -3777,8 +3801,8 @@ export class SuperAdminService {
     // instant-provisioning), so there is no separate trial-activation step to measure.
     const funnel = [
       { stage: "Signed up", count: totalSchools },
-      { stage: "Trial started", count: totalSchools },
       { stage: "Verified", count: verified },
+      { stage: "Trial started", count: totalSchools },
       { stage: "Trial active (recorded a login)", count: trialActiveWithLogin },
       { stage: "Approaching trial end", count: approachingTrialEnd },
       { stage: "Converted to paid", count: activeSchools },
@@ -3822,7 +3846,7 @@ export class SuperAdminService {
       }
     }
     const featureRequestsRanked = Array.from(keywordMap.entries())
-      .map(([keyword, v]) => ({ keyword, requestCount: v.count, schoolsRequesting: v.schools.size, priorityScore: v.count * 2 + v.schools.size + v.tiers.size }))
+      .map(([keyword, v]) => ({ keyword, requestCount: v.count, schoolsRequesting: v.schools.size, tiersRequesting: v.tiers.size, priorityScore: v.count * 2 + v.schools.size + v.tiers.size }))
       .sort((a, b) => b.priorityScore - a.priorityScore)
       .slice(0, 10);
 

@@ -85,6 +85,16 @@ async function PlatformTab() {
 
   return (
     <section className="grid gap-5">
+      <ReferenceList
+        title="What this page is"
+        sub="Platform-wide defaults. Everything here is what a school gets before it has decided anything of its own — and every school can override most of it."
+        items={[
+          { label: "A default is not a rule", detail: "Change one and only new schools follow it. Nobody's existing configuration moves.", tone: "good" },
+          { label: "Nothing here reaches a school's own data", detail: "These are our settings, not theirs. No control on this page can edit what a school has configured.", tone: "bad" },
+          { label: "Every change is logged", detail: "Who changed a setting and when, with the new values recorded — written to the audit log the moment you save.", tone: "good" }
+        ]}
+      />
+
       <section className="surface-card p-6">
         <p className="section-eyebrow">Platform-wide</p>
         <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Maintenance and announcement</h2>
@@ -139,22 +149,43 @@ async function PlatformTab() {
         ]}
       />
 
-      <TableCard
-        title="Trial and grace defaults"
-        items={[
-          { setting: "Trial length", value: "30 calendar days", state: "Enforced automatically at signup" },
-          { setting: "Grace period after a lapsed subscription", value: "Set manually by a Super Admin per school", state: "Not on an automatic day count yet" },
-          { setting: "Dormancy notice", value: "21 days with no login during trial, 7 days' notice before the web address is released", state: "Enforced" },
-          { setting: "Risk review SLA", value: "Cleared before trial end, escalated at 3 days remaining", state: "Enforced" }
-        ]}
-        pageSize={false}
-        getRowKey={(item) => item.setting}
-        columns={[
-          { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-          { key: "value", header: "Value", render: (item) => item.value },
-          { key: "state", header: "State", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.state}</span> }
-        ]}
-      />
+      <section className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+        <TableCard
+          title="Pricing and currency"
+          description="Not a dual-currency system — plans are priced and billed directly in Naira, with no conversion layer."
+          items={[
+            { setting: "Pricing currency", value: "NGN — every plan is authored directly in Naira", state: "Fixed" },
+            { setting: "Rate source", value: "Not applicable — there's no foreign-exchange rate to source", state: "N/A" },
+            { setting: "Rate refresh", value: "Not applicable — nothing to refresh", state: "N/A" },
+            { setting: "Rounding", value: "Prices are entered as whole Naira amounts; no rounding rule is applied", state: "Not built" },
+            { setting: "Currency shock guard", value: "Not applicable — no exchange-rate exposure to guard against", state: "N/A" },
+            { setting: "Invoicing currency", value: "Naira, always — every school's invoice", state: "Enforced" }
+          ]}
+          pageSize={false}
+          getRowKey={(item) => item.setting}
+          columns={[
+            { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
+            { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
+            { key: "state", header: "State", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.state}</span> }
+          ]}
+        />
+        <TableCard
+          title="Trial and grace defaults"
+          items={[
+            { setting: "Trial length", value: "30 calendar days", state: "Enforced automatically at signup" },
+            { setting: "Grace period after a lapsed subscription", value: "Set manually by a Super Admin per school", state: "Not on an automatic day count yet" },
+            { setting: "Dormancy notice", value: "21 days with no login during trial, 7 days' notice before the web address is released", state: "Enforced" },
+            { setting: "Risk review SLA", value: "Cleared before trial end, escalated at 3 days remaining", state: "Enforced" }
+          ]}
+          pageSize={false}
+          getRowKey={(item) => item.setting}
+          columns={[
+            { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
+            { key: "value", header: "Value", render: (item) => item.value },
+            { key: "state", header: "State", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.state}</span> }
+          ]}
+        />
+      </section>
     </section>
   );
 }
@@ -164,6 +195,34 @@ async function DefaultsTab() {
 
   return (
     <section className="grid gap-5">
+      <TableCard
+        title="What a new school starts with"
+        description="What's actually configured for a school automatically at signup — not what a mature onboarding flow would ideally set up. Most of this is genuinely not built yet; that's stated plainly below rather than glossed over."
+        items={[
+          { setting: "Curriculum template", value: "None — a school builds its own curriculum configuration from scratch", canChange: "N/A", where: "Not built" },
+          { setting: "Grading scale", value: "The JSON below, applied to every new school", canChange: "Yes", where: "This page — Default grading scale" },
+          { setting: "Report card layout", value: "None — no template model is linked to a school at signup", canChange: "N/A", where: "Not built" },
+          { setting: "Assessment weights (CA/exam)", value: "None — empty until the school configures its own components", canChange: "N/A", where: "Not built" },
+          { setting: "Academic calendar", value: "Not tracked — the School record has no calendar-type field at all", canChange: "N/A", where: "Not built" },
+          { setting: "Notification channels", value: "Not defaulted — the channel enum has no WhatsApp entry despite WhatsApp credit wallets existing", canChange: "N/A", where: "Not built" },
+          { setting: "Quiet hours", value: "No such concept exists anywhere in this system", canChange: "N/A", where: "Not built" },
+          { setting: "Fee balance on report cards", value: "No such field exists — report cards store a free-form data blob", canChange: "N/A", where: "Not built" },
+          { setting: "Class position on report cards", value: "No such field exists", canChange: "N/A", where: "Not built" },
+          { setting: "Guardian portal", value: "Not in the default module-enable set created at signup", canChange: "N/A", where: "Not built" },
+          { setting: "Student portal", value: "On for every student account — access is role-based, not gated by class or grade", canChange: "No — always on", where: "Real, but not a configurable default" },
+          { setting: "Full account data export", value: "Not self-service — a school cannot trigger its own export; only a Super Admin can run one, for NDPC compliance requests", canChange: "No", where: "Security & Compliance, not here" },
+          { setting: "Audit log", value: "Written platform-wide on every mutating action", canChange: "No", where: "AuditLog — no toggle to hide it from a school exists" }
+        ]}
+        pageSize={false}
+        getRowKey={(item) => item.setting}
+        columns={[
+          { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
+          { key: "value", header: "Default for a new school", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
+          { key: "canChange", header: "School can change", render: (item) => item.canChange },
+          { key: "where", header: "Where it lives", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.where}</span> }
+        ]}
+      />
+
       <TableCard
         title="Global modules"
         description="Availability toggles applied platform-wide, on top of a school's own plan and configuration."
@@ -237,7 +296,9 @@ async function NotificationsTab() {
           { rule: "Retry on failure", value: "Not implemented — a failed send is not automatically retried", state: "bad" },
           { rule: "Daily cap per recipient", value: "Not enforced", state: "mute" },
           { rule: "Marketing consent", value: "Checked per recipient at send time, for promotional campaigns only — operational messages bypass it", state: "good" },
-          { rule: "Email", value: "Real SMTP send when configured; otherwise logged to the server console, not delivered", state: "warn" }
+          { rule: "Administrative messages", value: "Sent regardless of marketing consent — maintenance, billing, and security notices concern the service a school is paying for", state: "good" },
+          { rule: "Email", value: "Real SMTP send when configured; otherwise logged to the server console, not delivered", state: "warn" },
+          { rule: "Third-party commercial messages to parents", value: "Not built — no code path composes or sends one", state: "bad" }
         ]}
         pageSize={false}
         getRowKey={(item) => item.rule}
@@ -281,6 +342,7 @@ async function SecurityTab() {
         { requirement: "Session lifetime", spec: "8 hours by default, 30 days if “Trust this device” is checked at login — no idle timeout", state: "warn" },
         { requirement: "Privilege change effect", spec: "Immediate for fine-grained permission checks; role-level checks apply on the next token refresh or re-login", state: "warn" },
         { requirement: "Support access to a school", spec: "A 30-minute logged impersonation with a required reason — not read-only, the acting admin can take any action the account holder could", state: "warn" },
+        { requirement: "Acting on a school's behalf beyond support access", spec: "Not built — there's no separate escalation tier that additionally requires the school's own recorded confirmation before proceeding", state: "bad" },
         { requirement: "Reading a student's academic record directly", spec: "Not possible outside the logged impersonation flow above — no platform-level endpoint exposes it", state: "good" },
         { requirement: "Out-of-hours privilege change flagging", spec: "Detected when a Super Admin runs the suspicious-activity scan — not continuous or automatic yet", state: "warn" },
         { requirement: "Audit log", spec: "Append-only in practice — no code path in this system updates or deletes an entry", state: "good" }

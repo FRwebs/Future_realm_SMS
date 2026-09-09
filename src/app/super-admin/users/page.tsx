@@ -536,6 +536,7 @@ async function ReviewsAndCasesTab({
         cases={allCases}
         emptyState="No open cases right now. Run a scan to check for new suspicious activity or duplicate accounts."
         footerNote="Suspicious activity and duplicate accounts are detected by periodic scans; account recovery cases are logged the moment support completes a recovery."
+        searchPlaceholder="Search a subject, type or assignee"
       />
     </div>
   );

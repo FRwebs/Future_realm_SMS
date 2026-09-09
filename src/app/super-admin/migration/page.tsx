@@ -3,7 +3,6 @@ import { CheckCircle2, FileClock, FileWarning, RotateCcw } from "lucide-react";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
-import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
@@ -16,17 +15,12 @@ import type {
 } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
+import { JobsTable } from "./_jobs-table";
+
 const yesNoOptions = [
   { label: "Yes", value: "true" },
   { label: "No", value: "false" }
 ];
-
-function statusTone(status: string): Parameters<typeof StatusBadge>[0]["tone"] {
-  if (status === "SIGNED_OFF" || status === "COMPLETED") return "success";
-  if (status === "ROLLED_BACK") return "danger";
-  if (status === "INVITED" || status === "FILES_AWAITED") return "warning";
-  return "brand";
-}
 
 const toneStyle = {
   good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
@@ -227,30 +221,57 @@ function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
         ]}
       />
 
-      <TableCard
-        title="All migration jobs"
-        description="Every school migration tracked on the platform, most recent first."
-        items={jobs}
-        emptyState="No migration jobs yet. Start one from the action above."
-        columns={[
-          {
-            key: "schoolName",
-            header: "School",
-            render: (job) => (
-              <div>
-                <p className="font-semibold text-[var(--color-text-primary)]">{job.schoolName}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p>
-              </div>
-            )
-          },
-          { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} tone={statusTone(job.status)} /> },
-          { key: "specialist", header: "Specialist", render: (job) => job.specialistName ?? "Unassigned" },
-          { key: "createdAt", header: "Created", render: (job) => formatDate(job.createdAt) },
-          { key: "filesReceivedAt", header: "Files received", render: (job) => (job.filesReceivedAt ? formatDate(job.filesReceivedAt) : "Awaiting") },
-          { key: "signedOffAt", header: "Signed off", render: (job) => (job.signedOffAt ? formatDate(job.signedOffAt) : "—") }
-        ]}
-      />
+      <JobsTable jobs={jobs} />
+
+      <RetentionTable jobs={jobs} />
     </div>
+  );
+}
+
+const RETENTION_DAYS = 90;
+
+function RetentionTable({ jobs }: { jobs: MigrationJobRow[] }) {
+  const holding = jobs
+    .filter((job) => job.retentionClockStartsAt)
+    .map((job) => {
+      const startedAt = new Date(job.retentionClockStartsAt as string);
+      const deletesOn = new Date(startedAt.getTime() + RETENTION_DAYS * 24 * 60 * 60 * 1000);
+      const daysLeft = Math.ceil((deletesOn.getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+      return { ...job, deletesOn, daysLeft };
+    })
+    .sort((a, b) => a.daysLeft - b.daysLeft);
+
+  return (
+    <TableCard
+      title="Source files pending deletion"
+      description={`Source exports are children's data. The design calls for deletion ${RETENTION_DAYS} days after sign-off — the countdown below is computed from the real retentionClockStartsAt each job records, but nothing currently purges a file automatically when it hits zero.`}
+      items={holding}
+      pageSize={false}
+      emptyState="No job has a retention clock running."
+      getRowKey={(job) => job.id}
+      columns={[
+        {
+          key: "school",
+          header: "School",
+          render: (job) => (
+            <div>
+              <p className="font-semibold text-[var(--color-text-primary)]">{job.schoolName}</p>
+              <p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p>
+            </div>
+          )
+        },
+        { key: "signedOff", header: "Signed off", render: (job) => (job.signedOffAt ? formatDate(job.signedOffAt) : "—") },
+        { key: "deletesOn", header: "Deletes on", render: (job) => formatDate(job.deletesOn.toISOString()) },
+        {
+          key: "state",
+          header: "State",
+          render: (job) => {
+            const tone = job.daysLeft < 0 ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Past due — not purged" } : job.daysLeft <= 7 ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: `${job.daysLeft} days left` } : { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: `${job.daysLeft} days left` };
+            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+          }
+        }
+      ]}
+    />
   );
 }
 
@@ -274,14 +295,16 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
       <TableCard
         title="Setup progress by step"
         description="The real completion state of every school's own onboarding checklist, in the order a school completes it."
-        items={progress.steps}
+        items={progress.steps.map((step, index) => ({ ...step, stepNumber: index + 1 }))}
         emptyState="No onboarding checklists recorded yet."
         pageSize={false}
         getRowKey={(step) => step.key}
         columns={[
+          { key: "index", header: "#", render: (step) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-muted)]">{step.stepNumber}</span> },
           { key: "step", header: "Step", render: (step) => <span className="font-bold text-[var(--color-text-primary)]">{step.label}</span> },
-          { key: "reached", header: "Schools with this step", render: (step) => step.reached },
+          { key: "reached", header: "Reached", render: (step) => step.reached },
           { key: "completed", header: "Completed", render: (step) => step.completed },
+          { key: "abandoned", header: "Abandoned here", render: (step) => <span className="font-semibold text-[var(--color-text-primary)]">{step.reached - step.completed}</span> },
           {
             key: "rate",
             header: "Completion",
@@ -318,7 +341,7 @@ function InvitationsTab({ jobs }: { jobs: MigrationJobRow[] }) {
   return (
     <TableCard
       title="Pending invitations"
-      description="Schools invited onto the migration track that haven't had their files received yet."
+      description="Schools invited onto the migration track that haven't had their files received yet. This is a migration-job invitation, not a per-person user-account invitation — this platform has no resend/correct-email/never-activated system for individual staff invites yet."
       items={jobs}
       emptyState="No pending invitations. Every job has already moved past the invitation stage."
       columns={[

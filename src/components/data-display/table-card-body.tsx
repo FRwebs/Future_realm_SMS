@@ -22,6 +22,8 @@ interface TableCardBodyProps {
   description?: ReactNode;
   emptyState: string;
   actions?: ReactNode;
+  /** Optional filter/search toolbar rendered between the header and the table body. */
+  filterBar?: ReactNode;
   columns: PreparedColumn[];
   rows: PreparedRow[];
   primaryColumnKey?: string;
@@ -43,6 +45,7 @@ export function TableCardBody({
   description,
   emptyState,
   actions,
+  filterBar,
   columns,
   rows,
   primaryColumnKey,
@@ -109,6 +112,8 @@ export function TableCardBody({
           {actions ? <div className="shrink-0">{actions}</div> : null}
         </div>
       </div>
+
+      {filterBar}
 
       <div>
         {rows.length === 0 ? (

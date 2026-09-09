@@ -537,6 +537,7 @@ async function ExceptionsCaseBoard() {
         cases={[...overrideCases, ...brandingCases]}
         emptyState="No feature overrides or branding exceptions on record."
         footerNote={`${overrideRows.length} override(s) · ${brandingRows.length} branding asset(s), most recent first.`}
+        searchPlaceholder="Search a subject, type or assignee"
       />
     </div>
   );

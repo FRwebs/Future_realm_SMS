@@ -434,7 +434,7 @@ export default async function SuperAdminDashboardPage() {
             <h2 className="max-w-[600px] text-pretty font-[var(--font-heading)] text-[26px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[33px]">
               {platformGreeting(session?.role ?? "SUPER_ADMIN", session?.name)}
             </h2>
-            <p className="mt-3 max-w-[560px] text-pretty text-[13.5px] leading-[1.55] text-white/62">
+            <p className="mt-3 max-w-[560px] text-pretty text-[13.5px] leading-[1.55] text-[rgba(255,255,255,0.62)]">
               {profile.mission} {session ? `Current internal role: ${roleLabels[session.role]}.` : ""}
             </p>
           </div>

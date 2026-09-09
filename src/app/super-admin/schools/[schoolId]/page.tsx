@@ -30,6 +30,102 @@ const statusOptions = [
 
 const planTierOptions = ["BASIC", "STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"].map((value) => ({ label: value, value }));
 
+const actionLabels: Record<string, string> = {
+  CREATE: "Created",
+  UPDATE: "Updated",
+  DELETE: "Deleted",
+  LOGIN: "Signed in",
+  EXPORT: "Exported",
+  APPROVE: "Approved",
+  REJECT: "Rejected",
+  PAYMENT: "Payment recorded",
+  SUSPEND: "Suspended",
+  ACTIVATE: "Activated",
+  RESET_PASSWORD: "Password reset",
+  IMPERSONATE: "Impersonated a user",
+  SETTINGS_UPDATE: "Settings updated",
+  BILLING_UPDATE: "Billing updated"
+};
+
+function actionLabel(action: string) {
+  return actionLabels[action] ?? action.charAt(0) + action.slice(1).toLowerCase().replaceAll("_", " ");
+}
+
+function initials(name: string) {
+  const letters = name
+    .replace(/[^A-Za-z ]/g, "")
+    .split(" ")
+    .filter(Boolean)
+    .map((word) => word[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  return letters || "—";
+}
+
+function verificationInfo(school: SuperAdminSchoolDetail): { label: string; tone: "success" | "warning" | "danger" | "neutral" } {
+  if (school.verifiedAt) return { label: "Verified", tone: "success" };
+  if (school.verificationRejectedAt) return { label: "Rejected", tone: "danger" };
+  if (school.flaggedForReviewReason) return { label: "Under review", tone: "warning" };
+  return { label: "Not reviewed", tone: "neutral" };
+}
+
+function outcomeText(school: SuperAdminSchoolDetail) {
+  if (school.verifiedAt) return `Cleared — verified ${formatDate(school.verifiedAt)}`;
+  if (school.verificationRejectedAt) return `Rejected — ${school.verificationRejectionReason ?? "no reason recorded"}`;
+  if (school.flaggedForReviewReason) return "Open in risk review";
+  return "No review required yet";
+}
+
+function renewalText(school: SuperAdminSchoolDetail) {
+  if (school.status === "TRIAL" && school.trialEndsAt) {
+    const days = Math.ceil((new Date(school.trialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    return days <= 0 ? "Trial ended" : `Trial ends in ${days} day${days === 1 ? "" : "s"}`;
+  }
+  if (school.billingStatus === "OVERDUE" && school.nextBillingAt) {
+    const days = Math.ceil((Date.now() - new Date(school.nextBillingAt).getTime()) / (24 * 60 * 60 * 1000));
+    return days > 0 ? `Overdue ${days}d` : "Overdue";
+  }
+  return school.nextBillingAt ? formatDate(school.nextBillingAt) : "—";
+}
+
+function metadataLine(details: unknown): string | null {
+  if (!details || typeof details !== "object") return null;
+  const entries = Object.entries(details as Record<string, unknown>).filter(
+    ([key, value]) => key !== "reason" && value !== null && value !== undefined && value !== ""
+  );
+  if (entries.length === 0) return null;
+  return entries
+    .slice(0, 3)
+    .map(([key, value]) => `${key.replace(/([A-Z])/g, " $1").toLowerCase()}: ${String(value)}`)
+    .join(" · ");
+}
+
+function reasonFromDetails(details: unknown): string | null {
+  if (!details || typeof details !== "object") return null;
+  const reason = (details as Record<string, unknown>).reason ?? (details as Record<string, unknown>).note;
+  return typeof reason === "string" ? reason : null;
+}
+
+function DetailSection({ title, fields }: { title: string; fields: Array<{ label: string; value: ReactNode }> }) {
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+      <div className="border-b border-[var(--color-border-muted)] px-[18px] py-[13px] text-[13.5px] font-semibold text-[var(--color-text-primary)]">
+        {title}
+      </div>
+      {fields.map((field, index) => (
+        <div
+          key={field.label}
+          className={`flex items-start justify-between gap-4 px-[18px] py-[10px] ${index < fields.length - 1 ? "border-b border-[var(--color-border-muted)]" : ""}`}
+        >
+          <dt className="shrink-0 text-[12px] text-[var(--color-text-muted)]">{field.label}</dt>
+          <dd className="text-right text-[12px] font-semibold text-[var(--color-text-primary)]">{field.value}</dd>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function tabHref(schoolId: string, tab: string) {
   return tab === "overview" ? `/super-admin/schools/${schoolId}` : `/super-admin/schools/${schoolId}?tab=${tab}`;
 }
@@ -86,6 +182,8 @@ export default async function SuperAdminSchoolDetailPage({
   ];
 
   const canClose = Boolean(school.dataExportedAt);
+  const verification = verificationInfo(school);
+  const verificationColor = verification.tone === "neutral" ? "var(--color-text-muted)" : `var(--color-${verification.tone})`;
 
   return (
     <div className="grid gap-5">
@@ -101,17 +199,24 @@ export default async function SuperAdminSchoolDetailPage({
           ← Back to schools
         </Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant profile</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">{school.name}</h1>
-            <p className="mt-2 text-[13px] text-[rgba(255,255,255,0.74)]">{school.slug} · Created {formatDate(school.createdAt)}</p>
-            {school.statusReason ? <p className="mt-1 text-[12px] text-white/60">Last status reason: {school.statusReason}</p> : null}
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] border border-white/20 bg-white/10 font-[var(--font-heading)] text-[15px] font-black text-white">
+              {initials(school.name)}
+            </div>
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant profile</p>
+              <h1 className="mt-1 font-[var(--font-heading)] text-[22px] font-bold text-white">{school.name}</h1>
+              <p className="mt-1 text-[12px] text-white/62">
+                {school.subdomain ? school.subdomain : "No web address"} · {[school.city, school.state].filter(Boolean).join(", ") || "Location not recorded"}
+              </p>
+              {school.statusReason ? <p className="mt-1 text-[11.5px] text-white/60">Last status reason: {school.statusReason}</p> : null}
+            </div>
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={school.status} />
-            <StatusBadge status={school.billingStatus} />
+            <StatusBadge status={verification.label} tone={verification.tone} />
             <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3.5 py-1.5 text-[12.5px] font-bold text-[var(--color-text-primary)]">
-              {school.plan}
+              {school.plan} tier
             </span>
             {school.prioritySupport ? (
               <span
@@ -139,15 +244,63 @@ export default async function SuperAdminSchoolDetailPage({
             ))}
           </section>
 
+          <section className="grid gap-3 md:grid-cols-2">
+            <DetailSection
+              title="Registration"
+              fields={[
+                { label: "School name", value: school.name },
+                {
+                  label: "Web address",
+                  value: school.subdomain ? (
+                    <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-1.5 py-0.5 font-[var(--font-mono)] text-[11px]">{school.subdomain}</span>
+                  ) : (
+                    <span className="text-[var(--color-warning)]">Not assigned</span>
+                  )
+                },
+                { label: "Location", value: [school.address, school.city, school.state, school.country].filter(Boolean).join(", ") || "Not recorded" },
+                { label: "Registered on", value: formatDate(school.createdAt) },
+                { label: "Acquisition source", value: school.acquisitionSource ?? "Direct signup" },
+                { label: "Account manager", value: school.accountManager ? school.accountManager.name : "Unassigned" }
+              ]}
+            />
+            <DetailSection
+              title="Risk assessment"
+              fields={[
+                { label: "Assessment", value: <span style={{ color: verificationColor }}>{verification.label}</span> },
+                { label: "Open signal", value: school.flaggedForReviewReason ?? "No open signal" },
+                { label: "CAC number", value: school.cacNumber ?? "Not supplied" },
+                { label: "Ministry approval", value: school.ministryApprovalNumber ?? "Not supplied" },
+                { label: "Primary administrator", value: school.ownerName ?? "Not recorded" },
+                { label: "Outcome", value: outcomeText(school) }
+              ]}
+            />
+            <DetailSection
+              title="Commercial"
+              fields={[
+                { label: "Tier", value: `${school.plan} tier` },
+                { label: "Status", value: school.status.replaceAll("_", " ") },
+                { label: "Renewal", value: renewalText(school) },
+                { label: "Notification credits", value: "Not tracked — no credit system" },
+                { label: "Churn risk", value: school.riskScore === null || school.riskScore === undefined ? "Not scored" : `${school.riskScore}%` }
+              ]}
+            />
+            <DetailSection
+              title="Usage"
+              fields={[
+                { label: "Students enrolled", value: (school.counts.students ?? 0).toLocaleString() },
+                { label: "Staff accounts", value: (school.counts.staffProfiles ?? 0).toLocaleString() },
+                { label: "Guardian accounts", value: (school.counts.guardians ?? 0).toLocaleString() },
+                { label: "Last login", value: school.usage.lastActivityAt ? formatDate(school.usage.lastActivityAt) : "No activity yet" },
+                { label: "Contact email", value: school.ownerEmail ?? "Not recorded" },
+                { label: "Contact phone", value: school.ownerPhone ?? "Not recorded" }
+              ]}
+            />
+          </section>
+
           <section className="grid gap-5 lg:grid-cols-2">
             <section className="surface-card p-6">
               <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Contact & ownership</h2>
-              <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">
-                {school.ownerName} · {school.ownerEmail} · {school.ownerPhone ?? "No phone on file"}
-              </p>
-              <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">
-                {[school.address, school.city, school.state, school.country].filter(Boolean).join(", ")}
-              </p>
+              <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Account manager, school group and status actions for this tenant.</p>
 
               <div className="mt-5 rounded-[10px] bg-[var(--color-bg-subtle)] p-4">
                 <div className="flex items-center justify-between gap-3">
@@ -429,18 +582,53 @@ export default async function SuperAdminSchoolDetailPage({
       ) : null}
 
       {tab === "activity" ? (
-        <TableCard
-          title="Activity log"
-          description="Immutable audit trail scoped to this school — logins, publications, notifications, and admin actions."
-          items={school.activityLog}
-          columns={[
-            { key: "time", header: "Timestamp", render: (item) => formatDate(item.timestamp) },
-            { key: "actor", header: "Actor", render: (item) => item.superAdmin },
-            { key: "action", header: "Action", render: (item) => item.action.replaceAll("_", " ") },
-            { key: "target", header: "Target", render: (item) => item.target }
-          ]}
-          emptyState="No audit activity recorded for this school yet."
-        />
+        <section className="overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="border-b border-[var(--color-border-muted)] px-[22px] py-[17px]">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">History</p>
+            <h2 className="mt-1 font-[var(--font-heading)] text-[17px] font-bold text-[var(--color-text-primary)]">{school.name}</h2>
+            <p className="mt-2 text-[11.5px] leading-[1.5] text-[var(--color-text-secondary)]">
+              Every entry on this record: who, what, when and why. Immutable — no user at any level can alter them.
+            </p>
+          </div>
+          {school.activityLog.length === 0 ? (
+            <p className="px-[22px] py-10 text-center text-[13px] text-[var(--color-text-muted)]">No audit activity recorded for this school yet.</p>
+          ) : (
+            school.activityLog.map((entry) => {
+              const isSystem = entry.superAdmin === "System";
+              const reason = reasonFromDetails(entry.details);
+              const detailLine = metadataLine(entry.details);
+              return (
+                <div key={entry.id} className="flex items-start gap-[11px] border-b border-[var(--color-border-muted)] px-[22px] py-[15px] last:border-b-0">
+                  <span
+                    className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
+                    style={{ background: isSystem ? "var(--color-text-muted)" : "var(--color-accent-primary)" }}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">
+                        {actionLabel(entry.action)} · {entry.target.split(":")[0]}
+                      </p>
+                      <p className="whitespace-nowrap text-[11px] text-[var(--color-text-muted)]">{formatDate(entry.timestamp)}</p>
+                    </div>
+                    {reason ? <p className="mt-1.5 text-[11.5px] leading-[1.5] text-[var(--color-text-secondary)]">{reason}</p> : null}
+                    {!reason && detailLine ? (
+                      <span className="mt-1.5 inline-block rounded-[7px] border border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[11px] text-[var(--color-text-muted)]">
+                        {detailLine}
+                      </span>
+                    ) : null}
+                    <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">{entry.superAdmin}</p>
+                  </div>
+                </div>
+              );
+            })
+          )}
+          <div className="flex items-center justify-between px-[22px] py-4">
+            <p className="text-[11.5px] text-[var(--color-text-muted)]">This trail is permanent — entries are never edited or deleted.</p>
+            <Link href={`/super-admin/audit-logs?schoolId=${school.id}`} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] underline">
+              View in the full audit log & export
+            </Link>
+          </div>
+        </section>
       ) : null}
     </div>
   );
