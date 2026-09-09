@@ -19,14 +19,12 @@ export function LoginForm() {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [success, setSuccess] = useState(false);
   const [trustDevice, setTrustDevice] = useState(true);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError(null);
-    setSuccess(false);
 
     const formData = new FormData(event.currentTarget);
 
@@ -62,7 +60,6 @@ export function LoginForm() {
         return;
       }
 
-      setSuccess(true);
       showToast({
         variant: "success",
         title: "Sign-in successful",
@@ -88,11 +85,7 @@ export function LoginForm() {
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      method="post"
-      className={success ? "ring-2 ring-[#22a06b]/40 transition-all" : ""}
-    >
+    <form onSubmit={handleSubmit} method="post">
       <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Work email</label>
       <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
         <Mail className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
