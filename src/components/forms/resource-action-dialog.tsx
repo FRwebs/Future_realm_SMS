@@ -5,6 +5,7 @@ import { AlertTriangle, Pencil, Plus } from "lucide-react";
 
 import { ResourceField, ResourceForm } from "@/components/forms/resource-form";
 import { Modal } from "@/components/ui/modal";
+import { MODAL_MAX_WIDTH } from "@/lib/ui/interaction";
 import { cn } from "@/lib/utils/cn";
 
 interface ResourceActionDialogProps {
@@ -20,6 +21,7 @@ interface ResourceActionDialogProps {
   offlineKey?: string;
   variant?: "primary" | "secondary" | "danger" | "menu" | "menuDanger" | "heroWhite" | "textAction" | "textActionDanger";
   presentation?: "modal" | "drawer";
+  size?: keyof typeof MODAL_MAX_WIDTH;
 }
 
 const triggerStyles = {
@@ -57,6 +59,7 @@ export function ResourceActionDialog({
   confirmMessage,
   offlineKey,
   variant = "primary",
+  size = "lg",
 }: ResourceActionDialogProps) {
   const [open, setOpen] = useState(false);
   const TriggerIcon = triggerIcons[variant];
@@ -87,7 +90,7 @@ export function ResourceActionDialog({
         onClose={() => setOpen(false)}
         title={title}
         subtitle={description}
-        size="lg"
+        size={size}
       >
         <ResourceForm
           formId={formId}

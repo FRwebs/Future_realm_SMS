@@ -320,8 +320,8 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                         <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{school.totalStudents.toLocaleString()}</dd>
                       </div>
                       <div className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Created</dt>
-                        <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{formatDate(school.createdAt)}</dd>
+                        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Last login</dt>
+                        <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
                       </div>
                       <div className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2">
                         <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Risk</dt>
@@ -357,7 +357,7 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                             ) : null}
                           </button>
                         </th>
-                        {["School", "Location", "Tier", "Students", "Created", "Next Billing", "Status", "Risk", ""].map((header) => (
+                        {["School", "Location", "Tier", "Students", "Last login", "Renewal", "Status", "Risk", ""].map((header) => (
                           <th
                             key={header}
                             className="border-b border-[var(--color-border-default)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"
@@ -407,7 +407,13 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                             <td className="px-4 py-3 align-top">{[school.state, school.country].filter(Boolean).join(", ") || "—"}</td>
                             <td className="px-4 py-3 align-top">{planLabel(school.plan)}</td>
                             <td className="px-4 py-3 align-top">{school.totalStudents.toLocaleString()}</td>
-                            <td className="px-4 py-3 align-top">{formatDate(school.createdAt)}</td>
+                            <td className="px-4 py-3 align-top">
+                              {school.lastSuccessfulLoginAt ? (
+                                formatDate(school.lastSuccessfulLoginAt)
+                              ) : (
+                                <span className="font-semibold text-[var(--color-danger)]">Never</span>
+                              )}
+                            </td>
                             <td className="px-4 py-3 align-top">{school.nextBillingAt ? formatDate(school.nextBillingAt) : "—"}</td>
                             <td className="px-4 py-3 align-top">
                               <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>

@@ -91,7 +91,7 @@ export function LoginForm() {
     <form
       onSubmit={handleSubmit}
       method="post"
-      className={success ? "ring-2 ring-[var(--color-success)]/40 transition-all" : ""}
+      className={success ? "ring-2 ring-[#22a06b]/40 transition-all" : ""}
     >
       <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Work email</label>
       <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">

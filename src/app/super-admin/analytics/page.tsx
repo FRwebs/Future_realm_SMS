@@ -6,6 +6,13 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
+import { getServerSession } from "@/lib/auth/session";
+
+import { FeatureRequestTable } from "./_feature-request-table";
+import { ModuleAdoptionTable } from "./_module-adoption-table";
+import { RevenueStateTable } from "./_revenue-state-table";
+import { SavedReportsTable } from "./_saved-reports-table";
+import { StateAdoptionTable } from "./_state-adoption-table";
 import type {
   SuperAdminBiOverview,
   SuperAdminChurnAnalysis,
@@ -16,36 +23,27 @@ import type {
   SuperAdminRevenueReport,
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
-import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/utils/formatters";
+import { formatCompactCurrency, formatCurrency } from "@/lib/utils/formatters";
 
 const churnReasonOptions = ["PRICE_TOO_HIGH", "SWITCHED_TO_COMPETITOR", "SCHOOL_CLOSED", "PRODUCT_ISSUES", "INSUFFICIENT_SUPPORT", "LOW_STAFF_ADOPTION", "OTHER"].map((v) => ({ label: v.replaceAll("_", " "), value: v }));
+
+function churnSignal(reason: string) {
+  const signals: Record<string, string> = {
+    LOW_STAFF_ADOPTION: "Onboarding and training process review needed",
+    PRICE_TOO_HIGH: "Pricing strategy review needed",
+    SWITCHED_TO_COMPETITOR: "Competitive intelligence needed — which competitor?",
+    INSUFFICIENT_SUPPORT: "Support quality review needed",
+    SCHOOL_CLOSED: "External — no action",
+    PRODUCT_ISSUES: "Product roadmap input",
+    OTHER: "Must be described in notes — cannot be closed without detail"
+  };
+  return signals[reason] ?? "Not categorized";
+}
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
     <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
-    </span>
-  );
-}
-
-function heatCellStyle(pct: number) {
-  if (pct < 45) {
-    const alpha = (0.07 + (pct / 45) * 0.33).toFixed(3);
-    return { background: `rgba(18,121,106,${alpha})`, color: "#0d2315" };
-  }
-  const t = (pct - 45) / 55;
-  const lerp = (a: number, b: number) => Math.round(a + (b - a) * t);
-  return { background: `rgb(${lerp(18, 6)},${lerp(121, 56)},${lerp(106, 47)})`, color: "#fff" };
-}
-
-function HeatCell({ value }: { value: number | null }) {
-  if (value === null) {
-    return <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] border border-[#E9F0EC] bg-[#F2F7F4] px-1 py-[9px] font-[var(--font-heading)] text-[11.5px] font-semibold text-[#C2D2C8]">—</span>;
-  }
-  const style = heatCellStyle(value);
-  return (
-    <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] px-1 py-[9px] font-[var(--font-heading)] text-[11.5px] font-semibold" style={{ background: style.background, color: style.color }}>
-      {value}%
     </span>
   );
 }
@@ -103,7 +101,34 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
       <ModuleHero
         eyebrow="Platform intelligence"
         title="Analytics & BI"
-        description="Growth and conversion, cohort/churn/NPS retention signals, revenue reporting, product adoption, and saved reports."
+        description="Honest measurement, made easier than optimistic measurement."
+        action={
+          <ResourceActionDialog
+            triggerLabel="Build report"
+            title="Build a report"
+            description="Answer one question well, then save it for the people who ask it monthly."
+            endpoint="/api/super-admin/analytics/custom-reports"
+            variant="heroWhite"
+            submitLabel="Build report"
+            size="report"
+            fields={[
+              { name: "name", label: "Subject", required: true, placeholder: "e.g. Retention by joining cohort", section: "The question" },
+              { name: "metric", label: "Metric", type: "select", section: "The question", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
+              { name: "dimension", label: "Segment by", type: "select", section: "The question", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] },
+              { name: "_period", label: "Period", type: "static", section: "The question", placeholder: "All available data", note: "Not built — a custom report always runs against everything on record; there's no period filter yet." },
+              { name: "_compareWith", label: "Compare with", type: "static", section: "The question", placeholder: "Not available", note: "Not built — nothing to compare a report against yet." },
+              { name: "_dropoff", label: "Show drop-off at every stage", type: "toggle", disabled: true, section: "Presentation", note: "Not built — no report here is clickable through to the schools sitting behind a number." },
+              { name: "_churnWeight", label: "Weight churned schools separately", type: "toggle", disabled: true, section: "Presentation", note: "Not built — this report engine has no concept of weighting by churn status." },
+              { name: "_suppress", label: "Suppress cohorts under 10", type: "toggle", disabled: true, section: "Presentation", note: "Not built — small groups aren't suppressed anywhere in this system; every real count is shown as-is." },
+              { name: "_schedule", label: "Schedule", type: "static", section: "Delivery", placeholder: "Not built", note: "Reports run on demand only — there's no scheduling system behind this page." },
+              { name: "_recipients", label: "Recipients", type: "static", section: "Delivery", placeholder: "Not built", note: "No delivery or recipient list exists for a saved report." },
+              { name: "_templateName", label: "Template name", type: "static", section: "Save as a template", placeholder: "Same as Subject, above", note: "Every report you build is saved automatically under the Subject you gave it — there's no separate save step." },
+              { name: "_groupUnder", label: "Group under", type: "static", section: "Save as a template", placeholder: "Not built", note: "Saved reports aren't organized into groups yet — they all appear together on the Reports tab." },
+              { name: "_visibleTo", label: "Visible to", type: "static", section: "Save as a template", placeholder: "Every Super Admin", note: "Not built — there's no per-audience visibility control; any Super Admin can see any saved report." },
+              { name: "_scope", label: "Scope applied when run", type: "static", section: "Save as a template", placeholder: "The full platform", note: "Not applicable — a Super Admin's view isn't scoped to a region or portfolio in this system." }
+            ]}
+          />
+        }
       />
 
       <DetailTabs tabs={tabs} />
@@ -136,7 +161,7 @@ async function GrowthTab() {
   return (
     <section className="grid gap-5">
       <section className="surface-card overflow-hidden">
-        <SectionHeader title="Growth and conversion funnel" description="Each stage is a real school count, clickable through to the schools behind it — not a sample." />
+        <SectionHeader title="Growth and conversion funnel" description="Each stage is a real school count computed from signup, trial, and billing records — not a sample." />
         <div className="flex items-end gap-2.5 px-5 pb-[22px] pt-2.5">
           {funnelStages.map((stage, index) => {
             const barPct = Math.max(stage.ofFirstPct ?? 100, 2);
@@ -179,7 +204,8 @@ async function GrowthTab() {
               </span>
             ),
             sortValue: (item) => item.changePct
-          }
+          },
+          { key: "owner", header: "Owner", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not tracked — no stage-ownership feature exists</span> }
         ]}
       />
 
@@ -190,16 +216,16 @@ async function GrowthTab() {
       </div>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Displaced a system" value={`${displacement.displacementRatePct}%`} detail="Of migrated schools, arrived from another platform" icon={Repeat2} tone="accent" />
+        <StatCard label="Displacement rate" value={`${displacement.displacementRatePct}%`} detail="Arrived from another system, not from paper" icon={Repeat2} tone="accent" />
         <StatCard label="From paper or spreadsheets" value={`${displacement.paperOrSpreadsheetPct}%`} detail="The discovery half of the market" icon={ClipboardList} />
-        <StatCard label="Migration completion" value={`${displacement.migrationCompletionRatePct}%`} detail="Across all source systems" tone="success" icon={TrendingUp} />
+        <StatCard label="Migration completion rate" value={`${displacement.migrationCompletionRatePct}%`} detail="Across all source systems" tone="success" icon={TrendingUp} />
         <StatCard label="Trialled and returned" value={displacement.trialledAndReturned} detail="Rolled-back migrations, reason recorded" tone={displacement.trialledAndReturned > 0 ? "warning" : "success"} icon={TrendingDown} />
         <StatCard label="Sources we cannot read" value={displacement.unreadableSourceCount} detail="No adapter available, every attempt rolled back" tone={displacement.unreadableSourceCount > 0 ? "danger" : "success"} icon={PackageOpen} />
       </section>
 
       <TableCard
         title="Win analysis by displaced system"
-        description="Which system we take schools from, and whether our import tooling can actually read it."
+        description="Which system we take schools from, and whether our import tooling can actually read it. Nothing in this system captures why a school chose to switch — that column says so plainly rather than guessing."
         items={displacement.bySourceSystem}
         pageSize={false}
         getRowKey={(item) => item.sourceSystem}
@@ -214,6 +240,7 @@ async function GrowthTab() {
             render: (item) => (item.migrationRatePct === null ? "—" : <BarCell value={item.migrationRatePct} />),
             sortValue: (item) => item.migrationRatePct ?? 0
           },
+          { key: "reason", header: "What they said made them move", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not captured — no field records this</span> },
           {
             key: "adapter",
             header: "Adapter",
@@ -271,6 +298,7 @@ async function RetentionTab() {
       </div>
       <TableCard
         title="Cohorts"
+        description={'Retention measured as "still active today," not a term-by-term curve — this system has no historical snapshot of a school\'s status at a past point in time, so a real Term 1/2/3 retention curve can\'t be reconstructed honestly yet.'}
         items={cohorts}
         pageSize={false}
         getRowKey={(item) => item.cohort}
@@ -279,7 +307,16 @@ async function RetentionTab() {
           { key: "cohort", header: "Cohort (join month)", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.cohort}</span>, sortValue: (item) => item.cohort },
           { key: "joined", header: "Joined", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.joined}</span>, sortValue: (item) => item.joined },
           { key: "active", header: "Still active", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.stillActive}</span>, sortValue: (item) => item.stillActive },
-          { key: "retention", header: "Retention", render: (item) => <BarCell value={item.retentionPct} />, sortValue: (item) => item.retentionPct }
+          { key: "retention", header: "Retention", render: (item) => <BarCell value={item.retentionPct} />, sortValue: (item) => item.retentionPct },
+          {
+            key: "verdict",
+            header: "Verdict",
+            render: (item) => {
+              const tone = item.joined < 3 ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Too early" } : item.retentionPct >= 80 ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Product working" } : item.retentionPct >= 60 ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Watch" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "At risk" };
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            },
+            sortValue: (item) => item.retentionPct
+          }
         ]}
       />
       {/* Churn analysis */}
@@ -311,7 +348,8 @@ async function RetentionTab() {
         columns={[
           { key: "reason", header: "Churn reason", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.reason.replaceAll("_", " ")}</span>, sortValue: (item) => item.reason },
           { key: "count", header: "Count", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.count}</span>, sortValue: (item) => item.count },
-          { key: "share", header: "Share", render: (item) => <span className="font-bold" style={{ color: item.pct >= 25 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>, sortValue: (item) => item.pct }
+          { key: "share", header: "Share", render: (item) => <span className="font-bold" style={{ color: item.pct >= 25 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>, sortValue: (item) => item.pct },
+          { key: "signal", header: "What it signals", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{churnSignal(item.reason)}</span> }
         ]}
       />
 
@@ -389,52 +427,27 @@ async function RetentionTab() {
         <StatCard label="Response rate" value={`${nps.responseRatePct}%`} detail={`${nps.total} of every non-deleted school's admin`} tone="neutral" icon={ClipboardList} />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[0.85fr_1.15fr]">
-        <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">NPS by tier and region</p>
-          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
-          <div className="mt-4 grid gap-3.5">
-            {nps.byTierAndRegion.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
-            ) : (
-              nps.byTierAndRegion.map((item) => (
-                <div key={`${item.kind}-${item.label}`}>
-                  <div className="flex items-center justify-between text-[12.5px]">
-                    <span className="text-[var(--color-text-secondary)]">{item.label}</span>
-                    <span className="font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">{item.npsScore >= 0 ? "+" : ""}{item.npsScore} · {item.responses} resp.</span>
-                  </div>
-                  <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                    <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(Math.abs(item.npsScore) / maxTierRegionNps) * 100}%` }} />
-                  </div>
+      <section className="surface-card p-6">
+        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">NPS by tier and region</p>
+        <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
+        <div className="mt-4 grid gap-3.5">
+          {nps.byTierAndRegion.length === 0 ? (
+            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
+          ) : (
+            nps.byTierAndRegion.map((item) => (
+              <div key={`${item.kind}-${item.label}`}>
+                <div className="flex items-center justify-between text-[12.5px]">
+                  <span className="text-[var(--color-text-secondary)]">{item.label}</span>
+                  <span className="font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">{item.npsScore >= 0 ? "+" : ""}{item.npsScore} · {item.responses} resp.</span>
                 </div>
-              ))
-            )}
-          </div>
-        </section>
-
-        <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Verbatim comments</p>
-          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Stored and searchable — low scorers can be flagged for personal outreach by Customer Success.</p>
-          <div className="mt-4 grid gap-4">
-            {nps.comments.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No verbatim comments recorded yet.</p>
-            ) : (
-              nps.comments.slice(0, 8).map((item, index) => {
-                const pill = item.score >= 9 ? { label: "Promoter", bg: "var(--color-success-dim)", fg: "var(--color-success)" } : item.score >= 7 ? { label: "Passive", bg: "var(--color-warning-dim)", fg: "var(--color-warning)" } : { label: "Detractor", bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
-                return (
-                  <div key={`${item.schoolName}-${index}`} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                    <p className="text-[13px] leading-5 text-[var(--color-text-primary)]">&ldquo;{item.comment}&rdquo;</p>
-                    <div className="mt-2 flex flex-wrap items-center gap-2">
-                      <span className="text-[11.5px] text-[var(--color-text-muted)]">{item.schoolName} · score {item.score}</span>
-                      <StatusPill bg={pill.bg} fg={pill.fg} label={pill.label} />
-                    </div>
-                  </div>
-                );
-              })
-            )}
-          </div>
-        </section>
-      </div>
+                <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(Math.abs(item.npsScore) / maxTierRegionNps) * 100}%` }} />
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+      </section>
     </section>
   );
 }
@@ -446,35 +459,35 @@ async function RevenueTab() {
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
         <StatCard
-          label="Outstanding"
+          label="Total outstanding receivables"
           value={formatCompactCurrency(report.outstandingReceivables)}
           detail={`${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance. Full value: ${formatCurrency(report.outstandingReceivables)}.`}
           icon={AlertTriangle}
           tone="warning"
         />
         <StatCard
-          label="Renewal rate"
+          label="Term-over-term renewal rate"
           value={`${report.renewalRate}%`}
           detail={`${report.renewedRecently} of ${report.activeSchoolCount} renewed in the last 90 days.`}
           icon={Repeat2}
           tone="success"
         />
         <StatCard
-          label="ARPU"
+          label="ARPU trend"
           value={formatCompactCurrency(report.arpu)}
           detail={`Per paying school, per semester. Full value: ${formatCurrency(report.arpu)}.`}
           icon={UsersRound}
           tone="info"
         />
         <StatCard
-          label="Credit share"
+          label="Credit revenue share"
           value={`${report.creditRevenueSharePct}%`}
           detail={`${formatCompactCurrency(report.notificationCreditRevenue)} of platform revenue from credit bundles.`}
           icon={CreditCard}
           tone="accent"
         />
         <StatCard
-          label="Next term"
+          label="Projected next term"
           value={formatCompactCurrency(report.mrr)}
           detail={`Active schools × confirmed tiers. Full value: ${formatCurrency(report.mrr)}.`}
           icon={TrendingUp}
@@ -482,43 +495,11 @@ async function RevenueTab() {
         />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
-        <TableCard
-          title="Revenue by state"
-          description="Where the platform's schools and revenue are concentrated, and where growth is coming from. A state figure that cannot be traced to named schools is not a figure anyone should act on — open any row to see them."
-          items={report.revenueByState}
-          columns={[
-            { key: "state", header: "State", render: (item) => item.state },
-            { key: "topCity", header: "Top city", render: (item) => item.topCity ?? "—" },
-            { key: "schools", header: "Schools", render: (item) => item.schoolCount },
-            { key: "revenue", header: "Semester revenue", render: (item) => formatCurrency(item.revenue) },
-            { key: "arpu", header: "ARPU", render: (item) => formatCurrency(item.arpu) },
-            {
-              key: "trend",
-              header: "Trend (90d)",
-              render: (item) =>
-                item.newSchools90d > 0 ? (
-                  <span className="font-semibold" style={{ color: "var(--color-success)" }}>
-                    +{item.newSchools90d} school{item.newSchools90d === 1 ? "" : "s"}
-                  </span>
-                ) : (
-                  <span className="text-[var(--color-text-muted)]">Steady</span>
-                )
-            },
-            {
-              key: "open",
-              header: "",
-              render: (item) => (
-                <a href={`/super-admin/schools?state=${encodeURIComponent(item.state)}`} className="font-semibold text-[var(--color-text-accent)] underline">
-                  View schools
-                </a>
-              )
-            }
-          ]}
-          emptyState="No school location data yet."
-        />
+      <section className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+        <RevenueStateTable items={report.revenueByState} />
         <TableCard
           title="LTV projection by tier"
+          description="Based on average subscription duration per tier."
           items={report.ltvByTier}
           columns={[
             { key: "tier", header: "Tier", render: (item) => item.plan },
@@ -549,29 +530,15 @@ async function ProductTab() {
         <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="accent" />
         <StatCard label="Platform adoption index" value={adoption.adoptionIndex} detail={`Weighted across ${adoption.modulesTracked} modules`} icon={Gauge} />
         <StatCard label="Modules below the 40% floor" value={adoption.modulesBelowFloor} detail="Enabled by fewer than 4 in 10 schools" tone={adoption.modulesBelowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />
-        <StatCard label="Top adopted module" value={adoption.topModule ? `${adoption.topModule.adoptionPct}%` : "—"} detail={adoption.topModule ? moduleLabel(adoption.topModule.module) : "No module usage recorded yet"} tone="success" icon={Banknote} />
-        <StatCard label="Modules tracked" value={adoption.modulesTracked} detail="Toggleable in every school's configuration" icon={CreditCard} />
+        <StatCard label="Paid features never switched on" value="N/A" detail="Not applicable — no module is tier-gated in this product, so nothing is a paid feature going unused" icon={Banknote} />
+        <StatCard label="Sprint candidates flagged" value="N/A" detail="Not built — nothing auto-nominates a module for a sprint review" icon={CreditCard} />
       </section>
 
-      <section>
-        <TableCard
-          title="Module adoption by tier"
-          description="Share of schools on each tier with the module switched on — a real usage signal, not an entitlement gate. Every school gets every module at signup and enables or disables it from its own configuration."
-          items={adoption.heatmapByTier}
-          pageSize={false}
-          getRowKey={(item) => item.module}
-          emptyState="No module usage recorded yet."
-          columns={[
-            { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
-            ...adoption.tierColumns.map((tier, tierIndex) => ({
-              key: `tier-${tier.plan}`,
-              header: `${tier.plan} (${tier.schoolCount})`,
-              render: (item: (typeof adoption.heatmapByTier)[number]) => <HeatCell value={item.cells[tierIndex] ?? null} />,
-              sortValue: (item: (typeof adoption.heatmapByTier)[number]) => item.cells[tierIndex] ?? -1
-            }))
-          ]}
-        />
-      </section>
+      <ModuleAdoptionTable
+        heatmapByTier={adoption.heatmapByTier}
+        tierColumns={adoption.tierColumns}
+        schoolsInScope={adoption.tierColumns.reduce((sum, tier) => sum + tier.schoolCount, 0)}
+      />
 
       <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
         <TableCard
@@ -585,17 +552,19 @@ async function ProductTab() {
             { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
             { key: "adoption", header: "Adoption", render: (item) => <BarCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
             { key: "using", header: "Schools using", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
-            { key: "notUsing", header: "Schools not using", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing }
+            { key: "notUsing", header: "Schools not using", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
+            { key: "diagnosis", header: "Diagnosis from support tickets", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not automatically correlated to tickets yet</span> }
           ]}
         />
         <section className="surface-card overflow-hidden">
           <div className="border-b border-[var(--color-border-default)] px-5 py-4">
             <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How this grid is read</p>
-            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Three rules keep the comparison honest</p>
+            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Four rules keep the comparison honest</p>
           </div>
           <div className="grid gap-3 p-5">
             {[
               { title: "Compare down a column, or across a row — every school can toggle every module", detail: "There is no tier-based entitlement gate in this product, so a low cell is a genuine usage gap, not a locked feature." },
+              { title: "Trial columns are a conversion signal, not adoption", detail: "A trial school that never turns a module on hasn't seen its value yet — a real churn predictor, read differently from a paying school's cell." },
               { title: "Adoption is measured per school, not per user", detail: "One teacher using a module does not make a school an adopter of it." },
               { title: "Below 40% for two tiers running is worth a product conversation", detail: "The floor is a prompt to ask why, not an automatic verdict." }
             ].map((row) => (
@@ -608,93 +577,63 @@ async function ProductTab() {
         </section>
       </section>
 
-      <section>
-        <TableCard
-          title="Adoption by state"
-          description="Same metric grouped by region, to separate a product problem from a connectivity or training problem."
-          items={adoption.heatmapByState}
-          pageSize={false}
-          getRowKey={(item) => item.state}
-          emptyState="No school location data yet."
-          columns={[
-            { key: "state", header: "State", render: (item) => <div><span className="font-bold text-[var(--color-text-primary)]">{item.state}</span><p className="text-[11px] text-[var(--color-text-muted)]">{item.schoolCount} school{item.schoolCount === 1 ? "" : "s"}</p></div>, sortValue: (item) => item.state },
-            ...adoption.stateHeatmapModules.map((module, moduleIndex) => ({
-              key: `module-${module}`,
-              header: moduleLabel(module),
-              render: (item: (typeof adoption.heatmapByState)[number]) => <HeatCell value={item.cells[moduleIndex] ?? null} />,
-              sortValue: (item: (typeof adoption.heatmapByState)[number]) => item.cells[moduleIndex] ?? -1
-            }))
-          ]}
-        />
-      </section>
+      <StateAdoptionTable heatmapByState={adoption.heatmapByState} stateHeatmapModules={adoption.stateHeatmapModules} />
 
-      <TableCard
-        title="Feature request intelligence"
-        description="Ranked by keyword frequency across support tickets tagged as feature requests."
-        items={bi.featureRequests}
-        pageSize={false}
-        getRowKey={(item) => item.keyword}
-        emptyState="No feature-request tickets logged yet."
-        columns={[
-          { key: "keyword", header: "Keyword", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.keyword}</span>, sortValue: (item) => item.keyword },
-          { key: "requests", header: "Mentions", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.requestCount}</span>, sortValue: (item) => item.requestCount },
-          { key: "schools", header: "Schools requesting", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.schoolsRequesting}</span>, sortValue: (item) => item.schoolsRequesting },
-          { key: "priority", header: "Priority score", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.priorityScore}</span>, sortValue: (item) => item.priorityScore }
-        ]}
-      />
+      <FeatureRequestTable items={bi.featureRequests} />
       <p className="-mt-2 flex items-center gap-2 text-[11.5px] text-[var(--color-text-muted)]">
-        <Lightbulb className="h-3.5 w-3.5" /> Priority score weights mention count, distinct schools, and distinct tiers requesting.
+        <Lightbulb className="h-3.5 w-3.5" /> Priority score weights mention count, distinct schools, and distinct tiers requesting. Every request here comes from support-ticket keyword matching — there's no separate manual-log path in this build yet.
       </p>
     </section>
   );
 }
 
 async function ReportsTab() {
-  const reports = await apiGet<SuperAdminCustomReportRow[]>("/api/super-admin/analytics/custom-reports");
+  const [reports, session] = await Promise.all([
+    apiGet<SuperAdminCustomReportRow[]>("/api/super-admin/analytics/custom-reports"),
+    getServerSession()
+  ]);
+  const ownerName = session?.name ? `You · ${session.name}` : "You";
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1.35fr_0.75fr]">
-      <TableCard
-        title="Saved custom reports"
+    <section className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+      <SavedReportsTable
         items={reports}
-        pageSize={false}
-        getRowKey={(item) => item.id}
-        emptyState="No saved reports yet. Build one to start tracking a metric over time."
         actions={
           <ResourceActionDialog
-            triggerLabel="New report"
-            title="Build a custom report"
-            description="Choose what to measure and how to group it."
+            triggerLabel="New template"
+            title="Save as a report template"
+            description="The report you just built, kept so the people who ask for it monthly can run it themselves."
             endpoint="/api/super-admin/analytics/custom-reports"
-            submitLabel="Save report"
+            submitLabel="Save template"
+            size="report"
             fields={[
-              { name: "name", label: "Report name", required: true },
-              { name: "metric", label: "Metric", type: "select", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
-              { name: "dimension", label: "Group by", type: "select", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] }
+              { name: "name", label: "Template name", required: true, placeholder: "e.g. Retention by joining cohort", section: "Name it for the person who will run it" },
+              { name: "_question", label: "What question it answers", placeholder: "One line shown under the name on the Reports tab", section: "Name it for the person who will run it" },
+              { name: "_groupUnder", label: "Group under", type: "static", section: "Name it for the person who will run it", placeholder: "Not built", note: "Saved reports aren't organized into groups yet — they all appear together on the Reports tab." },
+              { name: "_owner", label: "Owner", type: "static", section: "Name it for the person who will run it", placeholder: ownerName, note: "The Super Admin who saved this template." },
+              { name: "metric", label: "Metric", type: "select", section: "Who can run it", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
+              { name: "dimension", label: "Group by", type: "select", section: "Who can run it", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] },
+              { name: "_visibleTo", label: "Visible to", type: "static", section: "Who can run it", placeholder: "Every Super Admin", note: "Not built — there's no per-audience visibility control; any Super Admin can see any saved report." },
+              { name: "_scope", label: "Scope applied when run", type: "static", section: "Who can run it", placeholder: "The full platform", note: "Not applicable — a Super Admin's view isn't scoped to a region or portfolio in this system." },
+              { name: "_pin", label: "Pin to the Reports tab", type: "toggle", section: "When saved", note: "Every saved template appears here immediately — this is always on." },
+              { name: "_schedule", label: "Keep the schedule attached", type: "toggle", disabled: true, section: "When saved", note: "Not built — there's no scheduling system behind this page." },
+              { name: "_lockFilters", label: "Lock the filters", type: "toggle", disabled: true, section: "When saved", note: "Not built — every reader who opens a saved report can change what it's grouped by." }
             ]}
           />
         }
-        columns={[
-          { key: "name", header: "Report", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.name}</span>, sortValue: (item) => item.name },
-          { key: "metric", header: "Metric", render: (item) => item.metric, sortValue: (item) => item.metric },
-          { key: "dimension", header: "Grouped by", render: (item) => item.dimension, sortValue: (item) => item.dimension },
-          { key: "createdBy", header: "Created by", render: (item) => item.createdBy, sortValue: (item) => item.createdBy },
-          { key: "created", header: "Last generated", render: (item) => (item.generatedAt ? formatDate(item.generatedAt) : formatDate(item.createdAt)), sortValue: (item) => item.generatedAt ?? item.createdAt }
-        ]}
       />
 
       <TableCard
         title="Reporting cadence"
         description="Every figure on this page is computed live at request time — there is no scheduled rollup job or cached snapshot behind any of it."
         items={[
-          { type: "Custom reports", frequency: "Computed live when run" },
+          { type: "Adoption heatmap", frequency: "Computed live on page load" },
           { type: "Funnel / conversion", frequency: "Computed live on page load" },
-          { type: "Displacement", frequency: "Computed live on page load" },
           { type: "Cohort retention", frequency: "Computed live on page load" },
           { type: "Revenue (MRR / ARR)", frequency: "Computed live on page load" },
           { type: "Churn analysis", frequency: "Computed live on page load" },
           { type: "NPS", frequency: "Computed live on page load" },
-          { type: "Product adoption", frequency: "Computed live on page load" }
+          { type: "Geographic performance", frequency: "Computed live on page load" }
         ]}
         pageSize={false}
         getRowKey={(item) => item.type}

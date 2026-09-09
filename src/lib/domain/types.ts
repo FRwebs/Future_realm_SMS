@@ -371,6 +371,7 @@ export interface SuperAdminSchoolRow {
   trialEndsAt?: string;
   lastPaymentAt?: string;
   nextBillingAt?: string;
+  lastSuccessfulLoginAt?: string | null;
 }
 
 export interface SuperAdminPendingVerificationSchool {
@@ -485,6 +486,16 @@ export interface SuperAdminSchoolDetail {
   city?: string;
   state?: string;
   country?: string;
+  subdomain?: string | null;
+  cacNumber?: string | null;
+  ministryApprovalNumber?: string | null;
+  flaggedForReviewReason?: string | null;
+  riskScore?: number | null;
+  riskSignals?: Array<{ label: string; weight: number; triggered: boolean }> | null;
+  verifiedAt?: string | null;
+  verificationRejectedAt?: string | null;
+  verificationRejectionReason?: string | null;
+  acquisitionSource?: string;
   plan: SubscriptionPlan;
   status: TenantStatus;
   billingStatus: PlatformBillingStatus;
@@ -2563,7 +2574,7 @@ export interface SuperAdminBiOverview {
   funnel: Array<{ stage: string; count: number }>;
   weekOverWeek: Array<{ stage: string; thisWeek: number; lastWeek: number; changePct: number }>;
   cohorts: Array<{ cohort: string; joined: number; stillActive: number; retentionPct: number }>;
-  featureRequests: Array<{ keyword: string; requestCount: number; schoolsRequesting: number; priorityScore: number }>;
+  featureRequests: Array<{ keyword: string; requestCount: number; schoolsRequesting: number; tiersRequesting: number; priorityScore: number }>;
   schoolsActiveThisWeek: number;
 }
 

@@ -16,6 +16,7 @@ export const MODAL_MAX_WIDTH = {
   md: "max-w-2xl",
   lg: "max-w-4xl",
   xl: "max-w-5xl",
+  report: "max-w-[760px]",
 } as const;
 
 export const SIDE_PANEL_WIDTH = {

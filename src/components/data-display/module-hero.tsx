@@ -28,7 +28,7 @@ export function ModuleHero({ eyebrow, title, description, action }: ModuleHeroPr
           <h1 className="text-pretty font-[var(--font-heading)] text-[25px] font-extrabold leading-[1.08] tracking-[-0.028em] text-white md:text-[29px]">
             {title}
           </h1>
-          <p className="mt-[9px] max-w-3xl text-pretty text-[13.5px] leading-[1.55] text-white/62">{description}</p>
+          <p className="mt-[9px] max-w-3xl text-pretty text-[13.5px] leading-[1.55] text-[rgba(255,255,255,0.62)]">{description}</p>
         </div>
         {action ? <div className="flex-none">{action}</div> : null}
       </div>

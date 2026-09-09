@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Globe2, Layers, Mail, MapPin, Moon, Phone, Repeat2, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Mail, MapPin, Moon, Phone, Repeat2, ShieldCheck, Users } from "lucide-react";
 
 import { CaseReviewBoard, type CaseRecord, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
@@ -13,12 +13,13 @@ import { AddSchoolWizard } from "@/components/super-admin/add-school-wizard";
 import { SchoolBulkTable } from "@/components/super-admin/school-bulk-table";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
+
+import { WebAddressesTable } from "./_web-addresses-table";
 import type {
   SuperAdminAuditLogRow,
   SuperAdminPendingVerificationSchool,
   SuperAdminPlanRow,
   SuperAdminSchoolContact,
-  SuperAdminSchoolGroup,
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
 
@@ -42,6 +43,10 @@ interface WebAddressRecordRow {
   schoolId: string | null;
   schoolName: string | null;
   state: string;
+  countryScope: string;
+  reservedReason: string | null;
+  changeReason: string | null;
+  issuedAt: string;
   redirectFromAddress: string | null;
   redirectExpiresAt: string | null;
   retiredAt: string | null;
@@ -138,6 +143,8 @@ const statusFilterOptions = [
 
 const planFilterOptions = [{ label: "All tiers", value: "" }, ...planOptions];
 
+const categoryFilterOptions = [{ label: "All categories", value: "" }, ...schoolTypeOptions];
+
 const statusTone: Record<string, { bg: string; fg: string; label: string }> = {
   TRIAL: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Trial Active" },
   ACTIVE: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Active" },
@@ -146,8 +153,6 @@ const statusTone: Record<string, { bg: string; fg: string; label: string }> = {
   ARCHIVED: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Deactivated" },
   DELETED: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Deleted" }
 };
-
-const RECENT_SIGNUP_WINDOW_HOURS = 48;
 
 const lifecycleFlow = [
   { label: "Signup submitted", trigger: "Self-service — automatic" },
@@ -351,7 +356,9 @@ function buildRiskCase(
           />
         </DecisionBlock>
       </>
-    )
+    ),
+    recordHref: `/super-admin/schools/${school.id}`,
+    historyHref: `/super-admin/schools/${school.id}?tab=activity`
   };
 }
 
@@ -404,11 +411,39 @@ function buildTransferCase(transfer: OwnershipTransferRow): CaseRecord {
   const canApprove = transfer.status === "NOTICE_SENT" && !(!transfer.requiresDualApproval && transfer.approver1Id);
   const canExecute = transfer.status === "APPROVED" || (transfer.status === "NOTICE_SENT" && !transfer.requiresDualApproval && Boolean(transfer.approver1Id));
   const canObject = transfer.status === "NOTICE_SENT";
+  const canSetIncomingOwner = transfer.status === "EVIDENCE_COLLECTED" && !transfer.incomingOwnerId;
+  const canSendNotice = transfer.status === "EVIDENCE_COLLECTED" && Boolean(transfer.incomingOwnerId);
 
   let decisions: ReactNode;
-  if (canObject || canApprove || canExecute) {
+  if (canSetIncomingOwner || canSendNotice || canObject || canApprove || canExecute) {
     decisions = (
       <>
+        {canSetIncomingOwner ? (
+          <DecisionBlock note="The incoming owner must already be verified through the standard user-verification process.">
+            <ResourceActionDialog
+              triggerLabel="Set incoming owner"
+              title="Record the incoming owner"
+              description="The incoming owner must already be verified through the standard user-verification process."
+              endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/incoming-owner`}
+              variant="secondary"
+              submitLabel="Save"
+              fields={[{ name: "incomingOwnerId", label: "Incoming owner user ID", required: true }]}
+            />
+          </DecisionBlock>
+        ) : null}
+        {canSendNotice ? (
+          <DecisionBlock note="Immediate for a voluntary transfer; starts a mandatory 14-day hold if the owner is deceased.">
+            <ResourceActionDialog
+              triggerLabel="Send notice"
+              title="Send notice to outgoing owner"
+              description="Immediate for a voluntary transfer; starts a mandatory 14-day hold if the owner is deceased."
+              endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/send-notice`}
+              variant="secondary"
+              submitLabel="Send notice"
+              fields={[]}
+            />
+          </DecisionBlock>
+        ) : null}
         {canObject ? (
           <DecisionBlock note="Requires a reason — freezes the school read-only until the objection is resolved.">
             <ResourceActionDialog
@@ -454,15 +489,13 @@ function buildTransferCase(transfer: OwnershipTransferRow): CaseRecord {
     );
   } else {
     const reason =
-      transfer.status === "EVIDENCE_COLLECTED"
-        ? "Still collecting evidence — set the incoming owner and send notice from the Ownership Transfers tab before a decision can be made here."
-        : transfer.status === "OBJECTION_RAISED"
-          ? "An objection is on file. Resolve it from the Ownership Transfers tab before this case can move forward."
-          : "This transfer has already been executed.";
+      transfer.status === "OBJECTION_RAISED"
+        ? "An objection is on file. There's no resolution action built for this yet — the school stays frozen read-only until this is handled directly against the database."
+        : "This transfer has already been executed.";
     decisions = (
       <DecisionBlock note={reason}>
-        <Link href="/super-admin/schools?tab=ownership-transfers" className="btn-secondary w-fit px-4 text-[13px] font-semibold">
-          Open Ownership Transfers
+        <Link href={`/super-admin/schools/${transfer.schoolId}`} className="btn-secondary w-fit px-4 text-[13px] font-semibold">
+          Open school profile
         </Link>
       </DecisionBlock>
     );
@@ -498,7 +531,9 @@ function buildTransferCase(transfer: OwnershipTransferRow): CaseRecord {
       { label: "Executed", done: transfer.status === "EXECUTED" }
     ],
     history,
-    decisions
+    decisions,
+    recordHref: `/super-admin/schools/${transfer.schoolId}`,
+    historyHref: `/super-admin/schools/${transfer.schoolId}?tab=activity`
   };
 }
 
@@ -621,16 +656,15 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
     params.tab === "approval-queue" ? "approval-queue" :
     params.tab === "provisioning" ? "provisioning" :
     params.tab === "web-addresses" ? "web-addresses" :
-    params.tab === "ownership-transfers" ? "ownership-transfers" :
-    params.tab === "dormancy" ? "dormancy" :
-    params.tab === "lifecycle" ? "lifecycle" :
-    params.tab === "groups" ? "groups" : "directory";
+    params.tab === "dormancy" ? "dormancy" : "directory";
 
   const query = new URLSearchParams();
   if (params.search) query.set("search", params.search);
   if (params.status) query.set("status", params.status);
   if (params.plan) query.set("plan", params.plan);
   if (params.state) query.set("state", params.state);
+  if (params.category) query.set("category", params.category);
+  if (params.joinedAfter) query.set("dateFrom", params.joinedAfter);
   if (params.page) query.set("page", params.page);
   const envelope = await apiGetEnvelope<SuperAdminSchoolRow[]>(`/api/super-admin/schools?${query.toString()}`);
   const schools = envelope.data ?? [];
@@ -644,12 +678,6 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
     .slice()
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   const provisioningTotal = trialEnvelope.pagination?.total ?? provisioningSchools.length;
-  const windowStart = Date.now() - RECENT_SIGNUP_WINDOW_HOURS * 60 * 60 * 1000;
-  const newlyOnboardedCount = provisioningSchools.filter((school) => new Date(school.createdAt).getTime() >= windowStart).length;
-  const provisioningContactGaps = provisioningSchools.filter((school) => !school.ownerEmail || !school.ownerPhone).length;
-
-  const groupsEnvelope = await apiGetEnvelope<SuperAdminSchoolGroup[]>("/api/super-admin/schools/groups");
-  const groups = groupsEnvelope.data ?? [];
 
   const pendingVerificationEnvelope = await apiGetEnvelope<SuperAdminPendingVerificationSchool[]>("/api/super-admin/schools-pending-verification");
   const pendingVerification = pendingVerificationEnvelope.data ?? [];
@@ -683,7 +711,15 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const webAddressEnvelope = await apiGetEnvelope<SchoolWithWebFields[]>("/api/super-admin/schools?limit=100");
   const webAddressSchools = webAddressEnvelope.data ?? [];
   const webAddressTotal = webAddressEnvelope.pagination?.total ?? webAddressSchools.length;
-  const missingSubdomainCount = webAddressSchools.filter((school) => !school.subdomain).length;
+  const signupsLast7Days = webAddressSchools.filter((school) => new Date(school.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).length;
+  const PROVISIONING_STEP_COUNT = 8;
+
+  // Directory's Region filter — real states actually present on the platform, not a
+  // fabricated Nigeria-wide list padded with states nobody is in yet.
+  const stateFilterOptions = [
+    { label: "All states", value: "" },
+    ...Array.from(new Set(webAddressSchools.map((school) => school.state).filter((state): state is string => Boolean(state)))).sort().map((state) => ({ label: state, value: state }))
+  ];
 
   // Dormancy: a real, isolated backend endpoint (school-directory-extras) computes the most
   // recent *successful* LoginAttempt per school. No fabricated "days inactive" figure — we only
@@ -714,6 +750,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   }
   const openDisputeCount = addressDisputes.filter((dispute) => dispute.status !== "DECIDED").length;
   const liveAddressCount = registryRecords.filter((record) => record.state === "LIVE").length;
+  const heldAddressCount = registryRecords.filter((record) => record.state === "HELD").length;
   const reservedBlockedCount = registryRecords.filter((record) => record.state === "RESERVED" || record.state === "BLOCKED").length;
   const activeRedirectCount = registryRecords.filter((record) => record.redirectExpiresAt && new Date(record.redirectExpiresAt) > new Date()).length;
 
@@ -725,14 +762,10 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   } catch {
     ownershipTransfers = [];
   }
-  const openTransferCount = ownershipTransfers.filter((transfer) => transfer.status !== "EXECUTED").length;
-  const executedTransferCount = ownershipTransfers.filter((transfer) => transfer.status === "EXECUTED").length;
-
   const schoolOptions = webAddressSchools.map((school) => ({ label: school.name, value: school.id }));
 
   // Reviews & Cases board — three real case types, one queue. Ownership transfers already
-  // executed and disputes already decided are resolved, not open cases, so they're excluded
-  // here the same way the tab badges above exclude them (openTransferCount / openDisputeCount).
+  // executed and disputes already decided are resolved, not open cases.
   const openOwnershipTransfers = ownershipTransfers.filter((transfer) => transfer.status !== "EXECUTED");
   const openAddressDisputes = addressDisputes.filter((dispute) => dispute.status !== "DECIDED");
   const reviewCases: CaseRecord[] = [
@@ -755,7 +788,6 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
     { label: "Provisioning", href: tabHref("provisioning"), active: activeTab === "provisioning", badge: provisioningTotal },
     { label: "Reviews & Cases", href: tabHref("approval-queue"), active: activeTab === "approval-queue", badge: pendingVerification.length },
     { label: "Web Addresses", href: tabHref("web-addresses"), active: activeTab === "web-addresses", badge: webAddressTotal },
-    { label: "Ownership Transfers", href: tabHref("ownership-transfers"), active: activeTab === "ownership-transfers", badge: openTransferCount },
     { label: "Dormancy", href: tabHref("dormancy"), active: activeTab === "dormancy", badge: neverLoggedInCount }
   ];
 
@@ -763,8 +795,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
     <div className="grid gap-5">
       <ModuleHero
         eyebrow="Tenant management"
-        title="Schools"
-        description="Create, update, suspend, activate, and soft-delete school tenants across the platform."
+        title="School Accounts"
+        description="Every school from signup to closure, with every lifecycle action."
         action={<AddSchoolWizard plans={activePlans} />}
       />
 
@@ -785,10 +817,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             resultCount={total}
             controls={[
               { name: "search", label: "Search", type: "search", placeholder: "Search by school name", defaultValue: params.search },
+              { name: "plan", label: "Tier", type: "select", defaultValue: params.plan, options: planFilterOptions },
               { name: "status", label: "Status", type: "select", defaultValue: params.status, options: statusFilterOptions },
-              { name: "plan", label: "Tier", type: "select", defaultValue: params.plan, options: planFilterOptions }
+              { name: "state", label: "Region", type: "select", defaultValue: params.state, options: stateFilterOptions },
+              { name: "category", label: "Category", type: "select", defaultValue: params.category, options: categoryFilterOptions },
+              { name: "joinedAfter", label: "Joined after", type: "date", defaultValue: params.joinedAfter }
             ]}
           />
+          <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">Not filterable yet: student-count band. Every other column can be sorted from its header.</p>
 
           <SchoolBulkTable schools={schools} />
         </>
@@ -801,51 +837,74 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           </section>
 
           <CaseReviewBoard
+            variant="lean"
             types={reviewCaseTypes}
             cases={reviewCases}
             emptyState="Queue is clear. Risk-flagged schools, open ownership transfers and open address disputes will appear here as one queue."
             footerNote="One queue, one anatomy. Refer for suspension, raise objection, execute and decide each require a reason and are written to the audit log; clearing a risk flag does not record one."
+            searchPlaceholder="Search a school, state or reviewer"
           />
         </section>
       ) : activeTab === "provisioning" ? (
         <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-3">
-            <StatCard label="Mid-setup schools" value={provisioningTotal} detail="Live on a trial plan, not yet converted to paid." icon={Building2} tone="info" />
-            <StatCard label="Onboarded in last 48h" value={newlyOnboardedCount} detail="Newest arrivals in the provisioning cohort." icon={Clock3} tone="warning" />
-            <StatCard label="Contact gaps" value={provisioningContactGaps} detail="Owner email or phone still missing." icon={Users} tone="danger" />
+          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+            <StatCard
+              label="Provisioned last 7 days"
+              value={signupsLast7Days}
+              detail="No human approval anywhere in the path."
+              icon={Building2}
+              tone="accent"
+            />
+            <StatCard label="Median provisioning time" value="N/A" detail="Not tracked — signup is a single synchronous write, not a timed multi-step run." icon={Clock3} />
+            <StatCard label="Slowest run today" value="N/A" detail="Not tracked — there's no per-run timing to compare." icon={Clock3} />
+            <StatCard label="Hard failures (7d)" value="N/A" detail="Not tracked — a failed signup attempt isn't logged anywhere; only successful schools exist in this data." tone="warning" icon={FileWarning} />
+            <StatCard label="Soft failures (7d)" value="N/A" detail="Not applicable — there's no partial-success state; a signup either fully succeeds or fully fails." icon={FileWarning} />
           </section>
 
           <TableCard
-            title="Provisioning steps"
-            description="On this platform, signup is a single atomic write — every step below succeeds together or the whole signup fails together. There is no partial state a school can be left in."
+            title="Provisioning steps and failure handling"
+            description="On this platform, signup is a single atomic write — every step below succeeds together or the whole signup fails together. There is no partial state a school can be left in, and no median run time to monitor since nothing here is a separately-timed step."
             items={[
-              { step: "Email availability checked", handling: "Hard — signup is rejected immediately with a clear message if the email is already registered." },
-              { step: "Web address reserved", handling: "Hard — reservation is part of the same write as school creation, never a separate step that can drift out of sync." },
-              { step: "School record created, every module enabled by default", handling: "Hard — part of the same transaction." },
-              { step: "Owner account created", handling: "Hard — part of the same transaction." },
-              { step: "Onboarding checklist items created", handling: "Hard — part of the same transaction." },
-              { step: "Automated risk assessment scored", handling: "Runs synchronously in-request, in-database only — never calls an external service, so it never delays or blocks provisioning." },
-              { step: "30-day trial activated", handling: "Always granted at creation — there is no separate activation step to fail." },
-              { step: "Audit log entry written", handling: "Hard — a school account that isn't being audited from creation is not handed to a user." }
+              { step: "Email availability checked", owner: "System", handling: "Hard — signup is rejected immediately with a clear message if the email is already registered." },
+              { step: "Web address reserved", owner: "System", handling: "Hard — reservation is part of the same write as school creation, never a separate step that can drift out of sync." },
+              { step: "School record created, every module enabled by default", owner: "System", handling: "Hard — part of the same transaction." },
+              { step: "Owner account created", owner: "System", handling: "Hard — part of the same transaction." },
+              { step: "Onboarding checklist items created", owner: "System", handling: "Hard — part of the same transaction." },
+              { step: "Automated risk assessment scored", owner: "System", handling: "Runs synchronously in-request, in-database only — never calls an external service, so it never delays or blocks provisioning." },
+              { step: "30-day trial activated", owner: "System", handling: "Always granted at creation — there is no separate activation step to fail." },
+              { step: "Audit log entry written", owner: "System", handling: "Hard — a school account that isn't being audited from creation is not handed to a user." }
             ]}
             pageSize={false}
             getRowKey={(item) => item.step}
             columns={[
               { key: "step", header: "Step", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.step}</span> },
-              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.handling}</span> }
+              { key: "owner", header: "Owner", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.owner}</span> },
+              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.handling}</span> },
+              {
+                key: "last7",
+                header: "Last 7 days",
+                render: () => (
+                  <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">
+                    {signupsLast7Days} / {signupsLast7Days}
+                  </span>
+                )
+              }
             ]}
           />
+          <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">If any step ever fails more than twice in an hour, that's only visible today by reading the database directly — there's no alert wired to fire on it.</p>
 
           <TableCard
-            title="Recent signups"
-            description="Every one of these provisioned in the same request that created it — there is no separate elapsed-time metric to show because there is no separate provisioning step to time."
+            title="Recent provisioning runs"
+            description="Elapsed time and step outcome for every run — every one of these completed in the same atomic request that created it, so elapsed time isn't separately tracked and every step outcome is the same pass/fail unit."
             items={webAddressSchools.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8)}
             emptyState="No schools signed up yet."
             pageSize={false}
             getRowKey={(school) => school.id}
             columns={[
               { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
-              { key: "signedUp", header: "Signed up", render: (school) => timeAgo(school.createdAt) },
+              { key: "signedUp", header: "Completed", render: (school) => timeAgo(school.createdAt) },
+              { key: "elapsed", header: "Elapsed", render: () => <span className="text-[var(--color-text-muted)]">Not timed</span> },
+              { key: "outcomes", header: "Step outcomes", render: () => <span className="font-[var(--font-mono)]">{PROVISIONING_STEP_COUNT} of {PROVISIONING_STEP_COUNT} clean</span> },
               {
                 key: "status",
                 header: "State",
@@ -854,6 +913,67 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               }
+            ]}
+          />
+
+          <section className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
+            <TableCard
+              title="What loads with every new school"
+              description="Specified in the Onboarding Specification — not built. A new school starts completely empty; nothing below is generated at signup."
+              items={[
+                { contents: "Students", detail: "Not built — no sample students are created. A new school starts with 0 students." },
+                { contents: "Staff", detail: "Not built — no sample teachers are created." },
+                { contents: "Structure", detail: "Not built — classes, arms, subjects and a timetable are all set up by the school itself." },
+                { contents: "Attendance", detail: "Not built — there is nothing to mark attendance against until the school adds students." },
+                { contents: "Scores", detail: "Not built — no sample assessment scores exist." },
+                { contents: "Results", detail: "Not built — nothing to compute until the school enters real data." },
+                { contents: "Report cards", detail: "Not built — no finished report cards exist to preview at signup." },
+                { contents: "Broadsheet", detail: "Not built — no sample class broadsheet exists." },
+                { contents: "Fees", detail: "Not built — no fee structure or payment history is pre-loaded." },
+                { contents: "Notifications", detail: "Not built — no sample alerts, reminders or receipts are queued." }
+              ]}
+              pageSize={false}
+              getRowKey={(item) => item.contents}
+              columns={[
+                { key: "contents", header: "Contents", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.contents}</span> },
+                { key: "detail", header: "Detail", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</span> }
+              ]}
+            />
+            <section className="surface-card overflow-hidden">
+              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+                <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Controls on sample data</p>
+                <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Not applicable — with no sample data ever loaded, there's nothing for these controls to govern.</p>
+              </div>
+              <div className="grid gap-3 p-5">
+                {[
+                  "Labelled as sample data wherever it appears",
+                  "Excluded from all real reports, analytics and platform metrics",
+                  "Removable in one action, and auto-removed once the school enrols 20 real students",
+                  "Synthetic provenance — never derived from any real school",
+                  "Guardian phone numbers and emails non-routable"
+                ].map((item) => (
+                  <div key={item} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full bg-[var(--color-bg-subtle)]" />
+                    <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">{item}</p>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </section>
+
+          <TableCard
+            title="Sample data provisioning health"
+            description="A provisioning run that fails to load sample data would be a soft failure treated as high severity in the spec — moot here, since no run ever attempts to load it."
+            items={webAddressSchools.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8)}
+            emptyState="No schools provisioned yet."
+            pageSize={false}
+            getRowKey={(school) => school.id}
+            columns={[
+              { key: "school", header: "School", render: (school) => <span className="font-bold text-[var(--color-text-primary)]">{school.name}</span> },
+              { key: "provisioned", header: "Provisioned", render: (school) => timeAgo(school.createdAt) },
+              { key: "sample", header: "Sample data", render: () => <span className="text-[11.5px] text-[var(--color-text-muted)]">Not built</span> },
+              { key: "realStudents", header: "Real students", render: (school) => school.totalStudents.toLocaleString() },
+              { key: "state", header: "State", render: () => <span className="text-[11.5px] text-[var(--color-text-muted)]">N/A</span> }
             ]}
           />
 
@@ -938,91 +1058,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
       ) : activeTab === "web-addresses" ? (
         <section className="grid gap-5">
           <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-            <StatCard label="Schools with a web address" value={webAddressTotal} detail="Every non-deleted tenant on the platform." icon={Globe2} tone="info" />
-            <StatCard
-              label="Missing subdomain"
-              value={missingSubdomainCount}
-              detail={missingSubdomainCount === 0 ? "Every school has a subdomain on record." : "No subdomain recorded — assigned automatically during onboarding."}
-              icon={FileWarning}
-              tone={missingSubdomainCount === 0 ? "success" : "warning"}
-            />
-            <StatCard label="Live in registry" value={liveAddressCount} detail="Addresses backed by a registry record." icon={ShieldCheck} tone="success" />
+            <StatCard label="Addresses live" value={liveAddressCount} detail="One per school, permanent from minute one." icon={ShieldCheck} tone="success" />
+            <StatCard label="Held (retiring)" value={heldAddressCount} detail="12 months from closure, then released." icon={Moon} tone={heldAddressCount > 0 ? "warning" : "success"} />
             <StatCard label="Reserved / blocked" value={reservedBlockedCount} detail="Held out of the available pool." icon={Gavel} tone="warning" />
+            <StatCard label="Open disputes" value={openDisputeCount} detail={`${addressDisputes.length} logged in total.`} icon={FileWarning} tone={openDisputeCount > 0 ? "warning" : "success"} />
             <StatCard label="Active redirects" value={activeRedirectCount} detail="90 days from the change date." icon={Repeat2} tone="info" />
           </section>
 
-          <TableCard
-            title="Web Addresses"
-            description={
-              webAddressTotal > webAddressSchools.length
-                ? `Showing ${webAddressSchools.length} of ${webAddressTotal} schools.`
-                : `${webAddressSchools.length} school(s) found.`
-            }
-            items={webAddressSchools}
-            emptyState="No schools found."
-            columns={[
-              {
-                key: "school",
-                header: "School",
-                render: (school) => (
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">
-                      {initials(school.name)}
-                    </span>
-                    <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
-                      {school.name}
-                    </Link>
-                  </div>
-                )
-              },
-              {
-                key: "subdomain",
-                header: "Subdomain",
-                render: (school) =>
-                  school.subdomain ? (
-                    <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--color-text-primary)]">
-                      {school.subdomain}
-                    </span>
-                  ) : (
-                    <span className="text-[12px] font-semibold text-[var(--color-warning)]">Not assigned</span>
-                  )
-              },
-              { key: "schoolCode", header: "School code", render: (school) => school.schoolCode ?? "—" },
-              {
-                key: "status",
-                header: "Status",
-                render: (school) => {
-                  const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
-                  return (
-                    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
-                      {tone.label}
-                    </span>
-                  );
-                }
-              },
-              {
-                key: "actions",
-                header: "Actions",
-                render: (school) => (
-                  <ResourceActionDialog
-                    triggerLabel="Change address"
-                    title={`Change web address — ${school.name}`}
-                    description="Super Admin only. Creates a 90-day redirect from the old address and notifies every user of the school. The bar is deliberately high — every invitation already sent carries the old address."
-                    endpoint="/api/super-admin/web-address-registry/records/change"
-                    variant="menu"
-                    submitLabel="Change address"
-                    confirmLabel="Confirm change"
-                    confirmMessage="This immediately updates the school's live web address and starts a 90-day redirect."
-                    fields={[
-                      { name: "schoolId", label: "School", type: "select", defaultValue: school.id, options: [{ label: school.name, value: school.id }] },
-                      { name: "newAddress", label: "New address", placeholder: "lowercase-letters-numbers", required: true },
-                      { name: "reason", label: "Reason", type: "textarea", required: true }
-                    ]}
-                  />
-                )
-              }
-            ]}
-          />
+          <WebAddressesTable schools={webAddressSchools} registryRecords={registryRecords} disputes={addressDisputes} />
 
           <section className="surface-card p-6">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -1167,173 +1210,26 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             </div>
           </section>
         </section>
-      ) : activeTab === "ownership-transfers" ? (
+      ) : (
         <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-3">
-            <StatCard label="Open transfers" value={openTransferCount} detail="Not yet executed." icon={Gavel} tone={openTransferCount === 0 ? "success" : "warning"} />
-            <StatCard label="Executed" value={executedTransferCount} detail="Ownership successfully moved." icon={ShieldCheck} tone="success" />
-            <StatCard label="Total logged" value={ownershipTransfers.length} detail="Every transfer ever opened." icon={Building2} tone="info" />
-          </section>
+          <TableCard
+            title="Dormancy stages"
+            description="Specified for this module — not yet built. Nothing below currently changes a school's status, sends a notice, or releases a web address; the only real signal on this tab is the last-successful-login report further down."
+            items={[
+              { stage: "Inactivity watch", trigger: "10 days, no login", effect: "Not built — no internal alert is raised." },
+              { stage: "Dormant", trigger: "21 days, no login", effect: "Not built — no Dormant status exists, and no notice email is sent." },
+              { stage: "Address released", trigger: "7 days after notice", effect: "Not built — a web address is never reclaimed for inactivity in this system." },
+              { stage: "Restored", trigger: "Any login, during or after", effect: "Not applicable — nothing above ever changes, so there is nothing to restore." }
+            ]}
+            pageSize={false}
+            getRowKey={(item) => item.stage}
+            columns={[
+              { key: "stage", header: "Stage", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.stage}</span> },
+              { key: "trigger", header: "Trigger", render: (item) => item.trigger },
+              { key: "effect", header: "Effect", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">{item.effect}</span> }
+            ]}
+          />
 
-          <section className="surface-card p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="section-eyebrow">M2.11</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">School ownership transfer</h2>
-                <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-                  Never a field edit — evidence, notice, and dual approval for incapacitation or death. The incoming
-                  owner always gets a new account; the old login is revoked, never handed over.
-                </p>
-              </div>
-              <ResourceActionDialog
-                triggerLabel="Start a transfer"
-                title="Open an ownership transfer"
-                description="Records the trigger and evidence. Identity of the incoming owner and notice to the outgoing owner follow as separate steps."
-                endpoint="/api/super-admin/ownership-transfers"
-                submitLabel="Open transfer"
-                fields={[
-                  { name: "schoolId", label: "School", type: "select", options: [{ label: "— Select a school —", value: "" }, ...schoolOptions], required: true },
-                  { name: "triggerType", label: "Trigger", type: "select", defaultValue: "VOLUNTARY_SALE", options: [
-                    { label: "Voluntary sale or handover", value: "VOLUNTARY_SALE" },
-                    { label: "Owner incapacitated", value: "OWNER_INCAPACITATED" },
-                    { label: "Owner deceased", value: "OWNER_DECEASED" },
-                    { label: "Dispute between claimants", value: "DISPUTE" }
-                  ] },
-                  { name: "evidenceNotes", label: "Evidence notes", type: "textarea", required: true },
-                  { name: "incomingOwnerId", label: "Incoming owner user ID (if already identified)" }
-                ]}
-              />
-            </div>
-
-            <div className="mt-5">
-              <TableCard
-                title="Transfers"
-                items={ownershipTransfers}
-                emptyState="No ownership transfers on record."
-                columns={[
-                  {
-                    key: "school",
-                    header: "School",
-                    render: (transfer) => (
-                      <div>
-                        <Link href={`/super-admin/schools/${transfer.schoolId}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
-                          {transfer.schoolName ?? "Unknown school"}
-                        </Link>
-                        <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{transferTriggerLabel[transfer.triggerType] ?? transfer.triggerType}</p>
-                      </div>
-                    )
-                  },
-                  {
-                    key: "owners",
-                    header: "Outgoing → Incoming",
-                    render: (transfer) => (
-                      <div className="text-[12px] text-[var(--color-text-secondary)]">
-                        <p>{transfer.outgoingOwnerName ?? "Unknown"}</p>
-                        <p className="mt-0.5 font-semibold text-[var(--color-text-primary)]">{transfer.incomingOwnerName ?? "Not yet identified"}</p>
-                      </div>
-                    )
-                  },
-                  {
-                    key: "status",
-                    header: "Status",
-                    render: (transfer) => {
-                      const tone = transferStatusTone[transfer.status] ?? transferStatusTone.EVIDENCE_COLLECTED;
-                      return (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
-                          {tone.label}
-                        </span>
-                      );
-                    }
-                  },
-                  {
-                    key: "approvals",
-                    header: "Approvals",
-                    render: (transfer) =>
-                      transfer.requiresDualApproval ? (
-                        <span className="text-[12px] text-[var(--color-text-secondary)]">
-                          {(transfer.approver1Id ? 1 : 0) + (transfer.approver2Id ? 1 : 0)} of 2
-                        </span>
-                      ) : (
-                        <span className="text-[12px] text-[var(--color-text-secondary)]">{transfer.approver1Id ? "1 of 1" : "0 of 1"}</span>
-                      )
-                  },
-                  {
-                    key: "hold",
-                    header: "Hold expires",
-                    render: (transfer) => (transfer.holdExpiresAt ? dueIn(transfer.holdExpiresAt) : "—")
-                  },
-                  {
-                    key: "actions",
-                    header: "Actions",
-                    render: (transfer) => (
-                      <ActionMenu triggerLabel={`Actions for ${transfer.schoolName ?? "transfer"}`}>
-                        {transfer.status === "EVIDENCE_COLLECTED" && !transfer.incomingOwnerId ? (
-                          <ResourceActionDialog
-                            triggerLabel="Set incoming owner"
-                            title="Record the incoming owner"
-                            description="The incoming owner must already be verified through the standard user-verification process."
-                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/incoming-owner`}
-                            variant="menu"
-                            submitLabel="Save"
-                            fields={[{ name: "incomingOwnerId", label: "Incoming owner user ID", required: true }]}
-                          />
-                        ) : null}
-                        {transfer.status === "EVIDENCE_COLLECTED" && transfer.incomingOwnerId ? (
-                          <ResourceActionDialog
-                            triggerLabel="Send notice"
-                            title="Send notice to outgoing owner"
-                            description="Immediate for a voluntary transfer; starts a mandatory 14-day hold if the owner is deceased."
-                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/send-notice`}
-                            variant="menu"
-                            submitLabel="Send notice"
-                            fields={[]}
-                          />
-                        ) : null}
-                        {transfer.status === "NOTICE_SENT" ? (
-                          <ResourceActionDialog
-                            triggerLabel="Raise objection"
-                            title="Raise an objection"
-                            description="Freezes the account read-only until the objection is resolved."
-                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/objection`}
-                            variant="menuDanger"
-                            submitLabel="Raise objection"
-                            fields={[{ name: "objectionNote", label: "Objection note", type: "textarea", required: true }]}
-                          />
-                        ) : null}
-                        {transfer.status === "NOTICE_SENT" && !(!transfer.requiresDualApproval && transfer.approver1Id) ? (
-                          <ResourceActionDialog
-                            triggerLabel="Approve"
-                            title="Approve transfer"
-                            description="Super Admin only. Incapacitated and deceased triggers require two distinct approvers before execution."
-                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/approve`}
-                            variant="menu"
-                            submitLabel="Approve"
-                            fields={[]}
-                          />
-                        ) : null}
-                        {(transfer.status === "APPROVED" || (transfer.status === "NOTICE_SENT" && !transfer.requiresDualApproval && transfer.approver1Id)) ? (
-                          <ResourceActionDialog
-                            triggerLabel="Execute"
-                            title="Execute ownership transfer"
-                            description="Creates the new owner's access, revokes the outgoing owner's login and terminates their sessions. This cannot be undone."
-                            endpoint={`/api/super-admin/ownership-transfers/${transfer.id}/execute`}
-                            variant="menuDanger"
-                            submitLabel="Execute"
-                            confirmLabel="Confirm execution"
-                            confirmMessage="This immediately revokes the outgoing owner's access. This cannot be undone."
-                            fields={[]}
-                          />
-                        ) : null}
-                      </ActionMenu>
-                    )
-                  }
-                ]}
-              />
-            </div>
-          </section>
-        </section>
-      ) : activeTab === "dormancy" ? (
-        <section className="grid gap-5">
           <section className="grid gap-3 md:grid-cols-2">
             <StatCard label="Never logged in" value={neverLoggedInCount} detail="No successful login recorded for any user at the school." icon={Moon} tone={neverLoggedInCount === 0 ? "success" : "danger"} />
             <StatCard label="Tracked schools" value={dormancySchools.length} detail="Non-deleted schools checked for login activity." icon={Building2} tone="info" />
@@ -1384,9 +1280,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               { key: "createdAt", header: "School created", render: (school) => timeAgo(school.createdAt) }
             ]}
           />
-        </section>
-      ) : activeTab === "lifecycle" ? (
-        <>
+
           <section className="surface-card p-6">
             <p className="section-eyebrow">Lifecycle flow</p>
             <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
@@ -1447,144 +1341,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               })}
             </div>
           </section>
-        </>
-      ) : (
-        <>
-          <section className="surface-card p-6">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <p className="section-eyebrow">Multi-branch</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
-                  School groups
-                </h2>
-                <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-                  Multiple campuses under one billing account. A branch keeps its own configuration, staff, and
-                  student records — only billing and account management roll up to the group. Schools are linked to a
-                  group from their profile page.
-                </p>
-              </div>
-              <ResourceActionDialog
-                triggerLabel="Create group"
-                title="Create school group"
-                description="Set up a group before linking branch schools to it from each school's profile."
-                endpoint="/api/super-admin/schools/groups"
-                submitLabel="Create group"
-                fields={[
-                  { name: "name", label: "Group name", required: true },
-                  { name: "ownerName", label: "Owner / trustee name" },
-                  { name: "ownerEmail", label: "Owner email", type: "email" },
-                  { name: "billingMode", label: "Billing mode", type: "select", defaultValue: "GROUP", options: [
-                    { label: "Consolidated at group", value: "GROUP" },
-                    { label: "Per branch", value: "BRANCH" }
-                  ] }
-                ]}
-              />
-            </div>
-          </section>
-
-          {groups.length === 0 ? (
-            <section className="surface-card p-6">
-              <div className="empty-state">
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                  <Layers className="h-5 w-5" />
-                </div>
-                <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">No school groups yet</p>
-                <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
-                  Create a group above, then link branch schools to it from each school&apos;s profile page.
-                </p>
-              </div>
-            </section>
-          ) : (
-            <TableCard
-              title="All groups"
-              description={`${groups.length} group(s) found.`}
-              items={groups}
-              columns={[
-                {
-                  key: "name",
-                  header: "Group",
-                  render: (group) => (
-                    <div>
-                      <p className="font-semibold text-[var(--color-text-primary)]">{group.name}</p>
-                      <p className="text-[11px] text-[var(--color-text-muted)]">{group.ownerName ?? "No owner on file"}</p>
-                    </div>
-                  )
-                },
-                {
-                  key: "branches",
-                  header: "Branches",
-                  render: (group) =>
-                    group.branchCount === 0 ? (
-                      <span className="text-[var(--color-text-muted)]">No branches linked</span>
-                    ) : (
-                      <span className="truncate">{group.branches.map((branch) => branch.name).join(", ")}</span>
-                    )
-                },
-                { key: "count", header: "#", render: (group) => group.branchCount },
-                { key: "students", header: "Students", render: (group) => group.totalStudents.toLocaleString() },
-                {
-                  key: "billing",
-                  header: "Billing",
-                  render: (group) => (
-                    <span
-                      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-                      style={
-                        group.billingMode === "GROUP"
-                          ? { background: "var(--color-success-dim)", color: "var(--color-success)" }
-                          : { background: "var(--color-info-dim)", color: "var(--color-info)" }
-                      }
-                    >
-                      {group.billingMode === "GROUP" ? "Consolidated at group" : "Per branch"}
-                    </span>
-                  )
-                },
-                {
-                  key: "actions",
-                  header: "Actions",
-                  render: (group) => (
-                    <ActionMenu triggerLabel={`Actions for ${group.name}`}>
-                      <ResourceActionDialog
-                        triggerLabel="Edit"
-                        title={`Edit ${group.name}`}
-                        description="Update the group's owner details or billing mode."
-                        endpoint={`/api/super-admin/schools/groups/${group.id}`}
-                        method="PATCH"
-                        variant="menu"
-                        submitLabel="Save changes"
-                        fields={[
-                          { name: "name", label: "Group name", defaultValue: group.name },
-                          { name: "ownerName", label: "Owner / trustee name", defaultValue: group.ownerName ?? "" },
-                          { name: "ownerEmail", label: "Owner email", type: "email", defaultValue: group.ownerEmail ?? "" },
-                          { name: "billingMode", label: "Billing mode", type: "select", defaultValue: group.billingMode, options: [
-                            { label: "Consolidated at group", value: "GROUP" },
-                            { label: "Per branch", value: "BRANCH" }
-                          ] }
-                        ]}
-                      />
-                      <ResourceActionDialog
-                        triggerLabel="Delete"
-                        title={`Delete ${group.name}`}
-                        description={
-                          group.branchCount > 0
-                            ? "Unlink every branch from this group before deleting it."
-                            : "This permanently removes the group. It has no branches linked, so this is safe."
-                        }
-                        endpoint={`/api/super-admin/schools/groups/${group.id}`}
-                        method="DELETE"
-                        variant="menuDanger"
-                        submitLabel="Delete group"
-                        confirmLabel="Confirm delete"
-                        confirmMessage="This permanently removes the school group."
-                        fields={[]}
-                      />
-                    </ActionMenu>
-                  )
-                }
-              ]}
-              emptyState="No school groups match the current filters."
-            />
-          )}
-        </>
+        </section>
       )}
     </div>
   );
