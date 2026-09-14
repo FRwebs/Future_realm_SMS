@@ -1,9 +1,9 @@
 import Link from "next/link";
-import type { LucideIcon } from "lucide-react";
-import { Activity, Cpu, Clock3, DatabaseBackup, FileStack, Layers3, Server, Timer, UploadCloud, WifiOff, XCircle } from "lucide-react";
+import { Activity, Cpu, Clock3, DatabaseBackup, Database, FileStack, FlaskConical, Gauge, Layers3, Server, Timer, UploadCloud, Users, WifiOff } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -16,30 +16,6 @@ function statusTone(status: string): "success" | "warning" | "danger" | "neutral
   if (status === "WARNING") return "warning";
   if (status === "CRITICAL") return "danger";
   return "neutral";
-}
-
-function StatCard({ label, value, detail, status, icon: Icon }: { label: string; value: string; detail?: string; status?: string; icon?: LucideIcon }) {
-  return (
-    <article className="surface-card p-4">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
-        {status ? <StatusBadge status={status} tone={statusTone(status)} /> : Icon ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-            <Icon className="h-4 w-4" />
-          </span>
-        ) : null}
-      </div>
-      <div className="mt-3 flex items-end justify-between gap-3">
-        <p className="font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
-        {status && Icon ? (
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]">
-            <Icon className="h-4 w-4" />
-          </span>
-        ) : null}
-      </div>
-      {detail ? <p className="mt-1 text-[11px] font-medium text-[var(--color-text-muted)]">{detail}</p> : null}
-    </article>
-  );
 }
 
 function tabHref(tab: string) {
@@ -61,20 +37,43 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Technical operations"
+        eyebrow="Platform"
         title="Infrastructure"
         description="Health, offline sync queue, result-computation pipeline, delivery & integrations, and backups."
         action={
           <ResourceActionDialog
-            triggerLabel="Trigger backup"
-            title="Trigger a manual backup"
-            description="Runs a full database backup now. A critical alert fires automatically if a backup ever fails."
+            triggerLabel="Run manual backup"
+            title="Run a manual backup"
+            description="Runs a full database backup now. A missed or failed backup raises a critical alert until a successful one completes — see the honest gaps below before you rely on this."
             endpoint="/api/super-admin/system/backups"
             method="POST"
             variant="heroWhite"
             submitLabel="Run backup now"
             confirmLabel="Confirm"
-            fields={[]}
+            fields={[
+              { name: "scope", label: "What to back up", type: "static", placeholder: "Full platform", note: "Real — every manual run is the whole database; there's no partial or per-school option.", section: "Scope" },
+              { name: "region", label: "Storage region", type: "static", placeholder: "Not tracked", note: "No region selection exists — the location is a fixed string, not a real multi-region choice.", section: "Scope" },
+              { name: "window", label: "Window", type: "static", placeholder: "Starts now", note: "Real — a manual run has no scheduling option; it always starts immediately.", section: "Scope" },
+              { name: "lastRestoreTest", label: "Last successful restore test", type: "static", placeholder: "Not tracked", note: "No restore-test record exists anywhere in this system — a backup has never been proven restorable here.", section: "Scope" },
+              {
+                name: "verifyArchive",
+                label: "Verify the archive afterwards",
+                type: "toggle",
+                disabled: true,
+                note: "Not real — every run is recorded as an immediate SUCCESS with a randomly generated size; nothing is independently verified.",
+                section: "Verification"
+              },
+              { name: "restoreTest", label: "Run a restore test into staging", type: "toggle", disabled: true, section: "Verification" },
+              { name: "notifyOnCompletion", label: "Notify Infrastructure on completion", type: "toggle", disabled: true, note: "Not built — no notification is sent when a backup finishes.", section: "Verification" },
+              {
+                name: "reason",
+                label: "Why this run is being made now",
+                type: "static",
+                placeholder: "Not stored",
+                note: "The backup endpoint takes no reason field — anything typed here wouldn't be saved, so it isn't collected.",
+                section: "Reason"
+              }
+            ]}
           />
         }
       />
@@ -94,31 +93,33 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
 function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3">
-        <StatCard
-          label="API uptime (24h)"
-          value={`${data.uptime.apiUptime}%`}
-          detail={`${data.uptime.requestsLast24h.toLocaleString()} requests`}
-          status={data.uptime.apiUptimeStatus}
-          icon={Server}
-        />
-        <StatCard
-          label="Avg response"
-          value={`${data.uptime.avgResponseMs}ms`}
-          detail="Warning >1.5s · Critical >3s"
-          status={data.uptime.responseStatus}
-          icon={Timer}
-        />
-        <StatCard label="Data as of" value={formatDate(data.generatedAt)} detail="Last refreshed" icon={Clock3} />
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="API uptime (24h)" value={`${data.uptime.apiUptime}%`} detail={`${data.uptime.requestsLast24h.toLocaleString()} requests · target 99.5%`} tone="dark" icon={Server} />
+        <StatCard label="API response (avg)" value={`${data.uptime.avgResponseMs}ms`} detail="Warning above 1.5s" tone={statusTone(data.uptime.responseStatus)} icon={Timer} />
+        <StatCard label="Server CPU" value="N/A" detail="Not tracked — no APM agent is wired in" tone="neutral" icon={Cpu} />
+        <StatCard label="DB query time" value="N/A" detail="Not tracked — no query profiler is wired in" tone="neutral" icon={Database} />
+        <StatCard label="Concurrent users" value="N/A" detail="Not tracked — no live session-concurrency metric exists" tone="neutral" icon={Users} />
+        <StatCard label="Page load (3G)" value="N/A" detail="Not tracked — no client-side page-load telemetry exists" tone="neutral" icon={Gauge} />
       </section>
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Reliability</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What these numbers mean</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          API uptime and average response time are measured across every request the platform served in the last 24
-          hours. A drop below the healthy threshold raises an infrastructure alert visible from the Command Center.
-        </p>
-      </section>
+
+      <TableCard
+        title="Uptime and performance thresholds"
+        description="Every metric this platform actually measures, with its real warning and critical levels — plus what genuinely happens on a breach, not what a mature system would do."
+        items={[
+          { metric: "API uptime (24h)", current: `${data.uptime.apiUptime}%`, warning: "< 99.5%", critical: "< 99%", action: "None — the status badge on this page changes; nothing pages or emails anyone.", status: data.uptime.apiUptimeStatus },
+          { metric: "API response time (average)", current: `${data.uptime.avgResponseMs}ms`, warning: "> 1.5s", critical: "> 3s", action: "None — same as above, a badge change only.", status: data.uptime.responseStatus }
+        ]}
+        getRowKey={(row) => row.metric}
+        columns={[
+          { key: "metric", header: "Metric", render: (row) => row.metric },
+          { key: "current", header: "Current", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.current}</span> },
+          { key: "warning", header: "Warning", render: (row) => <span className="text-[var(--color-text-muted)]">{row.warning}</span> },
+          { key: "critical", header: "Critical", render: (row) => <span className="text-[var(--color-text-muted)]">{row.critical}</span> },
+          { key: "action", header: "Action on breach", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.action}</span> },
+          { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={statusTone(row.status)} /> }
+        ]}
+        footnote="All tables and reports need to hold these thresholds at real scale, not just at current traffic — but there is no load-tested ceiling recorded anywhere in this codebase."
+      />
     </div>
   );
 }
@@ -126,68 +127,102 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
 function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Pending records" value={String(data.syncQueue.pending)} status={data.syncQueue.status} icon={UploadCloud} />
-        <StatCard label="Failed (24h)" value={String(data.syncQueue.failedOver24h)} icon={XCircle} />
-        <StatCard label="Failure rate" value={`${data.syncQueue.failureRate}%`} icon={Activity} />
-        <StatCard
-          label="Oldest pending"
-          value={`${data.syncQueue.oldestAgeHours}h`}
-          detail={data.syncQueue.oldestSchool ?? "No pending records"}
-          icon={WifiOff}
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Records queued" value={String(data.syncQueue.pending)} detail="Across all schools" tone="dark" icon={UploadCloud} />
+        <StatCard label="Avg queue age" value={`${data.syncQueue.avgQueueAgeHours}h`} detail="Warning above 2 hours" icon={Clock3} tone="neutral" />
+        <StatCard label="Oldest pending" value={`${data.syncQueue.oldestAgeHours}h`} detail={data.syncQueue.oldestSchool ?? "No pending records"} icon={WifiOff} tone="neutral" />
+        <StatCard label="Sync failure rate (24h)" value={`${data.syncQueue.failureRate}%`} detail="Warning above 5%" icon={Activity} tone={statusTone(data.syncQueue.status)} />
+        <StatCard label="Schools with pending" value={String(data.syncQueue.schoolsWithPending)} detail="Distinct schools queued" icon={Server} tone="neutral" />
+      </section>
+
+      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+        <TableCard
+          title="Per-school sync status"
+          description="Unique to the offline-first architecture — the most important technical health indicator on the platform. Oldest queued records first."
+          items={data.syncQueue.perSchool}
+          emptyState="No school has records pending sync."
+          getRowKey={(row) => row.schoolName}
+          columns={[
+            { key: "school", header: "School", render: (row) => row.schoolName },
+            { key: "queued", header: "Queued", render: (row) => row.queued },
+            { key: "oldest", header: "Oldest record", render: (row) => `${row.oldestAgeHours}h` },
+            { key: "failures", header: "Consecutive failures", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
+            { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={statusTone(row.status)} /> }
+          ]}
+          footnote={`A queue age above 2 hours means a group of schools has been offline for an extended period — they may need proactive outreach rather than a server fix. There is no per-record retry-attempt count kept, so "consecutive failures" is honestly not tracked — a queued record is simply pending or synced.`}
         />
-      </section>
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Offline sync</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">How offline sync works</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          School devices queue attendance, results, and fee records locally when offline, then sync automatically once
-          connectivity returns. Records still pending after 24 hours are flagged for follow-up with the school&apos;s ICT
-          contact.
-        </p>
-      </section>
+        <TableCard
+          title="Sync failure alert thresholds"
+          description="What triggers a warning and what's critical — real thresholds used by the status above."
+          items={[
+            { metric: "Platform-wide sync failure rate", warning: "> 5%", critical: "> 15%" },
+            { metric: "Oldest unsynced record", warning: "> 2 hours", critical: "> 6 hours" },
+            { metric: "Average queue age", warning: "> 2 hours", critical: "> 6 hours" },
+            { metric: "Single school sync failures", warning: "Not tracked", critical: "Not tracked" }
+          ]}
+          getRowKey={(row) => row.metric}
+          columns={[
+            { key: "metric", header: "Metric", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.metric}</span> },
+            { key: "warning", header: "Warning", render: (row) => <span className="text-[var(--color-text-muted)]">{row.warning}</span> },
+            { key: "critical", header: "Critical", render: (row) => <span className="text-[var(--color-text-muted)]">{row.critical}</span> }
+          ]}
+        />
+      </div>
     </div>
   );
 }
 
 function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  const thresholds: Record<string, { warning: string; critical: string }> = {
+    EMAIL: { warning: "> 3%", critical: "> 10%" },
+    SMS: { warning: "> 3%", critical: "> 10%" },
+    WHATSAPP: { warning: "> 5%", critical: "> 15%" }
+  };
+
   return (
     <div className="grid gap-5">
       <TableCard
-        title="Notification delivery health"
-        description="Delivery failure rate by channel over the last 30 days."
+        title="Notification delivery monitoring"
+        description="Infrastructure-level, distinct from Communications' campaign tracking — this answers whether the send actually went through, not whether the message resonated. Failure rate over the last 30 days."
         items={data.deliveryHealth}
         columns={[
-          { key: "channel", header: "Channel", render: (item) => item.channel },
+          { key: "channel", header: "Channel", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.channel}</span> },
           { key: "total", header: "Messages", render: (item) => item.total },
           { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
+          { key: "warning", header: "Warning", render: (item) => thresholds[item.channel]?.warning ?? "—" },
+          { key: "critical", header: "Critical", render: (item) => thresholds[item.channel]?.critical ?? "—" },
+          { key: "reason", header: "Top failure reason", render: () => <span className="text-[var(--color-text-muted)]">Not tracked — a send only records success/fail, not why</span> },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
         ]}
         emptyState="No notification activity recorded."
       />
+
+      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+        <div className="border-b border-[#E6EEE9] px-5 py-4">
+          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Failure volume by reason — not tracked</p>
+        </div>
+        <div className="p-5">
+          <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+            A notification-log entry stores a channel and a success/fail status only — there is no failure-reason field (bounced mailbox,
+            invalid number, carrier block, opt-out) to break down. The table above is the honest ceiling of what this system can report on
+            delivery failure today.
+          </p>
+        </div>
+      </section>
+
       <TableCard
         title="Third-party integration status"
-        description="Health of the external providers the delivery pipeline depends on."
+        description="Health of the external providers the delivery pipeline depends on — checked live, on this page load, from environment configuration and the delivery figures above."
         items={data.integrations}
         columns={[
-          { key: "name", header: "Integration", render: (item) => item.name },
-          { key: "freq", header: "Check frequency", render: (item) => item.checkFrequency },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> },
-          { key: "onfail", header: "On failure", render: (item) => item.onFailure }
+          { key: "name", header: "Integration", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+          { key: "freq", header: "Check", render: (item) => item.checkFrequency },
+          { key: "last", header: "Last checked", render: () => "Just now — this page load" },
+          { key: "onfail", header: "On failure", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
         ]}
       />
     </div>
-  );
-}
-
-function computationStatCard(label: string, pending: number, oldestAgeHours: number | null, oldestLabel: string | null, status: string, icon: LucideIcon, extra?: string) {
-  const oldestDetail = oldestAgeHours === null
-    ? "Nothing pending"
-    : oldestAgeHours >= 48
-      ? `Oldest: ${Math.round((oldestAgeHours / 24) * 10) / 10}d · ${oldestLabel}`
-      : `Oldest: ${oldestAgeHours}h · ${oldestLabel}`;
-  return (
-    <StatCard label={label} value={String(pending)} detail={extra ?? oldestDetail} status={status} icon={icon} />
   );
 }
 
@@ -196,31 +231,70 @@ async function ComputationTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3">
-        {computationStatCard("Assessments awaiting approval", data.assessments.pendingApproval, data.assessments.oldestAgeHours, data.assessments.oldestLabel, data.assessments.status, Layers3)}
-        {computationStatCard("Broadsheets in compilation", data.broadsheets.pending, data.broadsheets.oldestAgeHours, data.broadsheets.oldestLabel, data.broadsheets.status, Cpu)}
-        {computationStatCard("Report cards pending generation", data.reportCards.pending, data.reportCards.oldestAgeHours, data.reportCards.oldestLabel, data.reportCards.status, FileStack)}
-      </section>
-      {data.broadsheets.avgCompileHours !== null ? (
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Trace completeness" value="N/A" detail="Not tracked — no per-computation calculation trace is stored" tone="dark" icon={Activity} />
+        <StatCard label="Regression suite" value="N/A" detail="Not tracked at runtime — this is a CI/deployment concern, not data this page can read" tone="neutral" icon={FlaskConical} />
+        <StatCard label="Computations today" value="N/A" detail="Not tracked as one aggregate — see the real pending-queue depths below instead" tone="neutral" icon={Cpu} />
         <StatCard
-          label="Avg broadsheet compile time (90d)"
-          value={data.broadsheets.avgCompileHours >= 48 ? `${Math.round((data.broadsheets.avgCompileHours / 24) * 10) / 10}d` : `${data.broadsheets.avgCompileHours}h`}
-          detail="Time from broadsheet creation to approval, across schools approved in the last 90 days."
+          label="Median duration"
+          value={data.broadsheets.avgCompileHours === null ? "N/A" : data.broadsheets.avgCompileHours >= 48 ? `${Math.round((data.broadsheets.avgCompileHours / 24) * 10) / 10}d` : `${data.broadsheets.avgCompileHours}h`}
+          detail="Real, but a proxy — broadsheet creation-to-approval time, across schools approved in the last 90 days, not raw compute duration"
+          tone="neutral"
           icon={Activity}
         />
-      ) : null}
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Result computation pipeline</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">How this is measured</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          There is no separate background job queue for result computation &mdash; broadsheet compilation and report
-          card generation are workflow steps schools trigger directly. This view counts assessments marked but not yet
-          approved, broadsheets still in draft/review/correction, and report cards not yet generated, across every
-          school. A stage is flagged <strong>Warning</strong> once its oldest pending record has sat for more than 14
-          days, and <strong>Critical</strong> past 30 days &mdash; long compared to a typical termly turnaround.
-        </p>
-        <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">Data as of {formatDate(data.generatedAt)}.</p>
+        <StatCard label="Frameworks failing validation" value="0" detail="Structurally guaranteed — an assessment framework whose weights don't total 100 is rejected at save, so one can never exist to fail here" tone="success" />
       </section>
+
+      <TableCard
+        title="Computation health by school"
+        description="Would show per-school record counts, computation duration, trace completeness, and recompute events."
+        items={[]}
+        columns={[
+          { key: "school", header: "School", render: () => null },
+          { key: "records", header: "Records", render: () => null },
+          { key: "duration", header: "Duration", render: () => null },
+          { key: "trace", header: "Trace", render: () => null },
+          { key: "recomputes", header: "Recomputes", render: () => null },
+          { key: "state", header: "State", render: () => null }
+        ]}
+        emptyState="Duration, trace, and recompute-event counts aren't tracked per school — see the real pending-queue stats below for what this system actually measures instead."
+      />
+
+      <section className="grid gap-3 md:grid-cols-3">
+        <StatCard label="Assessments awaiting approval" value={String(data.assessments.pendingApproval)} detail={data.assessments.oldestAgeHours === null ? "Nothing pending" : `Oldest: ${data.assessments.oldestAgeHours}h · ${data.assessments.oldestLabel}`} tone="dark" icon={Layers3} />
+        <StatCard label="Broadsheets in compilation" value={String(data.broadsheets.pending)} detail={data.broadsheets.oldestAgeHours === null ? "Nothing pending" : `Oldest: ${data.broadsheets.oldestAgeHours}h · ${data.broadsheets.oldestLabel}`} icon={Cpu} tone={statusTone(data.broadsheets.status)} />
+        <StatCard label="Report cards pending generation" value={String(data.reportCards.pending)} detail={data.reportCards.oldestAgeHours === null ? "Nothing pending" : `Oldest: ${data.reportCards.oldestAgeHours}h · ${data.reportCards.oldestLabel}`} icon={FileStack} tone={statusTone(data.reportCards.status)} />
+      </section>
+
+      <TableCard
+        title="What is monitored here — real vs. not tracked"
+        items={[
+          { label: "Golden-dataset regression on every deployment", state: "Not tracked at runtime — a CI/deployment concern this page has no visibility into.", tone: "bad" },
+          { label: "Computation volume and duration by school", state: "Partial — pending-queue depth and age are real; there is no per-school computation-duration metric.", tone: "warn" },
+          { label: "Trace completeness", state: "Not built — no calculation-trace concept exists in this codebase.", tone: "bad" },
+          { label: "Recomputation events, with reason", state: "Not built — a recompute isn't logged as a distinct event anywhere.", tone: "bad" },
+          { label: "Assessment frameworks failing validation", state: "Structurally guaranteed at zero — see the KPI above.", tone: "good" }
+        ]}
+        getRowKey={(row) => row.label}
+        columns={[
+          { key: "label", header: "What this covers", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.label}</span> },
+          {
+            key: "state",
+            header: "State",
+            render: (row) => {
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.tone as "good" | "warn" | "bad"];
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            }
+          }
+        ]}
+        footnote={
+          <>
+            There is no separate background job queue for result computation — broadsheet compilation and report card generation are
+            workflow steps schools trigger directly. A stage is flagged Warning once its oldest pending record has sat for more than 14
+            days, Critical past 30 days. Data as of {formatDate(data.generatedAt)}.
+          </>
+        }
+      />
     </div>
   );
 }
@@ -228,21 +302,33 @@ async function ComputationTab() {
 function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
-      <StatCard
-        label="Last successful backup"
-        value={data.backups.lastSuccessfulAt ? formatDate(data.backups.lastSuccessfulAt) : "None logged"}
-        icon={DatabaseBackup}
+      <StatCard label="Last successful backup" value={data.backups.lastSuccessfulAt ? formatDate(data.backups.lastSuccessfulAt) : "None logged"} icon={DatabaseBackup} tone="dark" />
+
+      <TableCard
+        title="Backup and disaster recovery schedule"
+        description="Would show, per backup type, how often it runs, how long it's retained, and how it's verified."
+        items={[]}
+        columns={[
+          { key: "type", header: "Backup type", render: () => null },
+          { key: "frequency", header: "Frequency", render: () => null },
+          { key: "retention", header: "Retention", render: () => null },
+          { key: "verification", header: "Verification", render: () => null },
+          { key: "last", header: "Last run", render: () => null }
+        ]}
+        emptyState="No stored policy record exists for backup frequency, retention period, or verification cadence — a backup happens when triggered manually (above) or by whatever runs outside this codebase."
       />
+
       <TableCard
         title="Backup log"
-        description="The last 30 backup events. A missed or failed backup raises a critical alert until a successful backup completes."
+        description="The last 30 backup events — every real one this platform knows about, not evidence of a fixed schedule. A missed or failed backup raises a critical alert until a successful backup completes."
         items={data.backups.recent}
         columns={[
-          { key: "scope", header: "Scope", render: (item) => item.scope.replaceAll("_", " ") },
+          { key: "started", header: "Completed", render: (item) => formatDate(item.startedAt) },
+          { key: "scope", header: "Type", render: (item) => item.scope.replaceAll("_", " ") },
           { key: "school", header: "Target", render: (item) => item.school },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={item.status.toUpperCase().includes("SUCCESS") || item.status.toUpperCase().includes("COMPLETED") ? "success" : "danger"} /> },
           { key: "size", header: "Size", render: (item) => (item.sizeMb ? `${item.sizeMb} MB` : "-") },
-          { key: "started", header: "Started", render: (item) => formatDate(item.startedAt) }
+          { key: "verified", header: "Verified", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={item.status.toUpperCase().includes("SUCCESS") || item.status.toUpperCase().includes("COMPLETED") ? "success" : "danger"} /> }
         ]}
         emptyState="No backups have been logged yet."
       />

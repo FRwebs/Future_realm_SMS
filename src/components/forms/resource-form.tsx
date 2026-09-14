@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useState } from "react";
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertTriangle,
@@ -23,7 +23,8 @@ export interface ResourceField {
   min?: number;
   max?: number;
   step?: number;
-  parse?: "json";
+  /** "json" parses the raw text as JSON. "csv" splits it into a trimmed, non-empty string array. */
+  parse?: "json" | "csv";
   /** Renders a section heading above this field when it differs from the previous field's section. */
   section?: string;
   /** Small note under the field — for "toggle"/"static" fields, typically explains what's real vs. not built yet. */
@@ -46,6 +47,8 @@ interface ResourceFormProps {
   confirmMessage?: string;
   onSuccess?: () => void;
   showHeader?: boolean;
+  /** Renders a "Cancel" button in the footer, next to the submit button, that calls this instead of submitting. */
+  onCancel?: () => void;
 }
 
 function getCookie(name: string) {
@@ -69,6 +72,7 @@ export function ResourceForm({
   confirmMessage,
   onSuccess,
   showHeader = true,
+  onCancel,
 }: ResourceFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
@@ -175,7 +179,15 @@ export function ResourceForm({
         const value = formData.get(field.name);
         if (value !== null) {
           const rawValue = typeof value === "string" ? value : value.name;
-          acc[field.name] = field.parse === "json" ? JSON.parse(rawValue) : rawValue;
+          if (field.parse === "json" && rawValue.trim() === "" && !field.required) {
+            return acc;
+          }
+          acc[field.name] =
+            field.parse === "json"
+              ? JSON.parse(rawValue)
+              : field.parse === "csv"
+                ? rawValue.split(",").map((part) => part.trim()).filter(Boolean)
+                : rawValue;
         }
         return acc;
       }, {});
@@ -220,17 +232,14 @@ export function ResourceForm({
     danger: XCircle,
   }[tone];
 
-  const isSectioned = fields.some((field) => field.section);
   const segments: Array<{ section?: string; kind: "toggle" | "field"; fields: ResourceField[] }> = [];
-  if (isSectioned) {
-    for (const field of fields) {
-      const kind: "toggle" | "field" = field.type === "toggle" ? "toggle" : "field";
-      const last = segments[segments.length - 1];
-      if (last && last.section === field.section && last.kind === kind) {
-        last.fields.push(field);
-      } else {
-        segments.push({ section: field.section, kind, fields: [field] });
-      }
+  for (const field of fields) {
+    const kind: "toggle" | "field" = field.type === "toggle" ? "toggle" : "field";
+    const last = segments[segments.length - 1];
+    if (last && last.section === field.section && last.kind === kind) {
+      last.fields.push(field);
+    } else {
+      segments.push({ section: field.section, kind, fields: [field] });
     }
   }
 
@@ -281,10 +290,9 @@ export function ResourceForm({
       ) : null}
 
       <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
-        {isSectioned ? (
           <div>
             {segments.map((segment, segIndex) => (
-              <div key={segment.section ?? `segment-${segIndex}`} style={{ marginBottom: 20 }}>
+              <div key={segment.section ?? `segment-${segIndex}`} style={{ marginBottom: segIndex === segments.length - 1 ? 0 : 20 }}>
                 {segment.section ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
                     <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", whiteSpace: "nowrap" }}>
@@ -299,6 +307,25 @@ export function ResourceForm({
                     {segment.fields.map((field) => (
                       <div
                         key={field.name}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() =>
+                          showToast({
+                            variant: "info",
+                            title: field.disabled ? "Not built" : "Fixed — can't be changed here",
+                            description: field.note ?? (field.disabled ? "This control isn't wired up in this build." : "This is always on and isn't editable.")
+                          })
+                        }
+                        onKeyDown={(event) => {
+                          if (event.key === "Enter" || event.key === " ") {
+                            event.preventDefault();
+                            showToast({
+                              variant: "info",
+                              title: field.disabled ? "Not built" : "Fixed — can't be changed here",
+                              description: field.note ?? (field.disabled ? "This control isn't wired up in this build." : "This is always on and isn't editable.")
+                            });
+                          }
+                        }}
                         style={{
                           display: "flex",
                           alignItems: "flex-start",
@@ -306,6 +333,7 @@ export function ResourceForm({
                           borderRadius: 10,
                           padding: "10px 12px",
                           minWidth: 0,
+                          cursor: "pointer",
                           background: field.disabled ? "#FCFDFC" : "#F4FAF7",
                           border: `1px solid ${field.disabled ? "#E6EEE9" : "#CFE4DB"}`
                         }}
@@ -338,60 +366,110 @@ export function ResourceForm({
                     {segment.fields.map((field) => {
                       const readonly = field.type === "static" || field.disabled;
                       const isSelect = field.type === "select";
+                      const spanFull = field.type === "textarea" || field.type === "multiselect";
                       return (
-                        <label key={field.name} style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#435048", marginBottom: 6 }}>{field.label}</div>
-                          <div
-                            style={{
-                              display: "flex",
-                              alignItems: "center",
-                              justifyContent: "space-between",
-                              gap: 8,
-                              borderRadius: 10,
-                              padding: "11px 13px",
-                              background: readonly ? "#F7FAF8" : "#fff",
-                              border: `1px solid ${readonly ? "#E6EEE9" : "#DEE8E2"}`
-                            }}
-                          >
-                            {field.type === "static" ? (
-                              <span style={{ fontSize: 12.5, color: "#5D6B63", fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                {field.placeholder}
-                              </span>
-                            ) : field.type === "select" ? (
-                              <select
-                                name={field.name}
-                                required={field.required}
-                                disabled={field.disabled}
-                                defaultValue={field.defaultValue as string | undefined}
-                                style={{ fontSize: 12.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%", appearance: "none" }}
-                              >
-                                {(field.options ?? []).map((option) => (
-                                  <option key={option.value} value={option.value}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </select>
-                            ) : (
-                              <input
-                                name={field.name}
-                                required={field.required}
-                                placeholder={field.placeholder}
-                                defaultValue={field.defaultValue as string | number | undefined}
-                                style={{ fontSize: 12.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%" }}
-                                type={field.type ?? "text"}
-                              />
-                            )}
-                            {field.type === "static" ? (
-                              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
-                                <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" />
-                                <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
-                              </svg>
-                            ) : isSelect ? (
-                              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round" style={{ flex: "none" }}>
-                                <path d="m6 9 6 6 6-6" />
-                              </svg>
-                            ) : null}
+                        <label key={field.name} style={{ minWidth: 0, gridColumn: spanFull ? "1 / -1" : undefined }}>
+                          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#435048", marginBottom: 6 }}>
+                            {field.label}
+                            {field.required ? " *" : ""}
                           </div>
+                          {field.type === "textarea" ? (
+                            <textarea
+                              name={field.name}
+                              required={field.required}
+                              placeholder={field.placeholder}
+                              defaultValue={field.defaultValue as string | undefined}
+                              rows={4}
+                              style={{ width: "100%", fontSize: 12.5, color: "#0D2315", fontWeight: 500, borderRadius: 10, padding: "11px 13px", background: "#fff", border: "1px solid #DEE8E2", outline: "none", resize: "vertical" }}
+                            />
+                          ) : field.type === "multiselect" ? (
+                            <select
+                              name={field.name}
+                              required={field.required}
+                              multiple
+                              defaultValue={field.defaultValue as string[] | undefined}
+                              style={{ width: "100%", minHeight: 120, fontSize: 12.5, color: "#0D2315", fontWeight: 500, borderRadius: 10, padding: "11px 13px", background: "#fff", border: "1px solid #DEE8E2", outline: "none" }}
+                            >
+                              {(field.options ?? []).map((option) => (
+                                <option key={option.value} value={option.value}>
+                                  {option.label}
+                                </option>
+                              ))}
+                            </select>
+                          ) : (
+                            <div
+                              role={field.type === "static" ? "button" : undefined}
+                              tabIndex={field.type === "static" ? 0 : undefined}
+                              onClick={
+                                field.type === "static"
+                                  ? () => showToast({ variant: "info", title: "Not editable here", description: field.note ?? "This field is locked — nothing in this build lets it be changed." })
+                                  : undefined
+                              }
+                              onKeyDown={
+                                field.type === "static"
+                                  ? (event) => {
+                                      if (event.key === "Enter" || event.key === " ") {
+                                        event.preventDefault();
+                                        showToast({ variant: "info", title: "Not editable here", description: field.note ?? "This field is locked — nothing in this build lets it be changed." });
+                                      }
+                                    }
+                                  : undefined
+                              }
+                              style={{
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "space-between",
+                                gap: 8,
+                                borderRadius: 10,
+                                padding: "11px 13px",
+                                cursor: field.type === "static" ? "pointer" : undefined,
+                                background: readonly ? "#F7FAF8" : "#fff",
+                                border: `1px solid ${readonly ? "#E6EEE9" : "#DEE8E2"}`
+                              }}
+                            >
+                              {field.type === "static" ? (
+                                <span style={{ fontSize: 12.5, color: "#5D6B63", fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {field.placeholder}
+                                </span>
+                              ) : field.type === "select" ? (
+                                <select
+                                  name={field.name}
+                                  required={field.required}
+                                  disabled={field.disabled}
+                                  defaultValue={field.defaultValue as string | undefined}
+                                  style={{ fontSize: 12.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%", appearance: "none" }}
+                                >
+                                  {(field.options ?? []).map((option) => (
+                                    <option key={option.value} value={option.value}>
+                                      {option.label}
+                                    </option>
+                                  ))}
+                                </select>
+                              ) : (
+                                <input
+                                  name={field.name}
+                                  required={field.required}
+                                  placeholder={field.placeholder}
+                                  defaultValue={field.defaultValue as string | number | undefined}
+                                  min={field.min}
+                                  max={field.max}
+                                  step={field.step}
+                                  style={{ fontSize: 12.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%" }}
+                                  type={field.type ?? "text"}
+                                />
+                              )}
+                              {field.type === "static" ? (
+                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
+                                  <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" />
+                                  <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+                                </svg>
+                              ) : isSelect ? (
+                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round" style={{ flex: "none" }}>
+                                  <path d="m6 9 6 6 6-6" />
+                                </svg>
+                              ) : null}
+                            </div>
+                          )}
                           {field.note ? <div style={{ fontSize: 11, color: "#8C9A92", marginTop: 5, lineHeight: 1.45 }}>{field.note}</div> : null}
                         </label>
                       );
@@ -401,83 +479,15 @@ export function ResourceForm({
               </div>
             ))}
           </div>
-        ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {fields.map((field) => {
-            const wrapperClass = field.type === "textarea" ? "md:col-span-2" : "";
 
-            return (
-              <Fragment key={field.name}>
-                <label className={wrapperClass}>
-                  <>
-                    <span className="field-label">
-                      {field.label}
-                      {field.required ? " *" : ""}
-                    </span>
-
-                    {field.type === "textarea" ? (
-                      <textarea
-                        name={field.name}
-                        required={field.required}
-                        placeholder={field.placeholder}
-                        defaultValue={field.defaultValue as string | undefined}
-                        rows={5}
-                        className="field-textarea min-h-[120px]"
-                      />
-                    ) : field.type === "select" ? (
-                      <select
-                        name={field.name}
-                        required={field.required}
-                        disabled={field.disabled}
-                        defaultValue={field.defaultValue as string | undefined}
-                        className="field-select h-10"
-                      >
-                        {(field.options ?? []).map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : field.type === "multiselect" ? (
-                      <select
-                        name={field.name}
-                        required={field.required}
-                        multiple
-                        defaultValue={field.defaultValue as string[] | undefined}
-                        className="field-control min-h-40 py-3"
-                      >
-                        {(field.options ?? []).map((option) => (
-                          <option key={option.value} value={option.value}>
-                            {option.label}
-                          </option>
-                        ))}
-                      </select>
-                    ) : (
-                      <input
-                        name={field.name}
-                        required={field.required}
-                        placeholder={field.placeholder}
-                        defaultValue={
-                          field.defaultValue as string | number | undefined
-                        }
-                        min={field.min}
-                        max={field.max}
-                        step={field.step}
-                        className="field-control h-10"
-                        type={field.type ?? "text"}
-                      />
-                    )}
-                    {field.note ? <p className="mt-1 text-[11px] leading-snug text-[var(--color-text-muted)]">{field.note}</p> : null}
-                  </>
-                </label>
-              </Fragment>
-            );
-          })}
-        </div>
-        )}
-
-        <div className="border-t border-[var(--color-border-default)] pt-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className={
+            chrome === "plain"
+              ? "sticky -bottom-[22px] -mx-[26px] -mb-[22px] border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]"
+              : "border-t border-[var(--color-border-default)] pt-4"
+          }
+        >
+          <div className={needsConfirmation && pendingPayload ? "hidden" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"}>
             <div className="min-h-[24px]">
               {message ? (
                 <div
@@ -493,13 +503,20 @@ export function ResourceForm({
               ) : null}
             </div>
 
-            <button
-              type="submit"
-              disabled={pending}
-              className="btn-primary px-6"
-            >
-              {pending ? "Saving..." : submitLabel}
-            </button>
+            <div className="flex items-center gap-2">
+              {onCancel ? (
+                <button type="button" onClick={onCancel} disabled={pending} className="btn-secondary px-5 disabled:cursor-not-allowed disabled:opacity-50">
+                  Cancel
+                </button>
+              ) : null}
+              <button
+                type="submit"
+                disabled={pending}
+                className="btn-primary px-6"
+              >
+                {pending ? "Saving..." : submitLabel}
+              </button>
+            </div>
           </div>
 
           {needsConfirmation && pendingPayload ? (

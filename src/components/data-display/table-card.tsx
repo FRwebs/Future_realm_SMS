@@ -63,6 +63,11 @@ interface TableCardProps<TItem> {
    * Defaults to 10.
    */
   pageSize?: number | false;
+
+  /**
+   * Optional muted note rendered in its own strip below the table, e.g. a source/ownership caveat.
+   */
+  footnote?: ReactNode;
 }
 
 function resolveSortValue<TItem>(item: TItem, column: TableColumn<TItem>): string | number | Date | null | undefined {
@@ -87,6 +92,7 @@ export function TableCard<TItem>({
   primaryColumnKey,
   featuredColumnKeys = [],
   actions,
+  footnote,
   filterBar,
   pageSize = 10,
 }: TableCardProps<TItem>) {
@@ -136,6 +142,7 @@ export function TableCard<TItem>({
       emptyState={emptyState}
       actions={actions}
       filterBar={filterBar}
+      footnote={footnote}
       columns={preparedColumns}
       rows={rows}
       primaryColumnKey={primaryKey}

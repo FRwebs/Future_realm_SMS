@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { Download, Send, Shuffle, User, X } from "lucide-react";
 
@@ -41,9 +41,42 @@ function initials(name: string) {
 }
 
 function riskColor(value: number) {
-  if (value >= 70) return "var(--color-danger)";
-  if (value >= 40) return "var(--color-warning)";
+  if (value >= 60) return "var(--color-danger)";
+  if (value >= 30) return "var(--color-warning)";
   return "var(--color-success)";
+}
+
+// healthScore is a 0-100 HEALTH metric (higher = healthier — see listChurnRisk,
+// which orders by healthScore ascending and flags scores under 50 as high risk).
+// Churn risk is its inverse: a healthy school (high healthScore) is low risk.
+function churnRiskPct(healthScore: number | undefined) {
+  return 100 - (healthScore ?? 70);
+}
+
+function verificationInfo(school: SuperAdminSchoolRow): { label: string; note: string; tone: "success" | "warning" | "danger" | "neutral" } {
+  if (school.verifiedAt) return { label: "Clear", note: `Verified ${formatDate(school.verifiedAt)}`, tone: "success" };
+  if (school.verificationRejectedAt) return { label: "Rejected", note: school.verificationRejectionReason ?? "No reason recorded", tone: "danger" };
+  if (school.flaggedForReviewReason) return { label: "Under review", note: school.flaggedForReviewReason, tone: "warning" };
+  return { label: "Not reviewed", note: "No open signal", tone: "neutral" };
+}
+
+const verificationToneColors: Record<"success" | "warning" | "danger" | "neutral", { bg: string; fg: string }> = {
+  success: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
+  warning: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
+  danger: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" },
+  neutral: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
+};
+
+function renewalText(school: SuperAdminSchoolRow) {
+  if (school.status === "TRIAL" && school.trialEndsAt) {
+    const days = Math.ceil((new Date(school.trialEndsAt).getTime() - Date.now()) / (24 * 60 * 60 * 1000));
+    return days <= 0 ? "Trial ended" : `Trial · ${days}d left`;
+  }
+  if (school.billingStatus === "OVERDUE" && school.nextBillingAt) {
+    const days = Math.ceil((Date.now() - new Date(school.nextBillingAt).getTime()) / (24 * 60 * 60 * 1000));
+    return days > 0 ? `Overdue ${days}d` : "Overdue";
+  }
+  return school.nextBillingAt ? formatDate(school.nextBillingAt) : "—";
 }
 
 function planLabel(plan: string) {
@@ -99,7 +132,7 @@ function downloadCsv(schools: SuperAdminSchoolRow[]) {
   URL.revokeObjectURL(url);
 }
 
-export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] }) {
+export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { schools: SuperAdminSchoolRow[]; filterBar?: ReactNode; paginationFooter?: ReactNode }) {
   const { showToast } = useToast();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
@@ -213,10 +246,11 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
   }
 
   return (
-    <section className="surface-card overflow-hidden">
-      <div className="p-5 md:p-6">
+    <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+      {filterBar}
+      <div className="p-0">
         {selectedIds.length > 0 ? (
-          <div className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-[#0d2315] px-4 py-3">
+          <div className="m-3 flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-[#0d2315] px-4 py-[11px]">
             <div className="flex items-center gap-3">
               <button
                 type="button"
@@ -275,19 +309,21 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
               <span className="text-lg font-bold">+</span>
             </div>
-            <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">Nothing to display yet</p>
-            <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">No schools match the current filters.</p>
+            <p className="mt-4 text-[15px] font-semibold text-[#0D2315]">Nothing to display yet</p>
+            <p className="mt-1 max-w-md text-[13px] text-[#435048]">No schools match the current filters.</p>
           </div>
         ) : (
           <>
             <div className="grid gap-3 md:hidden">
               {schools.map((school) => {
                 const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
-                const risk = school.healthScore ?? 0;
+                const risk = churnRiskPct(school.healthScore);
+                const verification = verificationInfo(school);
+                const verificationColors = verificationToneColors[verification.tone];
                 return (
                   <article
                     key={school.id}
-                    className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]"
+                    className="rounded-[14px] border border-[#DEE8E2] bg-white p-4"
                   >
                     <div className="flex items-start gap-3">
                       <button
@@ -303,29 +339,35 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                         {selected[school.id] ? <span className="block h-2 w-2 rounded-[2px] bg-white" /> : null}
                       </button>
                       <Link href={`/super-admin/schools/${school.id}`} className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-semibold text-[var(--color-text-primary)]">{school.name}</p>
-                        <p className="truncate text-[11px] text-[var(--color-text-muted)]">{school.slug}</p>
+                        <p className="truncate text-[15px] font-semibold text-[#0D2315]">{school.name}</p>
+                        <p className="truncate text-[11px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</p>
                       </Link>
                       <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                         {tone.label}
                       </span>
                     </div>
-                    <dl className="mt-4 grid grid-cols-2 gap-3">
-                      <div className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Tier</dt>
-                        <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{planLabel(school.plan)}</dd>
+                    <div className="mt-3 flex items-center gap-2">
+                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
+                        {verification.label}
+                      </span>
+                      <span className="truncate text-[11px] text-[#9fb8a7]">{verification.note}</span>
+                    </div>
+                    <dl className="mt-3 grid grid-cols-2 gap-3">
+                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Tier</dt>
+                        <dd className="mt-1 text-[13px] text-[#435048]">{planLabel(school.plan)}</dd>
                       </div>
-                      <div className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Students</dt>
-                        <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{school.totalStudents.toLocaleString()}</dd>
+                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Students</dt>
+                        <dd className="mt-1 text-[13px] text-[#435048]">{school.totalStudents.toLocaleString()}</dd>
                       </div>
-                      <div className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Last login</dt>
-                        <dd className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
+                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Last login</dt>
+                        <dd className="mt-1 text-[13px] text-[#435048]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
                       </div>
-                      <div className="rounded-xl bg-[var(--color-bg-subtle)] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Risk</dt>
-                        <dd className="mt-1 text-[13px] font-bold" style={{ color: riskColor(risk) }}>{risk === 0 ? "—" : `${risk}%`}</dd>
+                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Churn risk</dt>
+                        <dd className="mt-1 text-[13px] font-bold" style={{ color: riskColor(risk) }}>{risk}%</dd>
                       </div>
                     </dl>
                   </article>
@@ -334,12 +376,12 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
             </div>
 
             <div className="hidden md:block">
-              <div className="overflow-hidden rounded-2xl border border-[var(--color-border-default)]">
+              <div className="overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-separate border-spacing-0">
-                    <thead className="bg-[var(--color-bg-subtle)]">
+                    <thead className="bg-[#F7FAF8]">
                       <tr>
-                        <th className="w-10 border-b border-[var(--color-border-default)] px-4 py-3">
+                        <th className="w-[34px] border-b border-[#E6EEE9] px-[18px] py-3">
                           <button
                             type="button"
                             onClick={toggleAll}
@@ -357,10 +399,10 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                             ) : null}
                           </button>
                         </th>
-                        {["School", "Location", "Tier", "Students", "Last login", "Renewal", "Status", "Risk", ""].map((header) => (
+                        {["School", "Tier", "Status", "Risk assessment", "Students", "Last login", "Trial / renewal", "Churn risk", ""].map((header) => (
                           <th
                             key={header}
-                            className="border-b border-[var(--color-border-default)] px-4 py-3 text-left text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]"
+                            className="border-b border-[#E6EEE9] px-[18px] py-3 text-left text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]"
                           >
                             {header}
                           </th>
@@ -370,14 +412,16 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                     <tbody>
                       {schools.map((school) => {
                         const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
-                        const risk = school.healthScore ?? 0;
+                        const risk = churnRiskPct(school.healthScore);
+                        const verification = verificationInfo(school);
+                        const verificationColors = verificationToneColors[verification.tone];
                         return (
                           <tr
                             key={school.id}
-                            className="border-b border-[var(--color-border-muted)] text-[13px] text-[var(--color-text-secondary)] transition"
-                            style={{ background: selected[school.id] ? "var(--color-accent-primary-dim)" : "var(--color-bg-surface)" }}
+                            className="text-[12.5px] text-[#435048] transition hover:bg-[#F7FBF9]"
+                            style={{ background: selected[school.id] ? "#F7FBF9" : "#fff" }}
                           >
-                            <td className="px-4 py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <button
                                 type="button"
                                 onClick={() => toggleSchool(school.id)}
@@ -391,46 +435,51 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
                                 {selected[school.id] ? <span className="block h-2 w-2 rounded-[2px] bg-white" /> : null}
                               </button>
                             </td>
-                            <td className="px-4 py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <Link href={`/super-admin/schools/${school.id}`} className="group flex items-center gap-3">
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[12px] font-bold text-[var(--color-text-primary)]">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-[var(--font-heading)] text-[12px] font-bold text-[#0D2315]">
                                   {initials(school.name)}
                                 </span>
                                 <span className="min-w-0">
-                                  <span className="block truncate font-semibold text-[var(--color-text-primary)] group-hover:text-[var(--color-text-accent)]">
+                                  <span className="block truncate font-semibold text-[#0D2315] group-hover:text-[#12796A]">
                                     {school.name}
                                   </span>
-                                  <span className="block truncate text-[11px] text-[var(--color-text-muted)]">{school.slug}</span>
+                                  <span className="block truncate text-[11px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</span>
                                 </span>
                               </Link>
                             </td>
-                            <td className="px-4 py-3 align-top">{[school.state, school.country].filter(Boolean).join(", ") || "—"}</td>
-                            <td className="px-4 py-3 align-top">{planLabel(school.plan)}</td>
-                            <td className="px-4 py-3 align-top">{school.totalStudents.toLocaleString()}</td>
-                            <td className="px-4 py-3 align-top">
-                              {school.lastSuccessfulLoginAt ? (
-                                formatDate(school.lastSuccessfulLoginAt)
-                              ) : (
-                                <span className="font-semibold text-[var(--color-danger)]">Never</span>
-                              )}
-                            </td>
-                            <td className="px-4 py-3 align-top">{school.nextBillingAt ? formatDate(school.nextBillingAt) : "—"}</td>
-                            <td className="px-4 py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">{planLabel(school.plan)}</td>
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                                 {tone.label}
                               </span>
                             </td>
-                            <td className="px-4 py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
+                                {verification.label}
+                              </span>
+                              <div className="mt-[3px] max-w-[160px] truncate text-[10.5px] text-[#9fb8a7]">{verification.note}</div>
+                            </td>
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top font-[var(--font-mono)]">{school.totalStudents.toLocaleString()}</td>
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                              {school.lastSuccessfulLoginAt ? (
+                                formatDate(school.lastSuccessfulLoginAt)
+                              ) : (
+                                <span className="font-semibold text-[#B23B3B]">Never</span>
+                              )}
+                            </td>
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">{renewalText(school)}</td>
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <div className="w-16">
                                 <span className="text-[12.5px] font-bold font-[var(--font-mono)]" style={{ color: riskColor(risk) }}>
-                                  {risk === 0 ? "—" : `${risk}%`}
+                                  {risk}%
                                 </span>
-                                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EDF3EF]">
                                   <div className="h-full rounded-full" style={{ width: `${risk}%`, background: riskColor(risk) }} />
                                 </div>
                               </div>
                             </td>
-                            <td className="px-4 py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <ActionMenu triggerLabel={`Actions for ${school.name}`}>
                                 <ActionMenuLink href="/super-admin/schools?tab=approval-queue">Review verification</ActionMenuLink>
                                 <ActionMenuLink href={`/super-admin/schools/${school.id}`}>Open school profile</ActionMenuLink>
@@ -483,6 +532,8 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
         )}
       </div>
 
+      {paginationFooter}
+
       <Modal open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} title="Batch status change" subtitle={`Update ${selectedIds.length} school(s) at once. This is fully audited.`}>
         <div className="grid gap-4">
           <label className="block">
@@ -507,7 +558,10 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
               placeholder="Why are these schools changing status?"
             />
           </label>
-          <button type="button" onClick={submitBatchStatus} disabled={submitting} className="btn-primary h-10 disabled:cursor-not-allowed disabled:opacity-60">
+        </div>
+        <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
+          <button type="button" onClick={() => setStatusDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={submitBatchStatus} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Updating…" : `Update ${selectedIds.length} school(s)`}
           </button>
         </div>
@@ -526,7 +580,10 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
             />
             <span className="mt-1.5 block text-[11px] text-[var(--color-text-muted)]">Must be an active internal team member.</span>
           </label>
-          <button type="button" onClick={submitAccountManager} disabled={submitting} className="btn-primary h-10 disabled:cursor-not-allowed disabled:opacity-60">
+        </div>
+        <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
+          <button type="button" onClick={() => setManagerDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={submitAccountManager} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Assigning…" : `Assign to ${selectedIds.length} school(s)`}
           </button>
         </div>
@@ -553,7 +610,10 @@ export function SchoolBulkTable({ schools }: { schools: SuperAdminSchoolRow[] })
               placeholder="What do these schools need to know?"
             />
           </label>
-          <button type="button" onClick={submitNotification} disabled={submitting} className="btn-primary h-10 disabled:cursor-not-allowed disabled:opacity-60">
+        </div>
+        <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
+          <button type="button" onClick={() => setNotifyDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
+          <button type="button" onClick={submitNotification} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Sending…" : `Send to ${selectedIds.length} school(s)`}
           </button>
         </div>

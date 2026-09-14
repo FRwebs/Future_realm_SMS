@@ -1,6 +1,8 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { TableFilterBar } from "@/components/data-display/table-filter-bar";
@@ -71,9 +73,9 @@ export function RevenueStateTable({ items }: RevenueStateTableProps) {
             key: "open",
             header: "",
             render: (item) => (
-              <a href={`/super-admin/schools?state=${encodeURIComponent(item.state)}`} className="font-semibold text-[var(--color-text-accent)] underline">
+              <Link href={`/super-admin/schools?state=${encodeURIComponent(item.state)}` as Route} className="font-semibold text-[var(--color-text-accent)] underline">
                 View schools
-              </a>
+              </Link>
             )
           }
         ]}

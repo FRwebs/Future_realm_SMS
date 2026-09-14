@@ -99,7 +99,7 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Platform intelligence"
+        eyebrow="Overview"
         title="Analytics & BI"
         description="Honest measurement, made easier than optimistic measurement."
         action={
@@ -216,7 +216,7 @@ async function GrowthTab() {
       </div>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Displacement rate" value={`${displacement.displacementRatePct}%`} detail="Arrived from another system, not from paper" icon={Repeat2} tone="accent" />
+        <StatCard label="Displacement rate" value={`${displacement.displacementRatePct}%`} detail="Arrived from another system, not from paper" icon={Repeat2} tone="dark" />
         <StatCard label="From paper or spreadsheets" value={`${displacement.paperOrSpreadsheetPct}%`} detail="The discovery half of the market" icon={ClipboardList} />
         <StatCard label="Migration completion rate" value={`${displacement.migrationCompletionRatePct}%`} detail="Across all source systems" tone="success" icon={TrendingUp} />
         <StatCard label="Trialled and returned" value={displacement.trialledAndReturned} detail="Rolled-back migrations, reason recorded" tone={displacement.trialledAndReturned > 0 ? "warning" : "success"} icon={TrendingDown} />
@@ -420,7 +420,7 @@ async function RetentionTab() {
       </div>
 
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Platform NPS" value={`${npsScore >= 0 ? "+" : ""}${npsScore}`} detail={`${nps.total} response${nps.total === 1 ? "" : "s"} recorded`} tone={npsScore >= 30 ? "success" : npsScore >= 0 ? "warning" : "danger"} icon={SmilePlus} />
+        <StatCard label="Platform NPS" value={`${npsScore >= 0 ? "+" : ""}${npsScore}`} detail={`${nps.total} response${nps.total === 1 ? "" : "s"} recorded`} tone="dark" icon={SmilePlus} />
         <StatCard label="Promoters" value={`${promoterPct}%`} detail={`${nps.promoters} of ${nps.total} · score 9-10`} tone="success" icon={Trophy} />
         <StatCard label="Passives" value={`${passivePct}%`} detail={`${npsPassives} of ${nps.total} · score 7-8`} tone="warning" icon={MessageCircle} />
         <StatCard label="Detractors" value={`${detractorPct}%`} detail={`${nps.detractors} of ${nps.total} · score 0-6`} tone="danger" icon={AlertTriangle} />
@@ -463,7 +463,7 @@ async function RevenueTab() {
           value={formatCompactCurrency(report.outstandingReceivables)}
           detail={`${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance. Full value: ${formatCurrency(report.outstandingReceivables)}.`}
           icon={AlertTriangle}
-          tone="warning"
+          tone="dark"
         />
         <StatCard
           label="Term-over-term renewal rate"
@@ -527,7 +527,7 @@ async function ProductTab() {
   return (
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="accent" />
+        <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="dark" />
         <StatCard label="Platform adoption index" value={adoption.adoptionIndex} detail={`Weighted across ${adoption.modulesTracked} modules`} icon={Gauge} />
         <StatCard label="Modules below the 40% floor" value={adoption.modulesBelowFloor} detail="Enabled by fewer than 4 in 10 schools" tone={adoption.modulesBelowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />
         <StatCard label="Paid features never switched on" value="N/A" detail="Not applicable — no module is tier-gated in this product, so nothing is a paid feature going unused" icon={Banknote} />

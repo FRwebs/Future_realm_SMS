@@ -160,13 +160,15 @@ a:focus-visible,
   }
 }
 
+/* Opacity intentionally omitted: .page-shell-enter's own children (see
+   `.page-shell-enter > *` below) already fade in from 0, staggered. Fading the
+   wrapper too compounds into a longer blank gap at the start of every page
+   navigation, which reads as a flicker/refresh rather than a smooth transition. */
 @keyframes page-shell-enter {
   from {
-    opacity: 0;
     transform: translateY(10px);
   }
   to {
-    opacity: 1;
     transform: translateY(0);
   }
 }
@@ -323,6 +325,11 @@ a:focus-visible,
     animation: none !important;
   }
 
+  .app-skeleton,
+  .app-skeleton-invert {
+    animation: none !important;
+  }
+
   .trend-card-bar {
     transition-duration: 0ms !important;
     transition-delay: 0ms !important;
@@ -344,6 +351,19 @@ a:focus-visible,
         color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 0%,
         color-mix(in srgb, var(--color-bg-elevated) 94%, transparent) 50%,
         color-mix(in srgb, var(--color-bg-subtle) 78%, transparent) 100%
+      );
+    background-size: 200% 100%;
+    animation: shimmer 1.5s infinite linear;
+  }
+
+  /* Same shimmer, inverted for placement on dark ink surfaces (e.g. ModuleHero). */
+  .app-skeleton-invert {
+    background:
+      linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.06) 0%,
+        rgba(255, 255, 255, 0.16) 50%,
+        rgba(255, 255, 255, 0.06) 100%
       );
     background-size: 200% 100%;
     animation: shimmer 1.5s infinite linear;
@@ -663,6 +683,18 @@ a:focus-visible,
 
 .page-shell-enter > *:nth-child(n + 5) {
   animation-delay: 240ms;
+}
+
+/* A loading skeleton needs to appear the instant it mounts — any fade-in delay just
+   recreates the blank gap it exists to cover. It sits inside a page-shell-enter
+   wrapper (see dashboard-shell.tsx), whose `> *` rule above would otherwise fade
+   THIS in from opacity 0 too, and then real content fades in again on top of it
+   when Suspense resolves — two stacked fades reading as a flicker/refresh. This
+   opts the skeleton itself out of that inherited animation so it's instantly
+   visible, leaving exactly one fade (the real content's) per navigation. */
+.skeleton-instant {
+  opacity: 1 !important;
+  animation: none !important;
 }
 
 .overlay-enter {

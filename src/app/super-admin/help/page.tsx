@@ -44,7 +44,7 @@ export default async function SuperAdminHelpPage({ searchParams }: { searchParam
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Internal reference"
+        eyebrow="Overview"
         title="Help"
         description="Orientation for this console, where to route a question by subject, and the platform's own health — read in plain words."
       />
@@ -148,13 +148,12 @@ function GetHelpTab() {
 
 async function PlatformStatusTab() {
   const monitoring = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
-  const uptimeTone = monitoring.uptime.apiUptimeStatus === "HEALTHY" ? "success" : monitoring.uptime.apiUptimeStatus === "WARNING" ? "warning" : "danger";
   const syncTone = monitoring.syncQueue.status === "HEALTHY" ? "success" : monitoring.syncQueue.status === "WARNING" ? "warning" : "danger";
 
   return (
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Uptime, last 30 days" value={`${monitoring.uptime.apiUptime}%`} detail={`${monitoring.uptime.requestsLast24h.toLocaleString()} requests in the last 24h`} tone={uptimeTone} icon={CheckCircle2} />
+        <StatCard label="Uptime, last 30 days" value={`${monitoring.uptime.apiUptime}%`} detail={`${monitoring.uptime.requestsLast24h.toLocaleString()} requests in the last 24h`} tone="dark" icon={CheckCircle2} />
         <StatCard label="Offline sync queue" value={monitoring.syncQueue.pending.toLocaleString()} detail={monitoring.syncQueue.oldestSchool ? `Oldest: ${monitoring.syncQueue.oldestSchool}, ${monitoring.syncQueue.oldestAgeHours}h` : "Nothing queued"} tone={syncTone} icon={Repeat2} />
         <StatCard label="Last verified backup" value={monitoring.backups.lastSuccessfulAt ? new Date(monitoring.backups.lastSuccessfulAt).toLocaleString() : "None recorded"} detail="Confirmed successful, not just attempted" icon={BookOpen} />
         <StatCard label="Average response time" value={`${monitoring.uptime.avgResponseMs}ms`} detail="Across the last 24 hours" icon={MousePointerClick} />

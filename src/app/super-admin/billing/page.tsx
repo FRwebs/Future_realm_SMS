@@ -1,4 +1,6 @@
 import { AlertTriangle, BadgePercent, CalendarCheck2, CreditCard, Gift, Repeat2, TicketPercent, TrendingUp, UsersRound } from "lucide-react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
@@ -6,6 +8,7 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { StructurePreviewDialog } from "@/components/forms/structure-preview-dialog";
 import { PlanEditDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
@@ -19,7 +22,8 @@ import type {
   SuperAdminPromoCodeRow,
   SuperAdminReconciliationTransaction,
   SuperAdminRevenueReport,
-  SuperAdminRevenueView
+  SuperAdminRevenueView,
+  SuperAdminSchoolRow
 } from "@/lib/domain/types";
 import { formatCompactCurrency, formatCurrency, formatDate } from "@/lib/utils/formatters";
 
@@ -32,6 +36,10 @@ const planOptions = [
   { label: "Elite", value: "ENTERPRISE" },
   { label: "NGO / Mission", value: "CUSTOM" }
 ];
+
+function planLabel(plan: string) {
+  return planOptions.find((option) => option.value === plan)?.label ?? plan;
+}
 
 const invoiceStatusTone: Record<string, { bg: string; fg: string; label: string }> = {
   DRAFT: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Draft" },
@@ -61,7 +69,7 @@ const churnSignalReference = [
 ];
 
 const billingRules = [
-  "Billed per student, per term — confirmed against the enrolled headcount at the start of each term.",
+  "Billed per school, per plan, per term — a flat rate per tier, not multiplied by enrolled headcount anywhere in this system's real revenue or invoice figures.",
   "Trials run 30 days automatically at signup, with every feature unlocked and no card required.",
   "A school moves to Grace Period on the first missed payment, then Suspended if it lapses further.",
   "Notification (SMS/WhatsApp) credit revenue is tracked separately from subscription revenue.",
@@ -159,14 +167,16 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   const params = searchParams ? await searchParams : {};
   const tab = params.tab ?? "overview";
 
-  const [billingEnvelope, revenue, plansEnvelope, report, invoicesEnvelope] = await Promise.all([
+  const [billingEnvelope, revenue, plansEnvelope, report, invoicesEnvelope, schoolsEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminBillingRow[]>("/api/super-admin/billing"),
     apiGet<SuperAdminRevenueView>("/api/super-admin/analytics/revenue"),
     apiGetEnvelope<SuperAdminPlanRow[]>("/api/super-admin/plans"),
     apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report"),
-    apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices")
+    apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices"),
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
   const billing = billingEnvelope.data ?? [];
+  const schoolsForRecommendations = schoolsEnvelope.data ?? [];
   const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
   const arpu = revenue.totalPaidSchools > 0 ? revenue.mrr / revenue.totalPaidSchools : 0;
   const activePlans = (plansEnvelope.data ?? []).filter((item) => item.isActive).sort((a, b) => planDisplayRank(a) - planDisplayRank(b) || a.monthlyPrice - b.monthlyPrice);
@@ -177,6 +187,28 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   const notRenewedCount = Math.max(0, report.activeSchoolCount - report.renewedRecently);
   const allInvoices = invoicesEnvelope.data ?? [];
   const outstandingInvoiceCount = allInvoices.filter((item) => item.status === "ISSUED" || item.status === "PARTIALLY_PAID" || item.status === "OVERDUE").length;
+
+  // Tier recommendations: computed live from each school's real, confirmed student count against
+  // every active plan's studentLimit — never stored or scheduled. Only a genuine mismatch (current
+  // tier's limit is smaller than the school's real headcount, or a cheaper tier would comfortably
+  // fit it) produces a row. This system has no acceptance/dismissal record for a recommendation —
+  // acting on one just opens the same real "Change Plan" action already used elsewhere on this page.
+  const tierRecommendations = schoolsForRecommendations
+    .filter((school) => school.status === "ACTIVE" || school.status === "GRACE_PERIOD")
+    .map((school) => {
+      const currentPlan = planByTier.get(school.plan);
+      if (!currentPlan) return null;
+      const fits = (plan: SuperAdminPlanRow) => plan.studentLimit === null || plan.studentLimit === undefined || plan.studentLimit >= school.totalStudents;
+      const cheapestFit = activePlans.find(fits);
+      if (!cheapestFit || cheapestFit.plan === currentPlan.plan) return null;
+      // monthlyPrice is a flat per-school, per-semester rate in this system's real revenue
+      // computation (see getPlanPriceMap / the mrr reduce in super-admin.service.ts) — never
+      // multiplied by student count — so the difference here is flat too, not per-student.
+      const termlyDifference = cheapestFit.monthlyPrice - currentPlan.monthlyPrice;
+      return { school, currentPlan, recommendedPlan: cheapestFit, termlyDifference };
+    })
+    .filter((row): row is { school: SuperAdminSchoolRow; currentPlan: SuperAdminPlanRow; recommendedPlan: SuperAdminPlanRow; termlyDifference: number } => row !== null)
+    .sort((a, b) => Math.abs(b.termlyDifference) - Math.abs(a.termlyDifference));
 
   const validTabs = new Set(["overview", "invoices", "trials", "wallets", "pricing"]);
   const activeTab = validTabs.has(tab) ? tab : "overview";
@@ -192,9 +224,27 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Subscriptions"
-        title="Billing"
+        eyebrow="Schools & Revenue"
+        title="Subscriptions & Billing"
         description="Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns."
+        action={
+          <StructurePreviewDialog
+            triggerLabel="Create invoice run"
+            title="Create invoice run"
+            description="Raises drafts for a term, across every active school at once — checked against what this system can actually do today."
+            fields={[
+              { label: "Term", value: "Not tracked", note: "No academic-term field exists on an invoice — a due date is set individually, per invoice.", section: "Period and scope" },
+              { label: "Scope", value: "Not built — no cross-school selector exists", section: "Period and scope" },
+              { label: "Issue date", value: "Not built", section: "Period and scope" },
+              { label: "Payment terms", value: "Not tracked — no default payment-terms setting exists", section: "Period and scope" },
+              { label: "Schools in a trial", value: "Not built", note: "There's no batch process to exclude or include any group of schools — invoices are drafted one at a time.", section: "Exclusions" },
+              { label: "NGO awaiting verification", value: "Not built", section: "Exclusions" },
+              { label: "Schools in grace period", value: "Not built", section: "Exclusions" },
+              { label: "Accounts closed this term", value: "Not built", section: "Exclusions" }
+            ]}
+            cta={{ label: "Draft a real invoice", href: "/super-admin/billing?tab=invoices" }}
+          />
+        }
       />
 
       <DetailTabs tabs={tabs} />
@@ -207,7 +257,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               value={formatCompactCurrency(revenue.mrr)}
               detail={`Current semester recurring revenue. Full value: ${formatCurrency(revenue.mrr)}.`}
               icon={Repeat2}
-              tone="accent"
+              tone="dark"
             />
             <StatCard
               label="Year estimate"
@@ -296,9 +346,9 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                   <p className="section-eyebrow">Collections</p>
                   <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Receivables &amp; renewals</h2>
                 </div>
-                <a href={tabHref("pricing")} className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+                <Link href={tabHref("pricing") as Route} className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
                   View rate card
-                </a>
+                </Link>
               </div>
               <div className="grid gap-4 p-5">
                 <div className="flex items-center justify-between gap-3">
@@ -325,6 +375,53 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               </div>
             </section>
           </section>
+
+          <TableCard
+            title="Tier recommendations"
+            description="Computed live from each school's real, confirmed student count against every active plan's limit — the system recommends, it never applies a tier change by itself. There's no accept/dismiss record; acting on one uses the same Change Plan action as the table below."
+            items={tierRecommendations}
+            emptyState="No school's real headcount currently mismatches its tier."
+            getRowKey={(row) => row.school.id}
+            columns={[
+              { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school.name}</span> },
+              { key: "confirmed", header: "Confirmed students", render: (row) => row.school.totalStudents.toLocaleString() },
+              { key: "current", header: "Current tier", render: (row) => planLabel(row.currentPlan.plan) },
+              {
+                key: "recommended",
+                header: "Recommended",
+                render: (row) => (
+                  <span className="font-bold" style={{ color: row.termlyDifference >= 0 ? "var(--color-success)" : "var(--color-warning)" }}>
+                    {planLabel(row.recommendedPlan.plan)}
+                  </span>
+                )
+              },
+              {
+                key: "difference",
+                header: "Termly difference",
+                render: (row) => (
+                  <span className="font-[var(--font-mono)] font-bold" style={{ color: row.termlyDifference >= 0 ? "var(--color-success)" : "var(--color-warning)" }}>
+                    {row.termlyDifference >= 0 ? "+" : "−"}{formatCurrency(Math.abs(row.termlyDifference))}
+                  </span>
+                )
+              },
+              {
+                key: "decision",
+                header: "Decision",
+                render: (row) => (
+                  <ResourceActionDialog
+                    triggerLabel="Change plan"
+                    title={`Change plan for ${row.school.name}`}
+                    description={`Recommended based on ${row.school.totalStudents.toLocaleString()} confirmed students.`}
+                    endpoint={`/api/super-admin/billing/${row.school.id}`}
+                    method="PATCH"
+                    variant="secondary"
+                    submitLabel="Save plan"
+                    fields={[{ name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: row.recommendedPlan.plan }]}
+                  />
+                )
+              }
+            ]}
+          />
 
           <TableCard
             title="School billing"
@@ -420,7 +517,12 @@ async function InvoicesTab({
   return (
     <div className="grid gap-5 xl:grid-cols-[1.75fr_1fr]">
       <div className="grid gap-3.5">
-        <form method="GET" className="flex items-center gap-2">
+        <TableCard
+      title="Invoices"
+      description="Every invoice tracked from draft through payment or cancellation. No invoice is sent without admin review."
+      items={invoices}
+      filterBar={
+        <form method="GET" className="flex flex-wrap items-center gap-2 border-b border-[#EDF3EF] bg-[#FCFDFC] px-5 py-3.5">
           <input type="hidden" name="tab" value="invoices" />
           <input
             type="search"
@@ -431,15 +533,12 @@ async function InvoicesTab({
           />
           <button type="submit" className="btn-secondary h-10 text-[12.5px]">Search</button>
           {search ? (
-            <a href="/super-admin/billing?tab=invoices" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+            <Link href="/super-admin/billing?tab=invoices" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
               Clear
-            </a>
+            </Link>
           ) : null}
         </form>
-        <TableCard
-      title="Invoices"
-      description="Every invoice tracked from draft through payment or cancellation. No invoice is sent without admin review."
-      items={invoices}
+      }
       actions={
         <ResourceActionDialog
           triggerLabel="Draft invoice"
@@ -546,7 +645,7 @@ async function InvoicesTab({
 
       <div className="col-span-full grid gap-3.5">
         <div className="grid gap-3 md:grid-cols-3">
-          <StatCard label="Recorded, awaiting reconciliation" value={reconciliationQueue.length} detail="Segregation of duties enforced" />
+          <StatCard label="Recorded, awaiting reconciliation" value={reconciliationQueue.length} detail="Segregation of duties enforced" tone="dark" />
           <StatCard label="Unreconciled beyond 7 days" value={unreconciledOverSevenDays} detail="On the Finance Lead exception list" tone={unreconciledOverSevenDays > 0 ? "warning" : "success"} />
           <StatCard
             label="Recorded, not yet matched"
@@ -586,6 +685,15 @@ async function InvoicesTab({
             }
           ]}
         />
+
+        <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+          <p className="text-[14px] font-semibold text-[#0D2315]">NGO / Mission verification — not tracked</p>
+          <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
+            A school on the NGO / Mission tier keeps its discount indefinitely — there is no stored verification date,
+            expiry, or evidence record, and no annual re-verification workflow. Placing a school on this tier is a
+            one-time plan choice today, not a reviewed, time-boxed grant.
+          </p>
+        </section>
       </div>
     </div>
   );
@@ -598,9 +706,9 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
     .map((item) => {
       const endsAt = item.trialEndsAt ? new Date(item.trialEndsAt).getTime() : null;
       const msRemaining = endsAt ? endsAt - now : null;
-      const daysRemaining = msRemaining !== null ? Math.max(0, Math.ceil(msRemaining / (1000 * 60 * 60 * 24))) : null;
+      const daysRemaining = msRemaining !== null ? Math.ceil(msRemaining / (1000 * 60 * 60 * 24)) : null;
       const daysElapsed = daysRemaining !== null ? Math.min(TRIAL_DAYS, TRIAL_DAYS - daysRemaining) : null;
-      const pct = daysElapsed !== null ? Math.round((daysElapsed / TRIAL_DAYS) * 100) : 0;
+      const pct = daysElapsed !== null ? Math.round((Math.max(0, daysElapsed) / TRIAL_DAYS) * 100) : 0;
       return { ...item, daysRemaining, pct };
     })
     .sort((a, b) => (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999));
@@ -630,9 +738,10 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
         ) : (
           <div className="grid gap-3 self-start">
             {trials.map((trial) => {
+              const overdue = trial.daysRemaining !== null && trial.daysRemaining < 0;
               const urgent = trial.daysRemaining !== null && trial.daysRemaining <= 2;
               const soon = trial.daysRemaining !== null && trial.daysRemaining <= 5;
-              const barColor = urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-accent-primary)";
+              const barColor = overdue || urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-accent-primary)";
               return (
                 <article key={trial.schoolId} className="surface-card p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
@@ -643,9 +752,9 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
                     <div className="flex items-center gap-2">
                       {trial.daysRemaining !== null ? (
                         <StatusPill
-                          bg={urgent ? "var(--color-danger-dim)" : soon ? "var(--color-warning-dim)" : "var(--color-accent-primary-dim)"}
-                          fg={urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-text-accent)"}
-                          label={trial.daysRemaining === 0 ? "Expires today" : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} left`}
+                          bg={overdue || urgent ? "var(--color-danger-dim)" : soon ? "var(--color-warning-dim)" : "var(--color-accent-primary-dim)"}
+                          fg={overdue || urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-text-accent)"}
+                          label={overdue ? `Overdue ${Math.abs(trial.daysRemaining)}d — still on Trial` : trial.daysRemaining === 0 ? "Expires today" : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} left`}
                         />
                       ) : null}
                       <ResourceActionDialog
@@ -672,25 +781,14 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
         <div className="grid gap-3.5 self-start">
           <section className="surface-card p-5">
             <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Automatic trial alerts</p>
-            <div className="mt-3.5 grid gap-3">
-              {[
-                { title: "Day 7 check-in", detail: "Email nudge to the school owner with setup progress." },
-                { title: "Day 11 warning", detail: "In-app banner and email — 3 days remaining." },
-                { title: "Day 14 expiry", detail: "Trial ends. School moves to Trial Expired automatically." },
-                { title: "High-risk flag", detail: "No login in 5+ days triggers a churn-risk signal." }
-              ].map((alert) => (
-                <div key={alert.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{alert.title}</p>
-                  <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{alert.detail}</p>
-                </div>
-              ))}
-            </div>
+            <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">
+              Not built — there is no scheduled email or in-app nudge sequence tied to trial day count yet. The one real automatic signal is churn-risk scoring, which does weigh trial engagement (see the Churn risk section below).
+            </p>
           </section>
           <section className="rounded-[14px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
             <p className="text-[13px] font-bold text-[var(--color-text-primary)]">Post-trial behaviour</p>
             <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
-              If no conversion, the school moves to <strong>Trial Expired</strong> — read-only for 3 days, then
-              locked. All data is preserved and restored instantly on conversion.
+              Nothing automatic happens when a trial ends — there is no <code>TRIAL_EXPIRED</code> status in this system. The school stays on <strong>Trial</strong>, access continues uninterrupted, and the countdown above turns into &ldquo;Overdue&rdquo;. A Super Admin has to act by hand: extend the trial, move it to Active, or suspend it.
             </p>
           </section>
         </div>
@@ -811,15 +909,23 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
     Promise.all(
       billing.slice(0, 25).map(async (item) => {
         const wallet = await apiGet<SuperAdminNotificationWallet>(`/api/super-admin/billing/${item.schoolId}/wallet`);
-        return { ...wallet, schoolName: item.schoolName };
+        return { ...wallet, schoolName: item.schoolName, plan: item.plan };
       })
     ),
     apiGet<SuperAdminWalletTopUpEntry[]>("/api/super-admin/billing/wallets/top-up-history")
   ]);
   const lowBalanceWallets = wallets.filter((wallet) => wallet.isLow);
+  const totalSmsCredits = wallets.reduce((sum, w) => sum + w.smsBalance, 0);
+  const totalWhatsappCredits = wallets.reduce((sum, w) => sum + w.whatsappBalance, 0);
 
   return (
     <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        <StatCard label="SMS credits held" value={totalSmsCredits.toLocaleString()} detail={`Across ${wallets.length} school(s)`} icon={CreditCard} tone="dark" />
+        <StatCard label="WhatsApp credits held" value={totalWhatsappCredits.toLocaleString()} detail={`Across ${wallets.length} school(s)`} icon={CreditCard} tone="info" />
+        <StatCard label="Schools below the low-balance threshold" value={lowBalanceWallets.length} detail="Flagged here, no automatic alert sent yet" icon={AlertTriangle} tone={lowBalanceWallets.length ? "warning" : "success"} />
+      </section>
+
       {lowBalanceWallets.length > 0 ? (
         <section
           className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] px-5 py-4"
@@ -843,6 +949,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
           items={wallets}
           columns={[
             { key: "school", header: "School", render: (item) => item.schoolName },
+            { key: "tier", header: "Tier", render: (item) => item.plan },
             { key: "sms", header: "SMS balance", render: (item) => item.smsBalance },
             { key: "whatsapp", header: "WhatsApp balance", render: (item) => item.whatsappBalance },
             {
@@ -967,9 +1074,9 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
             <p className="section-eyebrow">Live rate card</p>
             <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
           </div>
-          <a href="/super-admin/feature-flags?tab=plans" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+          <Link href="/super-admin/feature-flags?tab=plans" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
             Open Tier Plans
-          </a>
+          </Link>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
           {activePlans.length === 0 ? (
@@ -997,7 +1104,7 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
                     <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
-                    <p className="text-[11.5px] text-[var(--color-text-muted)]">per student</p>
+                    <p className="text-[11.5px] text-[var(--color-text-muted)]">flat rate, per school</p>
                   </div>
                   <div>
                     <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
@@ -1040,7 +1147,7 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
       </section>
 
       <section className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="success" icon={TicketPercent} />
+        <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="dark" icon={TicketPercent} />
         <StatCard label="Total redemptions" value={totalRedemptions} detail={`${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted`} tone="accent" icon={Gift} />
         <StatCard label="Total discount issued" value={formatCurrency(totalDiscountIssued)} detail="Across all codes" tone="warning" icon={BadgePercent} />
       </section>
@@ -1126,7 +1233,7 @@ function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView;
           value={formatCompactCurrency(report.outstandingReceivables)}
           detail={`${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance. Full value: ${formatCurrency(report.outstandingReceivables)}.`}
           icon={AlertTriangle}
-          tone="warning"
+          tone="dark"
         />
         <StatCard
           label="Renewal rate"

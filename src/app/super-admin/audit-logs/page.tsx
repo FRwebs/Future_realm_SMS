@@ -74,22 +74,23 @@ export default async function SuperAdminAuditLogsPage({ searchParams }: { search
         </div>
       </section>
 
-      <FilterToolbar
-        action="/super-admin/audit-logs"
-        resultCount={envelope.pagination?.total}
-        controls={[
-          { name: "action", label: "Action type", type: "select", defaultValue: params.action ?? "", options: actionOptions },
-          { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions },
-          { name: "dateFrom", label: "Date from", type: "date", defaultValue: params.dateFrom },
-          { name: "dateTo", label: "Date to", type: "date", defaultValue: params.dateTo }
-        ]}
-      />
-
       <TableCard
         title="Platform audit trail"
         description={`${envelope.pagination?.total ?? logs.length} event(s) found, most recent first.`}
         items={logs}
         emptyState="No audit events match the current filters."
+        filterBar={
+          <FilterToolbar
+            action="/super-admin/audit-logs"
+            resultCount={envelope.pagination?.total}
+            controls={[
+              { name: "action", label: "Action type", type: "select", defaultValue: params.action ?? "", options: actionOptions },
+              { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions },
+              { name: "dateFrom", label: "Date from", type: "date", defaultValue: params.dateFrom },
+              { name: "dateTo", label: "Date to", type: "date", defaultValue: params.dateTo }
+            ]}
+          />
+        }
         columns={[
           { key: "timestamp", header: "Timestamp", render: (item) => formatDate(item.timestamp) },
           { key: "admin", header: "Super Admin", render: (item) => item.superAdmin },

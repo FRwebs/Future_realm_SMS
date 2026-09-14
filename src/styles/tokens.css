@@ -76,7 +76,7 @@
   --radius-hero: 18px;
 }
 
-/* Dark surfaces, light content — the "Nooria" system: near-black ink,
+/* Dark surfaces, light content — the back-office mockup system: near-black ink,
    a single teal accent, and flat white cards defined by a thin border
    rather than shadow. */
 :root[data-theme="dark"] {

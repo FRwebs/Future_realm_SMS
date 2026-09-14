@@ -1,4 +1,6 @@
 import { CalendarDays, LayoutGrid } from "lucide-react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
@@ -174,9 +176,9 @@ async function ClassesTab() {
             header: "",
             sortable: false,
             render: (item) => (
-              <a href={`/classes/${item.id}`} className="text-[12px] font-semibold text-[var(--color-text-accent)] hover:underline">
+              <Link href={`/classes/${item.id}` as Route} className="text-[12px] font-semibold text-[var(--color-text-accent)] hover:underline">
                 View class →
-              </a>
+              </Link>
             )
           }
         ]}
@@ -245,9 +247,9 @@ async function TimetableTab() {
             header: "",
             sortable: false,
             render: (item) => (
-              <a href={`/timetable/${item.id}`} className="text-[12px] font-semibold text-[var(--color-text-accent)] hover:underline">
+              <Link href={`/timetable/${item.id}` as Route} className="text-[12px] font-semibold text-[var(--color-text-accent)] hover:underline">
                 Open timetable →
-              </a>
+              </Link>
             )
           }
         ]}

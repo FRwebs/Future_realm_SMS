@@ -83,7 +83,7 @@ export default async function SuperAdminStandardsPage({ searchParams }: { search
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Internal reference"
+        eyebrow="Reference"
         title="Standards"
         description="The governing specification this platform is built against — key workflows, the principles that constrain every design decision, access control, build order, and what remains open."
       />
@@ -116,9 +116,9 @@ function WorkflowsTab() {
 
       <FlowSteps
         title="1 · A school arrives"
-        sub="Two ways in, one destination. A school Nooria creates directly after a closed deal skips the automated risk check, because the deal itself is the verification."
+        sub="Two ways in, one destination. A school FutureRealm creates directly after a closed deal skips the automated risk check, because the deal itself is the verification."
         steps={[
-          { label: "Signup or we create it", note: "Self-signup, or Nooria after a closed deal" },
+          { label: "Signup or we create it", note: "Self-signup, or FutureRealm after a closed deal" },
           { label: "Web address issued", note: "Permanent from this minute", tone: "ink" },
           { label: "Risk check", note: "Automatic · self-signup only", tone: "warn" },
           { label: "Provisioned", note: "No human approval in the path", tone: "good" },

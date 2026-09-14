@@ -364,6 +364,11 @@ export interface SuperAdminSchoolRow {
   ownerEmail?: string;
   ownerPhone?: string;
   healthScore?: number;
+  riskScore?: number | null;
+  flaggedForReviewReason?: string | null;
+  verifiedAt?: string | null;
+  verificationRejectedAt?: string | null;
+  verificationRejectionReason?: string | null;
   totalUsers: number;
   totalStudents: number;
   totalTeachers: number;
@@ -545,6 +550,19 @@ export interface SuperAdminUserRow {
   status: "ACTIVE" | "SUSPENDED";
   lastLoginAt?: string;
   createdAt: string;
+  lastDevice: string | null;
+}
+
+export interface SuperAdminUserStats {
+  totalUsers: number;
+  activeSchools: number;
+  schoolAdmins: number;
+  adminsPerSchoolAvg: number;
+  teachers: number;
+  teachersLoggedInWeekPct: number;
+  parentsAndStudents: number;
+  parentsAndStudentsActivatedPct: number;
+  suspended: number;
 }
 
 export interface SuperAdminUserProfile {
@@ -2367,6 +2385,8 @@ export interface SuperAdminTicketRow {
   slaBreached: boolean;
   createdAt: string;
   updatedAt: string;
+  resolvedAt: string | null;
+  csatScore: number | null;
 }
 
 export interface SuperAdminDataCorrectionRow {
@@ -2449,6 +2469,7 @@ export interface SuperAdminFeatureFlagRow {
   pilotSchoolCount: number;
   overrides: number;
   createdAt: string;
+  stageEnteredAt: string;
 }
 
 export interface SuperAdminTierFeatureRow {
@@ -2563,6 +2584,7 @@ export interface SuperAdminConsentRow {
   userId: string;
   userName: string;
   userEmail: string;
+  userRole: string;
   channel: string;
   optedIn: boolean;
   optedOutAt?: string;
@@ -2634,7 +2656,17 @@ export interface SuperAdminCustomReportRow {
 
 export interface SuperAdminInfraMonitoring {
   uptime: { apiUptime: number; avgResponseMs: number; apiUptimeStatus: string; responseStatus: string; requestsLast24h: number };
-  syncQueue: { pending: number; failedOver24h: number; oldestAgeHours: number; oldestSchool: string | null; failureRate: number; status: string };
+  syncQueue: {
+    pending: number;
+    failedOver24h: number;
+    oldestAgeHours: number;
+    oldestSchool: string | null;
+    failureRate: number;
+    status: string;
+    avgQueueAgeHours: number;
+    schoolsWithPending: number;
+    perSchool: Array<{ schoolName: string; queued: number; oldestAgeHours: number; status: string }>;
+  };
   deliveryHealth: Array<{ channel: string; total: number; failureRate: number; status: string }>;
   integrations: Array<{ name: string; checkFrequency: string; status: string; onFailure: string }>;
   backups: { lastSuccessfulAt: string | null; recent: Array<{ id: string; scope: string; status: string; sizeMb?: number | null; school: string; startedAt: string; endedAt?: string }> };
@@ -2649,15 +2681,16 @@ export interface SuperAdminComputationMonitoring {
 }
 
 export interface SuperAdminConfigLibrary {
-  curricula: Array<{ id: string; name: string; country: string; subjectCount: number; calendarType: string; version: string; isActive: boolean }>;
-  gradingScales: Array<{ id: string; name: string; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean }>;
-  reportCards: Array<{ id: string; name: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean }>;
+  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean }>;
+  gradingScales: Array<{ id: string; name: string; gradeBands: unknown; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean }>;
+  reportCards: Array<{ id: string; name: string; layout: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean }>;
 }
 
 export interface SuperAdminInternalMember {
   id: string;
   name: string;
   email: string;
+  phone?: string;
   role: string;
   status: string;
   lastLoginAt?: string;
@@ -2669,6 +2702,8 @@ export interface SuperAdminDepartmentRow {
   id: string;
   name: string;
   lead: string;
+  leadEmail?: string;
+  permissionCeiling: unknown;
   createdAt: string;
 }
 
@@ -2682,7 +2717,8 @@ export interface SuperAdminPermissionTemplateRow {
 
 export interface SuperAdminTeamActivity {
   schoolsOnboardedThisMonth: number;
-  members: Array<{ id: string; name: string; role: string; lastLoginAt?: string; ticketsResolved: number; actionsTaken: number }>;
+  totalRevenueReconciled: number;
+  members: Array<{ id: string; name: string; role: string; lastLoginAt?: string; ticketsResolved: number; actionsTaken: number; revenueReconciled: number }>;
 }
 
 export interface SuperAdminPermissionGridMatrix {
@@ -2709,6 +2745,18 @@ export interface SuperAdminIpAccessRule {
   type: string;
   reason: string | null;
   createdAt: string;
+}
+
+export interface SuperAdminAccessGrant {
+  id: string;
+  name: string;
+  email: string;
+  moduleId: string;
+  functionId: string | null;
+  grantedBy: string;
+  expiresAt: string | null;
+  daysLeft: number | null;
+  expired: boolean;
 }
 
 export type PartnerDealStatus = "REGISTERED" | "CONVERTED" | "EXPIRED" | "COMMISSION_PAID";
