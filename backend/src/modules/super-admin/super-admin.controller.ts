@@ -189,6 +189,11 @@ export class SuperAdminController {
     return this.superAdminService.listImpersonationLog(session);
   }
 
+  @Get("users/stats")
+  getUserStats(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.getUserStats(session);
+  }
+
   @Get("users/:userId")
   getUser(@CurrentSession() session: SessionPayload, @Param("userId") userId: string) {
     return this.superAdminService.getUser(session, userId);
@@ -457,6 +462,11 @@ export class SuperAdminController {
   @Post("internal-team/access-grants")
   grantTimeBoundAccess(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.grantTimeBoundAccess(session, body);
+  }
+
+  @Get("internal-team/access-grants")
+  listTimeBoundAccessGrants(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.listTimeBoundAccessGrants(session);
   }
 
   @Get("internal-team/:userId/permissions")

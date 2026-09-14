@@ -24,6 +24,8 @@ interface TableCardBodyProps {
   actions?: ReactNode;
   /** Optional filter/search toolbar rendered between the header and the table body. */
   filterBar?: ReactNode;
+  /** Optional muted note rendered in its own strip below the table, e.g. a source/ownership caveat. */
+  footnote?: ReactNode;
   columns: PreparedColumn[];
   rows: PreparedRow[];
   primaryColumnKey?: string;
@@ -46,6 +48,7 @@ export function TableCardBody({
   emptyState,
   actions,
   filterBar,
+  footnote,
   columns,
   rows,
   primaryColumnKey,
@@ -285,6 +288,8 @@ export function TableCardBody({
           </>
         )}
       </div>
+
+      {footnote ? <div className="border-t border-[#EDF3EF] bg-[#F7FAF8] px-5 py-3 text-[11.5px] text-[#8C9A92]">{footnote}</div> : null}
     </section>
   );
 }

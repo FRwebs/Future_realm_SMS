@@ -29,7 +29,7 @@ export function DashboardExportButton({ rows }: { rows: DashboardExportRow[] }) 
     <button
       type="button"
       onClick={() => downloadCommandCenterCsv(rows)}
-      className="flex items-center gap-1.5 whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#0d2315] transition hover:bg-[#eaf3ee]"
+      className="flex items-center gap-[7px] whitespace-nowrap rounded-full bg-white px-4 py-2.5 text-[12.5px] font-semibold text-[#0d2315] transition hover:bg-[#eaf3ee]"
     >
       <Download className="h-3.5 w-3.5" />
       Export

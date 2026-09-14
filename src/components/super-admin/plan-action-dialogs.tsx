@@ -9,8 +9,8 @@ import { useToast } from "@/components/ui/toast-provider";
 import type { SuperAdminPlanRow } from "@/lib/domain/types";
 import { cn } from "@/lib/utils/cn";
 
-type PlanVariant = "secondary" | "menu";
-type Entitlements = { modules: string[]; features: string[] };
+type PlanVariant = "secondary" | "menu" | "cardPrimary";
+export type Entitlements = { modules: string[]; features: string[] };
 
 const planTierOptions = [
   { label: "Starter", value: "BASIC" },
@@ -333,7 +333,7 @@ function PlanDialog({
   const [form, setForm] = useState(initialForm(plan));
   const [step, setStep] = useState(1);
   const twoSemesterEstimate = useMemo(() => Number(form.semesterPrice || 0) * 2, [form.semesterPrice]);
-  const TriggerIcon = variant === "menu" ? Pencil : mode === "create" ? Plus : Pencil;
+  const TriggerIcon = variant === "menu" ? Pencil : variant === "cardPrimary" ? null : mode === "create" ? Plus : Pencil;
   const triggerLabel = mode === "create" ? "New Plan" : "Edit plan";
 
   function update<Value>(key: keyof typeof form, value: Value) {
@@ -407,15 +407,18 @@ function PlanDialog({
         onClick={() => setOpen(true)}
         data-popover-close={variant === "menu" ? "true" : undefined}
         className={cn(
-          "inline-flex items-center justify-center gap-2 text-[13px] font-semibold transition-all duration-200 active:scale-[0.99]",
+          "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
+          variant === "cardPrimary" ? "" : "text-[13px] font-semibold",
           variant === "menu"
             ? "flex w-full items-center justify-start rounded-[10px] px-3 py-2.5 text-left text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
-            : mode === "create"
-              ? "btn-primary px-5"
-              : "btn-secondary px-5"
+            : variant === "cardPrimary"
+              ? "rounded-[8px] bg-[#0d2315] px-3 py-[7px] text-[11.5px] font-semibold text-white hover:bg-[#132e1d]"
+              : mode === "create"
+                ? "btn-primary px-5"
+                : "btn-secondary px-5"
         )}
       >
-        <TriggerIcon className="h-4 w-4" />
+        {TriggerIcon ? <TriggerIcon className="h-4 w-4" /> : null}
         <span>{triggerLabel}</span>
       </button>
 

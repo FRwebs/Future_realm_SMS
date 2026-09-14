@@ -1,3 +1,5 @@
+import Link from "next/link";
+
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { apiGet } from "@/lib/api/server";
@@ -43,7 +45,7 @@ export default async function InvoiceDetailPage({ params }: PageProps) {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <a href="/finance" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to finance</a>
+        <Link href="/finance" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to finance</Link>
         <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{invoice.invoiceNumber}</h1>
         <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
           {studentName} · {className(invoice.student.currentClass)} · {invoice.status}

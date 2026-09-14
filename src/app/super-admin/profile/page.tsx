@@ -8,6 +8,8 @@ import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
 import type { SuperAdminInternalSession } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
+import { SessionsList } from "./_sessions-list";
+
 type AuditLogRow = {
   id: string;
   timestamp: string;
@@ -118,7 +120,7 @@ export default async function SuperAdminProfilePage() {
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="truncate font-[var(--font-heading)] text-[21px] font-extrabold tracking-[-0.01em] text-white">{profile.fullName}</h1>
-            <p className="mt-[3px] text-[12.5px] text-white/66">
+            <p className="mt-[3px] text-[12.5px] text-white/[66%]">
               {session ? roleLabels[session.role] : profile.role.replaceAll("_", " ")} · {profile.email}
             </p>
             <div className="mt-[13px] flex flex-wrap items-center gap-[7px]">
@@ -277,32 +279,7 @@ export default async function SuperAdminProfilePage() {
               ]}
             />
           </div>
-          {mySessions.length ? (
-            mySessions.map((item) => (
-              <div key={item.id} className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3 last:border-b-0">
-                <div className="min-w-0">
-                  <p className="truncate text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.device ?? "Unknown device"}</p>
-                  <p className="text-pretty mt-0.5 text-[11px] text-[#8C9A92]">
-                    {item.ipAddress ?? "Unknown IP"} · expires {formatDate(item.expiresAt)}
-                  </p>
-                </div>
-                <ResourceActionDialog
-                  triggerLabel="Revoke"
-                  title="Revoke session"
-                  description="This immediately signs this device out. You'll need to sign in again there."
-                  endpoint={`/api/super-admin/internal-team/sessions/${item.id}/revoke`}
-                  method="PATCH"
-                  variant="textActionDanger"
-                  submitLabel="Revoke session"
-                  confirmLabel="Confirm"
-                  confirmMessage="This device will be signed out immediately."
-                  fields={[]}
-                />
-              </div>
-            ))
-          ) : (
-            <p className="px-5 py-4 text-[12px] text-[var(--color-text-secondary)]">No other active sessions.</p>
-          )}
+          <SessionsList sessions={mySessions} />
           <div className="flex items-center justify-between gap-3.5 px-5 py-3">
             <div className="min-w-0">
               <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Production access</p>

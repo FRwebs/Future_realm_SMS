@@ -27,7 +27,8 @@ const pageSchema = z.object({
   role: z.string().trim().optional(),
   action: z.string().trim().optional(),
   dateFrom: z.coerce.date().optional(),
-  dateTo: z.coerce.date().optional()
+  dateTo: z.coerce.date().optional(),
+  lastLogin: z.string().trim().optional()
 });
 
 const planSchema = z.nativeEnum(SubscriptionPlan);
@@ -387,7 +388,8 @@ const internalUserSchema = z.object({
 
 const internalDepartmentSchema = z.object({
   name: z.string().trim().min(2),
-  leadEmail: z.preprocess((value) => (value === "" ? undefined : value), z.string().trim().email().optional())
+  leadEmail: z.preprocess((value) => (value === "" ? undefined : value), z.string().trim().email().optional()),
+  permissionCeiling: z.unknown().optional()
 });
 
 const permissionTemplateSchema = z.object({
@@ -703,6 +705,11 @@ export class SuperAdminService {
         ownerEmail: school.ownerEmail,
         ownerPhone: school.ownerPhone,
         healthScore: school.healthScore,
+        riskScore: school.riskScore,
+        flaggedForReviewReason: school.flaggedForReviewReason,
+        verifiedAt: school.verifiedAt?.toISOString() ?? null,
+        verificationRejectedAt: school.verificationRejectedAt?.toISOString() ?? null,
+        verificationRejectionReason: school.verificationRejectionReason,
         mrr: priceMap.get(school.plan) ?? 0,
         totalUsers: school._count.users,
         totalStudents: school._count.students,
@@ -1278,6 +1285,16 @@ export class SuperAdminService {
     return csv;
   }
 
+  private lastLoginFilter(bucket?: string): Prisma.UserWhereInput {
+    if (!bucket) return {};
+    const now = Date.now();
+    if (bucket.toUpperCase() === "NEVER") return { lastLoginAt: null };
+    if (bucket.toUpperCase() === "TODAY") return { lastLoginAt: { gte: new Date(now - 24 * 60 * 60 * 1000) } };
+    if (bucket.toUpperCase() === "WEEK") return { lastLoginAt: { gte: new Date(now - 7 * 24 * 60 * 60 * 1000) } };
+    if (bucket.toUpperCase() === "30D") return { lastLoginAt: { gte: new Date(now - 30 * 24 * 60 * 60 * 1000) } };
+    return {};
+  }
+
   private roleFilter(role?: string): UserRole[] | undefined {
     if (!role) return undefined;
     const value = role.toUpperCase();
@@ -1298,6 +1315,7 @@ export class SuperAdminService {
       ...(roleIn ? { role: { in: roleIn } } : {}),
       ...(parsed.schoolId ? { schoolId: parsed.schoolId } : {}),
       ...(parsed.status ? { isActive: parsed.status.toUpperCase() !== "SUSPENDED" } : {}),
+      ...this.lastLoginFilter(parsed.lastLogin),
       ...(parsed.search
         ? {
             OR: [
@@ -1311,7 +1329,10 @@ export class SuperAdminService {
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
-        include: { school: { select: { id: true, name: true, status: true } } },
+        include: {
+          school: { select: { id: true, name: true, status: true } },
+          platformSessions: { orderBy: { lastActivityAt: "desc" }, take: 1, select: { device: true } }
+        },
         orderBy: { createdAt: "desc" },
         skip: (parsed.page - 1) * parsed.limit,
         take: parsed.limit
@@ -1329,11 +1350,51 @@ export class SuperAdminService {
         schoolStatus: user.school.status,
         status: user.isActive ? "ACTIVE" : "SUSPENDED",
         lastLoginAt: user.lastLoginAt?.toISOString(),
-        createdAt: user.createdAt.toISOString()
+        createdAt: user.createdAt.toISOString(),
+        lastDevice: user.platformSessions[0]?.device ?? null
       })),
       "Users loaded",
       pagination(parsed.page, parsed.limit, total)
     );
+  }
+
+  /**
+   * Platform-wide (unfiltered) user counts for the Directory tab's headline
+   * KPI row — deliberately independent of whatever search/role/school filter
+   * is currently applied to the table below it.
+   */
+  async getUserStats(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const teacherRoles: UserRole[] = ["TEACHER", "SUBJECT_TEACHER", "CLASS_TEACHER"];
+    const parentStudentRoles: UserRole[] = ["PARENT", "STUDENT"];
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+
+    const [roleGroups, suspendedCount, activeSchoolCount, teacherTotal, teacherLoggedInWeek, parentStudentTotal, parentStudentActivated] =
+      await Promise.all([
+        prisma.user.groupBy({ by: ["role"], where: { deletedAt: null }, _count: true }),
+        prisma.user.count({ where: { deletedAt: null, isActive: false } }),
+        prisma.school.count({ where: { deletedAt: null, status: "ACTIVE" } }),
+        prisma.user.count({ where: { deletedAt: null, role: { in: teacherRoles } } }),
+        prisma.user.count({ where: { deletedAt: null, role: { in: teacherRoles }, lastLoginAt: { gte: sevenDaysAgo } } }),
+        prisma.user.count({ where: { deletedAt: null, role: { in: parentStudentRoles } } }),
+        prisma.user.count({ where: { deletedAt: null, role: { in: parentStudentRoles }, lastLoginAt: { not: null } } })
+      ]);
+
+    const roleCounts = Object.fromEntries(roleGroups.map((group) => [group.role, group._count as number]));
+    const totalUsers = Object.values(roleCounts).reduce((sum, count) => sum + count, 0);
+    const schoolAdmins = schoolAdminRoles.reduce((sum, role) => sum + (roleCounts[role] ?? 0), 0);
+
+    return this.response({
+      totalUsers,
+      activeSchools: activeSchoolCount,
+      schoolAdmins,
+      adminsPerSchoolAvg: activeSchoolCount > 0 ? Math.round((schoolAdmins / activeSchoolCount) * 10) / 10 : 0,
+      teachers: teacherTotal,
+      teachersLoggedInWeekPct: teacherTotal > 0 ? Math.round((teacherLoggedInWeek / teacherTotal) * 100) : 0,
+      parentsAndStudents: parentStudentTotal,
+      parentsAndStudentsActivatedPct: parentStudentTotal > 0 ? Math.round((parentStudentActivated / parentStudentTotal) * 100) : 0,
+      suspended: suspendedCount
+    });
   }
 
   async getUser(session: SessionPayload, userId: string) {
@@ -2671,7 +2732,7 @@ export class SuperAdminService {
     const [tickets, total] = await Promise.all([
       prisma.supportTicket.findMany({
         where,
-        include: { school: true, assignedTo: true, createdBy: true, _count: { select: { messages: true } } },
+        include: { school: true, assignedTo: true, createdBy: true, csatResponse: true, _count: { select: { messages: true } } },
         orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
         skip: (parsed.page - 1) * parsed.limit,
         take: parsed.limit
@@ -2692,7 +2753,9 @@ export class SuperAdminService {
       slaDueAt: ticket.slaDueAt?.toISOString(),
       slaBreached: Boolean(ticket.slaDueAt && ticket.slaDueAt < new Date() && !["RESOLVED", "CLOSED"].includes(ticket.status)),
       createdAt: ticket.createdAt.toISOString(),
-      updatedAt: ticket.updatedAt.toISOString()
+      updatedAt: ticket.updatedAt.toISOString(),
+      resolvedAt: ticket.resolvedAt?.toISOString() ?? null,
+      csatScore: ticket.csatResponse?.score ?? null
     })), "Support tickets loaded", pagination(parsed.page, parsed.limit, total));
   }
 
@@ -2998,7 +3061,8 @@ export class SuperAdminService {
       rolloutPercent: flag.rolloutPercent,
       pilotSchoolCount: flag.pilotSchoolIds.length,
       overrides: flag._count.overrides,
-      createdAt: flag.createdAt.toISOString()
+      createdAt: flag.createdAt.toISOString(),
+      stageEnteredAt: flag.updatedAt.toISOString()
     })));
   }
 
@@ -3269,6 +3333,7 @@ export class SuperAdminService {
         email: a.email,
         status: a.success ? "SUCCESS" : "FAILED",
         ipAddress: a.ipAddress,
+        device: a.device,
         failureReason: a.reason,
         school: a.school ? { name: a.school.name } : null,
         createdAt: a.createdAt.toISOString()
@@ -3362,6 +3427,16 @@ export class SuperAdminService {
         subject: r.subject,
         completedBy: r.completedBy ? `${r.completedBy.firstName} ${r.completedBy.lastName}` : "Unknown",
         completedAt: r.completedAt?.toISOString(),
+        confirmationHash: r.confirmationHash
+      })),
+      all: requests.map((r) => ({
+        id: r.id,
+        schoolName: r.school?.name ?? "Platform",
+        subject: r.subject,
+        status: r.status,
+        createdAt: r.createdAt.toISOString(),
+        completedBy: r.completedBy ? `${r.completedBy.firstName} ${r.completedBy.lastName}` : null,
+        completedAt: r.completedAt?.toISOString() ?? null,
         confirmationHash: r.confirmationHash
       }))
     });
@@ -3730,6 +3805,7 @@ export class SuperAdminService {
       userId: r.userId,
       userName: `${r.user.firstName} ${r.user.lastName}`,
       userEmail: r.user.email,
+      userRole: r.user.role,
       channel: r.channel,
       optedIn: r.optedIn,
       optedOutAt: r.optedOutAt?.toISOString(),
@@ -4153,11 +4229,15 @@ export class SuperAdminService {
     const twoHoursAgo = new Date(now.getTime() - 2 * 60 * 60 * 1000);
     const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const [apiUsage, pendingSync, failedSync, oldestSync, notificationLogs, backups] = await Promise.all([
+    const [apiUsage, pendingSync, failedSync, oldestSync, pendingDrafts, notificationLogs, backups] = await Promise.all([
       prisma.apiUsageLog.findMany({ where: { createdAt: { gte: oneDayAgo } }, select: { status: true, durationMs: true } }),
       prisma.syncDraft.count({ where: { syncedAt: null, school: { deletedAt: null } } }),
       prisma.syncDraft.count({ where: { syncedAt: null, createdAt: { lt: oneDayAgo }, school: { deletedAt: null } } }),
       prisma.syncDraft.findFirst({ where: { syncedAt: null, school: { deletedAt: null } }, orderBy: { createdAt: "asc" }, include: { school: { select: { name: true } } } }),
+      prisma.syncDraft.findMany({
+        where: { syncedAt: null, school: { deletedAt: null } },
+        select: { schoolId: true, createdAt: true, school: { select: { name: true } } }
+      }),
       prisma.notificationLog.findMany({ where: { sentAt: { gte: thirtyDaysAgo } }, select: { channel: true, status: true } }),
       prisma.backupRecord.findMany({ orderBy: { startedAt: "desc" }, take: 30, include: { school: { select: { name: true } } } })
     ]);
@@ -4171,6 +4251,30 @@ export class SuperAdminService {
     // Sync queue.
     const oldestSyncAgeHours = oldestSync ? Math.round(((now.getTime() - oldestSync.createdAt.getTime()) / (60 * 60 * 1000)) * 10) / 10 : 0;
     const syncFailureRate = pendingSync > 0 ? Math.round((failedSync / pendingSync) * 1000) / 10 : 0;
+    const ageHoursOf = (createdAt: Date) => (now.getTime() - createdAt.getTime()) / (60 * 60 * 1000);
+    const avgQueueAgeHours = pendingDrafts.length
+      ? Math.round((pendingDrafts.reduce((sum, draft) => sum + ageHoursOf(draft.createdAt), 0) / pendingDrafts.length) * 10) / 10
+      : 0;
+    const bySchool = new Map<string, { schoolName: string; queued: number; oldestAgeHours: number }>();
+    for (const draft of pendingDrafts) {
+      const existing = bySchool.get(draft.schoolId);
+      const ageHours = ageHoursOf(draft.createdAt);
+      if (existing) {
+        existing.queued += 1;
+        if (ageHours > existing.oldestAgeHours) existing.oldestAgeHours = ageHours;
+      } else {
+        bySchool.set(draft.schoolId, { schoolName: draft.school.name, queued: 1, oldestAgeHours: ageHours });
+      }
+    }
+    const perSchoolSync = Array.from(bySchool.values())
+      .sort((a, b) => b.oldestAgeHours - a.oldestAgeHours)
+      .slice(0, 10)
+      .map((row) => ({
+        schoolName: row.schoolName,
+        queued: row.queued,
+        oldestAgeHours: Math.round(row.oldestAgeHours * 10) / 10,
+        status: row.oldestAgeHours > 6 ? "CRITICAL" : row.oldestAgeHours > 2 ? "WARNING" : "HEALTHY"
+      }));
 
     // Delivery health per channel.
     const channels = ["EMAIL", "SMS", "WHATSAPP"] as const;
@@ -4211,7 +4315,10 @@ export class SuperAdminService {
         oldestAgeHours: oldestSyncAgeHours,
         oldestSchool: oldestSync?.school.name ?? null,
         failureRate: syncFailureRate,
-        status: oldestSyncAgeHours > 6 || syncFailureRate > 15 ? "CRITICAL" : oldestSyncAgeHours > 2 || syncFailureRate > 5 ? "WARNING" : "HEALTHY"
+        status: oldestSyncAgeHours > 6 || syncFailureRate > 15 ? "CRITICAL" : oldestSyncAgeHours > 2 || syncFailureRate > 5 ? "WARNING" : "HEALTHY",
+        avgQueueAgeHours: avgQueueAgeHours,
+        schoolsWithPending: bySchool.size,
+        perSchool: perSchoolSync
       },
       deliveryHealth,
       integrations,
@@ -4260,9 +4367,9 @@ export class SuperAdminService {
       prisma.reportCardTemplate.findMany({ orderBy: { name: "asc" } })
     ]);
     return this.response({
-      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive })),
-      gradingScales: gradingScales.map((g) => ({ id: g.id, name: g.name, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive })),
-      reportCards: reportCards.map((r) => ({ id: r.id, name: r.name, applicableCurricula: r.applicableCurricula, availableToTiers: r.availableToTiers, isActive: r.isActive }))
+      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjects: c.subjects, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive })),
+      gradingScales: gradingScales.map((g) => ({ id: g.id, name: g.name, gradeBands: g.gradeBands, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive })),
+      reportCards: reportCards.map((r) => ({ id: r.id, name: r.name, layout: (r.layoutConfig as { layout?: string } | null)?.layout ?? "", applicableCurricula: r.applicableCurricula, availableToTiers: r.availableToTiers, isActive: r.isActive }))
     });
   }
 
@@ -4320,13 +4427,14 @@ export class SuperAdminService {
     };
     const members = await prisma.user.findMany({
       where,
-      select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, deletedAt: true, lastLoginAt: true, createdAt: true },
+      select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true, isActive: true, deletedAt: true, lastLoginAt: true, createdAt: true },
       orderBy: { createdAt: "asc" }
     });
     return this.response(members.map((m) => ({
       id: m.id,
       name: `${m.firstName} ${m.lastName}`,
       email: m.email,
+      phone: m.phone ?? undefined,
       role: m.role,
       status: m.deletedAt ? "REVOKED" : m.isActive ? "ACTIVE" : "SUSPENDED",
       lastLoginAt: m.lastLoginAt?.toISOString(),
@@ -4381,6 +4489,8 @@ export class SuperAdminService {
       id: d.id,
       name: d.name,
       lead: d.lead ? `${d.lead.firstName} ${d.lead.lastName}` : "Unassigned",
+      leadEmail: d.lead?.email,
+      permissionCeiling: d.permissionCeiling,
       createdAt: d.createdAt.toISOString()
     })));
   }
@@ -4396,8 +4506,8 @@ export class SuperAdminService {
     }
     const department = await prisma.internalDepartment.upsert({
       where: { name: parsed.name },
-      create: { name: parsed.name, leadId },
-      update: { leadId }
+      create: { name: parsed.name, leadId, permissionCeiling: parsed.permissionCeiling as Prisma.InputJsonValue | undefined },
+      update: { leadId, permissionCeiling: parsed.permissionCeiling as Prisma.InputJsonValue | undefined }
     });
     await this.audit(session, "UPDATE", "InternalDepartment", department.id, { name: parsed.name }, null);
     return this.response({ id: department.id }, "Department saved");
@@ -4495,26 +4605,55 @@ export class SuperAdminService {
     return this.response({ id: grant.id }, "Time-bound access granted");
   }
 
+  async listTimeBoundAccessGrants(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const grants = await prisma.internalAccessGrant.findMany({
+      where: { revokedAt: null },
+      include: { user: true, grantedBy: true },
+      orderBy: { expiresAt: "asc" }
+    });
+    const now = Date.now();
+    return this.response(grants.map((grant) => {
+      const daysLeft = grant.expiresAt ? Math.ceil((grant.expiresAt.getTime() - now) / (24 * 60 * 60 * 1000)) : null;
+      return {
+        id: grant.id,
+        name: `${grant.user.firstName} ${grant.user.lastName}`,
+        email: grant.user.email,
+        moduleId: grant.moduleId,
+        functionId: grant.functionId,
+        grantedBy: grant.grantedBy ? `${grant.grantedBy.firstName} ${grant.grantedBy.lastName}` : "Unknown",
+        expiresAt: grant.expiresAt?.toISOString() ?? null,
+        daysLeft,
+        expired: daysLeft !== null && daysLeft < 0
+      };
+    }));
+  }
+
   async teamActivityDashboard(session: SessionPayload) {
     assertSuperAdmin(session);
     const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const members = await prisma.user.findMany({ where: { role: { in: Array.from(platformRoles) }, deletedAt: null }, select: { id: true, firstName: true, lastName: true, role: true, lastLoginAt: true } });
-    const [ticketsByAgent, schoolsOnboarded, actionsByActor] = await Promise.all([
+    const [ticketsByAgent, schoolsOnboarded, actionsByActor, paymentsByRecorder] = await Promise.all([
       prisma.supportTicket.groupBy({ by: ["assignedToId"], where: { resolvedAt: { gte: thirtyDaysAgo }, assignedToId: { not: null } }, _count: { assignedToId: true } }),
       prisma.school.count({ where: { createdAt: { gte: thirtyDaysAgo }, deletedAt: null } }),
-      prisma.auditLog.groupBy({ by: ["actorId"], where: { createdAt: { gte: thirtyDaysAgo }, actorId: { not: null } }, _count: { actorId: true } })
+      prisma.auditLog.groupBy({ by: ["actorId"], where: { createdAt: { gte: thirtyDaysAgo }, actorId: { not: null } }, _count: { actorId: true } }),
+      prisma.payment.groupBy({ by: ["recordedById"], where: { recordedById: { not: null }, paidAt: { gte: thirtyDaysAgo }, status: "SUCCESS" }, _sum: { amount: true } })
     ]);
     const ticketMap = new Map(ticketsByAgent.map((t) => [t.assignedToId, t._count.assignedToId]));
     const actionMap = new Map(actionsByActor.map((a) => [a.actorId, a._count.actorId]));
+    const revenueMap = new Map(paymentsByRecorder.map((p) => [p.recordedById, Number(p._sum?.amount ?? 0)]));
+    const totalRevenueReconciled = paymentsByRecorder.reduce((sum, p) => sum + Number(p._sum?.amount ?? 0), 0);
     return this.response({
       schoolsOnboardedThisMonth: schoolsOnboarded,
+      totalRevenueReconciled,
       members: members.map((m) => ({
         id: m.id,
         name: `${m.firstName} ${m.lastName}`,
         role: m.role,
         lastLoginAt: m.lastLoginAt?.toISOString(),
         ticketsResolved: ticketMap.get(m.id) ?? 0,
-        actionsTaken: actionMap.get(m.id) ?? 0
+        actionsTaken: actionMap.get(m.id) ?? 0,
+        revenueReconciled: revenueMap.get(m.id) ?? 0
       })).sort((a, b) => b.actionsTaken - a.actionsTaken)
     });
   }

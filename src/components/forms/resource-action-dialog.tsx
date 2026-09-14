@@ -19,7 +19,7 @@ interface ResourceActionDialogProps {
   confirmLabel?: string;
   confirmMessage?: string;
   offlineKey?: string;
-  variant?: "primary" | "secondary" | "danger" | "menu" | "menuDanger" | "heroWhite" | "textAction" | "textActionDanger";
+  variant?: "primary" | "secondary" | "danger" | "menu" | "menuDanger" | "heroWhite" | "textAction" | "textActionDanger" | "cardPrimary" | "cardCompact";
   presentation?: "modal" | "drawer";
   size?: keyof typeof MODAL_MAX_WIDTH;
 }
@@ -36,6 +36,11 @@ const triggerStyles = {
   // Matches the mockup's compact list-row action text (e.g. Profile page's "Sessions & security" list).
   textAction: "text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline",
   textActionDanger: "text-[11.5px] font-semibold text-[var(--color-danger)] hover:underline",
+  // Matches the mockup's compact plan-card action buttons (e.g. "Edit plan" on a Plans &
+  // Features subscription-plan card): filled ink, 8px radius, small padding, no icon.
+  cardPrimary: "rounded-[8px] bg-[#0d2315] px-3 py-[7px] text-[11.5px] font-semibold text-white hover:bg-[#132e1d]",
+  // Matches the mockup's compact bordered card action buttons (e.g. "Duplicate", "Archive").
+  cardCompact: "rounded-[8px] border border-[var(--color-border-default)] bg-transparent px-[11px] py-[6px] text-[11.5px] font-semibold text-[#435048] hover:border-[var(--color-border-strong)]",
 };
 
 const triggerIcons: Partial<Record<keyof typeof triggerStyles, typeof Plus>> = {
@@ -59,7 +64,7 @@ export function ResourceActionDialog({
   confirmMessage,
   offlineKey,
   variant = "primary",
-  size = "lg",
+  size = "report",
 }: ResourceActionDialogProps) {
   const [open, setOpen] = useState(false);
   const TriggerIcon = triggerIcons[variant];
@@ -77,7 +82,7 @@ export function ResourceActionDialog({
         data-popover-close={variant === "menu" || variant === "menuDanger" ? "true" : undefined}
         className={cn(
           "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
-          variant === "textAction" || variant === "textActionDanger" ? "" : "text-[13px] font-semibold",
+          variant === "textAction" || variant === "textActionDanger" || variant === "cardPrimary" || variant === "cardCompact" ? "" : "text-[13px] font-semibold",
           triggerStyles[variant]
         )}
       >
@@ -106,6 +111,7 @@ export function ResourceActionDialog({
           chrome="plain"
           showHeader={false}
           onSuccess={() => setOpen(false)}
+          onCancel={() => setOpen(false)}
         />
       </Modal>
     </>

@@ -10,7 +10,7 @@ interface ModuleHeroProps {
 /**
  * The ink module header used at the top of every Super Admin module page
  * (Schools, Billing, Support, etc). Values are matched exactly to the
- * "Nooria Back-Office Admin" mockup's module hero: 20px radius, 26px/30px
+ * Back-office admin mockup's module hero: 20px radius, 26px/30px
  * padding, three concentric decorative rings, and precise type scale.
  */
 export function ModuleHero({ eyebrow, title, description, action }: ModuleHeroProps) {

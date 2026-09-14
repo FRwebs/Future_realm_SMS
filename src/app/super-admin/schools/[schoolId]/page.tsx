@@ -187,47 +187,53 @@ export default async function SuperAdminSchoolDetailPage({
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white">
-        <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
-          <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
-          <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
-          <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
-          <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
-        </svg>
-        <div className="relative z-[1]">
-        <Link href="/super-admin/schools" className="text-[13px] font-semibold text-[rgba(255,255,255,0.85)] underline">
+      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-[22px]">
+        <Link href="/super-admin/schools" className="mb-4 inline-flex text-[12.5px] font-semibold text-[#12796A] underline">
           ← Back to schools
         </Link>
-        <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div className="flex items-center gap-3.5">
-            <div className="flex h-[46px] w-[46px] shrink-0 items-center justify-center rounded-[13px] border border-white/20 bg-white/10 font-[var(--font-heading)] text-[15px] font-black text-white">
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
+          <div className="flex min-w-0 items-center gap-3.5">
+            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-[#0D2315] font-[var(--font-heading)] text-[17px] font-bold text-white">
               {initials(school.name)}
             </div>
-            <div>
-              <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Tenant profile</p>
-              <h1 className="mt-1 font-[var(--font-heading)] text-[22px] font-bold text-white">{school.name}</h1>
-              <p className="mt-1 text-[12px] text-white/62">
-                {school.subdomain ? school.subdomain : "No web address"} · {[school.city, school.state].filter(Boolean).join(", ") || "Location not recorded"}
+            <div className="min-w-0">
+              <div className="mb-[5px] flex flex-wrap items-center gap-2.5">
+                <h1 className="truncate font-[var(--font-heading)] text-[19px] font-bold text-[#0D2315]">{school.name}</h1>
+                <StatusBadge status={school.status} />
+                <span className="inline-flex rounded-full bg-[#0D2315] px-[9px] py-[3px] text-[11px] font-bold text-white">
+                  {school.plan} tier
+                </span>
+                <StatusBadge status={verification.label} tone={verification.tone} />
+              </div>
+              <p className="text-[12.5px] text-[#77857C]">
+                {[school.city, school.state].filter(Boolean).join(", ") || "Location not recorded"} · {school.subdomain ? school.subdomain : "No web address"} · Joined {formatDate(school.createdAt)}
               </p>
-              {school.statusReason ? <p className="mt-1 text-[11.5px] text-white/60">Last status reason: {school.statusReason}</p> : null}
+              {school.accountManager ? (
+                <p className="mt-1 text-[11.5px] text-[#8C9A92]">Account manager: {school.accountManager.name}</p>
+              ) : null}
+              {school.statusReason ? <p className="mt-1 text-[11.5px] text-[#8C9A92]">Last status reason: {school.statusReason}</p> : null}
             </div>
           </div>
-          <div className="flex flex-wrap items-start gap-2">
-            <StatusBadge status={school.status} />
-            <StatusBadge status={verification.label} tone={verification.tone} />
-            <span className="rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3.5 py-1.5 text-[12.5px] font-bold text-[var(--color-text-primary)]">
-              {school.plan} tier
-            </span>
-            {school.prioritySupport ? (
-              <span
-                className="rounded-full px-3.5 py-1.5 text-[12.5px] font-bold"
-                style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}
-              >
-                Priority support
-              </span>
-            ) : null}
+          <div className="flex flex-wrap items-center gap-2">
+            <Link href="/super-admin/users" className="btn-secondary px-4 py-2 text-[12.5px] font-semibold">
+              Support access
+            </Link>
+            <ResourceActionDialog
+              triggerLabel="Change status"
+              title="Change tenant status"
+              description="Every status change requires a logged reason and is written to the audit trail."
+              endpoint={`/api/super-admin/schools/${school.id}/status`}
+              method="PATCH"
+              variant="secondary"
+              submitLabel="Update status"
+              confirmLabel="Confirm"
+              confirmMessage="This changes tenant access for all school users and is fully audited."
+              fields={[
+                { name: "status", label: "New status", type: "select", defaultValue: school.status, options: statusOptions },
+                { name: "reason", label: "Reason", type: "textarea", required: true }
+              ]}
+            />
           </div>
-        </div>
         </div>
       </section>
 

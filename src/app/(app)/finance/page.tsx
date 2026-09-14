@@ -1,4 +1,5 @@
 import { BadgeDollarSign, BadgePercent, BookOpenCheck, CircleDollarSign, ReceiptText, TriangleAlert } from "lucide-react";
+import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatCard } from "@/components/data-display/stat-card";
@@ -90,10 +91,10 @@ export default async function FinancePage({ searchParams }: FinancePageProps) {
             </p>
           </div>
           {canManageFinance ? (
-            <a href="/finance/payments" className="btn-primary inline-flex items-center gap-2">
+            <Link href="/finance/payments" className="btn-primary inline-flex items-center gap-2">
               <BadgeDollarSign className="h-4 w-4" />
               Record payment
-            </a>
+            </Link>
           ) : null}
         </div>
       </section>
@@ -166,9 +167,9 @@ async function StructureTab() {
         ]}
       />
 
-      <a href="/finance/fee-structures" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)] hover:underline">
+      <Link href="/finance/fee-structures" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)] hover:underline">
         Open full Fee Structures workspace →
-      </a>
+      </Link>
     </div>
   );
 }
@@ -236,9 +237,9 @@ async function PaymentsTab() {
         ]}
       />
 
-      <a href="/finance/payments" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)] hover:underline">
+      <Link href="/finance/payments" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)] hover:underline">
         Open full Payments workspace →
-      </a>
+      </Link>
     </div>
   );
 }
@@ -382,9 +383,9 @@ async function DiscountsExpensesTab() {
         ]}
       />
 
-      <a href="/finance/expenditures" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)] hover:underline">
+      <Link href="/finance/expenditures" className="inline-flex w-fit items-center gap-2 text-[13px] font-semibold text-[var(--color-text-accent)] hover:underline">
         Open full Expenditures workspace →
-      </a>
+      </Link>
     </div>
   );
 }

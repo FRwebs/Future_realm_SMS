@@ -124,7 +124,15 @@ export function DashboardShell({
           <main
             className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5"
           >
-            <div key={pathname} className="page-shell-enter mx-auto w-full max-w-[1480px]">
+            {/* No `key={pathname}` here on purpose: keying this on the route forces React to
+                tear the whole subtree down and rebuild it on every navigation, which discards
+                the Suspense boundary Next.js already wraps `children` in — so instead of
+                showing the previous page until the next one (or its loading.tsx fallback) is
+                ready, the screen goes blank for a beat first. That read as a flicker/refresh.
+                Leaving the wrapper's identity stable lets Suspense do its normal swap; the
+                incoming content is still a freshly-inserted child each time, so it still gets
+                its own page-shell-enter entrance below. */}
+            <div className="page-shell-enter mx-auto w-full max-w-[1480px]">
               {children}
             </div>
           </main>

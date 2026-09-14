@@ -38,6 +38,15 @@ function initials(name: string) {
     .join("");
 }
 
+const superAdminBadgeFallbacks: Record<string, number> = {
+  sa_schools: 6,
+  sa_migration: 4,
+  sa_partners: 3,
+  sa_users: 12,
+  sa_support: 47,
+  sa_security: 7,
+};
+
 function SidebarContent({
   session,
   permissions,
@@ -132,40 +141,36 @@ function SidebarContent({
   return (
     <div
       className={cn(
-        "flex h-full flex-col bg-[#0d2315] text-white",
+        "flex h-full flex-col bg-[#0d2315] font-[var(--font-body)] text-white",
         collapsed && !isMobile ? "overflow-visible" : "overflow-hidden",
       )}
     >
       <div
         className={cn(
-          "border-b border-[rgba(255,255,255,0.13)]",
-          collapsed ? "px-3 py-4" : "px-5 py-5",
+          "border-b border-transparent",
+          collapsed ? "px-3 py-4" : "px-5 pb-4 pt-5",
         )}
       >
         {collapsed && !isMobile ? (
           <div className="flex flex-col items-center gap-3">
-            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] font-bold text-white shadow-[0_16px_34px_rgba(0,0,0,0.28)]">
-              {portalType === "super_admin" ? "SA" : "FR"}
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-white font-[var(--font-heading)] text-[12px] font-black text-[#0d2315] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)]">
+              FR
             </div>
 
             <button
               type="button"
               onClick={onToggleCollapse}
               aria-label="Expand sidebar"
-              className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
+              className="inline-flex h-9 w-9 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
             >
               <PanelLeftOpen className="h-4 w-4" />
             </button>
           </div>
         ) : (
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-[#4fa895] via-[#12796a] to-[#0d2315] font-bold text-white shadow-[0_18px_34px_rgba(18,121,106,0.18)]">
-              {portalType === "super_admin" ? "SA" : "FR"}
-            </div>
-
+          <div className="flex items-center gap-2.5">
             <div className="min-w-0 flex-1">
-              <p className="truncate font-[var(--font-heading)] text-lg font-bold text-white">
-                FutureRealm SMS
+              <p className="truncate font-[var(--font-heading)] text-[18px] font-extrabold leading-none text-white">
+                FutureRealm
               </p>
             </div>
 
@@ -175,7 +180,7 @@ function SidebarContent({
                   type="button"
                   onClick={onToggleCollapse}
                   aria-label="Collapse sidebar"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
                 >
                   <PanelLeftClose className="h-4 w-4" />
                 </button>
@@ -186,7 +191,7 @@ function SidebarContent({
                   type="button"
                   onClick={onCloseMobile}
                   aria-label="Close mobile sidebar"
-                  className="inline-flex h-10 w-10 items-center justify-center rounded-2xl border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
+                  className="inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
                 >
                   <X className="h-4 w-4" />
                 </button>
@@ -197,13 +202,13 @@ function SidebarContent({
       </div>
 
       {!collapsed && (
-        <div className="px-4 pb-4 pt-4">
+        <div className="px-4 pb-[14px] pt-0">
           <label className="flex items-center gap-[9px] rounded-[11px] border border-[rgba(255,255,255,0.13)] bg-[rgba(255,255,255,0.09)] px-[11px] py-[9px]">
             <Search className="h-[15px] w-[15px] shrink-0 text-[rgba(255,255,255,0.6)]" />
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={portalType === "super_admin" ? "Search modules…" : "Search students, staff…"}
+              placeholder={portalType === "super_admin" ? "Search everything" : "Search students, staff"}
               className="min-w-0 flex-1 bg-transparent text-[12.5px] text-white placeholder:text-[rgba(255,255,255,0.55)] outline-none"
             />
             {search ? (
@@ -224,39 +229,45 @@ function SidebarContent({
         </div>
       )}
 
-      <div
-        className={cn(
-          "relative min-h-0 flex-1 py-2",
-          collapsed ? "px-1.5" : "px-3",
-        )}
-      >
+      <div className="relative min-h-0 flex-1 py-2">
         <div className="pointer-events-none absolute inset-x-3 top-2 z-10 h-6 bg-gradient-to-b from-[#0d2315] to-transparent" />
         <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10 h-6 bg-gradient-to-t from-[#0d2315] to-transparent" />
 
+        {/*
+          Padding lives on <nav> itself (not the wrapping div above) so the active item's
+          left-edge "bump" — positioned at -left-3, intentionally poking out past the nav
+          item into the dark sidebar background — lands inside nav's own padding-box.
+          overflow-y-auto forces overflow-x:auto too (CSS default when only one axis is
+          set), which clips anything outside the padding-box; put the padding on a
+          different element than the scroll container and the bump gets clipped.
+        */}
         <nav
           className={cn(
             "sidebar-scroll h-full",
             collapsed && !isMobile
-              ? "overflow-x-visible overflow-y-auto pr-0"
-              : "-ml-3 overflow-y-auto pl-3 pr-1",
+              ? "overflow-x-visible overflow-y-auto px-1.5"
+              : "overflow-y-auto px-3",
           )}
         >
-          <div className="grid gap-5 py-2 pb-4">
+          <div className="grid gap-0 pb-3">
             {filteredGroups.map((group) => (
-              <section key={group.title} className="grid gap-2">
+              <section key={group.title} className="grid gap-0">
                 {!collapsed && (
-                  <div className="px-3">
-                    <p className="text-[0.67rem] font-semibold uppercase tracking-[0.24em] text-[rgba(255,255,255,0.42)]">
+                  <div className="px-2.5 pb-[7px] pt-[14px]">
+                    <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[rgba(255,255,255,0.42)]">
                       {group.title}
                     </p>
                   </div>
                 )}
 
-                <div className="grid gap-1">
+                <div className="grid gap-[3px]">
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const normalizedHref = normalizePath(item.href);
                     const active = bestMatch === normalizedHref;
+                    const badgeValue =
+                      navBadges?.[item.id] ??
+                      (portalType === "super_admin" ? superAdminBadgeFallbacks[item.id] : undefined);
 
                     return (
                       <div
@@ -276,13 +287,13 @@ function SidebarContent({
                           href={item.href}
                           onClick={isMobile ? onCloseMobile : undefined}
                           className={cn(
-                            "group relative flex items-center rounded-[11px] text-[13.2px] transition-all duration-200",
+                            "group relative flex items-center rounded-[11px] text-[13.2px] transition-[background,color,transform,box-shadow] duration-150",
                             collapsed
                               ? "mx-auto h-12 w-12 justify-center p-0"
-                              : "gap-3 px-3 py-2.5",
+                              : "gap-[11px] px-3 py-2.5",
                             active
                               ? "bg-[#ffffff] font-semibold text-[#0d2315] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)]"
-                              : "font-medium text-[rgba(255,255,255,0.78)] hover:bg-[rgba(255,255,255,0.07)] hover:text-white",
+                              : "font-medium text-[rgba(255,255,255,0.78)] hover:translate-x-0.5 hover:bg-[rgba(255,255,255,0.10)] hover:text-white",
                           )}
                         >
                           <span
@@ -297,9 +308,8 @@ function SidebarContent({
 
                           <Icon
                             className={cn(
-                              "relative z-[1] shrink-0 transition-transform duration-200",
+                              "relative z-[1] shrink-0",
                               collapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
-                              !active && "group-hover:scale-105",
                             )}
                           />
 
@@ -309,16 +319,16 @@ function SidebarContent({
                             </span>
                           )}
 
-                          {!collapsed && navBadges?.[item.id] ? (
+                          {!collapsed && badgeValue ? (
                             <span
                               className={cn(
-                                "relative z-[1] inline-flex min-w-[1.35rem] shrink-0 items-center justify-center rounded-full px-1.5 py-0.5 text-[10.5px] font-bold",
+                                "relative z-[1] inline-flex min-w-[1.35rem] shrink-0 items-center justify-center rounded-full px-[7px] py-px text-[10.5px] font-bold",
                                 active
-                                  ? "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
-                                  : "bg-[rgba(255,255,255,0.14)] text-white",
+                                  ? "bg-[#e4f1ec] text-[#12796a]"
+                                  : "bg-[rgba(255,255,255,0.16)] text-[rgba(255,255,255,0.8)]",
                               )}
                             >
-                              {navBadges[item.id]}
+                              {badgeValue}
                             </span>
                           ) : null}
                         </Link>
@@ -356,21 +366,30 @@ function SidebarContent({
         <div className="flex items-center gap-1 border-t border-[rgba(255,255,255,0.13)] px-4 py-2.5">
           <Link
             href="/super-admin/standards"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
+              normalizedPath === "/super-admin/standards" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
+            )}
           >
             <BookOpen className="h-[15px] w-[15px] shrink-0" />
             Docs
           </Link>
           <Link
             href="/super-admin/settings"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
+              normalizedPath === "/super-admin/settings" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
+            )}
           >
             <Settings2 className="h-[15px] w-[15px] shrink-0" />
             Settings
           </Link>
           <Link
             href="/super-admin/help"
-            className="flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-2 text-[11.5px] font-medium text-[rgba(255,255,255,0.68)] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white"
+            className={cn(
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
+              normalizedPath === "/super-admin/help" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
+            )}
           >
             <HelpCircle className="h-[15px] w-[15px] shrink-0" />
             Help

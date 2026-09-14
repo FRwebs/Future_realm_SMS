@@ -1,7 +1,17 @@
 import Link from "next/link";
+import {
+  AlertTriangle,
+  CheckCircle2,
+  Clock3,
+  Inbox,
+  LifeBuoy,
+  MessageSquareText,
+  UserRoundCheck
+} from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
@@ -64,6 +74,64 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
   );
 }
 
+function formatLabel(value: string) {
+  return value.replaceAll("_", " ");
+}
+
+function hoursUntil(value?: string) {
+  if (!value) return null;
+  return Math.ceil((new Date(value).getTime() - Date.now()) / (1000 * 60 * 60));
+}
+
+function TicketMiniMetric({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
+      <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-1 truncate text-[13px] font-extrabold text-[var(--color-text-primary)] tabular-nums" title={String(value)}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+function TicketPreviewCard({ ticket }: { ticket: SuperAdminTicketRow }) {
+  const tone = priorityTone[ticket.priority] ?? priorityTone.LOW;
+  const dueHours = hoursUntil(ticket.slaDueAt);
+
+  return (
+    <Link href={`/super-admin/support/${ticket.id}`} className="surface-card grid gap-4 p-4 transition hover:border-[var(--color-accent-primary)] hover:shadow-md">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="font-[var(--font-mono)] text-[11px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</p>
+          <h3 className="mt-1 line-clamp-2 text-[15px] font-extrabold text-[var(--color-text-primary)]">{ticket.subject}</h3>
+          <p className="mt-1 truncate text-[12px] text-[var(--color-text-muted)]">{ticket.schoolName}</p>
+        </div>
+        <StatusPill bg={tone.bg} fg={tone.fg} label={priorityLabel[ticket.priority] ?? ticket.priority} />
+      </div>
+
+      <div className="grid grid-cols-3 gap-2">
+        <TicketMiniMetric label="Status" value={formatLabel(ticket.status)} />
+        <TicketMiniMetric label="Messages" value={ticket.messageCount} />
+        <TicketMiniMetric label="Agent" value={ticket.assignedTo || "Unassigned"} />
+      </div>
+
+      <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] p-3">
+        <div>
+          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">SLA</p>
+          <p className="mt-1 text-[12.5px] font-semibold text-[var(--color-text-primary)]">
+            {ticket.slaDueAt ? (ticket.slaBreached ? "Breached" : `${dueHours ?? 0}h remaining`) : "Not set"}
+          </p>
+        </div>
+        {ticket.slaBreached ? (
+          <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Breach" />
+        ) : (
+          <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="On track" />
+        )}
+      </div>
+    </Link>
+  );
+}
+
 const flowToneStyle: Record<string, { bg: string; fg: string }> = {
   mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" },
   warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
@@ -73,10 +141,10 @@ const flowToneStyle: Record<string, { bg: string; fg: string }> = {
 
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: string }> }) {
   return (
-    <section className="surface-card p-6">
-      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-2xl text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
-      <div className="mt-5 flex flex-wrap items-stretch gap-2.5">
+    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+      <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">{title}</p>
+      {sub ? <p className="sr-only">{sub}</p> : null}
+      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
           const tone = flowToneStyle[step.tone ?? "mute"];
           return (
@@ -131,9 +199,9 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Customer support"
+        eyebrow="Operations"
         title="Support Tickets"
-        description="Support queue for school issues, internal notes, SLA tracking, and escalation to platform admins or developers."
+        description="One queue for school issues, internal notes, SLA ownership, escalation, data corrections, and reusable answers."
         action={
           tab === "board" || tab === "tickets" ? (
             <ResourceActionDialog
@@ -143,12 +211,28 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
               endpoint="/api/super-admin/support/tickets"
               variant="heroWhite"
               fields={[
-                { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-                { name: "subject", label: "Subject", required: true },
-                { name: "description", label: "Description", type: "textarea", required: true },
-                { name: "category", label: "Category", type: "select", defaultValue: "OTHER", options: categoryOptions },
-                { name: "priority", label: "Priority", type: "select", defaultValue: "MEDIUM", options: priorityOptions },
-                { name: "assignedToId", label: "Assigned agent", type: "select", defaultValue: "", options: agentOptions }
+                { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions, section: "Who and what" },
+                {
+                  name: "raisedBy",
+                  label: "Raised by",
+                  type: "static",
+                  placeholder: "You — attributed automatically",
+                  note: "Not a form field — every ticket is attributed to the admin creating it.",
+                  section: "Who and what"
+                },
+                { name: "category", label: "Category", type: "select", defaultValue: "OTHER", options: categoryOptions, section: "Who and what" },
+                { name: "priority", label: "Priority", type: "select", defaultValue: "MEDIUM", options: priorityOptions, section: "Who and what" },
+                { name: "subject", label: "Subject", required: true, section: "The problem" },
+                { name: "description", label: "Description", type: "textarea", required: true, section: "The problem" },
+                { name: "assignedToId", label: "Assign to", type: "select", defaultValue: "", options: agentOptions, section: "Ownership" },
+                {
+                  name: "target",
+                  label: "Target",
+                  type: "static",
+                  placeholder: "Set from priority · 1h Critical / 4h High / 8h Medium / 24h Low",
+                  note: "Runs as flat hours from creation, not the school's local working hours yet.",
+                  section: "Ownership"
+                }
               ]}
               submitLabel="Create Ticket"
               confirmLabel="Confirm Ticket"
@@ -170,13 +254,41 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
 async function TicketBoardTab() {
   const envelope = await apiGetEnvelope<SuperAdminTicketRow[]>("/api/super-admin/support/tickets?limit=100");
   const tickets = envelope.data ?? [];
+  const openTickets = tickets.filter((ticket) => !["RESOLVED", "CLOSED"].includes(ticket.status));
+  const breachedTickets = openTickets.filter((ticket) => ticket.slaBreached);
+  const criticalTickets = openTickets.filter((ticket) => ticket.priority === "CRITICAL");
   const byColumn = new Map<string, SuperAdminTicketRow[]>(boardColumns.map((column) => [column.status, []]));
   for (const ticket of tickets) {
     (byColumn.get(ticket.status) ?? byColumn.get("OPEN"))?.push(ticket);
   }
 
+  const isToday = (iso: string) => new Date(iso).toDateString() === new Date().toDateString();
+  const resolvedToday = tickets.filter((ticket) => ticket.resolvedAt && isToday(ticket.resolvedAt));
+  const resolutionHours = resolvedToday
+    .map((ticket) => (new Date(ticket.resolvedAt as string).getTime() - new Date(ticket.createdAt).getTime()) / (1000 * 60 * 60))
+    .filter((hours) => hours >= 0);
+  const avgResolutionHours = resolutionHours.length ? Math.round((resolutionHours.reduce((sum, h) => sum + h, 0) / resolutionHours.length) * 10) / 10 : null;
+  const csatScores = tickets.map((ticket) => ticket.csatScore).filter((score): score is number => score !== null);
+  const avgCsat = csatScores.length ? Math.round((csatScores.reduce((sum, s) => sum + s, 0) / csatScores.length) * 10) / 10 : null;
+
   return (
     <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+        <StatCard label="Open workload" value={openTickets.length} detail="Tickets not closed" icon={Inbox} tone="dark" />
+        <StatCard label="Critical priority" value={criticalTickets.length} detail="Highest urgency" icon={Clock3} tone={criticalTickets.length ? "warning" : "neutral"} />
+        <StatCard label="SLA breaches" value={breachedTickets.length} detail="Needs escalation" icon={AlertTriangle} tone={breachedTickets.length ? "danger" : "neutral"} />
+        <StatCard label="Resolved today" value={resolvedToday.length} detail="Across this 100-ticket window" icon={CheckCircle2} tone="success" />
+        <StatCard label="Avg resolution (today)" value={avgResolutionHours !== null ? `${avgResolutionHours}h` : "N/A"} detail={avgResolutionHours !== null ? "Created-to-resolved" : "Nothing resolved today yet"} icon={Clock3} tone="info" />
+        <StatCard label="CSAT (recent)" value={avgCsat !== null ? `${avgCsat} / 5` : "N/A"} detail={csatScores.length ? `From ${csatScores.length} response(s)` : "No responses in this window"} icon={MessageSquareText} tone={avgCsat !== null && avgCsat < 3.5 ? "warning" : "neutral"} />
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-3">
+        {openTickets
+          .sort((a, b) => Number(b.slaBreached) - Number(a.slaBreached) || new Date(a.slaDueAt ?? a.createdAt).getTime() - new Date(b.slaDueAt ?? b.createdAt).getTime())
+          .slice(0, 6)
+          .map((ticket) => <TicketPreviewCard key={ticket.id} ticket={ticket} />)}
+      </section>
+
       <div className="overflow-x-auto pb-2">
       <div className="grid grid-flow-col auto-cols-[260px] gap-3">
         {boardColumns.map((column) => {
@@ -257,17 +369,6 @@ function SlaSection({ tickets }: { tickets: SuperAdminTicketRow[] }) {
 
   return (
     <section className="grid gap-5">
-      <div>
-        <p className="section-eyebrow">Service levels</p>
-        <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Priority and service levels</h2>
-        <p className="mt-1 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Targets below are the real resolution windows this platform sets on ticket creation — not a description, the actual{" "}
-          <code className="font-[var(--font-mono)] text-[12px]">slaDueAt</code> calculation. There is no automated intra-window warning at
-          the halfway or three-quarter mark like a more mature setup might have — the only automated signal is a monitoring alert once a
-          ticket is already past due, visible on the Command Center and Infrastructure feeds.
-        </p>
-      </div>
-
       <TableCard
         title="Priority and service levels"
         items={priorityRows}
@@ -290,11 +391,10 @@ function SlaSection({ tickets }: { tickets: SuperAdminTicketRow[] }) {
 
       <TableCard
         title="Issue categories"
-        description="Every open ticket, grouped by the category set at creation."
         items={categoryRows}
         getRowKey={(row) => row.category}
         columns={[
-          { key: "category", header: "Category", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.category.replaceAll("_", " ")}</span> },
+          { key: "category", header: "Category", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{formatLabel(row.category)}</span> },
           { key: "count", header: "Open volume", render: (row) => row.count }
         ]}
         emptyState="No open tickets right now."
@@ -309,22 +409,14 @@ async function TicketAnalyticsSection() {
 
   return (
     <section className="grid gap-5">
-      <div>
-        <p className="section-eyebrow">Support performance</p>
-        <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Analytics (last 30 days)</h2>
-      </div>
-
       <section className="grid gap-3 md:grid-cols-4">
         {[
-          { label: "Opened (30d)", value: analytics.totalOpened },
-          { label: "Resolved (30d)", value: analytics.totalResolved },
-          { label: "Resolved within SLA", value: `${slaRate}%` },
-          { label: "Categories tracked", value: analytics.categoryBreakdown.length }
+          { label: "Opened (30d)", value: analytics.totalOpened, tone: "dark" as const },
+          { label: "Resolved (30d)", value: analytics.totalResolved, tone: "success" as const },
+          { label: "Resolved within SLA", value: `${slaRate}%`, tone: "accent" as const },
+          { label: "Categories tracked", value: analytics.categoryBreakdown.length, tone: "warning" as const }
         ].map((item) => (
-          <article key={item.label} className="surface-card p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{item.label}</p>
-            <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{item.value}</p>
-          </article>
+          <StatCard key={item.label} label={item.label} value={item.value} tone={item.tone} icon={item.label.includes("Resolved") ? CheckCircle2 : MessageSquareText} />
         ))}
       </section>
 
@@ -347,7 +439,7 @@ async function TicketAnalyticsSection() {
           <div className="mt-4 grid gap-2">
             {analytics.categoryBreakdown.map((item) => (
               <div key={item.category} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.category.replaceAll("_", " ")}</span>
+                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{formatLabel(item.category)}</span>
                 <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{item.count}</span>
               </div>
             ))}
@@ -358,7 +450,6 @@ async function TicketAnalyticsSection() {
 
       <TableCard
         title="Per-agent performance (30d)"
-        description="Ticket volume and average CSAT per assigned agent."
         items={analytics.perAgent}
         columns={[
           { key: "agent", header: "Agent", render: (item) => item.agentName },
@@ -378,30 +469,44 @@ async function TicketQueueTab({ params, schoolOptions }: { params: Record<string
   }
   const envelope = await apiGetEnvelope<SuperAdminTicketRow[]>(`/api/super-admin/support/tickets?${query.toString()}`);
   const tickets = envelope.data ?? [];
+  const activeTickets = tickets.filter((ticket) => !["RESOLVED", "CLOSED"].includes(ticket.status));
+  const breachedTickets = activeTickets.filter((ticket) => ticket.slaBreached);
+  const unassignedTickets = activeTickets.filter((ticket) => !ticket.assignedTo);
   const filterSchoolOptions = [{ label: "All schools", value: "" }, ...schoolOptions];
 
   return (
-    <>
-      <FilterToolbar
-        action="/super-admin/support"
-        resultCount={envelope.pagination?.total}
-        controls={[
-          { name: "search", label: "Search", type: "search", placeholder: "Ticket or subject", defaultValue: params.search },
-          { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: filterSchoolOptions },
-          { name: "status", label: "Status", type: "select", defaultValue: params.status, options: statusFilterOptions }
-        ]}
-      />
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-4">
+        <StatCard label="Tickets in view" value={envelope.pagination?.total ?? tickets.length} detail={`${activeTickets.length} active on this page`} icon={LifeBuoy} tone="dark" />
+        <StatCard label="SLA breached" value={breachedTickets.length} detail="Visible in this view" icon={AlertTriangle} tone={breachedTickets.length ? "danger" : "neutral"} />
+        <StatCard label="Unassigned" value={unassignedTickets.length} detail="No agent owner" icon={UserRoundCheck} tone={unassignedTickets.length ? "warning" : "success"} />
+        <StatCard label="Messages" value={tickets.reduce((sum, ticket) => sum + ticket.messageCount, 0)} detail="Conversation volume" icon={MessageSquareText} tone="info" />
+      </section>
+
+      <section className="grid gap-3 lg:grid-cols-3">
+        {tickets.slice(0, 6).map((ticket) => <TicketPreviewCard key={ticket.id} ticket={ticket} />)}
+      </section>
 
       <TableCard
         title="Ticket registry"
-        description={`${envelope.pagination?.total ?? tickets.length} ticket(s) found — sorted by priority, then most recently updated.`}
         items={tickets}
         emptyState="No support tickets match the current filters."
+        filterBar={
+          <FilterToolbar
+            action="/super-admin/support"
+            resultCount={envelope.pagination?.total}
+            controls={[
+              { name: "search", label: "Search", type: "search", placeholder: "Ticket or subject", defaultValue: params.search },
+              { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: filterSchoolOptions },
+              { name: "status", label: "Status", type: "select", defaultValue: params.status, options: statusFilterOptions }
+            ]}
+          />
+        }
         columns={[
           { key: "ticket", header: "Ticket", render: (item) => <Link href={`/super-admin/support/${item.id}`} className="font-[var(--font-mono)] font-bold text-[var(--color-text-accent)]">{item.ticketNo}</Link> },
           { key: "school", header: "School", render: (item) => item.schoolName },
           { key: "subject", header: "Subject", render: (item) => item.subject },
-          { key: "category", header: "Category", render: (item) => item.category.replaceAll("_", " ") },
+          { key: "category", header: "Category", render: (item) => formatLabel(item.category) },
           {
             key: "priority",
             header: "Priority",
@@ -430,7 +535,7 @@ async function TicketQueueTab({ params, schoolOptions }: { params: Record<string
       />
 
       <TicketAnalyticsSection />
-    </>
+    </div>
   );
 }
 
@@ -450,7 +555,6 @@ async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrecti
 
       <TableCard
         title="All requests"
-        description={`${records.length} correction request(s) recorded.`}
         items={records}
         emptyState="No data correction requests have been raised yet."
         columns={[
@@ -519,7 +623,6 @@ async function KnowledgeTab() {
     <div className="grid gap-8">
       <TableCard
         title="Knowledge base articles"
-        description="Help-center articles visible to school staff and support agents."
         items={articles}
         getRowKey={(item) => item.id}
         actions={
@@ -551,7 +654,6 @@ async function KnowledgeTab() {
 
       <TableCard
         title="Canned responses"
-        description="Pre-written responses agents can personalize and send for common questions in each category."
         items={responses}
         actions={
           <ResourceActionDialog

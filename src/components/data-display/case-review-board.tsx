@@ -2,6 +2,8 @@
 
 import { type ReactNode, useState } from "react";
 import { Search, X } from "lucide-react";
+import type { Route } from "next";
+import Link from "next/link";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -120,9 +122,7 @@ export function CaseReviewBoard({
   }
 
   if (cases.length === 0) {
-    return (
-      <div className="surface-card p-8 text-center text-[13px] text-[var(--color-text-secondary)]">{emptyState}</div>
-    );
+    return <div className="rounded-[14px] border border-[#DEE8E2] bg-white p-8 text-center text-[13px] text-[#435048]">{emptyState}</div>;
   }
 
   return (
@@ -134,17 +134,17 @@ export function CaseReviewBoard({
             type="button"
             onClick={() => selectType(filter.value)}
             className={cn(
-              "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-[12.5px] font-semibold transition",
+              "inline-flex items-center gap-2 rounded-full border px-[13px] py-2 text-[12.5px] font-semibold transition",
               activeType === filter.value
-                ? "border-[var(--color-text-primary)] bg-[var(--color-text-primary)] text-white"
-                : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]",
+                ? "border-[#0D2315] bg-[#0D2315] text-white"
+                : "border-[#DEE8E2] bg-white text-[#435048] hover:border-[#0D2315]",
             )}
           >
             {filter.label}
             <span
               className={cn(
                 "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10.5px] font-bold",
-                activeType === filter.value ? "bg-white/20 text-white" : "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
+                activeType === filter.value ? "bg-white/20 text-white" : "bg-[#F0F5F2] text-[#8C9A92]",
               )}
             >
               {filter.count}
@@ -152,16 +152,16 @@ export function CaseReviewBoard({
           </button>
         ))}
         {searchPlaceholder ? (
-          <div className="ml-auto flex min-w-[220px] items-center gap-2 rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2">
-            <Search className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
+          <div className="ml-auto flex min-w-[280px] items-center gap-[9px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px]">
+            <Search className="h-[15px] w-[15px] shrink-0 text-[#9FB8A7]" />
             <input
               value={query}
               onChange={(event) => setQuery(event.target.value)}
               placeholder={searchPlaceholder}
-              className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[var(--color-text-primary)] outline-none placeholder:text-[var(--color-text-muted)]"
+              className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
             />
             {query ? (
-              <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]" aria-label="Clear search">
+              <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]" aria-label="Clear search">
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : null}
@@ -170,14 +170,14 @@ export function CaseReviewBoard({
       </div>
 
       {searchPlaceholder ? (
-        <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+        <p className="-mt-2 text-[11.5px] text-[#8C9A92]">
           {filtered.length} case{filtered.length === 1 ? "" : "s"}
           {q ? ` matching "${query}"` : ""} · {types.find((t) => t.value === activeType)?.label.toLowerCase()}
         </p>
       ) : null}
 
-      <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-        <div className="grid grid-cols-[2.1fr_1.1fr_0.9fr_0.9fr_1fr_0.6fr] gap-3 border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-2.5 text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+      <div className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+        <div className="grid grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] gap-3 border-b border-[#E6EEE9] bg-[#F7FAF8] px-[18px] py-3 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">
           <div>Subject</div>
           <div>Type</div>
           <div>Signals</div>
@@ -186,7 +186,7 @@ export function CaseReviewBoard({
           <div className="text-right">Age</div>
         </div>
         {filtered.length === 0 ? (
-          <div className="px-4 py-8 text-center text-[12.5px] text-[var(--color-text-secondary)]">Nothing in this queue matches &ldquo;{query}&rdquo;.</div>
+          <div className="px-4 py-8 text-center text-[12.5px] text-[#435048]">Nothing in this queue matches &ldquo;{query}&rdquo;.</div>
         ) : null}
         {filtered.map((item) => (
           <button
@@ -194,30 +194,30 @@ export function CaseReviewBoard({
             type="button"
             onClick={() => setSelectedId(item.id)}
             className={cn(
-              "grid w-full grid-cols-[2.1fr_1.1fr_0.9fr_0.9fr_1fr_0.6fr] items-center gap-3 border-b border-[var(--color-border-default)] px-4 py-2.5 text-left text-[12.5px] transition last:border-b-0",
-              selected?.id === item.id ? "bg-[var(--color-accent-primary-dim)]" : "hover:bg-[var(--color-bg-subtle)]",
+              "grid w-full grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] items-center gap-3 border-b border-[#F2F7F4] px-[18px] py-3 text-left text-[12.5px] transition last:border-b-0",
+              selected?.id === item.id ? "bg-[#F7FBF9]" : "bg-white hover:bg-[#F7FBF9]",
             )}
           >
             <div className="flex min-w-0 items-center gap-2.5">
               <span className={cn("h-2 w-2 shrink-0 rounded-full", toneDot(item.slaTone ?? "neutral"))} />
               <span className="min-w-0">
-                <span className="block truncate font-semibold text-[var(--color-text-primary)]">{item.subject}</span>
-                <span className="block truncate text-[11px] text-[var(--color-text-muted)]">{item.meta}</span>
+                <span className="block truncate font-semibold text-[#0D2315]">{item.subject}</span>
+                <span className="block truncate text-[11px] text-[#77857C]">{item.meta}</span>
               </span>
             </div>
             <div>
-              <span className="rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
+              <span className="rounded-full bg-[#F1F4F2] px-2.5 py-1 text-[11px] font-semibold text-[#5C6A62]">
                 {item.type}
               </span>
             </div>
-            <div className="text-[var(--color-text-secondary)]">{item.signals.length}</div>
+            <div className="text-[#435048]">{item.signals.length}</div>
             <div className={slaStyle(item.slaTone)}>{item.sla ?? "—"}</div>
-            <div className="truncate text-[var(--color-text-secondary)]">{item.assignee}</div>
-            <div className="text-right text-[var(--color-text-muted)]">{item.age}</div>
+            <div className="truncate text-[#435048]">{item.assignee}</div>
+            <div className="text-right text-[#77857C]">{item.age}</div>
           </button>
         ))}
         {footerNote ? (
-          <div className="bg-[var(--color-bg-subtle)] px-4 py-2.5 text-[11px] text-[var(--color-text-muted)]">{footerNote}</div>
+          <div className="bg-[#F7FAF8] px-[18px] py-2.5 text-[11px] text-[#77857C]">{footerNote}</div>
         ) : null}
       </div>
 
@@ -364,14 +364,14 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
         <div className="flex shrink-0 items-center gap-2.5">
           <span className={cn("text-[12.5px]", slaStyle(selected.slaTone))}>{selected.sla}</span>
           {selected.recordHref ? (
-            <a href={selected.recordHref} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-[var(--color-bg-subtle)]">
+            <Link href={selected.recordHref as Route} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-[var(--color-bg-subtle)]">
               School record
-            </a>
+            </Link>
           ) : null}
           {selected.historyHref ? (
-            <a href={selected.historyHref} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-[var(--color-bg-subtle)]">
+            <Link href={selected.historyHref as Route} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-[var(--color-bg-subtle)]">
               History
-            </a>
+            </Link>
           ) : null}
         </div>
       </div>

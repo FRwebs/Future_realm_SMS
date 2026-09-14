@@ -30,12 +30,22 @@ const toneStyle = {
 } as const;
 type Tone = keyof typeof toneStyle;
 
+const migrationStatuses: Array<{ status: MigrationJobRow["status"]; label: string; tone: Tone }> = [
+  { status: "INVITED", label: "Invited", tone: "mute" },
+  { status: "FILES_AWAITED", label: "Files awaited", tone: "warn" },
+  { status: "IN_PROGRESS", label: "In progress", tone: "warn" },
+  { status: "PREVIEW_READY", label: "Preview ready", tone: "good" },
+  { status: "SIGNED_OFF", label: "Signed off", tone: "good" },
+  { status: "COMPLETED", label: "Completed", tone: "good" },
+  { status: "ROLLED_BACK", label: "Rolled back", tone: "bad" }
+];
+
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: Tone }> }) {
   return (
-    <section className="surface-card p-6">
-      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-2xl text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
-      <div className="mt-5 flex flex-wrap items-stretch gap-2.5">
+    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+      <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">{title}</p>
+      {sub ? <p className="sr-only">{sub}</p> : null}
+      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
           const tone = toneStyle[step.tone ?? "mute"];
           return (
@@ -49,6 +59,28 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
           );
         })}
       </div>
+    </section>
+  );
+}
+
+function StatusBuckets({ jobs }: { jobs: MigrationJobRow[] }) {
+  return (
+    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+      {migrationStatuses.map((item) => {
+        const style = toneStyle[item.tone];
+        const count = jobs.filter((job) => job.status === item.status).length;
+        return (
+          <article key={item.status} className="rounded-[14px] border border-[#DEE8E2] bg-white p-4">
+            <div className="flex items-center justify-between gap-3">
+              <span className="h-2 w-2 rounded-full" style={{ background: style.fg }} />
+              <span className="rounded-full px-2 py-0.5 text-[10.5px] font-bold" style={{ background: style.bg, color: style.fg }}>
+                {count}
+              </span>
+            </div>
+            <p className="mt-3 text-[12.5px] font-bold text-[#0D2315]">{item.label}</p>
+          </article>
+        );
+      })}
     </section>
   );
 }
@@ -91,7 +123,7 @@ export default async function MigrationPage({ searchParams }: { searchParams?: P
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Tenant onboarding"
+        eyebrow="Schools & Revenue"
         title="Onboarding & Migration"
         description="Track a school's historical data migration from invitation through sign-off — who's assigned, what's in scope, and when the retention clock starts."
         action={<NewMigrationJobAction />}
@@ -137,18 +169,18 @@ async function NewMigrationJobAction() {
       submitLabel="Create job"
       variant="heroWhite"
       fields={[
-        { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-        { name: "sourceSystem", label: "Source system", type: "text", required: true, placeholder: "e.g. Spreadsheet register, another SIS" },
-        { name: "specialistId", label: "Assigned specialist", type: "select", options: specialistOptions },
-        { name: "studentsExpected", label: "Students expected", type: "number", min: 0 },
-        { name: "resultsExpected", label: "Result records expected", type: "number", min: 0 },
-        { name: "includeStudentsGuardians", label: "Include students & guardians", type: "select", defaultValue: "true", options: yesNoOptions },
-        { name: "includeStaffAccounts", label: "Include staff accounts", type: "select", defaultValue: "true", options: yesNoOptions },
-        { name: "includeHistoricalResults", label: "Include historical results", type: "select", defaultValue: "true", options: yesNoOptions },
-        { name: "includeFeesBalances", label: "Include fees & balances", type: "select", defaultValue: "true", options: yesNoOptions },
-        { name: "includeAttendanceHistory", label: "Include attendance history", type: "select", defaultValue: "false", options: yesNoOptions },
-        { name: "includeBehaviouralRecords", label: "Include behavioural records", type: "select", defaultValue: "false", options: yesNoOptions },
-        { name: "notes", label: "Notes", type: "textarea", placeholder: "Context for the specialist handling this migration" }
+        { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions, section: "School and source" },
+        { name: "sourceSystem", label: "Source system", type: "text", required: true, placeholder: "e.g. Spreadsheet register, another SIS", section: "School and source" },
+        { name: "specialistId", label: "Assigned specialist", type: "select", options: specialistOptions, section: "School and source" },
+        { name: "studentsExpected", label: "Students expected", type: "number", min: 0, section: "School and source" },
+        { name: "resultsExpected", label: "Result records expected", type: "number", min: 0, section: "School and source" },
+        { name: "includeStudentsGuardians", label: "Include students & guardians", type: "select", defaultValue: "true", options: yesNoOptions, section: "Scope of the move" },
+        { name: "includeStaffAccounts", label: "Include staff accounts", type: "select", defaultValue: "true", options: yesNoOptions, section: "Scope of the move" },
+        { name: "includeHistoricalResults", label: "Include historical results", type: "select", defaultValue: "true", options: yesNoOptions, section: "Scope of the move" },
+        { name: "includeFeesBalances", label: "Include fees & balances", type: "select", defaultValue: "true", options: yesNoOptions, section: "Scope of the move" },
+        { name: "includeAttendanceHistory", label: "Include attendance history", type: "select", defaultValue: "false", options: yesNoOptions, section: "Scope of the move" },
+        { name: "includeBehaviouralRecords", label: "Include behavioural records", type: "select", defaultValue: "false", options: yesNoOptions, section: "Scope of the move" },
+        { name: "notes", label: "Notes", type: "textarea", placeholder: "Context for the specialist handling this migration", section: "Notes" }
       ]}
     />
   );
@@ -157,8 +189,14 @@ async function NewMigrationJobAction() {
 function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
   const inProgress = jobs.filter((job) => job.status === "IN_PROGRESS").length;
   const signedOffOrComplete = jobs.filter((job) => job.status === "SIGNED_OFF" || job.status === "COMPLETED");
-  const rolledBack = jobs.filter((job) => job.status === "ROLLED_BACK").length;
+  const blockedOver48h = jobs.filter((job) => {
+    if (job.status !== "FILES_AWAITED" && job.status !== "IN_PROGRESS") return false;
+    const ageHours = (Date.now() - new Date(job.createdAt).getTime()) / (1000 * 60 * 60);
+    return ageHours > 48;
+  }).length;
 
+  const openJobs = jobs.filter((job) => !["COMPLETED", "ROLLED_BACK"].includes(job.status)).length;
+  const pendingFiles = jobs.filter((job) => job.status === "INVITED" || job.status === "FILES_AWAITED").length;
   const recordsMigrated = signedOffOrComplete.reduce((sum, job) => sum + (job.studentsExpected ?? 0) + (job.resultsExpected ?? 0), 0);
   const daysToSignOff = jobs
     .filter((job) => job.signedOffAt)
@@ -167,25 +205,26 @@ function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-        <StatCard label="Total jobs" value={jobs.length} detail="Every migration job ever created." icon={FileClock} />
-        <StatCard label="In progress" value={inProgress} detail="Files received, actively being migrated." tone="info" icon={RotateCcw} />
-        <StatCard label="Signed off" value={signedOffOrComplete.length} detail="School has accepted the migrated data." tone="success" icon={CheckCircle2} />
-        <StatCard label="Rolled back" value={rolledBack} detail="Migration was reverted." tone="danger" icon={FileWarning} />
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Jobs in progress" value={inProgress} detail="Files received, active work." tone="dark" icon={RotateCcw} />
+        <StatCard label="Blocked over 48 hours" value={blockedOver48h} detail="Raises the school's churn risk." tone={blockedOver48h > 0 ? "danger" : "success"} icon={FileWarning} />
+        <StatCard label="Completed" value={signedOffOrComplete.length} detail="Signed off by the school." tone="success" icon={CheckCircle2} />
         <StatCard
           label="Records migrated"
           value={recordsMigrated.toLocaleString()}
-          detail="Expected students + results, summed across signed-off jobs."
+          detail="Students + results, signed-off jobs."
           icon={FileClock}
         />
         <StatCard
           label="Median time to sign-off"
           value={medianDays === null ? "—" : `${medianDays}d`}
-          detail={medianDays === null ? "No job has been signed off yet." : "From job creation to school sign-off."}
+          detail={medianDays === null ? "No sign-offs yet." : "From source file received."}
           tone="info"
           icon={RotateCcw}
         />
       </section>
+
+      <StatusBuckets jobs={jobs} />
 
       <FlowSteps
         title="Migration pipeline"
@@ -204,20 +243,21 @@ function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
       />
 
       <TableCard
-        title="Migration data handling"
-        description="What actually happens to a school's data during a migration, stated plainly — not all of this is automated yet."
+        title="Migration workload"
         items={[
-          { topic: "Storage", detail: "Files aren't uploaded through the platform. \"Files received\" is a manual marker a specialist ticks after getting the data through an outside channel — nothing is stored here." },
-          { topic: "Retention", detail: "retentionClockStartsAt is stamped at sign-off, but no duration is attached to it and no job purges anything automatically." },
-          { topic: "Access logging", detail: "Not written yet. Migration job changes don't create an AuditLog entry, unlike most other mutating actions on this platform." },
-          { topic: "Agreement precondition", detail: "Not enforced. Any platform team member can open a migration job for any school — there's no check for a signed data-migration agreement first." },
-          { topic: "Trial schools", detail: "Not restricted. A school still on its trial can have a migration job opened the same as a paying school." }
+          { metric: "Open jobs", value: openJobs.toLocaleString(), detail: "Not completed or rolled back" },
+          { metric: "Awaiting files", value: pendingFiles.toLocaleString(), detail: "Invited or files awaited" },
+          { metric: "Expected students", value: jobs.reduce((sum, job) => sum + (job.studentsExpected ?? 0), 0).toLocaleString(), detail: "Across every job" },
+          { metric: "Expected results", value: jobs.reduce((sum, job) => sum + (job.resultsExpected ?? 0), 0).toLocaleString(), detail: "Across every job" },
+          { metric: "Retention clocks", value: jobs.filter((job) => job.retentionClockStartsAt).length.toLocaleString(), detail: "Started after sign-off" }
         ]}
         emptyState="—"
-        getRowKey={(row) => row.topic}
+        pageSize={false}
+        getRowKey={(row) => row.metric}
         columns={[
-          { key: "topic", header: "Topic", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.topic}</span> },
-          { key: "detail", header: "What actually happens", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.detail}</span> }
+          { key: "metric", header: "Metric", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.metric}</span> },
+          { key: "value", header: "Value", render: (row) => <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{row.value}</span> },
+          { key: "detail", header: "Detail", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.detail}</span> }
         ]}
       />
 
@@ -244,7 +284,6 @@ function RetentionTable({ jobs }: { jobs: MigrationJobRow[] }) {
   return (
     <TableCard
       title="Source files pending deletion"
-      description={`Source exports are children's data. The design calls for deletion ${RETENTION_DAYS} days after sign-off — the countdown below is computed from the real retentionClockStartsAt each job records, but nothing currently purges a file automatically when it hits zero.`}
       items={holding}
       pageSize={false}
       emptyState="No job has a retention clock running."
@@ -285,126 +324,182 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
-        <StatCard label="Schools in setup" value={totalSchools} detail="Every school with an onboarding checklist." icon={FileClock} />
-        <StatCard label="Fully complete" value={fullyComplete} detail={totalSchools > 0 ? `${Math.round((fullyComplete / totalSchools) * 100)}% of the cohort` : "No schools yet"} tone="success" icon={CheckCircle2} />
-        <StatCard label="Stalled past 5 days" value={progress.stalled.length} detail="At least one step still incomplete." tone={progress.stalled.length > 0 ? "danger" : "success"} icon={FileWarning} />
-        <StatCard label="Most abandoned step" value={mostAbandoned?.label ?? "—"} detail="Where schools most often stop." tone="warning" icon={RotateCcw} />
+      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+        <StatCard label="Schools in setup" value={totalSchools} detail="Provisioned or in trial." tone="dark" icon={FileClock} />
+        <StatCard label="Setup complete" value={fullyComplete} detail={totalSchools > 0 ? `${Math.round((fullyComplete / totalSchools) * 100)}% of the cohort` : "No schools yet"} tone="success" icon={CheckCircle2} />
+        <StatCard label="Incomplete past 5 days" value={progress.stalled.length} detail="Account Manager alerted." tone={progress.stalled.length > 0 ? "danger" : "success"} icon={FileWarning} />
+        <StatCard label="Most abandoned step" value={mostAbandoned?.label ?? "—"} detail="Highest drop-off." tone="warning" icon={RotateCcw} />
+        <StatCard label="Median time to complete" value="N/A" detail="Not tracked — no per-step completion timestamp exists yet." icon={RotateCcw} />
+      </section>
+
+      <section className="grid gap-3.5 xl:grid-cols-[1.2fr_1fr]">
+        <TableCard
+          title="Setup progress by step"
+          description="The aggregate view showing where schools most often abandon — the highest-value onboarding metric available."
+          items={progress.steps.map((step, index) => ({ ...step, stepNumber: index + 1 }))}
+          emptyState="No onboarding checklists recorded yet."
+          pageSize={false}
+          getRowKey={(step) => step.key}
+          columns={[
+            { key: "index", header: "#", render: (step) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-muted)]">{step.stepNumber}</span> },
+            { key: "step", header: "Step", render: (step) => <span className="font-bold text-[var(--color-text-primary)]">{step.label}</span> },
+            { key: "reached", header: "Reached", render: (step) => step.reached },
+            {
+              key: "completed",
+              header: "Completed",
+              render: (step) => (
+                <div className="flex items-center gap-2">
+                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                    <div className="h-full rounded-full" style={{ width: `${step.completionRatePct}%`, background: step.completionRatePct >= 70 ? "var(--color-success)" : step.completionRatePct >= 40 ? "var(--color-warning)" : "var(--color-danger)" }} />
+                  </div>
+                  <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">{step.completed}</span>
+                </div>
+              )
+            },
+            { key: "abandoned", header: "Abandoned here", render: (step) => <span className="font-semibold text-[var(--color-text-primary)]">{step.reached - step.completed}</span> }
+          ]}
+        />
+
+        <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="border-b border-[var(--color-border-muted)] px-5 py-4">
+            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Stalled schools — outreach queue</p>
+            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Incomplete setup after 5 days alerts the assigned Account Manager.</p>
+          </div>
+          {progress.stalled.length === 0 ? (
+            <p className="px-5 py-8 text-center text-[13px] text-[var(--color-text-muted)]">No school has been stalled past 5 days.</p>
+          ) : (
+            <div className="grid gap-0">
+              {progress.stalled.map((item) => {
+                const urgent = item.daysSinceSignup >= 8;
+                const tone = urgent
+                  ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
+                  : { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" };
+                return (
+                  <div key={item.schoolName} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] px-5 py-3.5 last:border-b-0">
+                    <span className="mt-[5px] h-2 w-2 shrink-0 rounded-[3px]" style={{ background: tone.fg }} />
+                    <div className="min-w-0 flex-1">
+                      <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.schoolName}</p>
+                      <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                        {item.daysSinceSignup} day{item.daysSinceSignup === 1 ? "" : "s"} since signup · {item.incompleteCount} step{item.incompleteCount === 1 ? "" : "s"} remaining
+                      </p>
+                    </div>
+                    <a
+                      href={`/super-admin/schools?search=${encodeURIComponent(item.schoolName)}`}
+                      className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      style={{ background: tone.bg, color: tone.fg }}
+                    >
+                      Review
+                    </a>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </section>
+    </div>
+  );
+}
+
+function InvitationsTab({ jobs }: { jobs: MigrationJobRow[] }) {
+  const assigned = jobs.filter((job) => job.specialistId).length;
+  const expectedRecords = jobs.reduce((sum, job) => sum + (job.studentsExpected ?? 0) + (job.resultsExpected ?? 0), 0);
+
+  return (
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        <StatCard label="Pending invitations" value={jobs.length} detail="Awaiting files." icon={FileClock} tone="dark" />
+        <StatCard label="Assigned" value={assigned} detail="Specialist selected." icon={CheckCircle2} tone="success" />
+        <StatCard label="Expected records" value={expectedRecords.toLocaleString()} detail="Students + results." icon={RotateCcw} tone="info" />
       </section>
 
       <TableCard
-        title="Setup progress by step"
-        description="The real completion state of every school's own onboarding checklist, in the order a school completes it."
-        items={progress.steps.map((step, index) => ({ ...step, stepNumber: index + 1 }))}
-        emptyState="No onboarding checklists recorded yet."
-        pageSize={false}
-        getRowKey={(step) => step.key}
+        title="Invitation operations"
+        description="This is a migration-job invitation, not a per-person user-account invitation — this platform has no resend limit, email-correction flow, or never-activated register for individual staff invites yet. What's shown here is every migration job still sitting at the Invited stage."
+        items={jobs}
+        emptyState="No pending invitations. Every job has already moved past the invitation stage."
         columns={[
-          { key: "index", header: "#", render: (step) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-muted)]">{step.stepNumber}</span> },
-          { key: "step", header: "Step", render: (step) => <span className="font-bold text-[var(--color-text-primary)]">{step.label}</span> },
-          { key: "reached", header: "Reached", render: (step) => step.reached },
-          { key: "completed", header: "Completed", render: (step) => step.completed },
-          { key: "abandoned", header: "Abandoned here", render: (step) => <span className="font-semibold text-[var(--color-text-primary)]">{step.reached - step.completed}</span> },
           {
-            key: "rate",
-            header: "Completion",
-            render: (step) => (
-              <div className="flex items-center gap-2">
-                <div className="h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                  <div className="h-full rounded-full" style={{ width: `${step.completionRatePct}%`, background: step.completionRatePct >= 70 ? "var(--color-success)" : step.completionRatePct >= 40 ? "var(--color-warning)" : "var(--color-danger)" }} />
-                </div>
-                <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">{step.completionRatePct}%</span>
+            key: "schoolName",
+            header: "School",
+            render: (job) => (
+              <div>
+                <p className="font-semibold text-[var(--color-text-primary)]">{job.schoolName}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p>
               </div>
             )
+          },
+          { key: "specialist", header: "Specialist", render: (job) => job.specialistName ?? "Unassigned" },
+          { key: "expected", header: "Expected records", render: (job) => ((job.studentsExpected ?? 0) + (job.resultsExpected ?? 0)).toLocaleString() },
+          { key: "createdAt", header: "Invited", render: (job) => formatDate(job.createdAt) },
+          {
+            key: "actions",
+            header: "Actions",
+            sortable: false,
+            render: (job) => (
+              <ResourceActionDialog
+                triggerLabel="Mark files received"
+                title={`Mark files received — ${job.schoolName}`}
+                description="Confirms the school's historical data files have arrived and moves this job into active migration."
+                endpoint={`/api/super-admin/migration/jobs/${job.id}/files-received`}
+                method="POST"
+                variant="secondary"
+                submitLabel="Confirm receipt"
+                fields={[]}
+              />
+            )
           }
-        ]}
-      />
-
-      <TableCard
-        title="Stalled schools"
-        description="Onboarding checklist still incomplete more than 5 days after signup."
-        items={progress.stalled}
-        emptyState="No school has been stalled past 5 days."
-        pageSize={false}
-        getRowKey={(item) => item.schoolName}
-        columns={[
-          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolName}</span> },
-          { key: "days", header: "Days since signup", render: (item) => item.daysSinceSignup },
-          { key: "incomplete", header: "Steps remaining", render: (item) => item.incompleteCount }
         ]}
       />
     </div>
   );
 }
 
-function InvitationsTab({ jobs }: { jobs: MigrationJobRow[] }) {
-  return (
-    <TableCard
-      title="Pending invitations"
-      description="Schools invited onto the migration track that haven't had their files received yet. This is a migration-job invitation, not a per-person user-account invitation — this platform has no resend/correct-email/never-activated system for individual staff invites yet."
-      items={jobs}
-      emptyState="No pending invitations. Every job has already moved past the invitation stage."
-      columns={[
-        {
-          key: "schoolName",
-          header: "School",
-          render: (job) => (
-            <div>
-              <p className="font-semibold text-[var(--color-text-primary)]">{job.schoolName}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p>
-            </div>
-          )
-        },
-        { key: "specialist", header: "Specialist", render: (job) => job.specialistName ?? "Unassigned" },
-        { key: "createdAt", header: "Invited", render: (job) => formatDate(job.createdAt) },
-        {
-          key: "actions",
-          header: "Actions",
-          sortable: false,
-          render: (job) => (
-            <ResourceActionDialog
-              triggerLabel="Mark files received"
-              title={`Mark files received — ${job.schoolName}`}
-              description="Confirms the school's historical data files have arrived and moves this job into active migration."
-              endpoint={`/api/super-admin/migration/jobs/${job.id}/files-received`}
-              variant="secondary"
-              submitLabel="Confirm receipt"
-              fields={[]}
-            />
-          )
-        }
-      ]}
-    />
-  );
-}
-
 async function SourceAdaptersTab() {
   const adapters = await apiGet<MigrationSourceAdapterRow[]>("/api/super-admin/migration/source-adapters");
+  const available = adapters.filter((adapter) => adapter.status.toLowerCase() === "available").length;
+  const jobsRun = adapters.reduce((sum, adapter) => sum + adapter.jobsRun, 0);
+  const completionRates = adapters.map((adapter) => adapter.completionRatePct).filter((rate): rate is number => rate !== null);
+  const averageCompletion = completionRates.length > 0 ? Math.round((completionRates.reduce((sum, rate) => sum + rate, 0) / completionRates.length) * 10) / 10 : null;
 
   return (
-    <TableCard
-      title="Source adapters"
-      description="Systems this platform can pull historical data from. Every school's export can always fall back to manual CSV/Excel import."
-      items={adapters}
-      emptyState="No source adapters recorded yet."
-      columns={[
-        { key: "name", header: "Name", render: (adapter) => <span className="font-semibold text-[var(--color-text-primary)]">{adapter.name}</span> },
-        {
-          key: "status",
-          header: "Status",
-          render: (adapter) => (
-            <span
-              className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
-              style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}
-            >
-              {adapter.status}
-            </span>
-          )
-        },
-        { key: "jobsRun", header: "Jobs run", render: (adapter) => adapter.jobsRun },
-        { key: "completion", header: "Completion rate", render: (adapter) => (adapter.completionRatePct === null ? "—" : `${adapter.completionRatePct}%`) },
-        { key: "notes", header: "Notes", render: (adapter) => adapter.notes ?? "—" }
-      ]}
-    />
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3">
+        <StatCard label="Adapters" value={adapters.length} detail={`${available} available.`} icon={FileClock} tone="dark" />
+        <StatCard label="Jobs run" value={jobsRun} detail="Matched by source name." icon={RotateCcw} tone="info" />
+        <StatCard label="Avg completion" value={averageCompletion === null ? "—" : `${averageCompletion}%`} detail="Signed off or completed." icon={CheckCircle2} tone="success" />
+      </section>
+
+      <TableCard
+        title="Source adapters"
+        items={adapters}
+        emptyState="No source adapters recorded yet."
+        columns={[
+          { key: "name", header: "Name", render: (adapter) => <span className="font-semibold text-[var(--color-text-primary)]">{adapter.name}</span> },
+          {
+            key: "status",
+            header: "Status",
+            render: (adapter) => {
+              const normalized = adapter.status.toLowerCase();
+              const tone = normalized.includes("available") || normalized.includes("live")
+                ? { bg: "var(--color-success-dim)", fg: "var(--color-success)" }
+                : normalized.includes("beta")
+                  ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
+                  : normalized.includes("development") || normalized.includes("progress")
+                    ? { bg: "var(--color-info-dim)", fg: "var(--color-info)" }
+                    : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
+              return (
+                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                  {adapter.status}
+                </span>
+              );
+            }
+          },
+          { key: "jobsRun", header: "Jobs run", render: (adapter) => adapter.jobsRun },
+          { key: "completion", header: "Completion rate", render: (adapter) => (adapter.completionRatePct === null ? "—" : `${adapter.completionRatePct}%`) },
+          { key: "notes", header: "Notes", render: (adapter) => adapter.notes ?? "—" }
+        ]}
+      />
+    </div>
   );
 }

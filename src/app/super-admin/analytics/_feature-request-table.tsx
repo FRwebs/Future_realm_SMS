@@ -36,10 +36,11 @@ export function FeatureRequestTable({ items }: FeatureRequestTableProps) {
         />
       }
       columns={[
-        { key: "keyword", header: "Keyword", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.keyword}</span>, sortValue: (item) => item.keyword },
-        { key: "requests", header: "Mentions", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.requestCount}</span>, sortValue: (item) => item.requestCount },
-        { key: "schools", header: "Schools requesting", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.schoolsRequesting}</span>, sortValue: (item) => item.schoolsRequesting },
+        { key: "rank", header: "#", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{String(items.indexOf(item) + 1).padStart(2, "0")}</span> },
+        { key: "keyword", header: "Feature request", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.keyword}</span>, sortValue: (item) => item.keyword },
+        { key: "schools", header: "Schools", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.schoolsRequesting}</span>, sortValue: (item) => item.schoolsRequesting },
         { key: "tiers", header: "Tier weight", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-secondary)]">{item.tiersRequesting} tier{item.tiersRequesting === 1 ? "" : "s"}</span>, sortValue: (item) => item.tiersRequesting },
+        { key: "severity", header: "Severity", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not scored</span> },
         { key: "source", header: "Source", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Support tickets</span> },
         { key: "priority", header: "Priority score", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.priorityScore}</span>, sortValue: (item) => item.priorityScore }
       ]}

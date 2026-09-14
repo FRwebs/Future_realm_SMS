@@ -1,5 +1,14 @@
 import type { ReactNode } from "react";
-import { ShieldAlert, Copy, LifeBuoy } from "lucide-react";
+import {
+  Copy,
+  GraduationCap,
+  KeyRound,
+  LifeBuoy,
+  ShieldAlert,
+  ShieldCheck,
+  UserCheck,
+  UsersRound
+} from "lucide-react";
 import { CaseReviewBoard, type CaseRecord, type CaseSignal, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
@@ -8,6 +17,7 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { StructurePreviewDialog } from "@/components/forms/structure-preview-dialog";
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
 import type {
@@ -17,7 +27,8 @@ import type {
   SuperAdminSchoolRow,
   SuperAdminSuspiciousActivityRow,
   SuperAdminUserCaseReviewContext,
-  SuperAdminUserRow
+  SuperAdminUserRow,
+  SuperAdminUserStats
 } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
@@ -64,6 +75,11 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
   );
 }
 
+function roleLabel(role: string) {
+  return role.replaceAll("_", " ");
+}
+
+
 function tabHref(tab: string) {
   return tab === "directory" ? "/super-admin/users" : `/super-admin/users?tab=${tab}`;
 }
@@ -98,9 +114,27 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Platform users"
+        eyebrow="Operations"
         title="Users"
-        description="One account, many schools — search and support every user across every tenant, resolving account issues schools cannot resolve themselves, and keeping the platform accountable for who is using it."
+        description="One account, many schools. Review identities, recover access, and keep sensitive user support actions accountable."
+        action={
+          <StructurePreviewDialog
+            triggerLabel="Export registry"
+            title="Export the user registry"
+            description="A file leaving the platform is a consequential act — checked against what this system can actually do today, not treated as already built."
+            fields={[
+              { label: "Scope", value: "Not built — no platform-wide user export exists", section: "What leaves" },
+              { label: "Roles", value: "Not built", section: "What leaves" },
+              { label: "Format", value: "Not built", section: "What leaves" },
+              { label: "Columns", value: "Not built", section: "What leaves" },
+              { label: "Student names and identifiers", value: "Withheld by policy, if this existed", note: "Would never be included in a platform-wide export — moot today since no export exists at all.", section: "Withheld by policy" },
+              { label: "Guardian contact details", value: "Withheld by policy, if this existed", section: "Withheld by policy" },
+              { label: "Password or device data", value: "The function does not exist, so it cannot be granted", section: "Withheld by policy" },
+              { label: "Why this export is needed", value: "Not built — there's nothing to attach a reason to", section: "Reason" }
+            ]}
+            cta={{ label: "View the real directory", href: "/super-admin/users" }}
+          />
+        }
       />
 
       <DetailTabs tabs={pageTabs} />
@@ -122,47 +156,74 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
 
 async function DirectoryTab({ params }: { params: Record<string, string | undefined> }) {
   const query = new URLSearchParams();
-  for (const key of ["search", "role", "schoolId", "status", "page"]) {
+  for (const key of ["search", "role", "schoolId", "status", "lastLogin", "page"]) {
     if (params[key]) query.set(key, params[key] as string);
   }
-  const [envelope, schoolsEnvelope] = await Promise.all([
+  const [envelope, schoolsEnvelope, statsEnvelope] = await Promise.all([
     apiGetEnvelope<SuperAdminUserRow[]>(`/api/super-admin/users?${query.toString()}`),
-    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
+    apiGetEnvelope<SuperAdminUserStats>("/api/super-admin/users/stats")
   ]);
   const users = envelope.data ?? [];
+  const stats = statsEnvelope.data;
   const schoolOptions = [
     { label: "All schools", value: "" },
     ...(schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }))
   ];
 
   return (
-    <>
-      <FilterToolbar
-        action="/super-admin/users"
-        resultCount={envelope.pagination?.total}
-        controls={[
-          { name: "search", label: "Global search", type: "search", placeholder: "Name or email", defaultValue: params.search },
-          { name: "role", label: "Role", type: "select", defaultValue: params.role, options: roleTabs.map((roleTab) => ({ label: roleTab.label, value: roleTab.value })) },
-          { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions },
-          { name: "status", label: "Status", type: "select", defaultValue: params.status, options: [
-            { label: "Any status", value: "" },
-            { label: "Active", value: "ACTIVE" },
-            { label: "Suspended", value: "SUSPENDED" }
-          ] }
-        ]}
-      />
+    <div className="grid gap-5">
+      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+        <StatCard label="Total user accounts" value={stats?.totalUsers ?? 0} detail={`Across ${stats?.activeSchools ?? 0} active schools`} icon={UsersRound} tone="dark" />
+        <StatCard label="School admins" value={stats?.schoolAdmins ?? 0} detail={`${stats?.adminsPerSchoolAvg ?? 0} per school average`} icon={ShieldCheck} tone="info" />
+        <StatCard label="Teachers" value={stats?.teachers ?? 0} detail={`${stats?.teachersLoggedInWeekPct ?? 0}% logged in this week`} icon={GraduationCap} tone="success" />
+        <StatCard label="Parents & students" value={stats?.parentsAndStudents ?? 0} detail={`${stats?.parentsAndStudentsActivatedPct ?? 0}% have logged in at least once`} icon={UserCheck} tone="info" />
+        <StatCard label="Suspended accounts" value={stats?.suspended ?? 0} detail="Restricted platform-wide" icon={ShieldAlert} tone={stats?.suspended ? "warning" : "neutral"} />
+      </section>
 
       <TableCard
-        title="Platform users"
-        description={`${envelope.pagination?.total ?? users.length} user(s) found.`}
+        title="Global user registry"
+        description="Searchable by name, email, role, school or account status."
         items={users}
+        filterBar={
+          <FilterToolbar
+            action="/super-admin/users"
+            resultCount={envelope.pagination?.total}
+            controls={[
+              { name: "search", label: "Global search", type: "search", placeholder: "Name or email", defaultValue: params.search },
+              { name: "role", label: "Role", type: "select", defaultValue: params.role, options: roleTabs.map((roleTab) => ({ label: roleTab.label, value: roleTab.value })) },
+              { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions },
+              { name: "status", label: "Status", type: "select", defaultValue: params.status, options: [
+                { label: "Any status", value: "" },
+                { label: "Active", value: "ACTIVE" },
+                { label: "Suspended", value: "SUSPENDED" }
+              ] },
+              { name: "lastLogin", label: "Last login", type: "select", defaultValue: params.lastLogin, options: [
+                { label: "Any", value: "" },
+                { label: "Today", value: "TODAY" },
+                { label: "This week", value: "WEEK" },
+                { label: "Last 30 days", value: "30D" },
+                { label: "Never", value: "NEVER" }
+              ] }
+            ]}
+          />
+        }
         columns={[
-          { key: "name", header: "Name", render: (item) => item.name },
-          { key: "email", header: "Email", render: (item) => item.email },
-          { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
+          {
+            key: "name",
+            header: "User",
+            render: (item) => (
+              <div>
+                <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
+                <p className="text-xs text-[var(--color-text-muted)]">{item.email}</p>
+              </div>
+            )
+          },
+          { key: "role", header: "Role", render: (item) => roleLabel(item.role) },
           { key: "school", header: "School", render: (item) => item.schoolName },
+          { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "joined", header: "Date Joined", render: (item) => formatDate(item.createdAt) },
+          { key: "lastDevice", header: "Device (last used)", render: (item) => item.lastDevice ?? "Not recorded" },
           {
             key: "actions",
             header: "Actions",
@@ -238,7 +299,17 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
         ]}
         emptyState="No users match the current filters."
       />
-    </>
+
+      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+        <p className="text-[14px] font-semibold text-[#0D2315]">Multi-school memberships — not built</p>
+        <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
+          This system's account model gives every user exactly one <code className="rounded bg-[var(--color-bg-subtle)] px-1 py-0.5 text-[11px]">schoolId</code>, and email addresses are
+          globally unique. A guardian with children at two schools, or a teacher employed by two, needs a
+          separate account and a separate email at each — there is no single account holding several
+          independent school memberships, and no plan to add one without a data-model change.
+        </p>
+      </section>
+    </div>
   );
 }
 
@@ -441,6 +512,8 @@ async function ReviewsAndCasesTab({
     };
   });
 
+  const openRecoveryCount = recoveryRecords.filter((record) => !record.completedAt).length;
+
   const recoveryCases: CaseRecord[] = recoveryRecords.map((record) => {
     const ctx = recoveryContextById.get(record.id);
     const completed = Boolean(record.completedAt);
@@ -495,18 +568,23 @@ async function ReviewsAndCasesTab({
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Open cases" value={openCaseCount} detail="Across suspicious activity, duplicates, and in-progress recoveries." icon={ShieldAlert} tone="warning" />
+      <section className="grid gap-3 md:grid-cols-4">
+        <StatCard label="Open cases" value={openCaseCount} detail="Across suspicious activity, duplicates, and in-progress recoveries." icon={ShieldAlert} tone="dark" />
         <StatCard label="Suspicious activity" value={suspiciousFlags.length} detail="Unresolved flags awaiting review." icon={ShieldAlert} tone="danger" />
         <StatCard label="Duplicate accounts" value={duplicateFlags.length} detail="Pending match review." icon={Copy} tone="info" />
+        <StatCard label="Recoveries" value={recoveryRecords.length} detail={`${openRecoveryCount} still open`} icon={KeyRound} tone="success" />
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4">
-        <p className="max-w-2xl text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">
-          Suspicious activity flags excessive failed logins, simultaneous sessions from different locations, and
-          sensitive account actions taken outside business hours. Duplicate accounts are matched by shared phone
-          number. Account recovery lists every support-completed recovery for audit.
-        </p>
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-sm">
+        <div className="flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[var(--color-bg-ink)] text-white">
+            <ShieldCheck className="h-4 w-4" />
+          </div>
+          <div>
+            <p className="text-[13px] font-extrabold text-[var(--color-text-primary)]">Case queue</p>
+            <p className="text-[12px] text-[var(--color-text-muted)]">Signals are scanned, selected, and resolved from one review surface.</p>
+          </div>
+        </div>
         <div className="flex shrink-0 flex-wrap gap-2">
           <ResourceActionDialog
             triggerLabel="Run suspicious activity scan"
@@ -538,6 +616,16 @@ async function ReviewsAndCasesTab({
         footerNote="Suspicious activity and duplicate accounts are detected by periodic scans; account recovery cases are logged the moment support completes a recovery."
         searchPlaceholder="Search a subject, type or assignee"
       />
+
+      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+        <p className="text-[14px] font-semibold text-[#0D2315]">Contact quality repair — not tracked</p>
+        <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
+          This system does not aggregate guardian notification-delivery failures into a per-school queue for
+          correction, because delivery itself isn&apos;t tracked at that level yet — the notification pipeline has no
+          real send/failure log to build one from. The cases below are the reviews this system can actually back
+          with real signals: suspicious activity, duplicate accounts, and account recovery.
+        </p>
+      </section>
     </div>
   );
 }
@@ -559,34 +647,34 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
 
   return (
     <div className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Cross-school view</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Individual teachers across the platform</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Every teacher-role account (Teacher, Subject Teacher, Class Teacher), independent of school — useful for
-          spotting the same person working across multiple tenants or for support that needs to reach a teacher
-          directly rather than through a school admin.
+      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+        <p className="text-[14px] font-semibold text-[#0D2315]">Individual, non-customer teachers — not representable</p>
+        <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
+          Every account in this system belongs to exactly one onboarded school — there is no concept of a teacher
+          using the platform independently of a paying customer, and so no cluster of unaffiliated teachers naming
+          the same non-customer school to route to Sales or a partner. What follows is simply every real teacher
+          account on the platform today, all of them already at a customer school.
         </p>
       </section>
 
-      <FilterToolbar
-        action="/super-admin/users?tab=teachers"
-        resultCount={envelope.pagination?.total}
-        controls={[
-          { name: "search", label: "Search", type: "search", placeholder: "Name or email", defaultValue: params.search },
-          { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions }
-        ]}
-      />
-
       <TableCard
         title="Teachers"
-        description={`${envelope.pagination?.total ?? teachers.length} teacher account(s) found.`}
         items={teachers}
+        filterBar={
+          <FilterToolbar
+            action="/super-admin/users?tab=teachers"
+            resultCount={envelope.pagination?.total}
+            controls={[
+              { name: "search", label: "Search", type: "search", placeholder: "Name or email", defaultValue: params.search },
+              { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions }
+            ]}
+          />
+        }
         columns={[
           { key: "name", header: "Name", render: (item) => item.name },
           { key: "email", header: "Email", render: (item) => item.email },
           { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
+          { key: "role", header: "Role", render: (item) => roleLabel(item.role) },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
           { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
           {
@@ -617,25 +705,85 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
   );
 }
 
+const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: string; fg: string; bd: string }> = {
+  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", bd: "#CFE4DB" },
+  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", bd: "#F2E4C6" },
+  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", bd: "#F3E0E0" },
+  ink: { bg: "#0D2315", fg: "#fff", bd: "#0D2315" },
+  plain: { bg: "#fff", fg: "var(--color-text-primary)", bd: "var(--color-border-default)" }
+};
+
+function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
+  return (
+    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+      <p className="text-[14px] font-semibold text-[#0D2315]">{title}</p>
+      <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
+      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
+        {steps.map((step, index) => {
+          const tone = flowToneStyle[step.tone ?? "plain"];
+          return (
+            <div key={step.label} className="flex items-center gap-2.5">
+              <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
+                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[10.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
+              </div>
+              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: string; state: "enforced" | "not-built" | "partial" }> }) {
+  const stateStyle = {
+    enforced: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" },
+    partial: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partially enforced" },
+    "not-built": { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }
+  } as const;
+
+  return (
+    <section className="surface-card overflow-hidden">
+      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
+        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Support access controls</p>
+        <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
+      </div>
+      <div className="grid gap-0 p-5">
+        {rows.map((row) => (
+          <div key={row.control} className="grid grid-cols-[1fr_2fr_auto] items-start gap-4 border-b border-[var(--color-border-muted)] py-3 last:border-b-0">
+            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{row.control}</p>
+            <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">{row.spec}</p>
+            <span className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: stateStyle[row.state].bg, color: stateStyle[row.state].fg }}>
+              {stateStyle[row.state].label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 async function SupportAccessTab() {
   const envelope = await apiGetEnvelope<SuperAdminImpersonationLogRow[]>("/api/super-admin/users/impersonation-log");
   const events = envelope.data ?? [];
 
   return (
     <div className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Accountability</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Support access log</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Every time a Super Admin accesses the platform as a user (via &quot;Impersonate&quot; from that user&apos;s
-          profile) to provide support, it is recorded here immutably — who accessed which account, why, and for how
-          long the session token was valid.
-        </p>
-      </section>
+      <ControlSpecTable
+        rows={[
+          { control: "Default mode", spec: "The mockup's design intent is read-only, no action on the user's behalf. This system issues a full session token as that user's real role — nothing currently blocks a write during an impersonated session.", state: "not-built" },
+          { control: "Elevation to act", spec: "A separate escalation step, with a school administrator's recorded confirmation before anything beyond read-only. No such escalation flow exists.", state: "not-built" },
+          { control: "Maximum duration", spec: "30 minutes, expiring automatically regardless of activity.", state: "enforced" },
+          { control: "Reason", spec: "Recorded before the session starts — a session cannot begin without one.", state: "enforced" },
+          { control: "Session logging", spec: "Written to this platform's own audit log. There is no separate, mirrored entry in a school's own audit surface — one log, not two.", state: "partial" },
+          { control: "Blocked contexts", spec: "No access into a school with an unresolved dispute, and none into a guardian account under a safeguarding restriction. Neither concept is tracked, so neither gate exists.", state: "not-built" }
+        ]}
+      />
 
       <TableCard
-        title="Support access sessions"
-        description="Most recent first."
+        title="Support access log"
+        description="Every impersonation session recorded on this platform's audit log."
         items={events}
         emptyState="No support access sessions recorded yet."
         columns={[
@@ -653,6 +801,18 @@ async function SupportAccessTab() {
           { key: "started", header: "Started", render: (item) => formatDate(item.startedAt) }
         ]}
       />
+
+      <FlowSteps
+        title="Support access session — how one starts and ends"
+        sub="Time-boxed and reason-gated by design; the read-only and dual-logging guarantees below are the mockup's intent, not yet this system's behavior."
+        steps={[
+          { label: "Reason logged", note: "Required before the session can start", tone: "good" },
+          { label: "Session starts", note: "Full role access — not currently read-only", tone: "warn" },
+          { label: "Auto-expires", note: "At 30 minutes regardless of activity", tone: "good" },
+          { label: "Logged to the audit trail", note: "Pages viewed and actions taken are not itemized — only that a session ran", tone: "ink" }
+        ]}
+      />
     </div>
   );
 }
+

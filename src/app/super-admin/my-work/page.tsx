@@ -31,6 +31,26 @@ const toneToBadge: Record<MyWorkTone, string> = {
   brand: "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
 };
 
+const toneToCardBorder: Record<MyWorkTone, string> = {
+  neutral: "border-[var(--color-border-default)]",
+  accent: "border-[var(--color-border-default)]",
+  success: "border-[var(--color-border-default)]",
+  warning: "border-[#F2E4C6]",
+  danger: "border-[#F0D9D9]",
+  info: "border-[var(--color-border-default)]",
+  brand: "border-[var(--color-border-default)]"
+};
+
+const toneToValueColor: Record<MyWorkTone, string> = {
+  neutral: "text-[var(--color-text-primary)]",
+  accent: "text-[var(--color-text-accent)]",
+  success: "text-[var(--color-text-primary)]",
+  warning: "text-[var(--color-warning)]",
+  danger: "text-[var(--color-danger)]",
+  info: "text-[var(--color-info)]",
+  brand: "text-[var(--color-text-accent)]"
+};
+
 const toneToText: Record<MyWorkTone, string> = {
   neutral: "text-[var(--color-text-muted)]",
   accent: "text-[var(--color-text-accent)]",
@@ -55,22 +75,22 @@ function NowCard({ card }: { card: MyWorkNowCard }) {
   const Icon = nowIcons[card.icon];
 
   return (
-    <div className="surface-card flex flex-col p-4">
-      <div className="flex items-center justify-between gap-2">
-        <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-[10px] ${toneToBadge[card.tone]}`}>
-          <Icon className="h-4 w-4" />
+    <div className={`flex flex-col rounded-[14px] border bg-[var(--color-bg-surface)] px-[17px] pb-[17px] pt-4 ${toneToCardBorder[card.tone]}`}>
+      <div className="flex items-center justify-between gap-2.5">
+        <div className={`flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[9px] ${toneToBadge[card.tone]}`}>
+          <Icon className="h-[15px] w-[15px]" />
         </div>
-        <span className={`rounded-full px-2 py-0.5 text-[10.5px] font-bold ${toneToBadge[card.tone]}`}>{card.pill}</span>
+        <span className={`whitespace-nowrap rounded-full px-[9px] py-[3px] text-[11px] font-bold ${toneToBadge[card.tone]}`}>{card.pill}</span>
       </div>
-      <div className="mt-3.5 flex items-baseline gap-1.5">
-        <span className="font-[var(--font-mono)] text-[23px] font-black leading-none text-[var(--color-text-primary)]">{card.value}</span>
-        <span className="text-[11.5px] text-[var(--color-text-muted)]">{card.unit}</span>
+      <div className="mt-[13px] flex items-baseline gap-[7px]">
+        <span className={`font-[var(--font-body)] text-[27px] font-extrabold leading-none tracking-[-0.03em] [font-variant-numeric:tabular-nums] ${toneToValueColor[card.tone]}`}>{card.value}</span>
+        <span className="whitespace-nowrap text-[11.5px] text-[#8c9a92]">{card.unit}</span>
       </div>
-      <p className="mt-1.5 text-[12.5px] font-semibold text-[var(--color-text-primary)]">{card.label}</p>
-      <p className="mt-1.5 text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{card.note}</p>
+      <p className="mt-[5px] text-[12.5px] font-semibold text-[var(--color-text-primary)]">{card.label}</p>
+      <p className="mt-1.5 text-[11.5px] leading-[1.5] text-[#77857c]">{card.note}</p>
       <Link
         href={card.link as Route}
-        className="mt-3.5 rounded-[8px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] py-2 text-center text-[11.5px] font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
+        className="mt-[13px] rounded-[8px] border border-[#e1ebe5] bg-[#f2f7f4] py-2 text-center text-[11.5px] font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
       >
         {card.action}
       </Link>
@@ -89,13 +109,13 @@ export default async function MyWorkPage() {
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Personal worklist"
+        eyebrow="Overview"
         title="My Work"
-        description="Everything assigned to you or awaiting your decision across the platform — tickets, school signals, cases, and approvals your role can act on."
+        description="What is mine today — assembled for you, not by you."
       />
 
       <div>
-        <div className="mb-3 flex items-center gap-2.5">
+        <div className="mb-[11px] flex items-center gap-[11px]">
           <h2 className="whitespace-nowrap font-[var(--font-heading)] text-[14.5px] font-extrabold tracking-[-0.01em] text-[var(--color-text-primary)]">
             Needs me now
           </h2>
@@ -114,7 +134,7 @@ export default async function MyWorkPage() {
         <div className="grid gap-3.5">
           {/* My schools */}
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] py-[13px]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
               <div className="min-w-0">
                 <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">My schools</p>
                 <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
@@ -134,7 +154,7 @@ export default async function MyWorkPage() {
               </div>
             ) : (
               <div>
-                <div className="grid grid-cols-[2fr_1fr_1.5fr_0.8fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-2 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                <div className="grid grid-cols-[2fr_1fr_1.5fr_0.8fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[9px] text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
                   <div>School</div>
                   <div>State</div>
                   <div>Signal</div>
@@ -163,7 +183,7 @@ export default async function MyWorkPage() {
 
           {/* My cases */}
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] py-[13px]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
               <div className="min-w-0">
                 <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">My cases</p>
                 <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
@@ -179,7 +199,7 @@ export default async function MyWorkPage() {
               <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-text-muted)]">Nothing assigned to you across case-bearing modules right now.</div>
             ) : (
               <>
-                <div className="grid grid-cols-[1.9fr_1.25fr_1fr_0.85fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-2 text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                <div className="grid grid-cols-[1.9fr_1.25fr_1fr_0.85fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[9px] text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
                   <div>Subject</div>
                   <div>Type</div>
                   <div>Time left</div>
@@ -213,7 +233,7 @@ export default async function MyWorkPage() {
         <div className="grid gap-3.5">
           {/* Awaiting my approval */}
           <div id="approvals" className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] scroll-mt-6">
-            <div className="border-b border-[var(--color-border-muted)] px-[18px] py-[13px]">
+            <div className="border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
               <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">Awaiting my approval</p>
               <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">Only what your role can approve</p>
             </div>
@@ -245,7 +265,7 @@ export default async function MyWorkPage() {
 
           {/* My tickets */}
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] py-[13px]">
+            <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
               <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">My tickets</p>
               <Link href={"/super-admin/support" as Route} className="text-[11.5px] font-semibold text-[var(--color-text-accent)]">
                 Open board
@@ -264,7 +284,16 @@ export default async function MyWorkPage() {
             </div>
           </div>
 
-          {/* Recently viewed intentionally omitted — no real view-history tracking exists in this app. */}
+          {/* Recently viewed */}
+          <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+            <div className="border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
+              <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">Recently viewed</p>
+              <p className="mt-0.5 text-[11.5px] text-[#8c9a92]">For resuming interrupted work</p>
+            </div>
+            <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-text-muted)]">
+              Not tracked yet — this platform doesn&rsquo;t record a per-admin view history.
+            </div>
+          </div>
         </div>
       </div>
     </div>

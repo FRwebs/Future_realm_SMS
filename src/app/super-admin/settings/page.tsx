@@ -64,7 +64,7 @@ export default async function SuperAdminSettingsPage({ searchParams }: { searchP
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="Global configuration"
+        eyebrow="Overview"
         title="Settings"
         description="Platform-wide defaults, what a new school starts with, and the reference facts for how notifications, security, and outside integrations actually behave on this platform."
       />
@@ -132,20 +132,25 @@ async function PlatformTab() {
 
       <TableCard
         title="Platform identity"
-        description="The things that appear in front of a school or a parent."
+        description="The things that appear in front of a school or a parent and should almost never change."
         items={[
           { setting: "Platform name", value: "FutureRealm SMS" },
           { setting: "School web address", value: "A custom slug chosen at signup, or a slugified school name with a generated suffix if none is chosen" },
+          { setting: "Back-office address", value: "Wherever this console is deployed — not a separate configurable domain" },
           { setting: "Support contact", value: "Handled by the assigned account manager per school, not a single fixed address or number" },
           { setting: "Platform default time zone", value: "Africa/Lagos — the default every new school starts on and can change" },
-          { setting: "Currency", value: "Naira (NGN) — every plan is priced and billed in Naira, not converted from another currency" },
           { setting: "Countries open for signup", value: "Nigeria only — onboarding hard-codes the country at signup" }
         ]}
         pageSize={false}
         getRowKey={(item) => item.setting}
         columns={[
           { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-          { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> }
+          { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
+          {
+            key: "changeableBy",
+            header: "Changeable by",
+            render: () => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>Nobody — hardcoded</span>
+          }
         ]}
       />
 
@@ -172,17 +177,19 @@ async function PlatformTab() {
         <TableCard
           title="Trial and grace defaults"
           items={[
-            { setting: "Trial length", value: "30 calendar days", state: "Enforced automatically at signup" },
-            { setting: "Grace period after a lapsed subscription", value: "Set manually by a Super Admin per school", state: "Not on an automatic day count yet" },
-            { setting: "Dormancy notice", value: "21 days with no login during trial, 7 days' notice before the web address is released", state: "Enforced" },
-            { setting: "Risk review SLA", value: "Cleared before trial end, escalated at 3 days remaining", state: "Enforced" }
+            { setting: "Trial length", value: "30 calendar days — enforced automatically at signup" },
+            { setting: "Read-only window after a trial", value: "Not built — no read-only period exists between trial end and further action; access follows the school's status directly" },
+            { setting: "Trial lock", value: "Not built — no fixed lock day exists; access changes are driven by school status, not a day count" },
+            { setting: "Invoice payment terms", value: "Not built — no platform-wide Net-X default; each school's own fee structure sets its own due date" },
+            { setting: "Grace period after due", value: "Set manually by a Super Admin per school — not on an automatic day count" },
+            { setting: "Dormancy stage 1", value: "Not built — no day-count threshold exists for inactivity" },
+            { setting: "Web address reservation after dormancy", value: "Not built — a school's web address is never automatically released" }
           ]}
           pageSize={false}
           getRowKey={(item) => item.setting}
           columns={[
             { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-            { key: "value", header: "Value", render: (item) => item.value },
-            { key: "state", header: "State", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.state}</span> }
+            { key: "value", header: "Default", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> }
           ]}
         />
       </section>
@@ -218,7 +225,18 @@ async function DefaultsTab() {
         columns={[
           { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
           { key: "value", header: "Default for a new school", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
-          { key: "canChange", header: "School can change", render: (item) => item.canChange },
+          {
+            key: "canChange",
+            header: "School can change",
+            render: (item) => {
+              const tone = item.canChange === "Yes"
+                ? { bg: "var(--color-success-dim)", fg: "var(--color-success)" }
+                : item.canChange === "N/A"
+                  ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
+                  : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.canChange}</span>;
+            }
+          },
           { key: "where", header: "Where it lives", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.where}</span> }
         ]}
       />
@@ -297,7 +315,7 @@ async function NotificationsTab() {
           { rule: "Daily cap per recipient", value: "Not enforced", state: "mute" },
           { rule: "Marketing consent", value: "Checked per recipient at send time, for promotional campaigns only — operational messages bypass it", state: "good" },
           { rule: "Administrative messages", value: "Sent regardless of marketing consent — maintenance, billing, and security notices concern the service a school is paying for", state: "good" },
-          { rule: "Email", value: "Real SMTP send when configured; otherwise logged to the server console, not delivered", state: "warn" },
+          { rule: "Email", value: "Two different code paths: signup verification mail is real over SMTP when configured, else logged to the console. Every other email — invoices, announcements, admissions, campaigns — goes through a separate, fully mocked sender that always reports delivered, regardless of SMTP configuration.", state: "warn" },
           { rule: "Third-party commercial messages to parents", value: "Not built — no code path composes or sends one", state: "bad" }
         ]}
         pageSize={false}
@@ -317,13 +335,13 @@ async function NotificationsTab() {
         emptyState="No rules recorded."
       />
       <ReferenceList
-        title="Channels in use"
+        title="Providers in use"
         sub="What actually sends a message today, stated plainly rather than as an aspiration."
         items={[
-          { label: "Email", detail: "Real, over SMTP, when SMTP credentials are configured — otherwise the message is logged, not delivered.", tone: "good" },
+          { label: "Email", detail: "Real over SMTP, but only for signup verification mail (logged to console if SMTP isn't configured). Invoices, announcements, admissions, and campaign mail all go through a separate mocked sender that always reports delivered, SMTP or not.", tone: "warn" },
           { label: "SMS", detail: "No real provider is wired in — every SMS send today is simulated.", tone: "bad" },
           { label: "WhatsApp Business", detail: "Credit wallets exist and are topped up manually, but no real WhatsApp API call happens on send yet.", tone: "bad" },
-          { label: "In-app", detail: "Not modeled as a separate delivery channel in this system today.", tone: "mute" }
+          { label: "In-app", detail: "Real — its own delivery channel, written to the notification log and read back in the parent, teacher, and student portals' own notification inboxes.", tone: "good" }
         ]}
       />
     </section>
@@ -334,13 +352,13 @@ async function SecurityTab() {
   return (
     <TableCard
       title="Internal security"
-      description="Applied to Nooria team accounts. What's actually true of this system today, not what's planned."
+      description="Applied to FutureRealm team accounts. What's actually true of this system today, not what's planned."
       items={[
         { requirement: "Two-factor authentication", spec: "Not implemented — sign-in is email and password only. A 6-digit email code exists for onboarding verification, not for login.", state: "bad" },
         { requirement: "Password minimum", spec: "8 characters, no breach-list check", state: "warn" },
         { requirement: "Password rotation", spec: "None enforced", state: "mute" },
         { requirement: "Session lifetime", spec: "8 hours by default, 30 days if “Trust this device” is checked at login — no idle timeout", state: "warn" },
-        { requirement: "Privilege change effect", spec: "Immediate for fine-grained permission checks; role-level checks apply on the next token refresh or re-login", state: "warn" },
+        { requirement: "Privilege change effect", spec: "Neither takes effect until the next login — the session token is trusted as issued, and no request re-checks the database for a role change, an offboard, or a fine-grained permission-grid edit.", state: "bad" },
         { requirement: "Support access to a school", spec: "A 30-minute logged impersonation with a required reason — not read-only, the acting admin can take any action the account holder could", state: "warn" },
         { requirement: "Acting on a school's behalf beyond support access", spec: "Not built — there's no separate escalation tier that additionally requires the school's own recorded confirmation before proceeding", state: "bad" },
         { requirement: "Reading a student's academic record directly", spec: "Not possible outside the logged impersonation flow above — no platform-level endpoint exposes it", state: "good" },
@@ -366,20 +384,30 @@ async function SecurityTab() {
   );
 }
 
+const integrationPurpose: Record<string, string> = {
+  "Transactional email (SMTP)": "All email sent by the platform",
+  "SMS": "SMS delivery",
+  "WhatsApp Business API": "WhatsApp template messages",
+  "Paystack": "Card payments",
+  "Flutterwave": "Card payments · secondary",
+  "Object storage (S3-compatible)": "Files and source exports"
+};
+
 async function IntegrationsTab() {
   const monitoring = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
 
   return (
     <TableCard
       title="Connected services"
-      description="What the platform actually depends on outside itself right now, read live from the same health check Infrastructure uses."
+      description="What the platform actually depends on outside itself right now, read live from the same health check Infrastructure uses. Owner is not tracked — no owning team is recorded against any integration in this codebase."
       items={monitoring.integrations}
       pageSize={false}
       getRowKey={(item) => item.name}
       columns={[
-        { key: "name", header: "Service", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.name}</span> },
-        { key: "frequency", header: "Checked", render: (item) => item.checkFrequency },
+        { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11px] text-[var(--color-text-muted)]">Checked {item.checkFrequency.toLowerCase()}</p></div> },
+        { key: "purpose", header: "Purpose", render: (item) => integrationPurpose[item.name] ?? "—" },
         { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
+        { key: "owner", header: "Owner", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
         { key: "status", header: "State", render: (item) => <StatusBadge status={item.status} tone={integrationStatusTone(item.status)} /> }
       ]}
       emptyState="No integrations recorded."
