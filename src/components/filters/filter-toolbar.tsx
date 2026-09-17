@@ -2,10 +2,8 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useRef } from "react";
-import { ChevronDown, Columns3, Filter, Search, X } from "lucide-react";
-
-import { useToast } from "@/components/ui/toast-provider";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, Filter, Search, Trash2, X } from "lucide-react";
 
 export type FilterOption = {
   label: string;
@@ -52,7 +50,6 @@ export function FilterToolbar({
 }: FilterToolbarProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const { showToast } = useToast();
 
   function submitNow() {
     formRef.current?.requestSubmit();
@@ -132,22 +129,7 @@ export function FilterToolbar({
       })}
 
       <div className="ml-auto flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          onClick={() => showToast({ variant: "info", title: "Not built", description: "There is no column-visibility control in this codebase — every table shows a fixed set of columns." })}
-          className="inline-flex items-center gap-[7px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] text-[12.5px] font-semibold text-[#435048]"
-        >
-          <Columns3 className="h-3.5 w-3.5" />
-          Columns
-        </button>
-        <button
-          type="button"
-          onClick={() => showToast({ variant: "info", title: "Not built", description: "There is no saved-view feature in this codebase — a filter combination can't be named and revisited later." })}
-          className="inline-flex items-center gap-[7px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] text-[12.5px] font-semibold text-[#435048]"
-        >
-          <Filter className="h-3.5 w-3.5" />
-          Saved views
-        </button>
+        <SavedViews action={action} />
         {typeof resultCount === "number" ? (
           <span className="text-[11.5px] text-[#8C9A92]">
             {resultCount.toLocaleString()} shown
@@ -162,5 +144,137 @@ export function FilterToolbar({
         </Link>
       </div>
     </form>
+  );
+}
+
+type SavedView = { id: string; name: string; query: string };
+
+function savedViewsKey(action: Route | string) {
+  return `sms:saved-views:${action}`;
+}
+
+/**
+ * A "saved view" is just a named URL: FilterToolbar's entire state already lives
+ * in the query string, so saving one is storing {name, query} and saving-and-
+ * revisiting is a Link back to `${action}?${query}`. Persisted in localStorage,
+ * scoped per page (action) — there's no backend model for this, and none is
+ * needed since it's purely a per-browser shortcut.
+ */
+function SavedViews({ action }: { action: Route | string }) {
+  const [open, setOpen] = useState(false);
+  const [views, setViews] = useState<SavedView[]>([]);
+  const [draftName, setDraftName] = useState("");
+  const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(savedViewsKey(action));
+      if (stored) setViews(JSON.parse(stored));
+    } catch {
+      // Ignore malformed/blocked storage — falls back to no saved views.
+    }
+  }, [action]);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [open]);
+
+  function persist(next: SavedView[]) {
+    setViews(next);
+    try {
+      window.localStorage.setItem(savedViewsKey(action), JSON.stringify(next));
+    } catch {
+      // Best-effort persistence only.
+    }
+  }
+
+  function saveCurrentView() {
+    const name = draftName.trim();
+    if (!name) return;
+    const query = window.location.search.replace(/^\?/, "");
+    persist([...views, { id: `${Date.now()}`, name, query }]);
+    setDraftName("");
+  }
+
+  function removeView(id: string) {
+    persist(views.filter((view) => view.id !== id));
+  }
+
+  return (
+    <div ref={menuRef} className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex items-center gap-[7px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] text-[12.5px] font-semibold text-[#435048]"
+        aria-haspopup="true"
+        aria-expanded={open}
+      >
+        <Filter className="h-3.5 w-3.5" />
+        Saved views
+        {views.length ? (
+          <span className="ml-0.5 rounded-full bg-[var(--color-bg-subtle)] px-[6px] text-[10.5px] font-bold text-[#435048]">{views.length}</span>
+        ) : null}
+      </button>
+      {open ? (
+        <div className="popover-enter absolute right-0 top-[calc(100%+6px)] z-20 w-64 rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2.5 shadow-[var(--shadow-md)]">
+          <p className="px-1.5 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">Saved views</p>
+          {views.length ? (
+            <div className="mb-2 grid gap-0.5">
+              {views.map((view) => (
+                <div key={view.id} className="flex items-center gap-1.5 rounded-[8px] px-1.5 py-1 hover:bg-[var(--color-bg-subtle)]">
+                  <Link
+                    href={(view.query ? `${action}?${view.query}` : `${action}`) as Route}
+                    className="min-w-0 flex-1 truncate text-[12.5px] font-semibold text-[var(--color-text-primary)]"
+                    onClick={() => setOpen(false)}
+                  >
+                    {view.name}
+                  </Link>
+                  <button
+                    type="button"
+                    onClick={() => removeView(view.id)}
+                    aria-label={`Delete saved view ${view.name}`}
+                    className="shrink-0 text-[var(--color-text-muted)] transition hover:text-[var(--color-danger)]"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="px-1.5 py-2 text-[11.5px] text-[var(--color-text-muted)]">No saved views yet.</p>
+          )}
+          <div className="flex items-center gap-1.5 border-t border-[#EDF3EF] pt-2">
+            <input
+              type="text"
+              value={draftName}
+              onChange={(event) => setDraftName(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.preventDefault();
+                  saveCurrentView();
+                }
+              }}
+              placeholder="Name this filter combination"
+              className="min-w-0 flex-1 rounded-[8px] border border-[#DEE8E2] px-2 py-1.5 text-[12px] text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
+            />
+            <button
+              type="button"
+              onClick={saveCurrentView}
+              disabled={!draftName.trim()}
+              className="shrink-0 rounded-[8px] bg-[var(--color-accent-primary)] px-2.5 py-1.5 text-[11.5px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              Save
+            </button>
+          </div>
+        </div>
+      ) : null}
+    </div>
   );
 }

@@ -8,7 +8,6 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { StructurePreviewDialog } from "@/components/forms/structure-preview-dialog";
 import { PlanEditDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
@@ -228,21 +227,64 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
         title="Subscriptions & Billing"
         description="Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns."
         action={
-          <StructurePreviewDialog
+          <ResourceActionDialog
             triggerLabel="Create invoice run"
             title="Create invoice run"
-            description="Raises drafts for a term, across every active school at once — checked against what this system can actually do today."
+            description="Drafts a PlatformInvoice for every targeted school at once, priced from each school's own current plan. Nothing is sent until reviewed and sent individually from the Invoices tab."
+            endpoint="/api/super-admin/billing/invoices/run"
+            method="POST"
+            variant="heroWhite"
+            submitLabel="Create invoice run"
+            confirmLabel="Confirm"
+            confirmMessage="This drafts a real invoice for every matching school. Nothing is sent to a school yet — drafts still need to be reviewed and sent individually."
             fields={[
-              { label: "Term", value: "Not tracked", note: "No academic-term field exists on an invoice — a due date is set individually, per invoice.", section: "Period and scope" },
-              { label: "Scope", value: "Not built — no cross-school selector exists", section: "Period and scope" },
-              { label: "Issue date", value: "Not built", section: "Period and scope" },
-              { label: "Payment terms", value: "Not tracked — no default payment-terms setting exists", section: "Period and scope" },
-              { label: "Schools in a trial", value: "Not built", note: "There's no batch process to exclude or include any group of schools — invoices are drafted one at a time.", section: "Exclusions" },
-              { label: "NGO awaiting verification", value: "Not built", section: "Exclusions" },
-              { label: "Schools in grace period", value: "Not built", section: "Exclusions" },
-              { label: "Accounts closed this term", value: "Not built", section: "Exclusions" }
+              {
+                name: "schoolIds",
+                label: "Scope",
+                type: "multiselect",
+                section: "Period and scope",
+                note: "Leave nothing selected to target every eligible active school.",
+                options: schoolsForRecommendations
+                  .filter((school) => school.status === "ACTIVE" || school.status === "GRACE_PERIOD" || school.status === "TRIAL")
+                  .map((school) => ({ label: school.name, value: school.id }))
+              },
+              { name: "dueAt", label: "Due date", type: "date", required: true, section: "Period and scope" },
+              { name: "note", label: "Note (shown only on the invoice record)", type: "text", section: "Period and scope" },
+              {
+                name: "excludeTrial",
+                label: "Schools in a trial",
+                type: "select",
+                section: "Exclusions",
+                defaultValue: "false",
+                options: [
+                  { label: "Include", value: "false" },
+                  { label: "Exclude", value: "true" }
+                ]
+              },
+              {
+                name: "excludeGracePeriod",
+                label: "Schools in grace period",
+                type: "select",
+                section: "Exclusions",
+                defaultValue: "false",
+                options: [
+                  { label: "Include", value: "false" },
+                  { label: "Exclude", value: "true" }
+                ]
+              },
+              {
+                name: "excludeUnverified",
+                label: "Unverified schools",
+                type: "select",
+                section: "Exclusions",
+                defaultValue: "false",
+                note: "The mockup's \"NGO awaiting verification\" exclusion has no equivalent in this schema — there's no NGO/organization-type field, only a general verification status. This excludes any school whose registration hasn't been verified yet.",
+                options: [
+                  { label: "Include", value: "false" },
+                  { label: "Exclude", value: "true" }
+                ]
+              }
             ]}
-            cta={{ label: "Draft a real invoice", href: "/super-admin/billing?tab=invoices" }}
           />
         }
       />
