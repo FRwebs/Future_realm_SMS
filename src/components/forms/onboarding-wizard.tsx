@@ -13,8 +13,10 @@ import {
   School as SchoolIcon
 } from "lucide-react";
 
+import { SearchCombo } from "@/components/forms/search-combo";
 import { useToast } from "@/components/ui/toast-provider";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
+import { COUNTRY_NAMES, PHONE_PLACEHOLDER, geoFor } from "@/lib/onboarding/geo";
 
 type SignupRole = "admin" | "teacher";
 type View = "fork" | "wiz" | "done" | "verify";
@@ -39,24 +41,98 @@ const TEACHER_STEPS = [
   { label: "Create password", sub: "Minimum 8 characters" }
 ];
 
-const LEVEL_OPTIONS = ["Nursery", "Primary", "JSS", "SSS"] as const;
+// Every level name a school anywhere might use. The free-text field beside the chips
+// takes whatever this list misses — we never make a school pretend to be Nigerian.
+const LEVEL_OPTIONS = [
+  "Crèche / Daycare",
+  "Nursery / Pre-school",
+  "Kindergarten",
+  "Primary / Elementary",
+  "Middle School",
+  "Junior Secondary",
+  "Senior Secondary",
+  "High School",
+  "Sixth Form / A-Level",
+  "Vocational / Technical",
+  "Special Needs Unit"
+] as const;
+
+// Maps the rich level list down to this system's real `SchoolCategory` enum (NURSERY,
+// PRIMARY, SECONDARY, COLLEGE, MIXED) — the only categories that actually exist server-side.
+const LEVEL_TO_CATEGORY: Record<string, "NURSERY" | "PRIMARY" | "SECONDARY" | "COLLEGE"> = {
+  "Crèche / Daycare": "NURSERY",
+  "Nursery / Pre-school": "NURSERY",
+  Kindergarten: "NURSERY",
+  "Primary / Elementary": "PRIMARY",
+  "Middle School": "SECONDARY",
+  "Junior Secondary": "SECONDARY",
+  "Senior Secondary": "SECONDARY",
+  "High School": "SECONDARY",
+  "Sixth Form / A-Level": "COLLEGE",
+  "Vocational / Technical": "COLLEGE",
+  "Special Needs Unit": "SECONDARY"
+};
+
 const SUBJECT_OPTIONS = [
   "Mathematics",
-  "Further Maths",
+  "Further Mathematics",
   "Physics",
   "Chemistry",
   "Biology",
-  "English",
+  "English Language",
   "Basic Science",
   "Economics",
-  "Civic Education"
+  "Civic Education",
+  "History",
+  "Geography",
+  "Computer Science",
+  "French",
+  "Arabic",
+  "Visual Arts",
+  "Physical Education"
 ];
+
+// The admin account is always created with role SCHOOL_OWNER regardless of which of these
+// is picked (see registerSchoolSchema.position in the backend) — whoever stands up the
+// school keeps full control no matter their formal title. The label is only recorded as
+// their profile's job title, so there's no role mapping to keep in sync here.
+const ADMIN_POSITIONS = ["Proprietor / School Owner", "Director", "Principal", "Head of School", "Administrator", "Bursar", "Registrar"];
+
+const TEACHER_POSITIONS = ["Subject Teacher", "Form Teacher / Class Teacher", "Head of Department", "Year Head", "Teaching Assistant", "Private Tutor"];
+
+// Mirrors TEACHER_POSITION_TO_ROLE in backend/src/modules/onboarding/onboarding.service.ts —
+// used only to land the person on the right dashboard immediately after verifying; the
+// backend does the authoritative mapping when the account is actually created.
+const TEACHER_POSITION_TO_ROLE: Record<string, string> = {
+  "Subject Teacher": "SUBJECT_TEACHER",
+  "Form Teacher / Class Teacher": "CLASS_TEACHER",
+  "Head of Department": "HEAD_OF_DEPARTMENT",
+  "Year Head": "HEAD_OF_DEPARTMENT",
+  "Teaching Assistant": "SUBJECT_TEACHER",
+  "Private Tutor": "SUBJECT_TEACHER"
+};
+
+const SCHOOL_TYPE_OPTIONS = ["Private", "Mission / Faith-based", "NGO", "Public / Government", "International", "Charter / Academy", "Community"];
+
+const CURRICULUM_OPTIONS = [
+  "National curriculum",
+  "British / IGCSE",
+  "Cambridge",
+  "American / AP",
+  "IB",
+  "CBSE",
+  "Montessori",
+  "Islamic / Madrasa",
+  "Bilingual — two curricula",
+  "Own framework"
+];
+
 const AUTO_SETUP_ADMIN = [
   "School record created and your web address goes live",
-  "Curriculum and grading templates loaded for your country",
-  "Default staff role templates installed",
+  "12 default staff role templates installed",
   "Admin account created — permanent login issued",
-  "Trial record created, every feature unlocked for 30 days"
+  "Trial record created, every feature unlocked for 30 days",
+  "Audit logging switched on and a background risk check run"
 ];
 
 function resolveLandingPath(role: string) {
@@ -85,6 +161,18 @@ function fieldLabel(text: string, optional?: boolean) {
   );
 }
 
+function deriveCategory(levels: Record<string, boolean>): "NURSERY" | "PRIMARY" | "SECONDARY" | "COLLEGE" | "MIXED" {
+  const buckets = new Set(
+    Object.entries(levels)
+      .filter(([, on]) => on)
+      .map(([name]) => LEVEL_TO_CATEGORY[name])
+      .filter(Boolean)
+  );
+  if (buckets.size === 0) return "MIXED";
+  if (buckets.size === 1) return [...buckets][0]!;
+  return "MIXED";
+}
+
 export function OnboardingWizard() {
   const router = useRouter();
   const { showToast } = useToast();
@@ -94,6 +182,7 @@ export function OnboardingWizard() {
   const [step, setStep] = useState(1);
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -110,23 +199,24 @@ export function OnboardingWizard() {
     badge: "Type to check",
     note: "Lowercase letters and numbers only, 3–30 characters."
   });
-  const [state, setState] = useState("Lagos");
+  const [state, setState] = useState("");
+  const [lga, setLga] = useState("");
   const [city, setCity] = useState("");
   const [address, setAddress] = useState("");
-  const [schoolType, setSchoolType] = useState("Private");
-  const [curriculum, setCurriculum] = useState("Nigerian NERDC");
-  const [cacNumber, setCacNumber] = useState("");
-  const [ministryApprovalNumber, setMinistryApprovalNumber] = useState("");
-  const [levels, setLevels] = useState<Record<string, boolean>>({
-    Nursery: true,
-    Primary: true,
-    JSS: true,
-    SSS: false
-  });
+  const [website, setWebsite] = useState("");
+  const [schoolType, setSchoolType] = useState("");
+  const [curriculum, setCurriculum] = useState("");
+  const [studentCount, setStudentCount] = useState("");
+  const [regNumber1, setRegNumber1] = useState("");
+  const [regNumber2, setRegNumber2] = useState("");
+  const [levels, setLevels] = useState<Record<string, boolean>>({});
+  const [levelsOther, setLevelsOther] = useState("");
 
   const [teacherSchoolName, setTeacherSchoolName] = useState("");
-  const [subjects, setSubjects] = useState<Record<string, boolean>>({ Mathematics: true });
-  const [level, setLevel] = useState("Primary");
+  const [teacherSchoolMatches, setTeacherSchoolMatches] = useState<Array<{ id: string; name: string; location: string | null }>>([]);
+  const [joinRequestChoice, setJoinRequestChoice] = useState<"none" | "sent" | "declined">("none");
+  const [subjects, setSubjects] = useState<Record<string, boolean>>({});
+  const [subjectsOther, setSubjectsOther] = useState("");
 
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -141,6 +231,7 @@ export function OnboardingWizard() {
   const admin = role === "admin";
   const lastStep = admin ? 4 : 3;
   const steps = admin ? ADMIN_STEPS : TEACHER_STEPS;
+  const geo = geoFor(country);
 
   useEffect(() => {
     if (!admin || step !== 2) return;
@@ -160,6 +251,28 @@ export function OnboardingWizard() {
     }, 350);
     return () => window.clearTimeout(handle);
   }, [slug, step, admin]);
+
+  // Real fuzzy match against schools already on the platform — debounced, and only once
+  // there's enough to search on. Matches are shown as-is; nothing is shared with the
+  // matched school unless the teacher explicitly sends a join request.
+  useEffect(() => {
+    if (admin || step !== 2) return;
+    const value = teacherSchoolName.trim();
+    if (value.length < 2) {
+      setTeacherSchoolMatches([]);
+      return;
+    }
+    const handle = window.setTimeout(async () => {
+      try {
+        const response = await fetch(`/api/v1/onboarding/school-search?q=${encodeURIComponent(value)}`);
+        const body = (await response.json()) as { data?: Array<{ id: string; name: string; location: string | null }> };
+        setTeacherSchoolMatches(body.data ?? []);
+      } catch {
+        setTeacherSchoolMatches([]);
+      }
+    }, 350);
+    return () => window.clearTimeout(handle);
+  }, [teacherSchoolName, step, admin]);
 
   useEffect(() => {
     if (view !== "verify") return;
@@ -204,18 +317,39 @@ export function OnboardingWizard() {
     setSubjects((current) => ({ ...current, [name]: !current[name] }));
   }
 
+  function onCountryChange(next: string) {
+    setCountry(next);
+    setState("");
+    setLga("");
+  }
+
   function validateStep(): string | null {
     if (step === 1) {
       if (!firstName.trim() || !lastName.trim()) return "Enter your first and last name.";
+      if (!gender) return "Select a gender.";
+      if (!phone.trim()) return "Enter a phone number.";
       if (!email.trim()) return "Enter your email address.";
-      if (admin && !position) return "Select your position.";
-      if (!admin && !position) return "Select what you teach as.";
+      if (!position) return admin ? "Select your position." : "Select what you teach as.";
+      if (!admin && !country) return "Select a country.";
     }
     if (step === 2 && admin) {
       if (!schoolName.trim()) return "Enter your school's name.";
       if (!slug.trim() || slugState.tone === "bad" || slugState.tone === "warn") {
         return "Choose an available web address for your school.";
       }
+      if (!country) return "Select a country.";
+      if (!state.trim()) return `Enter a ${geo.level1Label.toLowerCase()}.`;
+      if (!city.trim()) return "Enter a city or town.";
+      if (!lga.trim()) return `Enter a ${geo.level2Label.toLowerCase()}.`;
+      if (!address.trim()) return "Enter the full address.";
+      if (!schoolType) return "Select a school type.";
+      if (!curriculum) return "Select a curriculum.";
+      if (!studentCount.trim()) return "Enter an estimated student count.";
+      if (!Object.values(levels).some(Boolean) && !levelsOther.trim()) return "Pick at least one level operated.";
+    }
+    if (step === 2 && !admin) {
+      if (!Object.values(subjects).some(Boolean) && !subjectsOther.trim()) return "Pick at least one subject you teach.";
+      if (!Object.values(levels).some(Boolean) && !levelsOther.trim()) return "Pick at least one level you teach.";
     }
     if (step === 3) {
       if (password.length < 8) return "Password must be at least 8 characters.";
@@ -227,15 +361,40 @@ export function OnboardingWizard() {
   async function handleNext() {
     const validationError = validateStep();
     if (validationError) {
+      setErrorMessage(validationError);
       showToast({ variant: "error", title: "Check that step", description: validationError });
+      window.scrollTo(0, 0);
       return;
     }
+    setErrorMessage(null);
     if (step < lastStep) {
       setStep((current) => current + 1);
       window.scrollTo(0, 0);
       return;
     }
     await submit();
+  }
+
+  function levelsList() {
+    const picked = Object.entries(levels)
+      .filter(([, on]) => on)
+      .map(([name]) => name);
+    const extra = levelsOther
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return [...picked, ...extra];
+  }
+
+  function subjectsList() {
+    const picked = Object.entries(subjects)
+      .filter(([, on]) => on)
+      .map(([name]) => name);
+    const extra = subjectsOther
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return [...picked, ...extra];
   }
 
   async function submit() {
@@ -246,21 +405,23 @@ export function OnboardingWizard() {
         ? {
             schoolName,
             slug,
-            category:
-              Object.entries(levels)
-                .filter(([, on]) => on)
-                .map(([name]) => name).length > 1
-                ? "MIXED"
-                : (Object.entries(levels).find(([, on]) => on)?.[0]?.toUpperCase() ?? "MIXED"),
+            category: deriveCategory(levels),
             ownerName: `${firstName} ${lastName}`,
             ownerEmail: email,
             ownerPhone: phone,
+            position,
             password,
             address,
             city,
+            lga,
             state,
-            cacNumber: cacNumber || undefined,
-            ministryApprovalNumber: ministryApprovalNumber || undefined
+            country,
+            website: website || undefined,
+            schoolType: schoolType || undefined,
+            curriculumPreference: curriculum || undefined,
+            studentCount: studentCount ? Number(studentCount) : undefined,
+            cacNumber: regNumber1 || undefined,
+            ministryApprovalNumber: regNumber2 || undefined
           }
         : {
             firstName,
@@ -271,10 +432,8 @@ export function OnboardingWizard() {
             position,
             country,
             schoolName: teacherSchoolName || undefined,
-            subjects: Object.entries(subjects)
-              .filter(([, on]) => on)
-              .map(([name]) => name),
-            level,
+            subjects: subjectsList(),
+            levels: levelsList(),
             password
           };
 
@@ -313,7 +472,8 @@ export function OnboardingWizard() {
   }
 
   const goToDashboard = useCallback(() => {
-    const nextPath = resolveLandingPath(admin ? position || "SCHOOL_OWNER" : (position as string));
+    const mappedRole = admin ? "SCHOOL_OWNER" : TEACHER_POSITION_TO_ROLE[position] ?? "SUBJECT_TEACHER";
+    const nextPath = resolveLandingPath(mappedRole);
     router.push(nextPath);
     router.refresh();
   }, [admin, position, router]);
@@ -375,6 +535,16 @@ export function OnboardingWizard() {
     bad: ["#fceeee", "#9b2f2f"],
     idle: ["#f2f6f4", "#8c9a92"]
   };
+
+  const errorBanner = errorMessage ? (
+    <div className="mb-[18px] flex items-start gap-[9px] rounded-[11px] border border-[#f0cfcf] bg-[#fceeee] px-3 py-[11px]">
+      <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#b23b3b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M12 7.6v5M12 16.2h.01" />
+      </svg>
+      <div className="text-[10.5px] leading-[1.5] text-[#9b2f2f]">{errorMessage}</div>
+    </div>
+  ) : null;
 
   if (view === "fork") {
     return (
@@ -563,6 +733,7 @@ export function OnboardingWizard() {
                     : "Instant. No review, no school required, no waiting."}
                 </p>
                 <div className="rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                  {errorBanner}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label>
                       {fieldLabel("First name")}
@@ -582,13 +753,20 @@ export function OnboardingWizard() {
                         <option value="">Select</option>
                         <option value="FEMALE">Female</option>
                         <option value="MALE">Male</option>
+                        <option value="OTHER">Prefer not to say</option>
                       </select>
                     </label>
                     <label>
                       {fieldLabel("Phone number")}
                       {fieldWrap(
-                        <input value={phone} onChange={(e) => setPhone(e.target.value)} className={inputClass()} placeholder="+234 803 220 1190" />
+                        <input
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          className={inputClass()}
+                          placeholder={PHONE_PLACEHOLDER[country] ?? "+000 000 0000"}
+                        />
                       )}
+                      <div className="mt-1.5 text-[10px] text-[#8c9a92]">Include your country dialling code.</div>
                     </label>
                     <label className="sm:col-span-2">
                       {fieldLabel("Email address")}
@@ -609,32 +787,18 @@ export function OnboardingWizard() {
                     <label className={admin ? "sm:col-span-2" : ""}>
                       {fieldLabel(admin ? "Your position" : "What you teach as")}
                       <select value={position} onChange={(e) => setPosition(e.target.value)} className={inputClass("bg-white")}>
-                        <option value="">{admin ? "Select your position" : "Select"}</option>
-                        {admin ? (
-                          <>
-                            <option value="PROPRIETOR">Proprietor / School Owner</option>
-                            <option value="ADMINISTRATOR">Director</option>
-                            <option value="PRINCIPAL">Principal</option>
-                            <option value="HEAD_TEACHER">Head of School</option>
-                            <option value="ADMIN_OFFICER">Administrator</option>
-                          </>
-                        ) : (
-                          <>
-                            <option value="SUBJECT_TEACHER">Subject Teacher</option>
-                            <option value="CLASS_TEACHER">Form Teacher / Class Teacher</option>
-                            <option value="HEAD_OF_DEPARTMENT">Head of Department</option>
-                          </>
-                        )}
+                        <option value="">Select</option>
+                        {(admin ? ADMIN_POSITIONS : TEACHER_POSITIONS).map((p) => (
+                          <option key={p} value={p}>
+                            {p}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     {!admin ? (
                       <label>
                         {fieldLabel("Country")}
-                        <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputClass("bg-white")}>
-                          <option>Nigeria</option>
-                          <option>Ghana</option>
-                          <option>Kenya</option>
-                        </select>
+                        <SearchCombo value={country} onChange={setCountry} options={COUNTRY_NAMES} placeholder="Search countries…" />
                       </label>
                     ) : null}
                   </div>
@@ -649,6 +813,7 @@ export function OnboardingWizard() {
                   Your short name becomes your permanent web address — the one every invitation email will carry.
                 </p>
                 <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                  {errorBanner}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="sm:col-span-2">
                       {fieldLabel("School name")}
@@ -678,17 +843,32 @@ export function OnboardingWizard() {
                       <div className="mt-1.5 text-[11px] leading-[1.5] text-[#8c9a92]">{slugState.note}</div>
                     </label>
                     <label>
-                      {fieldLabel("State")}
-                      <select value={state} onChange={(e) => setState(e.target.value)} className={inputClass("bg-white")}>
-                        <option>Lagos</option>
-                        <option>FCT Abuja</option>
-                        <option>Kano</option>
-                        <option>Rivers</option>
-                      </select>
+                      {fieldLabel("Country")}
+                      <SearchCombo value={country} onChange={onCountryChange} options={COUNTRY_NAMES} placeholder="Search countries…" />
                     </label>
                     <label>
-                      {fieldLabel("City")}
+                      {fieldLabel(geo.level1Label)}
+                      <SearchCombo
+                        value={state}
+                        onChange={setState}
+                        options={geo.divisions}
+                        placeholder={geo.divisions.length ? `Search ${geo.divisions.length} · or type your own` : `Type your ${geo.level1Label.toLowerCase()}`}
+                        emptyNote={
+                          geo.divisions.length
+                            ? "Nothing matches that. Keep typing — we will use exactly what you write."
+                            : `We hold no list for this country. Type your ${geo.level1Label.toLowerCase()} and we will use exactly what you write.`
+                        }
+                      />
+                    </label>
+                    <label>
+                      {fieldLabel("City or town")}
                       {fieldWrap(<input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass()} placeholder="Ikeja" />)}
+                    </label>
+                    <label>
+                      {fieldLabel(geo.level2Label)}
+                      {fieldWrap(
+                        <input value={lga} onChange={(e) => setLga(e.target.value)} className={inputClass()} placeholder={geo.level2Label} />
+                      )}
                     </label>
                     <label className="sm:col-span-2">
                       {fieldLabel("Full address")}
@@ -697,27 +877,29 @@ export function OnboardingWizard() {
                       )}
                     </label>
                     <label>
-                      {fieldLabel("School type")}
-                      <select value={schoolType} onChange={(e) => setSchoolType(e.target.value)} className={inputClass("bg-white")}>
-                        <option>Private</option>
-                        <option>Mission / Faith-based</option>
-                        <option>NGO</option>
-                        <option>Public</option>
-                        <option>International</option>
-                      </select>
+                      {fieldLabel("School website", true)}
+                      {fieldWrap(
+                        <input value={website} onChange={(e) => setWebsite(e.target.value)} className={inputClass()} placeholder="www.powerhouse.school" />
+                      )}
                     </label>
                     <label>
-                      {fieldLabel("Curriculum")}
-                      <select value={curriculum} onChange={(e) => setCurriculum(e.target.value)} className={inputClass("bg-white")}>
-                        <option>Nigerian NERDC</option>
-                        <option>British</option>
-                        <option>American</option>
-                        <option>IB</option>
-                        <option>Custom</option>
+                      {fieldLabel("School type")}
+                      <select value={schoolType} onChange={(e) => setSchoolType(e.target.value)} className={inputClass("bg-white")}>
+                        <option value="">Select</option>
+                        {SCHOOL_TYPE_OPTIONS.map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
                       </select>
                     </label>
                     <label className="sm:col-span-2">
-                      <div className="mb-[9px] text-[11.5px] font-semibold text-[#435048]">Levels operated</div>
+                      <div className="mb-[9px] flex items-center justify-between">
+                        <span className="text-[11.5px] font-semibold text-[#435048]">Levels operated</span>
+                        <span className="text-[10px] text-[#9fb8a7]">
+                          {Object.values(levels).filter(Boolean).length ? `${Object.values(levels).filter(Boolean).length} selected` : "Pick at least one"}
+                        </span>
+                      </div>
                       <div className="flex flex-wrap gap-[9px]">
                         {LEVEL_OPTIONS.map((lv) => {
                           const on = !!levels[lv];
@@ -744,31 +926,61 @@ export function OnboardingWizard() {
                           );
                         })}
                       </div>
-                    </label>
-                    <label>
-                      {fieldLabel("CAC registration number", true)}
-                      {fieldWrap(
-                        <input value={cacNumber} onChange={(e) => setCacNumber(e.target.value)} className={inputClass()} placeholder="RC-1284772" />
-                      )}
-                    </label>
-                    <label>
-                      {fieldLabel("Ministry approval number", true)}
+                      <div className="mb-[7px] mt-3 text-[11.5px] font-semibold text-[#435048]">
+                        Any level we haven&apos;t listed <span className="font-medium text-[#9fb8a7]">optional</span>
+                      </div>
                       {fieldWrap(
                         <input
-                          value={ministryApprovalNumber}
-                          onChange={(e) => setMinistryApprovalNumber(e.target.value)}
+                          value={levelsOther}
+                          onChange={(e) => setLevelsOther(e.target.value)}
                           className={inputClass()}
-                          placeholder="LSG/EDU/2019/0442"
+                          placeholder="Reception, Form 1–6, Cycle d’orientation — separate with commas"
                         />
                       )}
                     </label>
+                    <label>
+                      {fieldLabel("Curriculum")}
+                      <select value={curriculum} onChange={(e) => setCurriculum(e.target.value)} className={inputClass("bg-white")}>
+                        <option value="">Select</option>
+                        {CURRICULUM_OPTIONS.map((c) => (
+                          <option key={c} value={c}>
+                            {c}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <label>
+                      {fieldLabel("Estimated student count")}
+                      {fieldWrap(
+                        <input
+                          value={studentCount}
+                          onChange={(e) => setStudentCount(e.target.value.replace(/[^0-9]/g, ""))}
+                          className={inputClass()}
+                          placeholder="480"
+                          inputMode="numeric"
+                        />
+                      )}
+                    </label>
+                    <label>
+                      {fieldLabel(geo.registrationLabel1, true)}
+                      {fieldWrap(
+                        <input value={regNumber1} onChange={(e) => setRegNumber1(e.target.value)} className={inputClass()} placeholder="As issued" />
+                      )}
+                    </label>
+                    <label>
+                      {fieldLabel(geo.registrationLabel2, true)}
+                      {fieldWrap(
+                        <input value={regNumber2} onChange={(e) => setRegNumber2(e.target.value)} className={inputClass()} placeholder="As issued" />
+                      )}
+                    </label>
                   </div>
+                  <div className="mt-4 text-[10px] text-[#9fb8a7]">Registration numbers can be added later from School Configuration.</div>
                 </div>
                 <div className="flex items-start gap-[11px] rounded-[13px] border border-[#e6eee9] bg-[#f7faf8] px-4 py-[14px]">
                   <p className="text-[11.5px] leading-[1.55] text-[#435048]">
                     Your address is permanent from day one — never changed once teachers and parents have been
                     invited. Blocked names such as <b>admin</b>, <b>app</b>, <b>waec</b> or <b>neco</b> cannot be
-                    used.
+                    used, and we never add numbers automatically.
                   </p>
                 </div>
               </div>
@@ -778,24 +990,82 @@ export function OnboardingWizard() {
               <div>
                 <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">What you teach</div>
                 <p className="mb-7 text-[13.5px] text-[#77857c]">
-                  All of this is optional except your level — you can start with an empty workspace and fill it in
-                  later.
+                  Tell us what you teach and we build your gradebook around it. Your school is optional — the rest we
+                  need.
                 </p>
                 <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                  {errorBanner}
                   <label>
                     {fieldLabel("School you teach at", true)}
                     {fieldWrap(
                       <input
                         value={teacherSchoolName}
-                        onChange={(e) => setTeacherSchoolName(e.target.value)}
+                        onChange={(e) => {
+                          setTeacherSchoolName(e.target.value);
+                          setJoinRequestChoice("none");
+                        }}
                         className={inputClass()}
                         placeholder="Start typing your school's name"
                       />
                     )}
                   </label>
+                  {teacherSchoolMatches.length > 0 && joinRequestChoice === "none" ? (
+                    <div className="mt-[11px] flex items-start gap-[10px] rounded-xl border border-[#bfe3cd] bg-[#edf7f1] px-[13.5px] py-[12.5px]">
+                      <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#12796a" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
+                        <circle cx="12" cy="12" r="9" />
+                        <path d="m8 12.4 2.6 2.6L16 9.6" />
+                      </svg>
+                      <div className="min-w-0">
+                        <div className="mb-[2.5px] text-[11.5px] font-semibold text-[#17604f]">
+                          {teacherSchoolMatches[0]!.name} is already on FutureRealm
+                          {teacherSchoolMatches[0]!.location ? ` (${teacherSchoolMatches[0]!.location})` : ""}.
+                        </div>
+                        <div className="mb-[10px] text-[10.5px] leading-[1.55] text-[#435048]">
+                          Your account is created either way. A formal link to that school&apos;s roster isn&apos;t
+                          built yet — your claimed school name is kept on your profile so it can be matched up
+                          later.
+                        </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              showToast({
+                                variant: "info",
+                                title: "Not built",
+                                description: "There's no school-approval inbox yet — your claimed school is saved on your account instead."
+                              })
+                            }
+                            className="rounded-[9px] px-[12.5px] py-[7px] text-[11px] font-semibold text-white"
+                            style={{ background: "#0d2315" }}
+                          >
+                            Send join request
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => setJoinRequestChoice("declined")}
+                            className="rounded-[9px] border border-[#cfddd5] bg-white px-[12.5px] py-[7px] text-[11px] font-semibold text-[#435048]"
+                          >
+                            Not now
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
+                  <div className="mt-1.5 text-[10px] text-[#8c9a92]">
+                    {teacherSchoolName.trim().length >= 2 && teacherSchoolMatches.length === 0
+                      ? "No match yet — the name is stored as a claim only, and nothing is shared with that school."
+                      : "Matched against schools already on FutureRealm as you type."}
+                  </div>
+
                   <div className="my-[22px] h-px bg-[#edf3ef]" />
-                  <div className="mb-[9px] text-[11.5px] font-semibold text-[#435048]">Subjects you teach</div>
-                  <div className="mb-[22px] flex flex-wrap gap-[9px]">
+
+                  <div className="mb-[9px] flex items-center justify-between">
+                    <span className="text-[11.5px] font-semibold text-[#435048]">Subjects you teach</span>
+                    <span className="text-[10px] text-[#9fb8a7]">
+                      {Object.values(subjects).filter(Boolean).length ? `${Object.values(subjects).filter(Boolean).length} selected` : "Pick at least one"}
+                    </span>
+                  </div>
+                  <div className="mb-[12.5px] flex flex-wrap gap-[9px]">
                     {SUBJECT_OPTIONS.map((sb) => {
                       const on = !!subjects[sb];
                       return (
@@ -815,19 +1085,69 @@ export function OnboardingWizard() {
                       );
                     })}
                   </div>
-                  <label>
-                    {fieldLabel("Level")}
-                    <select value={level} onChange={(e) => setLevel(e.target.value)} className={inputClass("w-[260px] bg-white")}>
-                      <option>Primary</option>
-                      <option>JSS</option>
-                      <option>SSS</option>
-                    </select>
-                  </label>
+                  {fieldWrap(
+                    <input
+                      value={subjectsOther}
+                      onChange={(e) => setSubjectsOther(e.target.value)}
+                      className={inputClass()}
+                      placeholder="Any subject not listed — Kiswahili, Sanskrit, Design Technology — separate with commas"
+                    />
+                  )}
+                  <div className="mt-1.5 text-[10px] leading-[1.5] text-[#8c9a92]">
+                    Type as many as you like, separated by commas. Each one becomes a gradebook you can open on day
+                    one.
+                  </div>
+
+                  <div className="my-[22px] h-px bg-[#edf3ef]" />
+
+                  <div className="mb-[9px] flex items-center justify-between">
+                    <span className="text-[11.5px] font-semibold text-[#435048]">Levels you teach</span>
+                    <span className="text-[10px] text-[#9fb8a7]">
+                      {Object.values(levels).filter(Boolean).length ? `${Object.values(levels).filter(Boolean).length} selected` : "Pick at least one"}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-[9px]">
+                    {LEVEL_OPTIONS.map((lv) => {
+                      const on = !!levels[lv];
+                      return (
+                        <button
+                          type="button"
+                          key={lv}
+                          onClick={() => toggleLevel(lv)}
+                          className="flex items-center gap-[9px] rounded-[10px] border-[1.5px] px-[14px] py-[9px] text-[12.5px] font-medium transition"
+                          style={{
+                            borderColor: on ? "#0d2315" : "#dee8e2",
+                            color: on ? "#0d2315" : "#77857c",
+                            background: on ? "#f7faf8" : "#fff"
+                          }}
+                        >
+                          <span
+                            className="flex h-4 w-4 items-center justify-center rounded-[5px]"
+                            style={{ background: on ? "#0d2315" : "#fff", border: `1.5px solid ${on ? "#0d2315" : "#cfddd5"}` }}
+                          >
+                            {on ? <Check className="h-[9px] w-[9px] text-white" strokeWidth={4} /> : null}
+                          </span>
+                          {lv}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <div className="mb-[7px] mt-3 text-[11.5px] font-semibold text-[#435048]">
+                    Any level we haven&apos;t listed <span className="font-medium text-[#9fb8a7]">optional</span>
+                  </div>
+                  {fieldWrap(
+                    <input
+                      value={levelsOther}
+                      onChange={(e) => setLevelsOther(e.target.value)}
+                      className={inputClass()}
+                      placeholder="Form 4, Grade 11, Cycle 3 — separate with commas"
+                    />
+                  )}
                 </div>
                 <div className="flex items-start gap-[11px] rounded-[13px] border border-[#e6eee9] bg-[#f7faf8] px-4 py-[14px]">
                   <p className="text-[11.5px] leading-[1.55] text-[#435048]">
                     Your workspace is personal — no school data, and nothing shared with anyone. If you are later
-                    linked to a school, you keep this account.
+                    linked to a school, you keep this account and gain a school ID.
                   </p>
                 </div>
               </div>
@@ -840,6 +1160,7 @@ export function OnboardingWizard() {
                   Minimum 8 characters with letters and numbers. No forced special characters.
                 </p>
                 <div className="max-w-[520px] rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                  {errorBanner}
                   <label>
                     {fieldLabel("Password")}
                     <div className="mb-3 flex items-center gap-[10px] rounded-[10px] border-[1.5px] border-[#dee8e2] px-[13px] py-[11px] focus-within:border-[#12796a]">
@@ -902,7 +1223,7 @@ export function OnboardingWizard() {
                     <div className="relative">
                       <div className="mb-[18px] inline-flex items-center gap-[7px] rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.1)] px-3 py-1.5">
                         <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#3ee08a" }} />
-                        <span className="text-[10.5px] font-bold tracking-[0.06em] text-white">14 DAYS · EVERY FEATURE</span>
+                        <span className="text-[10.5px] font-bold tracking-[0.06em] text-white">30 DAYS · EVERY FEATURE</span>
                       </div>
                       <div className="mb-3.5 font-[var(--font-heading)] text-[22px] font-bold leading-[1.3] text-white">
                         Results, report cards, fees, attendance and parent notifications.
@@ -968,7 +1289,11 @@ export function OnboardingWizard() {
         ]
       : [
           { k: "Where you work", v: "app.futurerealm.school" },
-          { k: "Cost", v: "Free, indefinitely" }
+          { k: "Cost", v: "Free, indefinitely" },
+          {
+            k: "Join request",
+            v: joinRequestChoice === "declined" || teacherSchoolMatches.length === 0 ? "None — add a school any time" : `Saved for ${teacherSchoolMatches[0]?.name ?? "your school"}`
+          }
         ];
 
     return (

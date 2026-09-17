@@ -24,15 +24,46 @@ const registerSchoolSchema = z.object({
   ownerName: z.string().trim().min(2, "Owner name must be at least 2 characters"),
   ownerEmail: z.string().trim().email("Enter a valid email address"),
   ownerPhone: z.string().trim().optional(),
+  // The position/title the person picked at signup (Proprietor, Principal, Bursar, ...). The
+  // account itself is always created as SCHOOL_OWNER regardless — whoever stands up the school
+  // keeps full control no matter their formal title — this is only recorded for their profile.
+  position: z.string().trim().optional(),
   password: z.string().min(8, "Password must be at least 8 characters"),
   address: z.string().trim().optional(),
   city: z.string().trim().optional(),
+  // Second-level administrative division (LGA in Nigeria, County in Kenya, District in Ghana, ...) —
+  // which label applies is a frontend concern; this column just stores whatever was entered.
+  lga: z.string().trim().optional(),
   state: z.string().trim().optional(),
+  country: z.string().trim().min(2).default("Nigeria"),
+  website: z.string().trim().optional(),
+  // Organisation type (Private, Mission/Faith-based, NGO, Public, ...) — distinct from `category`,
+  // which is the educational level(s) offered.
+  schoolType: z.string().trim().optional(),
+  curriculumPreference: z.string().trim().optional(),
+  studentCount: z.coerce.number().int().positive().optional(),
+  // Nigeria calls these "CAC registration number" / "Ministry of Education approval number";
+  // every other country has its own two-registration-number pair. The columns keep their
+  // original Nigeria-derived names, but store whatever the frontend labels for the selected
+  // country — there's no per-country validation on the values themselves.
   cacNumber: z.string().trim().optional(),
   ministryApprovalNumber: z.string().trim().optional()
 });
 
-const teacherPositionSchema = z.enum(["SUBJECT_TEACHER", "CLASS_TEACHER", "HEAD_OF_DEPARTMENT"]);
+// The six positions the mockup offers a solo teacher signup don't all have a matching real
+// UserRole — HEAD_OF_DEPARTMENT/CLASS_TEACHER/SUBJECT_TEACHER exist; Year Head, Teaching
+// Assistant and Private Tutor don't, and adding new roles means building out permission
+// handling for them too, which is well beyond an onboarding form. Each label still maps to
+// the nearest real role for permissions; the literal label the person picked is kept as-is
+// in `jobTitle` on their profile, so nothing about their stated title is lost or misrepresented.
+const TEACHER_POSITION_TO_ROLE: Record<string, "SUBJECT_TEACHER" | "CLASS_TEACHER" | "HEAD_OF_DEPARTMENT"> = {
+  "Subject Teacher": "SUBJECT_TEACHER",
+  "Form Teacher / Class Teacher": "CLASS_TEACHER",
+  "Head of Department": "HEAD_OF_DEPARTMENT",
+  "Year Head": "HEAD_OF_DEPARTMENT",
+  "Teaching Assistant": "SUBJECT_TEACHER",
+  "Private Tutor": "SUBJECT_TEACHER"
+};
 
 const registerTeacherSchema = z.object({
   firstName: z.string().trim().min(1, "First name is required"),
@@ -40,11 +71,11 @@ const registerTeacherSchema = z.object({
   gender: z.enum(["MALE", "FEMALE", "OTHER"]).optional(),
   phone: z.string().trim().optional(),
   email: z.string().trim().email("Enter a valid email address"),
-  position: teacherPositionSchema.default("SUBJECT_TEACHER"),
+  position: z.string().trim().min(1).default("Subject Teacher"),
   country: z.string().trim().optional(),
   schoolName: z.string().trim().optional(),
   subjects: z.array(z.string()).default([]),
-  level: z.enum(["Primary", "JSS", "SSS"]).optional(),
+  levels: z.array(z.string()).default([]),
   password: z.string().min(8, "Password must be at least 8 characters")
 });
 
@@ -146,6 +177,7 @@ const RISK_SCORE_THRESHOLD = 80;
 async function computeRiskAssessment(input: {
   schoolName: string;
   state?: string;
+  country?: string;
   cacNumber?: string;
   ministryApprovalNumber?: string;
   address?: string;
@@ -158,7 +190,11 @@ async function computeRiskAssessment(input: {
   const hasRegistration = Boolean(input.cacNumber || input.ministryApprovalNumber);
   const hasAddress = Boolean(input.address || input.city || input.state);
   const isFreeEmail = Boolean(emailDomain && FREE_EMAIL_DOMAINS.has(emailDomain));
-  const phoneMissingOrInvalid = !input.ownerPhone || !isValidNigerianPhone(input.ownerPhone);
+  // The phone-format check is Nigeria-specific (see isValidNigerianPhone above) — outside
+  // Nigeria there's no pattern to check against yet, so a school there never gets flagged
+  // on this signal purely for having a phone number this validator doesn't recognise.
+  const isNigeria = !input.country || input.country === "Nigeria";
+  const phoneMissingOrInvalid = isNigeria && (!input.ownerPhone || !isValidNigerianPhone(input.ownerPhone));
 
   const duplicateOwner = await prisma.school.findFirst({
     where: {
@@ -233,12 +269,6 @@ interface SlugEvaluation {
   note: string;
   available: boolean;
 }
-
-const teacherPositionToRole: Record<z.infer<typeof teacherPositionSchema>, Role> = {
-  SUBJECT_TEACHER: "SUBJECT_TEACHER",
-  CLASS_TEACHER: "CLASS_TEACHER",
-  HEAD_OF_DEPARTMENT: "HEAD_OF_DEPARTMENT"
-};
 
 @Injectable()
 export class OnboardingService {
@@ -340,6 +370,7 @@ export class OnboardingService {
     const riskAssessment = await computeRiskAssessment({
       schoolName: parsed.schoolName,
       state: parsed.state,
+      country: parsed.country,
       cacNumber: parsed.cacNumber,
       ministryApprovalNumber: parsed.ministryApprovalNumber,
       address: parsed.address,
@@ -361,14 +392,19 @@ export class OnboardingService {
         ownerPhone: parsed.ownerPhone,
         address: parsed.address,
         city: parsed.city,
+        lga: parsed.lga,
         state: parsed.state,
+        website: parsed.website,
+        schoolType: parsed.schoolType,
+        curriculumPreference: parsed.curriculumPreference,
+        estimatedStudentCount: parsed.studentCount,
         cacNumber: parsed.cacNumber,
         ministryApprovalNumber: parsed.ministryApprovalNumber,
         flaggedForReviewReason: riskAssessment.flaggedForReviewReason,
         riskScore: riskAssessment.score,
         riskSignals: riskAssessment.signals as unknown as Prisma.InputJsonValue,
         signupIp: signupIp ?? null,
-        country: "Nigeria",
+        country: parsed.country,
         plan: "BASIC",
         status: "TRIAL",
         billingStatus: "TRIAL",
@@ -385,6 +421,7 @@ export class OnboardingService {
             firstName: ownerNameParts.firstName,
             lastName: ownerNameParts.lastName,
             phone: parsed.ownerPhone,
+            jobTitle: parsed.position,
             passwordHash: hashPassword(parsed.password),
             role: "SCHOOL_OWNER"
           }
@@ -441,7 +478,7 @@ export class OnboardingService {
     const baseSlug = slugify(`teacher-${parsed.firstName}-${parsed.lastName}`) || "teacher";
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
     const schoolCode = `IND-${Date.now().toString(36).toUpperCase()}`;
-    const role = teacherPositionToRole[parsed.position];
+    const role = TEACHER_POSITION_TO_ROLE[parsed.position] ?? "SUBJECT_TEACHER";
 
     const workspace = await prisma.school.create({
       data: {
@@ -465,6 +502,7 @@ export class OnboardingService {
             phone: parsed.phone,
             gender: parsed.gender,
             country: parsed.country,
+            jobTitle: parsed.position,
             passwordHash: hashPassword(parsed.password),
             role
           }
@@ -486,7 +524,8 @@ export class OnboardingService {
           source: "INDEPENDENT_TEACHER_SELF_SIGNUP",
           claimedSchoolName: parsed.schoolName || null,
           subjects: parsed.subjects,
-          level: parsed.level || null
+          levels: parsed.levels,
+          positionLabel: parsed.position
         }
       }
     });
@@ -510,6 +549,24 @@ export class OnboardingService {
   async checkSlugAvailability(rawSlug: string) {
     const evaluation = await this.evaluateSlug(rawSlug);
     return evaluation;
+  }
+
+  /** Public, unauthenticated fuzzy match for the teacher signup's "School you teach at" field —
+   * name only, nothing sensitive, so a match can be shown before the teacher has an account. */
+  async searchSchoolsByName(rawQuery: string) {
+    const query = (rawQuery || "").trim();
+    if (query.length < 2) return [];
+    const schools = await prisma.school.findMany({
+      where: { deletedAt: null, isPersonalWorkspace: false, name: { contains: query, mode: "insensitive" } },
+      select: { id: true, name: true, city: true, state: true },
+      take: 5,
+      orderBy: { name: "asc" }
+    });
+    return schools.map((school) => ({
+      id: school.id,
+      name: school.name,
+      location: [school.city, school.state].filter(Boolean).join(", ") || null
+    }));
   }
 
   async listPublicPlans() {

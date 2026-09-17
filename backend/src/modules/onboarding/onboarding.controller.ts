@@ -41,6 +41,12 @@ export class OnboardingController {
     return { ok: true, data: evaluation };
   }
 
+  @Get("school-search")
+  async searchSchools(@Query("q") q: string) {
+    const results = await this.onboardingService.searchSchoolsByName(q || "");
+    return { ok: true, data: results };
+  }
+
   @Get("plans")
   async listPlans() {
     const plans = await this.onboardingService.listPublicPlans();
