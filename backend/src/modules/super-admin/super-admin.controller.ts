@@ -149,6 +149,14 @@ export class SuperAdminController {
     return this.superAdminService.listUsers(session, query);
   }
 
+  @Get("users/export")
+  async exportUsers(@CurrentSession() session: SessionPayload, @Query() query: Record<string, unknown>, @Res() response: Response) {
+    const csv = await this.superAdminService.exportUsersCsv(session, query);
+    response.setHeader("Content-Type", "text/csv; charset=utf-8");
+    response.setHeader("Content-Disposition", "attachment; filename=\"super-admin-user-registry.csv\"");
+    response.send(csv);
+  }
+
   @Post("users/suspicious-activity/recalculate")
   recalculateSuspiciousActivity(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.recalculateSuspiciousActivity(session);
@@ -252,6 +260,11 @@ export class SuperAdminController {
   @Post("billing/invoices")
   createInvoice(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createInvoice(session, body);
+  }
+
+  @Post("billing/invoices/run")
+  createInvoiceRun(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.createInvoiceRun(session, body);
   }
 
   @Patch("billing/invoices/:invoiceId/send")

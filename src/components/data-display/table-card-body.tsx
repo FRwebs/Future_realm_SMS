@@ -1,7 +1,7 @@
 "use client";
 
-import { ReactNode, useEffect, useMemo, useState } from "react";
-import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight } from "lucide-react";
+import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
+import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
 
 export interface PreparedColumn {
   key: string;
@@ -42,6 +42,10 @@ function compareValues(a: string | number | null, b: string | number | null): nu
   return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: "base" });
 }
 
+function columnStorageKey(title: string) {
+  return `sms:table-columns:${title}`;
+}
+
 export function TableCardBody({
   title,
   description,
@@ -49,7 +53,7 @@ export function TableCardBody({
   actions,
   filterBar,
   footnote,
-  columns,
+  columns: allColumns,
   rows,
   primaryColumnKey,
   featuredColumnKeys,
@@ -58,10 +62,50 @@ export function TableCardBody({
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
+  const [hiddenKeys, setHiddenKeys] = useState<string[]>([]);
+  const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
+  const columnsMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     setPage(1);
   }, [rows]);
+
+  useEffect(() => {
+    try {
+      const stored = window.localStorage.getItem(columnStorageKey(title));
+      if (stored) setHiddenKeys(JSON.parse(stored));
+    } catch {
+      // Ignore malformed/blocked storage — falls back to showing every column.
+    }
+  }, [title]);
+
+  useEffect(() => {
+    if (!columnsMenuOpen) return;
+    function handleClickOutside(event: MouseEvent) {
+      if (columnsMenuRef.current && !columnsMenuRef.current.contains(event.target as Node)) {
+        setColumnsMenuOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [columnsMenuOpen]);
+
+  function toggleColumnVisibility(key: string) {
+    setHiddenKeys((current) => {
+      const isHidden = current.includes(key);
+      // Never allow hiding every column — always leave at least one visible.
+      if (!isHidden && allColumns.length - current.length <= 1) return current;
+      const next = isHidden ? current.filter((item) => item !== key) : [...current, key];
+      try {
+        window.localStorage.setItem(columnStorageKey(title), JSON.stringify(next));
+      } catch {
+        // Best-effort persistence only.
+      }
+      return next;
+    });
+  }
+
+  const columns = allColumns.filter((column) => !hiddenKeys.includes(column.key));
 
   const primaryColumn = columns.find((column) => column.key === primaryColumnKey) ?? columns[0];
   const featuredColumns = columns.filter((column) => featuredColumnKeys.includes(column.key));
@@ -112,7 +156,42 @@ export function TableCardBody({
             ) : null}
           </div>
 
-          {actions ? <div className="shrink-0">{actions}</div> : null}
+          <div className="flex shrink-0 items-center gap-2">
+            <div ref={columnsMenuRef} className="relative">
+              <button
+                type="button"
+                onClick={() => setColumnsMenuOpen((open) => !open)}
+                className="inline-flex items-center gap-[7px] rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-[13px] py-[9px] text-[12.5px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)]"
+                aria-haspopup="true"
+                aria-expanded={columnsMenuOpen}
+              >
+                <Columns3 className="h-3.5 w-3.5" />
+                Columns
+              </button>
+              {columnsMenuOpen ? (
+                <div className="popover-enter absolute right-0 top-[calc(100%+6px)] z-20 w-52 rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-2 shadow-[var(--shadow-md)]">
+                  <p className="px-2 py-1 text-[10.5px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                    Show columns
+                  </p>
+                  {allColumns.map((column) => (
+                    <label
+                      key={column.key}
+                      className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-[12.5px] text-[var(--color-text-primary)] hover:bg-[var(--color-bg-subtle)]"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={!hiddenKeys.includes(column.key)}
+                        onChange={() => toggleColumnVisibility(column.key)}
+                        className="h-3.5 w-3.5 rounded border-[var(--color-border-default)] accent-[var(--color-accent-primary)]"
+                      />
+                      {column.header || "(unlabeled)"}
+                    </label>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+            {actions}
+          </div>
         </div>
       </div>
 

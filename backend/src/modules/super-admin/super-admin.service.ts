@@ -109,6 +109,24 @@ const createInvoiceSchema = z.object({
   note: z.string().optional()
 });
 
+const invoiceRunSchema = z.object({
+  // Sent by the multiselect field as a JSON-stringified array; empty/omitted means "every eligible school".
+  schoolIds: z.preprocess((value) => {
+    if (typeof value !== "string") return [];
+    try {
+      const parsed = JSON.parse(value);
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }, z.array(z.string())),
+  dueAt: z.coerce.date(),
+  excludeTrial: z.string().optional(),
+  excludeGracePeriod: z.string().optional(),
+  excludeUnverified: z.string().optional(),
+  note: z.string().trim().optional()
+});
+
 const recordPaymentSchema = z.object({
   amount: z.coerce.number().positive(),
   method: z.string().trim().min(2),
@@ -1305,11 +1323,15 @@ export class SuperAdminService {
     return Object.values(UserRole).includes(value as UserRole) ? [value as UserRole] : undefined;
   }
 
-  async listUsers(session: SessionPayload, query: unknown) {
-    assertSuperAdmin(session);
-    const parsed = pageSchema.parse(query);
+  private userListWhere(parsed: {
+    role?: string;
+    schoolId?: string;
+    status?: string;
+    lastLogin?: string;
+    search?: string;
+  }): Prisma.UserWhereInput {
     const roleIn = this.roleFilter(parsed.role);
-    const where: Prisma.UserWhereInput = {
+    return {
       deletedAt: null,
       school: { deletedAt: null },
       ...(roleIn ? { role: { in: roleIn } } : {}),
@@ -1326,6 +1348,12 @@ export class SuperAdminService {
           }
         : {})
     };
+  }
+
+  async listUsers(session: SessionPayload, query: unknown) {
+    assertSuperAdmin(session);
+    const parsed = pageSchema.parse(query);
+    const where = this.userListWhere(parsed);
     const [users, total] = await Promise.all([
       prisma.user.findMany({
         where,
@@ -1806,6 +1834,76 @@ export class SuperAdminService {
     });
     await this.audit(session, "CREATE", "PlatformInvoice", invoice.id, { schoolId: parsed.schoolId, amount: parsed.amount }, parsed.schoolId);
     return this.response({ id: invoice.id, invoiceNo: invoice.invoiceNo }, "Invoice drafted");
+  }
+
+  /**
+   * The mockup's "Create invoice run": draft a PlatformInvoice for many schools at once,
+   * each priced from that school's own current plan (the same flat per-school rate every
+   * other revenue figure on this page already uses — see getPlanPriceMap). Every exclusion
+   * here is a real, queryable school field (status, verifiedAt) — there's no "NGO awaiting
+   * verification" concept in this schema, so that mockup checkbox has no real equivalent
+   * and isn't offered. Every invoice is created as DRAFT, same as the single-school flow —
+   * nothing is sent to a school until someone reviews and sends it separately.
+   */
+  async createInvoiceRun(session: SessionPayload, payload: unknown) {
+    assertAnyPlatformRole(session, billingRoles, "Invoice creation is restricted to platform finance roles.");
+    const parsed = invoiceRunSchema.parse(payload);
+    const excludeTrial = parsed.excludeTrial === "true";
+    const excludeGracePeriod = parsed.excludeGracePeriod === "true";
+    const excludeUnverified = parsed.excludeUnverified === "true";
+
+    const statusNotIn: TenantStatus[] = ["SUSPENDED", "ARCHIVED"];
+    if (excludeTrial) statusNotIn.push("TRIAL");
+    if (excludeGracePeriod) statusNotIn.push("GRACE_PERIOD");
+
+    const schools = await prisma.school.findMany({
+      where: {
+        deletedAt: null,
+        status: { notIn: statusNotIn },
+        ...(parsed.schoolIds.length ? { id: { in: parsed.schoolIds } } : {}),
+        ...(excludeUnverified ? { verifiedAt: { not: null } } : {})
+      },
+      select: { id: true, name: true, plan: true }
+    });
+    if (schools.length === 0) throw new BadRequestException("No schools matched this run's scope and exclusions.");
+
+    const priceMap = await getPlanPriceMap();
+    const results: Array<{ schoolId: string; schoolName: string; invoiceNo?: string; skipped?: string }> = [];
+
+    for (const school of schools) {
+      const amount = priceMap.get(school.plan);
+      if (!amount) {
+        results.push({ schoolId: school.id, schoolName: school.name, skipped: `No active price configured for the ${school.plan} plan` });
+        continue;
+      }
+      const invoiceNo = `INV-${Date.now().toString(36).toUpperCase()}-${school.id.slice(-4).toUpperCase()}`;
+      const invoice = await prisma.platformInvoice.create({
+        data: {
+          schoolId: school.id,
+          invoiceNo,
+          amount,
+          taxAmount: 0,
+          status: "DRAFT",
+          dueAt: parsed.dueAt,
+          metadata: { batchRun: true, ...(parsed.note ? { note: parsed.note } : {}) }
+        }
+      });
+      results.push({ schoolId: school.id, schoolName: school.name, invoiceNo: invoice.invoiceNo });
+    }
+
+    const created = results.filter((row) => row.invoiceNo).length;
+    await this.audit(session, "CREATE", "PlatformInvoice", "batch-run", {
+      schoolsTargeted: schools.length,
+      invoicesCreated: created,
+      dueAt: parsed.dueAt.toISOString(),
+      excludeTrial,
+      excludeGracePeriod,
+      excludeUnverified
+    });
+    return this.response(
+      { schoolsTargeted: schools.length, invoicesCreated: created, results },
+      `Drafted ${created} invoice${created === 1 ? "" : "s"} across ${schools.length} school${schools.length === 1 ? "" : "s"}.`
+    );
   }
 
   async sendInvoice(session: SessionPayload, invoiceId: string) {
@@ -2601,6 +2699,39 @@ export class SuperAdminService {
       prisma.auditLog.count({ where })
     ]);
     return this.response(logs.map((log) => this.mapAuditLog(log)), "Audit logs loaded", pagination(parsed.page, parsed.limit, total));
+  }
+
+  async exportUsersCsv(session: SessionPayload, query: unknown) {
+    assertSuperAdmin(session);
+    const parsed = pageSchema.parse(query);
+    const where = this.userListWhere(parsed);
+    const users = await prisma.user.findMany({
+      where,
+      include: { school: { select: { name: true, status: true } } },
+      orderBy: { createdAt: "desc" }
+    });
+    const escape = (value: unknown) => `"${String(value ?? "").replaceAll('"', '""')}"`;
+    await this.audit(session, "EXPORT", "User", "registry", {
+      search: parsed.search ?? null,
+      role: parsed.role ?? null,
+      schoolId: parsed.schoolId ?? null,
+      status: parsed.status ?? null,
+      lastLogin: parsed.lastLogin ?? null,
+      rowCount: users.length
+    });
+    return [
+      ["Name", "Email", "Role", "School", "School status", "Account status", "Last login", "Created"].map(escape).join(","),
+      ...users.map((user) => [
+        `${user.firstName} ${user.lastName}`,
+        user.email,
+        user.role,
+        user.school.name,
+        user.school.status,
+        user.isActive ? "ACTIVE" : "SUSPENDED",
+        user.lastLoginAt?.toISOString() ?? "Never",
+        user.createdAt.toISOString()
+      ].map(escape).join(","))
+    ].join("\n");
   }
 
   async exportAuditLogsCsv(session: SessionPayload, query: unknown) {

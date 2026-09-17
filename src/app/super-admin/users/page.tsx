@@ -17,7 +17,6 @@ import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { StructurePreviewDialog } from "@/components/forms/structure-preview-dialog";
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { apiGetEnvelope } from "@/lib/api/server";
 import type {
@@ -111,6 +110,13 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
     { label: "Support Access", href: tabHref("support"), active: tab === "support" }
   ];
 
+  // Same filters the Directory tab's table is currently showing, so the export always
+  // matches what's on screen rather than silently exporting the full unfiltered registry.
+  const exportQuery = new URLSearchParams();
+  for (const key of ["search", "role", "schoolId", "status", "lastLogin"]) {
+    if (params[key]) exportQuery.set(key, params[key] as string);
+  }
+
   return (
     <div className="grid gap-5">
       <ModuleHero
@@ -118,22 +124,12 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
         title="Users"
         description="One account, many schools. Review identities, recover access, and keep sensitive user support actions accountable."
         action={
-          <StructurePreviewDialog
-            triggerLabel="Export registry"
-            title="Export the user registry"
-            description="A file leaving the platform is a consequential act — checked against what this system can actually do today, not treated as already built."
-            fields={[
-              { label: "Scope", value: "Not built — no platform-wide user export exists", section: "What leaves" },
-              { label: "Roles", value: "Not built", section: "What leaves" },
-              { label: "Format", value: "Not built", section: "What leaves" },
-              { label: "Columns", value: "Not built", section: "What leaves" },
-              { label: "Student names and identifiers", value: "Withheld by policy, if this existed", note: "Would never be included in a platform-wide export — moot today since no export exists at all.", section: "Withheld by policy" },
-              { label: "Guardian contact details", value: "Withheld by policy, if this existed", section: "Withheld by policy" },
-              { label: "Password or device data", value: "The function does not exist, so it cannot be granted", section: "Withheld by policy" },
-              { label: "Why this export is needed", value: "Not built — there's nothing to attach a reason to", section: "Reason" }
-            ]}
-            cta={{ label: "View the real directory", href: "/super-admin/users" }}
-          />
+          <a
+            href={`/api/super-admin/users/export?${exportQuery.toString()}`}
+            className="whitespace-nowrap rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] transition hover:bg-[#eaf3ee]"
+          >
+            Export registry
+          </a>
         }
       />
 
