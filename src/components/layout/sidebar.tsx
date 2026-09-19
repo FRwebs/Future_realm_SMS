@@ -209,7 +209,7 @@ function SidebarContent({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={portalType === "super_admin" ? "Search everything" : "Search students, staff"}
-              className="min-w-0 flex-1 bg-transparent text-[12.5px] text-white placeholder:text-[rgba(255,255,255,0.55)] outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] leading-[1.2] text-white placeholder:text-[rgba(255,255,255,0.55)] outline-none"
             />
             {search ? (
               <button
@@ -254,7 +254,7 @@ function SidebarContent({
               <section key={group.title} className="grid gap-0">
                 {!collapsed && (
                   <div className="px-2.5 pb-[7px] pt-[14px]">
-                    <p className="text-[10.5px] font-bold uppercase tracking-[0.09em] text-[rgba(255,255,255,0.42)]">
+                    <p className="text-[10.5px] font-bold uppercase leading-[1.2] tracking-[0.09em] text-[rgba(255,255,255,0.42)]">
                       {group.title}
                     </p>
                   </div>
@@ -287,7 +287,7 @@ function SidebarContent({
                           href={item.href}
                           onClick={isMobile ? onCloseMobile : undefined}
                           className={cn(
-                            "group relative flex items-center rounded-[11px] text-[13.2px] transition-[background,color,transform,box-shadow] duration-150",
+                            "group relative flex items-center rounded-[11px] text-[13.2px] leading-[1.2] transition-[background,color,transform,box-shadow] duration-150",
                             collapsed
                               ? "mx-auto h-12 w-12 justify-center p-0"
                               : "gap-[11px] px-3 py-2.5",
@@ -322,7 +322,7 @@ function SidebarContent({
                           {!collapsed && badgeValue ? (
                             <span
                               className={cn(
-                                "relative z-[1] inline-flex min-w-[1.35rem] shrink-0 items-center justify-center rounded-full px-[7px] py-px text-[10.5px] font-bold",
+                                "relative z-[1] inline-flex min-w-[1.35rem] shrink-0 items-center justify-center rounded-full px-[7px] py-px text-[10.5px] font-bold leading-[1.2]",
                                 active
                                   ? "bg-[#e4f1ec] text-[#12796a]"
                                   : "bg-[rgba(255,255,255,0.16)] text-[rgba(255,255,255,0.8)]",
@@ -367,7 +367,7 @@ function SidebarContent({
           <Link
             href="/super-admin/standards"
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold leading-[1.2] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
               normalizedPath === "/super-admin/standards" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
             )}
           >
@@ -377,7 +377,7 @@ function SidebarContent({
           <Link
             href="/super-admin/settings"
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold leading-[1.2] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
               normalizedPath === "/super-admin/settings" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
             )}
           >
@@ -387,7 +387,7 @@ function SidebarContent({
           <Link
             href="/super-admin/help"
             className={cn(
-              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
+              "flex flex-1 items-center justify-center gap-1.5 rounded-[9px] px-2 py-[7px] text-[11.5px] font-semibold leading-[1.2] transition hover:bg-[rgba(255,255,255,0.09)] hover:text-white",
               normalizedPath === "/super-admin/help" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
             )}
           >
@@ -451,8 +451,8 @@ function SidebarContent({
           {!collapsed && (
             <>
               <span className="min-w-0 flex-1 text-left">
-                <span className="block truncate text-[13px] font-semibold text-white">{session.name}</span>
-                <span className="block truncate text-[11px] text-[rgba(255,255,255,0.62)]">{roleLabels[session.role]}</span>
+                <span className="block truncate text-[13px] font-semibold leading-[1.2] text-white">{session.name}</span>
+                <span className="block truncate text-[11px] leading-[1.3] text-[rgba(255,255,255,0.62)]">{roleLabels[session.role]}</span>
               </span>
               <ChevronDown className={cn("h-[15px] w-[15px] shrink-0 text-[rgba(255,255,255,0.55)] transition-transform", accountMenuOpen ? "rotate-0" : "-rotate-90")} />
             </>
