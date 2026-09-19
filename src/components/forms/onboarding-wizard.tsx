@@ -149,13 +149,14 @@ function fieldWrap(children: React.ReactNode) {
 }
 
 function inputClass(extra = "") {
-  return `w-full rounded-[10px] border-[1.5px] border-[#dee8e2] px-[13px] py-[11px] text-[13.5px] text-[#0d2315] outline-none transition placeholder:text-[#b4c4bb] focus:border-[#12796a] ${extra}`;
+  return `w-full rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-none transition placeholder:text-[#b4c4bb] focus:border-[#12796a] ${extra}`;
 }
 
-function fieldLabel(text: string, optional?: boolean) {
+function fieldLabel(text: string, optional?: boolean, required?: boolean) {
   return (
-    <div className="mb-[7px] text-[11.5px] font-semibold text-[#435048]">
+    <div className="mb-[6.5px] text-[10.5px] font-semibold text-[#435048]">
       {text}
+      {required ? <span className="ml-[2px] font-semibold text-[#b23b3b]">*</span> : null}
       {optional ? <span className="ml-1 font-medium text-[#9fb8a7]">optional</span> : null}
     </div>
   );
@@ -551,7 +552,7 @@ export function OnboardingWizard() {
       <div className="flex min-h-screen flex-col text-[#0d2315]" style={{ background: "#f4f8f6" }}>
         <div className="flex items-center justify-between px-6 py-[22px] sm:px-12">
           <span className="font-[var(--font-heading)] text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
-          <div className="text-[12.5px] text-[#435048]">
+          <div className="text-[11.5px] text-[#435048]">
             Already have an account?{" "}
             <Link href="/login" className="font-semibold text-[#12796a] hover:underline">
               Sign in
@@ -559,88 +560,88 @@ export function OnboardingWizard() {
           </div>
         </div>
         <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
-          <div className="w-full max-w-[820px]">
-            <div className="mb-8 text-center">
-              <div className="mb-[18px] inline-flex items-center gap-2 rounded-full border border-[#d3dfd7] bg-[#eaf0ec] px-3.5 py-1.5">
+          <div className="w-full max-w-[702px]">
+            <div className="mb-[30px] text-center">
+              <div className="mb-[16px] inline-flex items-center gap-[7px] rounded-full border border-[#d3dfd7] bg-[#eaf0ec] px-[12.5px] py-[5.5px]">
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#12796a" }} />
-                <span className="text-[11.5px] font-semibold tracking-[0.02em] text-[#17604f]">
+                <span className="text-[10.5px] font-semibold tracking-[0.02em] text-[#17604f]">
                   INSTANT SETUP · NO APPROVAL NEEDED
                 </span>
               </div>
-              <h1 className="mb-[10px] font-[var(--font-heading)] text-[34px] font-bold tracking-[-0.02em] text-[#0d2315]">
+              <h1 className="mb-[9px] font-[var(--font-heading)] text-[30.5px] font-bold tracking-[-0.02em] text-[#0d2315]">
                 Who are you signing up as?
               </h1>
-              <p className="mx-auto max-w-[460px] text-[14.5px] leading-[1.6] text-[#77857c]">
+              <p className="mx-auto max-w-[420px] text-[13px] leading-[1.6] text-[#77857c]">
                 This decides what we build for you in the next minute — a full school workspace, or a personal
                 teaching workspace.
               </p>
             </div>
 
-            <div className="grid gap-[18px] sm:grid-cols-2">
+            <div className="grid gap-[16px] sm:grid-cols-2">
               <button
                 type="button"
                 onClick={() => pick("admin")}
-                className="group rounded-[18px] border-[1.5px] border-[#dee8e2] bg-white p-[26px] text-left shadow-[0_14px_30px_-22px_rgba(13,35,21,0.35)] transition hover:-translate-y-0.5 hover:border-[#0d2315]"
+                className="group rounded-[18px] border-[1.5px] border-[#dee8e2] bg-white p-[23.5px] text-left shadow-[0_14px_30px_-22px_rgba(13,35,21,0.35)] transition hover:-translate-y-0.5 hover:border-[#0d2315]"
               >
-                <div className="mb-[18px] flex h-11 w-11 items-center justify-center rounded-[13px]" style={{ background: "#0d2315" }}>
-                  <SchoolIcon className="h-[21px] w-[21px] text-white" strokeWidth={1.9} />
+                <div className="mb-[16px] flex h-[39.5px] w-[39.5px] items-center justify-center rounded-[13px]" style={{ background: "#0d2315" }}>
+                  <SchoolIcon className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
                 </div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-xl font-bold text-[#0d2315]">School Administrator</div>
-                <p className="mb-[18px] text-[12.5px] leading-[1.6] text-[#77857c]">
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[18px] font-bold text-[#0d2315]">School Administrator</div>
+                <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#77857c]">
                   Proprietor, Director, Principal, Head of School or Administrator setting up their school.
                 </p>
-                <div className="flex flex-col gap-[9px]">
+                <div className="flex flex-col gap-[8px]">
                   {[
                     "Your school's own web address, instantly",
                     "Full admin dashboard, ready to configure",
                     "30-day free trial · no card required",
                     "Permanent login, issued immediately"
                   ].map((line) => (
-                    <div key={line} className="flex items-center gap-[9px] text-[12.5px] text-[#435048]">
-                      <Check className="h-[13px] w-[13px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
+                    <div key={line} className="flex items-center gap-[8px] text-[11.5px] text-[#435048]">
+                      <Check className="h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
                       {line}
                     </div>
                   ))}
                 </div>
-                <div className="mt-[22px] flex items-center gap-2 text-[13px] font-semibold text-[#0d2315]">
+                <div className="mt-[20px] flex items-center gap-[7px] text-[11.5px] font-semibold text-[#0d2315]">
                   Continue as school administrator
-                  <ArrowRight className="h-[15px] w-[15px] transition group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-[13.5px] w-[13.5px] transition group-hover:translate-x-0.5" />
                 </div>
               </button>
 
               <button
                 type="button"
                 onClick={() => pick("teacher")}
-                className="group rounded-[18px] border-[1.5px] border-[#dee8e2] bg-white p-[26px] text-left shadow-[0_14px_30px_-22px_rgba(13,35,21,0.35)] transition hover:-translate-y-0.5 hover:border-[#0d2315]"
+                className="group rounded-[18px] border-[1.5px] border-[#dee8e2] bg-white p-[23.5px] text-left shadow-[0_14px_30px_-22px_rgba(13,35,21,0.35)] transition hover:-translate-y-0.5 hover:border-[#0d2315]"
               >
-                <div className="mb-[18px] flex h-11 w-11 items-center justify-center rounded-[13px]" style={{ background: "#12796a" }}>
-                  <GraduationCap className="h-[21px] w-[21px] text-white" strokeWidth={1.9} />
+                <div className="mb-[16px] flex h-[39.5px] w-[39.5px] items-center justify-center rounded-[13px]" style={{ background: "#12796a" }}>
+                  <GraduationCap className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
                 </div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-xl font-bold text-[#0d2315]">Teacher</div>
-                <p className="mb-[18px] text-[12.5px] leading-[1.6] text-[#77857c]">
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[18px] font-bold text-[#0d2315]">Teacher</div>
+                <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#77857c]">
                   Signing up on your own, whether or not your school is on FutureRealm yet.
                 </p>
-                <div className="flex flex-col gap-[9px]">
+                <div className="flex flex-col gap-[8px]">
                   {[
                     "Personal gradebook and score calculator",
                     "Attendance, lesson notes and timetable",
                     "Free, indefinitely · no school required",
                     "Link to your school any time later"
                   ].map((line) => (
-                    <div key={line} className="flex items-center gap-[9px] text-[12.5px] text-[#435048]">
-                      <Check className="h-[13px] w-[13px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
+                    <div key={line} className="flex items-center gap-[8px] text-[11.5px] text-[#435048]">
+                      <Check className="h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
                       {line}
                     </div>
                   ))}
                 </div>
-                <div className="mt-[22px] flex items-center gap-2 text-[13px] font-semibold text-[#0d2315]">
+                <div className="mt-[20px] flex items-center gap-[7px] text-[11.5px] font-semibold text-[#0d2315]">
                   Continue as teacher
-                  <ArrowRight className="h-[15px] w-[15px] transition group-hover:translate-x-0.5" />
+                  <ArrowRight className="h-[13.5px] w-[13.5px] transition group-hover:translate-x-0.5" />
                 </div>
               </button>
             </div>
 
-            <p className="mt-[26px] text-center text-[12.5px] text-[#8c9a92]">
+            <p className="mt-[23.5px] text-center text-[11.5px] text-[#8c9a92]">
               Parents and students receive their accounts from their school — they cannot sign up here.
             </p>
           </div>
@@ -652,17 +653,17 @@ export function OnboardingWizard() {
   if (view === "wiz") {
     return (
       <div className="flex min-h-screen text-[#0d2315]" style={{ background: "#f4f8f6" }}>
-        <div className="relative hidden w-[340px] shrink-0 flex-col justify-between overflow-hidden px-[34px] py-10 md:flex" style={{ background: "#0d2315" }}>
+        <div className="relative hidden w-[306px] shrink-0 flex-col justify-between overflow-hidden px-[30.5px] py-[36px] md:flex" style={{ background: "#0d2315" }}>
           <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-55" viewBox="0 0 400 900" preserveAspectRatio="xMidYMid slice">
             <circle cx="360" cy="120" r="180" stroke="rgba(255,255,255,0.05)" strokeWidth="1" fill="none" />
             <path d="M-40 800 Q 140 700 300 780 T 600 720" stroke="rgba(255,255,255,0.06)" strokeWidth="1.4" fill="none" />
           </svg>
           <div className="relative z-[1]">
             <span className="mb-10 block font-[var(--font-heading)] text-base font-extrabold text-white">FutureRealm SMS</span>
-            <div className="mb-2 text-[10.5px] font-bold tracking-[0.08em] text-[rgba(255,255,255,0.45)]">
+            <div className="mb-[7px] text-[9.5px] font-bold tracking-[0.08em] text-[rgba(255,255,255,0.45)]">
               {admin ? "SCHOOL ADMINISTRATOR SIGNUP" : "TEACHER SIGNUP"}
             </div>
-            <div className="mb-8 font-[var(--font-heading)] text-[23px] font-bold leading-[1.25] text-white">
+            <div className="mb-8 font-[var(--font-heading)] text-[20.5px] font-bold leading-[1.25] text-white">
               {admin ? "Your school, live in under a minute." : "Your own teaching workspace, free forever."}
             </div>
             <div className="flex flex-col gap-0.5">
@@ -674,14 +675,14 @@ export function OnboardingWizard() {
                   <div key={s.label} className="flex items-start gap-[13px]">
                     <div className="flex shrink-0 flex-col items-center">
                       <div
-                        className="flex h-[26px] w-[26px] items-center justify-center rounded-full text-[11.5px] font-bold"
+                        className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-full text-[10.5px] font-bold"
                         style={{
                           background: done ? "#fff" : current ? "#12796a" : "rgba(255,255,255,0.1)",
                           color: done ? "#0d2315" : current ? "#fff" : "rgba(255,255,255,0.5)",
                           boxShadow: current ? "0 0 0 4px rgba(18,121,106,0.22)" : "none"
                         }}
                       >
-                        {done ? <Check className="h-[11px] w-[11px]" strokeWidth={3.4} /> : n}
+                        {done ? <Check className="h-[10px] w-[10px]" strokeWidth={3.4} /> : n}
                       </div>
                       {i < steps.length - 1 ? (
                         <div
@@ -701,8 +702,8 @@ export function OnboardingWizard() {
               })}
             </div>
           </div>
-          <div className="relative z-[1] rounded-[13px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-4 py-[15px]">
-            <p className="text-[11.5px] leading-[1.55] text-[rgba(255,255,255,0.8)]">
+          <div className="relative z-[1] rounded-[13px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-[14.5px] py-[13.5px]">
+            <p className="text-[10.5px] leading-[1.55] text-[rgba(255,255,255,0.8)]">
               {admin
                 ? "Nothing here waits for approval. When you finish, your school exists, your address is live, and you are signed in."
                 : "No school required, no review, no waiting. If your school joins FutureRealm later, you keep this account."}
@@ -711,11 +712,11 @@ export function OnboardingWizard() {
         </div>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <div className="flex items-center justify-between px-6 pt-[22px] sm:px-11">
-            <div className="text-xs text-[#8c9a92]">
+          <div className="flex items-center justify-between px-6 pt-[23.5px] sm:px-[39.5px]">
+            <div className="text-[11px] text-[#8c9a92]">
               Step {step} of {lastStep}
             </div>
-            <div className="text-[12.5px] text-[#435048]">
+            <div className="text-[11.5px] text-[#435048]">
               Already have an account?{" "}
               <Link href="/login" className="font-semibold text-[#12796a] hover:underline">
                 Sign in
@@ -723,32 +724,32 @@ export function OnboardingWizard() {
             </div>
           </div>
 
-          <div className="max-w-[820px] flex-1 px-6 py-[26px] sm:px-11">
+          <div className="max-w-[718px] flex-1 px-6 py-[23.5px] sm:px-[39.5px]">
             {step === 1 ? (
               <div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">About you</div>
-                <p className="mb-7 text-[13.5px] text-[#77857c]">
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About you</div>
+                <p className="mb-[25px] text-[12px] text-[#77857c]">
                   {admin
                     ? "Instant — no human approval stands between you and a working school."
                     : "Instant. No review, no school required, no waiting."}
                 </p>
-                <div className="rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                <div className="rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
                   {errorBanner}
-                  <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="grid gap-x-4 gap-y-[14.5px] sm:grid-cols-2">
                     <label>
-                      {fieldLabel("First name")}
+                      {fieldLabel("First name", false, true)}
                       {fieldWrap(
                         <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputClass()} placeholder="Nkechi" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel("Last name")}
+                      {fieldLabel("Last name", false, true)}
                       {fieldWrap(
                         <input value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputClass()} placeholder="Obiora" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel("Gender")}
+                      {fieldLabel("Gender", false, true)}
                       <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         <option value="FEMALE">Female</option>
@@ -757,7 +758,7 @@ export function OnboardingWizard() {
                       </select>
                     </label>
                     <label>
-                      {fieldLabel("Phone number")}
+                      {fieldLabel("Phone number", false, true)}
                       {fieldWrap(
                         <input
                           value={phone}
@@ -769,7 +770,7 @@ export function OnboardingWizard() {
                       <div className="mt-1.5 text-[10px] text-[#8c9a92]">Include your country dialling code.</div>
                     </label>
                     <label className="sm:col-span-2">
-                      {fieldLabel("Email address")}
+                      {fieldLabel("Email address", false, true)}
                       {fieldWrap(
                         <input
                           type="email"
@@ -779,13 +780,13 @@ export function OnboardingWizard() {
                           placeholder="you@yourschool.edu.ng"
                         />
                       )}
-                      <div className="mt-1.5 text-[11px] text-[#8c9a92]">
+                      <div className="mt-1.5 text-[10px] text-[#8c9a92]">
                         One email address is one account across the whole platform. We&apos;ll send a 6-digit
                         verification code here.
                       </div>
                     </label>
                     <label className={admin ? "sm:col-span-2" : ""}>
-                      {fieldLabel(admin ? "Your position" : "What you teach as")}
+                      {fieldLabel(admin ? "Your position" : "What you teach as", false, true)}
                       <select value={position} onChange={(e) => setPosition(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         {(admin ? ADMIN_POSITIONS : TEACHER_POSITIONS).map((p) => (
@@ -797,10 +798,13 @@ export function OnboardingWizard() {
                     </label>
                     {!admin ? (
                       <label>
-                        {fieldLabel("Country")}
+                        {fieldLabel("Country", false, true)}
                         <SearchCombo value={country} onChange={setCountry} options={COUNTRY_NAMES} placeholder="Search countries…" />
                       </label>
                     ) : null}
+                  </div>
+                  <div className="mt-[14.5px] text-[10px] text-[#9fb8a7]">
+                    Fields marked <span className="font-bold text-[#b23b3b]">*</span> are required.
                   </div>
                 </div>
               </div>
@@ -808,46 +812,48 @@ export function OnboardingWizard() {
 
             {step === 2 && admin ? (
               <div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">About your school</div>
-                <p className="mb-7 text-[13.5px] text-[#77857c]">
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About your school</div>
+                <p className="mb-[25px] text-[12px] text-[#77857c]">
                   Your short name becomes your permanent web address — the one every invitation email will carry.
                 </p>
-                <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
                   {errorBanner}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="sm:col-span-2">
-                      {fieldLabel("School name")}
+                      {fieldLabel("School name", false, true)}
                       {fieldWrap(
                         <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className={inputClass()} placeholder="Power House School" />
                       )}
                     </label>
                     <label className="sm:col-span-2">
-                      <div className="mb-[7px] flex items-center justify-between">
-                        <span className="text-[11.5px] font-semibold text-[#435048]">Short name — creates your web address</span>
+                      <div className="mb-[6.5px] flex items-center justify-between">
+                        <span className="text-[10.5px] font-semibold text-[#435048]">
+                          Short name — creates your web address<span className="ml-[2px] font-semibold text-[#b23b3b]">*</span>
+                        </span>
                         <span
-                          className="rounded-full px-[9px] py-[3px] text-[10.5px] font-bold uppercase tracking-[0.04em]"
+                          className="rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.04em]"
                           style={{ background: slugToneColors[slugState.tone][0], color: slugToneColors[slugState.tone][1] }}
                         >
                           {slugState.badge}
                         </span>
                       </div>
-                      <div className="flex items-center gap-0.5 rounded-[10px] border-[1.5px] border-[#dee8e2] px-[13px] py-[11px] focus-within:border-[#12796a]">
+                      <div className="flex items-center gap-0.5 rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] focus-within:border-[#12796a]">
                         <input
                           value={slug}
                           onChange={(e) => setSlug(slugify(e.target.value))}
-                          className="w-[150px] min-w-0 border-none bg-transparent text-[13.5px] font-semibold text-[#0d2315] outline-none"
+                          className="w-[150px] min-w-0 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-none"
                           placeholder="powerhouse"
                         />
-                        <span className="text-[13.5px] text-[#8c9a92]">.futurerealm.school</span>
+                        <span className="text-[12px] text-[#8c9a92]">.futurerealm.school</span>
                       </div>
-                      <div className="mt-1.5 text-[11px] leading-[1.5] text-[#8c9a92]">{slugState.note}</div>
+                      <div className="mt-1.5 text-[10px] leading-[1.5] text-[#8c9a92]">{slugState.note}</div>
                     </label>
                     <label>
-                      {fieldLabel("Country")}
+                      {fieldLabel("Country", false, true)}
                       <SearchCombo value={country} onChange={onCountryChange} options={COUNTRY_NAMES} placeholder="Search countries…" />
                     </label>
                     <label>
-                      {fieldLabel(geo.level1Label)}
+                      {fieldLabel(geo.level1Label, false, true)}
                       <SearchCombo
                         value={state}
                         onChange={setState}
@@ -861,17 +867,17 @@ export function OnboardingWizard() {
                       />
                     </label>
                     <label>
-                      {fieldLabel("City or town")}
+                      {fieldLabel("City or town", false, true)}
                       {fieldWrap(<input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass()} placeholder="Ikeja" />)}
                     </label>
                     <label>
-                      {fieldLabel(geo.level2Label)}
+                      {fieldLabel(geo.level2Label, false, true)}
                       {fieldWrap(
                         <input value={lga} onChange={(e) => setLga(e.target.value)} className={inputClass()} placeholder={geo.level2Label} />
                       )}
                     </label>
                     <label className="sm:col-span-2">
-                      {fieldLabel("Full address")}
+                      {fieldLabel("Full address", false, true)}
                       {fieldWrap(
                         <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass()} placeholder="14 Aminu Kano Crescent, Wuse II" />
                       )}
@@ -883,7 +889,7 @@ export function OnboardingWizard() {
                       )}
                     </label>
                     <label>
-                      {fieldLabel("School type")}
+                      {fieldLabel("School type", false, true)}
                       <select value={schoolType} onChange={(e) => setSchoolType(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         {SCHOOL_TYPE_OPTIONS.map((t) => (
@@ -895,7 +901,9 @@ export function OnboardingWizard() {
                     </label>
                     <label className="sm:col-span-2">
                       <div className="mb-[9px] flex items-center justify-between">
-                        <span className="text-[11.5px] font-semibold text-[#435048]">Levels operated</span>
+                        <span className="text-[10.5px] font-semibold text-[#435048]">
+                          Levels operated<span className="ml-[2px] font-semibold text-[#b23b3b]">*</span>
+                        </span>
                         <span className="text-[10px] text-[#9fb8a7]">
                           {Object.values(levels).filter(Boolean).length ? `${Object.values(levels).filter(Boolean).length} selected` : "Pick at least one"}
                         </span>
@@ -908,7 +916,7 @@ export function OnboardingWizard() {
                               type="button"
                               key={lv}
                               onClick={() => toggleLevel(lv)}
-                              className="flex items-center gap-[9px] rounded-[10px] border-[1.5px] px-[14px] py-[9px] text-[12.5px] font-medium transition"
+                              className="flex items-center gap-[9px] rounded-[10px] border-[1.5px] px-[14px] py-[9px] text-[11.5px] font-medium transition"
                               style={{
                                 borderColor: on ? "#0d2315" : "#dee8e2",
                                 color: on ? "#0d2315" : "#77857c",
@@ -926,7 +934,7 @@ export function OnboardingWizard() {
                           );
                         })}
                       </div>
-                      <div className="mb-[7px] mt-3 text-[11.5px] font-semibold text-[#435048]">
+                      <div className="mb-[6.5px] mt-3 text-[10.5px] font-semibold text-[#435048]">
                         Any level we haven&apos;t listed <span className="font-medium text-[#9fb8a7]">optional</span>
                       </div>
                       {fieldWrap(
@@ -939,7 +947,7 @@ export function OnboardingWizard() {
                       )}
                     </label>
                     <label>
-                      {fieldLabel("Curriculum")}
+                      {fieldLabel("Curriculum", false, true)}
                       <select value={curriculum} onChange={(e) => setCurriculum(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         {CURRICULUM_OPTIONS.map((c) => (
@@ -950,7 +958,7 @@ export function OnboardingWizard() {
                       </select>
                     </label>
                     <label>
-                      {fieldLabel("Estimated student count")}
+                      {fieldLabel("Estimated student count", false, true)}
                       {fieldWrap(
                         <input
                           value={studentCount}
@@ -974,10 +982,13 @@ export function OnboardingWizard() {
                       )}
                     </label>
                   </div>
-                  <div className="mt-4 text-[10px] text-[#9fb8a7]">Registration numbers can be added later from School Configuration.</div>
+                  <div className="mt-4 text-[10px] text-[#9fb8a7]">
+                    Fields marked <span className="font-bold text-[#b23b3b]">*</span> are required. Registration
+                    numbers can be added later from School Configuration.
+                  </div>
                 </div>
                 <div className="flex items-start gap-[11px] rounded-[13px] border border-[#e6eee9] bg-[#f7faf8] px-4 py-[14px]">
-                  <p className="text-[11.5px] leading-[1.55] text-[#435048]">
+                  <p className="text-[10.5px] leading-[1.55] text-[#435048]">
                     Your address is permanent from day one — never changed once teachers and parents have been
                     invited. Blocked names such as <b>admin</b>, <b>app</b>, <b>waec</b> or <b>neco</b> cannot be
                     used, and we never add numbers automatically.
@@ -988,12 +999,12 @@ export function OnboardingWizard() {
 
             {step === 2 && !admin ? (
               <div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">What you teach</div>
-                <p className="mb-7 text-[13.5px] text-[#77857c]">
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">What you teach</div>
+                <p className="mb-[25px] text-[12px] text-[#77857c]">
                   Tell us what you teach and we build your gradebook around it. Your school is optional — the rest we
                   need.
                 </p>
-                <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
                   {errorBanner}
                   <label>
                     {fieldLabel("School you teach at", true)}
@@ -1155,20 +1166,20 @@ export function OnboardingWizard() {
 
             {step === 3 ? (
               <div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">Create your password</div>
-                <p className="mb-7 text-[13.5px] text-[#77857c]">
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Create your password</div>
+                <p className="mb-[25px] text-[12px] text-[#77857c]">
                   Minimum 8 characters with letters and numbers. No forced special characters.
                 </p>
-                <div className="max-w-[520px] rounded-2xl border border-[#dee8e2] bg-white p-[26px]">
+                <div className="max-w-[468px] rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
                   {errorBanner}
                   <label>
-                    {fieldLabel("Password")}
-                    <div className="mb-3 flex items-center gap-[10px] rounded-[10px] border-[1.5px] border-[#dee8e2] px-[13px] py-[11px] focus-within:border-[#12796a]">
+                    {fieldLabel("Password", false, true)}
+                    <div className="mb-3 flex items-center gap-[8px] rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] focus-within:border-[#12796a]">
                       <input
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-[#0d2315] outline-none"
+                        className="min-w-0 flex-1 border-none bg-transparent text-[12px] text-[#0d2315] outline-none"
                         placeholder="Choose a password"
                       />
                       <button type="button" onClick={() => setShowPassword((v) => !v)} className="shrink-0 text-[#b4c4bb] hover:text-[#435048]">
@@ -1181,11 +1192,11 @@ export function OnboardingWizard() {
                       <div key={i} className="h-1 flex-1 rounded-full" style={{ background: pwScore >= i ? pwColor : "#edf3ef" }} />
                     ))}
                   </div>
-                  <div className="mb-5 text-[11.5px] text-[#8c9a92]">
+                  <div className="mb-5 text-[10.5px] text-[#8c9a92]">
                     Strength: <span style={{ fontWeight: 600, color: pwColor }}>{pwLabel}</span>
                   </div>
                   <label>
-                    {fieldLabel("Confirm password")}
+                    {fieldLabel("Confirm password", false, true)}
                     <input
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
@@ -1196,16 +1207,16 @@ export function OnboardingWizard() {
                   </label>
                   <div className="flex flex-col gap-2">
                     {["We never send passwords by email", "5 failed sign-in attempts locks the account for 15 minutes"].map((line) => (
-                      <div key={line} className="flex items-center gap-[9px] text-xs text-[#435048]">
-                        <Check className="h-[13px] w-[13px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
+                      <div key={line} className="flex items-center gap-[8px] text-[11px] text-[#435048]">
+                        <Check className="h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
                         {line}
                       </div>
                     ))}
                   </div>
                 </div>
                 {!admin ? (
-                  <div className="mt-4 flex max-w-[520px] items-start gap-[11px] rounded-[13px] border border-[#e6eee9] bg-[#f7faf8] px-4 py-[14px]">
-                    <p className="text-[11.5px] leading-[1.55] text-[#435048]">
+                  <div className="mt-4 flex max-w-[468px] items-start gap-[11px] rounded-[13px] border border-[#e6eee9] bg-[#f7faf8] px-4 py-[14px]">
+                    <p className="text-[10.5px] leading-[1.55] text-[#435048]">
                       Signup and first login need internet. After your first successful login, offline features work
                       as usual.
                     </p>
@@ -1216,35 +1227,35 @@ export function OnboardingWizard() {
 
             {step === 4 && admin ? (
               <div>
-                <div className="mb-1.5 font-[var(--font-heading)] text-[27px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 30-day free trial</div>
-                <p className="mb-7 text-[13.5px] text-[#77857c]">Every feature unlocked. No card required. No charge at the end.</p>
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 30-day free trial</div>
+                <p className="mb-[25px] text-[12px] text-[#77857c]">Every feature unlocked. No card required. No charge at the end.</p>
                 <div className="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
-                  <div className="relative overflow-hidden rounded-[18px] p-7" style={{ background: "#0d2315" }}>
+                  <div className="relative overflow-hidden rounded-[18px] p-[23.5px]" style={{ background: "#0d2315" }}>
                     <div className="relative">
-                      <div className="mb-[18px] inline-flex items-center gap-[7px] rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.1)] px-3 py-1.5">
+                      <div className="mb-[16px] inline-flex items-center gap-[7px] rounded-full border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.1)] px-[12.5px] py-[5.5px]">
                         <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#3ee08a" }} />
-                        <span className="text-[10.5px] font-bold tracking-[0.06em] text-white">30 DAYS · EVERY FEATURE</span>
+                        <span className="text-[9.5px] font-bold tracking-[0.06em] text-white">30 DAYS · EVERY FEATURE</span>
                       </div>
-                      <div className="mb-3.5 font-[var(--font-heading)] text-[22px] font-bold leading-[1.3] text-white">
+                      <div className="mb-3.5 font-[var(--font-heading)] text-[20px] font-bold leading-[1.3] text-white">
                         Results, report cards, fees, attendance and parent notifications.
                       </div>
-                      <div className="mb-6 text-[12.5px] leading-[1.6] text-[rgba(255,255,255,0.6)]">
+                      <div className="mb-6 text-[11.5px] leading-[1.6] text-[rgba(255,255,255,0.6)]">
                         Your school starts with a clean workspace ready for your first academic session — classes,
                         subjects, staff and students, all set up your way.
                       </div>
-                      <div className="text-[11px] leading-[1.5] text-[rgba(255,255,255,0.45)]">
+                      <div className="text-[10px] leading-[1.5] text-[rgba(255,255,255,0.45)]">
                         Your trial starts the moment you finish this step.
                       </div>
                     </div>
                   </div>
-                  <div className="rounded-[18px] border border-[#dee8e2] bg-white p-6">
-                    <div className="mb-1 text-[13px] font-semibold text-[#0d2315]">Set up automatically</div>
-                    <div className="mb-4 text-[11.5px] text-[#8c9a92]">In under 60 seconds, with no human involved</div>
+                  <div className="rounded-[18px] border border-[#dee8e2] bg-white p-[21.5px]">
+                    <div className="mb-1 text-[11.5px] font-semibold text-[#0d2315]">Set up automatically</div>
+                    <div className="mb-4 text-[10.5px] text-[#8c9a92]">In under 60 seconds, with no human involved</div>
                     <div className="flex flex-col gap-[11px]">
                       {AUTO_SETUP_ADMIN.map((line) => (
                         <div key={line} className="flex items-start gap-[9px]">
-                          <Check className="mt-[3px] h-[13px] w-[13px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
-                          <div className="text-xs leading-[1.5] text-[#435048]">{line}</div>
+                          <Check className="mt-[3px] h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
+                          <div className="text-[11px] leading-[1.5] text-[#435048]">{line}</div>
                         </div>
                       ))}
                     </div>
@@ -1253,11 +1264,11 @@ export function OnboardingWizard() {
               </div>
             ) : null}
 
-            <div className="mt-[26px] flex items-center gap-3">
+            <div className="mt-[24px] flex items-center gap-3">
               <button
                 type="button"
                 onClick={goBack}
-                className="rounded-[11px] border border-[#cfddd5] bg-white px-5 py-3 text-[13.5px] font-semibold text-[#435048] hover:bg-[#f7faf8]"
+                className="rounded-[11px] border border-[#cfddd5] bg-white px-[18px] py-[11px] text-[12px] font-semibold text-[#435048] hover:bg-[#f7faf8]"
               >
                 Back
               </button>
@@ -1265,13 +1276,13 @@ export function OnboardingWizard() {
                 type="button"
                 disabled={pending}
                 onClick={handleNext}
-                className="flex items-center gap-[9px] rounded-[11px] px-[22px] py-3 text-[13.5px] font-semibold text-white shadow-[0_10px_22px_-12px_rgba(13,35,21,0.6)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
+                className="flex items-center gap-[8px] rounded-[11px] px-[20px] py-[11px] text-[12px] font-semibold text-white shadow-[0_10px_22px_-12px_rgba(13,35,21,0.6)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
                 style={{ background: "#0d2315" }}
               >
                 {pending ? "Creating..." : step === lastStep ? (admin ? "Create my school" : "Create my account") : "Continue"}
-                <ArrowRight className="h-[15px] w-[15px]" />
+                <ArrowRight className="h-[13.5px] w-[13.5px]" />
               </button>
-              <span className="hidden text-[11.5px] text-[#9fb8a7] sm:inline">
+              <span className="hidden text-[10.5px] text-[#9fb8a7] sm:inline">
                 Progress is saved at every step — you can leave and come back.
               </span>
             </div>
@@ -1298,31 +1309,31 @@ export function OnboardingWizard() {
 
     return (
       <div className="flex min-h-screen items-center justify-center px-6 py-10 text-[#0d2315]" style={{ background: "#f4f8f6" }}>
-        <div className="w-full max-w-[560px] rounded-[20px] border border-[#dee8e2] bg-white p-9 text-center shadow-[0_30px_70px_-50px_rgba(13,35,21,0.5)]">
-          <div className="mx-auto mb-[22px] flex h-16 w-16 items-center justify-center rounded-full border border-[#bfe3cd]" style={{ background: "#edf7f1" }}>
-            <Check className="h-[30px] w-[30px]" style={{ color: "#12796a" }} strokeWidth={2.4} />
+        <div className="w-full max-w-[504px] rounded-[20px] border border-[#dee8e2] bg-white px-[32.5px] py-[34px] text-center shadow-[0_30px_70px_-50px_rgba(13,35,21,0.5)]">
+          <div className="mx-auto mb-[20px] flex h-[57.5px] w-[57.5px] items-center justify-center rounded-full border border-[#bfe3cd]" style={{ background: "#edf7f1" }}>
+            <Check className="h-[27px] w-[27px]" style={{ color: "#12796a" }} strokeWidth={2.4} />
           </div>
-          <div className="mb-2 font-[var(--font-heading)] text-[25px] font-bold tracking-[-0.015em] text-[#0d2315]">
+          <div className="mb-[7px] font-[var(--font-heading)] text-[22.5px] font-bold tracking-[-0.015em] text-[#0d2315]">
             {doneRole === "admin" ? `${schoolName || "Your school"} is live.` : "Your workspace is ready."}
           </div>
-          <p className="mx-auto mb-[26px] max-w-[420px] text-[13.5px] leading-[1.65] text-[#77857c]">
+          <p className="mx-auto mb-[23px] max-w-[378px] text-[12px] leading-[1.65] text-[#77857c]">
             {doneRole === "admin"
               ? "Your school exists and your web address is live. One step left — verify your email address, then head to your new dashboard."
               : "Your personal teaching workspace is created and free for as long as you use it. One step left — verify your email address."}
           </p>
 
-          <div className="mb-6 rounded-[14px] border border-[#e6eee9] bg-[#f7faf8] px-5 py-[18px] text-left">
+          <div className="mb-[21.5px] rounded-[14px] border border-[#e6eee9] bg-[#f7faf8] px-[18px] py-[16px] text-left">
             {doneRows.map((row) => (
               <div key={row.k} className="flex items-center justify-between gap-3.5 py-2">
-                <div className="whitespace-nowrap text-[11.5px] text-[#8c9a92]">{row.k}</div>
-                <div className="min-w-0 text-right text-[12.5px] font-semibold text-[#0d2315]">{row.v}</div>
+                <div className="whitespace-nowrap text-[10.5px] text-[#8c9a92]">{row.k}</div>
+                <div className="min-w-0 text-right text-[11.5px] font-semibold text-[#0d2315]">{row.v}</div>
               </div>
             ))}
           </div>
 
-          <div className="mb-6 flex items-start gap-[11px] rounded-[13px] border border-[#dee8e2] bg-white px-4 py-[14px] text-left">
-            <Mail className="mt-px h-[17px] w-[17px] shrink-0" style={{ color: "#12796a" }} strokeWidth={1.9} />
-            <div className="text-[11.5px] leading-[1.55] text-[#435048]">
+          <div className="mb-[21.5px] flex items-start gap-[11px] rounded-[13px] border border-[#dee8e2] bg-white px-[14px] py-[12.5px] text-left">
+            <Mail className="mt-px h-[15px] w-[15px] shrink-0" style={{ color: "#12796a" }} strokeWidth={1.9} />
+            <div className="text-[10.5px] leading-[1.55] text-[#435048]">
               Check your inbox for a <b>6-digit verification code</b>. It is valid for 15 minutes, allows 3 attempts,
               and you can request a new one at any time.
             </div>
@@ -1335,7 +1346,7 @@ export function OnboardingWizard() {
                 setView("verify");
                 window.scrollTo(0, 0);
               }}
-              className="rounded-[11px] px-6 py-[13px] text-[13.5px] font-semibold text-white shadow-[0_10px_22px_-12px_rgba(13,35,21,0.6)]"
+              className="rounded-[11px] px-[20px] py-[11px] text-[12px] font-semibold text-white shadow-[0_10px_22px_-12px_rgba(13,35,21,0.6)]"
               style={{ background: "#0d2315" }}
             >
               Verify my email
@@ -1343,7 +1354,7 @@ export function OnboardingWizard() {
             <button
               type="button"
               onClick={goToDashboard}
-              className="rounded-[11px] border border-[#cfddd5] bg-white px-6 py-[13px] text-[13.5px] font-semibold text-[#435048] hover:bg-[#f7faf8]"
+              className="rounded-[11px] border border-[#cfddd5] bg-white px-[20px] py-[11px] text-[12px] font-semibold text-[#435048] hover:bg-[#f7faf8]"
             >
               I&apos;ll do it later
             </button>
@@ -1361,24 +1372,24 @@ export function OnboardingWizard() {
         <span className="font-[var(--font-heading)] text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
       </div>
       <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
-        <div className="w-full max-w-[460px] rounded-[20px] border border-[#dee8e2] bg-white p-8 shadow-[0_30px_70px_-50px_rgba(13,35,21,0.5)]">
-          <div className="mb-5 flex h-[46px] w-[46px] items-center justify-center rounded-[13px]" style={{ background: "#eaf0ec" }}>
-            <Mail className="h-[21px] w-[21px] text-[#0d2315]" strokeWidth={1.9} />
+        <div className="w-full max-w-[414px] rounded-[20px] border border-[#dee8e2] bg-white px-[30.5px] pt-[30.5px] pb-[27px] shadow-[0_30px_70px_-50px_rgba(13,35,21,0.5)]">
+          <div className="mb-5 flex h-[41.5px] w-[41.5px] items-center justify-center rounded-[13px]" style={{ background: "#eaf0ec" }}>
+            <Mail className="h-[19px] w-[19px] text-[#0d2315]" strokeWidth={1.9} />
           </div>
-          <div className="mb-1.5 font-[var(--font-heading)] text-[23px] font-bold tracking-[-0.015em] text-[#0d2315]">Verify your email</div>
-          <p className="mb-[26px] text-[13px] leading-[1.6] text-[#77857c]">
+          <div className="mb-[5.5px] font-[var(--font-heading)] text-[20.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Verify your email</div>
+          <p className="mb-[23.5px] text-[11.5px] leading-[1.6] text-[#77857c]">
             Enter the 6-digit code we sent to <b className="text-[#0d2315]">{email}</b>. Valid for 15 minutes · 3
             attempts.
           </p>
 
           <div className="relative mb-[18px]">
-            <div className="flex gap-[9px]">
+            <div className="flex gap-[8px]">
               {otpBoxes.map((ch, i) => {
                 const active = otp.length === i;
                 return (
                   <div
                     key={i}
-                    className="flex h-14 flex-1 items-center justify-center rounded-xl font-[var(--font-heading)] text-[22px] font-bold"
+                    className="flex h-[50px] flex-1 items-center justify-center rounded-[11px] font-[var(--font-heading)] text-[20px] font-bold"
                     style={{
                       color: ch ? "#0d2315" : "#cfddd5",
                       background: "#fff",
@@ -1406,7 +1417,7 @@ export function OnboardingWizard() {
             type="button"
             disabled={!otpComplete || verifyPending}
             onClick={handleVerify}
-            className="w-full rounded-[11px] py-[13px] text-center text-sm font-semibold transition"
+            className="w-full rounded-[11px] py-[11px] text-center text-[12.5px] font-semibold transition"
             style={
               otpComplete
                 ? { background: "#0d2315", color: "#fff", boxShadow: "0 10px 22px -10px rgba(13,35,21,0.55)" }
@@ -1417,17 +1428,17 @@ export function OnboardingWizard() {
           </button>
 
           <div className="mt-[18px] flex items-center justify-between">
-            <button type="button" onClick={handleResend} className="text-xs text-[#8c9a92]">
+            <button type="button" onClick={handleResend} className="text-[11px] text-[#8c9a92]">
               Didn&apos;t get it? <span className="font-semibold text-[#12796a] hover:underline">Send me a new code</span>
             </button>
-            <div className="text-[11.5px] text-[#b4c4bb]">Expires in {otpExpiryLabel}</div>
+            <div className="text-[10.5px] text-[#b4c4bb]">Expires in {otpExpiryLabel}</div>
           </div>
 
-          <div className="my-[22px] h-px bg-[#edf3ef]" />
-          <p className="text-[11.5px] leading-[1.55] text-[#8c9a92]">
+          <div className="my-[20px] h-px bg-[#edf3ef]" />
+          <p className="text-[10.5px] leading-[1.55] text-[#8c9a92]">
             Codes go to email only. We never send passwords by email.
           </p>
-          <p className="mt-4 text-xs text-[#9fb8a7]">
+          <p className="mt-[14px] text-[11px] text-[#9fb8a7]">
             Wrong address?{" "}
             <button type="button" onClick={() => setView("done")} className="font-semibold text-[#12796a] hover:underline">
               Go back
