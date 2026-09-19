@@ -587,7 +587,12 @@ export function Topbar({
           ) : null}
 
           <div className="min-w-0">
-            <h1 className="truncate text-[0.98rem] font-bold leading-tight text-[var(--color-text-primary)]">
+            <h1
+              className={cn(
+                "truncate text-[var(--color-text-primary)]",
+                portalType === "super_admin" ? "text-[13.5px] font-semibold leading-[1.22]" : "text-[0.98rem] font-bold leading-tight",
+              )}
+            >
               {contextTitle}
             </h1>
             <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] font-medium leading-tight text-[var(--color-text-secondary)]">
@@ -604,13 +609,13 @@ export function Topbar({
         <div className="flex shrink-0 items-center gap-2">
           {portalType === "super_admin" ? (
             <div className="hidden items-center gap-2 lg:flex">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-2 text-[12px] font-semibold text-[var(--color-success)]">
+              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-1.5 text-[12px] font-semibold leading-[1.2] text-[var(--color-success)]">
                 <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
                 {isProduction ? "Production" : "Development"}
               </span>
               <Link
                 href="/super-admin/schools?tab=approval-queue"
-                className="relative inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] px-2.5 py-2 text-[12.5px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]"
+                className="relative inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] px-[11px] py-[7px] text-[12.5px] font-semibold leading-[1.2] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]"
               >
                 <BellRing className="h-3.5 w-3.5" />
                 Alerts

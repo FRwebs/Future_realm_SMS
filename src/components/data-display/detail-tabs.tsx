@@ -20,7 +20,7 @@ export function DetailTabs({ tabs }: DetailTabsProps) {
           key={tab.href}
           href={tab.href as Route}
           className={[
-            "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] transition-colors",
+            "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-3.5 py-3 text-[13px] leading-[1.2] transition-colors",
             tab.active
               ? "border-[var(--color-text-primary)] font-semibold text-[var(--color-text-primary)]"
               : "border-transparent font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)]"
@@ -30,7 +30,7 @@ export function DetailTabs({ tabs }: DetailTabsProps) {
           {tab.badge !== undefined && tab.badge !== "" ? (
             <span
               className={[
-                "inline-flex items-center justify-center rounded-full px-[7px] py-[1px] text-[10.5px] font-bold",
+                "inline-flex items-center justify-center rounded-full px-[7px] py-[1px] text-[10.5px] font-bold leading-[1.2]",
                 tab.active ? "bg-[var(--color-accent-primary-dim)] text-[var(--color-accent-primary)]" : "bg-[var(--color-bg-overlay)] text-[#8C9A92]"
               ].join(" ")}
             >
