@@ -221,7 +221,7 @@ function SidebarContent({
                 <X className="h-3.5 w-3.5" />
               </button>
             ) : (
-              <span className="shrink-0 rounded-[5px] border border-[rgba(255,255,255,0.2)] px-[5px] py-px text-[10.5px] font-semibold text-[rgba(255,255,255,0.45)]">
+              <span className="shrink-0 rounded-[5px] border border-[rgba(255,255,255,0.2)] px-[5px] py-px text-[10.5px] font-semibold leading-[1.2] text-[rgba(255,255,255,0.45)]">
                 ⌘K
               </span>
             )}
@@ -229,7 +229,7 @@ function SidebarContent({
         </div>
       )}
 
-      <div className="relative min-h-0 flex-1 py-2">
+      <div className="relative min-h-0 flex-1 pb-2">
         <div className="pointer-events-none absolute inset-x-3 top-2 z-10 h-6 bg-gradient-to-b from-[#0d2315] to-transparent" />
         <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10 h-6 bg-gradient-to-t from-[#0d2315] to-transparent" />
 
