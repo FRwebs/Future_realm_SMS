@@ -463,7 +463,7 @@ export default async function SuperAdminDashboardPage() {
                 <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: dotColor }} />
                 <p className="truncate text-[10px] font-bold uppercase tracking-[0.09em] text-white/50">{cell.label}</p>
               </div>
-              <p className="mt-[9px] font-[var(--font-mono)] text-[23px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
+              <p className="mt-[9px] truncate font-[var(--font-mono)] text-[23px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
               <p className="mt-1.5 truncate text-[11px] text-white/55">{cell.sub}</p>
             </div>
           );
