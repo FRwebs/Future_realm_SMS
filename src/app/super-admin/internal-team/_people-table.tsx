@@ -99,11 +99,33 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
               />
             ) : null}
             <InertAction label="Send the message" note="Not built — there is no internal messaging feature; reach a colleague outside this platform." />
-            {suspended ? (
-              <InertAction label="Reinstate the account" note="Not built — there is no reinstate endpoint. Suspended is a status this system can show but no action sets or clears it." />
-            ) : (
-              <InertAction label="Suspend the account" note="Not built — there is no suspend endpoint distinct from Offboard for internal accounts." />
-            )}
+            {!revoked ? (
+              suspended ? (
+                <ResourceActionDialog
+                  triggerLabel="Reinstate the account"
+                  title={`Reinstate ${member.name}`}
+                  description="Restores sign-in access for this internal account."
+                  endpoint={`/api/super-admin/users/${member.id}/reinstate`}
+                  method="PATCH"
+                  variant="secondary"
+                  submitLabel="Reinstate account"
+                  confirmLabel="Confirm reinstate"
+                  fields={[]}
+                />
+              ) : (
+                <ResourceActionDialog
+                  triggerLabel="Suspend the account"
+                  title={`Suspend ${member.name}`}
+                  description="Immediately blocks sign-in for this internal account. Unlike Offboard, this can be reversed with Reinstate."
+                  endpoint={`/api/super-admin/users/${member.id}/suspend`}
+                  method="PATCH"
+                  variant="danger"
+                  submitLabel="Suspend account"
+                  confirmLabel="Confirm suspend"
+                  fields={[]}
+                />
+              )
+            ) : null}
           </div>
         }
       >
