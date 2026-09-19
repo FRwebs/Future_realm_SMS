@@ -868,7 +868,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
         </section>
       ) : activeTab === "provisioning" ? (
         <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
             <StatCard
               label="Provisioned last 7 days"
               value={signupsLast7Days}
@@ -1058,7 +1058,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
         </section>
       ) : activeTab === "web-addresses" ? (
         <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+          <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
             <StatCard label="Addresses live" value={liveAddressCount} detail="One per school, permanent from minute one." icon={ShieldCheck} tone="dark" />
             <StatCard label="Held (retiring)" value={heldAddressCount} detail="12 months from closure, then released." icon={Moon} tone={heldAddressCount > 0 ? "warning" : "success"} />
             <StatCard label="Reserved / blocked" value={reservedBlockedCount} detail="Held out of the available pool." icon={Gavel} tone="warning" />

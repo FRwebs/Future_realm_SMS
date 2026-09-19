@@ -93,7 +93,7 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
 function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="API uptime (24h)" value={`${data.uptime.apiUptime}%`} detail={`${data.uptime.requestsLast24h.toLocaleString()} requests · target 99.5%`} tone="dark" icon={Server} />
         <StatCard label="API response (avg)" value={`${data.uptime.avgResponseMs}ms`} detail="Warning above 1.5s" tone={statusTone(data.uptime.responseStatus)} icon={Timer} />
         <StatCard label="Server CPU" value="N/A" detail="Not tracked — no APM agent is wired in" tone="neutral" icon={Cpu} />
@@ -127,7 +127,7 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
 function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Records queued" value={String(data.syncQueue.pending)} detail="Across all schools" tone="dark" icon={UploadCloud} />
         <StatCard label="Avg queue age" value={`${data.syncQueue.avgQueueAgeHours}h`} detail="Warning above 2 hours" icon={Clock3} tone="neutral" />
         <StatCard label="Oldest pending" value={`${data.syncQueue.oldestAgeHours}h`} detail={data.syncQueue.oldestSchool ?? "No pending records"} icon={WifiOff} tone="neutral" />
@@ -231,7 +231,7 @@ async function ComputationTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Trace completeness" value="N/A" detail="Not tracked — no per-computation calculation trace is stored" tone="dark" icon={Activity} />
         <StatCard label="Regression suite" value="N/A" detail="Not tracked at runtime — this is a CI/deployment concern, not data this page can read" tone="neutral" icon={FlaskConical} />
         <StatCard label="Computations today" value="N/A" detail="Not tracked as one aggregate — see the real pending-queue depths below instead" tone="neutral" icon={Cpu} />

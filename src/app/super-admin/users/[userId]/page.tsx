@@ -88,7 +88,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
         </div>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <StatCard label="School" value={user.school.name} detail={`${user.school.plan} · ${user.school.status}`} icon={Building2} tone="dark" />
         <StatCard label="Profile type" value={user.profileType} detail={user.role.replaceAll("_", " ")} icon={UserRound} tone="info" />
         <StatCard label="Last login" value={user.lastLoginAt ? formatDate(user.lastLoginAt) : "Never"} detail="Most recent successful session." icon={Clock3} tone="success" />

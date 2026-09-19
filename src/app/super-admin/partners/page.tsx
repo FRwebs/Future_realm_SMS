@@ -209,7 +209,7 @@ function PartnersTab({
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Partners on the registry" value={partners.length} detail={`${activePartners} active`} icon={Handshake} tone="dark" />
         <StatCard label="Attributed schools" value={deals.length} detail="Every introduction ever logged" icon={Link2} tone="info" />
         <StatCard label="Commission liability accrued" value={compactCurrency(totalAccrued)} detail={formatCurrency(totalAccrued)} icon={PiggyBank} tone="success" />

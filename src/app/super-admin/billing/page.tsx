@@ -1,4 +1,4 @@
-import { AlertTriangle, BadgePercent, CalendarCheck2, CreditCard, Gift, Repeat2, TicketPercent, TrendingUp, UsersRound } from "lucide-react";
+import { AlertTriangle, BadgePercent, Calendar, CreditCard, DollarSign, Gift, Repeat2, TicketPercent, TrendingUp } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -293,7 +293,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
 
       {activeTab === "overview" ? (
         <>
-          <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
             <StatCard
               label="Semester revenue"
               value={formatCompactCurrency(revenue.mrr)}
@@ -312,7 +312,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               label="ARPU"
               value={formatCompactCurrency(arpu)}
               detail={`Average per paying school across ${revenue.totalPaidSchools} paid tenant${revenue.totalPaidSchools === 1 ? "" : "s"}.`}
-              icon={UsersRound}
+              icon={DollarSign}
               tone="info"
             />
             <StatCard
@@ -326,7 +326,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               label="Renewal pipeline"
               value={formatCompactCurrency(report.mrr)}
               detail={`Projected next-term renewal value from ${report.activeSchoolCount} active schools.`}
-              icon={CalendarCheck2}
+              icon={Calendar}
               tone="success"
             />
             <StatCard
@@ -1120,7 +1120,7 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
             Open Tier Plans
           </Link>
         </div>
-        <div className="grid gap-3 p-5 md:grid-cols-2 xl:grid-cols-3">
+        <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-3">
           {activePlans.length === 0 ? (
             <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
               No active plans. Configure one in Feature &amp; Tier Management.
@@ -1269,7 +1269,7 @@ function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView;
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Outstanding"
           value={formatCompactCurrency(report.outstandingReceivables)}
@@ -1288,7 +1288,7 @@ function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView;
           label="ARPU"
           value={formatCompactCurrency(report.arpu)}
           detail={`Per paying school, per semester. Full value: ${formatCurrency(report.arpu)}.`}
-          icon={UsersRound}
+          icon={DollarSign}
           tone="info"
         />
         <StatCard

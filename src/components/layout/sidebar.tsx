@@ -4,7 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, ChevronDown, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings2, User, X } from "lucide-react";
+import { ChevronDown, FileText, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings, User, X } from "lucide-react";
 
 import { roleLabels } from "@/lib/auth/roles";
 import { dropdownItemsFor } from "@/components/layout/topbar";
@@ -371,7 +371,7 @@ function SidebarContent({
               normalizedPath === "/super-admin/standards" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
             )}
           >
-            <BookOpen className="h-[15px] w-[15px] shrink-0" />
+            <FileText className="h-[15px] w-[15px] shrink-0" />
             Docs
           </Link>
           <Link
@@ -381,7 +381,7 @@ function SidebarContent({
               normalizedPath === "/super-admin/settings" ? "bg-[rgba(255,255,255,0.14)] text-white" : "text-[rgba(255,255,255,0.6)]",
             )}
           >
-            <Settings2 className="h-[15px] w-[15px] shrink-0" />
+            <Settings className="h-[15px] w-[15px] shrink-0" />
             Settings
           </Link>
           <Link

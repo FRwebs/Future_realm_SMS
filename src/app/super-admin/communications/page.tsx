@@ -209,7 +209,7 @@ async function TemplatesTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Templates in the library" value={templates.length} detail="Across every channel and category" icon={MessageSquare} tone="dark" />
         <StatCard label="Approved and in use" value={approved} detail="Cleared to send" icon={BadgeCheck} tone="success" />
         <StatCard label="Awaiting Meta approval" value={awaitingMeta} detail="WhatsApp templates must be pre-approved" icon={Clock3} tone={awaitingMeta ? "warning" : "neutral"} />
@@ -340,7 +340,7 @@ function TriggersTab({ scheduled, totalCampaigns }: { scheduled: SuperAdminCampa
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Trigger rules defined" value={triggerRows.length} detail="Found by code search, not a rules table" icon={Radio} tone="dark" />
         <StatCard label="Enabled" value={triggerRows.length} detail="All — none can be disabled from here; each is compiled into the code path it fires from" icon={MessageSquare} tone="success" />
         <StatCard label="Channels in use" value={distinctChannels} detail="Across every trigger point" icon={Users2} tone="info" />
@@ -401,7 +401,7 @@ function DeliveryTab({ sent }: { sent: SuperAdminCampaignRow[] }) {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Recipients targeted" value={totalRecipients.toLocaleString()} detail={`Across ${sent.length} sent campaign(s)`} icon={Radio} tone="dark" />
         <StatCard label="Delivered successfully" value={totalDelivered.toLocaleString()} detail={`${avgDeliveryRate}% delivery rate`} icon={BadgeCheck} tone="success" />
         <StatCard label="Failed" value={totalFailed.toLocaleString()} detail="Aggregate per campaign, not per message" icon={FileWarning} tone={totalFailed ? "danger" : "neutral"} />
