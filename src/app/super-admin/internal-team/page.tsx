@@ -167,7 +167,7 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Internal accounts" value={all.length} detail={`${activeCount} active · ${revokedCount} revoked · ${suspendedCount} suspended`} icon={Users2} tone="dark" />
         <StatCard label="Hold Super Admin" value={superAdminCount} detail="Kept deliberately small" icon={Crown} tone="info" />
         <StatCard label="External accounts" value="N/A" detail="Not tracked — no internal/external distinction exists on an account; every role is treated as an employee" icon={Timer} tone="neutral" />
@@ -318,7 +318,7 @@ async function RolesTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Roles defined" value={roleOptions.length} detail="Fixed platform roles, not ad-hoc bundles" icon={UserCog} tone="dark" />
         <StatCard label="Actions that can be granted" value="N/A" detail="Not tracked — this system has no per-action grant within a module, only whole-module levels" icon={ShieldCheck} tone="neutral" />
         <StatCard label="Actions Super Admin holds" value="All" detail="Enforced by role check, not by grid entries — Super Admin bypasses the permission grid entirely" icon={ShieldCheck} tone="info" />
@@ -459,7 +459,7 @@ async function ActivityTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Tickets resolved (30d)" value={totalTickets} detail="Across the whole team — not a week window, but the real one this system aggregates" icon={ShieldCheck} tone="dark" />
         <StatCard label="Schools onboarded (30d)" value={activity.schoolsOnboardedThisMonth} detail="Onboarding team" icon={Users2} tone="info" />
         <StatCard label="Revenue reconciled (30d)" value={formatNaira(activity.totalRevenueReconciled)} detail="Sum of successful payments recorded by an internal account" icon={Crown} tone="success" />

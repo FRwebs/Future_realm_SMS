@@ -1,4 +1,4 @@
-import { CheckCircle2, FileClock, FileWarning, RotateCcw } from "lucide-react";
+import { Check, CheckCircle2, Clock, Database, FileClock, RotateCcw, School, TriangleAlert } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
@@ -65,7 +65,7 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
 
 function StatusBuckets({ jobs }: { jobs: MigrationJobRow[] }) {
   return (
-    <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-7">
+    <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-7">
       {migrationStatuses.map((item) => {
         const style = toneStyle[item.tone];
         const count = jobs.filter((job) => job.status === item.status).length;
@@ -205,22 +205,22 @@ function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
-        <StatCard label="Jobs in progress" value={inProgress} detail="Files received, active work." tone="dark" icon={RotateCcw} />
-        <StatCard label="Blocked over 48 hours" value={blockedOver48h} detail="Raises the school's churn risk." tone={blockedOver48h > 0 ? "danger" : "success"} icon={FileWarning} />
-        <StatCard label="Completed" value={signedOffOrComplete.length} detail="Signed off by the school." tone="success" icon={CheckCircle2} />
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Jobs in progress" value={inProgress} detail="Files received, active work." tone="dark" icon={Database} />
+        <StatCard label="Blocked over 48 hours" value={blockedOver48h} detail="Raises the school's churn risk." tone={blockedOver48h > 0 ? "danger" : "success"} icon={TriangleAlert} />
+        <StatCard label="Completed" value={signedOffOrComplete.length} detail="Signed off by the school." tone="success" icon={Check} />
         <StatCard
           label="Records migrated"
           value={recordsMigrated.toLocaleString()}
           detail="Students + results, signed-off jobs."
-          icon={FileClock}
+          icon={Database}
         />
         <StatCard
           label="Median time to sign-off"
           value={medianDays === null ? "—" : `${medianDays}d`}
           detail={medianDays === null ? "No sign-offs yet." : "From source file received."}
           tone="info"
-          icon={RotateCcw}
+          icon={Clock}
         />
       </section>
 
@@ -324,12 +324,12 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
-        <StatCard label="Schools in setup" value={totalSchools} detail="Provisioned or in trial." tone="dark" icon={FileClock} />
-        <StatCard label="Setup complete" value={fullyComplete} detail={totalSchools > 0 ? `${Math.round((fullyComplete / totalSchools) * 100)}% of the cohort` : "No schools yet"} tone="success" icon={CheckCircle2} />
-        <StatCard label="Incomplete past 5 days" value={progress.stalled.length} detail="Account Manager alerted." tone={progress.stalled.length > 0 ? "danger" : "success"} icon={FileWarning} />
-        <StatCard label="Most abandoned step" value={mostAbandoned?.label ?? "—"} detail="Highest drop-off." tone="warning" icon={RotateCcw} />
-        <StatCard label="Median time to complete" value="N/A" detail="Not tracked — no per-step completion timestamp exists yet." icon={RotateCcw} />
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
+        <StatCard label="Schools in setup" value={totalSchools} detail="Provisioned or in trial." tone="dark" icon={School} />
+        <StatCard label="Setup complete" value={fullyComplete} detail={totalSchools > 0 ? `${Math.round((fullyComplete / totalSchools) * 100)}% of the cohort` : "No schools yet"} tone="success" icon={Check} />
+        <StatCard label="Incomplete past 5 days" value={progress.stalled.length} detail="Account Manager alerted." tone={progress.stalled.length > 0 ? "danger" : "success"} icon={Clock} />
+        <StatCard label="Most abandoned step" value={mostAbandoned?.label ?? "—"} detail="Highest drop-off." tone="warning" icon={TriangleAlert} />
+        <StatCard label="Median time to complete" value="N/A" detail="Not tracked — no per-step completion timestamp exists yet." icon={Clock} />
       </section>
 
       <section className="grid gap-3.5 xl:grid-cols-[1.2fr_1fr]">

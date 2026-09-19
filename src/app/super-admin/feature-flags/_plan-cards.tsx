@@ -117,7 +117,7 @@ export function PlanCardGrid({ plans, actions }: { plans: SuperAdminPlanRow[]; a
           No subscription plans configured yet — build one to get started.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} />
           ))}

@@ -213,7 +213,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_my_work",
     label: "My Work",
-    icon: "ClipboardList",
+    icon: "ListChecks",
     path: "/super-admin/my-work",
     requiredPermissions: ["sa.my_work.view"],
     portalType: "super_admin",
@@ -233,7 +233,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_schools",
     label: "School Accounts",
-    icon: "Building2",
+    icon: "School",
     path: "/super-admin/schools",
     requiredPermissions: ["sa.schools.view"],
     portalType: "super_admin",
@@ -283,7 +283,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_communications",
     label: "Communications",
-    icon: "Megaphone",
+    icon: "MessageSquareText",
     path: "/super-admin/communications",
     requiredPermissions: ["sa.communications.view"],
     portalType: "super_admin",
@@ -293,7 +293,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_support",
     label: "Support",
-    icon: "Headphones",
+    icon: "LifeBuoy",
     path: "/super-admin/support",
     requiredPermissions: ["sa.support.view"],
     portalType: "super_admin",
@@ -304,7 +304,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_config_library",
     label: "Curriculum & Academics",
-    icon: "BookMarked",
+    icon: "Book",
     path: "/super-admin/config-library",
     requiredPermissions: ["sa.settings.view"],
     portalType: "super_admin",
@@ -314,7 +314,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_feature_flags",
     label: "Plans & Features",
-    icon: "Flag",
+    icon: "SlidersHorizontal",
     path: "/super-admin/feature-flags",
     requiredPermissions: ["sa.feature_flags.view"],
     portalType: "super_admin",
@@ -324,7 +324,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_system_health",
     label: "Infrastructure",
-    icon: "Activity",
+    icon: "Server",
     path: "/super-admin/system",
     requiredPermissions: ["sa.security.view"],
     portalType: "super_admin",
@@ -344,7 +344,7 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
   {
     id: "sa_internal_team",
     label: "Team & Access",
-    icon: "UserCog",
+    icon: "IdCard",
     path: "/super-admin/internal-team",
     requiredPermissions: ["sa.settings.view"],
     portalType: "super_admin",

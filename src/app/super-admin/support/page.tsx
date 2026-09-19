@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  Activity,
   AlertTriangle,
   CheckCircle2,
   Clock3,
@@ -273,9 +274,9 @@ async function TicketBoardTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Open workload" value={openTickets.length} detail="Tickets not closed" icon={Inbox} tone="dark" />
-        <StatCard label="Critical priority" value={criticalTickets.length} detail="Highest urgency" icon={Clock3} tone={criticalTickets.length ? "warning" : "neutral"} />
+        <StatCard label="Critical priority" value={criticalTickets.length} detail="Highest urgency" icon={Activity} tone={criticalTickets.length ? "warning" : "neutral"} />
         <StatCard label="SLA breaches" value={breachedTickets.length} detail="Needs escalation" icon={AlertTriangle} tone={breachedTickets.length ? "danger" : "neutral"} />
         <StatCard label="Resolved today" value={resolvedToday.length} detail="Across this 100-ticket window" icon={CheckCircle2} tone="success" />
         <StatCard label="Avg resolution (today)" value={avgResolutionHours !== null ? `${avgResolutionHours}h` : "N/A"} detail={avgResolutionHours !== null ? "Created-to-resolved" : "Nothing resolved today yet"} icon={Clock3} tone="info" />

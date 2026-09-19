@@ -215,7 +215,7 @@ async function GrowthTab() {
         <p className="text-[12.5px] text-[var(--color-text-secondary)]">Computed from real migration records — which system a school moved from, and whether the move stuck.</p>
       </div>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Displacement rate" value={`${displacement.displacementRatePct}%`} detail="Arrived from another system, not from paper" icon={Repeat2} tone="dark" />
         <StatCard label="From paper or spreadsheets" value={`${displacement.paperOrSpreadsheetPct}%`} detail="The discovery half of the market" icon={ClipboardList} />
         <StatCard label="Migration completion rate" value={`${displacement.migrationCompletionRatePct}%`} detail="Across all source systems" tone="success" icon={TrendingUp} />
@@ -419,7 +419,7 @@ async function RetentionTab() {
         />
       </div>
 
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Platform NPS" value={`${npsScore >= 0 ? "+" : ""}${npsScore}`} detail={`${nps.total} response${nps.total === 1 ? "" : "s"} recorded`} tone="dark" icon={SmilePlus} />
         <StatCard label="Promoters" value={`${promoterPct}%`} detail={`${nps.promoters} of ${nps.total} · score 9-10`} tone="success" icon={Trophy} />
         <StatCard label="Passives" value={`${passivePct}%`} detail={`${npsPassives} of ${nps.total} · score 7-8`} tone="warning" icon={MessageCircle} />
@@ -457,7 +457,7 @@ async function RevenueTab() {
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Total outstanding receivables"
           value={formatCompactCurrency(report.outstandingReceivables)}
@@ -526,7 +526,7 @@ async function ProductTab() {
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="dark" />
         <StatCard label="Platform adoption index" value={adoption.adoptionIndex} detail={`Weighted across ${adoption.modulesTracked} modules`} icon={Gauge} />
         <StatCard label="Modules below the 40% floor" value={adoption.modulesBelowFloor} detail="Enabled by fewer than 4 in 10 schools" tone={adoption.modulesBelowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />

@@ -152,7 +152,7 @@ async function PlatformStatusTab() {
 
   return (
     <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-4">
         <StatCard label="Uptime, last 30 days" value={`${monitoring.uptime.apiUptime}%`} detail={`${monitoring.uptime.requestsLast24h.toLocaleString()} requests in the last 24h`} tone="dark" icon={CheckCircle2} />
         <StatCard label="Offline sync queue" value={monitoring.syncQueue.pending.toLocaleString()} detail={monitoring.syncQueue.oldestSchool ? `Oldest: ${monitoring.syncQueue.oldestSchool}, ${monitoring.syncQueue.oldestAgeHours}h` : "Nothing queued"} tone={syncTone} icon={Repeat2} />
         <StatCard label="Last verified backup" value={monitoring.backups.lastSuccessfulAt ? new Date(monitoring.backups.lastSuccessfulAt).toLocaleString() : "None recorded"} detail="Confirmed successful, not just attempted" icon={BookOpen} />

@@ -169,7 +169,7 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Total user accounts" value={stats?.totalUsers ?? 0} detail={`Across ${stats?.activeSchools ?? 0} active schools`} icon={UsersRound} tone="dark" />
         <StatCard label="School admins" value={stats?.schoolAdmins ?? 0} detail={`${stats?.adminsPerSchoolAvg ?? 0} per school average`} icon={ShieldCheck} tone="info" />
         <StatCard label="Teachers" value={stats?.teachers ?? 0} detail={`${stats?.teachersLoggedInWeekPct ?? 0}% logged in this week`} icon={GraduationCap} tone="success" />

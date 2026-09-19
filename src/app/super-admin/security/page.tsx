@@ -180,7 +180,7 @@ async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Active admin sessions" value={adminSessions.length} detail="Platform-role accounts only" icon={MonitorCheck} tone="dark" />
         <StatCard label="Failed logins (recent)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
         <StatCard label="Auto-lockouts" value="N/A" detail="Not built — excessive failures are flagged for review, never auto-blocked" icon={AlertTriangle} tone="neutral" />

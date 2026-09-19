@@ -201,7 +201,7 @@ async function PlansTab() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Active plans" value={activePlans.length} detail="Selectable for new signups" icon={Layers} tone="dark" />
         <StatCard label="Archived plans" value={archivedPlans.length} detail="No longer selectable" icon={Archive} tone="neutral" />
         <StatCard label="Schools across all plans" value={totalSchools.toLocaleString()} detail="Sum of subscribers per plan" icon={School} tone="info" />
@@ -767,7 +767,7 @@ async function ExceptionsCaseBoard() {
 
   return (
     <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 xl:grid-cols-5">
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Exceptions in force" value={activeOverrideCount + activeBrandingCount} detail={`${activeOverrideCount} override(s) · ${activeBrandingCount} branding`} icon={ShieldCheck} tone="dark" />
         <StatCard label="Waiting on a decision" value={waitingCount} detail="Pending overrides and branding" icon={Clock3} tone={waitingCount ? "warning" : "neutral"} />
         <StatCard label="Ending in the next 30 days" value={endingSoonCount} detail="Approved overrides nearing expiry" icon={ShieldAlert} tone={endingSoonCount ? "warning" : "neutral"} />

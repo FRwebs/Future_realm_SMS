@@ -453,12 +453,12 @@ export default async function SuperAdminDashboardPage() {
         </div>
       </section>
 
-      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#0D2315] p-1 sm:grid-cols-3 xl:grid-cols-6">
+      <section className="grid grid-cols-2 gap-px overflow-hidden rounded-2xl bg-[#0D2315] p-1 sm:grid-cols-3 lg:grid-cols-6">
         {pulseCells.map((cell) => {
           const dotColor = cell.tone === "danger" ? "#e97070" : cell.tone === "warn" ? "#e5b33d" : "#3ee08a";
           const valueColor = cell.tone === "danger" ? "#f0a0a0" : cell.tone === "warn" ? "#f2c766" : "#fff";
           return (
-            <div key={cell.label} className="border-white/[0.09] px-[18px] py-4 xl:border-r xl:last:border-r-0">
+            <div key={cell.label} className="border-white/[0.09] px-[18px] py-4 lg:border-r lg:last:border-r-0">
               <div className="flex items-center gap-[7px]">
                 <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: dotColor }} />
                 <p className="truncate text-[10px] font-bold uppercase tracking-[0.09em] text-white/50">{cell.label}</p>
@@ -541,7 +541,7 @@ export default async function SuperAdminDashboardPage() {
         </article>
       </section>
 
-      <section className="grid gap-3.5 md:grid-cols-2 xl:grid-cols-4">
+      <section className="grid gap-3.5 md:grid-cols-2 lg:grid-cols-4">
         {revenueTiles.map((tile) => {
           const color = tile.positive ? "#12796A" : "#B23B3B";
           return (
