@@ -101,6 +101,14 @@ export function dealFormFields(
       note: "Real — a confirmation email goes to the partner's contact email as soon as this deal is registered, if one is on file. There's no toggle because it isn't optional.",
       section: "Alongside"
     },
-    { name: "_alertExpiry", label: "Alert the partner 14 days before expiry", type: "toggle", disabled: true, note: "Not built — nothing currently warns a partner before a registration expires.", section: "Alongside" }
+    {
+      name: "_alertExpiry",
+      label: "Alert the partner 14 days before expiry",
+      type: "static",
+      disabled: true,
+      placeholder: "Manual, not automatic",
+      note: "Real, but not scheduled — use the \"Send expiry alerts\" button on the Registrations tab to email every partner whose registration is within 14 days of expiring. Nothing triggers it on its own.",
+      section: "Alongside"
+    }
   ];
 }

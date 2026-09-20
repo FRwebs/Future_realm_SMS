@@ -458,6 +458,19 @@ function PartnerDealsTable({
       title="Registered deals"
       description="First valid registration wins, and the rule is visible to every party in advance."
       items={deals}
+      actions={
+        <ResourceActionDialog
+          triggerLabel="Send expiry alerts"
+          title="Send expiry alerts"
+          description="Emails every partner with a registration expiring within 14 days that hasn't already been alerted. There's no scheduler in this system — this has to be run by hand, the same way manual backups are."
+          endpoint="/api/super-admin/partners/deals/expiry-alerts"
+          method="POST"
+          variant="secondary"
+          submitLabel="Send now"
+          confirmLabel="Confirm"
+          fields={[]}
+        />
+      }
       emptyState="No deals registered yet. Use the Register a deal action above to log a partner introduction."
       getRowKey={(deal) => deal.id}
       columns={[

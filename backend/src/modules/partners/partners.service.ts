@@ -24,6 +24,7 @@ import type {
 const RECONCILED_TRANSACTION_STATUSES = ["SUCCESS", "PAID", "COMPLETED"] as const;
 
 const DEAL_VALIDITY_DAYS = 90;
+const EXPIRY_ALERT_WINDOW_DAYS = 14;
 
 const partnerCreateSchema = z.object({
   name: z.string().trim().min(2, "Partner name is required."),
@@ -271,6 +272,50 @@ export class PartnersService {
 
     await prisma.partnerDeal.update({ where: { id: dealId }, data: { status: "EXPIRED" } });
     return { ok: true };
+  }
+
+  /**
+   * There's no scheduler in this codebase, so expiry alerts aren't sent automatically — this
+   * is triggered by hand, same as the manual backup run. It emails every partner with a
+   * REGISTERED deal expiring within 14 days who hasn't already been alerted for that deal.
+   */
+  async sendExpiryAlerts() {
+    const alertWindowEnd = new Date(Date.now() + EXPIRY_ALERT_WINDOW_DAYS * 24 * 60 * 60 * 1000);
+
+    const expiringDeals = await prisma.partnerDeal.findMany({
+      where: {
+        status: "REGISTERED",
+        expiryAlertSentAt: null,
+        validUntil: { lte: alertWindowEnd, gt: new Date() }
+      },
+      include: { partner: true }
+    });
+
+    let emailed = 0;
+    let skippedNoEmail = 0;
+
+    for (const deal of expiringDeals) {
+      if (!deal.partner.email) {
+        skippedNoEmail += 1;
+        continue;
+      }
+
+      const validUntilLabel = deal.validUntil.toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
+      await sendEmail({
+        to: deal.partner.email,
+        subject: `Registration expiring soon: ${deal.prospectSchoolName}`,
+        text: `Hi ${deal.partner.name},\n\nYour registration for ${deal.prospectSchoolName} expires on ${validUntilLabel}. If ${deal.prospectSchoolName} hasn't signed up with FutureRealm by then, this introduction will no longer count toward your commission.\n\n— FutureRealm SMS`
+      });
+      await prisma.partnerDeal.update({ where: { id: deal.id }, data: { expiryAlertSentAt: new Date() } });
+      emailed += 1;
+    }
+
+    return {
+      emailed,
+      skippedNoEmail,
+      checked: expiringDeals.length,
+      message: emailed > 0 ? `Sent ${emailed} expiry alert${emailed === 1 ? "" : "s"}.` : "No registrations are due to expire within 14 days."
+    };
   }
 
   async markCommissionPaid(dealId: string) {

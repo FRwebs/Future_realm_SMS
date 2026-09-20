@@ -68,4 +68,11 @@ export class PartnersController {
   async getCommissionSummary() {
     return { ok: true, data: await this.partnersService.getCommissionSummary() };
   }
+
+  @Post("deals/expiry-alerts")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...partnerWriteRoles)
+  async sendExpiryAlerts() {
+    return { ok: true, data: await this.partnersService.sendExpiryAlerts() };
+  }
 }
