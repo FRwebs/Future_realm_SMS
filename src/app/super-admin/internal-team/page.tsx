@@ -538,7 +538,7 @@ async function SecurityTab() {
           { requirement: "Multi-factor authentication", spec: "Mandatory for every internal account, no exceptions.", state: "Not built" },
           { requirement: "Session timeout", spec: "A fixed 8-hour session from login — not a 30-minute idle timeout; activity doesn't reset the clock.", state: "Partial" },
           { requirement: "Panel address", spec: "Served from the same app and domain as every other portal — /super-admin routes, not a separate non-public address. Access is gated by role check on each request, not by the URL being secret.", state: "Partial" },
-          { requirement: "Address restriction (IP allow/deny list)", spec: "The rules below are real, stored records — but no login check reads them. Adding a Deny rule today doesn't block anything.", state: "Recorded only" },
+          { requirement: "Address restriction (IP allow/deny list)", spec: "Enforced at sign-in for every internal account against the rules below — a Deny match blocks it, and any Allow rule existing switches to allow-list-only mode. It's checked once at login, not on every request, so an address added to Deny mid-session doesn't end an already-open session, and matching is exact-address only (no CIDR ranges).", state: "Partial" },
           { requirement: "Password policy", spec: "8 characters minimum, enforced when a password is set or reset — no complexity or breach-list check, and no reuse history.", state: "Partial" },
           { requirement: "Credential sharing / anomaly detection", spec: "No concurrent-session or unusual-location flagging for internal accounts.", state: "Not built" },
           { requirement: "Device registration", spec: "No known-device list; nothing distinguishes a first-time device from a familiar one.", state: "Not built" }
@@ -622,18 +622,18 @@ async function SecurityTab() {
 
       <TableCard
         title="IP access rules"
-        description="Stored allow/deny rules — not currently checked at login (see the requirements table above). Kept here so the intended policy is on record."
+        description="Enforced at sign-in for every internal account (see the requirements table above). A Deny rule blocks that exact address; adding any Allow rule switches every internal account to allow-list-only mode, so add your own address as Allow before relying on that."
         items={ipRules}
-        emptyState="No IP access rules configured."
+        emptyState="No IP access rules configured — every address can currently sign in to an internal account."
         actions={
           <ResourceActionDialog
             triggerLabel="Add IP rule"
             title="Add or update an IP access rule"
-            description="Adding a rule for an IP address + type combination that already exists updates its reason."
+            description="Adding a rule for an IP address + type combination that already exists updates its reason. Exact address only — there's no CIDR/range matching."
             endpoint="/api/super-admin/internal-team/ip-rules"
             submitLabel="Save rule"
             fields={[
-              { name: "ipAddress", label: "IP address", required: true, placeholder: "e.g. 197.210.0.0" },
+              { name: "ipAddress", label: "IP address", required: true, placeholder: "e.g. 197.210.54.12" },
               { name: "type", label: "Type", type: "select", options: ipRuleTypes },
               { name: "reason", label: "Reason (optional)" }
             ]}

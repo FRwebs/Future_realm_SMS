@@ -183,9 +183,9 @@ async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Active admin sessions" value={adminSessions.length} detail="Platform-role accounts only" icon={MonitorCheck} tone="dark" />
         <StatCard label="Failed logins (recent)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
-        <StatCard label="Auto-lockouts" value="N/A" detail="Not built — excessive failures are flagged for review, never auto-blocked" icon={AlertTriangle} tone="neutral" />
+        <StatCard label="Auto-lockouts" value="N/A" detail="Real, but narrow — 5+ failures in 10 minutes blocks that email; a separate 10+/hour review flag needs a manual recalculation" icon={AlertTriangle} tone="neutral" />
         <StatCard label="MFA coverage" value="N/A" detail="Not built — MFA is promised in onboarding copy but no verification step exists" icon={AlertTriangle} tone="neutral" />
-        <StatCard label="IP whitelist" value="N/A" detail="Not built — no IP allow-list exists anywhere in this codebase" icon={AlertTriangle} tone="neutral" />
+        <StatCard label="IP whitelist" value="N/A" detail="Real for platform/internal accounts, exact-address only — school accounts are unaffected" icon={AlertTriangle} tone="neutral" />
       </section>
 
       <TableCard
@@ -194,8 +194,8 @@ async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]
         items={[
           { control: "Multi-factor authentication", spec: "Every admin login requires MFA, no exceptions.", state: "not-built" as const },
           { control: "Session expiry", spec: "A fixed 8-hour session from login. Not a 30-minute idle timeout — activity does not reset the clock, and the session is equally valid whether idle or active.", state: "partial" as const },
-          { control: "Failed-login handling", spec: "10+ failed attempts for one email in an hour creates a review flag on the Users → Reviews & Cases queue. Nothing is automatically locked or blocked.", state: "partial" as const },
-          { control: "IP whitelist", spec: "Restrict the admin panel to approved IP ranges.", state: "not-built" as const },
+          { control: "Failed-login handling", spec: "5+ failed attempts for one email in 10 minutes blocks that email's sign-in immediately for the rest of the window. Separately, 10+ failures in an hour creates a review flag on the Users → Reviews & Cases queue when the suspicious-activity recalculation is run — that part isn't automatic.", state: "partial" as const },
+          { control: "IP whitelist", spec: "Enforced at sign-in for platform/internal accounts, exact address only — see Internal Team → Security for the rules and their real (login-time-only) limits.", state: "partial" as const },
           { control: "Unrecognised device/location challenge", spec: "Extra verification when a login looks unusual.", state: "not-built" as const }
         ]}
         getRowKey={(row) => row.control}

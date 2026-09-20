@@ -80,6 +80,28 @@ export class AuthService {
       throw new Error("Your school account has been suspended. Please contact support.");
     }
 
+    if (isPlatformRole(user.role)) {
+      const ipCheck = await this.checkIpAccess(context.ipAddress);
+      if (!ipCheck.allowed) {
+        await recordAttempt(false, "IP_BLOCKED");
+        const tenMinutesAgoForIncident = new Date(Date.now() - 10 * 60 * 1000);
+        const existingOpenIncident = await prisma.securityIncident.findFirst({
+          where: { type: "IP_BLOCKED_LOGIN", status: { not: "RESOLVED" }, description: { contains: normalizedEmail }, detectedAt: { gte: tenMinutesAgoForIncident } }
+        });
+        if (!existingOpenIncident) {
+          await prisma.securityIncident.create({
+            data: {
+              type: "IP_BLOCKED_LOGIN",
+              severity: "MEDIUM",
+              status: "DETECTED",
+              description: `Sign-in blocked for ${normalizedEmail} from ${context.ipAddress ?? "an unrecorded address"}: ${ipCheck.reason}.`
+            }
+          });
+        }
+        throw new Error("Sign-in from this network isn't permitted for this account. Contact a platform admin if this is a mistake.");
+      }
+    }
+
     await recordAttempt(true);
     await prisma.user.update({
       where: { id: user.id },
@@ -103,6 +125,32 @@ export class AuthService {
       email: user.email,
       name: `${user.firstName} ${user.lastName}`
     };
+  }
+
+  /**
+   * IpAccessRule enforcement for platform/internal accounts only — school accounts are
+   * unaffected. A DENY rule always blocks its exact address. Any ALLOW rule existing at all
+   * switches this into allow-list mode: only addresses with a matching ALLOW rule may sign
+   * in, and an address that can't be determined is blocked (fail closed).
+   */
+  private async checkIpAccess(ipAddress?: string): Promise<{ allowed: boolean; reason?: string }> {
+    const rules = await prisma.ipAccessRule.findMany();
+    if (rules.length === 0) return { allowed: true };
+
+    const denyRules = rules.filter((rule) => rule.type === "DENY");
+    const allowRules = rules.filter((rule) => rule.type === "ALLOW");
+
+    if (ipAddress && denyRules.some((rule) => rule.ipAddress === ipAddress)) {
+      return { allowed: false, reason: "this address is on the deny list" };
+    }
+
+    if (allowRules.length > 0) {
+      if (!ipAddress || !allowRules.some((rule) => rule.ipAddress === ipAddress)) {
+        return { allowed: false, reason: "this address is not on the allow list" };
+      }
+    }
+
+    return { allowed: true };
   }
 
   async requestPasswordReset(email: string, context: LoginContext = {}) {
