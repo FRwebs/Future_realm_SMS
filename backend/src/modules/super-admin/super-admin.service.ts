@@ -14,7 +14,6 @@ import { createSessionToken, SessionPayload } from "../../../../src/lib/auth/ses
 import { prisma } from "../../../../src/lib/db/prisma";
 import type { Role } from "../../../../src/lib/domain/types";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
-import { sendNotification } from "../../../../src/lib/integrations/notifications";
 
 const pageSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -1539,11 +1538,10 @@ export class SuperAdminService {
       });
     });
 
-    await sendNotification({
-      channel: "EMAIL",
-      recipient: parsed.newEmail ?? user.email,
-      title: "Account access restored",
-      body: "Your account was recovered by FutureRealm support after identity verification. A temporary password has been set — you will be asked to change it on next login."
+    await sendEmail({
+      to: parsed.newEmail ?? user.email,
+      subject: "Account access restored",
+      text: "Your account was recovered by FutureRealm support after identity verification. A temporary password has been set — you will be asked to change it on next login."
     });
     await this.audit(session, "RESET_PASSWORD", "User", userId, { verificationMethod: parsed.verificationMethod, recoveryRecordId: record.id }, user.schoolId);
     return this.response({ id: record.id, temporaryPassword: tempPassword }, "Account recovery completed");
@@ -1913,12 +1911,13 @@ export class SuperAdminService {
     if (!invoice) throw new NotFoundException("Invoice not found.");
     if (invoice.status !== "DRAFT") throw new BadRequestException("Only draft invoices can be sent.");
     const updated = await prisma.platformInvoice.update({ where: { id: invoiceId }, data: { status: "SENT" } });
-    await sendNotification({
-      channel: "EMAIL",
-      recipient: invoice.school.ownerEmail ?? "",
-      title: `Invoice ${invoice.invoiceNo} from FutureRealm SMS`,
-      body: `An invoice for ${Number(invoice.amount) + Number(invoice.taxAmount)} ${invoice.currency} is due ${invoice.dueAt.toDateString()}.`
-    });
+    if (invoice.school.ownerEmail) {
+      await sendEmail({
+        to: invoice.school.ownerEmail,
+        subject: `Invoice ${invoice.invoiceNo} from FutureRealm SMS`,
+        text: `An invoice for ${Number(invoice.amount) + Number(invoice.taxAmount)} ${invoice.currency} is due ${invoice.dueAt.toDateString()}.`
+      });
+    }
     await this.audit(session, "UPDATE", "PlatformInvoice", invoice.id, { status: "SENT" }, invoice.schoolId);
     return this.response({ id: updated.id, status: updated.status }, "Invoice sent to school");
   }
@@ -1957,12 +1956,13 @@ export class SuperAdminService {
         where: { id: invoice.schoolId },
         data: { billingStatus: "ACTIVE", status: invoice.school.status === "SUSPENDED" || invoice.school.status === "GRACE_PERIOD" ? "ACTIVE" : invoice.school.status, lastPaymentAt: parsed.paidOn }
       });
-      await sendNotification({
-        channel: "EMAIL",
-        recipient: invoice.school.ownerEmail ?? "",
-        title: "Payment confirmed",
-        body: `We have received your payment of ${parsed.amount} ${invoice.currency} for invoice ${invoice.invoiceNo}. Thank you.`
-      });
+      if (invoice.school.ownerEmail) {
+        await sendEmail({
+          to: invoice.school.ownerEmail,
+          subject: "Payment confirmed",
+          text: `We have received your payment of ${parsed.amount} ${invoice.currency} for invoice ${invoice.invoiceNo}. Thank you.`
+        });
+      }
     }
 
     await this.audit(session, "PAYMENT", "PlatformInvoice", invoice.id, { amount: parsed.amount, method: parsed.method, reference: parsed.reference, fullyPaid }, invoice.schoolId);
@@ -3001,12 +3001,11 @@ export class SuperAdminService {
       }
     });
 
-    if (parsed.status === "RESOLVED") {
-      await sendNotification({
-        channel: "EMAIL",
-        recipient: ticket.school.ownerEmail ?? "",
-        title: `Ticket ${ticket.ticketNo} resolved — how did we do?`,
-        body: "Your support ticket has been marked resolved. Please rate your experience from 1 (poor) to 5 (excellent)."
+    if (parsed.status === "RESOLVED" && ticket.school.ownerEmail) {
+      await sendEmail({
+        to: ticket.school.ownerEmail,
+        subject: `Ticket ${ticket.ticketNo} resolved — how did we do?`,
+        text: "Your support ticket has been marked resolved. Please rate your experience from 1 (poor) to 5 (excellent)."
       });
     }
 
@@ -4610,7 +4609,7 @@ export class SuperAdminService {
         prisma.internalPermissionGrid.upsert({ where: { userId_moduleId: { userId: user.id, moduleId } }, create: { userId: user.id, moduleId, accessLevel }, update: { accessLevel } })
       ));
     }
-    await sendNotification({ channel: "EMAIL", recipient: email, title: "Welcome to the Future Realm platform team", body: `Your internal account has been created with the ${parsed.role} role. A temporary password has been set — you will set up MFA and change it on first login.` });
+    await sendEmail({ to: email, subject: "Welcome to the Future Realm platform team", text: `Your internal account has been created with the ${parsed.role} role. A temporary password has been set — you will set up MFA and change it on first login.` });
     await this.audit(session, "CREATE", "InternalUser", user.id, { email, role: parsed.role, department: parsed.department }, null);
     return this.response({ id: user.id, temporaryPassword: tempPassword }, "Internal account created");
   }
