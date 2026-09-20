@@ -3,6 +3,7 @@ import { PartnerDealStatus } from "@prisma/client";
 import { z } from "zod";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import type {
   SuperAdminPartnerCommissionStatement,
   SuperAdminPartnerCommissionSummaryRow,
@@ -26,6 +27,7 @@ const DEAL_VALIDITY_DAYS = 90;
 
 const partnerCreateSchema = z.object({
   name: z.string().trim().min(2, "Partner name is required."),
+  email: z.string().trim().email("Invalid email address.").optional().or(z.literal("")),
   territory: z.string().trim().optional().or(z.literal("")),
   agreementReference: z.string().trim().optional().or(z.literal("")),
   agreementValidTo: z
@@ -70,6 +72,7 @@ export class PartnersService {
     return partners.map((partner) => ({
       id: partner.id,
       name: partner.name,
+      email: partner.email,
       territory: partner.territory,
       agreementReference: partner.agreementReference,
       agreementValidTo: partner.agreementValidTo ? partner.agreementValidTo.toISOString() : null,
@@ -86,6 +89,7 @@ export class PartnersService {
     const partner = await prisma.partner.create({
       data: {
         name: parsed.name,
+        email: emptyToUndefined(parsed.email) ?? null,
         territory: emptyToUndefined(parsed.territory) ?? null,
         agreementReference: emptyToUndefined(parsed.agreementReference) ?? null,
         agreementValidTo: emptyToUndefined(parsed.agreementValidTo) ? new Date(parsed.agreementValidTo as string) : null,
@@ -97,6 +101,7 @@ export class PartnersService {
     return {
       id: partner.id,
       name: partner.name,
+      email: partner.email,
       territory: partner.territory,
       agreementReference: partner.agreementReference,
       agreementValidTo: partner.agreementValidTo ? partner.agreementValidTo.toISOString() : null,
@@ -194,6 +199,15 @@ export class PartnersService {
       },
       include: { partner: true, school: { select: { id: true, name: true } } }
     });
+
+    if (deal.partner.email) {
+      const validUntilLabel = deal.validUntil.toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
+      await sendEmail({
+        to: deal.partner.email,
+        subject: `Deal registered: ${deal.prospectSchoolName}`,
+        text: `Hi ${deal.partner.name},\n\nWe've registered your introduction of ${deal.prospectSchoolName} to FutureRealm. This registration is valid until ${validUntilLabel} — the school must sign up before then for the introduction to count toward your commission.\n\nCommission rate: ${toNumber(deal.commissionRatePercent)}%\n\n— FutureRealm SMS`
+      });
+    }
 
     return {
       id: deal.id,

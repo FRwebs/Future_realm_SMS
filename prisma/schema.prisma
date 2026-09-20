@@ -4164,6 +4164,7 @@ enum PartnerDealStatus {
 model Partner {
   id                    String        @id @default(cuid())
   name                  String
+  email                 String?
   territory             String?
   agreementReference    String?
   agreementValidTo      DateTime?
