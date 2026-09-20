@@ -2,8 +2,9 @@ import { createHash, randomBytes } from "crypto";
 
 import { BadRequestException, Injectable } from "@nestjs/common";
 
-import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
+import { verifyTotp } from "../../../../src/lib/auth/mfa";
 import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
+import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { SessionUser } from "../../../../src/lib/domain/types";
 
@@ -11,6 +12,9 @@ export interface LoginContext {
   ipAddress?: string;
   device?: string;
 }
+
+/** Thrown when a password checks out but the account has MFA enabled and no code was sent yet — lets the controller respond distinctly so the frontend can show a code-entry step instead of a generic error. */
+export class MfaRequiredError extends Error {}
 
 const PASSWORD_RESET_TTL_MINUTES = 30;
 
@@ -20,7 +24,12 @@ function hashResetToken(token: string) {
 
 @Injectable()
 export class AuthService {
-  async authenticateUser(email: string, password: string, context: LoginContext = {}): Promise<Omit<SessionUser, "csrfToken"> | null> {
+  async authenticateUser(
+    email: string,
+    password: string,
+    context: LoginContext = {},
+    mfaCode?: string
+  ): Promise<Omit<SessionUser, "csrfToken"> | null> {
     const normalizedEmail = email.toLowerCase();
     const user = await prisma.user.findUnique({
       where: { email: normalizedEmail },
@@ -99,6 +108,22 @@ export class AuthService {
           });
         }
         throw new Error("Sign-in from this network isn't permitted for this account. Contact a platform admin if this is a mistake.");
+      }
+    }
+
+    if (user.mfaEnabled) {
+      if (!mfaCode) {
+        throw new MfaRequiredError("MFA code required.");
+      }
+      const usedBackupCodeIndex = user.mfaBackupCodeHashes.findIndex((hash) => verifyPassword(mfaCode, hash));
+      const validTotp = user.mfaSecret ? verifyTotp(mfaCode, user.mfaSecret) : false;
+      if (!validTotp && usedBackupCodeIndex === -1) {
+        await recordAttempt(false, "MFA_INVALID");
+        throw new Error("Invalid authentication code.");
+      }
+      if (usedBackupCodeIndex !== -1) {
+        const remainingCodes = user.mfaBackupCodeHashes.filter((_, index) => index !== usedBackupCodeIndex);
+        await prisma.user.update({ where: { id: user.id }, data: { mfaBackupCodeHashes: remainingCodes } });
       }
     }
 

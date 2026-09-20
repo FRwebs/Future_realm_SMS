@@ -3443,15 +3443,19 @@ export class SuperAdminService {
 
   async securityOverview(session: SessionPayload) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "DEVELOPER", "SUPPORT_AGENT", "SUPER_ADMIN"]));
-    const [sessions, attempts, privacy, backups, systemLogs, incidents] = await Promise.all([
+    const platformRoleList = [...technicalRoles, "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER"] as UserRole[];
+    const [sessions, attempts, privacy, backups, systemLogs, incidents, platformAccountCount, mfaEnabledCount] = await Promise.all([
       prisma.platformSession.findMany({ where: { revokedAt: null, expiresAt: { gt: new Date() } }, include: { user: true, school: true }, orderBy: { lastActivityAt: "desc" }, take: 50 }),
       prisma.loginAttempt.findMany({ include: { school: true }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.dataPrivacyRequest.findMany({ include: { school: true, handledBy: true }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.backupRecord.findMany({ include: { school: true }, orderBy: { startedAt: "desc" }, take: 20 }),
       prisma.systemLog.findMany({ orderBy: { createdAt: "desc" }, take: 50 }),
-      prisma.securityIncident.findMany({ include: { reportedBy: true, resolvedBy: true }, orderBy: { detectedAt: "desc" }, take: 50 })
+      prisma.securityIncident.findMany({ include: { reportedBy: true, resolvedBy: true }, orderBy: { detectedAt: "desc" }, take: 50 }),
+      prisma.user.count({ where: { role: { in: platformRoleList }, deletedAt: null, isActive: true } }),
+      prisma.user.count({ where: { role: { in: platformRoleList }, deletedAt: null, isActive: true, mfaEnabled: true } })
     ]);
     return this.response({
+      mfaCoverage: { enabled: mfaEnabledCount, total: platformAccountCount },
       sessions: sessions.map((s) => ({
         id: s.id,
         user: s.user ? { firstName: s.user.firstName, lastName: s.user.lastName, email: s.user.email, role: s.user.role } : null,
@@ -4610,7 +4614,7 @@ export class SuperAdminService {
         prisma.internalPermissionGrid.upsert({ where: { userId_moduleId: { userId: user.id, moduleId } }, create: { userId: user.id, moduleId, accessLevel }, update: { accessLevel } })
       ));
     }
-    await sendNotification({ channel: "EMAIL", recipient: email, title: "Welcome to the Future Realm platform team", body: `Your internal account has been created with the ${parsed.role} role. A temporary password has been set — you will set up MFA and change it on first login.` });
+    await sendNotification({ channel: "EMAIL", recipient: email, title: "Welcome to the Future Realm platform team", body: `Your internal account has been created with the ${parsed.role} role. A temporary password has been set — change it on first login, and turn on two-factor authentication from your profile whenever you're ready.` });
     await this.audit(session, "CREATE", "InternalUser", user.id, { email, role: parsed.role, department: parsed.department }, null);
     return this.response({ id: user.id, temporaryPassword: tempPassword }, "Internal account created");
   }

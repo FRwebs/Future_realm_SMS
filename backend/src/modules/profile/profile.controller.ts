@@ -35,6 +35,34 @@ export class ProfileController {
     return this.profileService.ok(this.profileService.changeMyPassword(session, body), "Password changed.");
   }
 
+  @Post("profile/me/mfa/setup")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("profiles.manage_mfa_self")
+  setupMfa(@CurrentSession() session: SessionPayload) {
+    return this.profileService.ok(this.profileService.setupMyMfa(session), "Scan the QR code, then enter a code to confirm.");
+  }
+
+  @Post("profile/me/mfa/confirm")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("profiles.manage_mfa_self")
+  confirmMfa(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.profileService.ok(this.profileService.confirmMyMfa(session, body), "Two-factor authentication is now on.");
+  }
+
+  @Patch("profile/me/mfa/disable")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("profiles.manage_mfa_self")
+  disableMfa(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.profileService.ok(this.profileService.disableMyMfa(session, body), "Two-factor authentication is now off.");
+  }
+
+  @Post("profile/me/mfa/backup-codes")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("profiles.manage_mfa_self")
+  regenerateMfaBackupCodes(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.profileService.ok(this.profileService.regenerateMyMfaBackupCodes(session, body), "New backup codes generated — your old ones no longer work.");
+  }
+
   @Get("profile/me/edit-requests")
   @RequirePermission("profiles.request_edit_self")
   myEditRequests(@CurrentSession() session: SessionPayload) {

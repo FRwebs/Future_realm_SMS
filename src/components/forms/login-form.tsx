@@ -20,13 +20,14 @@ export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [trustDevice, setTrustDevice] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [mfaRequired, setMfaRequired] = useState(false);
+  const [mfaCode, setMfaCode] = useState("");
 
-  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
+  async function attemptLogin(code?: string) {
     setPending(true);
     setError(null);
-
-    const formData = new FormData(event.currentTarget);
 
     try {
       const response = await fetch("/api/v1/auth/login", {
@@ -36,19 +37,26 @@ export function LoginForm() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          email: formData.get("email"),
-          password: formData.get("password"),
-          trustDevice
+          email,
+          password,
+          trustDevice,
+          ...(code ? { mfaCode: code } : {})
         })
       });
 
       const body = (await response.json()) as {
         ok?: boolean;
         error?: string;
+        code?: string;
         data?: { user: { role: string } };
       };
 
       if (!response.ok || body.ok === false || !body.data) {
+        if (body.code === "MFA_REQUIRED") {
+          setMfaRequired(true);
+          setPending(false);
+          return;
+        }
         const nextError = body.error ?? "Unable to sign in";
         setError(nextError);
         showToast({
@@ -84,6 +92,65 @@ export function LoginForm() {
     }
   }
 
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await attemptLogin();
+  }
+
+  async function handleMfaSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    await attemptLogin(mfaCode);
+  }
+
+  if (mfaRequired) {
+    return (
+      <form onSubmit={handleMfaSubmit}>
+        <div className="mb-5 flex items-start gap-[10px] rounded-[11px] border px-[14px] py-[13px]" style={{ borderColor: "var(--color-gold-dim)", background: "var(--color-gold-dim)" }}>
+          <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#8a6410" }} strokeWidth={1.8} />
+          <p className="text-[11.5px] leading-[1.5] text-[#435048]">
+            This account has two-factor authentication turned on. Enter the 6-digit code from your authenticator app, or one of your backup codes.
+          </p>
+        </div>
+
+        <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Authentication code</label>
+        <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
+          <input
+            type="text"
+            name="mfaCode"
+            required
+            autoFocus
+            value={mfaCode}
+            onChange={(event) => setMfaCode(event.target.value)}
+            className="w-full bg-transparent text-[13.5px] tracking-widest text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
+            placeholder="123456"
+          />
+        </div>
+
+        <button
+          type="submit"
+          disabled={pending || mfaCode.trim().length === 0}
+          className="flex h-[46px] w-full items-center justify-center rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
+        >
+          {pending ? "Verifying..." : "Verify and sign in"}
+        </button>
+
+        {error ? <p className="mt-4 text-[13px] text-[var(--color-danger)]">{error}</p> : null}
+
+        <button
+          type="button"
+          onClick={() => {
+            setMfaRequired(false);
+            setMfaCode("");
+            setError(null);
+          }}
+          className="mt-4 w-full text-center text-[12.5px] font-semibold text-[#435048] hover:underline"
+        >
+          Back to email and password
+        </button>
+      </form>
+    );
+  }
+
   return (
     <form onSubmit={handleSubmit} method="post">
       <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Work email</label>
@@ -93,6 +160,8 @@ export function LoginForm() {
           type="email"
           name="email"
           required
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
           className="w-full bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
           placeholder="principal@greenfieldcollege.ng"
         />
@@ -110,6 +179,8 @@ export function LoginForm() {
           type={showPassword ? "text" : "password"}
           name="password"
           required
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
           className="w-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
           placeholder="FutureRealm123!"
         />
@@ -158,8 +229,8 @@ export function LoginForm() {
       >
         <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#8a6410" }} strokeWidth={1.8} />
         <p className="text-[11.5px] leading-[1.5] text-[#435048]">
-          Multi-factor authentication is required for Principal, Proprietor and Bursar accounts.
-          You&apos;ll be asked for a one-time code after this step.
+          Two-factor authentication is available on every account — turn it on from your profile.
+          If it&apos;s on for this account, you&apos;ll be asked for a code after this step.
         </p>
       </div>
 
