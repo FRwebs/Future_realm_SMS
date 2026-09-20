@@ -8,6 +8,7 @@ import { getDefaultPermissionsForRole } from "@/lib/navigation/registry";
 import type { SuperAdminInternalSession } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
+import { MfaPanel } from "./_mfa-panel";
 import { SessionsList } from "./_sessions-list";
 
 type AuditLogRow = {
@@ -72,6 +73,8 @@ type SuperAdminMyProfile = {
   accountStatus: string;
   isActive: boolean;
   lastLoginAt?: string;
+  mfaEnabled: boolean;
+  mfaEnrolledAt?: string;
   createdAt: string;
   contact: { homeAddress?: string | null; residentialAddress?: string | null; city?: string | null; country?: string | null };
   loginHistory: Array<{ id: string; success: boolean; ipAddress?: string | null; device?: string | null; reason?: string | null; createdAt: string }>;
@@ -251,13 +254,7 @@ export default async function SuperAdminProfilePage() {
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[15px]">
             <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Sessions &amp; security</p>
           </div>
-          <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
-            <div className="min-w-0">
-              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Two-factor authentication</p>
-              <p className="text-pretty mt-0.5 text-[11px] text-[#8C9A92]">Not required for this account type — sign-in is email and password only.</p>
-            </div>
-            <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-bold text-[var(--color-text-secondary)]">Not enforced</span>
-          </div>
+          <MfaPanel mfaEnabled={profile.mfaEnabled} mfaEnrolledAt={profile.mfaEnrolledAt} />
           <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
             <div className="min-w-0">
               <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Password</p>

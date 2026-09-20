@@ -65,6 +65,7 @@ type SecurityView = {
   attempts: LoginAttempt[];
   privacy: PrivacyRequest[];
   incidents: SecurityIncident[];
+  mfaCoverage: { enabled: number; total: number };
 };
 
 type ComplianceReport = {
@@ -166,13 +167,13 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
       ) : null}
       {tab === "requests" ? <RequestsTab privacy={data.privacy ?? []} /> : null}
       {tab === "audit" || !["incidents", "compliance", "requests"].includes(tab) ? (
-        <AuditLogTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} />
+        <AuditLogTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} mfaCoverage={data.mfaCoverage} />
       ) : null}
     </div>
   );
 }
 
-async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]; attempts: LoginAttempt[] }) {
+async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: PlatformSession[]; attempts: LoginAttempt[]; mfaCoverage: { enabled: number; total: number } }) {
   const envelope = await apiGetEnvelope<SuperAdminAuditLogRow[]>("/api/super-admin/audit-logs?limit=30");
   const logs = envelope.data ?? [];
   const adminSessions = sessions.filter((s) => s.user && platformRoles.has(s.user.role));
@@ -184,7 +185,13 @@ async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]
         <StatCard label="Active admin sessions" value={adminSessions.length} detail="Platform-role accounts only" icon={MonitorCheck} tone="dark" />
         <StatCard label="Failed logins (recent)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
         <StatCard label="Auto-lockouts" value="N/A" detail="Real, but narrow — 5+ failures in 10 minutes blocks that email; a separate 10+/hour review flag needs a manual recalculation" icon={AlertTriangle} tone="neutral" />
-        <StatCard label="MFA coverage" value="N/A" detail="Not built — MFA is promised in onboarding copy but no verification step exists" icon={AlertTriangle} tone="neutral" />
+        <StatCard
+          label="MFA coverage"
+          value={`${mfaCoverage.enabled}/${mfaCoverage.total}`}
+          detail="Real, self-service, opt-in — platform/internal accounts with an authenticator turned on, out of all active ones"
+          icon={AlertTriangle}
+          tone={mfaCoverage.enabled === 0 ? "warning" : "neutral"}
+        />
         <StatCard label="IP whitelist" value="N/A" detail="Real for platform/internal accounts, exact-address only — school accounts are unaffected" icon={AlertTriangle} tone="neutral" />
       </section>
 
@@ -192,7 +199,7 @@ async function AuditLogTab({ sessions, attempts }: { sessions: PlatformSession[]
         title="Admin login policy — what's actually enforced"
         description="Verified against the real session and login code, not stated as intent."
         items={[
-          { control: "Multi-factor authentication", spec: "Every admin login requires MFA, no exceptions.", state: "not-built" as const },
+          { control: "Multi-factor authentication", spec: "Real TOTP-based MFA, self-service from Profile → Sessions & security. It's opt-in, not enforced — an account without it turned on signs in with password alone.", state: "partial" as const },
           { control: "Session expiry", spec: "A fixed 8-hour session from login. Not a 30-minute idle timeout — activity does not reset the clock, and the session is equally valid whether idle or active.", state: "partial" as const },
           { control: "Failed-login handling", spec: "5+ failed attempts for one email in 10 minutes blocks that email's sign-in immediately for the rest of the window. Separately, 10+ failures in an hour creates a review flag on the Users → Reviews & Cases queue when the suspicious-activity recalculation is run — that part isn't automatic.", state: "partial" as const },
           { control: "IP whitelist", spec: "Enforced at sign-in for platform/internal accounts, exact address only — see Internal Team → Security for the rules and their real (login-time-only) limits.", state: "partial" as const },

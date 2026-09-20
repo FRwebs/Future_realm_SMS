@@ -64,6 +64,7 @@ export const permissionModules: PermissionModule[] = [
       permission("profiles.request_edit_self", "Submit profile correction requests for sensitive fields."),
       permission("profiles.change_password_self", "Change your own password."),
       permission("profiles.change_email_self", "Request or change your own login email."),
+      permission("profiles.manage_mfa_self", "Set up or remove your own two-factor authentication."),
       permission("profiles.view", "View other user profiles within the school."),
       permission("profiles.create", "Create profile records."),
       permission("profiles.update", "Update other user profiles."),
@@ -687,7 +688,8 @@ const selfProfilePermissions = [
   "profiles.update_self",
   "profiles.request_edit_self",
   "profiles.change_password_self",
-  "profiles.change_email_self"
+  "profiles.change_email_self",
+  "profiles.manage_mfa_self"
 ];
 
 export const systemRolePermissionKeys: Partial<Record<Role, string[]>> = {

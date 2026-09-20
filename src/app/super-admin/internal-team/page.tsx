@@ -109,9 +109,10 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
               {
                 name: "mfa",
                 label: "Multi-factor authentication",
-                type: "toggle",
+                type: "static",
                 disabled: true,
-                note: "Not enforced — the welcome email says MFA is required, but no verification step exists anywhere in this codebase.",
+                placeholder: "Self-service after creation",
+                note: "Real, but not set here — the new hire turns on their own authenticator from Profile → Sessions & security after they sign in. It isn't mandatory.",
                 section: "Fixed for everyone"
               },
               {
@@ -535,7 +536,7 @@ async function SecurityTab() {
         title="Internal security requirements — what's actually enforced"
         description="Verified against the real account and session code, not stated as intent."
         items={[
-          { requirement: "Multi-factor authentication", spec: "Mandatory for every internal account, no exceptions.", state: "Not built" },
+          { requirement: "Multi-factor authentication", spec: "Real TOTP-based MFA, but self-service and opt-in from Profile → Sessions & security — not mandatory, and an account that hasn't turned it on signs in with password alone.", state: "Partial" },
           { requirement: "Session timeout", spec: "A fixed 8-hour session from login — not a 30-minute idle timeout; activity doesn't reset the clock.", state: "Partial" },
           { requirement: "Panel address", spec: "Served from the same app and domain as every other portal — /super-admin routes, not a separate non-public address. Access is gated by role check on each request, not by the URL being secret.", state: "Partial" },
           { requirement: "Address restriction (IP allow/deny list)", spec: "Enforced at sign-in for every internal account against the rules below — a Deny match blocks it, and any Allow rule existing switches to allow-list-only mode. It's checked once at login, not on every request, so an address added to Deny mid-session doesn't end an already-open session, and matching is exact-address only (no CIDR ranges).", state: "Partial" },

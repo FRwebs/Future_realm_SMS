@@ -1,9 +1,11 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Gender, Prisma } from "@prisma/client";
+import QRCode from "qrcode";
 import { z } from "zod";
 
-import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
+import { buildOtpauthUri, generateBackupCodes, generateMfaSecret, verifyTotp } from "../../../../src/lib/auth/mfa";
 import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
+import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 
@@ -95,6 +97,14 @@ const reviewSchema = z.object({
 const passwordSchema = z.object({
   currentPassword: z.string().min(1),
   newPassword: z.string().min(8),
+});
+
+const mfaCodeSchema = z.object({
+  code: z.string().trim().min(6, "Enter the 6-digit code from your authenticator app."),
+});
+
+const mfaDisableSchema = z.object({
+  password: z.string().min(1, "Enter your current password to disable two-factor authentication."),
 });
 
 function compactText(value: unknown) {
@@ -251,6 +261,8 @@ export class ProfileService {
       suspendedAt: user.suspendedAt?.toISOString(),
       lastLoginAt: user.lastLoginAt?.toISOString(),
       emailVerifiedAt: user.emailVerifiedAt?.toISOString(),
+      mfaEnabled: user.mfaEnabled,
+      mfaEnrolledAt: user.mfaEnrolledAt?.toISOString(),
       createdAt: user.createdAt.toISOString(),
       school: {
         ...user.school,
@@ -418,6 +430,71 @@ export class ProfileService {
     });
     await this.audit(session, "RESET_PASSWORD", "UserProfile", user.id, { selfService: true });
     return { id: user.id };
+  }
+
+  /**
+   * Starts (or restarts) enrollment: generates a fresh secret and stores it, but leaves
+   * mfaEnabled false until setupMyMfa is confirmed with a real code from it — so a secret
+   * that's never confirmed never actually protects the account.
+   */
+  async setupMyMfa(session: SessionPayload) {
+    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null } });
+    if (!user) throw new NotFoundException("Profile not found.");
+
+    const secret = generateMfaSecret();
+    await prisma.user.update({ where: { id: user.id }, data: { mfaSecret: secret, mfaEnabled: false } });
+
+    const otpauthUri = buildOtpauthUri(user.email, secret);
+    const qrCodeDataUrl = await QRCode.toDataURL(otpauthUri);
+    return { secret, otpauthUri, qrCodeDataUrl };
+  }
+
+  async confirmMyMfa(session: SessionPayload, payload: unknown) {
+    const parsed = mfaCodeSchema.parse(payload);
+    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null } });
+    if (!user) throw new NotFoundException("Profile not found.");
+    if (!user.mfaSecret) throw new BadRequestException("Start setup first — there's no pending authenticator to confirm.");
+    if (!verifyTotp(parsed.code, user.mfaSecret)) {
+      throw new BadRequestException("That code didn't match. Check the time on your device and try again.");
+    }
+
+    const backupCodes = generateBackupCodes();
+    const backupCodeHashes = backupCodes.map((code) => hashPassword(code));
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { mfaEnabled: true, mfaEnrolledAt: new Date(), mfaBackupCodeHashes: backupCodeHashes },
+    });
+    await this.audit(session, "SETTINGS_UPDATE", "UserProfile", user.id, { selfService: true, mfaEnabled: true });
+    return { backupCodes };
+  }
+
+  async disableMyMfa(session: SessionPayload, payload: unknown) {
+    const parsed = mfaDisableSchema.parse(payload);
+    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null } });
+    if (!user) throw new NotFoundException("Profile not found.");
+    if (!verifyPassword(parsed.password, user.passwordHash)) {
+      throw new BadRequestException("Current password is incorrect.");
+    }
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { mfaEnabled: false, mfaSecret: null, mfaBackupCodeHashes: [], mfaEnrolledAt: null },
+    });
+    await this.audit(session, "SETTINGS_UPDATE", "UserProfile", user.id, { selfService: true, mfaEnabled: false });
+    return { id: user.id };
+  }
+
+  async regenerateMyMfaBackupCodes(session: SessionPayload, payload: unknown) {
+    const parsed = mfaDisableSchema.parse(payload);
+    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null } });
+    if (!user) throw new NotFoundException("Profile not found.");
+    if (!user.mfaEnabled) throw new BadRequestException("Two-factor authentication isn't enabled on this account.");
+    if (!verifyPassword(parsed.password, user.passwordHash)) {
+      throw new BadRequestException("Current password is incorrect.");
+    }
+    const backupCodes = generateBackupCodes();
+    await prisma.user.update({ where: { id: user.id }, data: { mfaBackupCodeHashes: backupCodes.map((code) => hashPassword(code)) } });
+    await this.audit(session, "SETTINGS_UPDATE", "UserProfile", user.id, { selfService: true, mfaBackupCodesRegenerated: true });
+    return { backupCodes };
   }
 
   async requestEdit(session: SessionPayload, targetUserId: string, payload: unknown) {

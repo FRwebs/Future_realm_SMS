@@ -26,7 +26,7 @@ import { verifySessionToken } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { SessionGuard } from "../../auth/session.guard";
-import { AuthService } from "./auth.service";
+import { AuthService, MfaRequiredError } from "./auth.service";
 
 function clientIp(request: Request) {
   const forwarded = request.headers["x-forwarded-for"];
@@ -37,7 +37,8 @@ function clientIp(request: Request) {
 const loginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(8),
-  trustDevice: z.boolean().optional()
+  trustDevice: z.boolean().optional(),
+  mfaCode: z.string().trim().min(1).optional()
 });
 
 const forgotPasswordSchema = z.object({
@@ -63,7 +64,17 @@ export class AuthController {
     const payload = loginSchema.parse(body);
     const ipAddress = clientIp(request);
     const device = request.headers["user-agent"];
-    const user = await this.authService.authenticateUser(payload.email, payload.password, { ipAddress, device });
+
+    let user: Awaited<ReturnType<AuthService["authenticateUser"]>>;
+    try {
+      user = await this.authService.authenticateUser(payload.email, payload.password, { ipAddress, device }, payload.mfaCode);
+    } catch (error) {
+      if (error instanceof MfaRequiredError) {
+        response.status(401);
+        return { ok: false, error: "Enter your authenticator code to continue.", code: "MFA_REQUIRED" };
+      }
+      throw error;
+    }
 
     if (!user) {
       throw new UnauthorizedException("Invalid email or password");
