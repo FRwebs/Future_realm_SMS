@@ -13,6 +13,7 @@ import { hashPassword } from "../../../../src/lib/auth/password";
 import { createSessionToken, SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import type { Role } from "../../../../src/lib/domain/types";
+import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
 
 const pageSchema = z.object({
@@ -4469,6 +4470,21 @@ export class SuperAdminService {
       data: { scope: "FULL_DATABASE", status: "SUCCESS", sizeMb: Math.round((500 + Math.random() * 1500) * 10) / 10, location: "offsite://futurerealm-backups", startedAt, endedAt: new Date(startedAt.getTime() + 45 * 1000) }
     });
     await this.audit(session, "SETTINGS_UPDATE", "BackupRecord", backup.id, { manual: true, scope: "FULL_DATABASE" }, null);
+
+    const infrastructureTeam = await prisma.user.findMany({
+      where: { role: { in: [...technicalRoles] }, isActive: true, deletedAt: null },
+      select: { email: true }
+    });
+    await Promise.all(
+      infrastructureTeam.map((member) =>
+        sendEmail({
+          to: member.email,
+          subject: "Manual backup completed",
+          text: `A manual full-database backup finished successfully.\n\nSize: ${backup.sizeMb} MB\nLocation: ${backup.location}\nStarted: ${backup.startedAt.toISOString()}\nFinished: ${backup.endedAt?.toISOString() ?? "unknown"}\n\nTriggered by user ID ${session.userId}.`
+        })
+      )
+    );
+
     return this.response({ id: backup.id, status: backup.status }, "Manual backup completed");
   }
 

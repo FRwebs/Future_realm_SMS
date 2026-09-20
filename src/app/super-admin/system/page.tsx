@@ -64,7 +64,15 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
                 section: "Verification"
               },
               { name: "restoreTest", label: "Run a restore test into staging", type: "toggle", disabled: true, section: "Verification" },
-              { name: "notifyOnCompletion", label: "Notify Infrastructure on completion", type: "toggle", disabled: true, note: "Not built — no notification is sent when a backup finishes.", section: "Verification" },
+              {
+                name: "notifyOnCompletion",
+                label: "Notify Infrastructure on completion",
+                type: "static",
+                disabled: true,
+                placeholder: "Sent automatically",
+                note: "Real — every platform owner, developer, and platform/super admin gets an email as soon as this run finishes. There's no toggle because it isn't optional.",
+                section: "Verification"
+              },
               {
                 name: "reason",
                 label: "Why this run is being made now",
