@@ -2764,6 +2764,7 @@ export type PartnerDealStatus = "REGISTERED" | "CONVERTED" | "EXPIRED" | "COMMIS
 export interface SuperAdminPartnerRow {
   id: string;
   name: string;
+  email: string | null;
   territory: string | null;
   agreementReference: string | null;
   agreementValidTo: string | null;

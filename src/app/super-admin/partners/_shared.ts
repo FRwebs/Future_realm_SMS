@@ -92,7 +92,15 @@ export function dealFormFields(
       placeholder: "Use partner default",
       section: "Evidence of introduction"
     },
-    { name: "_confirmPartner", label: "Confirm the registration to the partner", type: "toggle", disabled: true, note: "Not built — no confirmation email is sent when a deal is registered.", section: "Alongside" },
+    {
+      name: "_confirmPartner",
+      label: "Confirm the registration to the partner",
+      type: "static",
+      disabled: true,
+      placeholder: "Sent automatically",
+      note: "Real — a confirmation email goes to the partner's contact email as soon as this deal is registered, if one is on file. There's no toggle because it isn't optional.",
+      section: "Alongside"
+    },
     { name: "_alertExpiry", label: "Alert the partner 14 days before expiry", type: "toggle", disabled: true, note: "Not built — nothing currently warns a partner before a registration expires.", section: "Alongside" }
   ];
 }

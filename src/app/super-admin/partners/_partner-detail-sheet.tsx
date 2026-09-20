@@ -81,8 +81,9 @@ export function PartnerDetailButton({
             <FactRow label="Settled to date" value={formatCurrency(commission?.totalCommissionPaid ?? 0)} />
           </FactBlock>
 
-          <FactBlock title="Contact and portal access" sub="Not built yet, disclosed here rather than left silent.">
-            <FactRow label="Primary contact" value="Not captured — this system has no contact-person field for a partner." />
+          <FactBlock title="Contact and portal access" sub="No named contact person or partner login yet — disclosed here rather than left silent.">
+            <FactRow label="Contact email" value={partner.email ?? "Not on file"} bold={Boolean(partner.email)} />
+            <FactRow label="Primary contact" value="Not captured — this system has no named-person field for a partner, only the email above." />
             <FactRow label="Partner portal" value="Not built — partners have no login of their own to this platform." />
           </FactBlock>
 
