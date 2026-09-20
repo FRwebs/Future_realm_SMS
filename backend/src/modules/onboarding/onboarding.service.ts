@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { sendNotification } from "../../../../src/lib/integrations/notifications";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import type { Role, SessionUser } from "../../../../src/lib/domain/types";
 
@@ -443,11 +442,10 @@ export class OnboardingService {
       }
     });
 
-    await sendNotification({
-      channel: "EMAIL",
-      recipient: ownerEmail,
-      title: "Welcome to FutureRealm SMS",
-      body: `Your school workspace for ${school.name} is ready. Your 30-day trial ends on ${trialEndsAt.toDateString()}.`
+    await sendEmail({
+      to: ownerEmail,
+      subject: "Welcome to FutureRealm SMS",
+      text: `Your school workspace for ${school.name} is ready. Your 30-day trial ends on ${trialEndsAt.toDateString()}.`
     });
 
     await this.issueVerificationCode(owner.id, ownerEmail);

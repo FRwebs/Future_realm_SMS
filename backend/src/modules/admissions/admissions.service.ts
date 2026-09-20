@@ -13,6 +13,7 @@ import {
   StudentRecordView
 } from "../../../../src/lib/domain/types";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
+import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import {
   formatNigeriaClassName,
   getNigeriaClassLookupNames,
@@ -358,12 +359,20 @@ function mapAdmission(item: AdmissionRow): AdmissionApplicationView {
 @Injectable()
 export class AdmissionsService {
   private async notify(schoolId: string, application: AdmissionApplicationView, title: string, body: string) {
-    await sendNotification({
-      channel: "EMAIL",
-      recipient: application.guardianEmail || application.guardianPhone,
-      title,
-      body
-    });
+    if (application.guardianEmail) {
+      await sendEmail({
+        to: application.guardianEmail,
+        subject: title,
+        text: body
+      });
+    } else {
+      await sendNotification({
+        channel: "SMS",
+        recipient: application.guardianPhone,
+        title,
+        body
+      });
+    }
 
     await prisma.notificationLog.create({
       data: {
