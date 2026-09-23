@@ -63,6 +63,9 @@ export type WorkflowNavItem = {
   description: string;
   icon: LucideIcon;
   requiredPermission?: string;
+  badge?: string;
+  /** An unresolved problem in that module, per the mockup's amber dot. */
+  dot?: boolean;
 };
 
 export type WorkflowNavGroup = {
@@ -126,11 +129,7 @@ function descriptionFor(item: NavigationRegistryItem) {
     return "Platform operations workspace for authorized internal users.";
   }
 
-  if (
-    item.group === "Student Portal" ||
-    item.group === "Parent Portal" ||
-    item.group === "Teacher Portal"
-  ) {
+  if (item.group === "Student Portal" || item.group === "Parent Portal") {
     return "Role-scoped self-service workspace.";
   }
 
@@ -145,6 +144,8 @@ function mapItem(item: NavigationRegistryItem): WorkflowNavItem {
     description: descriptionFor(item),
     icon: iconMap[item.icon] ?? LayoutDashboard,
     requiredPermission: item.requiredPermissions?.[0],
+    badge: item.badge,
+    dot: item.dot,
   };
 }
 

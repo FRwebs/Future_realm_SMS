@@ -122,34 +122,6 @@ export type PrincipalCalendarResourceView = {
   }>;
 };
 
-export const principalAcademicTabs: PrincipalPortalTab[] = [
-  { href: "/portals/principal/academics/performance", label: "Performance" },
-  { href: "/portals/principal/academics/promotions", label: "Promotions" },
-  { href: "/portals/principal/academics/report-comments", label: "Comments" },
-];
-
-export const principalPeopleTabs: PrincipalPortalTab[] = [
-  { href: "/portals/principal/people/staff", label: "Staff" },
-  { href: "/portals/principal/people/students", label: "Students" },
-  { href: "/portals/principal/people/discipline", label: "Discipline" },
-  { href: "/portals/principal/people/leaves", label: "Leave Requests" },
-];
-
-export const principalCommunicationTabs: PrincipalPortalTab[] = [
-  { href: "/portals/principal/communication/announcements", label: "Announcements" },
-  { href: "/portals/principal/communication/broadcast", label: "Broadcast" },
-];
-
-export const principalOperationsTabs: PrincipalPortalTab[] = [
-  { href: "/portals/principal/operations/events", label: "Events" },
-  { href: "/portals/principal/operations/visitors", label: "Visitors" },
-];
-
-export const principalReportTabs: PrincipalPortalTab[] = [
-  { href: "/portals/principal/reports/analytics", label: "School Analytics" },
-  { href: "/portals/principal/reports/finance", label: "Financial Summary" },
-];
-
 export async function safeApiGet<T>(path: string, fallback: T): Promise<T> {
   try {
     return await apiGet<T>(path);

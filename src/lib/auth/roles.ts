@@ -1,4 +1,8 @@
+import type { Route } from "next";
+
 import type { Role } from "@/lib/domain/types";
+import { defaultModuleForRole } from "@/lib/modules/school-access";
+import { schoolModulePath } from "@/lib/modules/school-modules";
 import {
   areRolesEquivalent,
   canAssignRole,
@@ -297,42 +301,6 @@ const accessRules: AccessRule[] = [
     view: ["PARENT"]
   },
   {
-    prefix: "/portals/teacher",
-    view: ["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"]
-  },
-  {
-    prefix: "/portals/admission-officer",
-    view: ["ADMISSIONS_OFFICER"]
-  },
-  {
-    prefix: "/portals/principal",
-    view: ["PRINCIPAL"]
-  },
-  {
-    prefix: "/portals/exam-officer",
-    view: ["EXAM_OFFICER", "EXAMINATION_OFFICER"]
-  },
-  {
-    prefix: "/portals/nurse",
-    view: ["SCHOOL_NURSE", "NURSE"]
-  },
-  {
-    prefix: "/portals/librarian",
-    view: ["LIBRARIAN"]
-  },
-  {
-    prefix: "/portals/front-desk",
-    view: ["RECEPTIONIST"]
-  },
-  {
-    prefix: "/portals/hostel",
-    view: ["HOSTEL_MANAGER", "HOSTEL_MASTER", "HOSTEL_MATRON", "HOSTEL_MISTRESS"]
-  },
-  {
-    prefix: "/portals/transport",
-    view: ["TRANSPORT_COORDINATOR", "TRANSPORT_MANAGER"]
-  },
-  {
     prefix: "/portals/student",
     view: ["STUDENT"]
   }
@@ -345,13 +313,6 @@ function findAccessRule(path: string) {
 }
 
 export function canAccessPath(role: Role, path: string) {
-  if (
-    path === "/dashboard" &&
-    isSchoolStaffRole(role) &&
-    !["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(role)
-  ) {
-    return true;
-  }
   return canAccessPathWithPermissions(role, path, getDefaultPermissionsForRole(role));
 }
 
@@ -364,21 +325,22 @@ export function canManagePath(role: Role, path: string) {
   return hasRole(role, rule.manage);
 }
 
-export function getDefaultPathForRole(role: Role) {
-  if (platformRoles.includes(role)) return "/super-admin";
-  if (role === "PARENT") return "/portals/parent";
-  if (role === "PRINCIPAL") return "/portals/principal";
-  if (role === "TEACHER" || role === "CLASS_TEACHER" || role === "SUBJECT_TEACHER") return "/portals/teacher";
-  if (role === "ADMISSIONS_OFFICER") return "/portals/admission-officer";
-  if (role === "EXAM_OFFICER" || role === "EXAMINATION_OFFICER") return "/portals/exam-officer";
-  if (role === "SCHOOL_NURSE" || role === "NURSE") return "/portals/nurse";
-  if (role === "LIBRARIAN") return "/portals/librarian";
-  if (role === "RECEPTIONIST") return "/portals/front-desk";
-  if (role === "HOSTEL_MANAGER" || role === "HOSTEL_MASTER" || role === "HOSTEL_MATRON" || role === "HOSTEL_MISTRESS") return "/portals/hostel";
-  if (role === "TRANSPORT_COORDINATOR" || role === "TRANSPORT_MANAGER") return "/portals/transport";
-  if (role === "STUDENT") return "/portals/student";
-  if (role === "BURSAR" || role === "ACCOUNTANT" || role === "ACCOUNT_OFFICER") return "/finance";
-  return "/dashboard";
+/**
+ * Where a role lands when it signs in.
+ *
+ * Staff all land in the same sixteen-module shell, on the first module their
+ * role template can open — Command Center for everyone the mockup templates.
+ * Only students and guardians have a portal of their own to land in.
+ */
+export function getDefaultPathForRole(role: Role): Route {
+  if (platformRoles.includes(role)) return "/super-admin" as Route;
+  if (role === "PARENT") return "/portals/parent" as Route;
+  if (role === "STUDENT") return "/portals/student" as Route;
+
+  const module = defaultModuleForRole(role);
+  // Built from the module grid, so it is a real route but not a literal Next
+  // can narrow on its own.
+  return (module ? schoolModulePath(module) : "/command-center/today") as Route;
 }
 
 export const roleLabels: Record<Role, string> = {

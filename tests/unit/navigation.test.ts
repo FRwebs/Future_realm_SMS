@@ -1,5 +1,14 @@
-import { canAccessPath, canManagePath, normalizeRole } from "@/lib/auth/roles";
+import { canAccessPath, normalizeRole, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getVisibleWorkflowNavGroups } from "@/lib/navigation/workflows";
+import { schoolModuleSections, schoolModules } from "@/lib/modules/school-modules";
+
+function labelsFor(role: Parameters<typeof getVisibleWorkflowNavGroups>[0]) {
+  return getVisibleWorkflowNavGroups(role).flatMap((group) => group.items.map((item) => item.label));
+}
+
+function sectionsFor(role: Parameters<typeof getVisibleWorkflowNavGroups>[0]) {
+  return getVisibleWorkflowNavGroups(role).map((group) => group.title);
+}
 
 describe("role-aware navigation and route access", () => {
   it("normalizes legacy lowercase role slugs used by old sessions", () => {
@@ -11,250 +20,150 @@ describe("role-aware navigation and route access", () => {
     expect(normalizeRole("unknown_role")).toBeNull();
   });
 
+  it("gives the proprietor every module, in the mockup's seven sections", () => {
+    expect(sectionsFor("SCHOOL_OWNER")).toEqual(schoolModuleSections);
+    expect(labelsFor("SCHOOL_OWNER")).toEqual(schoolModules.map((module) => module.name));
+  });
+
+  it("puts every staff role in the same shell rather than a portal of its own", () => {
+    for (const role of ["PRINCIPAL", "EXAM_OFFICER", "BURSAR", "SUBJECT_TEACHER", "SCHOOL_NURSE"] as const) {
+      const labels = labelsFor(role);
+
+      expect(labels).toContain("Command Center");
+      expect(labels).toContain("Sync & Support");
+      // Nothing outside the sixteen modules reaches a staff sidebar.
+      for (const label of labels) {
+        expect(schoolModules.map((module) => module.name)).toContain(label);
+      }
+    }
+  });
+
+  it("scopes each staff role to the modules its template grants", () => {
+    // The bursar works in money and the people money is owed for — never in scores.
+    const bursar = labelsFor("BURSAR");
+    expect(bursar).toContain("Fee Management");
+    expect(bursar).toContain("Subscription & Billing");
+    expect(bursar).not.toContain("Score Entry & Results");
+    expect(bursar).not.toContain("Staff & Access");
+
+    // The exam officer is the mirror image.
+    const examOfficer = labelsFor("EXAM_OFFICER");
+    expect(examOfficer).toContain("Score Entry & Results");
+    expect(examOfficer).toContain("Report Cards");
+    expect(examOfficer).not.toContain("Fee Management");
+    expect(examOfficer).not.toContain("Staff & Access");
+
+    // A subject teacher sees the narrowest slice of all.
+    const subjectTeacher = labelsFor("SUBJECT_TEACHER");
+    expect(subjectTeacher).toContain("Attendance");
+    expect(subjectTeacher).not.toContain("Student Records");
+    expect(subjectTeacher).not.toContain("Approvals & Workflow");
+    expect(subjectTeacher.length).toBeLessThan(bursar.length);
+  });
+
+  it("gives staff the mockup does not template only the universal floor", () => {
+    // Librarian, receptionist and the rest are staff with no role template:
+    // every template reaches Command Center and Sync & Support, so that is the floor.
+    for (const role of ["LIBRARIAN", "RECEPTIONIST", "HOSTEL_MANAGER", "TRANSPORT_MANAGER"] as const) {
+      expect(labelsFor(role)).toEqual(["Command Center", "Sync & Support"]);
+    }
+  });
+
+  it("keeps a module a role cannot reach out of its navigation entirely", () => {
+    // Absent, never shown-and-greyed: the mockup is explicit that greying a
+    // module out only teaches people to ask for it.
+    expect(labelsFor("SUBJECT_TEACHER")).not.toContain("Fee Management");
+    expect(canAccessPath("SUBJECT_TEACHER", "/fee-management/collections")).toBe(false);
+    expect(canAccessPath("BURSAR", "/fee-management/collections")).toBe(true);
+  });
+
   it("keeps personal portals exact to their own role", () => {
     expect(canAccessPath("STUDENT", "/portals/student")).toBe(true);
     expect(canAccessPath("PARENT", "/portals/parent/children")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/scores")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/timetable")).toBe(true);
-    expect(canAccessPath("TEACHER", "/dashboard")).toBe(false);
-    expect(canAccessPath("TEACHER", "/timetable")).toBe(false);
 
-    expect(canAccessPath("PRINCIPAL", "/portals/teacher")).toBe(false);
-    expect(canAccessPath("NURSE", "/portals/nurse")).toBe(true);
-    expect(canAccessPath("LIBRARIAN", "/portals/librarian")).toBe(true);
-    expect(canAccessPath("RECEPTIONIST", "/portals/front-desk")).toBe(true);
-    expect(canAccessPath("HOSTEL_MANAGER", "/portals/hostel")).toBe(true);
-    expect(canAccessPath("TRANSPORT_MANAGER", "/portals/transport")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/nurse")).toBe(false);
-    expect(canAccessPath("SUPER_ADMIN", "/portals/parent")).toBe(false);
     expect(canAccessPath("PARENT", "/portals/student")).toBe(false);
+    expect(canAccessPath("STUDENT", "/portals/parent")).toBe(false);
+    expect(canAccessPath("SUPER_ADMIN", "/portals/parent")).toBe(false);
+
+    // Staff never see a personal portal, and students never see the shell.
+    expect(canAccessPath("PRINCIPAL", "/portals/student")).toBe(false);
+    expect(canAccessPath("STUDENT", "/command-center/today")).toBe(false);
+    expect(labelsFor("STUDENT")).not.toContain("Command Center");
   });
 
-  it("filters sidebar items by exact route permissions", () => {
-    const studentLabels = getVisibleWorkflowNavGroups("STUDENT").flatMap((group) =>
-      group.items.map((item) => item.label)
+  it("keeps the student and parent portals intact", () => {
+    expect(sectionsFor("STUDENT")).toEqual(["Student Portal"]);
+    expect(labelsFor("STUDENT")).toEqual(
+      expect.arrayContaining(["Dashboard", "Attendance", "Results", "Fees", "Timetable"]),
     );
-    expect(studentLabels).toEqual([
-      "Dashboard",
-      "My Profile",
-      "Attendance",
-      "Results",
-      "My Subjects",
-      "Timetable",
-      "Assignments",
-      "Fees",
-      "Services",
-      "Announcements",
-      "Notifications"
+
+    expect(sectionsFor("PARENT")).toEqual(["Parent Portal"]);
+    expect(labelsFor("PARENT")).toEqual(expect.arrayContaining(["Dashboard", "My Children"]));
+  });
+
+  it("lands every role somewhere it can actually reach", () => {
+    for (const role of [
+      "SCHOOL_OWNER",
+      "PRINCIPAL",
+      "EXAM_OFFICER",
+      "BURSAR",
+      "SUBJECT_TEACHER",
+      "SCHOOL_NURSE",
+      "LIBRARIAN",
+      "STUDENT",
+      "PARENT",
+    ] as const) {
+      const path = getDefaultPathForRole(role);
+      expect(canAccessPath(role, path)).toBe(true);
+    }
+
+    expect(getDefaultPathForRole("SCHOOL_OWNER")).toBe("/command-center/today");
+    expect(getDefaultPathForRole("STUDENT")).toBe("/portals/student");
+    expect(getDefaultPathForRole("SUPER_ADMIN")).toBe("/super-admin");
+  });
+
+  it("keeps platform staff out of the school shell and school staff out of the platform", () => {
+    expect(canAccessPath("SUPER_ADMIN", "/command-center/today")).toBe(false);
+    expect(canAccessPath("PRINCIPAL", "/super-admin")).toBe(false);
+  });
+});
+
+describe("sidebar chrome", () => {
+  it("carries the mockup's badges and dots", () => {
+    const items = getVisibleWorkflowNavGroups("SCHOOL_OWNER").flatMap((group) => group.items);
+    const byLabel = new Map(items.map((item) => [item.label, item]));
+
+    // Straight from the mockup's NAV table.
+    const badges: Record<string, string> = {
+      "Command Center": "3",
+      Attendance: "2",
+      "Score Entry & Results": "7",
+      "Report Cards": "4",
+      "Parents & Guardians": "5",
+      "Approvals & Workflow": "9",
+    };
+    for (const [label, badge] of Object.entries(badges)) {
+      expect(byLabel.get(label)?.badge, label).toBe(badge);
+    }
+
+    // An unresolved problem sits on exactly these two modules.
+    const dotted = items.filter((item) => item.dot).map((item) => item.label).sort();
+    expect(dotted).toEqual(["Audit & Security", "Class & Timetable"]);
+
+    // Everything else is unadorned.
+    const badged = items.filter((item) => item.badge).map((item) => item.label).sort();
+    expect(badged).toEqual(Object.keys(badges).sort());
+  });
+
+  it("orders the sections as the mockup's rail does", () => {
+    expect(getVisibleWorkflowNavGroups("SCHOOL_OWNER").map((group) => group.title)).toEqual([
+      "Overview",
+      "Academic Operations",
+      "People",
+      "Finance",
+      "Engagement & Control",
+      "Intelligence",
+      "System",
     ]);
-
-    const principalLabels = getVisibleWorkflowNavGroups("PRINCIPAL").flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-    expect(principalLabels).toEqual(
-      expect.arrayContaining([
-        "Executive Dashboard",
-        "Pending Approvals",
-        "Academic Performance",
-        "Staff Management",
-        "Announcements",
-        "School Analytics",
-        "School Settings",
-      ]),
-    );
-    expect(principalLabels).not.toContain("Student Portal");
-    expect(principalLabels).not.toContain("Parent Portal");
-    expect(principalLabels).not.toContain("Teacher Portal");
-
-    const bursarLabels = getVisibleWorkflowNavGroups("ACCOUNTANT").flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-    expect(bursarLabels).toEqual(
-      expect.arrayContaining([
-        "Bursary Dashboard",
-        "Fee Structures",
-        "Payments & Receipts",
-        "Discounts & Plans",
-        "Staff Payroll",
-        "Expenditure",
-        "Finance Reports",
-        "Audit Log",
-        "Finance Settings"
-      ])
-    );
-    expect(bursarLabels).not.toContain("Results & Exams");
-    expect(bursarLabels).not.toContain("Teacher Training");
-    expect(bursarLabels).not.toContain("Student Portal");
-    expect(bursarLabels).not.toContain("Students");
-  });
-
-  it("keeps exam officer navigation focused on exam operations without finance or HR routes", () => {
-    const examOfficerLabels = getVisibleWorkflowNavGroups("EXAM_OFFICER").flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-
-    expect(examOfficerLabels).toEqual(
-      expect.arrayContaining([
-        "Dashboard",
-        "All Exams",
-        "Score Entry Status",
-        "Exam Timetable",
-        "Publication Control",
-        "Question Bank",
-      ])
-    );
-    expect(examOfficerLabels).not.toContain("Settings");
-    expect(examOfficerLabels).not.toContain("Students");
-    expect(examOfficerLabels).not.toContain("Finance Reports");
-    expect(canAccessPath("EXAM_OFFICER", "/students")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results/assessments")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results/broadsheets")).toBe(true);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results/analytics")).toBe(true);
-    expect(canAccessPath("EXAM_OFFICER", "/operations/academics")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/operations/exams")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/operations/welfare")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results/publish")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results/approvals")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/results/settings")).toBe(false);
-    expect(canAccessPath("EXAM_OFFICER", "/academics/subjects")).toBe(false);
-  });
-
-  it("allows intended Nigerian admin roles to access the admin dashboard", () => {
-    expect(canAccessPath("SUPER_ADMIN", "/dashboard")).toBe(false);
-    expect(canAccessPath("SUPER_ADMIN", "/super-admin")).toBe(true);
-    expect(canAccessPath("PROPRIETOR", "/dashboard")).toBe(true);
-    expect(canAccessPath("PROPRIETOR", "/students")).toBe(true);
-    expect(canAccessPath("ADMINISTRATOR", "/dashboard")).toBe(true);
-    expect(canAccessPath("PRINCIPAL", "/dashboard")).toBe(true);
-    expect(canAccessPath("HEAD_TEACHER", "/dashboard")).toBe(true);
-    expect(canAccessPath("VICE_PRINCIPAL_ACADEMICS", "/dashboard")).toBe(true);
-    expect(canAccessPath("EXAM_OFFICER", "/dashboard")).toBe(true);
-
-    expect(canAccessPath("TEACHER", "/dashboard")).toBe(false);
-    expect(canAccessPath("PARENT", "/dashboard")).toBe(false);
-    expect(canAccessPath("STUDENT", "/dashboard")).toBe(false);
-  });
-
-  it("keeps Nigerian operations pages permission-aware", () => {
-    expect(canAccessPath("PRINCIPAL", "/academics/curriculum")).toBe(true);
-    expect(canAccessPath("ADMIN_OFFICER", "/teachers/attendance")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/staff-attendance")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/curriculum")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/content")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/content/lesson-notes/planning")).toBe(true);
-    expect(canAccessPath("TEACHER", "/portals/teacher/content/scheme-of-work/approvals")).toBe(true);
-    expect(canAccessPath("PARENT", "/portals/parent/curriculum")).toBe(true);
-    expect(canAccessPath("STUDENT", "/portals/student/curriculum")).toBe(true);
-
-    expect(canAccessPath("ACCOUNTANT", "/teachers/training")).toBe(false);
-    expect(canAccessPath("STUDENT", "/academics/curriculum")).toBe(false);
-    expect(canAccessPath("TEACHER", "/academics/curriculum")).toBe(false);
-    expect(canAccessPath("PARENT", "/teachers/attendance")).toBe(false);
-  });
-
-  it("routes real-school operations to operational staff without exposing parent/student portals", () => {
-    expect(canAccessPath("PRINCIPAL", "/operations/welfare")).toBe(true);
-    expect(canAccessPath("VICE_PRINCIPAL_ADMINISTRATION", "/operations/assets")).toBe(true);
-    expect(canAccessPath("RECEPTIONIST", "/operations/front-desk")).toBe(true);
-    expect(canAccessPath("NURSE", "/operations/welfare")).toBe(true);
-
-    expect(canAccessPath("PARENT", "/operations/front-desk")).toBe(false);
-    expect(canAccessPath("STUDENT", "/operations/welfare")).toBe(false);
-  });
-
-  it("keeps support-service portals scoped to their owning roles", () => {
-    const nurseLabels = getVisibleWorkflowNavGroups("NURSE").flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-    expect(nurseLabels).toEqual(expect.arrayContaining([
-      "Dashboard",
-      "Clinic Queue",
-      "Log Visit",
-      "Inventory",
-      "Health Summary",
-    ]));
-    expect(nurseLabels).not.toContain("Students");
-    expect(nurseLabels).not.toContain("Teacher Portal");
-
-    const librarianLabels = getVisibleWorkflowNavGroups("LIBRARIAN").flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-    expect(librarianLabels).toEqual(expect.arrayContaining([
-      "Dashboard",
-      "Issue Book",
-      "Return Book",
-      "All Books",
-      "All Members",
-    ]));
-
-    const receptionistLabels = getVisibleWorkflowNavGroups("RECEPTIONIST").flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-    expect(receptionistLabels).toEqual(expect.arrayContaining([
-      "Dashboard",
-      "Check In Visitor",
-      "Active Visitors",
-      "Room Availability",
-      "Call Log",
-    ]));
-  });
-
-  it("keeps finance mutations away from oversight-only users", () => {
-    expect(canAccessPath("PRINCIPAL", "/finance")).toBe(true);
-    expect(canManagePath("PRINCIPAL", "/finance")).toBe(false);
-    expect(canManagePath("ACCOUNTANT", "/finance/payments")).toBe(true);
-    expect(canManagePath("BURSAR", "/finance/payments")).toBe(true);
-    expect(canAccessPath("ACCOUNTANT", "/students")).toBe(false);
-    expect(canAccessPath("ACCOUNTANT", "/communications")).toBe(false);
-    expect(canAccessPath("ACCOUNTANT", "/school/staff")).toBe(false);
-    expect(canAccessPath("ACCOUNTANT", "/academics/results")).toBe(false);
-    expect(canAccessPath("ACCOUNTANT", "/finance/audit")).toBe(true);
-    expect(canAccessPath("ACCOUNTANT", "/finance/payroll")).toBe(true);
-  });
-
-  it("hides roles navigation unless the resolved permission set includes roles.view", () => {
-    const withoutRolesPermission = getVisibleWorkflowNavGroups("PRINCIPAL", ["students.view"]).flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-    const withRolesPermission = getVisibleWorkflowNavGroups("PRINCIPAL", ["roles.view"]).flatMap((group) =>
-      group.items.map((item) => item.label)
-    );
-
-    expect(withoutRolesPermission).not.toContain("Roles & Permissions");
-    expect(withRolesPermission).not.toContain("Roles & Permissions");
-  });
-
-  it("keeps teacher-facing navigation compact and portal-scoped for class teachers", () => {
-    const labels = getVisibleWorkflowNavGroups("CLASS_TEACHER", [
-      "students.view",
-      "classes.view",
-      "attendance.view",
-      "timetable.view",
-      "results.view",
-      "results.create",
-      "profiles.view",
-      "staff.view",
-      "roles.view",
-      "sow.view_own",
-    ]).flatMap((group) => group.items.map((item) => item.label));
-
-    expect(labels).toEqual(expect.arrayContaining([
-      "Dashboard",
-      "Timetable",
-      "My Classes",
-      "Mark Attendance",
-      "Attendance History",
-      "Attendance Reports",
-      "Gradebook",
-      "Lesson Notes",
-      "Scheme of Work",
-    ]));
-    expect(labels).not.toContain("My Subjects");
-    expect(labels).not.toContain("Students");
-    expect(labels).not.toContain("Classes");
-    expect(labels).not.toContain("Broadsheet");
-    expect(labels).not.toContain("Assessment Format");
-    expect(labels).not.toContain("Roles & Permissions");
   });
 });

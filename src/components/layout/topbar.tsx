@@ -3,6 +3,8 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
+
+import { accountPath } from "@/lib/modules/account";
 import {
   AlertCircle,
   Award,
@@ -189,30 +191,14 @@ export function dropdownItemsFor(
     ];
   }
 
+  // Staff share one account page, reached from this menu rather than the
+  // sidebar; students and guardians keep the profile inside their own portal.
   const profilePath =
     session.role === "PARENT"
       ? "/portals/parent/profile"
       : session.role === "STUDENT"
         ? "/portals/student/profile"
-        : ["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(session.role)
-          ? "/portals/teacher/profile"
-        : session.role === "ADMISSIONS_OFFICER"
-          ? "/portals/admission-officer/profile"
-        : session.role === "PRINCIPAL"
-          ? "/portals/principal/profile"
-        : ["EXAM_OFFICER", "EXAMINATION_OFFICER"].includes(session.role)
-          ? "/portals/exam-officer/profile"
-        : ["SCHOOL_NURSE", "NURSE"].includes(session.role)
-          ? "/portals/nurse/profile"
-        : session.role === "LIBRARIAN"
-          ? "/portals/librarian/profile"
-        : session.role === "RECEPTIONIST"
-          ? "/portals/front-desk/profile"
-        : ["HOSTEL_MANAGER", "HOSTEL_MASTER", "HOSTEL_MATRON", "HOSTEL_MISTRESS"].includes(session.role)
-          ? "/portals/hostel/profile"
-        : ["TRANSPORT_COORDINATOR", "TRANSPORT_MANAGER"].includes(session.role)
-          ? "/portals/transport/profile"
-          : "/school/profile";
+        : accountPath;
 
   const common: DropdownItem[] = [
     {
@@ -546,6 +532,8 @@ export function Topbar({
           timeZone,
         ]
       : [schoolAddress, academicContextLabel].filter(Boolean);
+  /** The term, lifted out of the meta line into its own chip. */
+  const termChipLabel = portalType === "super_admin" ? null : academicContextLabel;
   const isProduction = process.env.NODE_ENV === "production";
 
   useEffect(() => {
@@ -595,15 +583,37 @@ export function Topbar({
             >
               {contextTitle}
             </h1>
-            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[11.5px] font-medium leading-tight text-[var(--color-text-secondary)]">
-              {contextMeta.map((item, index) => (
-                <span key={item} className="inline-flex min-w-0 items-center gap-1.5">
-                  {index > 0 ? <span className="text-[var(--color-text-muted)]">·</span> : null}
-                  <span className="truncate">{item}</span>
-                </span>
-              ))}
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[9.5px] font-medium leading-[1.3] text-[var(--color-text-muted)]">
+              {contextMeta
+                .filter((item) => portalType === "super_admin" || item !== termChipLabel)
+                .map((item, index) => (
+                  <span key={item} className="inline-flex min-w-0 items-center gap-1.5">
+                    {index > 0 ? <span className="text-[var(--color-text-muted)]">·</span> : null}
+                    <span className="truncate">{item}</span>
+                  </span>
+                ))}
             </div>
           </div>
+
+          {/* The term is the one piece of context every screen is read against,
+              so the mockup gives it its own chip rather than a meta clause. */}
+          {portalType !== "super_admin" && termChipLabel ? (
+            <>
+              <span className="hidden h-[22px] w-px flex-none bg-[#E6EEE9] sm:block" />
+              <span
+                className="hidden flex-none items-center gap-1.5 rounded-full border px-[11px] py-[5px] sm:inline-flex"
+                style={{ background: "#F4F0E7", borderColor: "#EBE1CC" }}
+              >
+                <CalendarDays className="h-3 w-3" style={{ color: "#8A6410" }} strokeWidth={1.9} />
+                <span
+                  className="whitespace-nowrap text-[10.5px] font-semibold"
+                  style={{ color: "#8A6410" }}
+                >
+                  {termChipLabel}
+                </span>
+              </span>
+            </>
+          ) : null}
         </div>
 
         <div className="flex shrink-0 items-center gap-2">
@@ -646,7 +656,7 @@ export function Topbar({
             href={
               portalType === "super_admin"
                 ? "/super-admin/support"
-                : "/communications"
+                : "/sync-support/help-support"
             }
             className={chromeButton()}
             aria-label="Help"
