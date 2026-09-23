@@ -6,6 +6,7 @@ import { AlertTriangle } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
 import { useToast } from "@/components/ui/toast-provider";
+import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 import type { Role } from "@/lib/domain/types";
 
 function getCookie(name: string) {
@@ -16,19 +17,8 @@ function getCookie(name: string) {
 }
 
 function defaultPathForRole(role: string) {
-  if (role === "PARENT") return "/portals/parent";
-  if (role === "PRINCIPAL") return "/portals/principal";
-  if (role === "TEACHER" || role === "CLASS_TEACHER" || role === "SUBJECT_TEACHER") return "/portals/teacher";
-  if (role === "ADMISSIONS_OFFICER") return "/portals/admission-officer";
-  if (role === "EXAM_OFFICER" || role === "EXAMINATION_OFFICER") return "/portals/exam-officer";
-  if (role === "SCHOOL_NURSE" || role === "NURSE") return "/portals/nurse";
-  if (role === "LIBRARIAN") return "/portals/librarian";
-  if (role === "RECEPTIONIST") return "/portals/front-desk";
-  if (role === "HOSTEL_MANAGER" || role === "HOSTEL_MASTER" || role === "HOSTEL_MATRON" || role === "HOSTEL_MISTRESS") return "/portals/hostel";
-  if (role === "TRANSPORT_COORDINATOR" || role === "TRANSPORT_MANAGER") return "/portals/transport";
-  if (role === "STUDENT") return "/portals/student";
-  if (role === "BURSAR" || role === "ACCOUNTANT" || role === "ACCOUNT_OFFICER") return "/finance";
-  return "/dashboard";
+  const normalized = normalizeRole(role);
+  return normalized ? getDefaultPathForRole(normalized) : "/command-center/today";
 }
 
 interface ImpersonateUserDialogProps {

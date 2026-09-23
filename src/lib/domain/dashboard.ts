@@ -437,79 +437,67 @@ export function getDashboardQuickActions(role: Role): DashboardQuickAction[] {
   const actions: DashboardQuickAction[] = [
     {
       label: "Review admissions",
-      href: "/admissions",
+      href: "/student-records/admissions",
       description: "Review applications, screening, approvals, offers, and enrollment clearance.",
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ADMISSIONS_OFFICER"]
     },
     {
       label: "Add student",
-      href: "/students",
+      href: "/student-records/registry",
       description: "Open the student register for student records and onboarding tasks.",
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER"]
     },
     {
       label: "Mark attendance",
-      href: "/attendance",
+      href: "/attendance/register",
       description: "Capture class attendance and follow up on absences.",
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "ATTENDANCE_OFFICER"]
     },
     {
       label: "Create invoice",
-      href: "/finance",
+      href: "/fee-management/collections",
       description: "Open fees, invoices, payment tracking, receipts, and arrears.",
       roleScope: financeManagers
     },
     {
       label: "Publish announcement",
-      href: "/communications",
+      href: "/communication-center/compose",
       description: "Send notices to parents, students, staff, or classes.",
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER"]
     },
     {
       label: "Review results",
-      href: "/academics/results",
+      href: "/score-entry-results/review",
       description: "Check score entry, comments, report cards, and result publishing.",
       roleScope: academicLeaders
     },
     {
       label: "Open broadsheets",
-      href: "/academics/results/broadsheets",
+      href: "/score-entry-results/results",
       description: "Review class-wide results, missing scores, approvals, and publication readiness.",
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "EXAM_OFFICER", "EXAMINATION_OFFICER", "HEAD_OF_DEPARTMENT"]
     },
     {
       label: "Manage subjects",
-      href: "/subjects",
+      href: "/class-timetable/subjects",
       description: "Inspect subjects, teacher coverage, and scheme-of-work readiness.",
       roleScope: ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "HEAD_OF_DEPARTMENT", "ADMIN_OFFICER"]
     },
     {
-      label: "Lesson notes",
-      href: "/portals/teacher/content/lesson-notes/planning",
-      description: "Open teaching lanes, planning notes, and curriculum-linked lesson flow.",
-      roleScope: ["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"]
-    },
-    {
       label: "Staff workspace",
-      href: "/school/staff",
+      href: "/staff-access/directory",
       description: "Review staff records, assignments, and operational staff context.",
       roleScope: ["SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ADMINISTRATION", "ADMIN_OFFICER", "HR_OFFICER", "IT_ADMINISTRATOR", "ICT_CBT_ADMIN", "LIBRARIAN"]
     },
     {
-      label: "Operations hub",
-      href: "/operations",
-      description: "Open front desk, welfare, assets, exams, and school operations workspaces.",
-      roleScope: [...adminOperators, ...welfareOperators]
-    },
-    {
       label: "Parents directory",
-      href: "/parents",
+      href: "/parents-guardians/guardians",
       description: "Find parent/guardian contacts and family context for follow-up.",
       roleScope: ["SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "ADMIN_OFFICER", "CLASS_TEACHER", "GUIDANCE_COUNSELOR", "GUIDANCE_COUNSELLOR", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER", "ADMISSIONS_OFFICER", "RECEPTIONIST"]
     },
     {
       label: "System settings",
-      href: "/school/configuration",
+      href: "/school-configuration/profile",
       description: "Open school configuration, role-sensitive settings, and operational setup.",
       roleScope: ["SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "ADMIN_OFFICER", "IT_ADMINISTRATOR", "ICT_CBT_ADMIN"]
     }

@@ -253,20 +253,21 @@ function SidebarContent({
             {filteredGroups.map((group) => (
               <section key={group.title} className="grid gap-0">
                 {!collapsed && (
-                  <div className="px-2.5 pb-[7px] pt-[14px]">
-                    <p className="text-[10.5px] font-bold uppercase leading-[1.2] tracking-[0.09em] text-[rgba(255,255,255,0.42)]">
+                  <div className="px-[9px] pb-[5px] pt-[11px]">
+                    <p className="text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[rgba(255,255,255,0.62)]">
                       {group.title}
                     </p>
                   </div>
                 )}
 
-                <div className="grid gap-[3px]">
+                <div className="grid gap-[1.5px]">
                   {group.items.map((item) => {
                     const Icon = item.icon;
                     const normalizedHref = normalizePath(item.href);
                     const active = bestMatch === normalizedHref;
                     const badgeValue =
                       navBadges?.[item.id] ??
+                      item.badge ??
                       (portalType === "super_admin" ? superAdminBadgeFallbacks[item.id] : undefined);
 
                     return (
@@ -287,30 +288,23 @@ function SidebarContent({
                           href={item.href}
                           onClick={isMobile ? onCloseMobile : undefined}
                           className={cn(
-                            "group relative flex items-center rounded-[11px] text-[13.2px] leading-[1.2] transition-[background,color,transform,box-shadow] duration-150",
+                            // The module you are on is a solid white pill with ink
+                            // text — the only white surface in the rail.
+                            "group relative flex items-center rounded-full text-[11.5px] leading-[1.2] transition-[background,color] duration-150",
                             collapsed
-                              ? "mx-auto h-12 w-12 justify-center p-0"
-                              : "gap-[11px] px-3 py-2.5",
+                              ? "mx-auto h-11 w-11 justify-center p-0"
+                              : "gap-[9px] px-[11px] py-[7.5px]",
                             active
-                              ? "bg-[#ffffff] font-semibold text-[#0d2315] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)]"
-                              : "font-medium text-[rgba(255,255,255,0.78)] hover:translate-x-0.5 hover:bg-[rgba(255,255,255,0.10)] hover:text-white",
+                              ? "bg-white font-semibold text-[#0d2315]"
+                              : "font-medium text-[rgba(255,255,255,0.72)] hover:bg-[rgba(255,255,255,0.08)] hover:text-white",
                           )}
                         >
-                          <span
-                            className={cn(
-                              "absolute rounded-r-[4px] bg-[#ffffff] transition-all duration-200",
-                              collapsed
-                                ? "bottom-1.5 left-1/2 h-1.5 w-6 -translate-x-1/2 rounded-full"
-                                : "-left-3 top-1/2 h-[22px] w-1 -translate-y-1/2",
-                              active ? "opacity-100" : "opacity-0",
-                            )}
-                          />
-
                           <Icon
                             className={cn(
                               "relative z-[1] shrink-0",
-                              collapsed ? "h-5 w-5" : "h-[18px] w-[18px]",
+                              collapsed ? "h-[18px] w-[18px]" : "h-[15.5px] w-[15.5px]",
                             )}
+                            strokeWidth={1.7}
                           />
 
                           {!collapsed && (
@@ -322,14 +316,22 @@ function SidebarContent({
                           {!collapsed && badgeValue ? (
                             <span
                               className={cn(
-                                "relative z-[1] inline-flex min-w-[1.35rem] shrink-0 items-center justify-center rounded-full px-[7px] py-px text-[10.5px] font-bold leading-[1.2]",
-                                active
-                                  ? "bg-[#e4f1ec] text-[#12796a]"
-                                  : "bg-[rgba(255,255,255,0.16)] text-[rgba(255,255,255,0.8)]",
+                                "relative z-[1] shrink-0 rounded-full px-[6px] py-[1.5px] text-[9px] font-bold leading-[1.2] text-white",
+                                active ? "bg-[#0d2315]" : "bg-[rgba(255,255,255,0.16)]",
                               )}
                             >
                               {badgeValue}
                             </span>
+                          ) : null}
+
+                          {/* An unresolved problem in that module. It drops away
+                              once you are on the page, where the problem itself
+                              is visible. */}
+                          {!collapsed && item.dot && !active ? (
+                            <span
+                              title="Unresolved problem"
+                              className="relative z-[1] h-[6px] w-[6px] shrink-0 rounded-full bg-[#D99A0B]"
+                            />
                           ) : null}
                         </Link>
 

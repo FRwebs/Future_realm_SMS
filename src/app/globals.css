@@ -369,6 +369,66 @@ a:focus-visible,
     animation: shimmer 1.5s infinite linear;
   }
 
+  /*
+   * A row of module panels. The mockup lays each row out with an explicit column
+   * template ("1.55fr 1fr"); that ratio is carried in --panel-cols and only takes
+   * effect once there is room for it, so narrow screens stack instead.
+   */
+  .panel-row {
+    grid-template-columns: 1fr;
+    min-width: 0;
+  }
+
+  /*
+   * Grid children default to min-width:auto, so a panel holding a wide table
+   * would otherwise force the whole page grid out to that table's min width and
+   * stretch every other panel to match.
+   */
+  .panel-row > * {
+    min-width: 0;
+  }
+
+  @media (min-width: 1024px) {
+    .panel-row {
+      grid-template-columns: var(--panel-cols, 1fr);
+    }
+  }
+
+  /*
+   * A KPI strip. The mockup states how many cards go across (`per`), so that
+   * count is honoured once there is room and steps down on narrower screens
+   * rather than being left to auto-fit.
+   */
+  .kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 768px) {
+    .kpi-row {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+
+  @media (min-width: 1280px) {
+    .kpi-row {
+      grid-template-columns: repeat(var(--kpi-per, 4), minmax(0, 1fr));
+    }
+  }
+
+  /*
+   * A tile grid. The mockup states how many go across; below lg they stack so a
+   * tile never gets narrower than its icon plus two words.
+   */
+  .tile-grid {
+    grid-template-columns: 1fr;
+  }
+
+  @media (min-width: 1024px) {
+    .tile-grid {
+      grid-template-columns: repeat(var(--tile-per, 2), minmax(0, 1fr));
+    }
+  }
+
   .surface-card {
     @apply rounded-[14px] border;
     border-color: var(--color-border-default);
