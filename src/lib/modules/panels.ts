@@ -139,6 +139,32 @@ export type TileItem = {
   icon?: string;
 } & Trigger;
 
+/**
+ * One field of a form panel.
+ *
+ * These are the mockup's own field kinds. A form is the only panel a person
+ * types into, so it is the one place the product shows a control rather than a
+ * value — a settings page rendered as a list of facts reads as a report.
+ */
+export type FormField = {
+  label: string;
+  hint?: string;
+  /** Fills the whole row rather than one column. */
+  span?: 2;
+  required?: boolean;
+  optional?: boolean;
+  /** Shown to the right of a text field, e.g. "characters". */
+  unit?: string;
+} & (
+  | { kind: "text"; value?: string; placeholder?: string; readOnly?: boolean; type?: "text" | "password" | "date" }
+  | { kind: "area"; value?: string; placeholder?: string }
+  | { kind: "select"; value?: string; options: string[] }
+  | { kind: "toggle"; on?: boolean; onLabel?: string; offLabel?: string }
+  | { kind: "choice"; value?: string; options: string[] }
+  | { kind: "checks"; checked?: string[]; options: string[]; /** Lay short options out as one wrapping line. */ row?: boolean }
+  | { kind: "static"; value: string }
+);
+
 export type StepItem = {
   label: string;
   sub?: string;
@@ -258,6 +284,20 @@ export type Panel =
       tiles: TileItem[];
     }
   | { type: "steps"; title: string; sub?: string; steps: StepItem[]; foot?: string }
+  | {
+      type: "form";
+      title?: string;
+      sub?: string;
+      meta?: string;
+      tag?: string;
+      tagTone?: PanelTone;
+      /** 1 widens the minimum column, for fields whose value is a sentence. */
+      per?: number;
+      fields: FormField[];
+      formNote?: string;
+      formNoteTone?: "critical";
+      actions?: PanelAction[];
+    }
   | { type: "quote"; body: string; attribution?: string }
   | {
       type: "blockers";
