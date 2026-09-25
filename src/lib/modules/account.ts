@@ -82,71 +82,92 @@ function accessFacts(role: Role): PanelFact[] {
 function profileTab(session: SessionUser, schoolName: string): TabContent {
   const role = roleLabelOf(session.role);
 
+  const saveDetails: DrawerSpec = {
+    mode: "commit",
+    kicker: "Your details",
+    title: "Save your details",
+    sub: "The name here is the name that appears beside every action you take.",
+    facts: [
+      ["Full name", session.name, "Beside every action you take, and on the audit log"],
+      ["Email", session.email],
+      ["Role", role, "Changed by the Proprietor in Staff & Access, not here"],
+      ["Audited", "Yes", "A change to your name or phone number is written to the audit log"],
+    ],
+    commitLabel: "Save changes",
+    commitDone: "Your details saved",
+    commitDoneBody: "The change is on the audit log, against your name.",
+  };
+
+  const uploadPhotograph: DrawerSpec = {
+    mode: "commit",
+    kicker: "Appearance",
+    title: "Upload a photograph",
+    sub: "It replaces your initials everywhere your name appears.",
+    facts: [
+      ["Current", `Initials · ${initialsOf(session.name)}`, "No photograph on file"],
+      ["Where it appears", "Beside your name, in every list and every log entry"],
+      ["Format", "JPEG or PNG, square, at least 200px"],
+      ["Who can see it", "Anyone in the school who can see your name"],
+    ],
+    commitLabel: "Upload",
+    commitDone: "Photograph saved",
+    commitDoneBody: "It replaces your initials everywhere your name appears.",
+  };
+
   return {
     title: session.name,
     desc: `${role} · ${session.email} · ${schoolName}`,
-    primary: {
-      label: "Save changes",
-      drawer: {
-        mode: "commit",
-        kicker: "Your details",
-        title: "Save your details",
-        sub: "The name here is the name that appears beside every action you take.",
-        facts: [
-          ["Full name", session.name, "Beside every action you take, and on the audit log"],
-          ["Email", session.email],
-          ["Role", role, "Changed by the Proprietor in Staff & Access, not here"],
-          ["Audited", "Yes", "A change to your name or phone number is written to the audit log"],
-        ],
-        commitLabel: "Save changes",
-        commitDone: "Your details saved",
-        commitDoneBody: "The change is on the audit log, against your name.",
-      },
-    },
+    primary: { label: "Save changes", drawer: saveDetails },
     rows: [
       row("1fr", [
         {
-          type: "facts",
+          type: "form",
           title: "Your details",
           sub: "The name here is the name that appears beside every action you take.",
           meta: "Some fields are set by the school and cannot be changed here",
-          per: 2,
-          acts: [
+          fields: [
+            { kind: "text", label: "Full name", value: session.name, required: true, span: 2 },
             {
-              label: "Edit your details",
-              primary: true,
-              drawer: {
-                mode: "commit" as const,
-                kicker: "Your details",
-                title: "Edit your details",
-                sub: "Your name, preferred name, phone number and signature block.",
-                facts: [
-                  ["Full name", session.name],
-                  ["Email", session.email],
-                  ["Role", role, "Set by the school"],
-                  ["Audited", "Yes", "A change to your name or phone number is written to the audit log"],
-                ],
-                commitLabel: "Save changes",
-                commitDone: "Your details saved",
-                commitDoneBody: "The change is on the audit log, against your name.",
-              },
+              kind: "text",
+              label: "Preferred name",
+              value: session.name.split(/\s+/)[0] ?? session.name,
+              hint: "Used in greetings, never on a document.",
+            },
+            {
+              kind: "static",
+              label: "Role",
+              value: role,
+              hint: "Changed by the Proprietor in Staff & Access.",
+            },
+            {
+              kind: "static",
+              label: "User ID",
+              value: session.userId,
+              hint: "Permanent — it is how the audit log names you.",
+            },
+            {
+              kind: "text",
+              label: "Phone number",
+              value: "",
+              placeholder: "Not on file",
+              required: true,
+              hint: "Also your two-factor number — add one before enabling it.",
+            },
+            { kind: "text", label: "Email", value: session.email, required: true },
+            { kind: "static", label: "School", value: schoolName },
+            {
+              kind: "area",
+              label: "Signature block on documents",
+              span: 2,
+              value: `${session.name} · ${role} · ${schoolName}`,
+              hint: "Printed beneath your signature on report cards and letters.",
             },
           ],
-          facts: [
-            ["Full name", session.name],
-            ["Preferred name", session.name.split(/\s+/)[0] ?? session.name, "Used in greetings, never on a document"],
-            ["Role", role, "Changed by the Proprietor in Staff & Access"],
-            ["User ID", session.userId, "Permanent — it is how the audit log names you"],
-            ["Email", session.email],
-            ["Phone number", "Not on file", "Also your two-factor number — add one before enabling it"],
-            ["School", schoolName],
-            [
-              "Signature block on documents",
-              `${session.name} · ${role} · ${schoolName}`,
-              "Printed beneath your signature on report cards and letters",
-            ],
+          formNote: "Changes to your name or phone number are written to the audit log.",
+          actions: [
+            { label: "Cancel" },
+            { label: "Save changes", primary: true, drawer: saveDetails },
           ],
-          foot: "Changes to your name or phone number are written to the audit log.",
         },
       ]),
       row("1fr 1.15fr", [
@@ -161,34 +182,29 @@ function profileTab(session: SessionUser, schoolName: string): TabContent {
           facts: accessFacts(session.role),
         },
         {
-          type: "facts",
+          type: "form",
           title: "Photograph and appearance",
           sub: "Your initials are used wherever no photograph exists.",
           per: 1,
-          acts: [
+          fields: [
             {
-              label: "Upload a photograph",
-              drawer: {
-                mode: "commit" as const,
-                kicker: "Appearance",
-                title: "Upload a photograph",
-                sub: "It replaces your initials everywhere your name appears.",
-                facts: [
-                  ["Current", `Initials · ${initialsOf(session.name)}`, "No photograph on file"],
-                  ["Where it appears", "Beside your name, in every list and every log entry"],
-                  ["Format", "JPEG or PNG, square, at least 200px"],
-                  ["Who can see it", "Anyone in the school who can see your name"],
-                ],
-                commitLabel: "Upload",
-                commitDone: "Photograph saved",
-                commitDoneBody: "It replaces your initials everywhere your name appears.",
-              },
+              kind: "static",
+              label: "Current",
+              value: `Initials · ${initialsOf(session.name)}`,
+              hint: "No photograph on file.",
+            },
+            { kind: "choice", label: "Show me as", value: "Initials", options: ["Initials", "Photograph"] },
+            {
+              kind: "toggle",
+              label: "Show my role beside my name in the top bar",
+              on: true,
+              onLabel: "Shown",
+              offLabel: "Hidden",
             },
           ],
-          facts: [
-            ["Current", `Initials · ${initialsOf(session.name)}`, "No photograph on file"],
-            ["Show me as", "Initials", "Or a photograph, once one is on file"],
-            ["Role beside my name", "Shown in the top bar"],
+          actions: [
+            { label: "Upload a photograph", drawer: uploadPhotograph },
+            { label: "Save", primary: true },
           ],
         },
       ]),
@@ -228,6 +244,22 @@ function preferencesTab(session: SessionUser, schoolName: string): TabContent {
     commitDoneBody: "They follow your account onto any device you sign in from.",
   };
 
+  const saveNotifications: DrawerSpec = {
+    mode: "commit",
+    kicker: "Preferences",
+    title: "Save what reaches you",
+    sub: "Emergency broadcasts ignore every one of these, by design.",
+    facts: [
+      ["Notified about", "What you ticked"],
+      ["By", "The channels you ticked", "SMS draws on the school's credits"],
+      ["Quiet hours", "19:00 – 07:00 WAT"],
+      ["Emergency broadcasts", "Always reach you", "They ignore quiet hours and every preference here"],
+    ],
+    commitLabel: "Save",
+    commitDone: "Notification preferences saved",
+    commitDoneBody: "Emergency broadcasts still reach you, by design.",
+  };
+
   return {
     title: "Preferences",
     desc: `How the product opens for you · ${session.name} · ${schoolName}`,
@@ -235,60 +267,103 @@ function preferencesTab(session: SessionUser, schoolName: string): TabContent {
     rows: [
       row("1.35fr 1fr", [
         {
-          type: "facts",
+          type: "form",
           title: "How the product opens for you",
           sub: "These change your own experience only — never anyone else's.",
-          per: 2,
-          acts: [
+          fields: [
+            {
+              kind: "select",
+              label: "Open on",
+              value: "Command Center · Today",
+              options: [
+                "Command Center · Today",
+                "Command Center · Oversight",
+                "Approvals · Queue",
+                "Attendance · Mark",
+                "Score Entry · Review",
+              ],
+              hint: "Where you land after signing in.",
+            },
+            {
+              kind: "select",
+              label: "Language",
+              value: "English",
+              options: ["English", "Hausa", "Yoruba", "Igbo"],
+            },
+            {
+              kind: "choice",
+              label: "Density",
+              value: "Compact",
+              options: ["Compact", "Comfortable"],
+              hint: "Compact fits more rows on a screen; comfortable is easier on a projector.",
+            },
+            {
+              kind: "select",
+              label: "Date format",
+              value: "4 September 2026",
+              options: ["4 September 2026", "04/09/2026", "2026-09-04"],
+            },
+            {
+              kind: "toggle",
+              label: "Confirm before I leave an unsaved screen",
+              on: true,
+              onLabel: "Always confirm",
+              offLabel: "Leave without asking",
+            },
+            {
+              kind: "toggle",
+              label: "Keep my work on this device when offline",
+              on: true,
+              onLabel: "Kept on this device",
+              offLabel: "Do not keep",
+            },
+          ],
+          formNote: "Saved against your account, not this device.",
+          actions: [
             { label: "Reset to defaults" },
             { label: "Save preferences", primary: true, drawer: savePreferences },
           ],
-          facts: [
-            ["Open on", "Command Center · Today", "Where you land after signing in"],
-            ["Language", "English", "Hausa, Yoruba and Igbo are available"],
-            ["Density", "Compact", "Comfortable is easier on a projector"],
-            ["Date format", "4 September 2026"],
-            ["Leaving an unsaved screen", "Always confirm"],
-            ["Work kept on this device offline", "Kept", "So a lost signal never costs you a register"],
-          ],
-          foot: "Saved against your account, not this device.",
         },
         {
-          type: "facts",
+          type: "form",
           title: "What reaches me",
           sub: "Which of the school's notifications come to you, and how.",
           per: 1,
-          acts: [
+          fields: [
             {
-              label: "Save",
-              primary: true,
-              drawer: {
-                mode: "commit" as const,
-                kicker: "Preferences",
-                title: "Save what reaches you",
-                sub: "Emergency broadcasts ignore every one of these, by design.",
-                facts: [
-                  ["Notify me about", "4 of 6 kinds"],
-                  ["By", "In-app and email", "SMS is available and draws on the school's credits"],
-                  ["Quiet hours", "19:00 – 07:00 WAT"],
-                  ["Emergency broadcasts", "Always reach you", "They ignore quiet hours and every preference here"],
-                ],
-                commitLabel: "Save",
-                commitDone: "Notification preferences saved",
-                commitDoneBody: "Emergency broadcasts still reach you, by design.",
-              },
+              kind: "checks",
+              label: "Notify me about",
+              options: [
+                "An approval routed to me",
+                "An item escalating past me",
+                "A returned submission of mine",
+                "A sync failure on my device",
+                "A sensitive record being opened",
+                "Weekly oversight summary",
+              ],
+              checked: [
+                "An approval routed to me",
+                "An item escalating past me",
+                "A returned submission of mine",
+                "A sync failure on my device",
+              ],
+            },
+            {
+              kind: "checks",
+              label: "By",
+              options: ["In-app", "Email", "SMS"],
+              checked: ["In-app", "Email"],
+              row: true,
+            },
+            {
+              kind: "select",
+              label: "Quiet hours",
+              value: "19:00 – 07:00 WAT",
+              options: ["None", "19:00 – 07:00 WAT", "21:00 – 06:00 WAT"],
+              hint: "Emergency broadcasts ignore quiet hours, by design.",
             },
           ],
-          facts: [
-            ["An approval routed to me", "On"],
-            ["An item escalating past me", "On"],
-            ["A returned submission of mine", "On"],
-            ["A sync failure on my device", "On"],
-            ["A sensitive record being opened", "Off"],
-            ["Weekly oversight summary", "Off"],
-            ["By", "In-app and email", "SMS is available, and draws on the school's credits"],
-            ["Quiet hours", "19:00 – 07:00 WAT", "Emergency broadcasts ignore quiet hours, by design"],
-          ],
+          actions: [{ label: "Save", primary: true, drawer: saveNotifications }],
         },
       ]),
     ],
@@ -390,18 +465,49 @@ function securityTab(session: SessionUser, schoolName: string): TabContent {
       ]),
       row("1fr 1.15fr", [
         {
-          type: "facts",
+          type: "form",
           title: "Change your password",
           sub: "You are signed out of every other device when it changes.",
           per: 1,
-          acts: [{ label: "Update password", primary: true, drawer: changePassword }],
-          facts: [
-            ["Length", "Ten characters or more"],
-            ["Reuse", "Not one you have used here before"],
-            ["Two-factor", "Off", "An account that can approve should need a second factor"],
-            ["Effect", `Signs out your other ${otherSessions} sessions`, "This device stays signed in"],
+          fields: [
+            {
+              kind: "text",
+              type: "password",
+              label: "Current password",
+              value: "",
+              required: true,
+              placeholder: "Enter your current password",
+            },
+            {
+              kind: "text",
+              type: "password",
+              label: "New password",
+              value: "",
+              required: true,
+              placeholder: "At least 10 characters",
+              hint: "Ten characters or more, and not one you have used here before.",
+            },
+            {
+              kind: "text",
+              type: "password",
+              label: "Confirm new password",
+              value: "",
+              required: true,
+              placeholder: "Type it again",
+            },
+            {
+              kind: "toggle",
+              label: "Require a code from my phone at every sign-in",
+              on: false,
+              onLabel: "Two-factor on",
+              offLabel: "Two-factor off",
+            },
           ],
-          foot: `Changing this signs out your other ${otherSessions} sessions.`,
+          formNote: `Changing this signs out your other ${otherSessions} sessions.`,
+          actions: [
+            { label: "Cancel" },
+            { label: "Update password", primary: true, drawer: changePassword },
+          ],
         },
         {
           type: "table",
