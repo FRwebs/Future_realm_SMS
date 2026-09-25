@@ -165,6 +165,24 @@ export type FormField = {
   | { kind: "static"; value: string }
 );
 
+/**
+ * What a form does when it is saved.
+ *
+ * `map` names which fields travel and under what key, so a form can show a
+ * field the endpoint does not accept (a name the school sets) without silently
+ * dropping it into a payload that would be rejected.
+ */
+export type FormSubmit = {
+  endpoint: string;
+  method?: "PATCH" | "POST";
+  /** Field label → payload key. A field not listed here is never sent. */
+  map: Record<string, string>;
+  /** What to say once it has saved. */
+  done: string;
+  /** Clear these fields after a successful save, e.g. password boxes. */
+  clearOnSuccess?: string[];
+};
+
 export type StepItem = {
   label: string;
   sub?: string;
@@ -294,6 +312,8 @@ export type Panel =
       /** 1 widens the minimum column, for fields whose value is a sentence. */
       per?: number;
       fields: FormField[];
+      /** Wires the primary action to a real endpoint. */
+      submit?: FormSubmit;
       formNote?: string;
       formNoteTone?: "critical";
       actions?: PanelAction[];

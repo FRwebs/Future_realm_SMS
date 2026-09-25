@@ -1435,14 +1435,201 @@ const CONTROL =
  * than values — a settings page rendered as a list of facts reads as a report
  * of what somebody else already decided.
  */
-function Field({ field }: { field: FormField }) {
-  const [value, setValue] = useState(() => {
-    if (field.kind === "toggle") return field.on ?? false;
-    if (field.kind === "checks") return field.checked ?? [];
-    if (field.kind === "static") return field.value;
-    return field.value ?? "";
-  });
 
+function readCookie(name: string) {
+  return document.cookie
+    .split("; ")
+    .find((item) => item.startsWith(`${name}=`))
+    ?.split("=")[1];
+}
+
+type SaveState =
+  | { kind: "idle" }
+  | { kind: "saving" }
+  | { kind: "saved"; message: string }
+  | { kind: "failed"; message: string };
+
+/**
+ * A form panel.
+ *
+ * The fields' values live here rather than in each field, so the panel can
+ * build one payload out of them. Only the fields named in `submit.map` travel:
+ * a form may show something the endpoint does not accept — a name the school
+ * sets — without quietly posting it into a request that would be refused.
+ */
+function FormPanel({
+  panel,
+  openDrawer,
+}: {
+  panel: Extract<Panel, { type: "form" }>;
+  openDrawer: OpenDrawer;
+}) {
+  const [values, setValues] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries(panel.fields.map((field) => [field.label, initialValue(field)])),
+  );
+  const [state, setState] = useState<SaveState>({ kind: "idle" });
+  const minCol = panel.per === 1 ? 300 : 210;
+  const submit = panel.submit;
+
+  async function save() {
+    if (!submit) return;
+    setState({ kind: "saving" });
+
+    const payload: Record<string, unknown> = {};
+    for (const [label, key] of Object.entries(submit.map)) {
+      const value = values[label];
+      // An emptied box is sent as "" so a field can be cleared; the API turns
+      // that into null. Only a field with no value at all is left out.
+      if (value !== undefined) payload[key] = value;
+    }
+
+    try {
+      const response = await fetch(submit.endpoint, {
+        method: submit.method ?? "PATCH",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          "x-csrf-token": readCookie("fr_csrf") ?? "",
+        },
+        body: JSON.stringify(payload),
+      });
+      const result = (await response.json().catch(() => ({}))) as {
+        ok?: boolean;
+        error?: string;
+        message?: string;
+      };
+      if (!response.ok || result.ok === false) {
+        throw new Error(result.error ?? result.message ?? "That did not save.");
+      }
+      if (submit.clearOnSuccess?.length) {
+        setValues((current) => ({
+          ...current,
+          ...Object.fromEntries(submit.clearOnSuccess!.map((label) => [label, ""])),
+        }));
+      }
+      setState({ kind: "saved", message: submit.done });
+    } catch (error) {
+      setState({
+        kind: "failed",
+        message: error instanceof Error ? error.message : "That did not save.",
+      });
+    }
+  }
+
+  const note =
+    state.kind === "saved"
+      ? state.message
+      : state.kind === "failed"
+        ? state.message
+        : state.kind === "saving"
+          ? "Saving…"
+          : (panel.formNote ?? "");
+  const noteColour =
+    state.kind === "saved"
+      ? "#17714F"
+      : state.kind === "failed" || panel.formNoteTone === "critical"
+        ? "#B23B3B"
+        : MUTED;
+
+  return (
+    <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+      <PanelHeader
+        title={panel.title ?? ""}
+        sub={panel.sub}
+        meta={panel.meta}
+        tag={panel.tag}
+        tagTone={panel.tagTone}
+        openDrawer={openDrawer}
+      />
+      <div
+        className="grid gap-x-4 gap-y-[14px] pb-[4px]"
+        style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${minCol}px, 1fr))` }}
+      >
+        {panel.fields.map((field, index) => (
+          <Field
+            key={`${field.label}-${index}`}
+            field={field}
+            value={values[field.label]}
+            setValue={(next) => {
+              setValues((current) => ({ ...current, [field.label]: next }));
+              setState({ kind: "idle" });
+            }}
+          />
+        ))}
+      </div>
+      {note || panel.actions?.length ? (
+        <div className="mt-[14px] flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-[13px]">
+          <p
+            className="min-w-0 flex-[1_1_200px] text-pretty text-[10.5px] leading-[1.5]"
+            role={state.kind === "failed" ? "alert" : undefined}
+            style={{
+              color: noteColour,
+              fontWeight: state.kind === "idle" && panel.formNoteTone !== "critical" ? 400 : 600,
+            }}
+          >
+            {note}
+          </p>
+          {panel.actions?.length ? (
+            <div className="flex flex-none flex-wrap gap-2">
+              {panel.actions.map((act) => {
+                const className = cn(
+                  "inline-flex items-center whitespace-nowrap rounded-[9px] text-[11.5px] font-semibold transition",
+                  act.primary
+                    ? "bg-[#0D2315] px-[15px] py-[9px] text-white disabled:opacity-60"
+                    : "border bg-white px-[14px] py-[8px] text-[#435048]",
+                );
+
+                // The primary action of a wired form saves it, rather than
+                // opening a drawer that describes a save that never happens.
+                if (act.primary && submit) {
+                  return (
+                    <button
+                      key={act.label}
+                      type="button"
+                      onClick={save}
+                      disabled={state.kind === "saving"}
+                      className={className}
+                    >
+                      {state.kind === "saving" ? "Saving…" : act.label}
+                    </button>
+                  );
+                }
+
+                return (
+                  <TriggerControl
+                    key={act.label}
+                    trigger={act}
+                    label={act.label}
+                    openDrawer={openDrawer}
+                    className={className}
+                    style={act.primary ? undefined : { borderColor: CARD_BORDER }}
+                  />
+                );
+              })}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
+    </section>
+  );
+}
+
+function initialValue(field: FormField): unknown {
+  if (field.kind === "toggle") return field.on ?? false;
+  if (field.kind === "checks") return field.checked ?? [];
+  if (field.kind === "static") return field.value;
+  return field.value ?? "";
+}
+
+function Field({
+  field,
+  value,
+  setValue,
+}: {
+  field: FormField;
+  value: unknown;
+  setValue: (next: unknown) => void;
+}) {
   const label = (
     <div className="mb-[7px] flex flex-wrap items-baseline gap-x-[6px]">
       <span className="text-[10.5px] font-semibold leading-[1.4] text-[#435048]">{field.label}</span>
@@ -1649,60 +1836,7 @@ function Field({ field }: { field: FormField }) {
 }
 
   if (panel.type === "form") {
-    const minCol = panel.per === 1 ? 300 : 210;
-
-    return (
-      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
-        <PanelHeader
-          title={panel.title ?? ""}
-          sub={panel.sub}
-          meta={panel.meta}
-          tag={panel.tag}
-          tagTone={panel.tagTone}
-          openDrawer={openDrawer}
-        />
-        <div
-          className="grid gap-x-4 gap-y-[14px] pb-[4px]"
-          style={{ gridTemplateColumns: `repeat(auto-fit, minmax(${minCol}px, 1fr))` }}
-        >
-          {panel.fields.map((field, index) => (
-            <Field key={`${field.label}-${index}`} field={field} />
-          ))}
-        </div>
-        {panel.formNote || panel.actions?.length ? (
-          <div className="mt-[14px] flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-[13px]">
-            <p
-              className="min-w-0 flex-[1_1_200px] text-pretty text-[10.5px] leading-[1.5]"
-              style={{
-                color: panel.formNoteTone === "critical" ? "#B23B3B" : MUTED,
-                fontWeight: panel.formNoteTone === "critical" ? 600 : 400,
-              }}
-            >
-              {panel.formNote ?? ""}
-            </p>
-            {panel.actions?.length ? (
-              <div className="flex flex-none flex-wrap gap-2">
-                {panel.actions.map((act) => (
-                  <TriggerControl
-                    key={act.label}
-                    trigger={act}
-                    label={act.label}
-                    openDrawer={openDrawer}
-                    className={cn(
-                      "inline-flex items-center whitespace-nowrap rounded-[9px] text-[11.5px] font-semibold",
-                      act.primary
-                        ? "bg-[#0D2315] px-[15px] py-[9px] text-white"
-                        : "border bg-white px-[14px] py-[8px] text-[#435048]",
-                    )}
-                    style={act.primary ? undefined : { borderColor: CARD_BORDER }}
-                  />
-                ))}
-              </div>
-            ) : null}
-          </div>
-        ) : null}
-      </section>
-    );
+    return <FormPanel panel={panel} openDrawer={openDrawer} />;
   }
 
   if (panel.type === "quote") {

@@ -2,6 +2,20 @@ import { systemRoleLabels } from "@/lib/permissions/catalog";
 import { schoolModules, schoolTemplateReach } from "@/lib/modules/school-modules";
 import { roleTemplateFor, visibleModulesForRole } from "@/lib/modules/school-access";
 import type { Role, SessionUser } from "@/lib/domain/types";
+
+/**
+ * What `GET /api/v1/profile/me` gives us about the person signed in. The page
+ * reads it rather than assuming, so a field that is on file shows what is on
+ * file — and one that is not says so.
+ */
+export type MyProfile = {
+  preferredName?: string | null;
+  phone?: string | null;
+  alternateEmail?: string | null;
+  mfaEnabled?: boolean | null;
+  lastLoginAt?: string | null;
+  accountStatus?: string | null;
+};
 import {
   name as nameCell,
   pill,
@@ -79,7 +93,7 @@ function accessFacts(role: Role): PanelFact[] {
   ];
 }
 
-function profileTab(session: SessionUser, schoolName: string): TabContent {
+function profileTab(session: SessionUser, schoolName: string, profile: MyProfile): TabContent {
   const role = roleLabelOf(session.role);
 
   const saveDetails: DrawerSpec = {
@@ -126,12 +140,19 @@ function profileTab(session: SessionUser, schoolName: string): TabContent {
           sub: "The name here is the name that appears beside every action you take.",
           meta: "Some fields are set by the school and cannot be changed here",
           fields: [
-            { kind: "text", label: "Full name", value: session.name, required: true, span: 2 },
+            {
+              kind: "static",
+              label: "Full name",
+              value: session.name,
+              span: 2,
+              hint: "Set by the school in Staff & Access — it is the name on every document you sign.",
+            },
             {
               kind: "text",
               label: "Preferred name",
-              value: session.name.split(/\s+/)[0] ?? session.name,
-              hint: "Used in greetings, never on a document.",
+              value: profile.preferredName ?? "",
+              placeholder: "Not set",
+              hint: "Once set, this is the name shown beside your actions in place of your full name.",
             },
             {
               kind: "static",
@@ -148,12 +169,26 @@ function profileTab(session: SessionUser, schoolName: string): TabContent {
             {
               kind: "text",
               label: "Phone number",
-              value: "",
+              value: profile.phone ?? "",
               placeholder: "Not on file",
               required: true,
-              hint: "Also your two-factor number — add one before enabling it.",
+              hint: profile.phone
+                ? "Also your two-factor number."
+                : "Also your two-factor number — add one before enabling it.",
             },
-            { kind: "text", label: "Email", value: session.email, required: true },
+            {
+              kind: "static",
+              label: "Email",
+              value: session.email,
+              hint: "Your sign-in address. The school changes it, so a login is never silently reassigned.",
+            },
+            {
+              kind: "text",
+              label: "Alternate email",
+              value: profile.alternateEmail ?? "",
+              placeholder: "Not on file",
+              hint: "Where the school writes if your main address bounces.",
+            },
             { kind: "static", label: "School", value: schoolName },
             {
               kind: "area",
@@ -163,10 +198,20 @@ function profileTab(session: SessionUser, schoolName: string): TabContent {
               hint: "Printed beneath your signature on report cards and letters.",
             },
           ],
-          formNote: "Changes to your name or phone number are written to the audit log.",
+          submit: {
+            endpoint: "/api/v1/profile/me",
+            method: "PATCH",
+            map: {
+              "Preferred name": "preferredName",
+              "Phone number": "phone",
+              "Alternate email": "alternateEmail",
+            },
+            done: "Saved. The change is on the audit log against your name.",
+          },
+          formNote: "Changes to your phone number are written to the audit log.",
           actions: [
-            { label: "Cancel" },
-            { label: "Save changes", primary: true, drawer: saveDetails },
+            { label: "What is saved", drawer: saveDetails },
+            { label: "Save changes", primary: true },
           ],
         },
       ]),
@@ -388,7 +433,7 @@ const deviceSessions: DeviceSession[] = [
 
 const otherSessions = deviceSessions.filter((entry) => entry.state !== "This device").length;
 
-function securityTab(session: SessionUser, schoolName: string): TabContent {
+function securityTab(session: SessionUser, schoolName: string, profile: MyProfile): TabContent {
   const changePassword: DrawerSpec = {
     mode: "commit",
     kicker: "Security",
@@ -412,7 +457,11 @@ function securityTab(session: SessionUser, schoolName: string): TabContent {
     sub: "A second factor for an account that can approve results and waivers.",
     tone: "attention",
     facts: [
-      ["Code goes to", "The phone number on your profile", "There is none on file yet — add one first"],
+      [
+        "Code goes to",
+        profile.phone ?? "The phone number on your profile",
+        profile.phone ? "" : "There is none on file yet — add one first",
+      ],
       ["At every sign-in", "Yes", "On every device, including this one"],
       ["Recovery codes", "Ten, shown once", "Keep them somewhere the school can reach"],
       ["Why it matters", "You can approve results, waivers and record changes"],
@@ -435,11 +484,13 @@ function securityTab(session: SessionUser, schoolName: string): TabContent {
           cards: [
             {
               label: "Two-factor",
-              value: "Not enabled",
-              sub: "You can approve results and waivers — enable it",
-              tone: "negative",
-              link: "Enable it",
-              drawer: enableTwoFactor,
+              value: profile.mfaEnabled ? "Enabled" : "Not enabled",
+              sub: profile.mfaEnabled
+                ? "A code is required at every sign-in"
+                : "You can approve results and waivers — enable it",
+              tone: profile.mfaEnabled ? "positive" : "negative",
+              link: profile.mfaEnabled ? undefined : "Enable it",
+              drawer: profile.mfaEnabled ? undefined : enableTwoFactor,
             },
             {
               label: "Password last changed",
@@ -498,15 +549,25 @@ function securityTab(session: SessionUser, schoolName: string): TabContent {
             {
               kind: "toggle",
               label: "Require a code from my phone at every sign-in",
-              on: false,
+              on: Boolean(profile.mfaEnabled),
               onLabel: "Two-factor on",
               offLabel: "Two-factor off",
             },
           ],
+          submit: {
+            endpoint: "/api/v1/profile/me/password",
+            method: "PATCH",
+            map: {
+              "Current password": "currentPassword",
+              "New password": "newPassword",
+            },
+            done: "Password changed. Your other sessions were signed out.",
+            clearOnSuccess: ["Current password", "New password", "Confirm new password"],
+          },
           formNote: `Changing this signs out your other ${otherSessions} sessions.`,
           actions: [
-            { label: "Cancel" },
-            { label: "Update password", primary: true, drawer: changePassword },
+            { label: "What happens", drawer: changePassword },
+            { label: "Update password", primary: true },
           ],
         },
         {
@@ -679,11 +740,12 @@ function myActivityTab(session: SessionUser, schoolName: string): TabContent {
 export function accountContentFor(
   session: SessionUser,
   schoolName = "your school",
+  profile: MyProfile = {},
 ): ModuleContent {
   return {
-    profile: profileTab(session, schoolName),
+    profile: profileTab(session, schoolName, profile),
     preferences: preferencesTab(session, schoolName),
-    security: securityTab(session, schoolName),
+    security: securityTab(session, schoolName, profile),
     "my-activity": myActivityTab(session, schoolName),
   };
 }
