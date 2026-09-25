@@ -326,7 +326,10 @@ describe("demo-mode service flows", () => {
 
   it("supports result grading setup and draft submission in demo mode", async () => {
     const { AcademicsService } = await import("../../backend/src/modules/academics/academics.service");
-    const service = new AcademicsService();
+    const { RolesManagementService } = await import(
+      "../../backend/src/modules/roles-management/roles-management.service"
+    );
+    const service = new AcademicsService(new RolesManagementService());
     const teacherSession = {
       userId: "user_teacher",
       schoolId: "school_greenfield",
@@ -373,7 +376,10 @@ describe("demo-mode service flows", () => {
 
   it("supports Nigerian assessment setup, score capture, broadsheet, and report-card flow in demo mode", async () => {
     const { AcademicsService } = await import("../../backend/src/modules/academics/academics.service");
-    const service = new AcademicsService();
+    const { RolesManagementService } = await import(
+      "../../backend/src/modules/roles-management/roles-management.service"
+    );
+    const service = new AcademicsService(new RolesManagementService());
     const adminSession = {
       userId: "user_principal",
       schoolId: "school_greenfield",

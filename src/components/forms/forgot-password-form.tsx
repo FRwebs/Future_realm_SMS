@@ -69,12 +69,14 @@ export function ForgotPasswordForm() {
             If that email belongs to an active account, we&apos;ll send instructions to reset the password. The link expires in 30 minutes.
           </p>
           {resetUrl ? (
-            <Link
+            // A reset URL is minted by the API at runtime, so it is not one of
+            // the app's typed routes and gains nothing from client navigation.
+            <a
               href={resetUrl}
               className="mt-4 inline-flex h-10 items-center justify-center rounded-[10px] bg-[#0d2315] px-4 text-[13px] font-semibold text-white transition hover:bg-[#12796a]"
             >
               Open dev reset link
-            </Link>
+            </a>
           ) : null}
         </div>
         <Link href="/login" className="mt-5 inline-flex items-center gap-2 text-[12.5px] font-semibold text-[#12796a] hover:underline">
