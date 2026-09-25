@@ -1,4 +1,9 @@
 import type { Role } from "@/lib/domain/types";
+import {
+  schoolModuleActions,
+  schoolModules,
+  schoolPermissionKey,
+} from "@/lib/modules/school-modules";
 
 export interface PermissionDefinition {
   key: string;
@@ -677,6 +682,49 @@ export const permissionCatalog: PermissionDefinition[] = permissionModules.flatM
 
 export const allPermissionKeys = permissionCatalog.map((permissionItem) => permissionItem.key);
 
+/**
+ * The sixteen-module grid, as grantable permissions.
+ *
+ * Kept separate from `allPermissionKeys` on purpose. The legacy namespaces and
+ * the module slugs overlap — `attendance.view` is a legacy key and
+ * `attendance.register.view` is a module one — so a role built with
+ * `keysFor("attendance")` would silently gain every module key under that slug
+ * if the two lists were merged. `keysFor` reads the legacy list only.
+ */
+export const schoolModulePermissionModules: PermissionModule[] = schoolModules.map((module) => ({
+  module: module.name,
+  permissions: module.tabs.flatMap((tab) =>
+    schoolModuleActions.map((action) => ({
+      key: schoolPermissionKey(module.slug, tab.slug, action),
+      label: `${action} · ${tab.label}`,
+      description: `${action} on ${module.name} · ${tab.label}.`,
+    })),
+  ),
+}));
+
+export const schoolModulePermissionCatalog: PermissionDefinition[] =
+  schoolModulePermissionModules.flatMap((group) =>
+    group.permissions.map((item) => ({ ...item, module: group.module })),
+  );
+
+export const schoolModulePermissionKeys = schoolModulePermissionCatalog.map(
+  (permissionItem) => permissionItem.key,
+);
+
+/**
+ * Every key that may be granted to a role: the legacy domain keys and the
+ * module grid together. This is what a permission is validated against and
+ * what the `permissions` table is seeded from.
+ */
+export const grantablePermissionCatalog: PermissionDefinition[] = [
+  ...permissionCatalog,
+  ...schoolModulePermissionCatalog,
+];
+
+export const allGrantablePermissionKeys = grantablePermissionCatalog.map(
+  (permissionItem) => permissionItem.key,
+);
+
 const keysFor = (...prefixes: string[]) =>
   allPermissionKeys.filter((key) => prefixes.some((prefix) => key === prefix || key.startsWith(`${prefix}.`)));
 
@@ -967,7 +1015,7 @@ export const systemRoleLabels: Partial<Record<Role, { name: string; description:
 
 export function groupPermissions(keys: string[]) {
   const keySet = new Set(keys);
-  return permissionModules.map((group) => ({
+  return [...permissionModules, ...schoolModulePermissionModules].map((group) => ({
     module: group.module,
     permissions: group.permissions
       .filter((permissionItem) => keySet.has(permissionItem.key))

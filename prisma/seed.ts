@@ -8,7 +8,7 @@ import {
 } from "../src/lib/domain/grading";
 import { nigerianSubjectDefaults } from "../src/lib/nigerian-subjects";
 import {
-  permissionCatalog,
+  grantablePermissionCatalog,
   systemRoleLabels,
   systemRolePermissionKeys,
 } from "../src/lib/permissions/catalog";
@@ -543,7 +543,7 @@ async function clearDatabase() {
 
 async function seedPermissionsAndRoles(schoolId: string, createdById: string) {
   await prisma.permission.createMany({
-    data: permissionCatalog.map((permissionItem) => ({
+    data: grantablePermissionCatalog.map((permissionItem) => ({
       key: permissionItem.key,
       module: permissionItem.module,
       label: permissionItem.label,

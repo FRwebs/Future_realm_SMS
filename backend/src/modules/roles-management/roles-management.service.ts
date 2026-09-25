@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { canAssignRole, canManageRole, isOwnerRole, isPlatformRole, isSchoolStaffRole } from "../../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { allPermissionKeys, groupPermissions, permissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
+import { allGrantablePermissionKeys, allPermissionKeys, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
 
 const roleSchema = z.object({
   name: z.string().trim().min(2),
@@ -199,7 +199,7 @@ export class RolesManagementService {
   async createRole(session: SessionPayload, schoolId: string, payload: unknown) {
     this.assertSchoolScope(session, schoolId);
     const parsed = roleSchema.parse(payload);
-    const invalid = parsed.permissions.filter((permission) => !allPermissionKeys.includes(permission));
+    const invalid = parsed.permissions.filter((permission) => !allGrantablePermissionKeys.includes(permission));
     if (invalid.length) throw new BadRequestException(`Invalid permissions: ${invalid.join(", ")}`);
     await this.assertCanUsePermissions(session, schoolId, parsed.permissions);
     const actor = await this.sessionUser(session);
@@ -245,7 +245,7 @@ export class RolesManagementService {
     if (!role) throw new NotFoundException("Role not found.");
     if (role.isSystem) throw new BadRequestException("System roles cannot be edited.");
     const permissionKeys = parsed.permissions ?? [];
-    const invalid = permissionKeys.filter((permission) => !allPermissionKeys.includes(permission));
+    const invalid = permissionKeys.filter((permission) => !allGrantablePermissionKeys.includes(permission));
     if (invalid.length) throw new BadRequestException(`Invalid permissions: ${invalid.join(", ")}`);
     await this.assertCanUsePermissions(session, schoolId, permissionKeys);
     const permissions = await prisma.permission.findMany({ where: { key: { in: permissionKeys } } });
@@ -297,7 +297,9 @@ export class RolesManagementService {
     this.assertSchoolScope(session, schoolId);
     const permissionRows = await prisma.permission.findMany({ orderBy: [{ module: "asc" }, { key: "asc" }] });
     const permissionsByKey = new Map(permissionRows.map((permission) => [permission.key, permission.id]));
-    return this.response(permissionModules.map((group) => ({
+    // Both key sets are pickable: the legacy domain permissions and the
+    // sixteen-module grid the School Admin navigation is built from.
+    return this.response([...permissionModules, ...schoolModulePermissionModules].map((group) => ({
       module: group.module,
       permissions: group.permissions.map((permissionItem) => ({
         ...permissionItem,
