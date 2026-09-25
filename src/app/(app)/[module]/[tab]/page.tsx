@@ -5,8 +5,13 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleTabs } from "@/components/modules/module-tabs";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getTabContent } from "@/lib/modules/content";
+import { withKpiTitles } from "@/lib/modules/kpi-titles";
 import { moduleLevelForRole } from "@/lib/modules/school-access";
-import { getSchoolModule, getSchoolModuleTab, schoolModules } from "@/lib/modules/school-modules";
+import {
+  getSchoolModule,
+  getSchoolModuleTab,
+  schoolModules,
+} from "@/lib/modules/school-modules";
 import { getServerSession } from "@/lib/auth/session";
 
 type PageProps = { params: Promise<{ module: string; tab: string }> };
@@ -17,7 +22,9 @@ export async function generateStaticParams() {
   );
 }
 
-export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+}: PageProps): Promise<Metadata> {
   const { module: moduleSlug, tab: tabSlug } = await params;
   const module = getSchoolModule(moduleSlug);
   if (!module) return {};
@@ -55,25 +62,27 @@ export default async function SchoolModuleTabPage({ params }: PageProps) {
 
   return (
     <ModuleWorkspace
-      eyebrow={module.section}
-      title={content?.title ?? module.name}
+      eyebrow={module.name}
+      title={content?.title ?? tab.label}
       description={content?.desc ?? module.description}
       primary={content?.primary}
       launchers={content?.launchers}
       rows={
-        content?.rows ?? [
-          {
-            cols: "1fr",
-            panels: [
+        content?.rows
+          ? withKpiTitles(content.rows, module.code, tab.label)
+          : [
               {
-                type: "pending",
-                title: `${module.name} · ${tab.label}`,
-                body: "This tab is defined by the mockup but has no content registered yet.",
-                contains: [],
+                cols: "1fr",
+                panels: [
+                  {
+                    type: "pending",
+                    title: `${module.name} · ${tab.label}`,
+                    body: "This tab is defined by the mockup but has no content registered yet.",
+                    contains: [],
+                  },
+                ],
               },
-            ],
-          },
-        ]
+            ]
       }
     >
       <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} />
