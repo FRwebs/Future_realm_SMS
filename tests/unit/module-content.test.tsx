@@ -1,7 +1,8 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { PanelRows } from "@/components/modules/panel-renderer";
-import { accountContent, accountTabs } from "@/lib/modules/account";
+import { accountContentFor, accountTabs } from "@/lib/modules/account";
+import type { SessionUser } from "@/lib/domain/types";
 import { allocationOf } from "@/lib/modules/allocations-data";
 import { curriculumLayers } from "@/lib/modules/curriculum-data";
 import { armRows } from "@/lib/modules/school-data";
@@ -50,12 +51,43 @@ describe("module content", () => {
     }
   });
 
-  it("renders the account page's tabs", () => {
+  it("writes the account page against whoever is signed in", () => {
+    const session = {
+      userId: "GIA-0004",
+      schoolId: "school-1",
+      role: "PRINCIPAL",
+      email: "a.nwosu@graceacademy.ng",
+      name: "Adaeze Nwosu",
+      csrfToken: "t",
+    } as SessionUser;
+    const content = accountContentFor(session, "Grace International Academy");
+
     for (const tab of accountTabs) {
-      const content = accountContent[tab.slug];
-      expect(content, tab.slug).toBeDefined();
-      expect(renderToStaticMarkup(<PanelRows rows={content!.rows} />).length).toBeGreaterThan(0);
+      const page = content[tab.slug];
+      expect(page, tab.slug).toBeDefined();
+      const html = renderToStaticMarkup(<PanelRows rows={page!.rows} />);
+      expect(html.length, tab.slug).toBeGreaterThan(0);
+      // This is the page that tells someone what the school holds about them,
+      // so it must never show a name that is not theirs.
+      expect(html, tab.slug).not.toContain("Not built yet");
     }
+
+    const profile = renderToStaticMarkup(<PanelRows rows={content.profile!.rows} />);
+    expect(profile).toContain("Adaeze Nwosu");
+    expect(profile).toContain("a.nwosu@graceacademy.ng");
+    expect(profile).toContain("Grace International Academy");
+    // Initials stand in wherever no photograph exists.
+    expect(profile).toContain("Initials · AN");
+
+    // A second person gets their own page, not the first person's.
+    const other = accountContentFor(
+      { ...session, name: "Olubunmi Akinyele", email: "o.akinyele@example.ng" },
+      "Greenfield College",
+    );
+    const otherProfile = renderToStaticMarkup(<PanelRows rows={other.profile!.rows} />);
+    expect(otherProfile).toContain("Olubunmi Akinyele");
+    expect(otherProfile).toContain("Initials · OA");
+    expect(otherProfile).not.toContain("Adaeze Nwosu");
   });
 
   it("carries Command Center's real content through to the markup", () => {

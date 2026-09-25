@@ -4,8 +4,10 @@ import { notFound } from "next/navigation";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { TabBar } from "@/components/modules/tab-bar";
-import { accountContent, accountTabs } from "@/lib/modules/account";
+import { accountContentFor, accountTabs } from "@/lib/modules/account";
 import { getServerSession } from "@/lib/auth/session";
+import { apiGet } from "@/lib/api/server";
+import type { SchoolContextView } from "@/lib/domain/types";
 
 type PageProps = { params: Promise<{ tab: string }> };
 
@@ -28,7 +30,14 @@ export default async function AccountTabPage({ params }: PageProps) {
   const session = await getServerSession();
   if (!session) return null;
 
-  const content = accountContent[tab.slug];
+  // The page is about the person, so it is written against them and the school
+  // they are signed in to — never a fixed name.
+  const schoolContext = await apiGet<SchoolContextView>("/api/v1/dashboard/context").catch(
+    () => null,
+  );
+  const schoolName = schoolContext?.schoolName ?? "your school";
+
+  const content = accountContentFor(session, schoolName)[tab.slug];
 
   return (
     <div className="grid gap-5">
