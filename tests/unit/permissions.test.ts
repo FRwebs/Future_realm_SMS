@@ -1,10 +1,16 @@
 import {
+  allGrantablePermissionKeys,
   allPermissionKeys,
   groupPermissions,
   permissionCatalog,
   permissionModules,
+  schoolModulePermissionKeys,
   systemRolePermissionKeys,
 } from "@/lib/permissions/catalog";
+import {
+  schoolPermissionKeysForRoleTemplate,
+  schoolRoleTemplates,
+} from "@/lib/modules/school-modules";
 
 describe("school role and permission catalog", () => {
   it("contains unique permission keys for every seeded permission", () => {
@@ -47,5 +53,39 @@ describe("school role and permission catalog", () => {
   it("keeps module definitions aligned with the flattened catalog", () => {
     const modulePermissionCount = permissionModules.reduce((total, module) => total + module.permissions.length, 0);
     expect(permissionCatalog).toHaveLength(modulePermissionCount);
+  });
+});
+
+describe("the module grid as grantable permissions", () => {
+  it("accepts every key the sixteen-module grid can grant", () => {
+    // The backend validates a custom role's permissions against this list. Every
+    // key a role template can hold has to be in it, or the role is refused.
+    const grantable = new Set(allGrantablePermissionKeys);
+    for (const template of schoolRoleTemplates) {
+      for (const key of schoolPermissionKeysForRoleTemplate(template.name)) {
+        expect(grantable.has(key), `${template.name} · ${key}`).toBe(true);
+      }
+    }
+  });
+
+  it("keeps the module keys out of the legacy list the role builders read", () => {
+    // `attendance.view` is a legacy key and `attendance.register.view` is a
+    // module one, so merging the two lists would silently hand every role built
+    // from keysFor("attendance") the whole module.
+    const moduleKeys = new Set(schoolModulePermissionKeys);
+    expect(allPermissionKeys.some((key) => moduleKeys.has(key))).toBe(false);
+
+    for (const [role, keys] of Object.entries(systemRolePermissionKeys)) {
+      const gained = (keys ?? []).filter((key) => moduleKeys.has(key));
+      expect(gained, `${role} must not hold a module key by default`).toEqual([]);
+    }
+  });
+
+  it("groups a module key under its own module", () => {
+    const grouped = groupPermissions(["attendance.register.view", "students.view"])
+      .filter((group) => group.permissions.length)
+      .map((group) => group.module);
+    expect(grouped).toContain("Attendance");
+    expect(grouped).toContain("Students");
   });
 });
