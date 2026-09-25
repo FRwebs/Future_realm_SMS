@@ -14,6 +14,16 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    globals: true
+    globals: true,
+    exclude: [
+      "**/node_modules/**",
+      "**/dist/**",
+      // Playwright owns tests/e2e (see playwright.config.ts). Vitest cannot run
+      // a Playwright spec, and collecting one fails the whole run.
+      "tests/e2e/**",
+      // Worktrees the desktop app creates hold full copies of this repo, so
+      // without this every test is collected twice — once from a stale copy.
+      "**/.claude/worktrees/**"
+    ]
   }
 });
