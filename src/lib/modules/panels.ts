@@ -65,10 +65,9 @@ export type KpiCard = {
   unit?: string;
   sub?: string;
   tone?: PanelTone;
-  /** Text of the card's link through to another module. */
+  /** Text of the card's link through to the list or record behind the figure. */
   link?: string;
-  href?: string;
-};
+} & Trigger;
 
 export type TableCellKind =
   | { kind: "text"; text: string; tone?: PanelTone; strong?: boolean; mono?: boolean }
@@ -81,6 +80,8 @@ export type TableCellKind =
       avatarTone?: PanelTone;
     }
   | { kind: "pill"; label: string; tone?: PanelTone }
+  /** A capability a tier either has or does not: a tick, or a muted dash. */
+  | { kind: "mark"; ok: boolean }
   | ({ kind: "action"; label: string } & Trigger);
 
 export type TableRow = {
@@ -105,6 +106,8 @@ export type TableFilter = {
 export type PanelAction = {
   label: string;
   primary?: boolean;
+  /** SVG path for the header's primary button. Defaults to a plus. */
+  icon?: string;
 } & Trigger;
 
 export type ListItem = {
@@ -168,7 +171,13 @@ export type TrackerRow = {
 };
 
 export type Panel =
-  | { type: "kpi"; per?: number; cards: KpiCard[] }
+  | {
+      type: "kpi";
+      /** Names what the row counts. Left out, the tab's own heading is used. */
+      title?: string;
+      per?: number;
+      cards: KpiCard[];
+    }
   | {
       type: "tracker";
       title: string;
@@ -212,10 +221,42 @@ export type Panel =
       readOnly?: boolean;
       foot?: string;
     }
-  | { type: "facts"; title: string; sub?: string; facts: PanelFact[]; foot?: string }
-  | { type: "note"; title?: string; body: string; tone?: PanelTone }
+  | {
+      type: "facts";
+      title: string;
+      sub?: string;
+      meta?: string;
+      tag?: string;
+      tagTone?: PanelTone;
+      facts: PanelFact[];
+      acts?: PanelAction[];
+      foot?: string;
+      /**
+       * Facts per row. The mockup lays them out as an auto-fit grid, so `per`
+       * only widens the minimum column: 1 gives one wide column of prose.
+       */
+      per?: number;
+    }
+  | {
+      type: "note";
+      title?: string;
+      body: string;
+      tone?: PanelTone;
+      /** SVG path for the note's icon chip. Defaults to the mockup's warning triangle. */
+      icon?: string;
+      acts?: PanelAction[];
+    }
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
-  | { type: "tiles"; title: string; sub?: string; per?: number; tiles: TileItem[] }
+  | {
+      type: "tiles";
+      title: string;
+      sub?: string;
+      meta?: string;
+      tag?: string;
+      tagTone?: PanelTone;
+      per?: number;
+      tiles: TileItem[];
+    }
   | { type: "steps"; title: string; sub?: string; steps: StepItem[]; foot?: string }
   | { type: "quote"; body: string; attribution?: string }
   | {
@@ -285,4 +326,8 @@ export function pill(label: string, tone: PanelTone = "neutral"): TableCellKind 
 
 export function action(label: string, href?: string): TableCellKind {
   return { kind: "action", label, href };
+}
+
+export function mark(ok: boolean): TableCellKind {
+  return { kind: "mark", ok };
 }
