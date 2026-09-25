@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { TabBar } from "@/components/modules/tab-bar";
-import { accountContentFor, accountTabs } from "@/lib/modules/account";
+import { accountContentFor, accountTabs, type MyProfile } from "@/lib/modules/account";
 import { getServerSession } from "@/lib/auth/session";
 import { apiGet } from "@/lib/api/server";
 import type { SchoolContextView } from "@/lib/domain/types";
@@ -37,7 +37,11 @@ export default async function AccountTabPage({ params }: PageProps) {
   );
   const schoolName = schoolContext?.schoolName ?? "your school";
 
-  const content = accountContentFor(session, schoolName)[tab.slug];
+  // What is actually on file, so a field that has a value shows it and one that
+  // does not says so — rather than the page assuming either way.
+  const profile = await apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile);
+
+  const content = accountContentFor(session, schoolName, profile)[tab.slug];
 
   return (
     <div className="grid gap-5">
