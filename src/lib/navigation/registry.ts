@@ -1,5 +1,5 @@
 import type { Role } from "@/lib/domain/types";
-import { schoolPermissionsForRole } from "@/lib/modules/school-access";
+import { isSchoolStaffRole, schoolPermissionsForRole } from "@/lib/modules/school-access";
 import { getSchoolModule } from "@/lib/modules/school-modules";
 import { systemRolePermissionKeys } from "@/lib/permissions/catalog";
 
@@ -877,11 +877,23 @@ function getNavigationItemsForPath(path: string) {
   return moduleItem ? [moduleItem] : [];
 }
 
+/**
+ * "My account" is reached from the account menu, not the sidebar, so it has no
+ * navigation entry to be checked against. It is not permission-gated either: it
+ * is the page that tells someone what the school holds about *them*, and every
+ * member of staff may open their own.
+ */
+function isOwnAccountPath(path: string) {
+  return path === "/account" || path.startsWith("/account/");
+}
+
 export function canAccessPathWithPermissions(
   role: Role,
   path: string,
   permissions = getDefaultPermissionsForRole(role),
 ) {
+  if (isOwnAccountPath(path)) return isSchoolStaffRole(role);
+
   const items = getNavigationItemsForPath(path);
   if (!items.length) return false;
   return items.some((item) =>
