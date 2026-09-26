@@ -416,6 +416,29 @@ enum GatewayTransactionStatus {
   REFUNDED
 }
 
+/// What a decision is about. One queue carries every kind, so the Command
+/// Center's "My actions" is one ordered read rather than a union of five tables.
+enum ApprovalKind {
+  SCORE_CORRECTION
+  RESULTS_PUBLICATION
+  FEE_WAIVER
+  RECORD_CHANGE
+  STAFF_ACCESS
+  MASS_COMMUNICATION
+  LEAVE
+  TIMETABLE_CHANGE
+  OTHER
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  RETURNED
+  REJECTED
+  WITHDRAWN
+  EXPIRED
+}
+
 enum FeeWaiverStatus {
   PENDING
   APPROVED
@@ -745,6 +768,7 @@ model School {
   libraryBooks                  LibraryBook[]
   libraryLoans                  LibraryLoan[]
   auditLogs                     AuditLog[]
+  approvalRequests              ApprovalRequest[]
   syncDrafts                    SyncDraft[]
   integrationConfigs            IntegrationConfig[]
   disciplineRecords             DisciplineRecord[]
@@ -1154,6 +1178,9 @@ model User {
   assessmentScoresEdited           AssessmentCandidate[]         @relation("AssessmentScoreLastEditedBy")
   assessmentScoreAudits            AssessmentScoreAudit[]        @relation("AssessmentScoreAuditActor")
   resultApprovals                  ResultApproval[]              @relation("ResultApprovalActor")
+  approvalsRequested               ApprovalRequest[]             @relation("ApprovalRequestedBy")
+  approvalsAssigned                ApprovalRequest[]             @relation("ApprovalAssignee")
+  approvalsDecided                 ApprovalRequest[]             @relation("ApprovalDecidedBy")
   resultPublications               ResultPublication[]           @relation("ResultPublicationActor")
   broadsheetsCompiled              Broadsheet[]                  @relation("BroadsheetCompiledBy")
   broadsheetApprovals              BroadsheetApprovalHistory[]   @relation("BroadsheetApprovalActor")
@@ -2309,6 +2336,53 @@ model ResultApproval {
 
   @@index([schoolId, resultSheetId, createdAt])
   @@index([schoolId, actorId, action])
+}
+
+/// One decision waiting on somebody.
+///
+/// Whichever service raises a decision writes a row here and keeps its own
+/// record as the subject — subjectType and subjectId point back at the
+/// ResultSheet, FeeWaiver, ProfileEditRequest or whatever else it is about.
+/// The queue never has to know about those tables to list or order the work.
+model ApprovalRequest {
+  id            String         @id @default(cuid())
+  schoolId      String
+  kind          ApprovalKind
+  /// The record this decision is about, e.g. "ResultSheet".
+  subjectType   String
+  subjectId     String?
+  title         String
+  summary       String?
+  /// What this decision unblocks, in the requester's own words — "1 teacher ·
+  /// 34 cards". Written when the decision is raised, because recomputing it per
+  /// render costs a query for every row on the page.
+  blocking      String?
+  /// Higher sorts first; age breaks ties.
+  priority      Int            @default(0)
+  requestedById String?
+  /// Who must decide: a named person, or anyone holding the role.
+  assigneeId    String?
+  assigneeRole  UserRole?
+  status        ApprovalStatus @default(PENDING)
+  /// Required on anything but an approval, so a refusal always says why.
+  decisionNote  String?
+  decidedById   String?
+  decidedAt     DateTime?
+  /// When it starts escalating, not when it stops mattering.
+  escalatesAt   DateTime?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  school        School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  requestedBy   User?          @relation("ApprovalRequestedBy", fields: [requestedById], references: [id], onDelete: SetNull)
+  assignee      User?          @relation("ApprovalAssignee", fields: [assigneeId], references: [id], onDelete: SetNull)
+  decidedBy     User?          @relation("ApprovalDecidedBy", fields: [decidedById], references: [id], onDelete: SetNull)
+
+  // The queue read: one person's pending work, worst first.
+  @@index([schoolId, assigneeId, status, priority])
+  // The role read, for work routed to a role rather than a person.
+  @@index([schoolId, assigneeRole, status, priority])
+  // Finding the decision attached to a record.
+  @@index([schoolId, subjectType, subjectId])
 }
 
 model ResultPublication {

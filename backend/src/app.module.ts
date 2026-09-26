@@ -26,6 +26,7 @@ import { OperationsModule } from "./modules/operations/operations.module";
 import { PartnersModule } from "./modules/partners/partners.module";
 import { ProfileModule } from "./modules/profile/profile.module";
 import { ReportsModule } from "./modules/reports/reports.module";
+import { ApprovalsModule } from "./modules/approvals/approvals.module";
 import { RolesManagementModule } from "./modules/roles-management/roles-management.module";
 import { SchoolDirectoryExtrasModule } from "./modules/school-directory-extras/school-directory-extras.module";
 import { StaffModule } from "./modules/staff/staff.module";
@@ -65,6 +66,7 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     CommunicationsModule,
     ConfigurationModule,
     ReportsModule,
+    ApprovalsModule,
     RolesManagementModule,
     SchoolDirectoryExtrasModule,
     ProfileModule,
