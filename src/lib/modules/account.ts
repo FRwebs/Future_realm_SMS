@@ -440,7 +440,7 @@ function securityTab(session: SessionUser, schoolName: string, profile: MyProfil
     title: "Change your password",
     sub: "You are signed out of every other device when it changes.",
     facts: [
-      ["New password", "Ten characters or more", "And not one you have used here before"],
+      ["New password", "Eight characters or more", "And not one you have used here before"],
       ["Other sessions", `${otherSessions} signed out`, "This device stays signed in"],
       ["Unsynced work", "Kept on those devices", "It syncs when they sign in again"],
       ["Last changed", "118 days ago", "School policy asks for 180 days"],
@@ -535,8 +535,8 @@ function securityTab(session: SessionUser, schoolName: string, profile: MyProfil
               label: "New password",
               value: "",
               required: true,
-              placeholder: "At least 10 characters",
-              hint: "Ten characters or more, and not one you have used here before.",
+              placeholder: "At least 8 characters",
+              hint: "Eight characters or more, and not one you have used here before.",
             },
             {
               kind: "text",

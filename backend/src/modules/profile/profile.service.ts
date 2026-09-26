@@ -95,8 +95,8 @@ const reviewSchema = z.object({
 });
 
 const passwordSchema = z.object({
-  currentPassword: z.string().min(1),
-  newPassword: z.string().min(8),
+  currentPassword: z.string().min(1, "Enter your current password."),
+  newPassword: z.string().min(8, "Use at least 8 characters."),
 });
 
 const mfaCodeSchema = z.object({
