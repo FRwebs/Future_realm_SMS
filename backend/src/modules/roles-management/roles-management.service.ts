@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { canAssignRole, canManageRole, isOwnerRole, isPlatformRole, isSchoolStaffRole } from "../../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { schoolPermissionsForRole } from "../../../../src/lib/modules/school-access";
 import { allGrantablePermissionKeys, allPermissionKeys, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
 
 const roleSchema = z.object({
@@ -143,7 +144,14 @@ export class RolesManagementService {
     if (!role) return [];
     if (isPlatformRole(role) && (role === "SUPER_ADMIN" || role === "PLATFORM_OWNER" || role === "PLATFORM_ADMIN")) return allPermissionKeys;
 
-    const resolved = new Set<string>(systemRolePermissionKeys[role] ?? []);
+    // The sixteen-module grid is granted by role, exactly as the navigation
+    // resolves it on the other side. Without this the two disagree: the sidebar
+    // shows a module the API then refuses, which reads as a broken page rather
+    // than a permission the school never gave.
+    const resolved = new Set<string>([
+      ...(systemRolePermissionKeys[role] ?? []),
+      ...schoolPermissionsForRole(role),
+    ]);
     if (roleManagerFallback.has(role)) {
       resolved.add("roles.view");
       resolved.add("roles.create");

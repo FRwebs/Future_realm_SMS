@@ -410,4 +410,80 @@ describe("service flows", () => {
       expect(after.className).not.toBe(before.className);
     }
   });
+  it("carries every kind of decision in one queue, ordered worst first", async () => {
+    const { ApprovalsService } = await import(
+      "../../backend/src/modules/approvals/approvals.service"
+    );
+    const { prisma } = await import("../../src/lib/db/prisma");
+    const service = new ApprovalsService();
+    const session = sessionFor(fx.principal, fx.schoolId, "PRINCIPAL");
+    const run = `test-${Date.now().toString(36)}`;
+
+    const low = await service.raise(session, {
+      kind: "RECORD_CHANGE",
+      subjectType: "ProfileEditRequest",
+      subjectId: run,
+      title: "Date of birth change",
+      priority: 10,
+      assigneeId: fx.principal.userId,
+    });
+    const high = await service.raise(session, {
+      kind: "SCORE_CORRECTION",
+      subjectType: "ResultSheet",
+      subjectId: run,
+      title: "Chemistry SSS 2A — score correction",
+      blocking: "1 teacher · 34 cards",
+      priority: 80,
+      assigneeId: fx.principal.userId,
+    });
+
+    try {
+      const queue = await service.listQueue(session, { assignee: "me" });
+      const mine = queue.filter((item) => item.subjectId === run);
+      // Two different kinds, one read — the point of the table.
+      expect(mine.map((item) => item.kind)).toEqual(["SCORE_CORRECTION", "RECORD_CHANGE"]);
+      // What a decision unblocks is carried, not recomputed per render.
+      expect(mine[0]!.blocking).toBe("1 teacher · 34 cards");
+
+      // You cannot approve your own request, and a refusal must say why.
+      await expect(service.decide(session, high.id, { action: "APPROVE" })).rejects.toThrow(
+        "You cannot approve a request you raised yourself.",
+      );
+      await expect(service.decide(session, high.id, { action: "RETURN" })).rejects.toThrow(
+        /Say why/,
+      );
+
+      const returned = await service.decide(session, high.id, {
+        action: "RETURN",
+        note: "State which network outage — the annex or the whole school?",
+      });
+      expect(returned.status).toBe("RETURNED");
+      expect(returned.decisionNote).toMatch(/network outage/);
+
+      // A decision is made once.
+      await expect(
+        service.decide(session, high.id, { action: "APPROVE", note: "again" }),
+      ).rejects.toThrow(/already returned/);
+
+      // Deciding it takes it out of what is waiting.
+      const still = await service.listQueue(session, { assignee: "me" });
+      expect(still.filter((item) => item.subjectId === run).map((item) => item.id)).toEqual([low.id]);
+    } finally {
+      await prisma.approvalRequest.deleteMany({ where: { subjectId: run } });
+    }
+  });
+
+  it("refuses a decision with nobody to decide it", async () => {
+    const { ApprovalsService } = await import(
+      "../../backend/src/modules/approvals/approvals.service"
+    );
+    const service = new ApprovalsService();
+    await expect(
+      service.raise(sessionFor(fx.principal, fx.schoolId, "PRINCIPAL"), {
+        kind: "OTHER",
+        subjectType: "Nothing",
+        title: "Nobody is named on this",
+      }),
+    ).rejects.toThrow("A decision needs somebody to decide it");
+  });
 });
