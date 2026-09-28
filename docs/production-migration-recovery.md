@@ -21,16 +21,32 @@ Two separate problems, in sequence.
 
 ## Why it failed
 
-The Render database was not built by the migration history. It was built with
-`prisma db push`, which writes the schema straight to the database and records
-nothing in `_prisma_migrations`. By the time
-`20260920223920_scheme_of_work_fees_payroll` was written, that database already
-held every enum, table, column, constraint and index the migration creates.
+Something applied this migration's schema to the database outside the migration
+history — `prisma db push`, or DDL run by hand. Either writes the objects
+straight to the database and records nothing in `_prisma_migrations`, so by the
+time `20260920223920_scheme_of_work_fees_payroll` ran, every enum, table,
+column, constraint and index it creates was already there.
 
-So the migration's first statement — `CREATE TYPE "SchemeOfWorkStatus"` — hit an
-object that was already there and raised `42710`. Nothing was wrong with the
-migration; it was correct against a database built from migrations, and
-impossible against a database built by `db push`.
+So its first statement — `CREATE TYPE "SchemeOfWorkStatus"` — hit an object that
+already existed and raised `42710`. Nothing was wrong with the migration. It was
+correct against a database whose schema came only from migrations, and
+impossible against one that had been changed behind their back.
+
+What the production database actually looks like, read on 2026-09-28:
+
+- 35 rows in `_prisma_migrations`: 34 applied, 1 failed, 0 rolled back. So this
+  database **does** have a real migration history, spanning 09-07 to 09-20 — it
+  was not built by `db push`. A push happened *partway through* that history and
+  landed the scheme-of-work objects early.
+- All 5 enums and all 9 tables the migration creates: already present.
+- Of the two index renames, only the **post**-rename names exist
+  (`…_isActiv_idx`, `…_academicSessio_key`), which is the signature of a `db
+  push` — it names indexes from the current schema, so it created them already
+  renamed. A half-applied migration would have left the old names.
+- `ApprovalRequest` absent, confirming `20260926100515` never ran.
+
+The earlier version of this document claimed the whole database was built by
+`db push`. That was wrong, and the 34 applied rows disprove it.
 
 Prisma then wrote a row into `_prisma_migrations` with `finished_at` null and a
 `logs` value holding the error. That row is what `P3009` reports. Prisma will
@@ -68,21 +84,40 @@ Verified three ways:
 The failed row has to be cleared by hand. `migrate deploy` refuses to do
 anything while it is there, so no amount of redeploying will clear it.
 
-1. Tell Prisma the failed migration did not apply. From a shell with production
-   `DATABASE_URL` set — Render's shell on either service, or locally against the
-   external connection string:
+Note on where to run this: **Render's Shell tab needs a paid instance type**, and
+both services in `render.yaml` are on `plan: free`. So the shell-on-Render route
+is not available here — it has to be a client that can reach the external
+connection string.
+
+1. Tell Prisma the failed migration did not apply, with production
+   `DATABASE_URL` set:
 
    ```bash
    npx prisma migrate resolve --rolled-back 20260920223920_scheme_of_work_fees_payroll
    ```
 
+   Careful: the Prisma CLI loads `.env` and it **overrides** the shell
+   environment, so running this in a checkout that has a local `.env` will
+   quietly target localhost and answer `P3012 … not in a failed state`. That
+   error means you hit the wrong database, not that the problem is gone.
+
+   With only a SQL client, the equivalent single statement is:
+
+   ```sql
+   UPDATE "_prisma_migrations" SET rolled_back_at = now()
+    WHERE migration_name = '20260920223920_scheme_of_work_fees_payroll'
+      AND finished_at IS NULL;
+   ```
+
+   The `finished_at IS NULL` clause confines it to the failed row, so a second
+   run updates nothing. Expect `UPDATE 1`.
+
    `--rolled-back`, not `--applied`. `--applied` marks the migration done and
-   never runs it, which asserts that every one of its 83 statements is already
-   satisfied — including the two index renames. That is probably true (a `db
-   push` would have created those indexes under their final names) but nothing
-   here has checked it against that database. `--rolled-back` lets the
-   now-idempotent migration run and settle it either way, at the cost of one
-   near-empty pass.
+   never runs it, which asserts all 83 of its statements are already satisfied.
+   That now checks out against this database — including the two index renames,
+   which are the one part `--applied` would have silently skipped — but
+   `--rolled-back` lets the idempotent migration confirm it rather than assuming,
+   at the cost of one near-empty pass.
 
 2. Redeploy. `npm run build` runs `prisma migrate deploy`, which re-applies
    `20260920223920` (a near no-op, converging the two index names) and then
