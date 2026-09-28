@@ -2,7 +2,7 @@
 
 ## What happened
 
-The deploy of 2026-09-26 failed at `prisma migrate deploy`:
+The deploy of 2026-09-23 failed at `prisma migrate deploy`:
 
 ```
 Error: P3018 A migration failed to apply.
@@ -32,6 +32,27 @@ sh -c "npx prisma migrate deploy && node dist/api/backend/src/main.js"
 the API crash-loops. The web service is untouched — nothing in its path runs
 migrations. "The API is down but the site is up" is the expected shape of this
 failure, not a second bug.
+
+The Render log confirms all of it. The image built fine — `sending cache export
+… DONE`, then `==> Deploying…` — and everything below that is container start:
+
+```
+09:54:01  Applying migration `20260920223920_scheme_of_work_fees_payroll`
+09:54:01  Error: P3018 … type "SchemeOfWorkStatus" already exists
+09:54:16  ==> Exited with status 1
+09:54:26  Error: P3009 … The `20260920223920…` migration started at 2026-09-23 09:54:01.791672 UTC failed
+09:54:37  ==> No open ports detected, continuing to scan...
+09:54:51  Error: P3009 …
+```
+
+How to recognise it: **`No open ports detected`** is the giveaway. `node` never
+bound :4000 because it never ran. And the restarts each report `P3009` rather
+than the original `42710` — the first boot is the only one that names the real
+cause, so scroll to the *earliest* failure, not the latest.
+
+That log also says `35 migrations found`, because
+`20260926100515_approval_request_queue` did not exist yet on 09-23. It was
+written three days later and inherited the block.
 
 ## Why it failed
 
