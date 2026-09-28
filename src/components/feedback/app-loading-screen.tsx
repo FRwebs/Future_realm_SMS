@@ -1,7 +1,13 @@
 "use client";
 
+import { CARD_BORDER } from "@/lib/modules/tones";
+
+/** The two hairlines the panel vocabulary rules with: heading band, then rows. */
+const BAND_RULE = "#EDF3EF";
+const ROW_RULE = "#F2F7F4";
+
 type AppLoadingScreenProps = {
-  scope?: "root" | "dashboard" | "super-admin" | "portal";
+  scope?: "root" | "school" | "super-admin" | "portal";
   label?: string;
 };
 
@@ -132,95 +138,171 @@ function RootLoadingScreen({ label }: { label: string }) {
   );
 }
 
-function DashboardLoadingScreen({ label }: { label: string }) {
+/**
+ * Content-only skeleton for a School Admin module tab (`/[module]/[tab]`).
+ *
+ * Same reasoning as SuperAdminLoadingScreen, and the reason the old
+ * DashboardLoadingScreen was wrong: DashboardShell lives in (app)/layout.tsx and
+ * stays mounted across navigations, so Next swaps only `{children}` for this
+ * fallback. A fallback here must therefore draw the *page* and never the chrome
+ * — the sidebar and topbar are already on screen, and drawing them again nested
+ * a second <aside>, <header> and <main> inside the real ones.
+ *
+ * Geometry is matched to ModuleWorkspace, not copied from the Super Admin
+ * skeleton: the same 14px row gap, ModuleHead's rounded-[15px] ink card at
+ * px-[19px] py-[15px] with its two accent rings, TabBar's 13px/9px tabs on a
+ * hairline, then panels in the shared PANEL_SHELL box. Super Admin's hero is a
+ * larger rounded-[20px] at py-[26px]; reusing it verbatim would jump the layout
+ * the moment real content replaced it.
+ */
+function ModuleHeadSkeleton({ label }: { label: string }) {
   return (
-    <div className="finance-shell flex h-screen overflow-hidden">
-      <aside className="hidden w-[280px] shrink-0 border-r border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-5 py-5 md:flex md:flex-col">
-        <div className="mb-8 flex items-center gap-3">
-          <SkeletonBlock className="h-11 w-11 rounded-2xl" />
-          <div className="grid flex-1 gap-2">
-            <SkeletonBlock className="h-4 w-24 rounded-full" />
-            <SkeletonBlock className="h-3 w-32 rounded-full" />
+    <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
+      <span className="sr-only">{label}</span>
+      <div className="pointer-events-none absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+      <div className="pointer-events-none absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+      <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
+        <div className="min-w-0 max-w-[620px]">
+          {/* The accent dot is real, not a placeholder — it never varies by tab. */}
+          <div className="mb-[5px] flex items-center gap-[7px]">
+            <span className="h-[4.5px] w-[4.5px] flex-none rounded-full bg-[#5FD6B4]" />
+            <InvertSkeletonBlock className="h-[9px] w-24" />
           </div>
+          <InvertSkeletonBlock className="h-[22px] w-full max-w-[20rem]" />
+          <InvertSkeletonBlock className="mt-[5px] h-[16px] w-full max-w-[33rem]" />
         </div>
-
-        <div className="grid gap-6">
-          {Array.from({ length: 4 }).map((_, groupIndex) => (
-            <div key={groupIndex} className="grid gap-3">
-              <SkeletonBlock className="h-3 w-20 rounded-full" />
-              {Array.from({ length: 3 }).map((__, itemIndex) => (
-                <SkeletonBlock key={itemIndex} className="h-11 w-full rounded-[1rem]" />
-              ))}
-            </div>
-          ))}
+        <div className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center justify-end gap-2">
+          <InvertSkeletonBlock className="h-[30px] w-[104px]" />
+          <InvertSkeletonBlock className="h-[33px] w-[124px]" />
         </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
-        <header className="border-b border-[var(--color-border-default)] bg-[var(--surface-topbar)] px-4 py-3 backdrop-blur-xl md:px-6">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <SkeletonBlock className="h-10 w-10 rounded-2xl md:hidden" />
-              <div className="grid gap-2">
-                <SkeletonBlock className="h-3 w-24 rounded-full" />
-                <SkeletonBlock className="h-4 w-40 rounded-full" />
-              </div>
-            </div>
-            <div className="flex items-center gap-3">
-              <SkeletonBlock className="h-10 w-10 rounded-full" />
-              <SkeletonBlock className="h-10 w-10 rounded-full" />
-              <SkeletonBlock className="h-10 w-36 rounded-full" />
-            </div>
-          </div>
-        </header>
-
-        <main className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5">
-          <div className="mx-auto grid w-full max-w-[1600px] gap-6">
-            <section className="surface-hero px-6 py-6 md:px-8">
-              <div className="grid gap-4">
-                <span className="section-eyebrow">{label}</span>
-                <SkeletonBlock className="h-10 w-full max-w-[24rem]" />
-                <SkeletonBlock className="h-4 w-full max-w-[38rem]" />
-                <div className="flex flex-wrap gap-3 pt-2">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <SkeletonBlock key={index} className="h-9 w-28 rounded-full" />
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-              {Array.from({ length: 4 }).map((_, index) => (
-                <div key={index} className="surface-card p-5">
-                  <SkeletonBlock className="mb-4 h-3 w-24 rounded-full" />
-                  <SkeletonBlock className="h-8 w-20" />
-                  <SkeletonBlock className="mt-5 h-3 w-28 rounded-full" />
-                </div>
-              ))}
-            </section>
-
-            <section className="grid gap-6 xl:grid-cols-[1.65fr_1fr]">
-              <div className="surface-card p-5">
-                <SkeletonBlock className="mb-5 h-5 w-48" />
-                <div className="grid gap-3">
-                  {Array.from({ length: 6 }).map((_, index) => (
-                    <SkeletonBlock key={index} className="h-14 w-full rounded-[1rem]" />
-                  ))}
-                </div>
-              </div>
-
-              <div className="surface-card p-5">
-                <SkeletonBlock className="mb-5 h-5 w-40" />
-                <div className="grid gap-3">
-                  {Array.from({ length: 4 }).map((_, index) => (
-                    <SkeletonBlock key={index} className="h-20 w-full rounded-[1rem]" />
-                  ))}
-                </div>
-              </div>
-            </section>
-          </div>
-        </main>
       </div>
+    </section>
+  );
+}
+
+/** TabBar's strip: flat labels, 3px apart, the first one carrying the accent rule. */
+function ModuleTabsSkeleton() {
+  return (
+    <nav
+      className="-mx-1 flex items-center gap-[3px] overflow-hidden border-b border-[var(--color-border-default)] px-1"
+      aria-hidden
+    >
+      {["w-14", "w-24", "w-20", "w-16"].map((width, index) => (
+        <div
+          key={width}
+          className={`flex flex-none items-center border-b-2 px-[13px] py-[9px] ${
+            index === 0
+              ? "border-b-[var(--color-accent-primary)]"
+              : "border-b-transparent"
+          }`}
+        >
+          <SkeletonBlock className={`h-[13px] ${width} rounded-full`} />
+        </div>
+      ))}
+    </nav>
+  );
+}
+
+/** The panel box every module panel shares: 14px corners, hairline, 18px gutter. */
+function ModulePanel({
+  children,
+  className = "",
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section
+      className={`min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[12px] ${className}`}
+      style={{ borderColor: CARD_BORDER }}
+    >
+      {children}
+    </section>
+  );
+}
+
+/** PanelHeader's band. `flush` drops the rule, as card rows and tile grids do. */
+function ModulePanelHeadSkeleton({ flush }: { flush?: boolean }) {
+  return (
+    <div
+      className={`-mx-[18px] flex flex-wrap items-start justify-between gap-[14px] px-[18px] pb-[12px] pt-[14px] ${
+        flush ? "mb-0" : "mb-[12px] border-b"
+      }`}
+      style={flush ? undefined : { borderColor: BAND_RULE }}
+    >
+      <div className="grid min-w-0 flex-[1_1_260px] gap-[7px]">
+        <SkeletonBlock className="h-[14px] w-44 rounded-md" />
+        <SkeletonBlock className="h-[12px] w-64 rounded-full" />
+      </div>
+      <SkeletonBlock className="h-[26px] w-[88px] shrink-0 rounded-[8px]" />
+    </div>
+  );
+}
+
+/**
+ * The KPI row. Auto-fit at minmax(176px, 1fr) is what `per: 4` resolves to in
+ * PanelView, so the cards break to the same widths the real row breaks to.
+ */
+function ModuleKpiPanelSkeleton() {
+  return (
+    <ModulePanel className="pb-[15px]">
+      <ModulePanelHeadSkeleton flush />
+      <div
+        className="grid items-stretch gap-[10px]"
+        style={{ gridTemplateColumns: "repeat(auto-fit, minmax(176px, 1fr))" }}
+      >
+        {Array.from({ length: 4 }).map((_, index) => (
+          <div
+            key={index}
+            className="flex flex-col rounded-[14px] border bg-[var(--color-bg-surface)] px-[14px] pb-[14px] pt-[13px]"
+            style={{ borderColor: CARD_BORDER, minHeight: 86 }}
+          >
+            <SkeletonBlock className="mb-[10px] h-[10px] w-[72px] rounded-full" />
+            <SkeletonBlock className="h-[20px] w-[56px] rounded-md" />
+            <SkeletonBlock className="mt-[6px] h-[11px] w-[88px] rounded-full" />
+          </div>
+        ))}
+      </div>
+    </ModulePanel>
+  );
+}
+
+/**
+ * A rows panel. Modelled on the `list`/`table` shapes, which share the same
+ * anatomy once drawn as placeholders: a ruled heading, then rows on #F2F7F4
+ * hairlines at py-[10px], each leading with a 7px tone dot.
+ */
+function ModuleRowsPanelSkeleton({ rows = 5 }: { rows?: number }) {
+  return (
+    <ModulePanel>
+      <ModulePanelHeadSkeleton />
+      <ul>
+        {Array.from({ length: rows }).map((_, index) => (
+          <li
+            key={index}
+            className="flex items-start gap-[10px] border-b py-[10px]"
+            style={{ borderColor: ROW_RULE }}
+          >
+            <SkeletonBlock className="mt-[4.5px] h-[7px] w-[7px] flex-none rounded-full" />
+            <span className="min-w-0 flex-1">
+              <SkeletonBlock className="h-[13px] w-full max-w-[17rem] rounded-full" />
+              <SkeletonBlock className="mt-[4px] h-[11px] w-full max-w-[24rem] rounded-full" />
+            </span>
+            <SkeletonBlock className="h-[19px] w-[74px] flex-none rounded-full" />
+          </li>
+        ))}
+      </ul>
+    </ModulePanel>
+  );
+}
+
+function SchoolModuleLoadingScreen({ label }: { label: string }) {
+  return (
+    <div className="skeleton-instant grid min-w-0 gap-[14px]">
+      <ModuleHeadSkeleton label={label} />
+      <ModuleTabsSkeleton />
+      <ModuleKpiPanelSkeleton />
+      <ModuleRowsPanelSkeleton />
     </div>
   );
 }
@@ -325,8 +407,8 @@ export function AppLoadingScreen({
   scope = "root",
   label = "Loading workspace",
 }: AppLoadingScreenProps) {
-  if (scope === "dashboard") {
-    return <DashboardLoadingScreen label={label} />;
+  if (scope === "school") {
+    return <SchoolModuleLoadingScreen label={label} />;
   }
 
   if (scope === "super-admin") {
