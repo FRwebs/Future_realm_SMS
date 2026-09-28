@@ -2,7 +2,7 @@
 
 ## What happened
 
-The deploy of 2026-09-26 failed in `npm run build`, at `prisma migrate deploy`:
+The deploy of 2026-09-26 failed at `prisma migrate deploy`:
 
 ```
 Error: P3018 A migration failed to apply.
@@ -18,6 +18,20 @@ Error: P3009 migrate found failed migrations in the target database
 ```
 
 Two separate problems, in sequence.
+
+It matters *where* that runs. Neither image runs the root `package.json` `build`
+script, so this is not a build step: `Dockerfile` runs only `prisma:generate &&
+build:web`, and migrations run at **API container start**, from
+`backend/Dockerfile`'s `CMD`. So the failing command is the first half of
+
+```
+sh -c "npx prisma migrate deploy && node dist/api/backend/src/main.js"
+```
+
+`migrate deploy` exits non-zero, the `&&` short-circuits, `node` never runs, and
+the API crash-loops. The web service is untouched — nothing in its path runs
+migrations. "The API is down but the site is up" is the expected shape of this
+failure, not a second bug.
 
 ## Why it failed
 
@@ -119,10 +133,9 @@ connection string.
    `--rolled-back` lets the idempotent migration confirm it rather than assuming,
    at the cost of one near-empty pass.
 
-2. Redeploy. `npm run build` runs `prisma migrate deploy`, which re-applies
-   `20260920223920` (a near no-op, converging the two index names) and then
-   applies the migration it had been blocking,
-   `20260926100515_approval_request_queue`.
+2. Redeploy the API. Its `CMD` runs `prisma migrate deploy`, which re-applies
+   `20260920223920` (a near no-op) and then applies the migration it had been
+   blocking, `20260926100515_approval_request_queue`.
 
 3. Confirm:
 
@@ -131,6 +144,38 @@ connection string.
    ```
 
    Expect "Database schema is up to date!" and no failed migrations.
+
+## What was actually done, 2026-09-28
+
+No shell, no SQL client, and the free plan has no Shell tab — so step 1 could not
+be run by hand at all. Instead the resolve was put into the API's own start
+command, where it runs with production `DATABASE_URL` already in the
+environment:
+
+```
+CMD ["sh", "-c", "npx prisma migrate resolve --rolled-back 20260920223920_scheme_of_work_fees_payroll || true; npx prisma migrate deploy && node dist/api/backend/src/main.js"]
+```
+
+`|| true` carries it: once the row is cleared, later boots get `P3012 … not in a
+failed state` and continue to `migrate deploy`. It names one migration, so it
+cannot reach another.
+
+**This is temporary and must come out.** Left in, a migration that ever
+legitimately failed would be auto-retried on every boot instead of stopping the
+deploy — which is the signal you want.
+
+Tested locally against a reproduction of production's state rather than assumed.
+`finished_at` was blanked on that migration's row to manufacture the same failure
+(`migrate deploy` then returned the same `P3009`), and the chain above was run
+against it:
+
+- `Migration … marked as rolled back.`
+- `Applying migration 20260920223920_scheme_of_work_fees_payroll` — succeeded
+  against a database that already held every object in it
+- chain exit code `0`, so `node` would boot
+- afterwards: two rows for that migration, the old one `rolled_back_at` set and a
+  new one with `finished_at` set; `migrate status` → "Database schema is up to
+  date!"; `migrate diff` against `schema.prisma` → "No difference detected."
 
 ## Avoiding the next one
 
