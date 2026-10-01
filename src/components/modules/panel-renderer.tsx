@@ -26,6 +26,7 @@ import type {
   TableRow,
   Trigger,
 } from "@/lib/modules/panels";
+import { readCookie, readableError } from "@/lib/modules/submit";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
@@ -1435,49 +1436,6 @@ const CONTROL =
  * than values — a settings page rendered as a list of facts reads as a report
  * of what somebody else already decided.
  */
-
-function readCookie(name: string) {
-  return document.cookie
-    .split("; ")
-    .find((item) => item.startsWith(`${name}=`))
-    ?.split("=")[1];
-}
-
-/**
- * A readable message out of whatever the API returned.
- *
- * A failed schema check comes back as a JSON array of Zod issues. Showing that
- * to somebody changing their password is not an error message, it is a stack
- * trace — so the issues are turned back into the sentences they contain.
- */
-function readableError(raw: string | undefined): string {
-  if (!raw) return "That did not save.";
-  const trimmed = raw.trim();
-  if (!trimmed.startsWith("[") && !trimmed.startsWith("{")) return trimmed;
-
-  try {
-    const parsed = JSON.parse(trimmed) as unknown;
-    const issues = Array.isArray(parsed) ? parsed : [parsed];
-    const messages = issues
-      .map((issue) => {
-        if (!issue || typeof issue !== "object") return null;
-        const { message, path } = issue as { message?: string; path?: unknown[] };
-        if (!message) return null;
-        const field = Array.isArray(path) && path.length ? String(path.at(-1)) : "";
-        // "newPassword" reads as "New password" beside the box it belongs to.
-        const label = field
-          ? field
-              .replace(/([A-Z])/g, (char) => ` ${char.toLowerCase()}`)
-              .replace(/^./, (char) => char.toUpperCase())
-          : "";
-        return label ? `${label}: ${message}` : message;
-      })
-      .filter((message): message is string => Boolean(message));
-    return messages.length ? messages.join(" · ") : trimmed;
-  } catch {
-    return trimmed;
-  }
-}
 
 type SaveState =
   | { kind: "idle" }
