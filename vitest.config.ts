@@ -4,7 +4,13 @@ import path from "path";
 export default defineConfig({
   resolve: {
     alias: {
-      "@": path.resolve(__dirname, "./src")
+      "@": path.resolve(__dirname, "./src"),
+      // `server-only` exists to make a build fail when server code is imported
+      // from a client component. There is no such boundary in a test run, and
+      // the package has no resolvable entry point outside Next, so point it at
+      // an empty module — otherwise importing anything that reaches
+      // lib/api/server takes the whole suite down at collection.
+      "server-only": path.resolve(__dirname, "./tests/stubs/server-only.ts")
     }
   },
   // tsconfig leaves JSX to Next ("preserve"), so tell esbuild to use the
