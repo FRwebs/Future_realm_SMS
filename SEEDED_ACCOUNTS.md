@@ -2,7 +2,7 @@
 
 All seeded demo accounts use the same default password:
 
-- Password: ` !`
+- Password: ` FutureRealm123!`
 
 ## Platform Accounts
 
