@@ -75,8 +75,15 @@ function debtorDrawer(invoice: InvoiceView): DrawerSpec {
       ["Last payment", dateLabel(invoice.lastPaymentAt)],
     ],
     mode: "commit",
-    // NOTE: confirming this does not yet send anything. DrawerSpec carries no
-    // submit, so the drawer's commit button only reports success locally.
+    // The send the comment above promises. Note the role split behind it:
+    // PRINCIPAL is in bursaryOversightRoles and can read this page, but not in
+    // bursaryRoles, so a principal gets a refusal here rather than a send. The
+    // drawer shows that refusal, which is the honest outcome — the alternative
+    // was reporting a reminder that never left.
+    submit: {
+      endpoint: `/api/v1/bursary/invoices/${invoice.id}/send`,
+      method: "POST",
+    },
     commitLabel: "Send the reminder",
     commitNote: "The family is sent this invoice on the contact details held for them.",
     commitDone: "Reminder sent",

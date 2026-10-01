@@ -36,6 +36,26 @@ export type PanelFact = [label: string, value: string, hint?: string];
  * Triggers are data rather than callbacks so module content stays serializable
  * and can be authored on the server.
  */
+/**
+ * What a commit drawer actually sends.
+ *
+ * Authored as data for the same reason every other trigger is: content is
+ * written on the server, and a callback cannot cross that boundary. Without
+ * this a commit drawer only *looked* like it did something — it flipped a local
+ * flag and showed "Done" while the record behind it never moved.
+ */
+export type DrawerSubmit = {
+  endpoint: string;
+  method?: "POST" | "PATCH" | "PUT";
+  /** Sent as-is, so the drawer never has to know what the record is. */
+  body?: Record<string, unknown>;
+  /** Set this and the drawer asks for a reason, sent under this key. */
+  reasonKey?: string;
+  reasonLabel?: string;
+  /** A refusal that carries no reason cannot be acted on, so require it. */
+  reasonRequired?: boolean;
+};
+
 export type DrawerSpec = {
   kicker?: string;
   title: string;
@@ -47,6 +67,8 @@ export type DrawerSpec = {
   commitNote?: string;
   commitDone?: string;
   commitDoneBody?: string;
+  /** Omit and the drawer confirms without sending — a dry run, not a decision. */
+  submit?: DrawerSubmit;
   /** A record that can be read but never edited — an audit entry, say. */
   readOnly?: boolean;
   readOnlyNote?: string;

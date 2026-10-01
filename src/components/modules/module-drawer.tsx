@@ -1,10 +1,12 @@
 "use client";
 
 import { X } from "lucide-react";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { DrawerSpec, PanelFact } from "@/lib/modules/panels";
+import { sendJson } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 
 function FactRows({ facts }: { facts: PanelFact[] }) {
@@ -60,19 +62,33 @@ export function ModuleDrawer({
   spec: DrawerSpec | null;
   onClose: () => void;
 }) {
-  const [committed, setCommitted] = useState(false);
   const [mounted, setMounted] = useState(false);
-
   useEffect(() => setMounted(true), []);
 
-  // A fresh drawer always opens un-committed, even if the last one was sent.
-  useEffect(() => {
-    setCommitted(false);
-  }, [spec]);
+  if (!spec || !mounted) return null;
+
+  // Keyed on the record so moving from one row's drawer to another's starts
+  // clean — the open panel owns its own committed/pending/error state, and
+  // remounting resets it without an effect that watches `spec`.
+  return <DrawerPanel key={spec.title} spec={spec} onClose={onClose} />;
+}
+
+/**
+ * Only mounted while a drawer is actually open.
+ *
+ * That is what keeps `useRouter` out of the closed case: ModuleDrawer sits on
+ * every module page whether or not anything is open, and calling the hook there
+ * requires an app-router context that server-rendered markup and unit tests do
+ * not have.
+ */
+function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void }) {
+  const [committed, setCommitted] = useState(false);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [reason, setReason] = useState("");
+  const router = useRouter();
 
   useEffect(() => {
-    if (!spec) return;
-
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
@@ -85,11 +101,41 @@ export function ModuleDrawer({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [spec, onClose]);
-
-  if (!spec || !mounted) return null;
+  }, [onClose]);
 
   const isCommit = spec.mode === "commit" && !spec.readOnly;
+  const submit = spec.submit;
+  const needsReason = Boolean(submit?.reasonKey);
+  const reasonMissing = Boolean(submit?.reasonRequired) && !reason.trim();
+
+  async function commit() {
+    // No endpoint means the drawer was authored as a confirmation only. It
+    // still closes the loop for the reader; it just has nothing to send.
+    if (!submit) {
+      setCommitted(true);
+      return;
+    }
+
+    setPending(true);
+    setError(null);
+    try {
+      await sendJson(submit.endpoint, submit.method ?? "POST", {
+        ...(submit.body ?? {}),
+        ...(submit.reasonKey && reason.trim()
+          ? { [submit.reasonKey]: reason.trim() }
+          : {}),
+      });
+      setCommitted(true);
+      // The page is a server component reading live figures, so the decision
+      // has to be re-read rather than patched in — the queue, the counts above
+      // it and the activity list all move together.
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That did not go through.");
+    } finally {
+      setPending(false);
+    }
+  }
 
   return createPortal(
     <div
@@ -197,7 +243,36 @@ export function ModuleDrawer({
               </div>
             ) : null}
 
+            {error ? (
+              <div
+                className="rounded-[12px] border px-[13px] py-[11px]"
+                style={{ background: "#FDF2F2", borderColor: "#F3D2D2" }}
+              >
+                <p className="text-[11.5px] font-semibold leading-[1.5]" style={{ color: "#A32B2B" }}>
+                  {error}
+                </p>
+              </div>
+            ) : null}
+
             {spec.facts?.length ? <FactRows facts={spec.facts} /> : null}
+
+            {isCommit && needsReason && !committed ? (
+              <label className="grid gap-[6px]">
+                <span className="text-[10.5px] font-semibold" style={{ color: INK }}>
+                  {submit?.reasonLabel ?? "Reason"}
+                  {submit?.reasonRequired ? null : (
+                    <span style={{ color: MUTED }}> · optional</span>
+                  )}
+                </span>
+                <textarea
+                  value={reason}
+                  onChange={(event) => setReason(event.target.value)}
+                  rows={3}
+                  className="w-full resize-y rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5] outline-none focus:border-[#BFDCD1]"
+                  style={{ borderColor: "#DEE8E2", color: INK }}
+                />
+              </label>
+            ) : null}
           </div>
         </div>
 
@@ -225,14 +300,16 @@ export function ModuleDrawer({
                 </button>
                 <button
                   type="button"
-                  onClick={() => setCommitted(true)}
-                  className="whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px] font-semibold text-white"
+                  onClick={commit}
+                  disabled={pending || reasonMissing}
+                  title={reasonMissing ? "Say why before you send this." : undefined}
+                  className="whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
                     background: INK,
                     boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)",
                   }}
                 >
-                  {spec.commitLabel ?? "Confirm"}
+                  {pending ? "Sending…" : (spec.commitLabel ?? "Confirm")}
                 </button>
               </>
             ) : (
