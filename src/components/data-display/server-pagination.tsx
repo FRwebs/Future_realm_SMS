@@ -37,14 +37,14 @@ export function ServerPagination({
 
   const rangeStart = total === 0 ? 0 : (page - 1) * limit + 1;
   const rangeEnd = Math.min(page * limit, total);
-  const buttonBase = "flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition";
+  const buttonBase = "flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition";
 
   return (
-    <div className="flex flex-col items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-5 py-3 sm:flex-row">
-      <p className="text-[12px] text-[var(--color-text-muted)]">
+    <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 border-t border-[var(--color-border-default)] px-4 py-3 sm:flex-row sm:items-center sm:px-5">
+      <p className="min-w-0 text-center text-[12px] text-[var(--color-text-muted)] sm:text-left">
         Showing {rangeStart}–{rangeEnd} of {total}
       </p>
-      <div className="flex items-center gap-2">
+      <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:justify-end">
         {page > 1 ? (
           <Link href={hrefFor(page - 1) as Route} className={`${buttonBase} hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]`} aria-label="Previous page">
             <ChevronLeft className="h-4 w-4" />
@@ -54,7 +54,7 @@ export function ServerPagination({
             <ChevronLeft className="h-4 w-4" />
           </span>
         )}
-        <p className="text-[12px] font-semibold text-[var(--color-text-primary)]">
+        <p className="min-w-0 text-center text-[12px] font-semibold text-[var(--color-text-primary)] sm:whitespace-nowrap">
           Page {page} of {totalPages}
         </p>
         {page < totalPages ? (

@@ -335,28 +335,28 @@ export function TableCardBody({
             </div>
 
             {pageSize && totalPages > 1 ? (
-              <div className="flex flex-col items-center justify-between gap-3 border-t border-[var(--color-border-default)] px-5 py-3 sm:flex-row">
-                <p className="text-[12px] text-[var(--color-text-muted)]">
+              <div className="flex min-w-0 flex-col items-stretch justify-between gap-3 border-t border-[var(--color-border-default)] px-4 py-3 sm:flex-row sm:items-center sm:px-5">
+                <p className="min-w-0 text-center text-[12px] text-[var(--color-text-muted)] sm:text-left">
                   Showing {rangeStart}–{rangeEnd} of {sortedRows.length}
                 </p>
-                <div className="flex items-center gap-2">
+                <div className="flex min-w-0 flex-wrap items-center justify-center gap-2 sm:justify-end">
                   <button
                     type="button"
                     onClick={() => setPage((current) => Math.max(1, current - 1))}
                     disabled={currentPage <= 1}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Previous page"
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </button>
-                  <p className="text-[12px] font-semibold text-[var(--color-text-primary)]">
+                  <p className="min-w-0 text-center text-[12px] font-semibold text-[var(--color-text-primary)] sm:whitespace-nowrap">
                     Page {currentPage} of {totalPages}
                   </p>
                   <button
                     type="button"
                     onClick={() => setPage((current) => Math.min(totalPages, current + 1))}
                     disabled={currentPage >= totalPages}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full border border-[var(--color-border-default)] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)] disabled:cursor-not-allowed disabled:opacity-40"
                     aria-label="Next page"
                   >
                     <ChevronRight className="h-4 w-4" />
