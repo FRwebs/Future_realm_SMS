@@ -5,6 +5,7 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleTabs } from "@/components/modules/module-tabs";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getTabContent } from "@/lib/modules/content";
+import { getLiveTabContent } from "@/lib/modules/live";
 import { withKpiTitles } from "@/lib/modules/kpi-titles";
 import { moduleLevelForRole } from "@/lib/modules/school-access";
 import {
@@ -54,7 +55,10 @@ export default async function SchoolModuleTabPage({ params }: PageProps) {
     return <AccessDenied backHref="/command-center/today" />;
   }
 
-  const content = getTabContent(module.code, tab.slug);
+  // A module that has graduated to the API builds its tab from this school's
+  // own records; one that has not keeps rendering the authored content.
+  const content =
+    (await getLiveTabContent(module.code, tab.slug)) ?? getTabContent(module.code, tab.slug);
 
   // Every tab of a module the holder can open is visible to them: the mockup
   // scopes access by module, and by action within it, never by tab.
