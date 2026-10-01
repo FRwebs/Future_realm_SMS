@@ -120,7 +120,6 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
         Scan this with an authenticator app (Google Authenticator, Authy, 1Password), or enter the code manually.
       </p>
       <div className="flex justify-center">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={setup.qrCodeDataUrl} alt="Scan this QR code with your authenticator app" width={200} height={200} className="rounded-[10px] border border-[var(--color-border-default)]" />
       </div>
       <div className="rounded-[8px] bg-[var(--color-bg-subtle)] px-3 py-2 text-center font-[var(--font-mono)] text-[12.5px] tracking-wider text-[var(--color-text-primary)]">
