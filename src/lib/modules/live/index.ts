@@ -1,6 +1,8 @@
 import { getTabContent } from "@/lib/modules/content";
 import type { TabContent } from "@/lib/modules/panels";
 import { classTimetableLiveTab } from "@/lib/modules/live/m3-class-timetable";
+import { reportCardsLiveTab } from "@/lib/modules/live/m6-report-cards";
+import { staffAccessLiveTab } from "@/lib/modules/live/m7-staff-access";
 import { schoolConfigurationLiveTab } from "@/lib/modules/live/m2-school-configuration";
 import { feeManagementLiveTab } from "@/lib/modules/live/m10-fee-management";
 import { studentRecordsLiveTab } from "@/lib/modules/live/m8-student-records";
@@ -18,6 +20,8 @@ export type LiveTabBuilder = (tabSlug: string) => Promise<TabContent | null | un
 const liveModules: Record<string, LiveTabBuilder> = {
   m2: schoolConfigurationLiveTab,
   m3: classTimetableLiveTab,
+  m6: reportCardsLiveTab,
+  m7: staffAccessLiveTab,
   m8: studentRecordsLiveTab,
   m10: feeManagementLiveTab,
 };
