@@ -1,6 +1,7 @@
 import { getTabContent } from "@/lib/modules/content";
 import type { TabContent } from "@/lib/modules/panels";
 import { feeManagementLiveTab } from "@/lib/modules/live/m10-fee-management";
+import { studentRecordsLiveTab } from "@/lib/modules/live/m8-student-records";
 
 /**
  * Where a module stops being written and starts being read.
@@ -13,6 +14,7 @@ import { feeManagementLiveTab } from "@/lib/modules/live/m10-fee-management";
 export type LiveTabBuilder = (tabSlug: string) => Promise<TabContent | null | undefined>;
 
 const liveModules: Record<string, LiveTabBuilder> = {
+  m8: studentRecordsLiveTab,
   m10: feeManagementLiveTab,
 };
 
