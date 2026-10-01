@@ -5,7 +5,6 @@ import {
   text,
   type DrawerSpec,
   type ModuleContent,
-  type PanelTone,
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
