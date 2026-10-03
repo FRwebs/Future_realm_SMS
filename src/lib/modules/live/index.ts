@@ -5,6 +5,7 @@ import { reportCardsLiveTab } from "@/lib/modules/live/m6-report-cards";
 import { staffAccessLiveTab } from "@/lib/modules/live/m7-staff-access";
 import { parentsGuardiansLiveTab } from "@/lib/modules/live/m9-parents-guardians";
 import { approvalsWorkflowLiveTab } from "@/lib/modules/live/m13-approvals-workflow";
+import { communicationCenterLiveTab } from "@/lib/modules/live/m12-communication-center";
 import { auditSecurityLiveTab } from "@/lib/modules/live/m15-audit-security";
 import { commandCenterLiveTab } from "@/lib/modules/live/m1-command-center";
 import { schoolConfigurationLiveTab } from "@/lib/modules/live/m2-school-configuration";
@@ -34,6 +35,7 @@ const liveModules: Record<string, LiveTabBuilder> = {
   m8: studentRecordsLiveTab,
   m9: parentsGuardiansLiveTab,
   m10: feeManagementLiveTab,
+  m12: communicationCenterLiveTab,
   m13: approvalsWorkflowLiveTab,
   m15: auditSecurityLiveTab,
 };

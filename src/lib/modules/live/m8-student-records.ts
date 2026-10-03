@@ -187,13 +187,217 @@ function registryTab(students: StudentRecordView[]): TabContent {
   };
 }
 
+
+type AdmissionRow = {
+  id: string;
+  applicationNo: string;
+  studentName: string;
+  gender: string | null;
+  guardianName: string | null;
+  guardianPhone: string | null;
+  desiredClass: string | null;
+  status: string;
+  submittedAt: string | null;
+  applicationFeeStatus: string | null;
+  feeWaived: boolean;
+  duplicateFlag: boolean;
+  duplicateReason: string | null;
+  reviewNotes: string | null;
+  decidedAt: string | null;
+};
+
+function admissionTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "ENROLLED":
+      return "positive";
+    case "SUBMITTED":
+    case "SCREENING_SCHEDULED":
+    case "REVIEWING":
+      return "attention";
+    case "REJECTED":
+    case "WITHDRAWN":
+      return "negative";
+    default:
+      return "neutral";
+  }
+}
+
+function readableStatus(value: string): string {
+  const words = value.replace(/_/g, " ").toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function admissionDate(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * M08 · Admissions, read from `GET /v1/admissions`.
+ *
+ * The pipeline is a funnel, so the tab counts it as one: how many are in, how
+ * many are waiting on the school, and how many were flagged as a possible
+ * duplicate before anybody spent time on them.
+ */
+function admissionsTab(rows: AdmissionRow[]): TabContent {
+  const byStatus = new Map<string, number>();
+  for (const row of rows) byStatus.set(row.status, (byStatus.get(row.status) ?? 0) + 1);
+
+  const waiting = rows.filter((row) =>
+    ["SUBMITTED", "REVIEWING", "SCREENING_SCHEDULED", "OFFER_SENT"].includes(row.status.toUpperCase()),
+  );
+  const duplicates = rows.filter((row) => row.duplicateFlag);
+  const enrolled = rows.filter((row) => row.status.toUpperCase() === "ENROLLED");
+  const feeUnpaid = rows.filter(
+    (row) => !row.feeWaived && (row.applicationFeeStatus ?? "").toUpperCase() !== "VERIFIED",
+  );
+
+  const tableRows: TableRow[] = rows
+    .slice()
+    .sort((a, b) => new Date(b.submittedAt ?? 0).getTime() - new Date(a.submittedAt ?? 0).getTime())
+    .map((row) => ({
+      cells: [
+        nameCell(row.studentName, row.applicationNo),
+        text(row.desiredClass ?? "—"),
+        text(row.guardianName ?? "—", { tone: row.guardianName ? undefined : "attention" }),
+        pill(readableStatus(row.status), admissionTone(row.status)),
+        text(row.duplicateFlag ? "Possible duplicate" : "—", {
+          tone: row.duplicateFlag ? "negative" : undefined,
+          strong: row.duplicateFlag,
+        }),
+        text(admissionDate(row.submittedAt)),
+        {
+          kind: "action" as const,
+          label: "View",
+          drawer: {
+            kicker: row.applicationNo,
+            title: row.studentName,
+            sub: row.desiredClass ? `Applying for ${row.desiredClass}` : undefined,
+            tone: admissionTone(row.status),
+            readOnly: true,
+            facts: [
+              ["Application", row.applicationNo],
+              ["Applicant", row.studentName],
+              ["Gender", row.gender ? readableStatus(row.gender) : "—"],
+              ["Desired class", row.desiredClass ?? "—"],
+              ["Guardian", row.guardianName ?? "—"],
+              ["Guardian phone", row.guardianPhone ?? "—"],
+              ["Status", readableStatus(row.status)],
+              ["Submitted", admissionDate(row.submittedAt)],
+              ["Decided", admissionDate(row.decidedAt)],
+              ["Application fee", row.feeWaived ? "waived" : readableStatus(row.applicationFeeStatus ?? "unknown")],
+              ["Duplicate flag", row.duplicateFlag ? (row.duplicateReason ?? "flagged") : "none"],
+              ["Review notes", row.reviewNotes?.trim() || "none"],
+            ],
+          },
+        },
+      ],
+      keywords: `${row.studentName} ${row.applicationNo} ${row.guardianName ?? ""} ${row.status}`,
+    }));
+
+  return {
+    title: "Admissions",
+    desc: "Who is trying to get in, and what is holding each one up.",
+    launchers: [{ label: "Registry", href: "/student-records/registry" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "The admissions funnel",
+            per: 4,
+            cards: [
+              { label: "Applications", value: String(rows.length), sub: `${byStatus.size} distinct states` },
+              {
+                label: "Waiting on the school",
+                value: String(waiting.length),
+                sub: waiting.length ? "Submitted, screening or reviewing" : "Nothing outstanding",
+                tone: waiting.length ? "attention" : "positive",
+              },
+              {
+                label: "Enrolled",
+                value: String(enrolled.length),
+                sub: rows.length
+                  ? `${Math.round((enrolled.length / rows.length) * 100)}% of applicants`
+                  : "—",
+                tone: "positive",
+              },
+              {
+                label: "Possible duplicates",
+                value: String(duplicates.length),
+                sub: duplicates.length ? "Flagged before anyone reviewed them" : "None flagged",
+                tone: duplicates.length ? "negative" : "positive",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1.1fr 1fr",
+        panels: [
+          {
+            type: "bars",
+            title: "By state",
+            sub: "Where the funnel is widest.",
+            rows: Array.from(byStatus.entries())
+              .sort((a, b) => b[1] - a[1])
+              .map(([status, count]) => ({
+                label: readableStatus(status),
+                value: count,
+                display: String(count),
+                tone: admissionTone(status),
+              })),
+          },
+          feeUnpaid.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${feeUnpaid.length} application${feeUnpaid.length === 1 ? "" : "s"} without a verified fee`,
+                body: "An application whose fee is neither verified nor waived has not really entered the pipeline, however far down the list it appears.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                title: "Every application's fee is settled",
+                body: "Each one is either verified or explicitly waived.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Applications",
+            sub: "Most recently submitted first.",
+            meta: `${rows.length} applications · ${duplicates.length} flagged`,
+            head: ["Applicant", "Class", "Guardian", "Status", "Flag", "Submitted", ""],
+            per: 12,
+            rows: tableRows,
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function studentRecordsLiveTab(
   tabSlug: string,
 ): Promise<TabContent | undefined> {
-  // Only Registry reads live so far; Admissions and Changes keep their authored
-  // content rather than pretending to be wired.
-  if (tabSlug !== "registry") return undefined;
+  if (tabSlug === "registry") {
+    const students = await apiGet<StudentRecordView[]>("/api/v1/students");
+    return registryTab(students ?? []);
+  }
 
-  const students = await apiGet<StudentRecordView[]>("/api/v1/students");
-  return registryTab(students ?? []);
+  if (tabSlug === "admissions") {
+    const applications = await apiGet<AdmissionRow[]>("/api/v1/admissions");
+    return admissionsTab(applications ?? []);
+  }
+
+  // Changes keeps its authored content: it reads ProfileEditRequest, which has
+  // no school-facing endpoint yet.
+  return undefined;
 }

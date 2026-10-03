@@ -244,13 +244,201 @@ function collectionsTab(data: FinanceDashboardView): TabContent {
   };
 }
 
+
+type PaymentRow = {
+  id: string;
+  reference: string;
+  studentName: string;
+  admissionNumber: string | null;
+  className: string | null;
+  invoiceNumber: string | null;
+  amount: number;
+  status: string;
+  method: string | null;
+  provider: string | null;
+  gatewayStatus: string | null;
+  recordedByName: string | null;
+  paidAt?: string | null;
+};
+
+function paymentTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "SUCCESS":
+      return "positive";
+    case "PENDING":
+      return "attention";
+    case "FAILED":
+    case "REVERSED":
+      return "negative";
+    default:
+      return "neutral";
+  }
+}
+
+function readablePayment(value: string): string {
+  const words = value.replace(/_/g, " ").toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/**
+ * M10 · History, read from `GET /v1/finance/payments`.
+ *
+ * Every payment the school has a record of, in the state the gateway left it.
+ * A pending payment is money the school cannot spend, which is why the tab
+ * counts those separately from what actually cleared rather than totalling the
+ * two together.
+ */
+function historyTab(payments: PaymentRow[]): TabContent {
+  const cleared = payments.filter((row) => row.status.toUpperCase() === "SUCCESS");
+  const pending = payments.filter((row) => row.status.toUpperCase() === "PENDING");
+  const failed = payments.filter((row) => ["FAILED", "REVERSED"].includes(row.status.toUpperCase()));
+  const clearedTotal = cleared.reduce((sum, row) => sum + row.amount, 0);
+  const pendingTotal = pending.reduce((sum, row) => sum + row.amount, 0);
+
+  const methods = new Map<string, number>();
+  for (const row of payments) {
+    const key = readablePayment(row.method ?? "unknown");
+    methods.set(key, (methods.get(key) ?? 0) + 1);
+  }
+
+  return {
+    title: "History",
+    desc: "Every payment the school has a record of, in the state it was left in.",
+    launchers: [{ label: "Collections", href: "/fee-management/collections" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "What has actually come in",
+            per: 4,
+            cards: [
+              {
+                label: "Cleared",
+                value: naira(clearedTotal),
+                sub: `${cleared.length} payment${cleared.length === 1 ? "" : "s"}`,
+                tone: "positive",
+              },
+              {
+                label: "Pending",
+                value: naira(pendingTotal),
+                sub: pending.length
+                  ? `${pending.length} not yet confirmed by the gateway`
+                  : "Nothing in flight",
+                tone: pending.length ? "attention" : "positive",
+              },
+              {
+                label: "Failed or reversed",
+                value: String(failed.length),
+                sub: failed.length ? "Money that never arrived" : "None",
+                tone: failed.length ? "negative" : "positive",
+              },
+              {
+                label: "Methods in use",
+                value: String(methods.size),
+                sub: Array.from(methods.keys()).join(" · ") || "none",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          pending.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${naira(pendingTotal)} is sitting in pending`,
+                body: `${pending.length} of ${payments.length} payments have never been confirmed by the gateway. Until they are, that money is recorded but not collected — it should not be counted against what families still owe.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                title: "Nothing is stuck pending",
+                body: "Every payment on record has reached a final state.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          payments.length
+            ? {
+                type: "table",
+                title: "Payments",
+                sub: "Every record, whatever state it reached.",
+                meta: `${payments.length} payments · ${cleared.length} cleared`,
+                head: ["Paying", "Reference", "Amount", "Method", "Status", "Recorded by", ""],
+                per: 15,
+                rows: payments.map((row) => ({
+                  cells: [
+                    nameCell(row.studentName, row.className ?? row.admissionNumber ?? ""),
+                    text(row.reference, { mono: true }),
+                    text(naira(row.amount), { strong: true }),
+                    text(readablePayment(row.method ?? "—")),
+                    pill(readablePayment(row.status), paymentTone(row.status)),
+                    text(row.recordedByName ?? "—", {
+                      tone: row.recordedByName ? undefined : "attention",
+                    }),
+                    {
+                      kind: "action" as const,
+                      label: "View",
+                      drawer: {
+                        kicker: row.reference,
+                        title: row.studentName,
+                        sub: `${naira(row.amount)} · ${readablePayment(row.status)}`,
+                        tone: paymentTone(row.status),
+                        readOnly: true,
+                        readOnlyNote:
+                          "A payment record is evidence. Corrections are made by recording a reversal, never by editing what was received.",
+                        facts: [
+                          ["Reference", row.reference],
+                          ["Student", row.studentName],
+                          ["Admission number", row.admissionNumber ?? "—"],
+                          ["Class", row.className ?? "—"],
+                          ["Invoice", row.invoiceNumber ?? "—"],
+                          ["Amount", naira(row.amount)],
+                          ["Method", readablePayment(row.method ?? "unknown")],
+                          ["Provider", row.provider ?? "—"],
+                          ["Gateway status", readablePayment(row.gatewayStatus ?? "unknown")],
+                          ["Status", readablePayment(row.status)],
+                          ["Recorded by", row.recordedByName ?? "—"],
+                        ],
+                      },
+                    },
+                  ],
+                  keywords: `${row.studentName} ${row.reference} ${row.status}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "attention",
+                title: "No payment has been recorded",
+                body: "Nothing has been received against any invoice on this school.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function feeManagementLiveTab(
   tabSlug: string,
 ): Promise<TabContent | undefined> {
-  // Only Collections reads live so far. The other three tabs fall through to
-  // the authored content rather than pretending to be wired.
-  if (tabSlug !== "collections") return undefined;
+  if (tabSlug === "collections") {
+    const data = await apiGet<FinanceDashboardView>("/api/v1/finance/dashboard");
+    return collectionsTab(data);
+  }
 
-  const data = await apiGet<FinanceDashboardView>("/api/v1/finance/dashboard");
-  return collectionsTab(data);
+  if (tabSlug === "history") {
+    const payments = await apiGet<PaymentRow[]>("/api/v1/finance/payments");
+    return historyTab(payments ?? []);
+  }
+
+  // Structures and Review stay authored: this school has one FeeStructure row,
+  // so a wired Structures tab would show a single line where the mockup shows a
+  // catalogue, and Review reads a waiver table with no school-facing endpoint.
+  return undefined;
 }
