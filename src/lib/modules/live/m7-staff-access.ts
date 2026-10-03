@@ -477,6 +477,304 @@ function activityTab(feed: AuditFeed): TabContent {
   };
 }
 
+
+type LeaveRow = {
+  id: string;
+  staffId: string;
+  staffName: string | null;
+  employeeNo: string | null;
+  designation: string | null;
+  department: string | null;
+  type: string;
+  reason: string;
+  status: string;
+  startDate: string;
+  endDate: string;
+  reviewedAt: string | null;
+  days: number;
+  active: boolean;
+};
+
+type PayrollFeed = {
+  runs: Array<{
+    id: string;
+    month: number;
+    year: number;
+    status: string;
+    processedAt: string | null;
+    publishedAt: string | null;
+    itemCount: number;
+    netTotal: number;
+    payslipsSent: number;
+    paid: number;
+  }>;
+  staffCount: number;
+  bands: Array<{ band: string; count: number }>;
+  unbanded: number;
+};
+
+function leaveTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "APPROVED":
+      return "positive";
+    case "PENDING":
+      return "attention";
+    case "REJECTED":
+    case "CANCELLED":
+      return "negative";
+    default:
+      return "neutral";
+  }
+}
+
+function dayStamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+const MONTHS = [
+  "January", "February", "March", "April", "May", "June",
+  "July", "August", "September", "October", "November", "December",
+];
+
+/** M07 · Leave, read from `GET /v1/staff/leave`. */
+function leaveTab(rows: LeaveRow[]): TabContent {
+  const pending = rows.filter((row) => row.status.toUpperCase() === "PENDING");
+  const active = rows.filter((row) => row.active);
+  const days = rows.reduce((sum, row) => sum + row.days, 0);
+  const unreviewed = pending.filter((row) => !row.reviewedAt);
+
+  return {
+    title: "Leave",
+    desc: "Who is away, who is asking to be, and what is waiting on a decision.",
+    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Leave on file",
+            per: 4,
+            cards: [
+              { label: "Requests", value: String(rows.length), sub: `${days} days in total` },
+              {
+                label: "Waiting on a decision",
+                value: String(pending.length),
+                sub: pending.length ? "Nobody has answered these" : "Nothing outstanding",
+                tone: pending.length ? "attention" : "positive",
+              },
+              {
+                label: "Away right now",
+                value: String(active.length),
+                sub: active.length ? "Covered by somebody, hopefully" : "Everyone is in",
+                tone: active.length ? "attention" : "positive",
+              },
+              {
+                label: "Longest request",
+                value: rows.length ? `${Math.max(...rows.map((row) => row.days))} days` : "—",
+                sub: "Single stretch",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          unreviewed.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${unreviewed.length} request${unreviewed.length === 1 ? " has" : "s have"} never been looked at`,
+                body: "A leave request with no decision is a teacher who does not know whether to plan cover. The dates arrive whether or not anybody answered.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                title: "Every request has been answered",
+                body: "Nobody is waiting to hear whether they can go.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rows.length
+            ? {
+                type: "table",
+                title: "Requests",
+                sub: "Most recent dates first.",
+                meta: `${rows.length} request${rows.length === 1 ? "" : "s"} · ${pending.length} pending`,
+                head: ["Who", "Type", "From", "To", "Days", "Status", ""],
+                per: 12,
+                rows: rows.map((row) => ({
+                  cells: [
+                    nameCell(row.staffName ?? "—", `${row.designation ?? ""}${row.department ? ` · ${row.department}` : ""}`),
+                    text(row.type),
+                    text(dayStamp(row.startDate)),
+                    text(dayStamp(row.endDate)),
+                    text(String(row.days), { strong: row.days > 5 }),
+                    pill(row.status.toLowerCase(), leaveTone(row.status)),
+                    {
+                      kind: "action" as const,
+                      label: "View",
+                      drawer: {
+                        kicker: row.type,
+                        title: row.staffName ?? "Staff member",
+                        sub: `${row.days} day${row.days === 1 ? "" : "s"} from ${dayStamp(row.startDate)}`,
+                        tone: leaveTone(row.status),
+                        readOnly: true,
+                        facts: [
+                          ["Staff", row.staffName ?? "—"],
+                          ["Employee number", row.employeeNo ?? "—"],
+                          ["Designation", row.designation ?? "—"],
+                          ["Department", row.department ?? "—"],
+                          ["Type", row.type],
+                          ["From", dayStamp(row.startDate)],
+                          ["To", dayStamp(row.endDate)],
+                          ["Days", String(row.days)],
+                          ["Reason", row.reason],
+                          ["Status", row.status.toLowerCase()],
+                          ["Reviewed", row.reviewedAt ? dayStamp(row.reviewedAt) : "not yet"],
+                        ],
+                      },
+                    },
+                  ],
+                  keywords: `${row.staffName ?? ""} ${row.type} ${row.status}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "attention",
+                title: "No leave has been requested",
+                body: "Nothing on this school has been asked for or recorded.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
+/** M07 · Payroll, read from `GET /v1/staff/payroll`. */
+function payrollTab(feed: PayrollFeed): TabContent {
+  const published = feed.runs.filter((run) => run.publishedAt);
+  const lastRun = feed.runs[0];
+  const banded = feed.staffCount - feed.unbanded;
+
+  return {
+    title: "Payroll",
+    desc: "What the school pays, and whether a run has ever been made.",
+    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Payroll as configured",
+            per: 4,
+            cards: [
+              {
+                label: "Runs",
+                value: String(feed.runs.length),
+                sub: feed.runs.length ? `${published.length} published` : "None has ever been made",
+                tone: feed.runs.length ? undefined : "attention",
+              },
+              {
+                label: "Staff on the books",
+                value: String(feed.staffCount),
+                sub: "Would be on a run",
+              },
+              {
+                label: "On a salary band",
+                value: String(banded),
+                sub: feed.unbanded ? `${feed.unbanded} unbanded` : "Everyone is banded",
+                tone: feed.unbanded ? "negative" : "positive",
+              },
+              {
+                label: "Last run",
+                value: lastRun ? `${MONTHS[lastRun.month - 1] ?? lastRun.month} ${lastRun.year}` : "—",
+                sub: lastRun ? lastRun.status.toLowerCase() : "nothing to show",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          feed.unbanded === feed.staffCount && feed.staffCount > 0
+            ? {
+                type: "note",
+                tone: "negative",
+                title: "No member of staff has a salary band",
+                body: `All ${feed.staffCount} staff are unbanded, and no payroll run has ever been processed. A run compiled today would have nothing to compute a basic salary from — the band is the input, not an attribute of the run. Payroll cannot start from this page until the bands are set on the staff records.`,
+              }
+            : feed.unbanded
+              ? {
+                  type: "note",
+                  tone: "attention",
+                  title: `${feed.unbanded} staff have no salary band`,
+                  body: "A run would skip them or compute nothing for them. The band is what a basic salary is derived from.",
+                }
+              : {
+                  type: "note",
+                  tone: "positive",
+                  title: "Every staff record carries a salary band",
+                  body: "A run has everything it needs to compute from.",
+                },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          feed.runs.length
+            ? {
+                type: "table",
+                title: "Runs",
+                sub: "Most recent first.",
+                meta: `${feed.runs.length} run${feed.runs.length === 1 ? "" : "s"}`,
+                head: ["Period", "Status", "Staff", "Net total", "Payslips", "Paid"],
+                per: 12,
+                rows: feed.runs.map((run) => ({
+                  cells: [
+                    text(`${MONTHS[run.month - 1] ?? run.month} ${run.year}`, { strong: true }),
+                    pill(run.status.toLowerCase(), run.publishedAt ? "positive" : "attention"),
+                    text(String(run.itemCount)),
+                    text(run.netTotal.toLocaleString("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 })),
+                    text(`${run.payslipsSent}/${run.itemCount}`),
+                    text(`${run.paid}/${run.itemCount}`, {
+                      tone: run.paid === run.itemCount ? "positive" : "attention",
+                    }),
+                  ],
+                  keywords: `${run.year} ${run.status}`,
+                })),
+              }
+            : {
+                type: "table",
+                title: "Salary bands",
+                sub: "What the staff records say today, since no run exists to show instead.",
+                head: ["Band", "Staff"],
+                per: 10,
+                rows: feed.bands.map((band) => ({
+                  cells: [
+                    text(band.band, {
+                      tone: band.band === "Unbanded" ? "negative" : undefined,
+                      strong: true,
+                    }),
+                    text(String(band.count)),
+                  ],
+                  keywords: band.band,
+                })),
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "directory") {
     const staff = await apiGet<StaffRow[]>("/api/v1/staff");
@@ -506,8 +804,19 @@ export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | 
     return activityTab(feed);
   }
 
-  // Payroll, Leave and Appraisal stay authored. PayrollRun and PayrollItem have
-  // no rows on this school, LeaveRequest has two but no school-facing endpoint,
-  // and nothing persists an appraisal at all.
+  if (tabSlug === "leave") {
+    const rows = await apiGet<LeaveRow[]>("/api/v1/staff/leave");
+    return leaveTab(rows ?? []);
+  }
+
+  if (tabSlug === "payroll") {
+    const feed = await apiGet<PayrollFeed>("/api/v1/staff/payroll");
+    if (!feed) return undefined;
+    return payrollTab(feed);
+  }
+
+  // Appraisal stays authored, and this one is not a seeding gap: there is no
+  // appraisal model in the schema at all. Wiring it means designing what an
+  // appraisal is before any page can read one.
   return undefined;
 }

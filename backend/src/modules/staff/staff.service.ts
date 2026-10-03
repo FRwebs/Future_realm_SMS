@@ -220,6 +220,112 @@ export class StaffService {
     });
   }
 
+
+  /**
+   * This school's leave requests.
+   *
+   * LeaveRequest has always been written and never had a school-facing read —
+   * M07's Leave tab described a register nobody could open.
+   */
+  async listLeave(session: SessionPayload) {
+    const rows = await prisma.leaveRequest.findMany({
+      where: { schoolId: session.schoolId },
+      include: {
+        staff: {
+          select: {
+            employeeNo: true,
+            designation: true,
+            department: { select: { name: true } },
+            user: { select: { firstName: true, lastName: true, preferredName: true, role: true } }
+          }
+        }
+      },
+      orderBy: { startDate: "desc" }
+    });
+
+    const now = Date.now();
+    return rows.map((row) => {
+      const person = row.staff?.user;
+      const start = row.startDate.getTime();
+      const end = row.endDate.getTime();
+      return {
+        id: row.id,
+        staffId: row.staffId,
+        staffName: person
+          ? person.preferredName?.trim() || [person.firstName, person.lastName].filter(Boolean).join(" ")
+          : null,
+        employeeNo: row.staff?.employeeNo ?? null,
+        designation: row.staff?.designation ?? null,
+        department: row.staff?.department?.name ?? null,
+        type: row.type,
+        reason: row.reason,
+        status: String(row.status),
+        startDate: row.startDate.toISOString(),
+        endDate: row.endDate.toISOString(),
+        reviewedAt: row.reviewedAt?.toISOString() ?? null,
+        // Whole days inclusive, which is how a school counts leave.
+        days: Math.max(1, Math.round((end - start) / 86_400_000) + 1),
+        active: start <= now && now <= end
+      };
+    });
+  }
+
+  /**
+   * Payroll runs, their items, and the salary bands behind them.
+   *
+   * The bands come from StaffProfile rather than from a run, so the tab can say
+   * something true about how this school pays even before a single run exists —
+   * which is the state it is in today.
+   */
+  async listPayroll(session: SessionPayload) {
+    const [runs, staff] = await Promise.all([
+      prisma.payrollRun.findMany({
+        where: { schoolId: session.schoolId },
+        include: { items: { select: { netSalary: true, basicSalary: true, payslipSent: true, paidAt: true } } },
+        orderBy: [{ year: "desc" }, { month: "desc" }]
+      }),
+      prisma.staffProfile.findMany({
+        where: { schoolId: session.schoolId },
+        select: {
+          id: true,
+          employeeNo: true,
+          designation: true,
+          salaryBand: true,
+          employmentType: true,
+          employmentDate: true,
+          department: { select: { name: true } },
+          user: { select: { firstName: true, lastName: true, preferredName: true } }
+        }
+      })
+    ]);
+
+    const bands = new Map<string, number>();
+    for (const member of staff) {
+      const key = member.salaryBand?.trim() || "Unbanded";
+      bands.set(key, (bands.get(key) ?? 0) + 1);
+    }
+
+    return {
+      runs: runs.map((run) => ({
+        id: run.id,
+        month: run.month,
+        year: run.year,
+        status: String(run.status),
+        processedAt: run.processedAt?.toISOString() ?? null,
+        publishedAt: run.publishedAt?.toISOString() ?? null,
+        itemCount: run.items.length,
+        netTotal: run.items.reduce((sum, item) => sum + Number(item.netSalary), 0),
+        payslipsSent: run.items.filter((item) => item.payslipSent).length,
+        paid: run.items.filter((item) => item.paidAt).length
+      })),
+      staffCount: staff.length,
+      bands: Array.from(bands.entries())
+        .map(([band, count]) => ({ band, count }))
+        .sort((a, b) => b.count - a.count),
+      unbanded: staff.filter((member) => !member.salaryBand?.trim()).length
+    };
+  }
+
   async listStaff(session: SessionPayload, query: Record<string, string | undefined>) {
     const search = query.search?.toLowerCase().trim();
     const staffType = query.staffType && query.staffType !== "all" ? query.staffType : undefined;
