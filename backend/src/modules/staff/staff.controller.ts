@@ -28,6 +28,23 @@ export class StaffController {
     return this.staffService.ok(this.staffService.createStaff(session, body), "Staff member created.");
   }
 
+
+  /**
+   * Declared before `:staffId` on purpose — Nest matches in order, so a literal
+   * route placed after it is read as a staff id and 404s.
+   */
+  @Get("leave")
+  @RequirePermission("staff.view")
+  leave(@CurrentSession() session: SessionPayload) {
+    return this.staffService.ok(this.staffService.listLeave(session));
+  }
+
+  @Get("payroll")
+  @RequirePermission("staff.view")
+  payroll(@CurrentSession() session: SessionPayload) {
+    return this.staffService.ok(this.staffService.listPayroll(session));
+  }
+
   @Get(":staffId")
   @RequirePermission("staff.view")
   detail(@CurrentSession() session: SessionPayload, @Param("staffId") staffId: string) {
