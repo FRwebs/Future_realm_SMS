@@ -25,19 +25,4 @@ EXPOSE 4000
 # current). Needed because Render's free plan doesn't support preDeployCommand;
 # a JSON-array CMD with an explicit shell avoids the argv-splitting quirks that
 # a service-level `dockerCommand:` override in render.yaml runs into.
-#
-# TEMPORARY — remove once production is green. The first statement clears one
-# specific stuck migration so this container can boot at all. Production holds a
-# failed `_prisma_migrations` row for 20260920223920_scheme_of_work_fees_payroll
-# (a `db push` had already created its objects, so it died on 42710), and while a
-# failed row is present `migrate deploy` applies nothing and exits non-zero — so
-# this CMD never reached `node` and the API crash-looped. The free plan has no
-# Shell tab to fix it by hand from, hence doing it here.
-#
-# `|| true` is the whole safety story: once the row is cleared, later boots get
-# P3012 "not in a failed state" and carry on. It names one migration, so it can
-# never touch another. Still, delete these two lines after the first good deploy
-# — left in, it would auto-retry that migration forever if it ever legitimately
-# failed, which is exactly the signal you want to see instead.
-# See docs/production-migration-recovery.md.
-CMD ["sh", "-c", "npx prisma migrate resolve --rolled-back 20260920223920_scheme_of_work_fees_payroll || true; npx prisma migrate deploy && node dist/api/backend/src/main.js"]
+CMD ["sh", "-c", "npx prisma migrate deploy && node dist/api/backend/src/main.js"]
