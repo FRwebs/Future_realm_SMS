@@ -3,6 +3,8 @@ import type { TabContent } from "@/lib/modules/panels";
 import { classTimetableLiveTab } from "@/lib/modules/live/m3-class-timetable";
 import { reportCardsLiveTab } from "@/lib/modules/live/m6-report-cards";
 import { staffAccessLiveTab } from "@/lib/modules/live/m7-staff-access";
+import { parentsGuardiansLiveTab } from "@/lib/modules/live/m9-parents-guardians";
+import { approvalsWorkflowLiveTab } from "@/lib/modules/live/m13-approvals-workflow";
 import { commandCenterLiveTab } from "@/lib/modules/live/m1-command-center";
 import { schoolConfigurationLiveTab } from "@/lib/modules/live/m2-school-configuration";
 import { attendanceLiveTab } from "@/lib/modules/live/m4-attendance";
@@ -29,7 +31,9 @@ const liveModules: Record<string, LiveTabBuilder> = {
   m6: reportCardsLiveTab,
   m7: staffAccessLiveTab,
   m8: studentRecordsLiveTab,
+  m9: parentsGuardiansLiveTab,
   m10: feeManagementLiveTab,
+  m13: approvalsWorkflowLiveTab,
 };
 
 /** Which modules read from the API today — used by tests and by the module page. */
