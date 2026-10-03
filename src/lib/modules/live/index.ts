@@ -4,6 +4,8 @@ import { classTimetableLiveTab } from "@/lib/modules/live/m3-class-timetable";
 import { reportCardsLiveTab } from "@/lib/modules/live/m6-report-cards";
 import { staffAccessLiveTab } from "@/lib/modules/live/m7-staff-access";
 import { schoolConfigurationLiveTab } from "@/lib/modules/live/m2-school-configuration";
+import { attendanceLiveTab } from "@/lib/modules/live/m4-attendance";
+import { scoreEntryResultsLiveTab } from "@/lib/modules/live/m5-score-entry-results";
 import { feeManagementLiveTab } from "@/lib/modules/live/m10-fee-management";
 import { studentRecordsLiveTab } from "@/lib/modules/live/m8-student-records";
 
@@ -20,6 +22,8 @@ export type LiveTabBuilder = (tabSlug: string) => Promise<TabContent | null | un
 const liveModules: Record<string, LiveTabBuilder> = {
   m2: schoolConfigurationLiveTab,
   m3: classTimetableLiveTab,
+  m4: attendanceLiveTab,
+  m5: scoreEntryResultsLiveTab,
   m6: reportCardsLiveTab,
   m7: staffAccessLiveTab,
   m8: studentRecordsLiveTab,
