@@ -183,9 +183,331 @@ export function directoryTab(staff: StaffRow[]): TabContent {
   };
 }
 
-export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | undefined> {
-  if (tabSlug !== "directory") return undefined;
 
-  const staff = await apiGet<StaffRow[]>("/api/v1/staff");
-  return directoryTab(staff ?? []);
+type RoleRow = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  isSystem: boolean;
+  systemRole: string | null;
+  permissionsCount: number;
+  staffCount: number;
+};
+
+type PermissionGroup = {
+  module: string;
+  permissions: Array<{ key: string; label: string; description: string; module: string }>;
+};
+
+type AuditEntry = {
+  id: string;
+  action: string;
+  entityType: string;
+  actor: string | null;
+  actorRole: string | null;
+  ipAddress: string | null;
+  createdAt: string;
+};
+
+type AuditFeed = {
+  entries: AuditEntry[];
+  total: number;
+  byAction: Array<{ action: string; count: number }>;
+  byActor: Array<{ actor: string; count: number }>;
+};
+
+function readableKey(value: string): string {
+  const words = value.replace(/_/g, " ").toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function whenStamp(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString("en-NG", {
+    day: "numeric",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+/**
+ * M07 · Permissions, read from the roles-management endpoints.
+ *
+ * The thing worth seeing here is not the catalogue but the shape of it: how
+ * many roles exist, how many are actually held by somebody, and how wide the
+ * widest one is. A role nobody holds is not access control, it is furniture.
+ */
+function permissionsTab(roles: RoleRow[], groups: PermissionGroup[]): TabContent {
+  const held = roles.filter((role) => role.staffCount > 0);
+  const unheld = roles.filter((role) => role.staffCount === 0);
+  const totalKeys = groups.reduce((sum, group) => sum + group.permissions.length, 0);
+  const widest = roles.slice().sort((a, b) => b.permissionsCount - a.permissionsCount)[0];
+  const custom = roles.filter((role) => !role.isSystem);
+
+  return {
+    title: "Permissions",
+    desc: "Which roles exist, who holds them, and how much each one can reach.",
+    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "How access is shaped",
+            per: 4,
+            cards: [
+              { label: "Roles defined", value: String(roles.length), sub: `${custom.length} custom` },
+              {
+                label: "Roles actually held",
+                value: String(held.length),
+                sub: `${unheld.length} held by nobody`,
+                tone: unheld.length > held.length ? "attention" : "positive",
+              },
+              {
+                label: "Permission keys",
+                value: String(totalKeys),
+                sub: `Across ${groups.length} areas`,
+              },
+              {
+                label: "Widest role",
+                value: widest ? String(widest.permissionsCount) : "—",
+                sub: widest ? widest.name : "none",
+                tone: widest && widest.permissionsCount > totalKeys * 0.8 ? "attention" : undefined,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          unheld.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${unheld.length} of the ${roles.length} roles are held by nobody`,
+                body: "An unheld role still carries its permissions, so it is a grant waiting to be made rather than one in force. Worth pruning the ones this school will never use — a shorter list is one somebody can actually audit.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                title: "Every role is held by somebody",
+                body: "Nothing in the list is a grant waiting to happen.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Roles",
+            sub: "Most widely held first.",
+            meta: `${roles.length} roles · ${totalKeys} permission keys`,
+            head: ["Role", "Holders", "Permissions", "Kind", ""],
+            per: 12,
+            rows: roles
+              .slice()
+              .sort((a, b) => b.staffCount - a.staffCount || b.permissionsCount - a.permissionsCount)
+              .map((role) => ({
+                cells: [
+                  nameCell(role.name, role.description ?? ""),
+                  text(String(role.staffCount), {
+                    tone: role.staffCount ? "positive" : "attention",
+                    strong: role.staffCount > 0,
+                  }),
+                  text(String(role.permissionsCount)),
+                  pill(role.isSystem ? "System" : "Custom", role.isSystem ? "neutral" : "positive"),
+                  {
+                    kind: "action" as const,
+                    label: "View",
+                    drawer: {
+                      kicker: role.isSystem ? "System role" : "Custom role",
+                      title: role.name,
+                      sub: role.description ?? undefined,
+                      readOnly: true,
+                      readOnlyNote:
+                        "A system role's permissions are defined by the platform. Changing what somebody can reach is done by moving them between roles, which keeps the change on the audit trail.",
+                      facts: [
+                        ["Role", role.name],
+                        ["Slug", role.slug],
+                        ["Kind", role.isSystem ? "System" : "Custom"],
+                        ["Maps to", role.systemRole ?? "—"],
+                        ["Held by", `${role.staffCount} staff`],
+                        ["Permissions", String(role.permissionsCount)],
+                        ["Description", role.description ?? "none"],
+                      ],
+                    },
+                  },
+                ],
+                keywords: `${role.name} ${role.slug} ${role.systemRole ?? ""}`,
+              })),
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "bars",
+            title: "Permission keys by area",
+            sub: "Where the surface area is.",
+            rows: groups
+              .slice()
+              .sort((a, b) => b.permissions.length - a.permissions.length)
+              .slice(0, 10)
+              .map((group) => ({
+                label: group.module,
+                value: group.permissions.length,
+                display: String(group.permissions.length),
+              })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * M07 · Activity, read from `GET /v1/audit/recent`.
+ *
+ * Same trail M15 reads, asked a different question: not what happened to the
+ * records, but which members of staff are doing things — and whether anybody
+ * is acting without leaving a name behind.
+ */
+function activityTab(feed: AuditFeed): TabContent {
+  const named = feed.entries.filter((entry) => entry.actor);
+  const system = feed.entries.filter((entry) => !entry.actor);
+  const roles = new Map<string, number>();
+  for (const entry of named) {
+    const key = entry.actorRole ? readableKey(entry.actorRole) : "Unknown";
+    roles.set(key, (roles.get(key) ?? 0) + 1);
+  }
+
+  return {
+    title: "Activity",
+    desc: "What staff have been doing, from the school's own audit trail.",
+    launchers: [{ label: "Full audit log", href: "/audit-security/audit-log" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Who is acting on this school",
+            per: 4,
+            cards: [
+              { label: "Entries read", value: String(feed.entries.length), sub: `of ${feed.total.toLocaleString()} on file` },
+              {
+                label: "Named people",
+                value: String(feed.byActor.length),
+                sub: feed.byActor.length ? `Busiest: ${feed.byActor[0]?.actor}` : "Nobody named",
+              },
+              {
+                label: "By the system",
+                value: String(system.length),
+                sub: system.length ? "No person attached" : "Every action has a name",
+                tone: system.length ? "attention" : "positive",
+              },
+              {
+                label: "Roles acting",
+                value: String(roles.size),
+                sub: Array.from(roles.keys()).slice(0, 2).join(" · ") || "none",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1.1fr 1fr",
+        panels: [
+          {
+            type: "bars",
+            title: "Busiest staff",
+            sub: "Counted off the entries read, not the whole table.",
+            rows: feed.byActor.map((row) => ({
+              label: row.actor,
+              value: row.count,
+              display: String(row.count),
+            })),
+          },
+          {
+            type: "bars",
+            title: "By role",
+            sub: "Which seats the work is being done from.",
+            rows: Array.from(roles.entries())
+              .sort((a, b) => b[1] - a[1])
+              .slice(0, 8)
+              .map(([role, count]) => ({ label: role, value: count, display: String(count) })),
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Recent staff activity",
+            sub: "Most recent first.",
+            meta: `${named.length} named · ${system.length} by the system`,
+            head: ["Who", "Role", "Action", "Record", "From", "When"],
+            per: 15,
+            rows: feed.entries.map((entry) => ({
+              cells: [
+                text(entry.actor ?? "System", {
+                  strong: Boolean(entry.actor),
+                  tone: entry.actor ? undefined : "attention",
+                }),
+                text(entry.actorRole ? readableKey(entry.actorRole) : "—"),
+                pill(readableKey(entry.action), "neutral"),
+                text(entry.entityType),
+                text(entry.ipAddress ?? "—", { mono: Boolean(entry.ipAddress) }),
+                text(whenStamp(entry.createdAt)),
+              ],
+              keywords: `${entry.actor ?? "system"} ${entry.action} ${entry.entityType}`,
+            })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | undefined> {
+  if (tabSlug === "directory") {
+    const staff = await apiGet<StaffRow[]>("/api/v1/staff");
+    return directoryTab(staff ?? []);
+  }
+
+  if (tabSlug === "permissions") {
+    // roles-management is addressed by school in the path and dashboard/context
+    // does not carry the id, so the school record supplies it. One extra call,
+    // and it is the only place the id is available without a session here.
+    const school = await apiGet<{ record: { id: string } }>(
+      "/api/v1/configuration/school-information",
+    );
+    const schoolId = school?.record?.id;
+    if (!schoolId) return undefined;
+
+    const base = `/api/v1/school/${schoolId}/roles-management`;
+    const [roles, groups] = await Promise.all([
+      apiGet<RoleRow[]>(`${base}/roles`),
+      apiGet<PermissionGroup[]>(`${base}/permissions`).catch(() => [] as PermissionGroup[]),
+    ]);
+    return permissionsTab(roles ?? [], groups ?? []);
+  }
+
+  if (tabSlug === "activity") {
+    const feed = await apiGet<AuditFeed>("/api/v1/audit/recent?take=100");
+    return activityTab(feed);
+  }
+
+  // Payroll, Leave and Appraisal stay authored. PayrollRun and PayrollItem have
+  // no rows on this school, LeaveRequest has two but no school-facing endpoint,
+  // and nothing persists an appraisal at all.
+  return undefined;
 }
