@@ -27,6 +27,7 @@ import { PartnersModule } from "./modules/partners/partners.module";
 import { ProfileModule } from "./modules/profile/profile.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { ApprovalsModule } from "./modules/approvals/approvals.module";
+import { AuditModule } from "./modules/audit/audit.module";
 import { CommandCenterModule } from "./modules/command-center/command-center.module";
 import { RolesManagementModule } from "./modules/roles-management/roles-management.module";
 import { SchoolDirectoryExtrasModule } from "./modules/school-directory-extras/school-directory-extras.module";
@@ -69,6 +70,7 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     ReportsModule,
     ApprovalsModule,
     CommandCenterModule,
+    AuditModule,
     RolesManagementModule,
     SchoolDirectoryExtrasModule,
     ProfileModule,
