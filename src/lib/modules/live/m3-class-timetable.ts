@@ -308,6 +308,233 @@ function timetableTab(entries: TimetableRow[]): TabContent {
   };
 }
 
+
+type SchemeRow = {
+  id: string;
+  status: string;
+  submittedAt: string | null;
+  approvedAt: string | null;
+  subjectName: string;
+  subjectCode: string | null;
+  className: string;
+  level: string | null;
+  arm: string | null;
+  departmentName: string | null;
+  teacherName: string | null;
+  totalWeeks: number;
+  coveredWeeks: number;
+  teachingWeeks: number;
+  coveragePercent: number;
+};
+
+function coverageTone(percent: number): PanelTone {
+  if (percent >= 75) return "positive";
+  if (percent >= 40) return "attention";
+  return "negative";
+}
+
+function schemeTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "APPROVED":
+      return "positive";
+    case "SUBMITTED":
+      return "attention";
+    case "RETURNED":
+      return "negative";
+    default:
+      return "neutral";
+  }
+}
+
+function schemeStatus(value: string): string {
+  const words = value.replace(/_/g, " ").toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+function schemeDate(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * M03 · Teaching, read from `GET /v1/scheme-of-work`.
+ *
+ * A scheme is the only record of what a class is *meant* to be taught, so the
+ * tab reads coverage against it rather than against the timetable: a period
+ * that ran teaches nothing if the topic it was for is still uncovered with
+ * three weeks of term left.
+ */
+function teachingTab(rows: SchemeRow[]): TabContent {
+  const approved = rows.filter((row) => row.status.toUpperCase() === "APPROVED");
+  const unapproved = rows.filter((row) => row.status.toUpperCase() !== "APPROVED");
+  const behind = rows.filter((row) => row.coveragePercent < 50);
+  const teacherless = rows.filter((row) => !row.teacherName);
+  const totalWeeks = rows.reduce((sum, row) => sum + row.teachingWeeks, 0);
+  const coveredWeeks = rows.reduce((sum, row) => sum + row.coveredWeeks, 0);
+  const overall = totalWeeks ? Math.round((coveredWeeks / totalWeeks) * 100) : 0;
+
+  const departments = new Map<string, { covered: number; total: number }>();
+  for (const row of rows) {
+    const key = row.departmentName?.trim() || "Unassigned";
+    const entry = departments.get(key) ?? { covered: 0, total: 0 };
+    entry.covered += row.coveredWeeks;
+    entry.total += row.teachingWeeks;
+    departments.set(key, entry);
+  }
+
+  return {
+    title: "Teaching",
+    desc: "What each class is meant to be taught, and how much of it has been.",
+    launchers: [{ label: "Timetable", href: "/class-timetable/timetable" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Scheme of work coverage",
+            per: 4,
+            cards: [
+              {
+                label: "Schemes",
+                value: String(rows.length),
+                sub: `${approved.length} approved`,
+                tone: unapproved.length ? "attention" : "positive",
+              },
+              {
+                label: "Overall coverage",
+                value: `${overall}%`,
+                sub: `${coveredWeeks} of ${totalWeeks} teaching weeks`,
+                tone: coverageTone(overall),
+              },
+              {
+                label: "Behind halfway",
+                value: String(behind.length),
+                sub: behind.length ? "Under 50% covered" : "Nothing is behind",
+                tone: behind.length ? "negative" : "positive",
+              },
+              {
+                label: "No teacher named",
+                value: String(teacherless.length),
+                sub: teacherless.length ? "Nobody owns the scheme" : "Every scheme has an owner",
+                tone: teacherless.length ? "negative" : "positive",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          unapproved.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${unapproved.length} scheme${unapproved.length === 1 ? "" : "s"} ${unapproved.length === 1 ? "is" : "are"} not approved`,
+                body: "An unapproved scheme is being taught from anyway — the lessons happen on the timetable whether or not anybody signed the plan off. That is the gap between what was agreed and what is being delivered.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                title: "Every scheme has been approved",
+                body: "What is being taught is what was signed off.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rows.length
+            ? {
+                type: "table",
+                title: "Schemes of work",
+                sub: "Least covered first, because that is where the term runs out.",
+                meta: `${rows.length} scheme${rows.length === 1 ? "" : "s"} · ${overall}% covered`,
+                head: ["Subject", "Class", "Teacher", "Covered", "Coverage", "Status", ""],
+                per: 12,
+                rows: rows
+                  .slice()
+                  .sort((a, b) => a.coveragePercent - b.coveragePercent)
+                  .map((row) => ({
+                    cells: [
+                      nameCell(row.subjectName, row.subjectCode ?? row.departmentName ?? ""),
+                      text(row.className),
+                      text(row.teacherName ?? "none", {
+                        tone: row.teacherName ? undefined : "negative",
+                        strong: !row.teacherName,
+                      }),
+                      text(`${row.coveredWeeks}/${row.teachingWeeks}`),
+                      text(`${row.coveragePercent}%`, {
+                        tone: coverageTone(row.coveragePercent),
+                        strong: true,
+                      }),
+                      pill(schemeStatus(row.status), schemeTone(row.status)),
+                      {
+                        kind: "action" as const,
+                        label: "View",
+                        drawer: {
+                          kicker: row.className,
+                          title: row.subjectName,
+                          sub: `${row.coveragePercent}% of ${row.teachingWeeks} teaching weeks covered`,
+                          tone: coverageTone(row.coveragePercent),
+                          readOnly: true,
+                          facts: [
+                            ["Subject", `${row.subjectName}${row.subjectCode ? ` (${row.subjectCode})` : ""}`],
+                            ["Class", row.className],
+                            ["Level", row.level ?? "—"],
+                            ["Arm", row.arm ?? "—"],
+                            ["Department", row.departmentName ?? "—"],
+                            ["Teacher", row.teacherName ?? "none named"],
+                            ["Weeks in the scheme", String(row.totalWeeks)],
+                            ["Teaching weeks", String(row.teachingWeeks)],
+                            ["Covered", String(row.coveredWeeks)],
+                            ["Coverage", `${row.coveragePercent}%`],
+                            ["Status", schemeStatus(row.status)],
+                            ["Submitted", schemeDate(row.submittedAt)],
+                            ["Approved", schemeDate(row.approvedAt)],
+                          ],
+                        },
+                      },
+                    ],
+                    keywords: `${row.subjectName} ${row.className} ${row.teacherName ?? ""}`,
+                  })),
+              }
+            : {
+                type: "note",
+                tone: "attention",
+                title: "No scheme of work exists",
+                body: "Without one there is no record of what a class is meant to be taught, so coverage cannot be measured at all.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "bars",
+            title: "Coverage by department",
+            sub: "Weakest first.",
+            rows: Array.from(departments.entries())
+              .map(([label, entry]) => ({
+                label,
+                value: entry.total ? Math.round((entry.covered / entry.total) * 100) : 0,
+              }))
+              .sort((a, b) => a.value - b.value)
+              .map((entry) => ({
+                label: entry.label,
+                value: entry.value,
+                display: `${entry.value}%`,
+                tone: coverageTone(entry.value),
+              })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function classTimetableLiveTab(
   tabSlug: string,
 ): Promise<TabContent | undefined> {
@@ -326,5 +553,13 @@ export async function classTimetableLiveTab(
     return timetableTab(entries);
   }
 
+  if (tabSlug === "teaching") {
+    const schemes = await apiGet<SchemeRow[]>("/api/v1/scheme-of-work");
+    return teachingTab(schemes ?? []);
+  }
+
+  // Subjects and Coverage stay authored. Subjects would repeat what M02's
+  // Curriculum already reads off the same 88 records, and Coverage wants
+  // period-level attendance against the timetable, which nothing records.
   return undefined;
 }
