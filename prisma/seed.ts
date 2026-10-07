@@ -903,6 +903,213 @@ async function assertSeedAllowed() {
   }
 }
 
+
+/**
+ * The operational tables the product reads but nothing ever wrote.
+ *
+ * Five surfaces were rendering authored figures purely because their tables
+ * were empty on a seeded school: the messaging wallet, offline sync, fee
+ * waivers, the approvals queue and contact consent. An empty table is
+ * indistinguishable from a broken read, so a reviewer could not tell which of
+ * those pages worked.
+ *
+ * Everything here resolves its own foreign keys from what the seed already
+ * created, so it can be moved or re-run without depending on main()'s locals.
+ */
+async function seedOperationalExtras(schoolId: string) {
+  const [principal, bursar, teacher, students, invoices, guardians] = await Promise.all([
+    prisma.user.findFirst({ where: { schoolId, role: "PRINCIPAL" }, select: { id: true } }),
+    prisma.user.findFirst({ where: { schoolId, role: "ACCOUNTANT" }, select: { id: true } }),
+    prisma.user.findFirst({ where: { schoolId, role: "TEACHER" }, select: { id: true } }),
+    prisma.student.findMany({
+      where: { schoolId, status: "ACTIVE" },
+      select: { id: true, firstName: true, lastName: true },
+      take: 4,
+      orderBy: { admissionNumber: "asc" },
+    }),
+    prisma.invoice.findMany({
+      where: { schoolId, balance: { gt: 0 } },
+      select: { id: true, studentId: true, invoiceNumber: true, balance: true },
+      take: 3,
+      orderBy: { dueOn: "asc" },
+    }),
+    prisma.user.findMany({ where: { schoolId, role: "PARENT" }, select: { id: true }, take: 12 }),
+  ]);
+
+  // A wallet that is comfortably funded but under its own threshold, so the
+  // Command Center's credits card has something to be amber about.
+  await prisma.notificationWallet.upsert({
+    where: { schoolId },
+    update: {},
+    create: {
+      schoolId,
+      smsBalance: 1_840,
+      whatsappBalance: 320,
+      lowBalanceThreshold: 2_000,
+      lastToppedUpAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 11),
+    },
+  });
+
+  // Offline work in both states: two registers still waiting to go up, and one
+  // score entry that already synced, so "last synced" has something to show.
+  if (teacher) {
+    const existingDrafts = await prisma.syncDraft.count({ where: { schoolId, userId: teacher.id } });
+    if (existingDrafts === 0) {
+      await prisma.syncDraft.createMany({
+        data: [
+          {
+            schoolId,
+            userId: teacher.id,
+            type: "ATTENDANCE",
+            payload: { classArm: "JSS 1 - Silver", markedFor: "2026-10-05", entries: 28 },
+            createdAt: new Date(Date.now() - 1000 * 60 * 90),
+          },
+          {
+            schoolId,
+            userId: teacher.id,
+            type: "ATTENDANCE",
+            payload: { classArm: "JSS 2 - Gold", markedFor: "2026-10-05", entries: 31 },
+            createdAt: new Date(Date.now() - 1000 * 60 * 45),
+          },
+          {
+            schoolId,
+            userId: teacher.id,
+            type: "SCORE_ENTRY",
+            payload: { subject: "Biology", classArm: "SSS 1 Emerald", entries: 24 },
+            createdAt: new Date(Date.now() - 1000 * 60 * 60 * 26),
+            syncedAt: new Date(Date.now() - 1000 * 60 * 60 * 25),
+          },
+        ],
+      });
+    }
+  }
+
+  // One waiver waiting on a decision and one already granted, so the review
+  // surface has both a pending row and a settled one to show.
+  const existingWaivers = await prisma.feeWaiver.count({ where: { schoolId } });
+  if (existingWaivers === 0 && invoices.length) {
+    const [first, second] = invoices;
+    if (first) {
+      await prisma.feeWaiver.create({
+        data: {
+          schoolId,
+          studentId: first.studentId,
+          invoiceId: first.id,
+          waiverType: "PARTIAL",
+          amount: 45_000,
+          reason: "Hardship — father's business closed this term, two children on the roll.",
+          requestedById: bursar?.id,
+          status: "PENDING",
+        },
+      });
+    }
+    if (second) {
+      await prisma.feeWaiver.create({
+        data: {
+          schoolId,
+          studentId: second.studentId,
+          invoiceId: second.id,
+          waiverType: "PERCENTAGE",
+          amount: 0,
+          percentage: 25,
+          reason: "Staff child concession, approved at the start of the session.",
+          requestedById: bursar?.id,
+          approvedById: principal?.id,
+          approvedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 9),
+          status: "APPROVED",
+        },
+      });
+    }
+  }
+
+  // Decisions in the one queue everything lands in. Routed to the role rather
+  // than a person, which is the case the queue exists to handle, and raised by
+  // somebody other than the principal so the no-self-approval rule can be seen
+  // to work rather than only asserted.
+  const existingApprovals = await prisma.approvalRequest.count({ where: { schoolId } });
+  if (existingApprovals === 0) {
+    const child = students[0];
+    await prisma.approvalRequest.createMany({
+      data: [
+        {
+          schoolId,
+          kind: "SCORE_CORRECTION",
+          subjectType: "ResultSheet",
+          title: "Biology SSS 1 Emerald — raise a CA score from 12 to 17",
+          summary: "Marked against the wrong rubric; the script has been re-marked.",
+          blocking: "1 teacher · 24 cards",
+          priority: 80,
+          requestedById: teacher?.id,
+          assigneeRole: "PRINCIPAL",
+          escalatesAt: new Date(Date.now() - 1000 * 60 * 60 * 24),
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 3),
+        },
+        {
+          schoolId,
+          kind: "FEE_WAIVER",
+          subjectType: "FeeWaiver",
+          title: child
+            ? `Fee waiver — ${child.firstName} ${child.lastName}`
+            : "Fee waiver request",
+          summary: "Hardship waiver of ₦45,000 requested by the bursar.",
+          blocking: "1 invoice",
+          priority: 50,
+          requestedById: bursar?.id,
+          assigneeRole: "PRINCIPAL",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 6),
+        },
+        {
+          schoolId,
+          kind: "MASS_COMMUNICATION",
+          subjectType: "Announcement",
+          title: "SMS to every guardian — mid-term break dates",
+          summary: "681 recipients, above the 150 threshold that needs sign-off.",
+          blocking: "681 recipients",
+          priority: 30,
+          requestedById: bursar?.id,
+          assigneeRole: "PRINCIPAL",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 20),
+        },
+        {
+          schoolId,
+          kind: "RECORD_CHANGE",
+          subjectType: "Student",
+          title: "Correct a date of birth on the register",
+          summary: "Birth certificate produced; the register is two years out.",
+          priority: 20,
+          requestedById: teacher?.id,
+          assigneeRole: "PRINCIPAL",
+          status: "APPROVED",
+          decisionNote: "Certificate seen and copied to the file.",
+          decidedById: principal?.id,
+          decidedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 2),
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 5),
+        },
+      ],
+    });
+  }
+
+  // Consent per guardian, with a few opted out — a consent table where everyone
+  // said yes cannot show what the page is for.
+  const existingConsents = await prisma.consentRecord.count({
+    where: { userId: { in: guardians.map((guardian) => guardian.id) } },
+  });
+  if (existingConsents === 0 && guardians.length) {
+    await prisma.consentRecord.createMany({
+      data: guardians.flatMap((guardian, index) => [
+        { userId: guardian.id, channel: "SMS", optedIn: true },
+        {
+          userId: guardian.id,
+          channel: "EMAIL",
+          optedIn: index % 4 !== 0,
+          optedOutAt: index % 4 === 0 ? new Date(Date.now() - 1000 * 60 * 60 * 24 * 30) : null,
+        },
+      ]),
+      skipDuplicates: true,
+    });
+  }
+}
+
 async function main() {
   let stage = 0;
   const logStage = (label: string) => {
@@ -5802,6 +6009,8 @@ async function main() {
       take: 5,
     }),
   ]);
+
+  await seedOperationalExtras(school.id);
 
   console.log("\n================ SEED COMPLETE ================");
   console.log(
