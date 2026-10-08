@@ -33,4 +33,11 @@ export class CommunicationsController {
       data: await this.communicationsService.createAnnouncement(session.schoolId, session.userId, body)
     };
   }
+
+  @Get("wallet")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT", "BURSAR")
+  async wallet(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.communicationsService.wallet(session) };
+  }
+
 }

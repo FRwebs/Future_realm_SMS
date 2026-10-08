@@ -19,4 +19,11 @@ export class ParentsController {
   async list(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.parentsService.listParents(session) };
   }
+
+  @Get("consent")
+  @RequirePermission("parents.view")
+  async consent(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.parentsService.listConsent(session) };
+  }
+
 }

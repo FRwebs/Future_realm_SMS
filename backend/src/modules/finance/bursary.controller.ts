@@ -342,4 +342,11 @@ export class BursaryController {
     assertBursaryRole(session);
     return { ok: true, data: await this.financeService.updateFinanceSettings(session.schoolId, session.userId, body, request.ip) };
   }
+
+  @Get("waivers")
+  @Roles(...bursaryOversightRoles)
+  async waivers(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.financeService.listWaivers(session.schoolId) };
+  }
+
 }

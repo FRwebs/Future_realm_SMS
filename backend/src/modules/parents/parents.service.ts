@@ -69,4 +69,61 @@ export class ParentsService {
       })),
     }));
   }
+
+  /**
+   * Contact consent per guardian.
+   *
+   * ConsentRecord is keyed by user rather than by school, so the school scope
+   * comes from the guardians themselves — there is no schoolId on the record to
+   * filter by.
+   */
+  async listConsent(session: SessionPayload) {
+    const guardians = await prisma.guardian.findMany({
+      where: { schoolId: session.schoolId },
+      select: {
+        id: true,
+        userId: true,
+        firstName: true,
+        lastName: true,
+        phone: true,
+        email: true,
+        relationship: true
+      }
+    });
+
+    const userIds = guardians.map((guardian) => guardian.userId).filter((id): id is string => Boolean(id));
+    const consents = userIds.length
+      ? await prisma.consentRecord.findMany({ where: { userId: { in: userIds } } })
+      : [];
+
+    const byUser = new Map<string, Array<{ channel: string; optedIn: boolean; optedOutAt: string | null }>>();
+    for (const record of consents) {
+      const list = byUser.get(record.userId) ?? [];
+      list.push({
+        channel: record.channel,
+        optedIn: record.optedIn,
+        optedOutAt: record.optedOutAt?.toISOString() ?? null
+      });
+      byUser.set(record.userId, list);
+    }
+
+    return guardians.map((guardian) => {
+      const records = (guardian.userId ? byUser.get(guardian.userId) : undefined) ?? [];
+      const channel = (name: string) => records.find((record) => record.channel === name);
+      return {
+        id: guardian.id,
+        guardianName: [guardian.firstName, guardian.lastName].filter(Boolean).join(" "),
+        relationship: guardian.relationship ?? null,
+        phone: guardian.phone ?? null,
+        email: guardian.email ?? null,
+        // No record at all is not consent. It is an unanswered question, and
+        // the page has to be able to tell the two apart.
+        recorded: records.length > 0,
+        sms: channel("SMS")?.optedIn ?? null,
+        emailOptIn: channel("EMAIL")?.optedIn ?? null,
+        optedOutAt: records.find((record) => record.optedOutAt)?.optedOutAt ?? null
+      };
+    });
+  }
+
 }

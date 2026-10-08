@@ -2644,4 +2644,40 @@ export class FinanceService {
       },
     });
   }
+
+  /** Fee waivers, which until now had no school-facing read at all. */
+  async listWaivers(schoolId: string) {
+    const rows = await prisma.feeWaiver.findMany({
+      where: { schoolId },
+      include: {
+        student: { select: { firstName: true, lastName: true, admissionNumber: true, currentClass: { select: { name: true, arm: true } } } },
+        invoice: { select: { invoiceNumber: true, total: true, balance: true } },
+        requestedBy: { select: { firstName: true, lastName: true } },
+        approvedBy: { select: { firstName: true, lastName: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      studentName: [row.student?.firstName, row.student?.lastName].filter(Boolean).join(" "),
+      admissionNumber: row.student?.admissionNumber ?? null,
+      className: row.student?.currentClass
+        ? `${row.student.currentClass.name}${row.student.currentClass.arm ? ` - ${row.student.currentClass.arm}` : ""}`
+        : null,
+      invoiceNumber: row.invoice?.invoiceNumber ?? null,
+      invoiceTotal: Number(row.invoice?.total ?? 0),
+      invoiceBalance: Number(row.invoice?.balance ?? 0),
+      waiverType: String(row.waiverType),
+      amount: Number(row.amount),
+      percentage: row.percentage === null ? null : Number(row.percentage),
+      reason: row.reason,
+      status: String(row.status),
+      requestedBy: row.requestedBy ? [row.requestedBy.firstName, row.requestedBy.lastName].filter(Boolean).join(" ") : null,
+      approvedBy: row.approvedBy ? [row.approvedBy.firstName, row.approvedBy.lastName].filter(Boolean).join(" ") : null,
+      approvedAt: row.approvedAt?.toISOString() ?? null,
+      createdAt: row.createdAt.toISOString()
+    }));
+  }
+
 }
