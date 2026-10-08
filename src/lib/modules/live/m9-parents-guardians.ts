@@ -180,6 +180,134 @@ function guardiansTab(rows: GuardianRow[]): TabContent {
   };
 }
 
+
+type ConsentRow = {
+  id: string;
+  guardianName: string;
+  relationship: string | null;
+  phone: string | null;
+  email: string | null;
+  recorded: boolean;
+  sms: boolean | null;
+  emailOptIn: boolean | null;
+  optedOutAt: string | null;
+};
+
+/**
+ * M09 · Consent, read from `GET /v1/parents/consent`.
+ *
+ * The distinction the page exists to make is between a guardian who said no
+ * and a guardian who was never asked. Both are "not consented" and only one of
+ * them is a decision, so no record at all is reported as its own state rather
+ * than folded into the opt-outs.
+ */
+function consentTab(rows: ConsentRow[]): TabContent {
+  const unrecorded = rows.filter((row) => !row.recorded);
+  const smsOut = rows.filter((row) => row.recorded && row.sms === false);
+  const emailOut = rows.filter((row) => row.recorded && row.emailOptIn === false);
+  const bothIn = rows.filter((row) => row.sms && row.emailOptIn);
+
+  const cell = (value: boolean | null, recorded: boolean) =>
+    !recorded
+      ? pill("never asked", "negative")
+      : value
+        ? pill("opted in", "positive")
+        : pill("opted out", "attention");
+
+  return {
+    title: "Consent",
+    desc: "Who has agreed to be contacted, who has refused, and who was never asked.",
+    launchers: [{ label: "Guardians", href: "/parents-guardians/guardians" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Permission to make contact",
+            per: 4,
+            cards: [
+              { label: "Guardians", value: String(rows.length), sub: "On the roll" },
+              {
+                label: "Never asked",
+                value: String(unrecorded.length),
+                sub: unrecorded.length ? "No consent record at all" : "Everyone has been asked",
+                tone: unrecorded.length ? "negative" : "positive",
+              },
+              {
+                label: "Opted out of email",
+                value: String(emailOut.length),
+                sub: "A decision, not a gap",
+                tone: emailOut.length ? "attention" : "positive",
+              },
+              {
+                label: "Reachable both ways",
+                value: String(bothIn.length),
+                sub: `of ${rows.length} guardians`,
+                tone: bothIn.length === rows.length ? "positive" : undefined,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          unrecorded.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${unrecorded.length} guardian${unrecorded.length === 1 ? " has" : "s have"} no consent record at all`,
+                body: "That is not the same as a refusal. Nobody asked them, so the school has no basis either way — and sending to them is a decision being made by default rather than on purpose.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "Every guardian has been asked",
+                body: `${emailOut.length} said no to email and ${smsOut.length} to SMS. Those are decisions on record.`,
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rows.length
+            ? {
+                type: "table",
+                title: "Consent by guardian",
+                sub: "Never-asked first, because that is the gap worth closing.",
+                meta: `${rows.length} guardians · ${unrecorded.length} unasked`,
+                head: ["Guardian", "SMS", "Email", "Phone", "Email address"],
+                per: 12,
+                rows: rows
+                  .slice()
+                  .sort((a, b) => Number(a.recorded) - Number(b.recorded))
+                  .map((row) => ({
+                    cells: [
+                      nameCell(row.guardianName, row.relationship ?? ""),
+                      cell(row.sms, row.recorded),
+                      cell(row.emailOptIn, row.recorded),
+                      text(row.phone ?? "—", { mono: Boolean(row.phone) }),
+                      text(row.email ?? "none on file", {
+                        tone: row.email ? undefined : "attention",
+                      }),
+                    ],
+                    keywords: `${row.guardianName} ${row.recorded ? "recorded" : "unasked"}`,
+                  })),
+              }
+            : {
+                type: "note",
+                tone: "attention",
+                title: "No guardian is on file",
+                body: "There is nobody to hold consent for.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function parentsGuardiansLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -189,9 +317,12 @@ export async function parentsGuardiansLiveTab(
     return guardiansTab(rows);
   }
 
-  // Submissions and Consent stay authored. Submissions reads ProfileEditRequest
-  // and Consent reads ConsentRecord; neither has a school-facing endpoint, and
-  // ConsentRecord has no rows on this school at all, so wiring them today would
-  // trade written figures for empty ones without being any more true.
+  if (tabSlug === "consent") {
+    const rows = await apiGet<ConsentRow[]>("/api/v1/parents/consent");
+    return consentTab(rows ?? []);
+  }
+
+  // Submissions stays authored: it reads ProfileEditRequest, which has no rows
+  // and no school-facing endpoint.
   return undefined;
 }

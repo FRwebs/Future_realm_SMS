@@ -424,6 +424,185 @@ function historyTab(payments: PaymentRow[]): TabContent {
   };
 }
 
+
+type WaiverRow = {
+  id: string;
+  studentName: string;
+  admissionNumber: string | null;
+  className: string | null;
+  invoiceNumber: string | null;
+  invoiceTotal: number;
+  invoiceBalance: number;
+  waiverType: string;
+  amount: number;
+  percentage: number | null;
+  reason: string;
+  status: string;
+  requestedBy: string | null;
+  approvedBy: string | null;
+  approvedAt: string | null;
+  createdAt: string;
+};
+
+function waiverTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "APPROVED":
+      return "positive";
+    case "PENDING":
+      return "attention";
+    default:
+      return "negative";
+  }
+}
+
+function waiverWhen(iso: string | null): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/** What a waiver is actually worth, which differs by type. */
+function waiverValue(row: WaiverRow): number {
+  if (row.waiverType.toUpperCase() === "PERCENTAGE" && row.percentage !== null) {
+    return Math.round((row.invoiceTotal * row.percentage) / 100);
+  }
+  if (row.waiverType.toUpperCase() === "FULL") return row.invoiceTotal;
+  return row.amount;
+}
+
+/**
+ * M10 · Review, read from `GET /v1/bursary/waivers`.
+ *
+ * A waiver is money the school has decided not to collect, so the figure worth
+ * leading on is what has been given away and what is being asked for — not how
+ * many rows there are.
+ */
+function reviewTab(rows: WaiverRow[]): TabContent {
+  const pending = rows.filter((row) => row.status.toUpperCase() === "PENDING");
+  const approved = rows.filter((row) => row.status.toUpperCase() === "APPROVED");
+  const givenAway = approved.reduce((sum, row) => sum + waiverValue(row), 0);
+  const requested = pending.reduce((sum, row) => sum + waiverValue(row), 0);
+
+  return {
+    title: "Review",
+    desc: "Fee waivers — money the school has decided not to collect.",
+    launchers: [{ label: "Collections", href: "/fee-management/collections" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "What has been waived",
+            per: 4,
+            cards: [
+              {
+                label: "Waived so far",
+                value: naira(givenAway),
+                sub: `${approved.length} approved`,
+                tone: "positive",
+              },
+              {
+                label: "Awaiting a decision",
+                value: naira(requested),
+                sub: pending.length ? `${pending.length} request(s)` : "Nothing waiting",
+                tone: pending.length ? "attention" : "positive",
+              },
+              { label: "Requests on file", value: String(rows.length), sub: "All time" },
+              {
+                label: "Refused",
+                value: String(rows.filter((row) => row.status.toUpperCase() === "REJECTED").length),
+                sub: "Declined outright",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          pending.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${naira(requested)} is waiting on somebody's decision`,
+                body: "Until a waiver is decided, the family still owes the full invoice and the school still counts it as collectable. Both sides are planning against a figure that is not settled.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                title: "Every waiver has been decided",
+                body: "Nothing is sitting between a family and a settled invoice.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rows.length
+            ? {
+                type: "table",
+                title: "Waiver requests",
+                sub: "Most recent first.",
+                meta: `${rows.length} request${rows.length === 1 ? "" : "s"} · ${naira(givenAway)} waived`,
+                head: ["Student", "Invoice", "Kind", "Worth", "Status", "Decided by", ""],
+                per: 12,
+                rows: rows.map((row) => ({
+                  cells: [
+                    nameCell(row.studentName, row.className ?? row.admissionNumber ?? ""),
+                    text(row.invoiceNumber ?? "—", { mono: Boolean(row.invoiceNumber) }),
+                    text(
+                      row.waiverType.toUpperCase() === "PERCENTAGE" && row.percentage !== null
+                        ? `${row.percentage}%`
+                        : row.waiverType.toLowerCase(),
+                    ),
+                    text(naira(waiverValue(row)), { strong: true }),
+                    pill(row.status.toLowerCase(), waiverTone(row.status)),
+                    text(row.approvedBy ?? "—", {
+                      tone: row.approvedBy ? undefined : "attention",
+                    }),
+                    {
+                      kind: "action" as const,
+                      label: "View",
+                      drawer: {
+                        kicker: row.invoiceNumber ?? "Waiver",
+                        title: row.studentName,
+                        sub: `${naira(waiverValue(row))} off ${naira(row.invoiceTotal)}`,
+                        tone: waiverTone(row.status),
+                        readOnly: true,
+                        facts: [
+                          ["Student", row.studentName],
+                          ["Class", row.className ?? "—"],
+                          ["Invoice", row.invoiceNumber ?? "—"],
+                          ["Invoice total", naira(row.invoiceTotal)],
+                          ["Outstanding", naira(row.invoiceBalance)],
+                          ["Kind", row.waiverType.toLowerCase()],
+                          ["Worth", naira(waiverValue(row))],
+                          ["Reason", row.reason],
+                          ["Requested by", row.requestedBy ?? "—"],
+                          ["Status", row.status.toLowerCase()],
+                          ["Decided by", row.approvedBy ?? "not yet"],
+                          ["Decided", waiverWhen(row.approvedAt)],
+                        ],
+                      },
+                    },
+                  ],
+                  keywords: `${row.studentName} ${row.invoiceNumber ?? ""} ${row.status}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "neutral",
+                title: "No waiver has been requested",
+                body: "Nobody has asked for fees to be reduced on this school.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function feeManagementLiveTab(
   tabSlug: string,
 ): Promise<TabContent | undefined> {
@@ -437,8 +616,12 @@ export async function feeManagementLiveTab(
     return historyTab(payments ?? []);
   }
 
-  // Structures and Review stay authored: this school has one FeeStructure row,
-  // so a wired Structures tab would show a single line where the mockup shows a
-  // catalogue, and Review reads a waiver table with no school-facing endpoint.
+  if (tabSlug === "review") {
+    const waivers = await apiGet<WaiverRow[]>("/api/v1/bursary/waivers");
+    return reviewTab(waivers ?? []);
+  }
+
+  // Structures stays authored: this school has one FeeStructure row, so a wired
+  // tab would show a single line where the mockup shows a catalogue.
   return undefined;
 }

@@ -6,6 +6,8 @@ import { staffAccessLiveTab } from "@/lib/modules/live/m7-staff-access";
 import { parentsGuardiansLiveTab } from "@/lib/modules/live/m9-parents-guardians";
 import { approvalsWorkflowLiveTab } from "@/lib/modules/live/m13-approvals-workflow";
 import { communicationCenterLiveTab } from "@/lib/modules/live/m12-communication-center";
+import { subscriptionBillingLiveTab } from "@/lib/modules/live/m11-subscription-billing";
+import { syncSupportLiveTab } from "@/lib/modules/live/m16-sync-support";
 import { analyticsReportsLiveTab } from "@/lib/modules/live/m14-analytics-reports";
 import { auditSecurityLiveTab } from "@/lib/modules/live/m15-audit-security";
 import { commandCenterLiveTab } from "@/lib/modules/live/m1-command-center";
@@ -36,10 +38,12 @@ const liveModules: Record<string, LiveTabBuilder> = {
   m8: studentRecordsLiveTab,
   m9: parentsGuardiansLiveTab,
   m10: feeManagementLiveTab,
+  m11: subscriptionBillingLiveTab,
   m12: communicationCenterLiveTab,
   m13: approvalsWorkflowLiveTab,
   m14: analyticsReportsLiveTab,
   m15: auditSecurityLiveTab,
+  m16: syncSupportLiveTab,
 };
 
 /** Which modules read from the API today — used by tests and by the module page. */

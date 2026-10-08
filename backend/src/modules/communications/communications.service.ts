@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import { z } from "zod";
 
+import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { AnnouncementView } from "../../../../src/lib/domain/types";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
@@ -60,4 +61,34 @@ export class CommunicationsService {
       publishedAt: record.publishedAt.toISOString()
     };
   }
+
+  /**
+   * The school's messaging balance.
+   *
+   * A school with no wallet row has never set messaging up, which the page has
+   * to say differently from a wallet that has run dry — so the absence is
+   * reported rather than coerced to zero.
+   */
+  async wallet(session: SessionPayload) {
+    const [wallet, guardians, announcements] = await Promise.all([
+      prisma.notificationWallet.findUnique({ where: { schoolId: session.schoolId } }),
+      prisma.guardian.count({ where: { schoolId: session.schoolId } }),
+      prisma.announcement.count({ where: { schoolId: session.schoolId } })
+    ]);
+
+    return {
+      configured: Boolean(wallet),
+      smsBalance: wallet?.smsBalance ?? 0,
+      whatsappBalance: wallet?.whatsappBalance ?? 0,
+      lowBalanceThreshold: wallet?.lowBalanceThreshold ?? 0,
+      low: wallet ? wallet.smsBalance <= wallet.lowBalanceThreshold : false,
+      lastToppedUpAt: wallet?.lastToppedUpAt?.toISOString() ?? null,
+      guardians,
+      announcements,
+      // How many school-wide SMS sends the balance covers, which is the figure
+      // a bursar actually decides on — a raw credit count is not one.
+      sendsCovered: wallet && guardians > 0 ? Math.floor(wallet.smsBalance / guardians) : 0
+    };
+  }
+
 }
