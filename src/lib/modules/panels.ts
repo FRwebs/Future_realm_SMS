@@ -247,6 +247,42 @@ export type RosterPanel = {
   emptyNote?: string;
 };
 
+
+/**
+ * A score sheet: a class's marks for one subject, entered together.
+ *
+ * Sibling of RosterPanel. Both are "a value per child, submitted as one
+ * action", which is the shape triggers cannot express — but the values differ
+ * enough (a choice of four versus two bounded numbers) that one panel trying
+ * to be both would be worse than two that are each clear.
+ */
+export type ScoreStudent = {
+  id: string;
+  name: string;
+  admissionNumber: string | null;
+  continuousAssessment: number | null;
+  exam: number | null;
+  /** A published or approved sheet cannot be typed into, and says so. */
+  locked: boolean;
+  sheetStatus: string | null;
+};
+
+export type ScoreSheetPanel = {
+  type: "scores";
+  title: string;
+  sub?: string;
+  classId: string;
+  subjectId: string;
+  subjectName: string;
+  students: ScoreStudent[];
+  /** Highest mark each column accepts, from the school's components. */
+  maxCa: number;
+  maxExam: number;
+  endpoint: string;
+  done: string;
+  emptyNote?: string;
+};
+
 export type BlockerItem = {
   title: string;
   detail: string;
@@ -345,6 +381,7 @@ export type Panel =
       acts?: PanelAction[];
     }
   | RosterPanel
+  | ScoreSheetPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
   | {
       type: "tiles";

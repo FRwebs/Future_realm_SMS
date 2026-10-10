@@ -51,6 +51,21 @@ export const gradeSchema = z.object({
   principalComment: z.string().max(1000).optional()
 });
 
+
+export const scoreSheetSchema = z.object({
+  classId: z.string().min(1, "Choose a class before saving scores."),
+  subjectId: z.string().min(1, "Choose a subject before saving scores."),
+  entries: z
+    .array(
+      z.object({
+        studentId: z.string().min(1),
+        continuousAssessment: z.coerce.number().min(0).max(40),
+        exam: z.coerce.number().min(0).max(60)
+      })
+    )
+    .min(1, "Enter a score for at least one student.")
+});
+
 const gradingSchemeSchema = z.object({
   name: z.string().min(3).max(120),
   description: z.string().max(500).optional(),
@@ -2858,4 +2873,149 @@ export class AcademicsService {
       topPerformers
     };
   }
+
+  /**
+   * A class's students for one subject, with whatever has already been scored.
+   *
+   * Entering scores is one action over a whole class, so the grid needs the
+   * children, their current marks and whether the sheet is already locked —
+   * a teacher typing into a published sheet should be told before they type,
+   * not after they press save.
+   */
+  async scoreRoster(session: SessionPayload, query: { classId?: string; subjectId?: string }) {
+    const schoolId = session.schoolId;
+    const [classes, subjects, term] = await Promise.all([
+      prisma.classRoom.findMany({
+        where: { schoolId },
+        select: { id: true, name: true, arm: true, _count: { select: { students: true } } },
+        orderBy: [{ name: "asc" }, { arm: "asc" }]
+      }),
+      prisma.subject.findMany({
+        where: { schoolId, isActive: true },
+        select: { id: true, name: true, code: true },
+        orderBy: { name: "asc" }
+      }),
+      prisma.term.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true, name: true } })
+    ]);
+
+    const classId = query.classId ?? classes.find((item) => item._count.students > 0)?.id ?? classes[0]?.id ?? null;
+    const subjectId = query.subjectId ?? subjects[0]?.id ?? null;
+
+    const students = classId
+      ? await prisma.student.findMany({
+          where: { schoolId, currentClassId: classId, status: "ACTIVE" },
+          select: { id: true, firstName: true, lastName: true, admissionNumber: true },
+          orderBy: [{ lastName: "asc" }, { firstName: "asc" }]
+        })
+      : [];
+
+    const sheets = term && students.length
+      ? await prisma.resultSheet.findMany({
+          where: { schoolId, termId: term.id, studentId: { in: students.map((student) => student.id) } },
+          select: {
+            studentId: true,
+            status: true,
+            lockedAt: true,
+            publishedAt: true,
+            scoreEntries: {
+              where: subjectId ? { subjectId } : undefined,
+              select: { score: true, assessmentComponent: { select: { code: true } } }
+            }
+          }
+        })
+      : [];
+
+    const bySheet = new Map(sheets.map((sheet) => [sheet.studentId, sheet]));
+
+    return {
+      classes: classes.map((item) => ({
+        id: item.id,
+        name: item.arm ? `${item.name} - ${item.arm}` : item.name,
+        students: item._count.students
+      })),
+      subjects,
+      classId,
+      subjectId,
+      term: term ? { id: term.id, name: term.name } : null,
+      students: students.map((student) => {
+        const sheet = bySheet.get(student.id);
+        const entries = sheet?.scoreEntries ?? [];
+        const find = (code: string) =>
+          entries.find((entry) => entry.assessmentComponent?.code === code)?.score ?? null;
+        const locked = Boolean(
+          sheet?.publishedAt ||
+            sheet?.lockedAt ||
+            ["UNDER_REVIEW", "APPROVED", "PUBLISHED"].includes(sheet?.status ?? "")
+        );
+        return {
+          id: student.id,
+          name: [student.firstName, student.lastName].filter(Boolean).join(" "),
+          admissionNumber: student.admissionNumber,
+          continuousAssessment: find("CA"),
+          exam: find("EXAM"),
+          locked,
+          sheetStatus: sheet?.status ? String(sheet.status) : null
+        };
+      })
+    };
+  }
+
+  /**
+   * A whole class's scores for one subject.
+   *
+   * Each entry goes through upsertGrade rather than writing ScoreEntry
+   * directly, so the rules that matter still apply per child: the teacher must
+   * be allowed to score that subject, a published or locked sheet is refused,
+   * and the grading band is resolved from the school's active scheme. A loop
+   * over the real path is worth more than a faster one that quietly skips it.
+   *
+   * One child failing does not discard the rest — the response names who was
+   * saved and who was refused, because a class where two sheets are locked
+   * should still record the other twenty-eight.
+   */
+  async recordScoreSheet(session: SessionPayload, payload: unknown, draft = true) {
+    const parsed = scoreSheetSchema.parse(payload);
+
+    const enrolled = await prisma.student.findMany({
+      where: {
+        schoolId: session.schoolId,
+        currentClassId: parsed.classId,
+        id: { in: parsed.entries.map((entry) => entry.studentId) }
+      },
+      select: { id: true }
+    });
+    const enrolledIds = new Set(enrolled.map((student) => student.id));
+    const strays = parsed.entries.filter((entry) => !enrolledIds.has(entry.studentId));
+    if (strays.length) {
+      throw new BadRequestException(`${strays.length} of those students are not on this class's roll.`);
+    }
+
+    const saved: string[] = [];
+    const refused: Array<{ studentId: string; reason: string }> = [];
+
+    for (const entry of parsed.entries) {
+      try {
+        await this.upsertGrade(
+          session,
+          {
+            studentId: entry.studentId,
+            classId: parsed.classId,
+            subjectId: parsed.subjectId,
+            continuousAssessment: entry.continuousAssessment,
+            exam: entry.exam
+          },
+          draft
+        );
+        saved.push(entry.studentId);
+      } catch (error) {
+        refused.push({
+          studentId: entry.studentId,
+          reason: error instanceof Error ? error.message : "Could not be saved."
+        });
+      }
+    }
+
+    return { saved: saved.length, refused };
+  }
+
 }

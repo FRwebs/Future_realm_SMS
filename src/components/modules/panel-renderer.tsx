@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 
 import { AttendanceGrid } from "@/components/modules/attendance-grid";
+import { ScoreGrid } from "@/components/modules/score-grid";
 import { ModuleDrawer } from "@/components/modules/module-drawer";
 import type {
   DrawerSpec,
@@ -1922,6 +1923,10 @@ function Field({
 
   if (panel.type === "roster") {
     return <AttendanceGrid panel={panel} />;
+  }
+
+  if (panel.type === "scores") {
+    return <ScoreGrid panel={panel} />;
   }
 
   // pending
