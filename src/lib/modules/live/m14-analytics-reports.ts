@@ -1,6 +1,5 @@
 import { apiGet } from "@/lib/api/server";
 import {
-  name as nameCell,
   pill,
   text,
   type PanelTone,

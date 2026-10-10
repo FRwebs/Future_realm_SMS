@@ -39,7 +39,6 @@ type GuardianRow = {
   canReceiveEmail: boolean;
 };
 
-const CHECK_ICON = "M20 6 9 17l-5-5";
 
 function channelTone(channel: string | null): PanelTone {
   switch ((channel ?? "").toUpperCase()) {
