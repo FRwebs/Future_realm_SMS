@@ -215,6 +215,38 @@ export type StepItem = {
  * One thing standing between the school and a deadline. Each names the record
  * that clears it and the person who owns it — never a bare count.
  */
+
+/**
+ * A register: the class's roll, taken as one action.
+ *
+ * This is the first panel whose interaction the vocabulary cannot express as
+ * triggers — a status per child, submitted together. The panel carries the
+ * roll and the endpoint; the renderer owns the grid, exactly as `form` does.
+ */
+export type RosterStudent = {
+  id: string;
+  name: string;
+  admissionNumber: string | null;
+  /** What is already marked for this day, if anything. */
+  status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED" | null;
+};
+
+export type RosterPanel = {
+  type: "roster";
+  title: string;
+  sub?: string;
+  meta?: string;
+  date: string;
+  classId: string;
+  classes: Array<{ id: string; name: string; students: number }>;
+  students: RosterStudent[];
+  /** Where the whole register is posted, in one request. */
+  endpoint: string;
+  done: string;
+  /** Shown instead of the grid when there is nobody to mark. */
+  emptyNote?: string;
+};
+
 export type BlockerItem = {
   title: string;
   detail: string;
@@ -312,6 +344,7 @@ export type Panel =
       icon?: string;
       acts?: PanelAction[];
     }
+  | RosterPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
   | {
       type: "tiles";

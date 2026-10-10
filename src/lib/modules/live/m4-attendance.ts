@@ -424,6 +424,139 @@ function logTab(marks: MarkRow[]): TabContent {
 
 const CHECK_ICON = "M20 6 9 17l-5-5";
 
+
+type Roster = {
+  classes: Array<{ id: string; name: string; students: number }>;
+  classId: string | null;
+  date: string;
+  term: { id: string; name: string } | null;
+  alreadyMarked: number;
+  students: Array<{
+    id: string;
+    name: string;
+    admissionNumber: string | null;
+    status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED" | null;
+  }>;
+};
+
+/**
+ * M04 · Mark — taking the register.
+ *
+ * The only tab in the module that writes. Its panel is a roster rather than a
+ * table of triggers, because a register is one status per child submitted
+ * together, and no arrangement of links expresses that.
+ */
+function markTab(roster: Roster): TabContent {
+  const current = roster.classes.find((item) => item.id === roster.classId);
+  const marked = roster.students.filter((student) => student.status).length;
+  const unmarkedClasses = roster.classes.filter((item) => item.students > 0).length;
+
+  return {
+    title: "Mark",
+    desc: roster.term
+      ? `Take a class register for today. Marks are recorded against ${roster.term.name}.`
+      : "Take a class register for today.",
+    launchers: [{ label: "Register", href: "/attendance/register" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Today's register",
+            per: 4,
+            cards: [
+              {
+                label: "Class",
+                value: current?.name ?? "—",
+                sub: current ? `${current.students} on the roll` : "No class selected",
+              },
+              {
+                label: "Already marked",
+                value: `${marked} of ${roster.students.length}`,
+                sub: marked ? "Re-saving corrects these" : "Nothing taken yet today",
+                tone: marked === roster.students.length && marked > 0 ? "positive" : "attention",
+              },
+              { label: "Classes with a roll", value: String(unmarkedClasses), sub: "Across the school" },
+              {
+                label: "Date",
+                value: roster.date,
+                sub: roster.term ? roster.term.name : "No current term",
+                tone: roster.term ? undefined : "negative",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          !roster.term
+            ? {
+                type: "note",
+                tone: "negative",
+                title: "No current term, so a register cannot be saved",
+                body: "Attendance is recorded against a term. Until one is marked current in School Configuration, the register below has nowhere to write to.",
+              }
+            : marked
+              ? {
+                  type: "note",
+                  tone: "attention",
+                  title: `${marked} ${marked === 1 ? "child has" : "children have"} already been marked today`,
+                  body: "Those marks are pre-filled below. Saving again corrects them rather than recording a second attendance for the same day — the register is a statement about a day, not a log of taps.",
+                }
+              : {
+                  type: "note",
+                  tone: "positive",
+                  icon: CHECK_ICON,
+                  title: "Nothing has been marked for this class today",
+                  body: "Start from everyone present and correct the exceptions, which is how it is done on paper.",
+                },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "roster",
+            title: current ? `${current.name} — ${roster.date}` : "Register",
+            sub: "One tap per child. P present, L late, E excused, A absent.",
+            date: roster.date,
+            classId: roster.classId ?? "",
+            classes: roster.classes,
+            students: roster.students,
+            endpoint: "/api/v1/attendance/register",
+            done: "Register saved.",
+            emptyNote:
+              "No child is enrolled in this class, so there is no register to take. Student Records is where a child is placed on a roll.",
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Other classes",
+            sub: "Each is marked on its own register.",
+            head: ["Class", "On the roll"],
+            per: 10,
+            rows: roster.classes.map((item) => ({
+              cells: [
+                text(item.name, { strong: item.id === roster.classId }),
+                text(String(item.students), {
+                  tone: item.students ? undefined : "attention",
+                }),
+              ],
+              keywords: item.name,
+            })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function attendanceLiveTab(tabSlug: string): Promise<TabContent | null | undefined> {
   if (tabSlug === "register" || tabSlug === "compliance") {
     const rows = await apiGet<SummaryRow[]>("/api/v1/attendance/summary");
@@ -437,9 +570,11 @@ export async function attendanceLiveTab(tabSlug: string): Promise<TabContent | n
     return logTab(marks);
   }
 
-  // Mark stays authored. Taking a register is a per-student grid of radio
-  // buttons posted as one body, and the panel vocabulary has no control for
-  // that — a table of triggers cannot express it. Wiring it means a dedicated
-  // component, not a content builder.
+  if (tabSlug === "mark") {
+    const roster = await apiGet<Roster>("/api/v1/attendance/roster");
+    if (!roster) return undefined;
+    return markTab(roster);
+  }
+
   return undefined;
 }
