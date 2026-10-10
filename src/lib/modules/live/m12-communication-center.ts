@@ -27,6 +27,11 @@ type Announcement = {
   publishedAt: string | null;
 };
 
+type WalletSnapshot = {
+  configured: boolean;
+  smsBalance: number;
+};
+
 type GuardianRow = {
   email: string | null;
   phone: string | null;
@@ -179,6 +184,102 @@ function sentTab(items: Announcement[], guardians: GuardianRow[]): TabContent {
   };
 }
 
+
+/**
+ * M12 · Compose, posting to `POST /v1/communications/announcements`.
+ *
+ * This is the one send this stack actually performs. SMS and email have no
+ * dispatch endpoint, so the form offers the channels the API accepts and says
+ * which of them leaves the building — a Compose box whose button cannot send is
+ * worse than no Compose box.
+ */
+function composeTab(wallet: WalletSnapshot, guardians: GuardianRow[]): TabContent {
+  const reachable = guardians.filter((row) => row.canReceiveSms && row.phone?.trim()).length;
+
+  return {
+    title: "Compose",
+    desc: "Write something and publish it to the people it concerns.",
+    launchers: [{ label: "What has been sent", href: "/communication-center/sent" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "note",
+            tone: "attention",
+            title: "Only in-app announcements are actually delivered from here",
+            body: `An announcement published on this form is written to the school's record and appears to everyone in the product. SMS and email have no dispatch endpoint on this stack — choosing them records the intent and the channel, and nothing leaves the building. ${
+              wallet.configured
+                ? `The wallet holds ${wallet.smsBalance.toLocaleString()} SMS credits against ${reachable} reachable guardians, so the credits are not the blocker; the sender is.`
+                : "There is no messaging wallet on this school either."
+            }`,
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "form",
+            title: "New announcement",
+            sub: "Published immediately, and kept on the record of what families were told.",
+            fields: [
+              {
+                label: "Title",
+                kind: "text",
+                required: true,
+                span: 2,
+                hint: "At least 5 characters — it is what people see first.",
+              },
+              {
+                label: "Audience",
+                kind: "select",
+                required: true,
+                value: "School-wide",
+                options: [
+                  "School-wide",
+                  "All parents",
+                  "All staff",
+                  "All students",
+                  "Senior school",
+                  "Junior school",
+                ],
+              },
+              {
+                label: "Channel",
+                kind: "select",
+                required: true,
+                value: "IN_APP",
+                options: ["IN_APP", "EMAIL", "SMS", "PUSH"],
+                hint: "Only IN_APP is delivered.",
+              },
+              {
+                label: "Message",
+                kind: "area",
+                required: true,
+                span: 2,
+                hint: "At least 10 characters.",
+              },
+            ],
+            submit: {
+              endpoint: "/api/v1/communications/announcements",
+              method: "POST",
+              map: {
+                Title: "title",
+                Audience: "audience",
+                Channel: "channel",
+                Message: "body",
+              },
+              done: "Published.",
+              clearOnSuccess: ["Title", "Message"],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function communicationCenterLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -190,9 +291,18 @@ export async function communicationCenterLiveTab(
     return sentTab(items ?? [], guardians ?? []);
   }
 
-  // Compose stays authored: there is no send endpoint behind it, so a wired
-  // Compose would be a form whose button could not do anything — the exact
-  // failure the drawer work was done to stop. Automation describes scheduled
-  // rules, and nothing persists one.
+  if (tabSlug === "compose") {
+    const [wallet, guardians] = await Promise.all([
+      apiGet<WalletSnapshot>("/api/v1/communications/wallet").catch(() => ({
+        configured: false,
+        smsBalance: 0,
+      })),
+      apiGet<GuardianRow[]>("/api/v1/parents").catch(() => [] as GuardianRow[]),
+    ]);
+    return composeTab(wallet, guardians ?? []);
+  }
+
+  // Automation stays authored: it describes scheduled rules, and nothing
+  // persists one.
   return undefined;
 }
