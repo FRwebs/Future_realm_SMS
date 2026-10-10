@@ -4,6 +4,7 @@ import {
   pill,
   text,
   type PanelFact,
+  type PanelTone,
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
@@ -308,6 +309,243 @@ function consentTab(rows: ConsentRow[]): TabContent {
   };
 }
 
+
+type EditRequest = {
+  id: string;
+  targetUserId: string;
+  targetName: string;
+  requestedBy: string;
+  reviewedBy: string | null;
+  fields: Record<string, unknown>;
+  reason: string | null;
+  status: string;
+  reviewComment: string | null;
+  createdAt: string;
+  reviewedAt?: string | null;
+};
+
+function editTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "APPROVED":
+      return "positive";
+    case "PENDING":
+      return "attention";
+    default:
+      return "negative";
+  }
+}
+
+function fieldSummary(fields: Record<string, unknown>): string {
+  const entries = Object.entries(fields ?? {});
+  if (!entries.length) return "no fields named";
+  return entries
+    .map(([key, value]) => {
+      const label = key
+        .replace(/([A-Z])/g, (char) => ` ${char.toLowerCase()}`)
+        .replace(/^./, (char) => char.toUpperCase());
+      return `${label} → ${String(value)}`;
+    })
+    .join(" · ");
+}
+
+function editWhen(iso: string | null | undefined): string {
+  if (!iso) return "—";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function editAgeDays(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000));
+}
+
+/**
+ * The two decisions the API accepts on an edit request.
+ *
+ * Approving does not just mark a row — it writes the requested fields onto the
+ * user record, which is why the drawer says so before it is pressed.
+ */
+function editDecision(row: EditRequest, action: "APPROVED" | "REJECTED") {
+  const approving = action === "APPROVED";
+  return {
+    kind: "action" as const,
+    label: approving ? "Approve" : "Reject",
+    drawer: {
+      kicker: row.status.toLowerCase(),
+      title: row.targetName,
+      sub: fieldSummary(row.fields),
+      mode: "commit" as const,
+      commitLabel: approving ? "Approve the change" : "Reject",
+      commitNote: approving
+        ? "Approving writes these fields onto the person's record straight away."
+        : "Rejecting leaves the record untouched. Say why, so they know what to fix.",
+      commitDone: approving ? "Applied" : "Rejected",
+      commitDoneBody: approving
+        ? "The record has been updated and the page re-read."
+        : "The request is closed with your reason against it.",
+      facts: [
+        ["Person", row.targetName],
+        ["Requested by", row.requestedBy],
+        ["Change", fieldSummary(row.fields)],
+        ["Reason given", row.reason || "none"],
+        ["Raised", editWhen(row.createdAt)],
+        ["Waiting", `${editAgeDays(row.createdAt)} day(s)`],
+      ] as PanelFact[],
+      submit: {
+        endpoint: `/api/v1/profiles/edit-requests/${row.id}/review`,
+        method: "PATCH" as const,
+        body: { status: action },
+        reasonKey: "reviewComment",
+        reasonLabel: approving ? "Note (optional)" : "Why (required)",
+        reasonRequired: !approving,
+      },
+    },
+  };
+}
+
+function editRequestPanels(rows: EditRequest[], heading: string, blurb: string) {
+  const pending = rows.filter((row) => row.status.toUpperCase() === "PENDING");
+  const decided = rows.filter((row) => row.status.toUpperCase() !== "PENDING");
+  const stale = pending.filter((row) => editAgeDays(row.createdAt) >= 3);
+
+  const queue = pending.length
+    ? {
+        type: "table" as const,
+        title: heading,
+        sub: blurb,
+        meta: `${pending.length} waiting · ${stale.length} over three days`,
+        head: ["Person", "Change", "Raised", "Waiting", "", ""],
+        per: 10,
+        rows: pending.map((row) => ({
+          cells: [
+            nameCell(row.targetName, `asked by ${row.requestedBy}`),
+            text(fieldSummary(row.fields)),
+            text(editWhen(row.createdAt)),
+            text(`${editAgeDays(row.createdAt)}d`, {
+              tone: editAgeDays(row.createdAt) >= 3 ? "negative" : undefined,
+              strong: editAgeDays(row.createdAt) >= 3,
+            }),
+            editDecision(row, "APPROVED"),
+            editDecision(row, "REJECTED"),
+          ],
+          keywords: `${row.targetName} ${row.requestedBy}`,
+        })),
+      }
+    : {
+        type: "note" as const,
+        tone: "positive" as const,
+        icon: CHECK_ICON,
+        title: "Nothing is waiting on a decision",
+        body:
+          rows.length === 0
+            ? "Nobody has asked for a correction to their record."
+            : `All ${rows.length} requests have been decided. They stay listed below.`,
+      };
+
+  const history = decided.length
+    ? {
+        type: "table" as const,
+        title: "Decided",
+        sub: "What was changed, by whom, and why.",
+        meta: `${decided.length} decided`,
+        head: ["Person", "Change", "Outcome", "Reviewed by", "Comment"],
+        per: 10,
+        rows: decided.map((row) => ({
+          cells: [
+            nameCell(row.targetName, `asked by ${row.requestedBy}`),
+            text(fieldSummary(row.fields)),
+            pill(row.status.toLowerCase(), editTone(row.status)),
+            text(row.reviewedBy ?? "—"),
+            text(row.reviewComment || "—", {
+              tone: row.reviewComment ? undefined : "attention",
+            }),
+          ],
+          keywords: `${row.targetName} ${row.status}`,
+        })),
+      }
+    : {
+        type: "note" as const,
+        tone: "neutral" as const,
+        title: "Nothing has been decided yet",
+        body: "Once a request is approved or rejected it stays here with its reason.",
+      };
+
+  return { pending, decided, stale, queue, history };
+}
+
+/**
+ * M09 · Submissions — what guardians have asked the school to change.
+ *
+ * Same table M08's Changes reads, asked from the family's side: these are the
+ * corrections people outside the staff room are waiting on, and a guardian has
+ * no other way to chase one.
+ */
+function submissionsTab(rows: EditRequest[]): TabContent {
+  const { pending, decided, stale, queue, history } = editRequestPanels(
+    rows,
+    "Waiting on the school",
+    "Approving writes the change onto the record immediately.",
+  );
+  const oldest = pending.length
+    ? Math.max(...pending.map((row) => editAgeDays(row.createdAt)))
+    : 0;
+
+  return {
+    title: "Submissions",
+    desc: "What families and staff have asked the school to correct.",
+    launchers: [{ label: "Guardians", href: "/parents-guardians/guardians" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Requests from outside the office",
+            per: 4,
+            cards: [
+              { label: "Submitted", value: String(rows.length), sub: "All time" },
+              {
+                label: "Still waiting",
+                value: String(pending.length),
+                sub: pending.length ? "No answer given yet" : "Everything answered",
+                tone: pending.length ? "attention" : "positive",
+              },
+              {
+                label: "Longest wait",
+                value: pending.length ? `${oldest} day${oldest === 1 ? "" : "s"}` : "—",
+                sub: pending.length ? "Since it was raised" : "Nothing outstanding",
+                tone: oldest >= 3 ? "negative" : undefined,
+              },
+              { label: "Answered", value: String(decided.length), sub: "With a reason on file" },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          stale.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${stale.length} request${stale.length === 1 ? " has" : "s have"} been waiting more than three days`,
+                body: "Somebody outside the office asked for a correction and has heard nothing. They have no way to chase it except to turn up, which is the thing this page exists to prevent.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "Nothing has been left waiting",
+                body: "Every request has been answered within three days.",
+              },
+        ],
+      },
+      { cols: "1fr", panels: [queue] },
+      { cols: "1fr", panels: [history] },
+    ],
+  };
+}
+
 export async function parentsGuardiansLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -322,7 +560,10 @@ export async function parentsGuardiansLiveTab(
     return consentTab(rows ?? []);
   }
 
-  // Submissions stays authored: it reads ProfileEditRequest, which has no rows
-  // and no school-facing endpoint.
+  if (tabSlug === "submissions") {
+    const rows = await apiGet<EditRequest[]>("/api/v1/profiles/edit-requests");
+    return submissionsTab(rows ?? []);
+  }
+
   return undefined;
 }
