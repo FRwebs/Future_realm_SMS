@@ -17,6 +17,20 @@ import { AcademicsService } from "./academics.service";
 export class AcademicsController {
   constructor(private readonly academicsService: AcademicsService) {}
 
+
+  @Get("score-roster")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
+  async scoreRoster(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
+    return { ok: true, data: await this.academicsService.scoreRoster(session, query) };
+  }
+
+  @Post("score-sheet")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  async scoreSheet(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return { ok: true, data: await this.academicsService.recordScoreSheet(session, body) };
+  }
+
   @Get("grades")
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER", "EXAM_OFFICER")
   async list(@CurrentSession() session: SessionPayload) {

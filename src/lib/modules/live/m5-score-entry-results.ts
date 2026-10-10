@@ -422,6 +422,131 @@ function resultsTab(cards: ReportCardRow[]): TabContent {
   };
 }
 
+
+type ScoreRoster = {
+  classes: Array<{ id: string; name: string; students: number }>;
+  subjects: Array<{ id: string; name: string; code: string | null }>;
+  classId: string | null;
+  subjectId: string | null;
+  term: { id: string; name: string } | null;
+  students: Array<{
+    id: string;
+    name: string;
+    admissionNumber: string | null;
+    continuousAssessment: number | null;
+    exam: number | null;
+    locked: boolean;
+    sheetStatus: string | null;
+  }>;
+};
+
+/**
+ * M05 · Enter — typing a class's marks for one subject.
+ *
+ * The sibling of Attendance's Mark tab, and the same reason it could not be a
+ * table of triggers: two bounded numbers per child, submitted together.
+ */
+function enterTab(roster: ScoreRoster): TabContent {
+  const currentClass = roster.classes.find((item) => item.id === roster.classId);
+  const currentSubject = roster.subjects.find((item) => item.id === roster.subjectId);
+  const locked = roster.students.filter((student) => student.locked);
+  const scored = roster.students.filter(
+    (student) => student.continuousAssessment !== null && student.exam !== null,
+  );
+
+  return {
+    title: "Enter",
+    desc: roster.term
+      ? `Type a class's marks for one subject. Saved against ${roster.term.name} as a draft.`
+      : "Type a class's marks for one subject.",
+    launchers: [{ label: "Review", href: "/score-entry-results/review" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "This sheet",
+            per: 4,
+            cards: [
+              {
+                label: "Class",
+                value: currentClass?.name ?? "—",
+                sub: currentClass ? `${currentClass.students} on the roll` : "No class selected",
+              },
+              {
+                label: "Subject",
+                value: currentSubject?.name ?? "—",
+                sub: currentSubject?.code ?? "No subject selected",
+              },
+              {
+                label: "Already scored",
+                value: `${scored.length} of ${roster.students.length}`,
+                sub: scored.length ? "Both halves entered" : "Nothing entered yet",
+                tone: scored.length === roster.students.length && scored.length ? "positive" : "attention",
+              },
+              {
+                label: "Locked",
+                value: String(locked.length),
+                sub: locked.length ? "Cannot be edited here" : "All editable",
+                tone: locked.length ? "attention" : "positive",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          !roster.term
+            ? {
+                type: "note",
+                tone: "negative",
+                title: "No current term, so scores cannot be saved",
+                body: "A score belongs to a term. Until one is marked current in School Configuration, there is nowhere for these marks to go.",
+              }
+            : locked.length
+              ? {
+                  type: "note",
+                  tone: "attention",
+                  title: `${locked.length} sheet${locked.length === 1 ? " is" : "s are"} locked and cannot be typed into`,
+                  body: "A sheet that has been submitted, approved or published is a statement somebody has already acted on. Changing it needs a return through Review rather than an edit here — those rows are shown read-only so it is clear why the child cannot be scored, rather than leaving somebody hunting for a missing name.",
+                }
+              : {
+                  type: "note",
+                  tone: "positive",
+                  icon: CHECK_ICON,
+                  title: "Every sheet on this class is still editable",
+                  body: "Marks save as a draft and stay editable until the sheet is submitted for review.",
+                },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "scores",
+            title: currentClass && currentSubject
+              ? `${currentClass.name} — ${currentSubject.name}`
+              : "Score sheet",
+            sub: "CA out of 40, exam out of 60. The total is what the grade is resolved from.",
+            classId: roster.classId ?? "",
+            subjectId: roster.subjectId ?? "",
+            subjectName: currentSubject?.name ?? "",
+            students: roster.students,
+            maxCa: 40,
+            maxExam: 60,
+            endpoint: "/api/v1/academics/score-sheet",
+            done: "Scores saved as a draft.",
+            emptyNote:
+              "No child is enrolled in this class, so there is nothing to score. Student Records is where a child is placed on a roll.",
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function scoreEntryResultsLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -439,8 +564,11 @@ export async function scoreEntryResultsLiveTab(
     return resultsTab(cards);
   }
 
-  // Enter stays authored for the same reason Attendance's Mark does: entering
-  // scores is a per-student, per-assessment grid posted as one body, and the
-  // panel vocabulary has no control that can express it.
+  if (tabSlug === "enter") {
+    const roster = await apiGet<ScoreRoster>("/api/v1/academics/score-roster");
+    if (!roster) return undefined;
+    return enterTab(roster);
+  }
+
   return undefined;
 }
