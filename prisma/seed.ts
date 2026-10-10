@@ -1089,6 +1089,51 @@ async function seedOperationalExtras(schoolId: string) {
     });
   }
 
+
+  // Profile edit requests, which the product can review but nothing ever
+  // raised. Two waiting and one already decided, and the pending ones change
+  // fields a school actually corrects — a surname after a marriage, a phone
+  // number — so approving one can be seen to write through to the user record.
+  const existingEditRequests = await prisma.profileEditRequest.count({ where: { schoolId } });
+  if (existingEditRequests === 0 && teacher && principal) {
+    const [firstStudent] = students;
+    await prisma.profileEditRequest.createMany({
+      data: [
+        {
+          schoolId,
+          targetUserId: teacher.id,
+          requestedById: teacher.id,
+          fields: { phone: "08037654321" },
+          reason: "New number — the old line is disconnected.",
+          status: "PENDING",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 30)
+        },
+        {
+          schoolId,
+          targetUserId: bursar?.id ?? teacher.id,
+          requestedById: bursar?.id ?? teacher.id,
+          fields: { lastName: "Eze-Okafor" },
+          reason: "Surname changed after marriage; certificate submitted to the registry.",
+          status: "PENDING",
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 4)
+        },
+        {
+          schoolId,
+          targetUserId: teacher.id,
+          requestedById: teacher.id,
+          fields: { address: "17 Oluyole Estate, Ibadan" },
+          reason: "Moved house over the holidays.",
+          status: "APPROVED",
+          reviewedById: principal.id,
+          reviewComment: "Confirmed against the utility bill on file.",
+          reviewedAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 8),
+          createdAt: new Date(Date.now() - 1000 * 60 * 60 * 24 * 10)
+        }
+      ]
+    });
+    void firstStudent;
+  }
+
   // Consent per guardian, with a few opted out — a consent table where everyone
   // said yes cannot show what the page is for.
   const existingConsents = await prisma.consentRecord.count({
