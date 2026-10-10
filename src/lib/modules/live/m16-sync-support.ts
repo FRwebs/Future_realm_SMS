@@ -217,6 +217,274 @@ function syncTab(feed: SyncFeed): TabContent {
   };
 }
 
+
+type TicketMessage = {
+  id: string;
+  body: string;
+  author: string;
+  authorRole: string | null;
+  createdAt: string;
+};
+
+type Ticket = {
+  id: string;
+  ticketNo: string;
+  category: string;
+  subject: string;
+  description: string;
+  priority: string;
+  status: string;
+  open: boolean;
+  waitingOnSchool: boolean;
+  slaDueAt: string | null;
+  slaBreached: boolean;
+  assignedTo: string | null;
+  raisedBy: string | null;
+  messageCount: number;
+  lastMessageAt: string | null;
+  ageDays: number;
+  resolvedAt: string | null;
+  createdAt: string;
+  messages: TicketMessage[];
+};
+
+type SupportFeed = {
+  tickets: Ticket[];
+  open: number;
+  waitingOnSchool: number;
+  breached: number;
+  resolved: number;
+};
+
+function priorityTone(priority: string): PanelTone {
+  switch (priority.toUpperCase()) {
+    case "CRITICAL":
+      return "negative";
+    case "HIGH":
+      return "attention";
+    default:
+      return "neutral";
+  }
+}
+
+function ticketTone(ticket: Ticket): PanelTone {
+  if (!ticket.open) return "positive";
+  if (ticket.slaBreached) return "negative";
+  if (ticket.waitingOnSchool) return "attention";
+  return "neutral";
+}
+
+/**
+ * M16 · Help & support, read from `GET /v1/support/tickets`.
+ *
+ * The figure that matters is not how many tickets are open but which of them
+ * are waiting on the school: a ticket in AWAITING_SCHOOL_RESPONSE is not
+ * support being slow, it is the school being the blocker, and nobody here
+ * would otherwise know.
+ */
+function helpTab(feed: SupportFeed): TabContent {
+  const open = feed.tickets.filter((ticket) => ticket.open);
+  const waiting = open.filter((ticket) => ticket.waitingOnSchool);
+  const categories = new Map<string, number>();
+  for (const ticket of feed.tickets) {
+    categories.set(readable(ticket.category), (categories.get(readable(ticket.category)) ?? 0) + 1);
+  }
+
+  return {
+    title: "Help & support",
+    desc: "What this school has raised with support, and what is waiting on whom.",
+    launchers: [{ label: "Sync", href: "/sync-support/sync" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Tickets on this school",
+            per: 4,
+            cards: [
+              {
+                label: "Open",
+                value: String(feed.open),
+                sub: feed.open ? `of ${feed.tickets.length} raised` : "Nothing outstanding",
+                tone: feed.open ? "attention" : "positive",
+              },
+              {
+                label: "Waiting on you",
+                value: String(feed.waitingOnSchool),
+                sub: feed.waitingOnSchool ? "Support cannot proceed" : "Nothing is blocked here",
+                tone: feed.waitingOnSchool ? "negative" : "positive",
+              },
+              {
+                label: "Past their answer time",
+                value: String(feed.breached),
+                sub: feed.breached ? "Support is overdue" : "All within SLA",
+                tone: feed.breached ? "negative" : "positive",
+              },
+              { label: "Resolved", value: String(feed.resolved), sub: "Closed out" },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          waiting.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${waiting.length} ticket${waiting.length === 1 ? " is" : "s are"} waiting on an answer from this school`,
+                body: "Support has asked a question and stopped. These are not slow replies from them — they are blocked on somebody here, and will sit untouched until a reply goes back.",
+              }
+            : feed.open
+              ? {
+                  type: "note",
+                  tone: "neutral",
+                  title: `${feed.open} ticket${feed.open === 1 ? "" : "s"} open with support`,
+                  body: "Nothing is blocked on this school. The replies below are the whole conversation support can see on your side — their internal notes are not shown here, and never were.",
+                }
+              : {
+                  type: "note",
+                  tone: "positive",
+                  icon: CHECK_ICON,
+                  title: "No ticket is open",
+                  body: "Nothing has been raised that is still outstanding.",
+                },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          feed.tickets.length
+            ? {
+                type: "table",
+                title: "Tickets",
+                sub: "Most recent first.",
+                meta: `${feed.tickets.length} raised · ${feed.open} open`,
+                head: ["Ticket", "Category", "Priority", "Status", "Age", "Replies", ""],
+                per: 12,
+                rows: feed.tickets.map((ticket) => ({
+                  cells: [
+                    nameCell(ticket.subject, ticket.ticketNo),
+                    text(readable(ticket.category)),
+                    pill(ticket.priority.toLowerCase(), priorityTone(ticket.priority)),
+                    pill(readable(ticket.status), ticketTone(ticket)),
+                    text(ageLabel(ticket.ageDays * 24), {
+                      tone: ticket.slaBreached ? "negative" : undefined,
+                      strong: ticket.slaBreached,
+                    }),
+                    text(String(ticket.messageCount)),
+                    {
+                      kind: "action" as const,
+                      label: "Open",
+                      drawer: {
+                        kicker: ticket.ticketNo,
+                        title: ticket.subject,
+                        sub: `${readable(ticket.status)} · ${ticket.priority.toLowerCase()} priority`,
+                        tone: ticketTone(ticket),
+                        readOnly: true,
+                        readOnlyNote:
+                          "Support's internal notes are not part of this thread and are never shown here.",
+                        facts: [
+                          ["Ticket", ticket.ticketNo],
+                          ["Category", readable(ticket.category)],
+                          ["Priority", ticket.priority.toLowerCase()],
+                          ["Status", readable(ticket.status)],
+                          ["Raised by", ticket.raisedBy ?? "—"],
+                          ["Raised", stamp(ticket.createdAt)],
+                          ["Assigned to", ticket.assignedTo ?? "not yet assigned"],
+                          ["Answer due", ticket.slaDueAt ? stamp(ticket.slaDueAt) : "no SLA set"],
+                          ["Resolved", ticket.resolvedAt ? stamp(ticket.resolvedAt) : "not yet"],
+                          ["What was reported", ticket.description],
+                          ...ticket.messages.map(
+                            (message) =>
+                              [
+                                `${message.author} · ${stamp(message.createdAt)}`,
+                                message.body,
+                              ] as PanelFact,
+                          ),
+                        ] as PanelFact[],
+                      },
+                    },
+                  ],
+                  keywords: `${ticket.subject} ${ticket.ticketNo} ${ticket.category}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "neutral",
+                title: "No ticket has been raised",
+                body: "Nothing has been reported to support from this school.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "form",
+            title: "Raise a ticket",
+            sub: "Goes to platform support with this school attached.",
+            fields: [
+              {
+                label: "Subject",
+                kind: "text",
+                required: true,
+                span: 2,
+                hint: "At least five characters — it is what support scans first.",
+              },
+              {
+                label: "Category",
+                kind: "select",
+                required: true,
+                value: "TECHNICAL_BUG",
+                options: [
+                  "TECHNICAL_BUG",
+                  "BILLING",
+                  "ACCOUNT_ACCESS",
+                  "DATA_ISSUE",
+                  "RESULT_COMPUTATION",
+                  "NOTIFICATION_DELIVERY",
+                  "SYNC_OFFLINE_ISSUE",
+                  "DATA_CORRECTION_REQUEST",
+                  "FEATURE_REQUEST",
+                  "OTHER",
+                ],
+              },
+              {
+                label: "Priority",
+                kind: "select",
+                required: true,
+                value: "MEDIUM",
+                options: ["LOW", "MEDIUM", "HIGH", "CRITICAL"],
+              },
+              {
+                label: "What happened",
+                kind: "area",
+                required: true,
+                span: 2,
+                hint: "At least twenty characters. What you did, what you expected, what happened instead.",
+              },
+            ],
+            submit: {
+              endpoint: "/api/v1/support/tickets",
+              method: "POST",
+              map: {
+                Subject: "subject",
+                Category: "category",
+                Priority: "priority",
+                "What happened": "description",
+              },
+              done: "Ticket raised.",
+              clearOnSuccess: ["Subject", "What happened"],
+            },
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function syncSupportLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -226,7 +494,11 @@ export async function syncSupportLiveTab(
     return syncTab(feed);
   }
 
-  // Help & support stays authored: it is contact routes and documentation
-  // links, which are written down rather than read from a table.
+  if (tabSlug === "help-support") {
+    const feed = await apiGet<SupportFeed>("/api/v1/support/tickets");
+    if (!feed) return undefined;
+    return helpTab(feed);
+  }
+
   return undefined;
 }
