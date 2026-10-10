@@ -23,4 +23,12 @@ export class AuditController {
   ) {
     return this.auditService.ok(this.auditService.recent(session, query));
   }
+
+  /** What personal data the school holds, for the data-protection tab. */
+  @Get("data-protection")
+  @RequirePermission("audit-security.data-protection.view")
+  dataProtection(@CurrentSession() session: SessionPayload) {
+    return this.auditService.ok(this.auditService.dataProtection(session));
+  }
+
 }

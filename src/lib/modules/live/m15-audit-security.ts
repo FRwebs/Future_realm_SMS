@@ -421,6 +421,164 @@ function monitoringTab(attempts: LoginAttempt[]): TabContent {
   };
 }
 
+
+type DataProtection = {
+  holdings: Array<{ category: string; count: number; special: boolean }>;
+  specialCategoryRecords: number;
+  guardians: number;
+  guardiansWithoutConsent: number;
+  audit: { entries: number; firstAt: string | null; lastAt: string | null; spanDays: number };
+  loginAttempts: number;
+  retentionConfigured: boolean;
+};
+
+/**
+ * M15 · Data protection, read from `GET /v1/audit/data-protection`.
+ *
+ * A data-protection page is usually a policy document — what the school
+ * intends. This counts what it actually holds: whose dates of birth are on
+ * file, how many medical records, how many guardians were never asked for
+ * consent, and how far back the record of who-touched-what reaches. Those are
+ * what a regulator asks for and a policy document cannot answer.
+ */
+function dataProtectionTab(data: DataProtection): TabContent {
+  const special = data.holdings.filter((row) => row.special && row.count > 0);
+  const childRecords = data.holdings.find((row) => row.category === "Children on the roll")?.count ?? 0;
+
+  return {
+    title: "Data protection",
+    desc: "What personal data this school holds, and what it can account for.",
+    launchers: [{ label: "Audit log", href: "/audit-security/audit-log" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Personal data on file",
+            per: 4,
+            cards: [
+              {
+                label: "Children's records",
+                value: childRecords.toLocaleString(),
+                sub: "Each with a name and a date of birth",
+              },
+              {
+                label: "Special-category records",
+                value: data.specialCategoryRecords.toLocaleString(),
+                sub: special.length
+                  ? special.map((row) => row.category.toLowerCase()).join(" · ")
+                  : "None held",
+                tone: data.specialCategoryRecords ? "attention" : "positive",
+              },
+              {
+                label: "Guardians never asked",
+                value: String(data.guardiansWithoutConsent),
+                sub: `of ${data.guardians} on file`,
+                tone: data.guardiansWithoutConsent ? "negative" : "positive",
+              },
+              {
+                label: "Accountable since",
+                value: data.audit.firstAt
+                  ? new Date(data.audit.firstAt).toLocaleDateString("en-NG", {
+                      day: "numeric",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "—",
+                sub: data.audit.spanDays
+                  ? `${data.audit.spanDays} days · ${data.audit.entries.toLocaleString()} entries`
+                  : "No trail",
+                tone: data.audit.entries ? undefined : "negative",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          !data.retentionConfigured
+            ? {
+                type: "note",
+                tone: "negative",
+                title: "Nothing in this system expresses how long data is kept",
+                body: `There is no retention period on any record, so the honest answer is that everything above is held indefinitely until somebody deletes it by hand. That includes ${data.specialCategoryRecords} special-category records about children. A retention rule is the one control on this page that cannot be derived — it has to be decided and then enforced, and neither has happened.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: "M20 6 9 17l-5-5",
+                title: "A retention period is configured",
+                body: "Records are removed on a schedule rather than kept indefinitely.",
+              },
+        ],
+      },
+      {
+        cols: "1.1fr 1fr",
+        panels: [
+          {
+            type: "table",
+            title: "What is held",
+            sub: "Counted from the records themselves, not from a policy.",
+            head: ["Category", "Records", "Sensitivity"],
+            per: 12,
+            rows: data.holdings.map((row) => ({
+              cells: [
+                text(row.category, { strong: true }),
+                text(row.count.toLocaleString()),
+                row.special
+                  ? pill("special category", "attention")
+                  : pill("ordinary", "neutral"),
+              ],
+              keywords: row.category,
+            })),
+          },
+          {
+            type: "facts",
+            title: "What can be accounted for",
+            sub: "Whether the school could answer a subject-access request.",
+            facts: [
+              ["Audit entries", data.audit.entries.toLocaleString()],
+              [
+                "Trail reaches back",
+                data.audit.spanDays ? `${data.audit.spanDays} days` : "no entries",
+              ],
+              ["Sign-in attempts recorded", data.loginAttempts.toLocaleString()],
+              ["Guardians with a consent record", String(data.guardians - data.guardiansWithoutConsent)],
+              ["Guardians never asked", String(data.guardiansWithoutConsent)],
+              ["Retention period", "none configured"],
+              [
+                "Deletion on request",
+                "no mechanism — records are removed by hand or not at all",
+              ],
+            ] as PanelFact[],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          data.guardiansWithoutConsent
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${data.guardiansWithoutConsent} guardians have no consent record of any kind`,
+                body: "Holding a phone number is not the same as being allowed to use it. Those guardians were never asked, so every message sent to them rests on an assumption rather than a decision they made.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: "M20 6 9 17l-5-5",
+                title: "Every guardian has been asked for consent",
+                body: "Contact rests on a recorded decision rather than an assumption.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function auditSecurityLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -437,7 +595,11 @@ export async function auditSecurityLiveTab(
     return monitoringTab(payload?.records ?? []);
   }
 
-  // Data protection stays authored: it describes retention policy, which is
-  // written down rather than derived from a table.
+  if (tabSlug === "data-protection") {
+    const data = await apiGet<DataProtection>("/api/v1/audit/data-protection");
+    if (!data) return undefined;
+    return dataProtectionTab(data);
+  }
+
   return undefined;
 }

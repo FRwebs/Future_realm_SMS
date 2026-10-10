@@ -131,4 +131,99 @@ export class AuditService {
       lastAt: bounds._max.createdAt?.toISOString() ?? null,
     };
   }
+
+  /**
+   * What personal data this school holds, counted rather than described.
+   *
+   * A data-protection page is usually a policy document, which says what the
+   * school intends. This says what it actually has: how many children's dates
+   * of birth are on file, how many medical records, how many guardians have
+   * never been asked for consent, and how far back the trail of who-touched-
+   * what reaches. Those are the questions a regulator asks and a policy
+   * document cannot answer.
+   */
+  async dataProtection(session: SessionPayload) {
+    const schoolId = session.schoolId;
+
+    const [
+      students,
+      withDob,
+      withReligion,
+      withOrigin,
+      medical,
+      guardians,
+      guardiansWithPhone,
+      guardiansWithEmail,
+      users,
+      consents,
+      auditBounds,
+      auditTotal,
+      loginAttempts
+    ] = await Promise.all([
+      prisma.student.count({ where: { schoolId } }),
+      prisma.student.count({ where: { schoolId, dateOfBirth: { not: undefined } } }),
+      prisma.student.count({ where: { schoolId, religion: { not: null } } }),
+      prisma.student.count({ where: { schoolId, stateOfOrigin: { not: null } } }),
+      prisma.medicalRecord.count({ where: { student: { schoolId } } }),
+      prisma.guardian.count({ where: { schoolId } }),
+      // phone is non-nullable on Guardian, so every guardian carries one by
+      // schema — counted, not filtered, so the figure is not quietly wrong.
+      prisma.guardian.count({ where: { schoolId } }),
+      prisma.guardian.count({ where: { schoolId, email: { not: null } } }),
+      prisma.user.count({ where: { schoolId, deletedAt: null } }),
+      prisma.guardian.findMany({ where: { schoolId }, select: { userId: true } }),
+      prisma.auditLog.aggregate({
+        where: { schoolId },
+        _min: { createdAt: true },
+        _max: { createdAt: true }
+      }),
+      prisma.auditLog.count({ where: { schoolId } }),
+      prisma.loginAttempt.count({ where: { schoolId } })
+    ]);
+
+    const guardianUserIds = consents.map((row) => row.userId).filter((id): id is string => Boolean(id));
+    const consented = guardianUserIds.length
+      ? await prisma.consentRecord.findMany({
+          where: { userId: { in: guardianUserIds } },
+          select: { userId: true }
+        })
+      : [];
+    const consentedUsers = new Set(consented.map((row) => row.userId));
+
+    const first = auditBounds._min.createdAt;
+    const last = auditBounds._max.createdAt;
+
+    return {
+      // Categories the school holds, each with how many records carry it.
+      holdings: [
+        { category: "Children on the roll", count: students, special: false },
+        { category: "Dates of birth", count: withDob, special: false },
+        { category: "State of origin", count: withOrigin, special: false },
+        { category: "Religion", count: withReligion, special: true },
+        { category: "Medical records", count: medical, special: true },
+        { category: "Guardians", count: guardians, special: false },
+        { category: "Guardian phone numbers", count: guardiansWithPhone, special: false },
+        { category: "Guardian email addresses", count: guardiansWithEmail, special: false },
+        { category: "User accounts", count: users, special: false }
+      ],
+      /** Special-category data needs a lawful basis beyond "we run a school". */
+      specialCategoryRecords: withReligion + medical,
+      guardians,
+      guardiansWithoutConsent: guardians - consentedUsers.size,
+      audit: {
+        entries: auditTotal,
+        firstAt: first?.toISOString() ?? null,
+        lastAt: last?.toISOString() ?? null,
+        spanDays:
+          first && last ? Math.max(1, Math.round((last.getTime() - first.getTime()) / 86_400_000)) : 0
+      },
+      loginAttempts,
+      /**
+       * Nothing in the schema expresses a retention period, so the honest
+       * answer is that data is kept indefinitely until somebody deletes it.
+       */
+      retentionConfigured: false
+    };
+  }
+
 }
