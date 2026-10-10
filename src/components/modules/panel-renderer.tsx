@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 
+import { AttendanceGrid } from "@/components/modules/attendance-grid";
 import { ModuleDrawer } from "@/components/modules/module-drawer";
 import type {
   DrawerSpec,
@@ -1917,6 +1918,10 @@ function Field({
         </div>
       </section>
     );
+  }
+
+  if (panel.type === "roster") {
+    return <AttendanceGrid panel={panel} />;
   }
 
   // pending

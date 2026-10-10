@@ -23,6 +23,21 @@ export const attendanceSchema = z.object({
   reason: z.string().optional()
 });
 
+
+export const registerSchema = z.object({
+  classId: z.string().min(1, "Choose a class before saving the register."),
+  date: z.string().optional(),
+  entries: z
+    .array(
+      z.object({
+        studentId: z.string().min(1),
+        status: z.enum(["PRESENT", "ABSENT", "LATE", "EXCUSED"]),
+        reason: z.string().optional()
+      })
+    )
+    .min(1, "Mark at least one child before saving.")
+});
+
 type AttendanceFilters = {
   classId?: string;
   date?: string;
@@ -257,4 +272,138 @@ export class AttendanceService {
     }
     return view;
   }
+
+  /**
+   * A class's roll for one day, with whatever has already been marked.
+   *
+   * Taking a register is one action over a whole class, so the grid needs the
+   * children and the existing marks together — otherwise it either loses marks
+   * already taken or has to ask per child.
+   */
+  async roster(schoolId: string, query: { classId?: string; date?: string }) {
+    const classes = await prisma.classRoom.findMany({
+      where: { schoolId },
+      select: { id: true, name: true, arm: true, _count: { select: { students: true } } },
+      orderBy: [{ name: "asc" }, { arm: "asc" }]
+    });
+
+    const classId = query.classId ?? classes.find((item) => item._count.students > 0)?.id ?? classes[0]?.id ?? null;
+    const date = normalizeAttendanceDate(query.date ? new Date(query.date) : new Date());
+
+    const term = await prisma.term.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true, name: true } });
+
+    const [students, existing] = classId
+      ? await Promise.all([
+          prisma.student.findMany({
+            where: { schoolId, currentClassId: classId, status: "ACTIVE" },
+            select: { id: true, firstName: true, lastName: true, admissionNumber: true },
+            orderBy: [{ lastName: "asc" }, { firstName: "asc" }]
+          }),
+          prisma.studentAttendance.findMany({
+            where: { schoolId, classId, date, subjectId: null },
+            select: { studentId: true, status: true, reason: true }
+          })
+        ])
+      : [[], []];
+
+    const marked = new Map(existing.map((row) => [row.studentId, row]));
+
+    return {
+      classes: classes.map((item) => ({
+        id: item.id,
+        name: item.arm ? `${item.name} - ${item.arm}` : item.name,
+        students: item._count.students
+      })),
+      classId,
+      date: date.toISOString().slice(0, 10),
+      term: term ? { id: term.id, name: term.name } : null,
+      alreadyMarked: existing.length,
+      students: students.map((student) => ({
+        id: student.id,
+        name: [student.firstName, student.lastName].filter(Boolean).join(" "),
+        admissionNumber: student.admissionNumber,
+        status: marked.get(student.id)?.status ?? null,
+        reason: marked.get(student.id)?.reason ?? null
+      }))
+    };
+  }
+
+  /**
+   * A whole register in one write.
+   *
+   * Re-marking the same day replaces the mark rather than adding a second one —
+   * the unique key is (student, term, date, subject), and a correction is a
+   * correction, not a new attendance event.
+   */
+  async recordRegister(schoolId: string, markedById: string, payload: unknown) {
+    const parsed = registerSchema.parse(payload);
+
+    const term = await prisma.term.findFirst({ where: { schoolId, isCurrent: true }, select: { id: true } });
+    if (!term) throw new NotFoundException("No active term is configured for this school.");
+
+    const classRoom = await prisma.classRoom.findFirst({ where: { schoolId, id: parsed.classId }, select: { id: true } });
+    if (!classRoom) throw new BadRequestException("That class is not in this school.");
+
+    const date = normalizeAttendanceDate(parsed.date ? new Date(parsed.date) : new Date());
+    const ids = parsed.entries.map((entry) => entry.studentId);
+
+    // Every child has to be on the roll of the class being marked, or a
+    // mistyped id would silently write attendance against another class.
+    const enrolled = await prisma.student.findMany({
+      where: { schoolId, currentClassId: parsed.classId, id: { in: ids } },
+      select: { id: true }
+    });
+    const enrolledIds = new Set(enrolled.map((student) => student.id));
+    const strays = ids.filter((id) => !enrolledIds.has(id));
+    if (strays.length) {
+      throw new BadRequestException(`${strays.length} of those students are not on this class's roll.`);
+    }
+
+    // Prisma types subjectId as non-nullable inside the compound unique, so an
+    // upsert cannot express "the day's register, no subject". Reading what is
+    // already marked and splitting updates from creates avoids that, and costs
+    // two queries for the class rather than one per child.
+    const already = await prisma.studentAttendance.findMany({
+      where: { schoolId, classId: parsed.classId, termId: term.id, date, subjectId: null },
+      select: { id: true, studentId: true }
+    });
+    const existingByStudent = new Map(already.map((row) => [row.studentId, row.id]));
+
+    const updates = parsed.entries.filter((entry) => existingByStudent.has(entry.studentId));
+    const creates = parsed.entries.filter((entry) => !existingByStudent.has(entry.studentId));
+
+    await prisma.$transaction([
+      ...updates.map((entry) =>
+        prisma.studentAttendance.update({
+          where: { id: existingByStudent.get(entry.studentId) as string },
+          data: { status: entry.status, reason: entry.reason ?? null, markedById }
+        })
+      ),
+      ...(creates.length
+        ? [
+            prisma.studentAttendance.createMany({
+              data: creates.map((entry) => ({
+                schoolId,
+                studentId: entry.studentId,
+                classId: parsed.classId,
+                termId: term.id,
+                markedById,
+                date,
+                status: entry.status,
+                reason: entry.reason ?? null
+              }))
+            })
+          ]
+        : [])
+    ]);
+
+    return {
+      marked: parsed.entries.length,
+      corrected: updates.length,
+      added: creates.length,
+      date: date.toISOString().slice(0, 10),
+      classId: parsed.classId
+    };
+  }
+
 }

@@ -24,6 +24,26 @@ export class AttendanceController {
     };
   }
 
+
+  @Get("roster")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  async roster(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
+    return {
+      ok: true,
+      data: await this.attendanceService.roster(session.schoolId, query)
+    };
+  }
+
+  @Post("register")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
+  async register(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return {
+      ok: true,
+      data: await this.attendanceService.recordRegister(session.schoolId, session.userId, body)
+    };
+  }
+
   @Get()
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "TEACHER")
   async list(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
