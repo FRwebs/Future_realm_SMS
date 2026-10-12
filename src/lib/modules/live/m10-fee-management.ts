@@ -243,6 +243,8 @@ function collectionsTab(data: FinanceDashboardView): TabContent {
 }
 
 
+const CHECK_ICON = "M20 6 9 17l-5-5";
+
 type PaymentRow = {
   id: string;
   reference: string;
@@ -601,6 +603,178 @@ function reviewTab(rows: WaiverRow[]): TabContent {
   };
 }
 
+
+type FeeItem = {
+  id: string;
+  label: string;
+  componentType: string;
+  amount: number;
+  isOptional: boolean;
+  isActive: boolean;
+};
+
+type FeeStructure = {
+  id: string;
+  name: string;
+  currency: string;
+  session: string | null;
+  term: string | null;
+  className: string | null;
+  recurrence: string;
+  isOneTime: boolean;
+  isActive: boolean;
+  total: number;
+  items: FeeItem[];
+};
+
+/** What a family must pay, as distinct from what they may decline. */
+function requiredTotal(structure: FeeStructure): number {
+  return structure.items
+    .filter((item) => item.isActive && !item.isOptional)
+    .reduce((sum, item) => sum + item.amount, 0);
+}
+
+function optionalTotal(structure: FeeStructure): number {
+  return structure.items
+    .filter((item) => item.isActive && item.isOptional)
+    .reduce((sum, item) => sum + item.amount, 0);
+}
+
+/**
+ * M10 · Structures — the fee catalogue.
+ *
+ * The figure that matters is not a structure's total but the split inside it:
+ * what a family has to pay and what they can decline. A catalogue that prints
+ * one number teaches a parent nothing about which part is negotiable.
+ */
+function structuresTab(structures: FeeStructure[]): TabContent {
+  const active = structures.filter((structure) => structure.isActive);
+  const required = active.reduce((sum, structure) => sum + requiredTotal(structure), 0);
+  const optional = active.reduce((sum, structure) => sum + optionalTotal(structure), 0);
+  const itemless = structures.filter((structure) => !structure.items.length);
+  const allOptional = active.filter((structure) => requiredTotal(structure) === 0 && structure.items.length);
+
+  return {
+    title: "Structures",
+    desc: "What each section is charged, and which parts of it are optional.",
+    launchers: [{ label: "Collections", href: "/fee-management/collections" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "The fee catalogue",
+            per: 4,
+            cards: [
+              {
+                label: "Structures",
+                value: String(structures.length),
+                sub: `${active.length} active`,
+                tone: structures.length ? undefined : "attention",
+              },
+              {
+                label: "Required across all",
+                value: naira(required),
+                sub: "What every family owes",
+              },
+              {
+                label: "Optional across all",
+                value: naira(optional),
+                sub: "Transport, boarding, books",
+              },
+              {
+                label: "Structures with no items",
+                value: String(itemless.length),
+                sub: itemless.length ? "Nothing to invoice from" : "Every structure is priced",
+                tone: itemless.length ? "negative" : "positive",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          itemless.length || allOptional.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${itemless.length + allOptional.length} structure${itemless.length + allOptional.length === 1 ? "" : "s"} would invoice nothing`,
+                body: "A structure with no items, or with nothing but optional ones, produces an invoice of zero. It looks configured on this page and bills nobody.",
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "Every structure has something required in it",
+                body: "Each one produces an invoice a family actually owes.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          structures.length
+            ? {
+                type: "table",
+                title: "Structures",
+                sub: "What each one charges, split by what can be declined.",
+                meta: `${structures.length} structure${structures.length === 1 ? "" : "s"}`,
+                head: ["Structure", "Term", "Items", "Required", "Optional", "Total", ""],
+                per: 12,
+                rows: structures.map((structure) => ({
+                  cells: [
+                    nameCell(structure.name, structure.className ?? structure.recurrence.toLowerCase()),
+                    text(structure.term ?? "—"),
+                    text(String(structure.items.length), {
+                      tone: structure.items.length ? undefined : "negative",
+                    }),
+                    text(naira(requiredTotal(structure)), { strong: true }),
+                    text(optionalTotal(structure) ? naira(optionalTotal(structure)) : "—"),
+                    text(naira(structure.total)),
+                    {
+                      kind: "action" as const,
+                      label: "View",
+                      drawer: {
+                        kicker: structure.term ?? structure.recurrence.toLowerCase(),
+                        title: structure.name,
+                        sub: `${naira(requiredTotal(structure))} required${optionalTotal(structure) ? ` · ${naira(optionalTotal(structure))} optional` : ""}`,
+                        readOnly: true,
+                        facts: [
+                          ["Structure", structure.name],
+                          ["Session", structure.session ?? "—"],
+                          ["Term", structure.term ?? "—"],
+                          ["Recurrence", structure.recurrence.toLowerCase()],
+                          ["Active", structure.isActive ? "yes" : "no"],
+                          ["Required", naira(requiredTotal(structure))],
+                          ["Optional", naira(optionalTotal(structure))],
+                          ...structure.items.map(
+                            (item) =>
+                              [
+                                `${item.label}${item.isOptional ? " (optional)" : ""}`,
+                                naira(item.amount),
+                              ] as [string, string],
+                          ),
+                        ],
+                      },
+                    },
+                  ],
+                  keywords: `${structure.name} ${structure.term ?? ""}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "attention",
+                title: "No fee structure exists",
+                body: "Nothing can be invoiced until a structure is created and priced.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function feeManagementLiveTab(
   tabSlug: string,
 ): Promise<TabContent | undefined> {
@@ -619,7 +793,10 @@ export async function feeManagementLiveTab(
     return reviewTab(waivers ?? []);
   }
 
-  // Structures stays authored: this school has one FeeStructure row, so a wired
-  // tab would show a single line where the mockup shows a catalogue.
+  if (tabSlug === "structures") {
+    const structures = await apiGet<FeeStructure[]>("/api/v1/finance/fee-structures");
+    return structuresTab(structures ?? []);
+  }
+
   return undefined;
 }
