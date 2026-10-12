@@ -1092,6 +1092,90 @@ async function seedOperationalExtras(schoolId: string) {
 
 
 
+
+  // Staff appraisals, one in each state so the rules can be seen working: a
+  // draft the subject cannot read, one shared and waiting on them, and one
+  // they have acknowledged in their own words.
+  const existingAppraisals = await prisma.staffAppraisal.count({ where: { schoolId } });
+  if (existingAppraisals === 0 && principal) {
+    const profiles = await prisma.staffProfile.findMany({
+      where: { schoolId },
+      select: { id: true, user: { select: { firstName: true, lastName: true } } },
+      take: 3,
+      orderBy: { employeeNo: "asc" }
+    });
+    const term = await prisma.term.findFirst({
+      where: { isCurrent: true, academicSession: { schoolId } },
+      select: { id: true, name: true, academicSession: { select: { name: true } } }
+    });
+    const cycle = term ? `${term.name} ${term.academicSession?.name ?? ""}`.trim() : "Current cycle";
+
+    const criteria = [
+      "Teaching and learning",
+      "Record keeping",
+      "Punctuality",
+      "Conduct and collegiality"
+    ];
+
+    const plans: Array<{
+      status: "DRAFT" | "SHARED" | "ACKNOWLEDGED";
+      scores: number[];
+      strengths: string;
+      improvements: string;
+      staffComment?: string;
+    }> = [
+      {
+        status: "ACKNOWLEDGED",
+        scores: [5, 4, 5, 5],
+        strengths: "Lessons are planned a week ahead and the class average rose eleven points this term.",
+        improvements: "Marked scripts are returned late in examination weeks.",
+        staffComment: "Agreed on turnaround. I will mark in the free period rather than take scripts home."
+      },
+      {
+        status: "SHARED",
+        scores: [4, 3, 4, 4],
+        strengths: "Strong with the weakest readers; three moved up a band.",
+        improvements: "Register is often taken after the first period rather than at the start."
+      },
+      {
+        status: "DRAFT",
+        scores: [3, 3, 2, 4],
+        strengths: "Well liked by the children and calm with difficult classes.",
+        improvements: "Lateness is persistent and the scheme of work is behind by four weeks."
+      }
+    ];
+
+    for (const [index, plan] of plans.entries()) {
+      const profile = profiles[index];
+      if (!profile) continue;
+      const mean = plan.scores.reduce((sum, score) => sum + score, 0) / plan.scores.length;
+      await prisma.staffAppraisal.create({
+        data: {
+          schoolId,
+          staffId: profile.id,
+          reviewerId: principal.id,
+          termId: term?.id,
+          cycle,
+          status: plan.status,
+          overallScore: Math.round(mean * 10) / 10,
+          strengths: plan.strengths,
+          improvements: plan.improvements,
+          reviewerComment: "Discussed in the termly review meeting.",
+          staffComment: plan.staffComment,
+          sharedAt: plan.status === "DRAFT" ? null : new Date(Date.now() - 1000 * 60 * 60 * 24 * 6),
+          acknowledgedAt:
+            plan.status === "ACKNOWLEDGED" ? new Date(Date.now() - 1000 * 60 * 60 * 24 * 4) : null,
+          ratings: {
+            create: criteria.map((criterion, position) => ({
+              criterion,
+              score: plan.scores[position] ?? 3
+            }))
+          }
+        }
+      });
+    }
+  }
+
   // A fee catalogue rather than a single row. M10's Structures tab and M02's
   // Allocations both read these, and one structure cannot show what either
   // page is for — the comparison between sections, and which items a family

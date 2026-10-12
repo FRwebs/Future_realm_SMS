@@ -5,6 +5,7 @@ import {
   text,
   type DrawerSpec,
   type KpiCard,
+  type PanelFact,
   type PanelTone,
   type TabContent,
   type TableRow,
@@ -775,6 +776,209 @@ function payrollTab(feed: PayrollFeed): TabContent {
   };
 }
 
+
+const CHECK_ICON = "M20 6 9 17l-5-5";
+
+type AppraisalRating = { criterion: string; score: number; comment: string | null };
+
+type Appraisal = {
+  id: string;
+  staffId: string;
+  staffName: string | null;
+  employeeNo: string | null;
+  designation: string | null;
+  department: string | null;
+  reviewer: string | null;
+  cycle: string;
+  status: string;
+  overallScore: number | null;
+  strengths: string | null;
+  improvements: string | null;
+  reviewerComment: string | null;
+  staffComment: string | null;
+  ratings: AppraisalRating[];
+  sharedAt: string | null;
+  acknowledgedAt: string | null;
+  createdAt: string;
+  isSubject: boolean;
+  awaitingAcknowledgement: boolean;
+};
+
+function appraisalTone(status: string): PanelTone {
+  switch (status.toUpperCase()) {
+    case "ACKNOWLEDGED":
+      return "positive";
+    case "SHARED":
+      return "attention";
+    default:
+      return "neutral";
+  }
+}
+
+function scoreTone(score: number | null): PanelTone {
+  if (score === null) return "neutral";
+  if (score >= 4) return "positive";
+  if (score >= 3) return "attention";
+  return "negative";
+}
+
+/**
+ * M07 · Appraisal, read from `GET /v1/staff/appraisals`.
+ *
+ * The figure the page leads on is how many appraisals are still drafts,
+ * because a draft is a judgement recorded about somebody who has not been told
+ * it exists. That is the state worth counting — not the average score.
+ */
+function appraisalTab(rows: Appraisal[]): TabContent {
+  const drafts = rows.filter((row) => row.status.toUpperCase() === "DRAFT");
+  const waiting = rows.filter((row) => row.awaitingAcknowledgement);
+  const done = rows.filter((row) => row.status.toUpperCase() === "ACKNOWLEDGED");
+  const scored = rows.filter((row) => row.overallScore !== null);
+  const average = scored.length
+    ? Math.round((scored.reduce((sum, row) => sum + (row.overallScore ?? 0), 0) / scored.length) * 10) / 10
+    : null;
+
+  return {
+    title: "Appraisal",
+    desc: "How staff are reviewed, and whether they have been told what was written.",
+    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "This cycle",
+            per: 4,
+            cards: [
+              { label: "Appraisals", value: String(rows.length), sub: rows[0]?.cycle ?? "No cycle" },
+              {
+                label: "Still a draft",
+                value: String(drafts.length),
+                sub: drafts.length ? "Written, not shown to the person" : "Nothing withheld",
+                tone: drafts.length ? "negative" : "positive",
+              },
+              {
+                label: "Waiting on the staff member",
+                value: String(waiting.length),
+                sub: waiting.length ? "Shared, not yet acknowledged" : "Nothing outstanding",
+                tone: waiting.length ? "attention" : "positive",
+              },
+              {
+                label: "Average score",
+                value: average === null ? "—" : `${average} / 5`,
+                sub: scored.length < 5 ? `From ${scored.length} appraisal(s)` : "Across the cycle",
+                tone: scored.length < 5 ? "attention" : scoreTone(average),
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          drafts.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${drafts.length} appraisal${drafts.length === 1 ? " is" : "s are"} written but not shared`,
+                body: "A draft is a judgement recorded about somebody who does not know it exists and cannot answer it. The contents are withheld from them until it is shared, which is the point — but leaving it in that state indefinitely turns a review into a file kept on a person.",
+              }
+            : waiting.length
+              ? {
+                  type: "note",
+                  tone: "attention",
+                  title: `${waiting.length} appraisal${waiting.length === 1 ? " is" : "s are"} waiting to be acknowledged`,
+                  body: "These have been shared. The person can read them and write their own response, and until they do the review is one-sided.",
+                }
+              : {
+                  type: "note",
+                  tone: "positive",
+                  icon: CHECK_ICON,
+                  title: "Every appraisal has been shared and acknowledged",
+                  body: "Each one has been read by the person it is about, with a chance to respond.",
+                },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rows.length
+            ? {
+                type: "table",
+                title: "Appraisals",
+                sub: "Drafts first, because those are the ones nobody has been shown.",
+                meta: `${rows.length} in ${rows[0]?.cycle ?? "this cycle"} · ${done.length} acknowledged`,
+                head: ["Staff", "Department", "Reviewer", "Score", "State", ""],
+                per: 12,
+                rows: rows
+                  .slice()
+                  .sort((a, b) => {
+                    const rank = (status: string) =>
+                      status.toUpperCase() === "DRAFT" ? 0 : status.toUpperCase() === "SHARED" ? 1 : 2;
+                    return rank(a.status) - rank(b.status);
+                  })
+                  .map((row) => ({
+                    cells: [
+                      nameCell(row.staffName ?? "—", row.designation ?? row.employeeNo ?? ""),
+                      text(row.department ?? "—"),
+                      text(row.reviewer ?? "—"),
+                      text(row.overallScore === null ? "—" : `${row.overallScore} / 5`, {
+                        tone: scoreTone(row.overallScore),
+                        strong: true,
+                      }),
+                      pill(row.status.toLowerCase(), appraisalTone(row.status)),
+                      {
+                        kind: "action" as const,
+                        label: "View",
+                        drawer: {
+                          kicker: row.cycle,
+                          title: row.staffName ?? "Appraisal",
+                          sub: `${row.overallScore ?? "—"} / 5 · ${row.status.toLowerCase()}`,
+                          tone: appraisalTone(row.status),
+                          readOnly: true,
+                          readOnlyNote:
+                            row.status.toUpperCase() === "DRAFT"
+                              ? "This is a draft. Its contents are withheld from the person it is about until it is shared."
+                              : "The person appraised can read this and has their own right of reply below.",
+                          facts: [
+                            ["Staff", row.staffName ?? "—"],
+                            ["Designation", row.designation ?? "—"],
+                            ["Department", row.department ?? "—"],
+                            ["Reviewer", row.reviewer ?? "—"],
+                            ["Cycle", row.cycle],
+                            ["Overall", row.overallScore === null ? "—" : `${row.overallScore} / 5`],
+                            ...row.ratings.map(
+                              (rating) => [rating.criterion, `${rating.score} / 5`] as PanelFact,
+                            ),
+                            ["Strengths", row.strengths ?? "—"],
+                            ["To improve", row.improvements ?? "—"],
+                            ["Reviewer's note", row.reviewerComment ?? "—"],
+                            ["Their response", row.staffComment ?? "none written"],
+                            ["Shared", row.sharedAt ? whenStamp(row.sharedAt) : "not yet"],
+                            [
+                              "Acknowledged",
+                              row.acknowledgedAt ? whenStamp(row.acknowledgedAt) : "not yet",
+                            ],
+                          ] as PanelFact[],
+                        },
+                      },
+                    ],
+                    keywords: `${row.staffName ?? ""} ${row.department ?? ""} ${row.status}`,
+                  })),
+              }
+            : {
+                type: "note",
+                tone: "attention",
+                title: "No appraisal has been recorded",
+                body: "Nobody on this school has been reviewed in any cycle.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "directory") {
     const staff = await apiGet<StaffRow[]>("/api/v1/staff");
@@ -815,8 +1019,10 @@ export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | 
     return payrollTab(feed);
   }
 
-  // Appraisal stays authored, and this one is not a seeding gap: there is no
-  // appraisal model in the schema at all. Wiring it means designing what an
-  // appraisal is before any page can read one.
+  if (tabSlug === "appraisal") {
+    const rows = await apiGet<Appraisal[]>("/api/v1/staff/appraisals");
+    return appraisalTab(rows ?? []);
+  }
+
   return undefined;
 }
