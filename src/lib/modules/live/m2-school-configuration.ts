@@ -2,8 +2,8 @@ import { apiGet } from "@/lib/api/server";
 import {
   pill,
   text,
-  type FormField,
   type Panel,
+  type PanelFact,
   type PanelRow,
   type TabContent,
   type TableRow,
@@ -46,6 +46,19 @@ type SchoolRecord = {
   subdomain: string | null;
   verifiedAt: string | null;
   estimatedStudentCount: number | null;
+  logoUrl: string | null;
+  primaryColor: string | null;
+  secondaryColor: string | null;
+};
+
+type BrandingVersion = {
+  id: string;
+  logoUrl: string | null;
+  primaryColour: string;
+  secondaryColour: string;
+  appliedTo: string;
+  status: string;
+  createdAt: string;
 };
 
 type TermRecord = {
@@ -113,106 +126,283 @@ function termState(term: TermRecord): { label: string; tone: "positive" | "atten
 
 /* ─────────────────────────── Profile ─────────────────────────── */
 
-function profileTab(school: SchoolRecord): TabContent {
+function identityDrawer(school: SchoolRecord) {
+  return {
+    mode: "commit" as const,
+    kicker: "School profile",
+    title: "Edit identity",
+    sub: "The school name here is the name printed on every report card.",
+    commitLabel: "Save identity",
+    commitNote: "Cards already issued keep the name they were printed with.",
+    commitDone: "Identity saved",
+    commitDoneBody: "Everything printed from now carries the new name.",
+    fields: [
+      { label: "School name", kind: "text" as const, value: school.name, required: true, span: 2 as const },
+      { label: "School code", kind: "text" as const, value: school.schoolCode ?? "", optional: true },
+      { label: "Timezone", kind: "text" as const, value: school.timezone, optional: true },
+      { label: "Category", kind: "static" as const, value: school.category?.replace(/_/g, " ") ?? "—" },
+      { label: "Workspace", kind: "static" as const, value: school.subdomain ?? school.slug },
+    ],
+    submit: {
+      endpoint: `${CONFIG}/school-information/${school.id}`,
+      method: "PATCH" as const,
+      map: { "School name": "name", "School code": "schoolCode", Timezone: "timezone" },
+    },
+  };
+}
+
+function addressDrawer(school: SchoolRecord) {
+  return {
+    mode: "commit" as const,
+    kicker: "School profile",
+    title: "Edit address & authority",
+    sub: "Who answers for this school, and where it operates from.",
+    commitLabel: "Save address & authority",
+    commitNote: "The school name travels with this save because the record is validated whole.",
+    commitDone: "Address and authority saved",
+    commitDoneBody: "The school record has been updated.",
+    fields: [
+      { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
+      { label: "Address", kind: "text" as const, value: school.address ?? "", span: 2 as const, optional: true },
+      { label: "City", kind: "text" as const, value: school.city ?? "", optional: true },
+      { label: "State", kind: "text" as const, value: school.state ?? "", optional: true },
+      { label: "Country", kind: "text" as const, value: school.country ?? "Nigeria", optional: true },
+      { label: "Proprietor", kind: "text" as const, value: school.ownerName ?? "", optional: true },
+      { label: "Proprietor email", kind: "text" as const, value: school.ownerEmail ?? "", optional: true },
+      { label: "Proprietor phone", kind: "text" as const, value: school.ownerPhone ?? "", optional: true },
+    ],
+    submit: {
+      endpoint: `${CONFIG}/school-information/${school.id}`,
+      method: "PATCH" as const,
+      map: {
+        School: "name",
+        Address: "address",
+        City: "city",
+        State: "state",
+        Country: "country",
+        Proprietor: "ownerName",
+        "Proprietor email": "ownerEmail",
+        "Proprietor phone": "ownerPhone",
+      },
+    },
+  };
+}
+
+function brandingDrawer(school: SchoolRecord) {
+  return {
+    mode: "commit" as const,
+    kicker: "School profile",
+    title: "Edit branding",
+    sub: "Anything already printed keeps the branding it was printed with.",
+    commitLabel: "Save branding",
+    commitNote: "A parent's card is never restated behind them.",
+    commitDone: "Branding saved",
+    commitDoneBody: "Everything printed from now carries the new colours.",
+    fields: [
+      { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
+      { label: "Primary colour", kind: "text" as const, value: school.primaryColor ?? "", optional: true },
+      { label: "Secondary colour", kind: "text" as const, value: school.secondaryColor ?? "", optional: true },
+      { label: "Logo", kind: "static" as const, value: school.logoUrl ?? "none uploaded", span: 2 as const },
+    ],
+    submit: {
+      endpoint: `${CONFIG}/school-information/${school.id}`,
+      method: "PATCH" as const,
+      map: {
+        School: "name",
+        "Primary colour": "primaryColor",
+        "Secondary colour": "secondaryColor",
+      },
+    },
+  };
+}
+
+/**
+ * M02 · Profile, in the shape the mockup draws it: four facts panels, each
+ * owning the actions that belong to it.
+ *
+ * An earlier pass replaced this with one facts panel and two inline forms,
+ * which lost every trigger the mockup has. The drawers now carry inputs rather
+ * than only describing a change — editing opens in a drawer here, so a drawer
+ * that cannot edit makes the whole page read-only.
+ */
+function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabContent {
   const place = [school.address, school.city, school.lga, school.state, school.country]
     .filter(Boolean)
     .join(", ");
-
-  // Only the fields the PATCH schema accepts are editable. Showing a box the
-  // endpoint would reject is how a form teaches people it is broken.
-  const identityFields: FormField[] = [
-    { label: "School name", kind: "text", value: school.name, required: true },
-    { label: "School code", kind: "text", value: school.schoolCode ?? "", optional: true },
-    { label: "Address", kind: "text", value: school.address ?? "", span: 2, optional: true },
-    { label: "City", kind: "text", value: school.city ?? "", optional: true },
-    { label: "State", kind: "text", value: school.state ?? "", optional: true },
-    { label: "Country", kind: "text", value: school.country ?? "Nigeria", optional: true },
-    { label: "Timezone", kind: "text", value: school.timezone, optional: true },
-  ];
-
-  // The endpoint validates the whole record on every save, so `name` has to
-  // travel even when nobody is editing it — without it the save is rejected
-  // for a field this form does not show. A static field carries its value into
-  // the payload, so it both says which school is being edited and satisfies
-  // the schema.
-  const authorityFields: FormField[] = [
-    { label: "School", kind: "static", value: school.name, span: 2 },
-    { label: "Proprietor", kind: "text", value: school.ownerName ?? "", optional: true },
-    { label: "Proprietor email", kind: "text", value: school.ownerEmail ?? "", optional: true },
-    { label: "Proprietor phone", kind: "text", value: school.ownerPhone ?? "", optional: true },
-  ];
+  const inForce = branding.find((version) => version.status === "APPLIED") ?? branding[0] ?? null;
 
   return {
     title: "Profile",
-    desc: "Who this school is, as the platform holds it.",
-    launchers: [{ label: "Staff & access", href: "/staff-access/directory" }],
+    desc: "Who this school is.",
+    primary: { label: "Edit identity", drawer: identityDrawer(school) },
+    launchers: [
+      { label: "Edit address & authority", drawer: addressDrawer(school) },
+      { label: "Edit branding", drawer: brandingDrawer(school) },
+    ],
     rows: [
       {
         cols: "1fr",
         panels: [
           {
             type: "facts",
-            title: "Registered identity",
-            sub: "Set when the school was onboarded. Some of it cannot be edited here.",
+            title: "Identity",
+            sub: "The school name here is the name printed on every report card.",
+            meta: school.verifiedAt ? `Verified ${dateLabel(school.verifiedAt)}` : "Not yet verified",
             tag: school.verifiedAt ? "Verified" : "Unverified",
             tagTone: school.verifiedAt ? "positive" : "attention",
+            per: 3,
+            acts: [{ label: "Edit identity", primary: true, drawer: identityDrawer(school) }],
             facts: [
-              ["Name", school.name],
+              ["School name", school.name, "As printed on report cards"],
               ["Category", school.category?.replace(/_/g, " ") ?? "—"],
               ["School code", school.schoolCode ?? "not issued"],
-              ["Address", place || "not recorded"],
               ["Workspace", school.subdomain ? `${school.subdomain}.futurerealm.school` : school.slug],
-              ["Website", school.website ?? "none"],
               ["Currency", school.currency],
               ["Timezone", school.timezone],
               ["Calls a year", school.academicYearLabel],
               ["Calls a term", school.termLabel],
-              ["CAC number", school.cacNumber ?? "not recorded"],
-              ["Ministry approval", school.ministryApprovalNumber ?? "not recorded"],
-              ["Verified", school.verifiedAt ? dateLabel(school.verifiedAt) : "not yet"],
             ],
           },
         ],
       },
       {
-        cols: "1fr 1fr",
+        cols: "1fr",
         panels: [
           {
-            type: "form",
-            title: "Edit identity",
-            sub: "Saved straight to the school record.",
-            fields: identityFields,
-            submit: {
-              endpoint: `${CONFIG}/school-information/${school.id}`,
-              method: "PATCH",
-              map: {
-                "School name": "name",
-                "School code": "schoolCode",
-                Address: "address",
-                City: "city",
-                State: "state",
-                Country: "country",
-                Timezone: "timezone",
-              },
-              done: "Identity saved.",
-            },
+            type: "facts",
+            title: "Address and authority",
+            sub: "Registration numbers are what a return is checked against.",
+            meta: school.cacNumber && school.ministryApprovalNumber ? "Fully registered" : "Registration incomplete",
+            tag: school.cacNumber && school.ministryApprovalNumber ? "Complete" : "Missing",
+            tagTone: school.cacNumber && school.ministryApprovalNumber ? "positive" : "negative",
+            per: 3,
+            acts: [{ label: "Edit address & authority", drawer: addressDrawer(school) }],
+            facts: [
+              ["Address", place || "not recorded"],
+              ["Website", school.website ?? "none"],
+              ["Proprietor", school.ownerName ?? "not recorded"],
+              ["Proprietor email", school.ownerEmail ?? "not recorded"],
+              ["Proprietor phone", school.ownerPhone ?? "not recorded"],
+              ["CAC number", school.cacNumber ?? "not recorded", "Asked for on every return"],
+              ["Ministry approval", school.ministryApprovalNumber ?? "not recorded", "Required to operate"],
+            ],
           },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
           {
-            type: "form",
-            title: "Edit authority",
-            sub: "Who answers for this school.",
-            fields: authorityFields,
-            submit: {
-              endpoint: `${CONFIG}/school-information/${school.id}`,
-              method: "PATCH",
-              map: {
-                School: "name",
-                Proprietor: "ownerName",
-                "Proprietor email": "ownerEmail",
-                "Proprietor phone": "ownerPhone",
+            type: "facts",
+            title: "Branding",
+            sub: "What appears on a report card, and what was in force when one was printed.",
+            meta: branding.length ? `${branding.length} version(s) on file` : "No version history",
+            per: 3,
+            acts: [
+              {
+                label: "Version history",
+                drawer: {
+                  kicker: "Branding",
+                  title: "Version history",
+                  sub: branding.length
+                    ? "Every version, and what it was applied to."
+                    : "Nothing has been versioned yet.",
+                  readOnly: true,
+                  readOnlyNote:
+                    "A card already issued keeps the branding it was printed with. History is never rewritten.",
+                  facts: branding.length
+                    ? (branding.map((version) => [
+                        `${version.status.toLowerCase()} · ${dateLabel(version.createdAt)}`,
+                        `${version.primaryColour} / ${version.secondaryColour} · ${version.appliedTo.replace(/_/g, " ")}`,
+                      ]) as PanelFact[])
+                    : ([
+                        ["Versions on file", "none"],
+                        [
+                          "Why",
+                          "Branding has only ever been set directly on the school record, so there is nothing to compare against.",
+                        ],
+                      ] as PanelFact[]),
+                },
               },
-              done: "Authority saved.",
-            },
+              { label: "Edit branding", drawer: brandingDrawer(school) },
+            ],
+            facts: [
+              ["Primary colour", school.primaryColor ?? "not set"],
+              ["Secondary colour", school.secondaryColor ?? "not set"],
+              ["Logo", school.logoUrl ?? "none uploaded"],
+              [
+                "In force",
+                inForce ? `${inForce.primaryColour} / ${inForce.secondaryColour}` : "the colours above",
+                inForce ? `Applied to ${inForce.appliedTo.replace(/_/g, " ")}` : "No separate version recorded",
+              ],
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "facts",
+            title: "Data processing agreement",
+            sub: "What this school has agreed to about the records it holds.",
+            meta: "No agreement is recorded against this school",
+            tag: "Not signed",
+            tagTone: "negative",
+            per: 2,
+            acts: [
+              {
+                label: "Read full text",
+                drawer: {
+                  kicker: "Data processing",
+                  title: "Data processing agreement",
+                  sub: "What the product can say about this, honestly.",
+                  readOnly: true,
+                  facts: [
+                    ["Agreement on file", "none"],
+                    [
+                      "What exists instead",
+                      "The school record, the audit trail, and consent per guardian. Those are facts about what is held, not a signed undertaking about how it may be used.",
+                    ],
+                    [
+                      "Why it is not shown",
+                      "Nothing in this system stores an agreement, its text or its signatory. Printing one here would be inventing a legal document.",
+                    ],
+                    ["Where the real figures are", "Audit & Security · Data protection"],
+                  ] as PanelFact[],
+                },
+              },
+              {
+                label: "Review sample data",
+                drawer: {
+                  kicker: "Data processing",
+                  title: "Sample data",
+                  sub: "What can and cannot be said about demonstration records.",
+                  readOnly: true,
+                  facts: [
+                    [
+                      "Sample records identifiable",
+                      "no",
+                      "Nothing marks a row as sample data",
+                    ],
+                    [
+                      "What that means",
+                      "Seeded and real records are indistinguishable once written, so a 'clear sample data' action could not tell them apart and would risk deleting a real child's record.",
+                    ],
+                    [
+                      "What would fix it",
+                      "A flag written at seed time, or a separate demonstration school. Either is a decision rather than a button.",
+                    ],
+                  ] as PanelFact[],
+                },
+              },
+            ],
+            facts: [
+              ["Agreement", "not recorded"],
+              ["Signed by", "—"],
+              ["Consent records", "See Audit & Security · Data protection"],
+              ["Audit trail", "See Audit & Security · Audit log"],
+            ],
           },
         ],
       },
@@ -751,7 +941,10 @@ export async function schoolConfigurationLiveTab(
   if (tabSlug === "profile") {
     const payload = await apiGet<{ record: SchoolRecord }>(`${CONFIG}/school-information`);
     if (!payload?.record) return undefined;
-    return profileTab(payload.record);
+    const branding = await apiGet<BrandingVersion[]>("/api/v1/configuration/branding-versions").catch(
+      () => [] as BrandingVersion[],
+    );
+    return profileTab(payload.record, branding ?? []);
   }
 
   if (tabSlug === "calendar") {

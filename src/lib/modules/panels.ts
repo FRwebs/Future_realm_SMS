@@ -49,6 +49,13 @@ export type DrawerSubmit = {
   method?: "POST" | "PATCH" | "PUT";
   /** Sent as-is, so the drawer never has to know what the record is. */
   body?: Record<string, unknown>;
+  /**
+   * Field label → payload key, for a drawer that edits rather than confirms.
+   * A field not listed here is shown and never sent, exactly as in a form
+   * panel — which is what lets a drawer display a value the endpoint would
+   * reject alongside the ones it accepts.
+   */
+  map?: Record<string, string>;
   /** Set this and the drawer asks for a reason, sent under this key. */
   reasonKey?: string;
   reasonLabel?: string;
@@ -69,6 +76,15 @@ export type DrawerSpec = {
   commitDoneBody?: string;
   /** Omit and the drawer confirms without sending — a dry run, not a decision. */
   submit?: DrawerSubmit;
+  /**
+   * Inputs, for an "Edit …" drawer.
+   *
+   * The mockup opens editing in a drawer rather than an inline form, so the
+   * drawer has to be able to collect values — without this every "Edit X"
+   * trigger could only describe a change and then confirm it, which is the
+   * same hollow gesture the commit button used to be.
+   */
+  fields?: FormField[];
   /** A record that can be read but never edited — an audit entry, say. */
   readOnly?: boolean;
   readOnlyNote?: string;
