@@ -67,6 +67,9 @@ const sessionSchema = z.object({
 
 const schoolSchema = z.object({
   name: z.string().trim().min(2),
+  shortName: z.string().trim().max(24).optional().or(z.literal("")),
+  motto: z.string().trim().max(200).optional().or(z.literal("")),
+  vision: z.string().trim().max(600).optional().or(z.literal("")),
   schoolCode: z.string().trim().optional().or(z.literal("")),
   address: z.string().trim().optional().or(z.literal("")),
   city: z.string().trim().optional().or(z.literal("")),
@@ -226,8 +229,36 @@ export class ConfigurationService {
   }
 
   private async schoolInformation(session: SessionPayload) {
-    const school = await prisma.school.findUnique({ where: { id: session.schoolId } });
-    return { mode: "settings", record: school };
+    const [school, principal, levels] = await Promise.all([
+      prisma.school.findUnique({ where: { id: session.schoolId } }),
+      prisma.user.findFirst({
+        where: { schoolId: session.schoolId, role: "PRINCIPAL", deletedAt: null },
+        select: { firstName: true, lastName: true, phone: true, email: true }
+      }),
+      prisma.classLevel.findMany({
+        where: { schoolId: session.schoolId },
+        select: { name: true, order: true },
+        orderBy: { order: "asc" }
+      })
+    ]);
+
+    return {
+      mode: "settings",
+      record: school
+        ? {
+            ...school,
+            // Both are shown on the profile and neither is stored there: the
+            // principal is a user, and the levels are the class levels the
+            // school actually operates rather than a field somebody typed.
+            principalName: principal
+              ? [principal.firstName, principal.lastName].filter(Boolean).join(" ")
+              : null,
+            principalPhone: principal?.phone ?? null,
+            principalEmail: principal?.email ?? null,
+            levelsOperated: levels.map((level) => level.name)
+          }
+        : null
+    };
   }
 
   private async classLevels(session: SessionPayload) {
@@ -428,6 +459,9 @@ export class ConfigurationService {
       where: { id: session.schoolId },
       data: {
         name: parsed.name,
+        shortName: whenGiven(parsed.shortName, (value) => value || null) as string | null | undefined,
+        motto: whenGiven(parsed.motto, (value) => value || null) as string | null | undefined,
+        vision: whenGiven(parsed.vision, (value) => value || null) as string | null | undefined,
         schoolCode: whenGiven(parsed.schoolCode, (value) => value || null) as string | null | undefined,
         address: whenGiven(parsed.address, (value) => value || null) as string | null | undefined,
         city: whenGiven(parsed.city, (value) => value || null) as string | null | undefined,
