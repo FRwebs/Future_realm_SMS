@@ -326,6 +326,171 @@ export class StaffService {
     };
   }
 
+
+  /**
+   * Staff appraisals.
+   *
+   * Three rules are enforced here rather than left to the page, because they
+   * are what makes an appraisal a conversation instead of a file kept on
+   * somebody: a reviewer cannot appraise themselves, an appraisal is only
+   * visible to its subject once it has been shared, and only the subject can
+   * write the subject's response.
+   */
+  async listAppraisals(session: SessionPayload) {
+    const rows = await prisma.staffAppraisal.findMany({
+      where: { schoolId: session.schoolId },
+      include: {
+        ratings: { orderBy: { criterion: "asc" } },
+        reviewer: { select: { firstName: true, lastName: true, role: true } },
+        staff: {
+          select: {
+            employeeNo: true,
+            designation: true,
+            department: { select: { name: true } },
+            user: { select: { id: true, firstName: true, lastName: true, role: true } }
+          }
+        }
+      },
+      orderBy: [{ createdAt: "desc" }]
+    });
+
+    return rows.map((row) => {
+      const subject = row.staff?.user;
+      const isSubject = subject?.id === session.userId;
+      const shared = row.status !== "DRAFT";
+      return {
+        id: row.id,
+        staffId: row.staffId,
+        staffName: subject ? [subject.firstName, subject.lastName].filter(Boolean).join(" ") : null,
+        employeeNo: row.staff?.employeeNo ?? null,
+        designation: row.staff?.designation ?? null,
+        department: row.staff?.department?.name ?? null,
+        reviewer: row.reviewer
+          ? [row.reviewer.firstName, row.reviewer.lastName].filter(Boolean).join(" ")
+          : null,
+        cycle: row.cycle,
+        status: String(row.status),
+        overallScore: row.overallScore,
+        // A draft is the reviewer's working-out. Its contents are withheld from
+        // the person it is about until somebody chooses to share it.
+        strengths: shared || !isSubject ? row.strengths : null,
+        improvements: shared || !isSubject ? row.improvements : null,
+        reviewerComment: shared || !isSubject ? row.reviewerComment : null,
+        staffComment: row.staffComment,
+        ratings: row.ratings.map((rating) => ({
+          criterion: rating.criterion,
+          score: rating.score,
+          comment: rating.comment
+        })),
+        sharedAt: row.sharedAt?.toISOString() ?? null,
+        acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
+        createdAt: row.createdAt.toISOString(),
+        isSubject,
+        /** Waiting on the appraisee to read and respond. */
+        awaitingAcknowledgement: row.status === "SHARED"
+      };
+    });
+  }
+
+
+  /**
+   * The caller's own appraisals.
+   *
+   * Separate from listAppraisals because that one is an administrative view
+   * guarded by staff.view, which a teacher or bursar does not hold — and
+   * without this they could acknowledge an appraisal they had no way to read.
+   * Drafts are excluded outright rather than redacted: a draft is not yet
+   * about them as far as the process is concerned.
+   */
+  async listMyAppraisals(session: SessionPayload) {
+    const profile = await prisma.staffProfile.findFirst({
+      where: { schoolId: session.schoolId, userId: session.userId },
+      select: { id: true }
+    });
+    if (!profile) return [];
+
+    const rows = await prisma.staffAppraisal.findMany({
+      where: { schoolId: session.schoolId, staffId: profile.id, status: { not: "DRAFT" } },
+      include: {
+        ratings: { orderBy: { criterion: "asc" } },
+        reviewer: { select: { firstName: true, lastName: true } }
+      },
+      orderBy: { createdAt: "desc" }
+    });
+
+    return rows.map((row) => ({
+      id: row.id,
+      cycle: row.cycle,
+      status: String(row.status),
+      overallScore: row.overallScore,
+      strengths: row.strengths,
+      improvements: row.improvements,
+      reviewerComment: row.reviewerComment,
+      staffComment: row.staffComment,
+      reviewer: row.reviewer
+        ? [row.reviewer.firstName, row.reviewer.lastName].filter(Boolean).join(" ")
+        : null,
+      ratings: row.ratings.map((rating) => ({
+        criterion: rating.criterion,
+        score: rating.score,
+        comment: rating.comment
+      })),
+      sharedAt: row.sharedAt?.toISOString() ?? null,
+      acknowledgedAt: row.acknowledgedAt?.toISOString() ?? null,
+      awaitingAcknowledgement: row.status === "SHARED"
+    }));
+  }
+
+  /** Hands a draft to the person it is about. Nothing else makes it visible. */
+  async shareAppraisal(session: SessionPayload, appraisalId: string) {
+    const appraisal = await prisma.staffAppraisal.findFirst({
+      where: { id: appraisalId, schoolId: session.schoolId },
+      include: { staff: { select: { userId: true } } }
+    });
+    if (!appraisal) throw new NotFoundException("That appraisal is not on this school.");
+    if (appraisal.staff?.userId === session.userId) {
+      throw new BadRequestException("You cannot appraise yourself.");
+    }
+    if (appraisal.status !== "DRAFT") {
+      throw new BadRequestException("This appraisal has already been shared.");
+    }
+
+    await prisma.staffAppraisal.update({
+      where: { id: appraisal.id },
+      data: { status: "SHARED", sharedAt: new Date() }
+    });
+    return { id: appraisal.id, status: "SHARED" };
+  }
+
+  /** The appraisee's own response. Only they can write it. */
+  async acknowledgeAppraisal(session: SessionPayload, appraisalId: string, payload: unknown) {
+    const parsed = z
+      .object({ staffComment: z.string().trim().max(2000).optional() })
+      .parse(payload ?? {});
+
+    const appraisal = await prisma.staffAppraisal.findFirst({
+      where: { id: appraisalId, schoolId: session.schoolId },
+      include: { staff: { select: { userId: true } } }
+    });
+    if (!appraisal) throw new NotFoundException("That appraisal is not on this school.");
+    if (appraisal.staff?.userId !== session.userId) {
+      throw new ForbiddenException("Only the person appraised can acknowledge their own appraisal.");
+    }
+    if (appraisal.status === "DRAFT") {
+      throw new BadRequestException("This appraisal has not been shared with you yet.");
+    }
+
+    await prisma.staffAppraisal.update({
+      where: { id: appraisal.id },
+      data: {
+        status: "ACKNOWLEDGED",
+        acknowledgedAt: new Date(),
+        staffComment: parsed.staffComment ?? appraisal.staffComment
+      }
+    });
+    return { id: appraisal.id, status: "ACKNOWLEDGED" };
+  }
+
   async listStaff(session: SessionPayload, query: Record<string, string | undefined>) {
     const search = query.search?.toLowerCase().trim();
     const staffType = query.staffType && query.staffType !== "all" ? query.staffType : undefined;

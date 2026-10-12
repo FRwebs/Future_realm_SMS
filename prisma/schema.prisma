@@ -819,6 +819,7 @@ model School {
   @@index([status, billingStatus])
   @@index([country, state])
   @@index([accountManagerId])
+  staffAppraisals               StaffAppraisal[]
 }
 
 model Campus {
@@ -917,6 +918,7 @@ model Term {
   feeAssignments                FeeAssignment[]
 
   @@unique([academicSessionId, order])
+  staffAppraisals       StaffAppraisal[]
 }
 
 model Department {
@@ -1294,6 +1296,7 @@ model User {
   coveredSowTopics                 SowTopic[]                    @relation("SowTopicCoveredBy")
   uploadedSowTopicResources        SowTopicResource[]            @relation("SowTopicResourceUploadedBy")
   assessedStudentTopicProgress     StudentTopicProgress[]        @relation("StudentTopicProgressAssessedBy")
+  appraisalsGiven               StaffAppraisal[]               @relation("StaffAppraisalReviewer")
 }
 
 model ProfileDocument {
@@ -1815,6 +1818,7 @@ model StaffProfile {
   emergencyContactPhone   String?
   salaryBand              String?
   payrollItems            PayrollItem[]
+  appraisals              StaffAppraisal[]         @relation("StaffAppraisalSubject")
   leaveRequests           LeaveRequest[]
   libraryLoans            LibraryLoan[]
   trainingParticipants    TrainingParticipant[]
@@ -4897,4 +4901,61 @@ model IntegrationConfig {
   school   School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@unique([schoolId, provider])
+}
+
+/// Where a staff appraisal is in its life.
+///
+/// The three states exist because an appraisal nobody has shown the person is
+/// a secret file about them. DRAFT is the reviewer's working copy; SHARED
+/// means the appraisee can read it; ACKNOWLEDGED means they have said so and
+/// had the chance to respond in writing.
+enum StaffAppraisalStatus {
+  DRAFT
+  SHARED
+  ACKNOWLEDGED
+}
+
+/// One appraisal of one staff member, for one cycle.
+model StaffAppraisal {
+  id              String                 @id @default(cuid())
+  schoolId        String
+  staffId         String
+  /// The person carrying out the review — a head of department or the principal.
+  reviewerId      String
+  termId          String?
+  /// What this round is called in the school's own words, e.g. "Second Term 2025/2026".
+  cycle           String
+  status          StaffAppraisalStatus   @default(DRAFT)
+  /// Mean of the criterion scores, stored so a list does not have to recompute it.
+  overallScore    Float?
+  strengths       String?
+  improvements    String?
+  reviewerComment String?
+  /// The appraisee's own words. Only they can write here.
+  staffComment    String?
+  sharedAt        DateTime?
+  acknowledgedAt  DateTime?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
+  school          School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  staff           StaffProfile           @relation("StaffAppraisalSubject", fields: [staffId], references: [id], onDelete: Cascade)
+  reviewer        User                   @relation("StaffAppraisalReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  term            Term?                  @relation(fields: [termId], references: [id], onDelete: SetNull)
+  ratings         StaffAppraisalRating[]
+
+  @@unique([staffId, cycle])
+  @@index([schoolId, status, createdAt])
+  @@index([schoolId, reviewerId, status])
+}
+
+/// A score against one named criterion, out of five.
+model StaffAppraisalRating {
+  id          String         @id @default(cuid())
+  appraisalId String
+  criterion   String
+  score       Int
+  comment     String?
+  appraisal   StaffAppraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
+
+  @@unique([appraisalId, criterion])
 }

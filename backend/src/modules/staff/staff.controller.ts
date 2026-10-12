@@ -33,6 +33,44 @@ export class StaffController {
    * Declared before `:staffId` on purpose — Nest matches in order, so a literal
    * route placed after it is read as a staff id and 404s.
    */
+
+  /** Declared before "appraisals/:id" style routes and before ":staffId". */
+  @Get("appraisals/mine")
+  @RequirePermission("profiles.view_self")
+  myAppraisals(@CurrentSession() session: SessionPayload) {
+    return this.staffService.ok(this.staffService.listMyAppraisals(session));
+  }
+
+  @Get("appraisals")
+  @RequirePermission("staff.view")
+  appraisals(@CurrentSession() session: SessionPayload) {
+    return this.staffService.ok(this.staffService.listAppraisals(session));
+  }
+
+  @Post("appraisals/:appraisalId/share")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("staff.update")
+  shareAppraisal(@CurrentSession() session: SessionPayload, @Param("appraisalId") appraisalId: string) {
+    return this.staffService.ok(
+      this.staffService.shareAppraisal(session, appraisalId),
+      "Appraisal shared."
+    );
+  }
+
+  @Post("appraisals/:appraisalId/acknowledge")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("profiles.view_self")
+  acknowledgeAppraisal(
+    @CurrentSession() session: SessionPayload,
+    @Param("appraisalId") appraisalId: string,
+    @Body() body: unknown
+  ) {
+    return this.staffService.ok(
+      this.staffService.acknowledgeAppraisal(session, appraisalId, body),
+      "Appraisal acknowledged."
+    );
+  }
+
   @Get("leave")
   @RequirePermission("staff.view")
   leave(@CurrentSession() session: SessionPayload) {
