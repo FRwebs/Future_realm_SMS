@@ -31,4 +31,17 @@ export class AuditController {
     return this.auditService.ok(this.auditService.dataProtection(session));
   }
 
+
+  @Get("reports")
+  @RequirePermission("analytics-reports.reports.view")
+  reports(@CurrentSession() session: SessionPayload) {
+    return this.auditService.ok(this.auditService.reports(session));
+  }
+
+  @Get("compliance")
+  @RequirePermission("analytics-reports.compliance.view")
+  compliance(@CurrentSession() session: SessionPayload) {
+    return this.auditService.ok(this.auditService.compliance(session));
+  }
+
 }
