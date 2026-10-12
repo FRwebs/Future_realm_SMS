@@ -603,6 +603,148 @@ function policiesTab(byArea: Map<string, PolicyItem[]>): TabContent {
   };
 }
 
+
+type FeeItem = {
+  id: string;
+  label: string;
+  componentType: string;
+  amount: number;
+  isOptional: boolean;
+  isActive: boolean;
+};
+
+type FeeStructure = {
+  id: string;
+  name: string;
+  currency: string;
+  session: string | null;
+  term: string | null;
+  className: string | null;
+  recurrence: string;
+  isOneTime: boolean;
+  isActive: boolean;
+  total: number;
+  items: FeeItem[];
+};
+
+function componentLabel(value: string): string {
+  const words = value.replace(/_/g, " ").toLowerCase().trim();
+  return words.charAt(0).toUpperCase() + words.slice(1);
+}
+
+/** What a family must pay, as distinct from what they may decline. */
+function requiredTotal(structure: FeeStructure): number {
+  return structure.items
+    .filter((item) => item.isActive && !item.isOptional)
+    .reduce((sum, item) => sum + item.amount, 0);
+}
+
+function optionalTotal(structure: FeeStructure): number {
+  return structure.items
+    .filter((item) => item.isActive && item.isOptional)
+    .reduce((sum, item) => sum + item.amount, 0);
+}
+
+function naira(value: number): string {
+  return `₦${Math.round(value).toLocaleString("en-NG")}`;
+}
+
+/**
+ * M02 · Allocations — what a term costs a family, as they would be told it.
+ *
+ * Structures reads the same records from the bursar's side; this reads them
+ * from the family's. The question here is not what the school charges in total
+ * but what a parent in each section has to find, and which lines they can say
+ * no to — which is the difference between a bill and a demand.
+ */
+function allocationsTab(structures: FeeStructure[]): TabContent {
+  const active = structures.filter((structure) => structure.isActive && structure.items.length);
+  const cheapest = active.slice().sort((a, b) => requiredTotal(a) - requiredTotal(b))[0];
+  const dearest = active.slice().sort((a, b) => requiredTotal(b) - requiredTotal(a))[0];
+  const withOptions = active.filter((structure) => optionalTotal(structure) > 0);
+
+  return {
+    title: "Allocations",
+    desc: "What a term costs a family in each section, and what they can decline.",
+    launchers: [{ label: "Fee structures", href: "/fee-management/structures" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "What families are asked for",
+            per: 4,
+            cards: [
+              {
+                label: "Sections priced",
+                value: String(active.length),
+                sub: active.length ? "Each with its own structure" : "Nothing priced",
+                tone: active.length ? undefined : "attention",
+              },
+              {
+                label: "Lowest required",
+                value: cheapest ? naira(requiredTotal(cheapest)) : "—",
+                sub: cheapest?.name ?? "—",
+              },
+              {
+                label: "Highest required",
+                value: dearest ? naira(requiredTotal(dearest)) : "—",
+                sub: dearest?.name ?? "—",
+              },
+              {
+                label: "Sections with options",
+                value: `${withOptions.length} of ${active.length}`,
+                sub: "Transport, boarding, books",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          cheapest && dearest && requiredTotal(dearest) > requiredTotal(cheapest) * 2
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `A ${dearest.name.split(" ")[0].toLowerCase()} place costs more than twice a ${cheapest.name.split(" ")[0].toLowerCase()} one`,
+                body: `${naira(requiredTotal(dearest))} against ${naira(requiredTotal(cheapest))} before anything optional. Worth knowing when a family has children in both, because the invoice they receive is the sum and nobody has told them it would be.`,
+              }
+            : {
+                type: "note",
+                tone: "neutral",
+                title: "Fees are broadly level across sections",
+                body: "No section costs disproportionately more than another before options.",
+              },
+        ],
+      },
+      ...active.map((structure): PanelRow => ({
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: structure.name,
+            sub: `${naira(requiredTotal(structure))} required${optionalTotal(structure) ? `, up to ${naira(structure.total)} with everything` : ""}`,
+            meta: `${structure.items.length} line${structure.items.length === 1 ? "" : "s"}`,
+            head: ["Line", "Kind", "Amount", "Can decline"],
+            per: 10,
+            rows: structure.items.map((item) => ({
+              cells: [
+                text(item.label, { strong: !item.isOptional }),
+                text(componentLabel(item.componentType)),
+                text(naira(item.amount)),
+                item.isOptional ? pill("optional", "neutral") : pill("required", "attention"),
+              ],
+              keywords: `${item.label} ${item.componentType}`,
+            })),
+          },
+        ],
+      })),
+    ],
+  };
+}
+
 export async function schoolConfigurationLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -640,8 +782,10 @@ export async function schoolConfigurationLiveTab(
     return policiesTab(new Map(areas));
   }
 
-  // Allocations still renders its authored content: it is priced off
-  // FeeStructure, which this school has one row of, so a wired tab would show
-  // a single line where the mockup shows a catalogue.
+  if (tabSlug === "allocations") {
+    const structures = await apiGet<FeeStructure[]>("/api/v1/finance/fee-structures");
+    return allocationsTab(structures ?? []);
+  }
+
   return undefined;
 }

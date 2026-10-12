@@ -1,4 +1,4 @@
-import { PrismaClient, PrismaPromise, UserRole } from "@prisma/client";
+import { FeeComponentType, PrismaClient, PrismaPromise, UserRole } from "@prisma/client";
 
 import { isPlatformRole } from "../src/lib/auth/role-architecture";
 import { hashPassword } from "../src/lib/auth/password";
@@ -1090,6 +1090,75 @@ async function seedOperationalExtras(schoolId: string) {
   }
 
 
+
+
+  // A fee catalogue rather than a single row. M10's Structures tab and M02's
+  // Allocations both read these, and one structure cannot show what either
+  // page is for — the comparison between sections, and which items a family
+  // can decline.
+  const existingStructures = await prisma.feeStructure.count({ where: { schoolId } });
+  if (existingStructures <= 1) {
+    const term = await prisma.term.findFirst({
+      where: { isCurrent: true, academicSession: { schoolId } },
+      select: { id: true, academicSessionId: true, name: true }
+    });
+
+    const sections: Array<{ name: string; items: Array<[string, FeeComponentType, number, boolean]> }> = [
+      {
+        name: "Nursery",
+        items: [
+          ["Tuition", "TUITION", 90_000, false],
+          ["Development levy", "DEVELOPMENT_LEVY", 15_000, false],
+          ["Books and materials", "BOOKS", 12_000, true],
+          ["Transport", "TRANSPORT", 45_000, true]
+        ]
+      },
+      {
+        name: "Primary",
+        items: [
+          ["Tuition", "TUITION", 130_000, false],
+          ["Development levy", "DEVELOPMENT_LEVY", 20_000, false],
+          ["Examination", "EXAM_FEE", 5_000, false],
+          ["Books and materials", "BOOKS", 18_000, true],
+          ["Transport", "TRANSPORT", 50_000, true]
+        ]
+      },
+      {
+        name: "Senior Secondary",
+        items: [
+          ["Tuition", "TUITION", 240_000, false],
+          ["Development levy", "DEVELOPMENT_LEVY", 30_000, false],
+          ["Examination", "EXAM_FEE", 12_000, false],
+          ["ICT levy", "ICT_FEE", 10_000, false],
+          ["Boarding", "HOSTEL", 150_000, true],
+          ["Transport", "TRANSPORT", 60_000, true]
+        ]
+      }
+    ];
+
+    for (const section of sections) {
+      await prisma.feeStructure.create({
+        data: {
+          schoolId,
+          academicSessionId: term?.academicSessionId,
+          termId: term?.id,
+          name: `${section.name} ${term?.name ?? "Term"} Fees`,
+          currency: "NGN",
+          recurrence: "TERM",
+          isActive: true,
+          items: {
+            create: section.items.map(([label, componentType, amount, isOptional]) => ({
+              label,
+              componentType,
+              amount,
+              isOptional,
+              isActive: true
+            }))
+          }
+        }
+      });
+    }
+  }
 
   // The rules that make the product behave like this school. They live in
   // ConfigurationItem, which the configuration module already serves and
