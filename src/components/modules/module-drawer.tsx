@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { DrawerSpec, PanelFact } from "@/lib/modules/panels";
+import { Field, initialValue } from "@/components/modules/field";
 import { sendJson } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 
@@ -86,6 +87,9 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [values, setValues] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries((spec.fields ?? []).map((field) => [field.label, initialValue(field)])),
+  );
   const router = useRouter();
 
   useEffect(() => {
@@ -119,8 +123,17 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
     setPending(true);
     setError(null);
     try {
+      // Only fields named in `map` travel, exactly as a form panel does, so a
+      // drawer can show a value the endpoint would reject beside ones it takes.
+      const edited: Record<string, unknown> = {};
+      for (const [label, key] of Object.entries(submit.map ?? {})) {
+        const value = values[label];
+        if (value !== undefined) edited[key] = value;
+      }
+
       await sendJson(submit.endpoint, submit.method ?? "POST", {
         ...(submit.body ?? {}),
+        ...edited,
         ...(submit.reasonKey && reason.trim()
           ? { [submit.reasonKey]: reason.trim() }
           : {}),
@@ -255,6 +268,22 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
             ) : null}
 
             {spec.facts?.length ? <FactRows facts={spec.facts} /> : null}
+
+            {spec.fields?.length && !committed ? (
+              <div className="grid gap-[13px] sm:grid-cols-2">
+                {spec.fields.map((field) => (
+                  <div key={field.label} className={field.span === 2 ? "sm:col-span-2" : undefined}>
+                    <Field
+                      field={field}
+                      value={values[field.label]}
+                      setValue={(next) =>
+                        setValues((current) => ({ ...current, [field.label]: next }))
+                      }
+                    />
+                  </div>
+                ))}
+              </div>
+            ) : null}
 
             {isCommit && needsReason && !committed ? (
               <label className="grid gap-[6px]">

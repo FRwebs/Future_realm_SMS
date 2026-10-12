@@ -18,6 +18,13 @@ export class ConfigurationController {
     return this.configurationService.ok(this.configurationService.overview(session));
   }
 
+
+  /** Declared before `:resource` so it is not read as a resource key. */
+  @Get("branding-versions")
+  brandingVersions(@CurrentSession() session: SessionPayload) {
+    return this.configurationService.ok(this.configurationService.brandingVersions(session));
+  }
+
   @Get(":resource")
   list(
     @CurrentSession() session: SessionPayload,

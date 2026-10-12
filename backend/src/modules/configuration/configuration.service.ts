@@ -414,18 +414,28 @@ export class ConfigurationService {
 
   private async updateSchool(session: SessionPayload, body: Record<string, unknown>) {
     const parsed = schoolSchema.parse(body);
+
+    // A PATCH patches. Previously every optional field was written on every
+    // save, so a caller that sent only the name silently nulled the address,
+    // the proprietor and everything else it had not mentioned — which is a
+    // data-loss bug rather than a validation one. A field that is absent from
+    // the payload is now left alone; an empty string still clears it, which is
+    // how a form distinguishes "not editing this" from "remove this".
+    const whenGiven = <T>(value: T | undefined, map: (input: T) => unknown) =>
+      value === undefined ? undefined : map(value);
+
     const updated = await prisma.school.update({
       where: { id: session.schoolId },
       data: {
         name: parsed.name,
-        schoolCode: parsed.schoolCode || null,
-        address: parsed.address || null,
-        city: parsed.city || null,
-        state: parsed.state || null,
-        country: parsed.country || "Nigeria",
-        ownerName: parsed.ownerName || null,
-        ownerEmail: parsed.ownerEmail || null,
-        ownerPhone: parsed.ownerPhone || null,
+        schoolCode: whenGiven(parsed.schoolCode, (value) => value || null) as string | null | undefined,
+        address: whenGiven(parsed.address, (value) => value || null) as string | null | undefined,
+        city: whenGiven(parsed.city, (value) => value || null) as string | null | undefined,
+        state: whenGiven(parsed.state, (value) => value || null) as string | null | undefined,
+        country: whenGiven(parsed.country, (value) => value || "Nigeria") as string | undefined,
+        ownerName: whenGiven(parsed.ownerName, (value) => value || null) as string | null | undefined,
+        ownerEmail: whenGiven(parsed.ownerEmail, (value) => value || null) as string | null | undefined,
+        ownerPhone: whenGiven(parsed.ownerPhone, (value) => value || null) as string | null | undefined,
         timezone: parsed.timezone,
         primaryColor: parsed.primaryColor || undefined,
         secondaryColor: parsed.secondaryColor || undefined
@@ -568,4 +578,23 @@ export class ConfigurationService {
     await this.audit(session, AuditAction.DELETE, "ConfigurationItem", id, { resource, name: existing.name });
     return { id };
   }
+
+  /** Branding versions, so a card's history is readable rather than asserted. */
+  async brandingVersions(session: SessionPayload) {
+    const rows = await prisma.brandingAsset.findMany({
+      where: { schoolId: session.schoolId },
+      orderBy: { createdAt: "desc" },
+      take: 20
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      logoUrl: row.logoUrl,
+      primaryColour: row.primaryColour,
+      secondaryColour: row.secondaryColour,
+      appliedTo: row.appliedTo,
+      status: row.status,
+      createdAt: row.createdAt.toISOString()
+    }));
+  }
+
 }
