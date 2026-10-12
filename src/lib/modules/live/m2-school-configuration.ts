@@ -4,6 +4,7 @@ import {
   text,
   type FormField,
   type Panel,
+  type PanelRow,
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
@@ -458,6 +459,150 @@ function curriculumTab(subjects: SubjectRecord[], levels: ClassLevelRecord[]): T
 
 /* ─────────────────────────── entry ─────────────────────────── */
 
+
+type PolicyItem = {
+  id: string;
+  resource: string;
+  name: string;
+  code: string | null;
+  description: string | null;
+  data: Record<string, unknown> | null;
+  status: string;
+  displayOrder: number;
+};
+
+/** The four areas whose rules change how the product behaves day to day. */
+const POLICY_AREAS: Array<{ resource: string; label: string; blurb: string }> = [
+  { resource: "attendance", label: "Attendance", blurb: "When a child counts as late, and when somebody is told." },
+  { resource: "promotions", label: "Promotion", blurb: "What it takes to move up, and who signs off a repeat." },
+  { resource: "exam", label: "Examination", blurb: "How a mark is composed, and when a result stops being editable." },
+  { resource: "finance", label: "Fees", blurb: "When an invoice falls due, and what happens if it does not." },
+];
+
+function policyValue(item: PolicyItem): string {
+  if (!item.data || typeof item.data !== "object") return "—";
+  const entries = Object.entries(item.data);
+  if (!entries.length) return "—";
+  return entries
+    .map(([key, value]) => {
+      const label = key
+        .replace(/([A-Z])/g, (char) => ` ${char.toLowerCase()}`)
+        .replace(/^./, (char) => char.toUpperCase());
+      return `${label}: ${String(value)}`;
+    })
+    .join(" · ");
+}
+
+/**
+ * M02 · Policies — the rules that make the product behave like this school.
+ *
+ * They live in ConfigurationItem, which the configuration module has always
+ * served. What the tab adds is which areas are *unset*: a policy area with no
+ * rule is not a school with no opinion, it is the product falling back to a
+ * default nobody here chose.
+ */
+function policiesTab(byArea: Map<string, PolicyItem[]>): TabContent {
+  const set = POLICY_AREAS.filter((area) => (byArea.get(area.resource) ?? []).length > 0);
+  const unset = POLICY_AREAS.filter((area) => (byArea.get(area.resource) ?? []).length === 0);
+  const total = POLICY_AREAS.reduce((sum, area) => sum + (byArea.get(area.resource) ?? []).length, 0);
+
+  return {
+    title: "Policies",
+    desc: "The rules that make this product behave like this school.",
+    launchers: [{ label: "Calendar", href: "/school-configuration/calendar" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Rules on file",
+            per: 4,
+            cards: [
+              { label: "Rules set", value: String(total), sub: `Across ${set.length} areas` },
+              {
+                label: "Areas configured",
+                value: `${set.length} of ${POLICY_AREAS.length}`,
+                sub: unset.length ? `${unset.length} running on defaults` : "Every area decided",
+                tone: unset.length ? "attention" : "positive",
+              },
+              {
+                label: "Pass mark",
+                value:
+                  String(
+                    (byArea.get("promotions") ?? []).find((item) => item.code === "PROMOTION_MARK")
+                      ?.data?.passMark ?? "—",
+                  ) + "%",
+                sub: "Below this a child repeats",
+              },
+              {
+                label: "Fees due after",
+                value:
+                  String(
+                    (byArea.get("finance") ?? []).find((item) => item.code === "FEE_DUE")?.data
+                      ?.dueDays ?? "—",
+                  ) + " days",
+                sub: "From the start of term",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          unset.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${unset.length} policy area${unset.length === 1 ? " has" : "s have"} no rule recorded`,
+                body: `${unset
+                  .map((area) => area.label)
+                  .join(", ")} ${unset.length === 1 ? "is" : "are"} running on the product's defaults. That is not this school having no opinion — it is a decision nobody here made, taking effect anyway.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "Every policy area has been decided",
+                body: "Nothing on this page is running on a default the school did not choose.",
+              },
+        ],
+      },
+      ...POLICY_AREAS.map((area): PanelRow => {
+        const items = byArea.get(area.resource) ?? [];
+        const panel: Panel = items.length
+          ? {
+              type: "table",
+              title: area.label,
+              sub: area.blurb,
+              meta: `${items.length} rule${items.length === 1 ? "" : "s"}`,
+              head: ["Rule", "What it means", "Setting"],
+              per: 10,
+              rows: items
+                .slice()
+                .sort((a, b) => a.displayOrder - b.displayOrder)
+                .map((item) => ({
+                  cells: [
+                    text(item.name, { strong: true }),
+                    text(item.description ?? "—"),
+                    text(policyValue(item), { mono: true }),
+                  ],
+                  keywords: `${item.name} ${item.code ?? ""}`,
+                })),
+            }
+          : {
+              type: "note",
+              tone: "attention",
+              title: `${area.label} has no rule recorded`,
+              body: `${area.blurb} Nothing here has been set, so the product's default applies.`,
+            };
+        return { cols: "1fr", panels: [panel] };
+      }),
+    ],
+  };
+}
+
 export async function schoolConfigurationLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -483,10 +628,20 @@ export async function schoolConfigurationLiveTab(
     return curriculumTab(subjects?.records ?? [], levels?.records ?? []);
   }
 
-  // Allocations and Policies still render their authored content: allocations
-  // is priced off FeeStructure, which this school has one row of, and policies
-  // is backed by the configuration module's generic key-value store, which is
-  // empty here. Returning undefined is "not wired yet", not a failure, so
-  // neither tab shows a stale-data banner it has not earned.
+  if (tabSlug === "policies") {
+    const areas = await Promise.all(
+      POLICY_AREAS.map(async (area) => {
+        const payload = await apiGet<{ records: PolicyItem[] }>(
+          `${CONFIG}/${area.resource}`,
+        ).catch(() => ({ records: [] as PolicyItem[] }));
+        return [area.resource, payload?.records ?? []] as const;
+      }),
+    );
+    return policiesTab(new Map(areas));
+  }
+
+  // Allocations still renders its authored content: it is priced off
+  // FeeStructure, which this school has one row of, so a wired tab would show
+  // a single line where the mockup shows a catalogue.
   return undefined;
 }
