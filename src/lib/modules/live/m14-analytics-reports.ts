@@ -37,8 +37,6 @@ type Analytics = {
   }>;
 };
 
-const CHECK_ICON = "M20 6 9 17l-5-5";
-
 function scoreTone(value: number): PanelTone {
   if (value >= 70) return "positive";
   if (value >= 50) return "attention";
@@ -218,6 +216,258 @@ function insightsTab(data: Analytics): TabContent {
   };
 }
 
+
+type GeneratedReport = {
+  id: string;
+  kind: string;
+  title: string;
+  format: string;
+  scope: string | null;
+  rowCount: number | null;
+  sizeBytes: number | null;
+  generatedBy: string | null;
+  generatedByRole: string | null;
+  generatedAt: string;
+};
+
+type Compliance = {
+  registration: {
+    cacNumber: string | null;
+    ministryApprovalNumber: string | null;
+    verified: boolean;
+    addressOnFile: boolean;
+  };
+  checks: Array<{
+    label: string;
+    have: number;
+    need: number;
+    complete: boolean;
+    percent: number;
+    note: string;
+  }>;
+};
+
+const CHECK_ICON = "M20 6 9 17l-5-5";
+
+function bytesLabel(bytes: number | null): string {
+  if (!bytes) return "—";
+  if (bytes >= 1_000_000) return `${(bytes / 1_000_000).toFixed(1)} MB`;
+  return `${Math.round(bytes / 1000)} KB`;
+}
+
+function whenLabel(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * M14 · Reports — what was actually produced, and by whom.
+ *
+ * /v1/reports streams a PDF and keeps no record of it, so the product could
+ * not answer "who exported the whole student roll last term". Recording the
+ * fact of a report is the point: an export of personal data that nobody can
+ * account for is the gap, not the absence of a catalogue.
+ */
+function reportsTab(rows: GeneratedReport[]): TabContent {
+  const people = new Set(rows.map((row) => row.generatedBy).filter(Boolean));
+  const kinds = new Map<string, number>();
+  for (const row of rows) kinds.set(readable(row.kind), (kinds.get(readable(row.kind)) ?? 0) + 1);
+  const bulk = rows.filter((row) => (row.rowCount ?? 0) >= 100);
+
+  return {
+    title: "Reports",
+    desc: "What has been generated out of this school's records, and by whom.",
+    launchers: [{ label: "Audit log", href: "/audit-security/audit-log" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Reports produced",
+            per: 4,
+            cards: [
+              { label: "Reports", value: String(rows.length), sub: `${kinds.size} kinds` },
+              { label: "People generating", value: String(people.size), sub: "With a name against the export" },
+              {
+                label: "Bulk exports",
+                value: String(bulk.length),
+                sub: bulk.length ? "100 rows or more" : "Nothing large exported",
+                tone: bulk.length ? "attention" : "positive",
+              },
+              {
+                label: "Most recent",
+                value: rows[0] ? whenLabel(rows[0].generatedAt) : "—",
+                sub: rows[0]?.title ?? "nothing generated",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          bulk.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${bulk.length} export${bulk.length === 1 ? "" : "s"} took out 100 rows or more`,
+                body: `${bulk.map((row) => `${row.title} (${row.rowCount} rows)`).join(", ")}. A bulk export of personal data leaves the system entirely — once it is a file on somebody's laptop, nothing here governs it. That is worth a name against it, which is what this page is for.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "No bulk export has been taken",
+                body: "Nothing large has left the system.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rows.length
+            ? {
+                type: "table",
+                title: "Generated",
+                sub: "Most recent first.",
+                meta: `${rows.length} report${rows.length === 1 ? "" : "s"}`,
+                head: ["Report", "Kind", "Format", "Rows", "Size", "By", "When"],
+                per: 12,
+                rows: rows.map((row) => ({
+                  cells: [
+                    text(row.title, { strong: true }),
+                    text(readable(row.kind)),
+                    pill(row.format.toLowerCase(), "neutral"),
+                    text(row.rowCount === null ? "—" : row.rowCount.toLocaleString(), {
+                      tone: (row.rowCount ?? 0) >= 100 ? "attention" : undefined,
+                    }),
+                    text(bytesLabel(row.sizeBytes)),
+                    text(row.generatedBy ?? "—"),
+                    text(whenLabel(row.generatedAt)),
+                  ],
+                  keywords: `${row.title} ${row.kind} ${row.generatedBy ?? ""}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "neutral",
+                title: "No report has been generated",
+                body: "Nothing has been exported out of this school's records.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * M14 · Compliance — whether this school could file a return today.
+ *
+ * Derived rather than modelled. A compliance table records what somebody
+ * claimed; the useful question is what the records can actually support, which
+ * is a different thing and the only one worth putting on a page.
+ */
+function complianceTab(data: Compliance): TabContent {
+  const failing = data.checks.filter((check) => !check.complete);
+  const registration = data.registration;
+  const registrationGaps = [
+    !registration.cacNumber && "CAC number",
+    !registration.ministryApprovalNumber && "ministry approval",
+    !registration.addressOnFile && "registered address",
+    !registration.verified && "platform verification",
+  ].filter(Boolean) as string[];
+
+  return {
+    title: "Compliance",
+    desc: "Whether the records could support a return today.",
+    launchers: [{ label: "Data protection", href: "/audit-security/data-protection" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Readiness",
+            per: 4,
+            cards: [
+              {
+                label: "Checks passing",
+                value: `${data.checks.length - failing.length} of ${data.checks.length}`,
+                sub: failing.length ? "Some records are incomplete" : "Every field is on file",
+                tone: failing.length ? "attention" : "positive",
+              },
+              {
+                label: "Registration gaps",
+                value: String(registrationGaps.length),
+                sub: registrationGaps.length ? registrationGaps.join(" · ") : "Fully registered",
+                tone: registrationGaps.length ? "negative" : "positive",
+              },
+              {
+                label: "CAC number",
+                value: registration.cacNumber ? "On file" : "Missing",
+                sub: registration.cacNumber ?? "Required to operate",
+                tone: registration.cacNumber ? "positive" : "negative",
+              },
+              {
+                label: "Ministry approval",
+                value: registration.ministryApprovalNumber ? "On file" : "Missing",
+                sub: registration.ministryApprovalNumber ?? "Required to operate",
+                tone: registration.ministryApprovalNumber ? "positive" : "negative",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          registrationGaps.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${registrationGaps.length} registration detail${registrationGaps.length === 1 ? " is" : "s are"} not on file`,
+                body: `${registrationGaps.join(", ")}. These are asked for on every return a school files, and none of them can be derived — somebody has to enter them in School Configuration.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "Registration details are complete",
+                body: "Everything a return asks for about the school itself is on file.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "What the records support",
+            sub: "Each row is a field a return asks for, counted against what is held.",
+            head: ["Check", "Held", "Needed", "Complete", "Why it is asked"],
+            per: 12,
+            rows: data.checks.map((check) => ({
+              cells: [
+                text(check.label, { strong: true }),
+                text(check.have.toLocaleString()),
+                text(check.need.toLocaleString()),
+                text(`${check.percent}%`, {
+                  tone: check.complete ? "positive" : check.percent >= 80 ? "attention" : "negative",
+                  strong: true,
+                }),
+                text(check.note),
+              ],
+              keywords: check.label,
+            })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
 export async function analyticsReportsLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -227,9 +477,16 @@ export async function analyticsReportsLiveTab(
     return insightsTab(data);
   }
 
-  // Reports and Compliance stay authored. Reports is a catalogue of generated
-  // exports and nothing persists a generated report — /v1/reports streams a PDF
-  // on request and keeps no record of it. Compliance wants regulator-facing
-  // returns that this stack does not model.
+  if (tabSlug === "reports") {
+    const rows = await apiGet<GeneratedReport[]>("/api/v1/audit/reports");
+    return reportsTab(rows ?? []);
+  }
+
+  if (tabSlug === "compliance") {
+    const data = await apiGet<Compliance>("/api/v1/audit/compliance");
+    if (!data) return undefined;
+    return complianceTab(data);
+  }
+
   return undefined;
 }

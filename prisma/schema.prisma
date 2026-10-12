@@ -820,6 +820,8 @@ model School {
   @@index([country, state])
   @@index([accountManagerId])
   staffAppraisals               StaffAppraisal[]
+  automationRules               AutomationRule[]
+  generatedReports              GeneratedReport[]
 }
 
 model Campus {
@@ -1297,6 +1299,7 @@ model User {
   uploadedSowTopicResources        SowTopicResource[]            @relation("SowTopicResourceUploadedBy")
   assessedStudentTopicProgress     StudentTopicProgress[]        @relation("StudentTopicProgressAssessedBy")
   appraisalsGiven               StaffAppraisal[]               @relation("StaffAppraisalReviewer")
+  generatedReports              GeneratedReport[]              @relation("GeneratedReportBy")
 }
 
 model ProfileDocument {
@@ -4958,4 +4961,64 @@ model StaffAppraisalRating {
   appraisal   StaffAppraisal @relation(fields: [appraisalId], references: [id], onDelete: Cascade)
 
   @@unique([appraisalId, criterion])
+}
+
+/// What makes an automation fire.
+enum AutomationTrigger {
+  FEE_DUE_SOON
+  FEE_OVERDUE
+  CONSECUTIVE_ABSENCE
+  RESULT_PUBLISHED
+  TERM_STARTING
+  BIRTHDAY
+}
+
+/// A standing rule that sends something without anybody pressing a button.
+///
+/// Stored rather than hard-coded because the point of the page is that a
+/// school can see — and switch off — every message the product sends on its
+/// behalf. `lastRunAt` and `sendCount` are what make that auditable: a rule
+/// nobody can see firing is indistinguishable from one that is broken.
+model AutomationRule {
+  id          String            @id @default(cuid())
+  schoolId    String
+  name        String
+  trigger     AutomationTrigger
+  /// Trigger-specific threshold, e.g. days before due, or absences in a row.
+  threshold   Int?
+  channel     String            @default("SMS")
+  audience    String            @default("Guardians")
+  template    String
+  isActive    Boolean           @default(true)
+  lastRunAt   DateTime?
+  sendCount   Int               @default(0)
+  createdById String?
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, isActive])
+}
+
+/// A report somebody actually generated.
+///
+/// /v1/reports streams a PDF and keeps no record of it, so the product could
+/// not answer "who exported the whole student roll last term". This records
+/// that: what was produced, by whom, over what period, and how large.
+model GeneratedReport {
+  id          String   @id @default(cuid())
+  schoolId    String
+  kind        String
+  title       String
+  format      String   @default("PDF")
+  /// What the report covered, in the school's own terms.
+  scope       String?
+  rowCount    Int?
+  sizeBytes   Int?
+  generatedById String?
+  generatedAt DateTime @default(now())
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  generatedBy User?    @relation("GeneratedReportBy", fields: [generatedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, generatedAt])
 }

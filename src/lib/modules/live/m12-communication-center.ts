@@ -279,6 +279,152 @@ function composeTab(wallet: WalletSnapshot, guardians: GuardianRow[]): TabConten
   };
 }
 
+
+type AutomationRule = {
+  id: string;
+  name: string;
+  trigger: string;
+  threshold: number | null;
+  channel: string;
+  audience: string;
+  template: string;
+  isActive: boolean;
+  lastRunAt: string | null;
+  sendCount: number;
+  neverRun: boolean;
+};
+
+function sinceLabel(iso: string | null): string {
+  if (!iso) return "never";
+  const hours = Math.round((Date.now() - new Date(iso).getTime()) / 3_600_000);
+  if (hours < 1) return "just now";
+  if (hours < 24) return `${hours}h ago`;
+  return `${Math.round(hours / 24)}d ago`;
+}
+
+/**
+ * M12 · Automation — every message the product sends on the school's behalf.
+ *
+ * The point of the page is that a school can see and switch off anything
+ * going out in its name. So the figures that lead are how many are live and
+ * how many have never actually fired: an active rule that has never run is
+ * indistinguishable from a broken one until somebody looks.
+ */
+function automationTab(rules: AutomationRule[]): TabContent {
+  const live = rules.filter((rule) => rule.isActive);
+  const neverRun = live.filter((rule) => rule.neverRun);
+  const sent = rules.reduce((sum, rule) => sum + rule.sendCount, 0);
+  const off = rules.filter((rule) => !rule.isActive);
+
+  return {
+    title: "Automation",
+    desc: "What the product sends without anybody pressing a button.",
+    launchers: [{ label: "What has been sent", href: "/communication-center/sent" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Standing rules",
+            per: 4,
+            cards: [
+              { label: "Rules", value: String(rules.length), sub: `${live.length} live · ${off.length} off` },
+              {
+                label: "Never fired",
+                value: String(neverRun.length),
+                sub: neverRun.length ? "Live, but has never sent anything" : "Every live rule has run",
+                tone: neverRun.length ? "attention" : "positive",
+              },
+              { label: "Messages sent", value: sent.toLocaleString(), sub: "Across all rules" },
+              {
+                label: "Switched off",
+                value: String(off.length),
+                sub: off.length ? "Kept for the record" : "Nothing disabled",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          neverRun.length
+            ? {
+                type: "note",
+                tone: "attention",
+                title: `${neverRun.length} live rule${neverRun.length === 1 ? " has" : "s have"} never fired`,
+                body: `${neverRun.map((rule) => rule.name).join(", ")}. A rule that is switched on and has never sent anything is indistinguishable from one that is broken — both look identical from this page until somebody checks what is meant to trigger it.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: "M20 6 9 17l-5-5",
+                title: "Every live rule has fired at least once",
+                body: "Nothing is switched on and silently doing nothing.",
+              },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          rules.length
+            ? {
+                type: "table",
+                title: "Rules",
+                sub: "Live first. Each one sends in the school's name.",
+                meta: `${rules.length} rule${rules.length === 1 ? "" : "s"} · ${sent.toLocaleString()} sent`,
+                head: ["Rule", "Fires on", "Channel", "Sent", "Last run", "State", ""],
+                per: 12,
+                rows: rules.map((rule) => ({
+                  cells: [
+                    nameCell(rule.name, rule.audience),
+                    text(
+                      `${readable(rule.trigger)}${rule.threshold !== null ? ` · ${rule.threshold}` : ""}`,
+                    ),
+                    pill(readable(rule.channel), channelTone(rule.channel)),
+                    text(rule.sendCount.toLocaleString()),
+                    text(sinceLabel(rule.lastRunAt), {
+                      tone: rule.isActive && !rule.lastRunAt ? "attention" : undefined,
+                    }),
+                    pill(rule.isActive ? "live" : "off", rule.isActive ? "positive" : "neutral"),
+                    {
+                      kind: "action" as const,
+                      label: "View",
+                      drawer: {
+                        kicker: readable(rule.trigger),
+                        title: rule.name,
+                        sub: `${rule.audience} · ${readable(rule.channel)}`,
+                        tone: rule.isActive ? "positive" : "neutral",
+                        readOnly: true,
+                        facts: [
+                          ["Fires on", readable(rule.trigger)],
+                          ["Threshold", rule.threshold === null ? "none" : String(rule.threshold)],
+                          ["Channel", readable(rule.channel)],
+                          ["Audience", rule.audience],
+                          ["State", rule.isActive ? "live" : "switched off"],
+                          ["Messages sent", rule.sendCount.toLocaleString()],
+                          ["Last run", rule.lastRunAt ? new Date(rule.lastRunAt).toLocaleString() : "never"],
+                          ["Message", rule.template],
+                        ] as PanelFact[],
+                      },
+                    },
+                  ],
+                  keywords: `${rule.name} ${rule.trigger}`,
+                })),
+              }
+            : {
+                type: "note",
+                tone: "neutral",
+                title: "No automation is configured",
+                body: "Nothing is sent on this school's behalf without somebody pressing a button.",
+              },
+        ],
+      },
+    ],
+  };
+}
+
 export async function communicationCenterLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -301,7 +447,10 @@ export async function communicationCenterLiveTab(
     return composeTab(wallet, guardians ?? []);
   }
 
-  // Automation stays authored: it describes scheduled rules, and nothing
-  // persists one.
+  if (tabSlug === "automation") {
+    const rules = await apiGet<AutomationRule[]>("/api/v1/communications/automations");
+    return automationTab(rules ?? []);
+  }
+
   return undefined;
 }

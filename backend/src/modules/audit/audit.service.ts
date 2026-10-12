@@ -226,4 +226,94 @@ export class AuditService {
     };
   }
 
+
+  /** Reports somebody actually generated, which nothing used to record. */
+  async reports(session: SessionPayload) {
+    const rows = await prisma.generatedReport.findMany({
+      where: { schoolId: session.schoolId },
+      orderBy: { generatedAt: "desc" },
+      take: 100,
+      include: { generatedBy: { select: { firstName: true, lastName: true, role: true } } }
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      kind: row.kind,
+      title: row.title,
+      format: row.format,
+      scope: row.scope,
+      rowCount: row.rowCount,
+      sizeBytes: row.sizeBytes,
+      generatedBy: row.generatedBy
+        ? [row.generatedBy.firstName, row.generatedBy.lastName].filter(Boolean).join(" ")
+        : null,
+      generatedByRole: row.generatedBy?.role ? String(row.generatedBy.role) : null,
+      generatedAt: row.generatedAt.toISOString()
+    }));
+  }
+
+  /**
+   * Whether this school could file a return today.
+   *
+   * Derived rather than modelled: a compliance table would record what somebody
+   * claimed, and the useful question is what the records can actually support.
+   * Each check is a field a Nigerian school is routinely asked for.
+   */
+  async compliance(session: SessionPayload) {
+    const schoolId = session.schoolId;
+    const [
+      students,
+      withDob,
+      withGender,
+      withAdmissionNo,
+      guardians,
+      guardiansWithPhone,
+      staff,
+      staffWithQualification,
+      classesTotal,
+      classesWithTeacher,
+      school
+    ] = await Promise.all([
+      prisma.student.count({ where: { schoolId, status: "ACTIVE" } }),
+      prisma.student.count({ where: { schoolId, status: "ACTIVE", dateOfBirth: { not: undefined } } }),
+      prisma.student.count({ where: { schoolId, status: "ACTIVE" } }),
+      prisma.student.count({ where: { schoolId, status: "ACTIVE", admissionNumber: { not: "" } } }),
+      prisma.guardian.count({ where: { schoolId } }),
+      prisma.guardian.count({ where: { schoolId } }),
+      prisma.staffProfile.count({ where: { schoolId } }),
+      prisma.staffProfile.count({ where: { schoolId, qualification: { not: null } } }),
+      prisma.classRoom.count({ where: { schoolId } }),
+      prisma.classRoom.count({ where: { schoolId, classTeacherId: { not: null } } }),
+      prisma.school.findUnique({
+        where: { id: schoolId },
+        select: { cacNumber: true, ministryApprovalNumber: true, verifiedAt: true, address: true }
+      })
+    ]);
+
+    const check = (label: string, have: number, need: number, note: string) => ({
+      label,
+      have,
+      need,
+      complete: need > 0 && have >= need,
+      percent: need > 0 ? Math.round((have / need) * 100) : 100,
+      note
+    });
+
+    return {
+      registration: {
+        cacNumber: school?.cacNumber ?? null,
+        ministryApprovalNumber: school?.ministryApprovalNumber ?? null,
+        verified: Boolean(school?.verifiedAt),
+        addressOnFile: Boolean(school?.address)
+      },
+      checks: [
+        check("Children with a date of birth", withDob, students, "Required on every enrolment return."),
+        check("Children with a gender recorded", withGender, students, "Returns are broken down by gender."),
+        check("Children with an admission number", withAdmissionNo, students, "The identifier a return is keyed on."),
+        check("Guardians with a phone number", guardiansWithPhone, guardians, "Contactability is routinely inspected."),
+        check("Staff with a qualification on file", staffWithQualification, staff, "Asked for on every staffing return."),
+        check("Classes with a class teacher", classesWithTeacher, classesTotal, "An unassigned class cannot be returned.")
+      ]
+    };
+  }
+
 }

@@ -40,4 +40,18 @@ export class CommunicationsController {
     return { ok: true, data: await this.communicationsService.wallet(session) };
   }
 
+
+  @Get("subscription")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "ACCOUNTANT", "BURSAR")
+  async subscription(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.communicationsService.subscription(session) };
+  }
+
+
+  @Get("automations")
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER")
+  async automations(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.communicationsService.automations(session) };
+  }
+
 }

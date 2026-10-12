@@ -91,4 +91,110 @@ export class CommunicationsService {
     };
   }
 
+
+  /**
+   * This school's subscription: the plan it is on, what that plan allows, and
+   * how close the school is to each limit.
+   *
+   * A plan page that prints a price teaches nobody anything. The question a
+   * proprietor has is whether the school is about to outgrow what it pays for,
+   * so every limit is reported against actual usage.
+   */
+  async subscription(session: SessionPayload) {
+    const school = await prisma.school.findUnique({
+      where: { id: session.schoolId },
+      select: { plan: true, billingStatus: true, nextBillingAt: true, currency: true, createdAt: true }
+    });
+    if (!school) return null;
+
+    const [plan, allPlans, students, staff, wallet, transactions] = await Promise.all([
+      prisma.platformSubscriptionPlan.findFirst({ where: { plan: school.plan } }),
+      prisma.platformSubscriptionPlan.findMany({ orderBy: { monthlyPrice: "asc" } }),
+      prisma.student.count({ where: { schoolId: session.schoolId, status: "ACTIVE" } }),
+      prisma.staffProfile.count({ where: { schoolId: session.schoolId } }),
+      prisma.notificationWallet.findUnique({ where: { schoolId: session.schoolId } }),
+      prisma.platformBillingTransaction.findMany({
+        where: { schoolId: session.schoolId },
+        orderBy: { processedAt: "desc" },
+        take: 24,
+        select: {
+          id: true,
+          amount: true,
+          currency: true,
+          method: true,
+          status: true,
+          reference: true,
+          processedAt: true
+        }
+      })
+    ]);
+
+    /** Null limit means the plan does not cap it, which is not the same as zero. */
+    const usage = (used: number, limit: number | null | undefined) => ({
+      used,
+      limit: limit ?? null,
+      percent: limit ? Math.round((used / limit) * 100) : null,
+      over: limit ? used > limit : false
+    });
+
+    return {
+      plan: String(school.plan),
+      planName: plan?.name ?? String(school.plan),
+      billingStatus: String(school.billingStatus),
+      nextBillingAt: school.nextBillingAt?.toISOString() ?? null,
+      currency: school.currency,
+      monthlyPrice: plan ? Number(plan.monthlyPrice) : null,
+      annualPrice: plan ? Number(plan.annualPrice) : null,
+      supportTier: plan?.supportTier ? String(plan.supportTier) : null,
+      apiAccess: plan?.apiAccess ?? false,
+      customBranding: plan?.customBranding ?? false,
+      students: usage(students, plan?.studentLimit),
+      staff: usage(staff, plan?.staffLimit),
+      smsIncluded: plan?.smsUnitsPerMonth ?? 0,
+      smsBalance: wallet?.smsBalance ?? 0,
+      since: school.createdAt.toISOString(),
+      transactions: transactions.map((row) => ({
+        id: row.id,
+        amount: Number(row.amount),
+        currency: row.currency,
+        method: row.method,
+        status: row.status,
+        reference: row.reference,
+        processedAt: row.processedAt.toISOString()
+      })),
+      plans: allPlans.map((item) => ({
+        name: item.name,
+        plan: String(item.plan),
+        monthlyPrice: Number(item.monthlyPrice),
+        annualPrice: Number(item.annualPrice),
+        studentLimit: item.studentLimit,
+        smsUnitsPerMonth: item.smsUnitsPerMonth,
+        current: item.plan === school.plan
+      }))
+    };
+  }
+
+
+  /** Standing rules that send without anybody pressing a button. */
+  async automations(session: SessionPayload) {
+    const rows = await prisma.automationRule.findMany({
+      where: { schoolId: session.schoolId },
+      orderBy: [{ isActive: "desc" }, { name: "asc" }]
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      trigger: String(row.trigger),
+      threshold: row.threshold,
+      channel: row.channel,
+      audience: row.audience,
+      template: row.template,
+      isActive: row.isActive,
+      lastRunAt: row.lastRunAt?.toISOString() ?? null,
+      sendCount: row.sendCount,
+      /** Active, but has never fired — usually a rule nothing can satisfy. */
+      neverRun: row.isActive && !row.lastRunAt
+    }));
+  }
+
 }
