@@ -49,6 +49,15 @@ type SchoolRecord = {
   logoUrl: string | null;
   primaryColor: string | null;
   secondaryColor: string | null;
+  shortName: string | null;
+  motto: string | null;
+  vision: string | null;
+  schoolType: string | null;
+  curriculumPreference: string | null;
+  principalName: string | null;
+  principalPhone: string | null;
+  principalEmail: string | null;
+  levelsOperated: string[];
 };
 
 type BrandingVersion = {
@@ -138,15 +147,36 @@ function identityDrawer(school: SchoolRecord) {
     commitDoneBody: "Everything printed from now carries the new name.",
     fields: [
       { label: "School name", kind: "text" as const, value: school.name, required: true, span: 2 as const },
+      {
+        label: "Short name",
+        kind: "text" as const,
+        value: school.shortName ?? "",
+        optional: true,
+        hint: "Used in SMS, where characters cost money.",
+      },
       { label: "School code", kind: "text" as const, value: school.schoolCode ?? "", optional: true },
+      { label: "Motto", kind: "text" as const, value: school.motto ?? "", span: 2 as const, optional: true },
+      { label: "Vision", kind: "area" as const, value: school.vision ?? "", span: 2 as const, optional: true },
       { label: "Timezone", kind: "text" as const, value: school.timezone, optional: true },
-      { label: "Category", kind: "static" as const, value: school.category?.replace(/_/g, " ") ?? "—" },
-      { label: "Workspace", kind: "static" as const, value: school.subdomain ?? school.slug },
+      { label: "School type", kind: "static" as const, value: school.schoolType ?? "—" },
+      {
+        label: "Levels operated",
+        kind: "static" as const,
+        value: school.levelsOperated?.join(" · ") || "none configured",
+        span: 2 as const,
+      },
     ],
     submit: {
       endpoint: `${CONFIG}/school-information/${school.id}`,
       method: "PATCH" as const,
-      map: { "School name": "name", "School code": "schoolCode", Timezone: "timezone" },
+      map: {
+        "School name": "name",
+        "Short name": "shortName",
+        "School code": "schoolCode",
+        Motto: "motto",
+        Vision: "vision",
+        Timezone: "timezone",
+      },
     },
   };
 }
@@ -225,11 +255,78 @@ function brandingDrawer(school: SchoolRecord) {
  * than only describing a change — editing opens in a drawer here, so a drawer
  * that cannot edit makes the whole page read-only.
  */
+function brandingHistoryDrawer(branding: BrandingVersion[]) {
+  return {
+    kicker: "Branding",
+    title: "Version history",
+    sub: branding.length
+      ? "Every version, and what it was applied to."
+      : "Nothing has been versioned yet.",
+    readOnly: true,
+    readOnlyNote:
+      "A card already issued keeps the branding it was printed with. History is never rewritten.",
+    facts: branding.length
+      ? (branding.map((version) => [
+          `${version.status.toLowerCase()} · ${dateLabel(version.createdAt)}`,
+          `${version.primaryColour} / ${version.secondaryColour} · ${version.appliedTo.replace(/_/g, " ")}`,
+        ]) as PanelFact[])
+      : ([
+          ["Versions on file", "none"],
+          [
+            "Why",
+            "Branding has only ever been set directly on the school record, so there is nothing to compare against.",
+          ],
+        ] as PanelFact[]),
+  };
+}
+
+function agreementDrawer() {
+  return {
+    kicker: "Data processing",
+    title: "Data processing agreement",
+    sub: "What the product can say about this, honestly.",
+    readOnly: true,
+    facts: [
+      ["Agreement on file", "none"],
+      [
+        "What exists instead",
+        "The school record, the audit trail, and consent per guardian — facts about what is held, not a signed undertaking about how it may be used.",
+      ],
+      [
+        "Why it is not shown",
+        "Nothing stores an agreement, its text or its signatory. Printing one here would be inventing a legal document.",
+      ],
+      ["Where the real figures are", "Audit & Security · Data protection"],
+    ] as PanelFact[],
+  };
+}
+
+function sampleDataDrawer() {
+  return {
+    kicker: "Data processing",
+    title: "Sample data",
+    sub: "What can and cannot be said about demonstration records.",
+    readOnly: true,
+    facts: [
+      ["Sample records identifiable", "no", "Nothing marks a row as sample data"],
+      [
+        "What that means",
+        "Seeded and real records are indistinguishable once written, so clearing sample data could delete a real child's record.",
+      ],
+      [
+        "What would fix it",
+        "A flag written at seed time, or a separate demonstration school. Either is a decision rather than a button.",
+      ],
+    ] as PanelFact[],
+  };
+}
+
 function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabContent {
   const place = [school.address, school.city, school.lga, school.state, school.country]
     .filter(Boolean)
     .join(", ");
   const inForce = branding.find((version) => version.status === "APPLIED") ?? branding[0] ?? null;
+  const registered = Boolean(school.cacNumber && school.ministryApprovalNumber);
 
   return {
     title: "Profile",
@@ -254,28 +351,36 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabConte
             acts: [{ label: "Edit identity", primary: true, drawer: identityDrawer(school) }],
             facts: [
               ["School name", school.name, "As printed on report cards"],
-              ["Category", school.category?.replace(/_/g, " ") ?? "—"],
+              ["Short name", school.shortName ?? "not set", "Used in SMS, where characters cost money"],
+              ["Motto", school.motto ?? "not recorded"],
+              ["Vision", school.vision ?? "not recorded"],
+              ["School type", school.schoolType ?? school.category?.replace(/_/g, " ") ?? "—"],
+              [
+                "Levels operated",
+                school.levelsOperated?.length ? school.levelsOperated.join(" · ") : "none configured",
+                `${school.levelsOperated?.length ?? 0} class levels`,
+              ],
+              ["Curriculum", school.curriculumPreference ?? "not recorded"],
               ["School code", school.schoolCode ?? "not issued"],
               ["Workspace", school.subdomain ? `${school.subdomain}.futurerealm.school` : school.slug],
               ["Currency", school.currency],
               ["Timezone", school.timezone],
-              ["Calls a year", school.academicYearLabel],
-              ["Calls a term", school.termLabel],
+              ["Calls a year / term", `${school.academicYearLabel} · ${school.termLabel}`],
             ],
           },
         ],
       },
       {
-        cols: "1fr",
+        cols: "1.1fr 1fr",
         panels: [
           {
             type: "facts",
             title: "Address and authority",
             sub: "Registration numbers are what a return is checked against.",
-            meta: school.cacNumber && school.ministryApprovalNumber ? "Fully registered" : "Registration incomplete",
-            tag: school.cacNumber && school.ministryApprovalNumber ? "Complete" : "Missing",
-            tagTone: school.cacNumber && school.ministryApprovalNumber ? "positive" : "negative",
-            per: 3,
+            meta: registered ? "Fully registered" : "Registration incomplete",
+            tag: registered ? "Complete" : "Missing",
+            tagTone: registered ? "positive" : "negative",
+            per: 2,
             acts: [{ label: "Edit address & authority", drawer: addressDrawer(school) }],
             facts: [
               ["Address", place || "not recorded"],
@@ -283,47 +388,25 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabConte
               ["Proprietor", school.ownerName ?? "not recorded"],
               ["Proprietor email", school.ownerEmail ?? "not recorded"],
               ["Proprietor phone", school.ownerPhone ?? "not recorded"],
+              [
+                "Principal",
+                school.principalName
+                  ? `${school.principalName}${school.principalPhone ? ` · ${school.principalPhone}` : ""}`
+                  : "none appointed",
+                "Read from the staff record, not typed here",
+              ],
               ["CAC number", school.cacNumber ?? "not recorded", "Asked for on every return"],
               ["Ministry approval", school.ministryApprovalNumber ?? "not recorded", "Required to operate"],
             ],
           },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
           {
             type: "facts",
             title: "Branding",
-            sub: "What appears on a report card, and what was in force when one was printed.",
-            meta: branding.length ? `${branding.length} version(s) on file` : "No version history",
-            per: 3,
+            sub: "What appears on a report card.",
+            meta: branding.length ? `${branding.length} version(s)` : "No version history",
+            per: 1,
             acts: [
-              {
-                label: "Version history",
-                drawer: {
-                  kicker: "Branding",
-                  title: "Version history",
-                  sub: branding.length
-                    ? "Every version, and what it was applied to."
-                    : "Nothing has been versioned yet.",
-                  readOnly: true,
-                  readOnlyNote:
-                    "A card already issued keeps the branding it was printed with. History is never rewritten.",
-                  facts: branding.length
-                    ? (branding.map((version) => [
-                        `${version.status.toLowerCase()} · ${dateLabel(version.createdAt)}`,
-                        `${version.primaryColour} / ${version.secondaryColour} · ${version.appliedTo.replace(/_/g, " ")}`,
-                      ]) as PanelFact[])
-                    : ([
-                        ["Versions on file", "none"],
-                        [
-                          "Why",
-                          "Branding has only ever been set directly on the school record, so there is nothing to compare against.",
-                        ],
-                      ] as PanelFact[]),
-                },
-              },
+              { label: "Version history", drawer: brandingHistoryDrawer(branding) },
               { label: "Edit branding", drawer: brandingDrawer(school) },
             ],
             facts: [
@@ -340,69 +423,30 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabConte
         ],
       },
       {
-        cols: "1fr",
+        cols: "1.15fr 1fr",
         panels: [
           {
             type: "facts",
             title: "Data processing agreement",
-            sub: "What this school has agreed to about the records it holds.",
-            meta: "No agreement is recorded against this school",
+            sub: "What this school has agreed about the records it holds.",
+            meta: "No agreement is recorded",
             tag: "Not signed",
             tagTone: "negative",
             per: 2,
-            acts: [
-              {
-                label: "Read full text",
-                drawer: {
-                  kicker: "Data processing",
-                  title: "Data processing agreement",
-                  sub: "What the product can say about this, honestly.",
-                  readOnly: true,
-                  facts: [
-                    ["Agreement on file", "none"],
-                    [
-                      "What exists instead",
-                      "The school record, the audit trail, and consent per guardian. Those are facts about what is held, not a signed undertaking about how it may be used.",
-                    ],
-                    [
-                      "Why it is not shown",
-                      "Nothing in this system stores an agreement, its text or its signatory. Printing one here would be inventing a legal document.",
-                    ],
-                    ["Where the real figures are", "Audit & Security · Data protection"],
-                  ] as PanelFact[],
-                },
-              },
-              {
-                label: "Review sample data",
-                drawer: {
-                  kicker: "Data processing",
-                  title: "Sample data",
-                  sub: "What can and cannot be said about demonstration records.",
-                  readOnly: true,
-                  facts: [
-                    [
-                      "Sample records identifiable",
-                      "no",
-                      "Nothing marks a row as sample data",
-                    ],
-                    [
-                      "What that means",
-                      "Seeded and real records are indistinguishable once written, so a 'clear sample data' action could not tell them apart and would risk deleting a real child's record.",
-                    ],
-                    [
-                      "What would fix it",
-                      "A flag written at seed time, or a separate demonstration school. Either is a decision rather than a button.",
-                    ],
-                  ] as PanelFact[],
-                },
-              },
-            ],
+            acts: [{ label: "Read full text", drawer: agreementDrawer() }],
             facts: [
               ["Agreement", "not recorded"],
               ["Signed by", "—"],
-              ["Consent records", "See Audit & Security · Data protection"],
-              ["Audit trail", "See Audit & Security · Audit log"],
+              ["Consent records", "Audit & Security · Data protection"],
+              ["Audit trail", "Audit & Security · Audit log"],
             ],
+          },
+          {
+            type: "note",
+            tone: "attention",
+            title: "Sample data cannot be told apart from real records",
+            body: "Nothing marks a row as demonstration data, so a 'clear sample data' action could not distinguish a seeded record from a real child's. What would fix it is a flag written at seed time, or a separate demonstration school.",
+            acts: [{ label: "Review sample data", drawer: sampleDataDrawer() }],
           },
         ],
       },

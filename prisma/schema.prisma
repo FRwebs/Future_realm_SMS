@@ -612,6 +612,10 @@ model School {
   id                            String                         @id @default(cuid())
   name                          String
   slug                          String                         @unique
+  /// What the school calls itself in short — used in SMS, where characters cost money.
+  shortName                     String?
+  motto                         String?
+  vision                        String?
   category                      SchoolCategory
   isGroup                       Boolean                        @default(false)
   isPersonalWorkspace           Boolean                        @default(false)
