@@ -1090,6 +1090,93 @@ async function seedOperationalExtras(schoolId: string) {
   }
 
 
+
+  // The rules that make the product behave like this school. They live in
+  // ConfigurationItem, which the configuration module already serves and
+  // nothing ever wrote to beyond a single academic-context row — so M02's
+  // Policies tab described rules that did not exist anywhere.
+  const existingPolicies = await prisma.configurationItem.count({
+    where: { schoolId, resource: { in: ["attendance", "promotions", "exam", "finance"] } }
+  });
+  if (existingPolicies === 0) {
+    await prisma.configurationItem.createMany({
+      data: [
+        {
+          schoolId,
+          resource: "attendance",
+          name: "Late after 08:15",
+          code: "LATE_THRESHOLD",
+          description: "A child marked in after 08:15 is recorded late rather than present.",
+          data: { cutoff: "08:15", countsAsPresent: true },
+          displayOrder: 1
+        },
+        {
+          schoolId,
+          resource: "attendance",
+          name: "Alert a guardian at three consecutive absences",
+          code: "ABSENCE_ALERT",
+          description: "Three unexplained absences in a row notifies the guardian on file.",
+          data: { consecutiveDays: 3, channel: "SMS" },
+          displayOrder: 2
+        },
+        {
+          schoolId,
+          resource: "promotions",
+          name: "Promote at 50% and above",
+          code: "PROMOTION_MARK",
+          description: "A term average of 50 or more promotes; below repeats the class.",
+          data: { passMark: 50, repeatBelow: true },
+          displayOrder: 1
+        },
+        {
+          schoolId,
+          resource: "promotions",
+          name: "Principal signs off every repeat",
+          code: "REPEAT_APPROVAL",
+          description: "No child repeats a class without the principal approving it individually.",
+          data: { approver: "PRINCIPAL" },
+          displayOrder: 2
+        },
+        {
+          schoolId,
+          resource: "exam",
+          name: "CA 40 · Exam 60",
+          code: "SCORE_WEIGHTS",
+          description: "Continuous assessment carries 40 marks and the examination 60.",
+          data: { ca: 40, exam: 60 },
+          displayOrder: 1
+        },
+        {
+          schoolId,
+          resource: "exam",
+          name: "Results lock once published",
+          code: "RESULT_LOCK",
+          description: "A published result sheet cannot be edited without a return through Review.",
+          data: { lockOnPublish: true },
+          displayOrder: 2
+        },
+        {
+          schoolId,
+          resource: "finance",
+          name: "Fees due two weeks into term",
+          code: "FEE_DUE",
+          description: "Invoices fall due fourteen days after the term begins.",
+          data: { dueDays: 14 },
+          displayOrder: 1
+        },
+        {
+          schoolId,
+          resource: "finance",
+          name: "No late fee",
+          code: "LATE_FEE",
+          description: "Outstanding fees do not attract a penalty; the bursar follows up instead.",
+          data: { penaltyPercent: 0 },
+          displayOrder: 2
+        }
+      ]
+    });
+  }
+
   // Profile edit requests, which the product can review but nothing ever
   // raised. Two waiting and one already decided, and the pending ones change
   // fields a school actually corrects — a surname after a marriage, a phone
