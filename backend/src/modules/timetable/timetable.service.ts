@@ -1087,4 +1087,164 @@ export class TimetableService {
 
     return { data: conflicts, hasConflicts: conflicts.length > 0, has_conflicts: conflicts.length > 0, conflictCount: conflicts.length, conflict_count: conflicts.length };
   }
+
+  /**
+   * Every subject a class takes, and who teaches it.
+   *
+   * ClassSubject is the subject-to-class-to-teacher mapping. An earlier read of
+   * this codebase concluded it did not exist and that "Civic Education has no
+   * teacher" was therefore uncomputable; it does exist, and this is that
+   * computation.
+   */
+  async subjectAssignments(session: SessionPayload) {
+    const rows = await prisma.classSubject.findMany({
+      where: { schoolId: session.schoolId, isActive: true },
+      include: {
+        classRoom: { select: { name: true, arm: true } },
+        subject: { select: { name: true, code: true, isCore: true, section: true } }
+      },
+      orderBy: [{ classId: "asc" }]
+    });
+
+    // ClassSubject carries a teacherId but no teacher relation, so the names
+    // are resolved in one lookup rather than a join that does not exist.
+    const teacherIds = Array.from(
+      new Set(rows.map((row) => row.teacherId).filter((id): id is string => Boolean(id)))
+    );
+    const teachers = teacherIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: teacherIds } },
+          select: { id: true, firstName: true, lastName: true }
+        })
+      : [];
+    const teacherById = new Map(
+      teachers.map((teacher) => [
+        teacher.id,
+        [teacher.firstName, teacher.lastName].filter(Boolean).join(" ")
+      ])
+    );
+
+    return rows.map((row) => ({
+      id: row.id,
+      classId: row.classId,
+      className: row.classRoom
+        ? `${row.classRoom.name}${row.classRoom.arm ? ` - ${row.classRoom.arm}` : ""}`
+        : null,
+      subjectId: row.subjectId,
+      subjectName: row.subject?.name ?? null,
+      subjectCode: row.subject?.code ?? null,
+      isCore: row.subject?.isCore ?? null,
+      section: row.subject?.section ? String(row.subject.section) : null,
+      teacherId: row.teacherId,
+      teacherName: row.teacherId ? (teacherById.get(row.teacherId) ?? null) : null,
+      passMark: row.passMark
+    }));
+  }
+
+  /**
+   * How much of the week each class actually has a timetable for.
+   *
+   * Two things make a timetable wrong rather than merely incomplete, and both
+   * are counted here: a class with no entries at all, and the same teacher
+   * booked into two rooms in the same period. The second is the one nobody
+   * notices until a Monday morning.
+   */
+  async coverage(session: SessionPayload) {
+    const [classes, entries] = await Promise.all([
+      prisma.classRoom.findMany({
+        where: { schoolId: session.schoolId },
+        select: { id: true, name: true, arm: true, _count: { select: { students: true } } },
+        orderBy: [{ name: "asc" }, { arm: "asc" }]
+      }),
+      prisma.timetableEntry.findMany({
+        where: { schoolId: session.schoolId },
+        select: {
+          id: true,
+          classId: true,
+          dayOfWeek: true,
+          periodNumber: true,
+          slotType: true,
+          teacherId: true,
+          subject: { select: { name: true } },
+          classRoom: { select: { name: true, arm: true } }
+        }
+      })
+    ]);
+
+    const lessons = entries.filter((entry) => !nonTeachingSlots.includes(entry.slotType));
+    const days = new Set(lessons.map((entry) => entry.dayOfWeek)).size || 5;
+    const periods = lessons.reduce((max, entry) => Math.max(max, entry.periodNumber), 0) || 8;
+    const slotsPerClass = days * periods;
+
+    const byClass = new Map<string, typeof lessons>();
+    for (const entry of lessons) {
+      byClass.set(entry.classId, [...(byClass.get(entry.classId) ?? []), entry]);
+    }
+
+    // Same teacher, same day, same period, more than one class.
+    const slots = new Map<string, typeof lessons>();
+    for (const entry of lessons) {
+      if (!entry.teacherId) continue;
+      const key = `${entry.teacherId}:${entry.dayOfWeek}:${entry.periodNumber}`;
+      slots.set(key, [...(slots.get(key) ?? []), entry]);
+    }
+    // TimetableEntry carries teacherId without a teacher relation, so names
+    // come from one lookup rather than a join the schema does not declare.
+    const clashTeacherIds = Array.from(
+      new Set(
+        Array.from(slots.values())
+          .filter((group) => group.length > 1)
+          .map((group) => group[0]?.teacherId)
+          .filter((id): id is string => Boolean(id))
+      )
+    );
+    const clashTeachers = clashTeacherIds.length
+      ? await prisma.user.findMany({
+          where: { id: { in: clashTeacherIds } },
+          select: { id: true, firstName: true, lastName: true }
+        })
+      : [];
+    const clashTeacherName = new Map(
+      clashTeachers.map((teacher) => [
+        teacher.id,
+        [teacher.firstName, teacher.lastName].filter(Boolean).join(" ")
+      ])
+    );
+
+    const clashes = Array.from(slots.values())
+      .filter((group) => group.length > 1)
+      .map((group) => ({
+        teacher: (group[0]?.teacherId && clashTeacherName.get(group[0].teacherId)) || "Unnamed",
+        day: dayNames[group[0]?.dayOfWeek ?? 0] ?? "—",
+        period: group[0]?.periodNumber ?? 0,
+        classes: group.map((entry) =>
+          entry.classRoom
+            ? `${entry.classRoom.name}${entry.classRoom.arm ? ` - ${entry.classRoom.arm}` : ""}`
+            : "—"
+        )
+      }));
+
+    return {
+      days,
+      periods,
+      slotsPerClass,
+      totalLessons: lessons.length,
+      unassignedLessons: lessons.filter((entry) => !entry.teacherId).length,
+      clashes,
+      classes: classes.map((classRoom) => {
+        const own = byClass.get(classRoom.id) ?? [];
+        return {
+          id: classRoom.id,
+          name: classRoom.arm ? `${classRoom.name} - ${classRoom.arm}` : classRoom.name,
+          students: classRoom._count.students,
+          lessons: own.length,
+          slots: slotsPerClass,
+          coveragePercent: slotsPerClass ? Math.round((own.length / slotsPerClass) * 100) : 0,
+          withoutTeacher: own.filter((entry) => !entry.teacherId).length,
+          hasTimetable: own.length > 0
+        };
+      })
+    };
+  }
+
 }

@@ -535,6 +535,311 @@ function teachingTab(rows: SchemeRow[]): TabContent {
   };
 }
 
+
+const CHECK_ICON = "M20 6 9 17l-5-5";
+
+type SubjectAssignment = {
+  id: string;
+  classId: string;
+  className: string | null;
+  subjectId: string;
+  subjectName: string | null;
+  subjectCode: string | null;
+  isCore: boolean | null;
+  section: string | null;
+  teacherId: string | null;
+  teacherName: string | null;
+  passMark: number;
+};
+
+type Coverage = {
+  days: number;
+  periods: number;
+  slotsPerClass: number;
+  totalLessons: number;
+  unassignedLessons: number;
+  clashes: Array<{ teacher: string; day: string; period: number; classes: string[] }>;
+  classes: Array<{
+    id: string;
+    name: string;
+    students: number;
+    lessons: number;
+    slots: number;
+    coveragePercent: number;
+    withoutTeacher: number;
+    hasTimetable: boolean;
+  }>;
+};
+
+/**
+ * M03 · Subjects — which subjects each class takes, and who teaches them.
+ *
+ * Distinct from M02's Curriculum, which is the catalogue of what the school
+ * offers. This is the allocation of it: the same subject appears once per
+ * class that takes it, and a row with no teacher is a class with nobody
+ * standing in front of it.
+ */
+function subjectsTab(rows: SubjectAssignment[]): TabContent {
+  const unstaffed = rows.filter((row) => !row.teacherId);
+  const classes = new Set(rows.map((row) => row.classId));
+  const subjects = new Set(rows.map((row) => row.subjectId));
+  const teachers = new Set(rows.map((row) => row.teacherId).filter(Boolean));
+  const load = new Map<string, number>();
+  for (const row of rows) {
+    if (!row.teacherName) continue;
+    load.set(row.teacherName, (load.get(row.teacherName) ?? 0) + 1);
+  }
+  const heaviest = Array.from(load.entries()).sort((a, b) => b[1] - a[1]).slice(0, 8);
+
+  return {
+    title: "Subjects",
+    desc: "Which subjects each class takes, and who is teaching them.",
+    launchers: [{ label: "Curriculum", href: "/school-configuration/curriculum" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "Subject allocation",
+            per: 4,
+            cards: [
+              { label: "Assignments", value: String(rows.length), sub: `${subjects.size} subjects across ${classes.size} classes` },
+              {
+                label: "With no teacher",
+                value: String(unstaffed.length),
+                sub: unstaffed.length ? "Nobody is assigned to teach these" : "Every assignment is staffed",
+                tone: unstaffed.length ? "negative" : "positive",
+              },
+              { label: "Teachers allocated", value: String(teachers.size), sub: "Carrying at least one subject" },
+              {
+                label: "Heaviest load",
+                value: heaviest[0] ? String(heaviest[0][1]) : "—",
+                sub: heaviest[0]?.[0] ?? "nobody allocated",
+                tone: (heaviest[0]?.[1] ?? 0) > 10 ? "attention" : undefined,
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          unstaffed.length
+            ? {
+                type: "note",
+                tone: "negative",
+                title: `${unstaffed.length} subject-class assignment${unstaffed.length === 1 ? " has" : "s have"} no teacher`,
+                body: `${unstaffed
+                  .slice(0, 4)
+                  .map((row) => `${row.subjectName} in ${row.className}`)
+                  .join(", ")}${unstaffed.length > 4 ? ", and others" : ""}. Each one is a class that takes a subject nobody is assigned to teach — which is also why those scores never arrive at the end of term.`,
+              }
+            : {
+                type: "note",
+                tone: "positive",
+                icon: CHECK_ICON,
+                title: "Every subject-class pairing has a teacher",
+                body: "No class takes a subject nobody is responsible for.",
+              },
+        ],
+      },
+      {
+        cols: "1.1fr 1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Assignments",
+            sub: "Unstaffed first.",
+            meta: `${rows.length} assignments`,
+            head: ["Subject", "Class", "Teacher", "Kind"],
+            per: 14,
+            rows: rows
+              .slice()
+              .sort((a, b) => Number(Boolean(a.teacherId)) - Number(Boolean(b.teacherId)))
+              .map((row) => ({
+                cells: [
+                  text(row.subjectName ?? "—", { strong: true }),
+                  text(row.className ?? "—"),
+                  text(row.teacherName ?? "none assigned", {
+                    tone: row.teacherName ? undefined : "negative",
+                    strong: !row.teacherName,
+                  }),
+                  pill(row.isCore ? "core" : "elective", row.isCore ? "positive" : "neutral"),
+                ],
+                keywords: `${row.subjectName ?? ""} ${row.className ?? ""} ${row.teacherName ?? ""}`,
+              })),
+          },
+          {
+            type: "bars",
+            title: "Teaching load",
+            sub: "Subject-classes carried, heaviest first.",
+            rows: heaviest.map(([teacher, count]) => ({
+              label: teacher,
+              value: count,
+              display: String(count),
+              tone: count > 10 ? "attention" : undefined,
+            })),
+          },
+        ],
+      },
+    ],
+  };
+}
+
+/**
+ * M03 · Coverage — how much of the week each class actually has.
+ *
+ * Two things make a timetable wrong rather than merely thin, and the tab leads
+ * on both: a class with no timetable at all, and the same teacher booked into
+ * two rooms in the same period. The second is the one nobody notices until a
+ * Monday morning.
+ */
+function coverageTab(data: Coverage): TabContent {
+  const withTimetable = data.classes.filter((item) => item.hasTimetable);
+  const without = data.classes.filter((item) => !item.hasTimetable && item.students > 0);
+  const thin = withTimetable.filter((item) => item.coveragePercent < 60);
+  const average = withTimetable.length
+    ? Math.round(
+        withTimetable.reduce((sum, item) => sum + item.coveragePercent, 0) / withTimetable.length,
+      )
+    : 0;
+
+  return {
+    title: "Coverage",
+    desc: "How much of the teaching week is actually timetabled.",
+    launchers: [{ label: "Timetable", href: "/class-timetable/timetable" }],
+    rows: [
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "kpi",
+            title: "The week as scheduled",
+            per: 4,
+            cards: [
+              {
+                label: "Classes timetabled",
+                value: `${withTimetable.length} of ${data.classes.length}`,
+                sub: without.length ? `${without.length} with children and no timetable` : "Every class with children has one",
+                tone: without.length ? "negative" : "positive",
+              },
+              {
+                label: "Average coverage",
+                value: `${average}%`,
+                sub: `of ${data.slotsPerClass} slots a week`,
+                tone: average >= 75 ? "positive" : average >= 50 ? "attention" : "negative",
+              },
+              {
+                label: "Teacher clashes",
+                value: String(data.clashes.length),
+                sub: data.clashes.length ? "Same teacher, two rooms, one period" : "Nobody is double-booked",
+                tone: data.clashes.length ? "negative" : "positive",
+              },
+              {
+                label: "Lessons with no teacher",
+                value: String(data.unassignedLessons),
+                sub: data.unassignedLessons ? "Scheduled but unstaffed" : "Every lesson is staffed",
+                tone: data.unassignedLessons ? "attention" : "positive",
+              },
+            ],
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          data.clashes.length
+            ? {
+                type: "table",
+                title: "Double bookings",
+                sub: "One person cannot be in two rooms. These will fail on the day.",
+                meta: `${data.clashes.length} clash${data.clashes.length === 1 ? "" : "es"}`,
+                head: ["Teacher", "Day", "Period", "Booked into"],
+                per: 10,
+                rows: data.clashes.map((clash) => ({
+                  cells: [
+                    text(clash.teacher, { strong: true }),
+                    text(clash.day),
+                    text(String(clash.period)),
+                    text(clash.classes.join(" · "), { tone: "negative" }),
+                  ],
+                  keywords: `${clash.teacher} ${clash.day}`,
+                })),
+              }
+            : without.length
+              ? {
+                  type: "note",
+                  tone: "negative",
+                  title: `${without.length} class${without.length === 1 ? " has" : "es have"} children and no timetable at all`,
+                  body: `${without.map((item) => item.name).join(", ")}. Those children are on a roll, and nothing says where they are meant to be.`,
+                }
+              : {
+                  type: "note",
+                  tone: "positive",
+                  icon: CHECK_ICON,
+                  title: "No double bookings, and every class with children is timetabled",
+                  body: "The week as scheduled can actually be taught.",
+                },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: "Coverage by class",
+            sub: "Thinnest first.",
+            meta: `${data.totalLessons} lessons · ${data.days} days × ${data.periods} periods`,
+            head: ["Class", "Children", "Lessons", "Coverage", "Unstaffed"],
+            per: 14,
+            rows: data.classes
+              .slice()
+              .sort((a, b) => a.coveragePercent - b.coveragePercent)
+              .map((item) => ({
+                cells: [
+                  text(item.name, { strong: true }),
+                  text(String(item.students), {
+                    tone: item.students && !item.hasTimetable ? "negative" : undefined,
+                  }),
+                  text(`${item.lessons}/${item.slots}`),
+                  text(`${item.coveragePercent}%`, {
+                    tone:
+                      item.coveragePercent >= 75
+                        ? "positive"
+                        : item.coveragePercent >= 40
+                          ? "attention"
+                          : "negative",
+                    strong: true,
+                  }),
+                  text(String(item.withoutTeacher), {
+                    tone: item.withoutTeacher ? "attention" : undefined,
+                  }),
+                ],
+                keywords: item.name,
+              })),
+          },
+        ],
+      },
+      ...(thin.length
+        ? [
+            {
+              cols: "1fr",
+              panels: [
+                {
+                  type: "note" as const,
+                  tone: "attention" as const,
+                  title: `${thin.length} class${thin.length === 1 ? " is" : "es are"} under 60% timetabled`,
+                  body: "A thin timetable is not necessarily wrong — a nursery week is shorter than a senior one — but it is worth knowing which rooms have the most unscheduled time in them.",
+                },
+              ],
+            },
+          ]
+        : []),
+    ],
+  };
+}
+
 export async function classTimetableLiveTab(
   tabSlug: string,
 ): Promise<TabContent | undefined> {
@@ -558,8 +863,16 @@ export async function classTimetableLiveTab(
     return teachingTab(schemes ?? []);
   }
 
-  // Subjects and Coverage stay authored. Subjects would repeat what M02's
-  // Curriculum already reads off the same 88 records, and Coverage wants
-  // period-level attendance against the timetable, which nothing records.
+  if (tabSlug === "subjects") {
+    const rows = await apiGet<SubjectAssignment[]>("/api/v1/timetable/subject-assignments");
+    return subjectsTab(rows ?? []);
+  }
+
+  if (tabSlug === "coverage") {
+    const data = await apiGet<Coverage>("/api/v1/timetable/coverage");
+    if (!data) return undefined;
+    return coverageTab(data);
+  }
+
   return undefined;
 }

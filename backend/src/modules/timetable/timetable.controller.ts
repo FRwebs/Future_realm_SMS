@@ -15,6 +15,19 @@ import { TimetableService } from "./timetable.service";
 export class TimetableController {
   constructor(private readonly timetableService: TimetableService) {}
 
+
+  @Get("subject-assignments")
+  @RequirePermission("class-timetable.subjects.view")
+  async subjectAssignments(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.timetableService.subjectAssignments(session) };
+  }
+
+  @Get("coverage")
+  @RequirePermission("class-timetable.coverage.view")
+  async coverage(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.timetableService.coverage(session) };
+  }
+
   @Get("classes")
   @RequirePermission("timetable.view")
   classes(@CurrentSession() session: SessionPayload, @Query() query: Record<string, string | undefined>) {
