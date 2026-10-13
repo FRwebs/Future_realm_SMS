@@ -144,37 +144,54 @@ function identityDrawer(school: SchoolRecord) {
     commitLabel: "Save identity",
     commitNote: "Cards already issued keep the name they were printed with.",
     commitDone: "Identity saved",
-    commitDoneBody: "Everything printed from now carries the new name.",
-    // The mockup leads a commit drawer with context and what the save will do,
-    // then the boxes. A drawer that opens straight into inputs tells somebody
-    // what to type and not what it changes.
+    commitDoneBody: "The school name is in force on everything printed from now.",
     facts: [
+      ["School name", school.name, "As printed on report cards"],
+      ["Short name", school.shortName ?? "not set", "Used in SMS, where characters cost money"],
+      ["Motto", school.motto ?? "not recorded"],
       ["School type", school.schoolType ?? school.category?.replace(/_/g, " ") ?? "—"],
       [
         "Levels operated",
         school.levelsOperated?.length ? school.levelsOperated.join(" · ") : "none configured",
         "Read from the class levels this school runs",
       ],
-      ["Workspace", school.subdomain ? `${school.subdomain}.futurerealm.school` : school.slug],
       [
         "Effect",
         "Every card printed from now carries the new name",
         "Cards already issued keep theirs",
       ],
     ] as PanelFact[],
-    fields: [
-      { label: "School name", kind: "text" as const, value: school.name, required: true, span: 2 as const },
+    steps: [
       {
-        label: "Short name",
-        kind: "text" as const,
-        value: school.shortName ?? "",
-        optional: true,
-        hint: "Used in SMS, where characters cost money.",
+        title: "What the school is called",
+        hint: "The name on every report card, and the short form that goes out by SMS.",
+        fields: [
+          {
+            label: "School name",
+            kind: "text" as const,
+            value: school.name,
+            required: true,
+            span: 2 as const,
+          },
+          {
+            label: "Short name",
+            kind: "text" as const,
+            value: school.shortName ?? "",
+            optional: true,
+            hint: "Every character costs money in an SMS.",
+          },
+          { label: "School code", kind: "text" as const, value: school.schoolCode ?? "", optional: true },
+        ],
       },
-      { label: "School code", kind: "text" as const, value: school.schoolCode ?? "", optional: true },
-      { label: "Motto", kind: "text" as const, value: school.motto ?? "", span: 2 as const, optional: true },
-      { label: "Vision", kind: "area" as const, value: school.vision ?? "", span: 2 as const, optional: true },
-      { label: "Timezone", kind: "text" as const, value: school.timezone, optional: true },
+      {
+        title: "What it stands for",
+        hint: "Printed on report cards and shown to families on the portal.",
+        fields: [
+          { label: "Motto", kind: "text" as const, value: school.motto ?? "", span: 2 as const, optional: true },
+          { label: "Vision", kind: "area" as const, value: school.vision ?? "", span: 2 as const, optional: true },
+          { label: "Timezone", kind: "text" as const, value: school.timezone, optional: true },
+        ],
+      },
     ],
     submit: {
       endpoint: `${CONFIG}/school-information/${school.id}`,
@@ -192,20 +209,26 @@ function identityDrawer(school: SchoolRecord) {
 }
 
 function addressDrawer(school: SchoolRecord) {
+  const place = [school.address, school.city, school.state, school.country].filter(Boolean).join(", ");
   return {
     mode: "commit" as const,
     kicker: "School profile",
     title: "Edit address & authority",
-    sub: "Who answers for this school, and where it operates from.",
+    sub: "Registration numbers are what a return is checked against.",
     commitLabel: "Save address & authority",
     commitNote: "The school name travels with this save because the record is validated whole.",
     commitDone: "Address and authority saved",
-    commitDoneBody: "The school record has been updated.",
+    commitDoneBody: "Returns and printed documents use this address from now.",
     facts: [
-      ["School", school.name],
-      ["CAC number", school.cacNumber ?? "not recorded", "Not editable here — set at registration"],
+      ["Country", school.country ?? "Nigeria"],
+      ["Address", place || "not recorded"],
       [
-        "Ministry approval",
+        "Registration number",
+        school.cacNumber ?? "not recorded",
+        "Set at registration, not editable here",
+      ],
+      [
+        "Authority approval",
         school.ministryApprovalNumber ?? "not recorded",
         "Required to operate; asked for on every return",
       ],
@@ -215,15 +238,40 @@ function addressDrawer(school: SchoolRecord) {
         "Anything already filed keeps the address it carried",
       ],
     ] as PanelFact[],
-    fields: [
-      { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
-      { label: "Address", kind: "text" as const, value: school.address ?? "", span: 2 as const, optional: true },
-      { label: "City", kind: "text" as const, value: school.city ?? "", optional: true },
-      { label: "State", kind: "text" as const, value: school.state ?? "", optional: true },
-      { label: "Country", kind: "text" as const, value: school.country ?? "Nigeria", optional: true },
-      { label: "Proprietor", kind: "text" as const, value: school.ownerName ?? "", optional: true },
-      { label: "Proprietor email", kind: "text" as const, value: school.ownerEmail ?? "", optional: true },
-      { label: "Proprietor phone", kind: "text" as const, value: school.ownerPhone ?? "", optional: true },
+    steps: [
+      {
+        title: "Where the school is",
+        hint: "The address a return is filed against and a letter is sent to.",
+        fields: [
+          { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
+          {
+            label: "Address",
+            kind: "text" as const,
+            value: school.address ?? "",
+            span: 2 as const,
+            optional: true,
+          },
+          { label: "City", kind: "text" as const, value: school.city ?? "", optional: true },
+          { label: "State", kind: "text" as const, value: school.state ?? "", optional: true },
+          { label: "Country", kind: "text" as const, value: school.country ?? "Nigeria", optional: true },
+        ],
+      },
+      {
+        title: "Who answers for it",
+        hint: "The proprietor the platform contacts about this school.",
+        fields: [
+          { label: "Proprietor", kind: "text" as const, value: school.ownerName ?? "", optional: true, span: 2 as const },
+          { label: "Proprietor email", kind: "text" as const, value: school.ownerEmail ?? "", optional: true },
+          { label: "Proprietor phone", kind: "text" as const, value: school.ownerPhone ?? "", optional: true },
+          {
+            label: "Principal",
+            kind: "static" as const,
+            value: school.principalName ?? "none appointed",
+            span: 2 as const,
+            hint: "Changed on the staff record, not here",
+          },
+        ],
+      },
     ],
     submit: {
       endpoint: `${CONFIG}/school-information/${school.id}`,
@@ -242,7 +290,9 @@ function addressDrawer(school: SchoolRecord) {
   };
 }
 
-function brandingDrawer(school: SchoolRecord) {
+function brandingDrawer(school: SchoolRecord, branding: BrandingVersion[]) {
+  const nextVersion = branding.length + 1;
+  const inForce = branding.find((version) => version.status === "APPLIED") ?? branding[0] ?? null;
   return {
     mode: "commit" as const,
     kicker: "School profile",
@@ -250,14 +300,22 @@ function brandingDrawer(school: SchoolRecord) {
     sub: "Anything already printed keeps the branding it was printed with.",
     commitLabel: "Save branding",
     commitNote: "A parent's card is never restated behind them.",
-    commitDone: "Branding saved",
-    commitDoneBody: "Everything printed from now carries the new colours.",
+    commitDone: `Branding saved${branding.length ? ` as version ${nextVersion}` : ""}`,
+    commitDoneBody: "Everything printed from now carries the new colours. Nothing already issued changes.",
     facts: [
-      ["In force today", `${school.primaryColor ?? "unset"} / ${school.secondaryColor ?? "unset"}`],
       ["Logo", school.logoUrl ?? "none uploaded"],
       [
-        "Effect",
-        "Everything printed from now carries the new colours",
+        "Brand colours",
+        `${school.primaryColor ?? "unset"} and ${school.secondaryColor ?? "unset"}`,
+      ],
+      [
+        "Version",
+        branding.length ? `This saves as version ${nextVersion}` : "No versions are recorded yet",
+        inForce ? `Version ${branding.length} is in force today` : "Colours live on the school record",
+      ],
+      [
+        "Already printed",
+        branding.length ? `Keeps version ${branding.length}` : "Keeps the colours it carried",
         "A parent's card is never restated behind them",
       ],
     ] as PanelFact[],
@@ -265,7 +323,6 @@ function brandingDrawer(school: SchoolRecord) {
       { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
       { label: "Primary colour", kind: "text" as const, value: school.primaryColor ?? "", optional: true },
       { label: "Secondary colour", kind: "text" as const, value: school.secondaryColor ?? "", optional: true },
-      { label: "Logo", kind: "static" as const, value: school.logoUrl ?? "none uploaded", span: 2 as const },
     ],
     submit: {
       endpoint: `${CONFIG}/school-information/${school.id}`,
@@ -279,15 +336,6 @@ function brandingDrawer(school: SchoolRecord) {
   };
 }
 
-/**
- * M02 · Profile, in the shape the mockup draws it: four facts panels, each
- * owning the actions that belong to it.
- *
- * An earlier pass replaced this with one facts panel and two inline forms,
- * which lost every trigger the mockup has. The drawers now carry inputs rather
- * than only describing a change — editing opens in a drawer here, so a drawer
- * that cannot edit makes the whole page read-only.
- */
 function brandingHistoryDrawer(branding: BrandingVersion[]) {
   return {
     kicker: "Branding",
@@ -367,7 +415,7 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabConte
     primary: { label: "Edit identity", drawer: identityDrawer(school) },
     launchers: [
       { label: "Edit address & authority", drawer: addressDrawer(school) },
-      { label: "Edit branding", drawer: brandingDrawer(school) },
+      { label: "Edit branding", drawer: brandingDrawer(school, branding) },
     ],
     rows: [
       {
@@ -440,7 +488,7 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabConte
             per: 1,
             acts: [
               { label: "Version history", drawer: brandingHistoryDrawer(branding) },
-              { label: "Edit branding", drawer: brandingDrawer(school) },
+              { label: "Edit branding", drawer: brandingDrawer(school, branding) },
             ],
             facts: [
               ["Primary colour", school.primaryColor ?? "not set"],

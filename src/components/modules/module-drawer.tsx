@@ -2,7 +2,7 @@
 
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import type { DrawerSpec, PanelFact } from "@/lib/modules/panels";
@@ -87,9 +87,14 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
-  const [values, setValues] = useState<Record<string, unknown>>(() =>
-    Object.fromEntries((spec.fields ?? []).map((field) => [field.label, initialValue(field)])),
+  const allFields = useMemo(
+    () => (spec.steps?.length ? spec.steps.flatMap((step) => step.fields) : (spec.fields ?? [])),
+    [spec],
   );
+  const [values, setValues] = useState<Record<string, unknown>>(() =>
+    Object.fromEntries(allFields.map((field) => [field.label, initialValue(field)])),
+  );
+  const [stepIndex, setStepIndex] = useState(0);
   const router = useRouter();
 
   useEffect(() => {
@@ -109,6 +114,18 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
 
   const isCommit = spec.mode === "commit" && !spec.readOnly;
   const submit = spec.submit;
+  const steps = spec.steps ?? [];
+  const onLastStep = !steps.length || stepIndex === steps.length - 1;
+  const step = steps[stepIndex] ?? null;
+  const visibleFields = step ? step.fields : (spec.fields ?? []);
+
+  /** A step cannot be left until everything it marks required is answered. */
+  const unanswered = visibleFields.filter((field) => {
+    if (!field.required) return false;
+    const value = values[field.label];
+    return value === undefined || value === null || String(value).trim() === "";
+  });
+
   const needsReason = Boolean(submit?.reasonKey);
   const reasonMissing = Boolean(submit?.reasonRequired) && !reason.trim();
 
@@ -269,9 +286,36 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
 
             {spec.facts?.length ? <FactRows facts={spec.facts} /> : null}
 
-            {spec.fields?.length && !committed ? (
+            {steps.length && !committed ? (
+              <div className="grid gap-[7px]">
+                <div className="flex flex-wrap items-baseline justify-between gap-2">
+                  <span className="text-[12px] font-semibold" style={{ color: INK }}>
+                    {step?.title}
+                  </span>
+                  <span className="text-[10.5px] font-semibold tabular-nums" style={{ color: MUTED }}>
+                    Step {stepIndex + 1} of {steps.length}
+                  </span>
+                </div>
+                {step?.hint ? (
+                  <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                    {step.hint}
+                  </p>
+                ) : null}
+                <div className="mt-[2px] flex gap-[4px]" aria-hidden>
+                  {steps.map((_, index) => (
+                    <span
+                      key={index}
+                      className="h-[3px] flex-1 rounded-full"
+                      style={{ background: index <= stepIndex ? INK : "#E6EEE9" }}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {visibleFields.length && !committed ? (
               <div className="grid gap-[13px] sm:grid-cols-2">
-                {spec.fields.map((field) => (
+                {visibleFields.map((field) => (
                   <div key={field.label} className={field.span === 2 ? "sm:col-span-2" : undefined}>
                     <Field
                       field={field}
@@ -327,10 +371,37 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
                 >
                   Cancel
                 </button>
+                {steps.length && stepIndex > 0 ? (
+                  <button
+                    type="button"
+                    onClick={() => setStepIndex((current) => current - 1)}
+                    className="whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[9px] text-[11.5px] font-semibold"
+                    style={{ borderColor: "#DEE8E2", color: "#435048" }}
+                  >
+                    Back
+                  </button>
+                ) : null}
+                {!onLastStep ? (
+                  <button
+                    type="button"
+                    onClick={() => setStepIndex((current) => current + 1)}
+                    disabled={unanswered.length > 0}
+                    title={
+                      unanswered.length
+                        ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
+                        : undefined
+                    }
+                    className="whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
+                  >
+                    Next
+                  </button>
+                ) : null}
                 <button
                   type="button"
                   onClick={commit}
-                  disabled={pending || reasonMissing}
+                  hidden={!onLastStep}
+                  disabled={pending || reasonMissing || unanswered.length > 0}
                   title={reasonMissing ? "Say why before you send this." : undefined}
                   className="whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
