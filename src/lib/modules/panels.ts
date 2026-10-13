@@ -63,6 +63,13 @@ export type DrawerSubmit = {
   reasonRequired?: boolean;
 };
 
+export type DrawerStep = {
+  title: string;
+  /** One line on what this stage is for, shown under its title. */
+  hint?: string;
+  fields: FormField[];
+};
+
 export type DrawerSpec = {
   kicker?: string;
   title: string;
@@ -76,6 +83,18 @@ export type DrawerSpec = {
   commitDoneBody?: string;
   /** Omit and the drawer confirms without sending — a dry run, not a decision. */
   submit?: DrawerSubmit;
+  /**
+   * A form taken in stages.
+   *
+   * Some edits ask for more than fits in one honest glance — an address, then
+   * the authority that registered it, then who answers for it. Splitting those
+   * is not decoration: a single wall of boxes makes somebody skim, and the
+   * fields people skim are the ones that end up wrong.
+   *
+   * Steps and `fields` are alternatives. A drawer with steps collects across
+   * all of them and sends one payload at the end.
+   */
+  steps?: DrawerStep[];
   /**
    * Inputs, for an "Edit …" drawer.
    *
