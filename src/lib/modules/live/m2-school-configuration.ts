@@ -145,6 +145,23 @@ function identityDrawer(school: SchoolRecord) {
     commitNote: "Cards already issued keep the name they were printed with.",
     commitDone: "Identity saved",
     commitDoneBody: "Everything printed from now carries the new name.",
+    // The mockup leads a commit drawer with context and what the save will do,
+    // then the boxes. A drawer that opens straight into inputs tells somebody
+    // what to type and not what it changes.
+    facts: [
+      ["School type", school.schoolType ?? school.category?.replace(/_/g, " ") ?? "—"],
+      [
+        "Levels operated",
+        school.levelsOperated?.length ? school.levelsOperated.join(" · ") : "none configured",
+        "Read from the class levels this school runs",
+      ],
+      ["Workspace", school.subdomain ? `${school.subdomain}.futurerealm.school` : school.slug],
+      [
+        "Effect",
+        "Every card printed from now carries the new name",
+        "Cards already issued keep theirs",
+      ],
+    ] as PanelFact[],
     fields: [
       { label: "School name", kind: "text" as const, value: school.name, required: true, span: 2 as const },
       {
@@ -158,13 +175,6 @@ function identityDrawer(school: SchoolRecord) {
       { label: "Motto", kind: "text" as const, value: school.motto ?? "", span: 2 as const, optional: true },
       { label: "Vision", kind: "area" as const, value: school.vision ?? "", span: 2 as const, optional: true },
       { label: "Timezone", kind: "text" as const, value: school.timezone, optional: true },
-      { label: "School type", kind: "static" as const, value: school.schoolType ?? "—" },
-      {
-        label: "Levels operated",
-        kind: "static" as const,
-        value: school.levelsOperated?.join(" · ") || "none configured",
-        span: 2 as const,
-      },
     ],
     submit: {
       endpoint: `${CONFIG}/school-information/${school.id}`,
@@ -191,6 +201,20 @@ function addressDrawer(school: SchoolRecord) {
     commitNote: "The school name travels with this save because the record is validated whole.",
     commitDone: "Address and authority saved",
     commitDoneBody: "The school record has been updated.",
+    facts: [
+      ["School", school.name],
+      ["CAC number", school.cacNumber ?? "not recorded", "Not editable here — set at registration"],
+      [
+        "Ministry approval",
+        school.ministryApprovalNumber ?? "not recorded",
+        "Required to operate; asked for on every return",
+      ],
+      [
+        "Effect",
+        "Returns and printed documents use this address from now",
+        "Anything already filed keeps the address it carried",
+      ],
+    ] as PanelFact[],
     fields: [
       { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
       { label: "Address", kind: "text" as const, value: school.address ?? "", span: 2 as const, optional: true },
@@ -228,6 +252,15 @@ function brandingDrawer(school: SchoolRecord) {
     commitNote: "A parent's card is never restated behind them.",
     commitDone: "Branding saved",
     commitDoneBody: "Everything printed from now carries the new colours.",
+    facts: [
+      ["In force today", `${school.primaryColor ?? "unset"} / ${school.secondaryColor ?? "unset"}`],
+      ["Logo", school.logoUrl ?? "none uploaded"],
+      [
+        "Effect",
+        "Everything printed from now carries the new colours",
+        "A parent's card is never restated behind them",
+      ],
+    ] as PanelFact[],
     fields: [
       { label: "School", kind: "static" as const, value: school.name, span: 2 as const },
       { label: "Primary colour", kind: "text" as const, value: school.primaryColor ?? "", optional: true },
