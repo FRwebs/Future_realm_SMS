@@ -57,6 +57,14 @@ export function canAdvanceAcademicApproval(stage: AcademicApprovalStage, action:
   return action === "SUBMIT" || action === "COMPILE";
 }
 
+/**
+ * An examination component is recognised wherever it is stored — the original "EXAM", or one a section's own
+ * framework named, e.g. "JUNIOR_SECONDARY:EXAM:40" — so every reader of a score files it the same way.
+ */
+export function isExamComponentCode(code: string) {
+  return code === "EXAM" || /(^|:)EXAM(:|$)/.test(code);
+}
+
 export function validateSectionAssessmentWeights(
   components: Array<{ section: SchoolSectionView; weight: number; isActive?: boolean }>
 ) {
@@ -181,7 +189,7 @@ export function buildPortalSubjectResults(
 
     if (entry.assessmentComponent.code === "CA") {
       existing.continuousAssessment = (existing.continuousAssessment ?? 0) + entry.score;
-    } else if (entry.assessmentComponent.code === "EXAM") {
+    } else if (isExamComponentCode(entry.assessmentComponent.code)) {
       existing.exam = (existing.exam ?? 0) + entry.score;
     } else {
       existing.continuousAssessment = (existing.continuousAssessment ?? 0) + entry.score;
@@ -208,7 +216,7 @@ export function calculateSubjectTotals(
     const existing = subjects.get(entry.subjectId) ?? { continuousAssessment: 0, exam: 0, score: 0 };
     if (entry.assessmentComponent.code === "CA") {
       existing.continuousAssessment += entry.score;
-    } else if (entry.assessmentComponent.code === "EXAM") {
+    } else if (isExamComponentCode(entry.assessmentComponent.code)) {
       existing.exam += entry.score;
     } else {
       existing.continuousAssessment += entry.score;

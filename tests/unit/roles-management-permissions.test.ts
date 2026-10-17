@@ -8,6 +8,10 @@ vi.mock("@/lib/db/prisma", () => ({
     user: {
       findFirst: vi.fn().mockResolvedValue(null),
     },
+    // A school that has changed nothing: no template customisation, no custom role, no override.
+    configurationItem: { findFirst: vi.fn().mockResolvedValue(null) },
+    userRoleAssignment: { findMany: vi.fn().mockResolvedValue([]) },
+    userPermissionOverride: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }));
 

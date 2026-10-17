@@ -7,6 +7,7 @@ import { FinanceService } from "./finance.service";
 
 @Module({
   controllers: [FinanceController, FinanceWebhookController, BursaryController],
-  providers: [FinanceService, PaymentRecordingRateLimitGuard]
+  providers: [FinanceService, PaymentRecordingRateLimitGuard],
+  exports: [FinanceService]
 })
 export class FinanceModule {}

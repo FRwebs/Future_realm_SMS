@@ -104,8 +104,10 @@ function ModuleHead({
 
   return (
     <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
-      <div className="pointer-events-none absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-      <div className="pointer-events-none absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+      <div className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+        <div className="absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+      </div>
       <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
         <div className="min-w-0 max-w-[620px]">
           <div className="mb-[5px] flex items-center gap-[7px]">
@@ -150,6 +152,7 @@ export function ModuleWorkspace({
   primary,
   launchers,
   rows,
+  back,
   children,
 }: {
   eyebrow: string;
@@ -158,6 +161,8 @@ export function ModuleWorkspace({
   primary?: PanelAction;
   launchers?: PanelAction[];
   rows: PanelRow[];
+  /** A way back to the list this page was opened from. */
+  back?: { label: string; href: string };
   /** Rendered between the header and the panels — the tab strip. */
   children?: React.ReactNode;
 }) {
@@ -166,6 +171,18 @@ export function ModuleWorkspace({
   return (
     <div className="grid min-w-0 gap-[14px]">
       <ModuleDrawer spec={drawer} onClose={() => setDrawer(null)} />
+
+      {back ? (
+        <Link
+          href={back.href as Route}
+          className="inline-flex w-fit items-center gap-[6px] text-[11.5px] font-semibold text-[#12796A] hover:underline"
+        >
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            <path d="M19 12H6M11 6.5 5.5 12l5.5 5.5" />
+          </svg>
+          {back.label}
+        </Link>
+      ) : null}
 
       <ModuleHead
         eyebrow={eyebrow}

@@ -75,3 +75,28 @@ export async function sendJson(
     throw new Error(readableError(result.error ?? result.message));
   }
 }
+
+/** The same write, handing back what the API answered with. */
+export async function sendJsonForData<T>(endpoint: string, method: string, payload: unknown): Promise<T> {
+  const response = await fetch(endpoint, {
+    method,
+    credentials: "include",
+    headers: {
+      "Content-Type": "application/json",
+      "x-csrf-token": readCookie("fr_csrf") ?? "",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const result = (await response.json().catch(() => ({}))) as {
+    ok?: boolean;
+    error?: string;
+    message?: string;
+    data?: T;
+  };
+
+  if (!response.ok || result.ok === false) {
+    throw new Error(readableError(result.error ?? result.message));
+  }
+  return result.data as T;
+}

@@ -11,6 +11,7 @@ import {
   calculateWeightedScore,
   calculateSubjectTotals,
   getNextAcademicApprovalStage,
+  isExamComponentCode,
   nigerianTermGradeBands,
   resolveGradeLabel,
   ResultWorkflowStatus,
@@ -122,6 +123,44 @@ const sectionAssessmentComponentSchema = z.object({
   academicSessionId: z.string().optional(),
   isActive: z.coerce.boolean().default(true)
 });
+
+const sectionAssessmentComponentSetSchema = z.object({
+  section: schoolSectionSchema,
+  termId: z.string().optional(),
+  academicSessionId: z.string().optional(),
+  components: z
+    .array(
+      z.object({
+        name: z.string().min(2).max(100),
+        code: z.string().min(2).max(30),
+        type: assessmentTypeSchema,
+        weight: z.coerce.number().min(0).max(100),
+        maxScore: z.coerce.number().min(1).max(100),
+        order: z.coerce.number().int().min(1).optional()
+      })
+    )
+    .min(1)
+    .max(20)
+});
+
+const sectionAssessmentComponentPatchSchema = z.object({
+  name: z.string().min(2).max(100).optional(),
+  type: assessmentTypeSchema.optional(),
+  weight: z.coerce.number().min(0).max(100).optional(),
+  maxScore: z.coerce.number().min(1).max(100).optional(),
+  order: z.coerce.number().int().min(1).optional(),
+  isActive: z.coerce.boolean().optional()
+});
+
+const gradeBandSchema = z.object({
+  label: z.string().min(1).max(10),
+  minScore: z.coerce.number().min(0).max(100),
+  maxScore: z.coerce.number().min(0).max(100),
+  remark: z.string().min(1).max(60),
+  order: z.coerce.number().int().min(0).max(99).optional()
+});
+
+const gradeBandPatchSchema = gradeBandSchema.partial();
 
 const academicAssessmentSchema = z.object({
   title: z.string().min(3).max(160),
@@ -959,10 +998,10 @@ export class AcademicsService {
   }): GradeRecordView {
     const firstScore = sheet.scoreEntries[0];
     const ca = sheet.scoreEntries
-      .filter((entry) => entry.assessmentComponent.code === "CA")
+      .filter((entry) => !isExamComponentCode(entry.assessmentComponent.code))
       .reduce((sum, entry) => sum + entry.score, 0);
     const exam = sheet.scoreEntries
-      .filter((entry) => entry.assessmentComponent.code === "EXAM")
+      .filter((entry) => isExamComponentCode(entry.assessmentComponent.code))
       .reduce((sum, entry) => sum + entry.score, 0);
     const total = ca + exam || Number(sheet.totalScore);
     const band = resolveGradeLabel(total);
@@ -1028,8 +1067,9 @@ export class AcademicsService {
           principalComment: score.resultSheet.principalComment ?? undefined
         } satisfies GradeRecordView);
 
-      if (score.assessmentComponent.code === "CA") entry.continuousAssessment = score.score;
-      if (score.assessmentComponent.code === "EXAM") entry.exam = score.score;
+      // Every component that is not the examination is continuous assessment, however many the school sets.
+      if (isExamComponentCode(score.assessmentComponent.code)) entry.exam += score.score;
+      else entry.continuousAssessment += score.score;
 
       entry.total = entry.continuousAssessment + entry.exam;
       const band = resolveGradeLabel(entry.total);
@@ -1679,6 +1719,262 @@ export class AcademicsService {
         });
 
     return component;
+  }
+
+  /**
+   * Replace a section's whole component set in one write.
+   *
+   * Components must total 100% for a section, which makes them impossible to
+   * build one at a time: the first component of a new set is 100% short, so
+   * `createSectionAssessmentComponent` rejects it. Sending the set together is
+   * the only way a school can change a framework it has already filled in —
+   * the total is checked once, against what the set will be, not against a
+   * half-written state that was never meant to exist.
+   */
+  async replaceSectionAssessmentComponents(session: SessionPayload, payload: unknown) {
+    assertAssessmentManager(session);
+    const parsed = sectionAssessmentComponentSetSchema.parse(payload);
+    const term = parsed.termId ? null : await this.currentTerm(session.schoolId);
+    const termId = parsed.termId ?? term?.id;
+
+    const codes = parsed.components.map((component) => component.code.toUpperCase());
+    if (new Set(codes).size !== codes.length) {
+      throw new BadRequestException("Each component in a section needs its own code.");
+    }
+
+    const validation = validateSectionAssessmentWeights(
+      parsed.components.map((component) => ({
+        section: parsed.section,
+        weight: component.weight,
+        isActive: true
+      }))
+    );
+    if (!validation.ok) {
+      const total = validation.invalidSections[0]?.total ?? 0;
+      throw new BadRequestException(
+        `Active assessment component weights must total 100% for each school section. This set totals ${total}.`
+      );
+    }
+
+    const where = {
+      schoolId: session.schoolId,
+      section: parsed.section,
+      ...(parsed.academicSessionId ? { academicSessionId: parsed.academicSessionId } : {}),
+      termId
+    };
+
+    const written = await prisma.$transaction(async (tx) => {
+      // Anything the new set does not name is retired rather than deleted:
+      // scores already entered point at these rows, and deleting one would
+      // take the score with it.
+      await tx.sectionAssessmentComponent.updateMany({
+        where: { ...where, code: { notIn: codes } },
+        data: { isActive: false }
+      });
+
+      // Not an upsert: the unique is over nullable columns, which Prisma types
+      // as non-nullable in a `where`, so the pair is matched by hand.
+      const saved = [];
+      for (const [index, component] of parsed.components.entries()) {
+        const code = component.code.toUpperCase();
+        const values = {
+          name: component.name,
+          type: component.type,
+          weight: component.weight,
+          maxScore: component.maxScore,
+          order: component.order ?? index + 1,
+          isActive: true
+        };
+        const existing = await tx.sectionAssessmentComponent.findFirst({ where: { ...where, code } });
+        saved.push(
+          existing
+            ? await tx.sectionAssessmentComponent.update({ where: { id: existing.id }, data: values })
+            : await tx.sectionAssessmentComponent.create({
+                data: {
+                  schoolId: session.schoolId,
+                  academicSessionId: parsed.academicSessionId,
+                  termId,
+                  section: parsed.section,
+                  code,
+                  ...values
+                }
+              })
+        );
+      }
+      return saved;
+    });
+
+    return { section: parsed.section, termId, components: written };
+  }
+
+  /**
+   * Change one component, with the section's total still checked.
+   *
+   * A weight edit is only valid if the section still totals 100 afterwards, so
+   * the check runs against the section as it will be, and the message says
+   * what the total would have become rather than just refusing.
+   */
+  async updateSectionAssessmentComponent(session: SessionPayload, id: string, payload: unknown) {
+    assertAssessmentManager(session);
+    const parsed = sectionAssessmentComponentPatchSchema.parse(payload);
+
+    const existing = await prisma.sectionAssessmentComponent.findFirst({
+      where: { id, schoolId: session.schoolId }
+    });
+    if (!existing) throw new NotFoundException("That assessment component does not exist.");
+
+    const siblings = await prisma.sectionAssessmentComponent.findMany({
+      where: {
+        schoolId: session.schoolId,
+        section: existing.section,
+        termId: existing.termId,
+        NOT: { id: existing.id }
+      }
+    });
+
+    const next = {
+      section: existing.section,
+      weight: parsed.weight ?? existing.weight,
+      isActive: parsed.isActive ?? existing.isActive
+    };
+    const validation = validateSectionAssessmentWeights([
+      ...siblings.map((row) => ({ section: row.section, weight: row.weight, isActive: row.isActive })),
+      next
+    ]);
+    if (!validation.ok) {
+      const total = validation.invalidSections[0]?.total ?? 0;
+      throw new BadRequestException(
+        `That would leave ${existing.section.replace(/_/g, " ").toLowerCase()} totalling ${total}. A section's active components must total 100 — change another component in the same breath, or send the whole set.`
+      );
+    }
+
+    const updated = await prisma.sectionAssessmentComponent.update({ where: { id }, data: parsed });
+    return updated;
+  }
+
+  /**
+   * Retire a component rather than delete it: scores already entered point at
+   * it, and removing the row would take the score with it.
+   */
+  async retireSectionAssessmentComponent(session: SessionPayload, id: string) {
+    assertAssessmentManager(session);
+    const existing = await prisma.sectionAssessmentComponent.findFirst({
+      where: { id, schoolId: session.schoolId }
+    });
+    if (!existing) throw new NotFoundException("That assessment component does not exist.");
+
+    const remaining = await prisma.sectionAssessmentComponent.findMany({
+      where: {
+        schoolId: session.schoolId,
+        section: existing.section,
+        termId: existing.termId,
+        isActive: true,
+        NOT: { id: existing.id }
+      }
+    });
+    const total = Number(remaining.reduce((sum, row) => sum + row.weight, 0).toFixed(2));
+    if (remaining.length && Math.abs(total - 100) > 0.01) {
+      throw new BadRequestException(
+        `Removing ${existing.name} would leave the section totalling ${total}. Move its ${existing.weight}% onto another component first, or send the whole set.`
+      );
+    }
+
+    return prisma.sectionAssessmentComponent.update({ where: { id }, data: { isActive: false } });
+  }
+
+  /**
+   * Bands must stay contiguous across 0 to 100.
+   *
+   * A gap leaves a mark with no grade and an overlap leaves it with two, so
+   * every band write is checked against the scheme as it will be afterwards —
+   * and the refusal names the exact marks left uncovered, because "invalid" on
+   * its own tells nobody which number to change.
+   */
+  private assertContiguousBands(bands: Array<{ label: string; minScore: number; maxScore: number }>) {
+    if (!bands.length) throw new BadRequestException("A scheme needs at least one band.");
+
+    const sorted = bands.slice().sort((a, b) => a.minScore - b.minScore);
+    for (const band of sorted) {
+      if (band.maxScore < band.minScore) {
+        throw new BadRequestException(`${band.label} ends before it starts.`);
+      }
+    }
+    if (sorted[0].minScore !== 0) throw new BadRequestException(`Nothing covers 0 to ${sorted[0].minScore - 1}.`);
+    const top = sorted[sorted.length - 1];
+    if (top.maxScore < 100) throw new BadRequestException(`Nothing covers ${Math.floor(top.maxScore) + 1} to 100.`);
+
+    for (let index = 0; index < sorted.length - 1; index += 1) {
+      const current = sorted[index];
+      const next = sorted[index + 1];
+      if (next.minScore <= current.maxScore) {
+        throw new BadRequestException(`${current.label} and ${next.label} overlap.`);
+      }
+      if (next.minScore > Math.floor(current.maxScore) + 1) {
+        throw new BadRequestException(`Nothing covers ${Math.floor(current.maxScore) + 1} to ${next.minScore - 1}.`);
+      }
+    }
+  }
+
+  private async schemeFor(session: SessionPayload, schemeId: string) {
+    const scheme = await prisma.gradingScheme.findFirst({
+      where: { id: schemeId, schoolId: session.schoolId },
+      include: { bands: { orderBy: { order: "asc" } } }
+    });
+    if (!scheme) throw new NotFoundException("That grading scheme does not exist.");
+    return scheme;
+  }
+
+  async addGradeBand(session: SessionPayload, schemeId: string, payload: unknown) {
+    assertAcademicApprover(session);
+    const parsed = gradeBandSchema.parse(payload);
+    const scheme = await this.schemeFor(session, schemeId);
+
+    this.assertContiguousBands([...scheme.bands, parsed]);
+
+    await prisma.gradeBand.create({
+      data: {
+        schoolId: session.schoolId,
+        gradingSchemeId: scheme.id,
+        label: parsed.label,
+        minScore: parsed.minScore,
+        maxScore: parsed.maxScore,
+        remark: parsed.remark,
+        order: parsed.order ?? scheme.bands.length + 1
+      }
+    });
+    return this.schemeFor(session, schemeId);
+  }
+
+  async updateGradeBand(session: SessionPayload, schemeId: string, bandId: string, payload: unknown) {
+    assertAcademicApprover(session);
+    const parsed = gradeBandPatchSchema.parse(payload);
+    const scheme = await this.schemeFor(session, schemeId);
+
+    const band = scheme.bands.find((item) => item.id === bandId);
+    if (!band) throw new NotFoundException("That band does not exist in this scheme.");
+
+    const next = {
+      label: parsed.label ?? band.label,
+      minScore: parsed.minScore ?? band.minScore,
+      maxScore: parsed.maxScore ?? band.maxScore
+    };
+    this.assertContiguousBands([...scheme.bands.filter((item) => item.id !== bandId), next]);
+
+    await prisma.gradeBand.update({ where: { id: bandId }, data: parsed });
+    return this.schemeFor(session, schemeId);
+  }
+
+  async deleteGradeBand(session: SessionPayload, schemeId: string, bandId: string) {
+    assertAcademicApprover(session);
+    const scheme = await this.schemeFor(session, schemeId);
+    const band = scheme.bands.find((item) => item.id === bandId);
+    if (!band) throw new NotFoundException("That band does not exist in this scheme.");
+
+    const remaining = scheme.bands.filter((item) => item.id !== bandId);
+    this.assertContiguousBands(remaining);
+
+    await prisma.gradeBand.delete({ where: { id: bandId } });
+    return this.schemeFor(session, schemeId);
   }
 
   async listSectionAssessmentComponents(session: SessionPayload): Promise<SectionAssessmentComponentView[]> {

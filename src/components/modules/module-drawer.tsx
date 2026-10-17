@@ -5,9 +5,9 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import type { DrawerSpec, PanelFact } from "@/lib/modules/panels";
-import { Field, initialValue } from "@/components/modules/field";
-import { sendJson } from "@/lib/modules/submit";
+import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
+import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
+import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 
 function FactRows({ facts }: { facts: PanelFact[] }) {
@@ -56,6 +56,30 @@ function FactRows({ facts }: { facts: PanelFact[] }) {
  * bar. Reading a record and committing a decision are the same surface — the
  * facts come first either way.
  */
+/**
+ * What each kind of modal announces about itself, taken from the mockup.
+ *
+ * A modal that says "Confirm before it runs" above the title is doing work a
+ * paragraph cannot: it tells somebody whether they are reading, changing or
+ * committing before they have read a word of the content.
+ */
+/**
+ * What each kind of modal calls itself.
+ *
+ * The mockup uses this as the modal's eyebrow when the caller gives no kicker,
+ * so a modal always says what it is — "FULL RECORD", "EDIT", "CONFIRM BEFORE IT
+ * RUNS" — before the title.
+ */
+const DRAWER_MODES: Record<string, { label: string }> = {
+  form: { label: "New record" },
+  view: { label: "Full record" },
+  edit: { label: "Edit" },
+  decide: { label: "Decision" },
+  output: { label: "Produce a document" },
+  commit: { label: "Confirm before it runs" },
+  info: { label: "For reference" },
+};
+
 export function ModuleDrawer({
   spec,
   onClose,
@@ -65,13 +89,181 @@ export function ModuleDrawer({
 }) {
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
+  // A record opened to be read can be taken into editing: the drawer is swapped
+  // for its `edit` spec rather than stacking a second one on top of it.
+  const [swapped, setSwapped] = useState<{ from: DrawerSpec; to: DrawerSpec } | null>(null);
 
   if (!spec || !mounted) return null;
+  if (spec.load) return <LazyDrawer key={spec.load} spec={spec} onClose={onClose} />;
+  const active = swapped && swapped.from === spec ? swapped.to : spec;
 
   // Keyed on the record so moving from one row's drawer to another's starts
   // clean — the open panel owns its own committed/pending/error state, and
   // remounting resets it without an effect that watches `spec`.
-  return <DrawerPanel key={spec.title} spec={spec} onClose={onClose} />;
+  return (
+    <DrawerPanel
+      key={`${spec.title}:${active === spec ? "read" : "edit"}`}
+      spec={active}
+      onClose={onClose}
+      onEdit={spec.edit && active === spec ? () => setSwapped({ from: spec, to: spec.edit as DrawerSpec }) : undefined}
+    />
+  );
+}
+
+/**
+ * A drawer whose body is read when it opens. It shows what it already knows — the title, the kicker —
+ * and swaps itself for the full record when that arrives, or says plainly that it could not.
+ */
+function LazyDrawer({ spec, onClose }: { spec: DrawerSpec; onClose: () => void }) {
+  const [loaded, setLoaded] = useState<{ url: string; spec: DrawerSpec | null; error: string | null } | null>(null);
+  useEffect(() => {
+    let live = true;
+    fetch(spec.load as string, { credentials: "include" })
+      .then(async (response) => {
+        const body = (await response.json().catch(() => null)) as Partial<DrawerSpec> & { error?: string; message?: string } | null;
+        if (!response.ok || !body) throw new Error(body?.error ?? body?.message ?? "That record could not be read.");
+        if (live) setLoaded({ url: spec.load as string, spec: { ...spec, ...body, load: undefined } as DrawerSpec, error: null });
+      })
+      .catch((cause) => {
+        if (live) setLoaded({ url: spec.load as string, spec: null, error: cause instanceof Error ? cause.message : "That record could not be read." });
+      });
+    return () => {
+      live = false;
+    };
+  }, [spec]);
+  const [editing, setEditing] = useState(false);
+  const ready = loaded && loaded.url === spec.load ? loaded : null;
+  const base: DrawerSpec = ready?.spec ?? { ...spec, load: undefined, mode: spec.mode ?? "view", readOnly: true, sub: ready?.error ?? "Reading the record…", readOnlyNote: ready?.error ? ready.error : "Reading the record…", facts: [] };
+  const shown = editing && base.edit ? base.edit : base;
+  return <DrawerPanel key={`${spec.title}:${ready?.spec ? "loaded" : "wait"}:${editing ? "edit" : "read"}`} spec={shown} onClose={onClose} onEdit={base.edit && !editing ? () => setEditing(true) : undefined} />;
+}
+
+type ConfirmKind = "save" | "discard" | "delete";
+
+/**
+ * A question put to somebody before something irreversible, drawn over the modal.
+ *
+ * The mockup asks three: whether to write what was just reviewed, whether to throw
+ * away what was typed, and whether to delete. Each says what it is about to do in
+ * words, and the way out is always the first thing the eye lands on.
+ */
+function ConfirmSheet({
+  title,
+  body,
+  ok,
+  cancel,
+  tone,
+  pending,
+  onCancel,
+  onConfirm,
+}: {
+  title: string;
+  body: string;
+  ok: string;
+  cancel: string;
+  tone: "progress" | "attention" | "critical";
+  pending?: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  const palette =
+    tone === "critical"
+      ? { bg: "#FDF2F2", fg: "#B23B3B", button: "#B23B3B" }
+      : tone === "attention"
+        ? { bg: "#FDF6E7", fg: "#8A6410", button: INK }
+        : { bg: "#EBF1FA", fg: "#2A5A96", button: INK };
+
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center px-6" style={{ background: "rgba(13,35,21,0.42)" }}>
+      <div
+        role="alertdialog"
+        aria-label={title}
+        className="w-full max-w-[380px] rounded-[16px] bg-white px-[20px] py-[18px]"
+        style={{ boxShadow: "0 30px 60px -28px rgba(13,35,21,0.6)" }}
+      >
+        <span
+          className="mb-[11px] flex h-[34px] w-[34px] items-center justify-center rounded-[11px]"
+          style={{ background: palette.bg }}
+          aria-hidden
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke={palette.fg} strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+            {tone === "critical" ? (
+              <path d="M4 7h16M9.5 7V4.5h5V7M6.5 7l1 13h9l1-13M10.5 10.5v6M13.5 10.5v6" />
+            ) : tone === "attention" ? (
+              <path d="M6 6l12 12M18 6 6 18" />
+            ) : (
+              <path d="M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z" />
+            )}
+          </svg>
+        </span>
+        <p className="text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>
+          {title}
+        </p>
+        <p className="mt-[5px] text-pretty text-[11.5px] leading-[1.55]" style={{ color: "#5C6A62" }}>
+          {body}
+        </p>
+        <div className="mt-[16px] flex flex-wrap items-center justify-end gap-2">
+          <button
+            type="button"
+            autoFocus
+            onClick={onCancel}
+            className="whitespace-nowrap rounded-[9px] border bg-white px-[14px] py-[9px] text-[11.5px] font-semibold"
+            style={{ borderColor: "#CFDDD5", color: "#435048" }}
+          >
+            {cancel}
+          </button>
+          <button
+            type="button"
+            onClick={onConfirm}
+            disabled={pending}
+            className="whitespace-nowrap rounded-[9px] px-[15px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
+            style={{ background: palette.button }}
+          >
+            {pending ? "Working…" : ok}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** A date input holds "2026-04-10"; a person reading it back wants "10 April 2026". */
+function prettyDate(text: string): string {
+  const match = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) return text;
+  const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+  return `${Number(match[3])} ${months[Number(match[2]) - 1] ?? match[2]} ${match[1]}`;
+}
+
+const asText = (value: unknown) =>
+  Array.isArray(value)
+    ? value.join(", ")
+    : typeof value === "boolean"
+      ? value
+        ? "Yes"
+        : "No"
+      : value && typeof value === "object" && "choice" in value
+        ? assetSummary(value)
+        : prettyDate(String(value ?? ""));
+
+/** What a field's answer reads as when it is read back before saving. */
+function describe(field: FormField, value: unknown): string {
+  if (field.kind === "matrix") {
+    const ticks = (value as string[] | undefined) ?? [];
+    const rows = new Set(ticks.map((tick) => tick.split("|")[0]));
+    return ticks.length ? `${ticks.length} actions across ${rows.size} ${rows.size === 1 ? "row" : "rows"}` : "Nothing granted";
+  }
+  if (field.kind === "lines") {
+    const rows = (value as Array<Record<string, string>> | undefined) ?? [];
+    return rows.length
+      ? rows.map((row) => field.cols.map((col) => row[col.key]).filter(Boolean).join(" \u00b7 ")).join("; ")
+      : "None";
+  }
+  if (field.kind === "picker") {
+    const chosen = (value as string[] | undefined) ?? [];
+    return chosen.length ? chosen.map((item) => field.options.find((option) => option.value === item)?.label ?? item).join(", ") : "Nobody";
+  }
+  return asText(value);
 }
 
 /**
@@ -82,11 +274,23 @@ export function ModuleDrawer({
  * requires an app-router context that server-rendered markup and unit tests do
  * not have.
  */
-function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void }) {
+function DrawerPanel({
+  spec,
+  onClose,
+  onEdit,
+}: {
+  spec: DrawerSpec;
+  onClose: () => void;
+  onEdit?: () => void;
+}) {
   const [committed, setCommitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [reason, setReason] = useState("");
+  const [doneKind, setDoneKind] = useState<"saved" | "deleted">("saved");
+  /** What the server handed back that the person needs to see: links to share, warnings to read. */
+  const [result, setResult] = useState<{ links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string } | null>(null);
+  const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
   const allFields = useMemo(
     () => (spec.steps?.length ? spec.steps.flatMap((step) => step.fields) : (spec.fields ?? [])),
     [spec],
@@ -95,14 +299,35 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
     Object.fromEntries(allFields.map((field) => [field.label, initialValue(field)])),
   );
   const [stepIndex, setStepIndex] = useState(0);
+  /** Stage 1 of a staged form: reading back exactly what will be written. */
+  const [reviewing, setReviewing] = useState(false);
   const router = useRouter();
+
+  /** Each field's value as the modal opened, so a change can name what it replaces. */
+  const before = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const field of allFields) map[field.label] = asText(initialValue(field));
+    return map;
+  }, [allFields]);
+
+  const dirty =
+    reason.trim().length > 0 ||
+    allFields.some((field) => asText(values[field.label]) !== before[field.label]);
+
+  // Anything with something to lose asks before it closes.
+  function requestClose() {
+    if (!committed && dirty) setConfirm("discard");
+    else onClose();
+  }
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
 
     function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
+      if (event.key !== "Escape") return;
+      if (confirm) setConfirm(null);
+      else requestClose();
     }
 
     document.addEventListener("keydown", handleKeyDown);
@@ -110,26 +335,72 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-  }, [onClose]);
+    // requestClose closes over dirty/committed/confirm; re-bind when they change.
+  }, [onClose, dirty, committed, confirm]);
 
-  const isCommit = spec.mode === "commit" && !spec.readOnly;
+  const modeMeta =
+    DRAWER_MODES[spec.readOnly ? "view" : (spec.mode === "read" ? "view" : (spec.mode ?? "view"))] ??
+    DRAWER_MODES.view;
+
+  const hasForm = !spec.readOnly && allFields.length > 0;
+  /**
+   * A form and an edit are both taken in two stages, as the mockup takes them:
+   * fill, then read back exactly what will be written — each changed value shown
+   * against the one it replaces — and only then save. A person cannot hold the
+   * before and the after in their head at once, so the modal holds it for them.
+   */
+  const staged = hasForm && (spec.mode === "edit" || spec.mode === "form");
+  const isEdit = staged && spec.mode === "edit";
+  const isCommit =
+    !spec.readOnly &&
+    (spec.mode === "commit" ||
+      spec.mode === "form" ||
+      spec.mode === "decide" ||
+      spec.mode === "output" ||
+      spec.mode === "edit");
   const submit = spec.submit;
   const steps = spec.steps ?? [];
   const onLastStep = !steps.length || stepIndex === steps.length - 1;
   const step = steps[stepIndex] ?? null;
-  const visibleFields = step ? step.fields : (spec.fields ?? []);
+  const visibleFields = (step ? step.fields : (spec.fields ?? [])).filter((field) => fieldVisible(field, values));
 
   /** A step cannot be left until everything it marks required is answered. */
   const unanswered = visibleFields.filter((field) => {
     if (!field.required) return false;
     const value = values[field.label];
+    if (Array.isArray(value)) return value.length === 0;
     return value === undefined || value === null || String(value).trim() === "";
   });
 
-  const needsReason = Boolean(submit?.reasonKey);
-  const reasonMissing = Boolean(submit?.reasonRequired) && !reason.trim();
+  /**
+   * The mockup sizes the modal by what is in it: 520px reads as one column of
+   * prose, and anything past three fields gets 700px so the pairs sit side by
+   * side instead of becoming a long scroll.
+   */
+  const panelMax = (step ? step.fields.length : (spec.fields?.length ?? 0)) > 3 ? 700 : 520;
+
+  // An edit always asks why: the reason is kept with both values, so the next
+  // person to open the record can see what changed and what it was before.
+  const needsReason = Boolean(submit?.reasonKey) || isEdit;
+  const reasonMissing = (Boolean(submit?.reasonRequired) || isEdit) && !reason.trim();
+
+  const changeFacts: PanelFact[] = allFields
+    .filter((field) => field.kind !== "static" && fieldVisible(field, values))
+    .map((field) => {
+      const now = describe(field, values[field.label]);
+      const was = before[field.label] ?? "";
+      return [field.label, now || "—", isEdit && was && was !== now ? `Was: ${was}` : ""];
+    });
+
+  /** What the done screen repeats back: the first few answers a person actually gave. */
+  const doneLines: PanelFact[] = changeFacts.filter(([, value]) => value !== "—").slice(0, 4);
+
+  const noun = String(spec.remove?.noun ?? spec.title)
+    .replace(/^(add|create|new|edit)\s+(an?\s+)?/i, "")
+    .toLowerCase();
 
   async function commit() {
+    setConfirm(null);
     // No endpoint means the drawer was authored as a confirmation only. It
     // still closes the loop for the reader; it just has nothing to send.
     if (!submit) {
@@ -144,17 +415,53 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
       // drawer can show a value the endpoint would reject beside ones it takes.
       const edited: Record<string, unknown> = {};
       for (const [label, key] of Object.entries(submit.map ?? {})) {
-        const value = values[label];
-        if (value !== undefined) edited[key] = value;
+        let value = values[label];
+        if (value === undefined) continue;
+        // A file the school keeps is sent as what it is: nothing at all when it
+        // is being kept, an empty string when it is being removed, the image
+        // itself when a new one was chosen.
+        const field = allFields.find((item) => item.label === label);
+        if (field && !fieldVisible(field, values)) continue;
+        // Ticks on rows whose module is no longer ticked are not part of the answer.
+        if (field?.kind === "matrix" && field.groupFrom) {
+          const groups = (values[field.groupFrom] as string[] | undefined) ?? [];
+          const live = new Set(field.rows.filter((row) => !row.group || groups.includes(row.group)).map((row) => row.key));
+          value = (value as string[]).filter((tick) => live.has(tick.split("|")[0]));
+        }
+        if (field?.kind === "asset") {
+          const asset = value as { choice: string; data?: string };
+          if (asset.choice === field.options[0]) continue;
+          if (asset.choice === field.options[2]) value = "";
+          else if (asset.data) value = asset.data;
+          else continue;
+        }
+        // A select shows a label and the endpoint stores a code; `encode` is
+        // the pairing, so what travels is what the column actually holds.
+        const table = submit.encode?.[label];
+        edited[key] = Array.isArray(value) && table
+          ? value.map((item) => (typeof item === "string" && item in table ? table[item] : item))
+          : table && typeof value === "string" && value in table
+            ? table[value]
+            : value;
       }
 
-      await sendJson(submit.endpoint, submit.method ?? "POST", {
+      for (const [label, [key, entry]] of Object.entries(submit.nest ?? {})) {
+        const raw = values[label];
+        const field = allFields.find((item) => item.label === label);
+        if (typeof raw !== "string" || (field && !fieldVisible(field, values))) continue;
+        const table = submit.encode?.[label];
+        const bucket = (edited[key] as Record<string, string> | undefined) ?? {};
+        bucket[entry] = table && raw in table ? table[raw] : raw;
+        edited[key] = bucket;
+      }
+
+      const answer = await sendJsonForData<typeof result>(submit.endpoint, submit.method ?? "POST", {
         ...(submit.body ?? {}),
         ...edited,
-        ...(submit.reasonKey && reason.trim()
-          ? { [submit.reasonKey]: reason.trim() }
-          : {}),
+        ...(reason.trim() ? { [submit.reasonKey ?? "reason"]: reason.trim() } : {}),
       });
+      setResult(answer && typeof answer === "object" ? answer : null);
+      setDoneKind("saved");
       setCommitted(true);
       // The page is a server component reading live figures, so the decision
       // has to be re-read rather than patched in — the queue, the counts above
@@ -162,10 +469,78 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
       router.refresh();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "That did not go through.");
+      // The answer is in the form and the sheet is closed; take them back to it.
+      setReviewing(false);
     } finally {
       setPending(false);
     }
   }
+
+  async function remove() {
+    if (!spec.remove) return;
+    setConfirm(null);
+    setPending(true);
+    setError(null);
+    try {
+      await sendJson(spec.remove.endpoint, "DELETE", {});
+      setDoneKind("deleted");
+      setCommitted(true);
+      router.refresh();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "That could not be deleted.");
+    } finally {
+      setPending(false);
+    }
+  }
+
+  const primaryLabel = spec.commitLabel ?? (isEdit ? "Save changes" : "Confirm");
+  const askBeforeWriting =
+    staged && /^(add|create|new)\s/i.test(spec.title) && !isEdit
+      ? `Create this ${noun}?`
+      : staged
+        ? "Save these changes?"
+        : "Run this now?";
+
+  const confirmView: Record<ConfirmKind, Parameters<typeof ConfirmSheet>[0]> = {
+    save: {
+      title: askBeforeWriting,
+      body: "Nothing is written until you confirm.",
+      ok: primaryLabel,
+      cancel: "Go back",
+      tone: "progress",
+      pending,
+      onCancel: () => setConfirm(null),
+      onConfirm: commit,
+    },
+    discard: {
+      title: "Discard your changes?",
+      body: "What you have filled in here will be lost.",
+      ok: "Discard",
+      cancel: "Keep editing",
+      tone: "attention",
+      onCancel: () => setConfirm(null),
+      onConfirm: onClose,
+    },
+    delete: {
+      title: `Delete this ${spec.remove?.noun ?? "record"}?`,
+      body:
+        spec.remove?.warn ??
+        `“${spec.title}” will be removed from every list and report it appears in. It is kept in the audit log.`,
+      ok: "Delete permanently",
+      cancel: "Keep it",
+      tone: "critical",
+      pending,
+      onCancel: () => setConfirm(null),
+      onConfirm: remove,
+    },
+  };
+
+  const doneTitle =
+    doneKind === "deleted" ? (spec.remove?.done ?? `${spec.title} deleted`) : (spec.commitDone ?? "Done");
+  const doneBody =
+    doneKind === "deleted"
+      ? (spec.remove?.doneBody ?? "It is gone from every list. The deletion is in the audit log under your name.")
+      : spec.commitDoneBody;
 
   return createPortal(
     <div
@@ -176,15 +551,16 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
     >
       <button
         type="button"
-        aria-label="Close"
-        onClick={onClose}
+        aria-label="Close" title="Close"
+        onClick={requestClose}
         className="fixed inset-0 cursor-default"
         style={{ background: "rgba(13,35,21,0.5)" }}
       />
 
       <div
-        className="relative flex w-full max-w-[520px] flex-col overflow-hidden rounded-[20px] bg-white"
+        className="relative flex w-full flex-col overflow-hidden rounded-[20px] bg-white"
         style={{
+          maxWidth: `${panelMax}px`,
           maxHeight: "calc(100vh - 64px)",
           boxShadow: "0 45px 90px -36px rgba(13,35,21,0.6)",
         }}
@@ -204,16 +580,17 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
 
           <div className="relative flex items-start justify-between gap-[18px]">
             <div className="min-w-0">
-              {spec.kicker ? (
-                <p
-                  className="mb-[5.5px] text-[9.5px] font-bold tracking-[0.08em]"
-                  style={{ color: "rgba(255,255,255,0.45)" }}
-                >
-                  {spec.kicker.toUpperCase()}
-                </p>
-              ) : null}
+              {/* The mockup's eyebrow: the kicker when there is one, otherwise
+                  what kind of modal this is — "FULL RECORD", "EDIT". */}
+              <p
+                className="mb-[5.5px] text-[9.5px] font-bold tracking-[0.08em]"
+                style={{ color: "rgba(255,255,255,0.45)" }}
+              >
+                {(spec.kicker ?? modeMeta.label).toUpperCase()}
+                {isEdit && spec.kicker ? " · EDITING" : ""}
+              </p>
               <h2 className="text-pretty text-[19px] font-bold leading-[1.25] tracking-[-0.01em] text-white">
-                {committed ? (spec.commitDone ?? spec.title) : spec.title}
+                {committed ? doneTitle : spec.title}
               </h2>
               {spec.sub && !committed ? (
                 <p
@@ -223,12 +600,42 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
                   {spec.sub}
                 </p>
               ) : null}
-            </div>
 
+              {/* A staged form says which of the two stages you are on. */}
+              {staged && !committed ? (
+                <div className="mt-[11px] flex flex-wrap items-center gap-[7px]">
+                  {[
+                    { label: isEdit ? "Edit the values" : "Fill it in", on: !reviewing, done: reviewing, mark: reviewing ? "✓" : "1" },
+                    { label: "Check and confirm", on: reviewing, done: false, mark: "2" },
+                  ].map((pill) => (
+                    <span
+                      key={pill.label}
+                      className="inline-flex items-center gap-[7px] whitespace-nowrap rounded-full py-[5px] pl-[6px] pr-[11px] text-[10.5px] font-semibold"
+                      style={{
+                        color: pill.on || pill.done ? "#fff" : "rgba(255,255,255,0.5)",
+                        background: pill.on ? "rgba(255,255,255,0.14)" : "transparent",
+                        border: `1px solid ${pill.on ? "rgba(255,255,255,0.2)" : "transparent"}`,
+                      }}
+                    >
+                      <span
+                        className="flex h-[17px] w-[17px] flex-none items-center justify-center rounded-full text-[9px] font-extrabold"
+                        style={{
+                          background: pill.done ? "#fff" : pill.on ? "#12796A" : "rgba(255,255,255,0.12)",
+                          color: pill.done ? INK : "#fff",
+                        }}
+                      >
+                        {pill.mark}
+                      </span>
+                      {pill.label}
+                    </span>
+                  ))}
+                </div>
+              ) : null}
+            </div>
             <button
               type="button"
-              onClick={onClose}
-              aria-label="Close"
+              onClick={requestClose}
+              aria-label="Close" title="Close"
               className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-[9px]"
               style={{
                 background: "rgba(255,255,255,0.12)",
@@ -243,22 +650,89 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[23.5px] py-[21.5px]">
           <div className="grid gap-[14px]">
             {committed ? (
-              <div
-                className="rounded-[12px] border px-[13px] py-[11px]"
-                style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }}
-              >
-                <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
-                  {spec.commitDone ?? "Done"}
-                </p>
-                {spec.commitDoneBody ? (
-                  <p
-                    className="mt-[5px] text-pretty text-[11px] leading-[1.55]"
-                    style={{ color: "#17604F" }}
-                  >
-                    {spec.commitDoneBody}
+              <>
+                <div
+                  className="rounded-[12px] border px-[13px] py-[11px]"
+                  style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }}
+                >
+                  <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
+                    {doneTitle}
+                  </p>
+                  {doneBody ? (
+                    <p
+                      className="mt-[5px] text-pretty text-[11px] leading-[1.55]"
+                      style={{ color: "#17604F" }}
+                    >
+                      {doneBody}
+                    </p>
+                  ) : null}
+                </div>
+                {doneKind === "saved" && staged && doneLines.length ? <FactRows facts={doneLines.map(([label, value]) => [label, value])} /> : null}
+                {result?.fields?.length ? <FactRows facts={result.fields.map(([label, value]) => [label, value])} /> : null}
+                {result?.note ? (
+                  <p className="text-[11px] leading-[1.55]" style={{ color: MUTED }}>
+                    {result.note}
                   </p>
                 ) : null}
-              </div>
+                {result?.checkoutUrl ? (
+                  <div className="grid gap-[6px]">
+                    <a href={result.checkoutUrl} className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
+                      Continue to payment
+                    </a>
+                    <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                      {result.gateway === "test" ? "The payment provider is in test mode: no card is charged and the payment is simulated." : "Your card is entered on the payment provider's page — it never touches this school's records."}
+                    </p>
+                  </div>
+                ) : null}
+                {result?.href ? (
+                  <a href={result.href} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
+                    {result.hrefLabel ?? "Open it"}
+                  </a>
+                ) : null}
+                {spec.next ? (
+                  <a href={spec.next.href} className="inline-flex items-center justify-center rounded-[10px] border px-[14px] py-[10px] text-[12px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>
+                    {spec.next.label}
+                  </a>
+                ) : null}
+                {result?.warnings?.length ? (
+                  <div className="rounded-[12px] border px-[13px] py-[10px]" style={{ background: "#FBF6E8", borderColor: "#E7D9B4" }}>
+                    <p className="text-[11px] font-semibold" style={{ color: "#8A6410" }}>
+                      Created, with {result.warnings.length === 1 ? "one thing" : `${result.warnings.length} things`} to look at
+                    </p>
+                    <ul className="mt-[4px] grid gap-[3px]">
+                      {result.warnings.map((warning) => (
+                        <li key={warning} className="text-[10.5px] leading-[1.5]" style={{ color: "#8A6410" }}>
+                          {warning}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {(() => {
+                  const links = result?.links ?? (result?.link ? [{ name: result.name ?? "Activation link", link: result.link }] : []);
+                  return links.length ? (
+                    <div className="grid gap-[7px]">
+                      <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                        Share each link with the person it is for. It works once, and the one before it no longer does.
+                      </p>
+                      {links.map((item) => {
+                        const full = `${typeof window === "undefined" ? "" : window.location.origin}${item.link}`;
+                        return (
+                          <div key={item.link} className="grid gap-[4px] rounded-[11px] border px-[12px] py-[9px]" style={{ borderColor: "#E4EDE8" }}>
+                            <span className="text-[11px] font-semibold" style={{ color: INK }}>{item.name}</span>
+                            <div className="flex items-center gap-[7px]">
+                              <input readOnly value={full} aria-label={`Link for ${item.name}`} className="min-w-0 flex-1 rounded-[8px] border bg-[#F7FAF8] px-[9px] py-[6px] text-[10.5px]" style={{ borderColor: "#DEE8E2" }} onFocus={(event) => event.currentTarget.select()} />
+                              <button type="button" onClick={() => navigator.clipboard?.writeText(full)} className="rounded-[8px] border border-[#CFDDD5] bg-white px-[10px] py-[6px] text-[10.5px] font-semibold text-[#435048]">
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null;
+                })()}
+              </>
             ) : null}
 
             {spec.readOnly ? (
@@ -284,9 +758,9 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
               </div>
             ) : null}
 
-            {spec.facts?.length ? <FactRows facts={spec.facts} /> : null}
+            {!committed && spec.facts?.length ? <FactRows facts={spec.facts} /> : null}
 
-            {steps.length && !committed ? (
+            {steps.length && !committed && !(staged && reviewing) ? (
               <div className="grid gap-[7px]">
                 <div className="flex flex-wrap items-baseline justify-between gap-2">
                   <span className="text-[12px] font-semibold" style={{ color: INK }}>
@@ -313,15 +787,66 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
               </div>
             ) : null}
 
-            {visibleFields.length && !committed ? (
-              <div className="grid gap-[13px] sm:grid-cols-2">
+            {staged && reviewing && !committed ? (
+              <>
+                <div
+                  className="rounded-[12px] border px-[13px] py-[11px]"
+                  style={{ background: "#EBF1FA", borderColor: "#DCE7F5" }}
+                >
+                  <p className="text-pretty text-[11px] leading-[1.55]" style={{ color: "#2A5A96" }}>
+                    {spec.reviewNote ??
+                      (isEdit
+                        ? "These are the values that will be written. Both the previous and the new value stay on the record."
+                        : "This is exactly what will be created. Go back to change anything.")}
+                  </p>
+                </div>
+                <dl className="grid gap-[9px]">
+                  {changeFacts.map(([label, value, hint]) => (
+                    <div
+                      key={label}
+                      className="grid gap-[2px] rounded-[11px] border px-[13px] py-[10px]"
+                      style={{ borderColor: "#E4EDE8", background: hint ? "#FBFDFC" : "transparent" }}
+                    >
+                      <dt className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: MUTED }}>
+                        {label}
+                      </dt>
+                      <dd className="text-pretty text-[12px] font-semibold leading-[1.45]" style={{ color: INK }}>
+                        {value}
+                      </dd>
+                      {hint ? (
+                        <dd className="text-[10.5px] leading-[1.45]" style={{ color: "#8A6410" }}>
+                          {hint}
+                        </dd>
+                      ) : null}
+                    </div>
+                  ))}
+                </dl>
+              </>
+            ) : null}
+
+            {visibleFields.length && !committed && !(staged && reviewing) ? (
+              <div
+                className="grid items-start gap-x-[16px] gap-y-[14px]"
+                style={{ gridTemplateColumns: `repeat(${panelMax === 700 ? 2 : 1}, minmax(0,1fr))` }}
+              >
                 {visibleFields.map((field) => (
                   <div key={field.label} className={field.span === 2 ? "sm:col-span-2" : undefined}>
                     <Field
                       field={field}
                       value={values[field.label]}
+                      values={values}
                       setValue={(next) =>
-                        setValues((current) => ({ ...current, [field.label]: next }))
+                        setValues((current) => {
+                          const updated: Record<string, unknown> = { ...current, [field.label]: next };
+                          // A matrix seeded from another field starts again whenever that field changes.
+                          for (const other of allFields) {
+                            if ((other.kind === "matrix" || other.kind === "checks") && other.seeds?.field === field.label) {
+                              const set = other.seeds.sets[String(next)];
+                              if (set) updated[other.label] = [...set];
+                            }
+                          }
+                          return updated;
+                        })
                       }
                     />
                   </div>
@@ -329,11 +854,13 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
               </div>
             ) : null}
 
-            {isCommit && needsReason && !committed ? (
+            {isCommit && needsReason && !committed && (!staged || reviewing) ? (
               <label className="grid gap-[6px]">
                 <span className="text-[10.5px] font-semibold" style={{ color: INK }}>
-                  {submit?.reasonLabel ?? "Reason"}
-                  {submit?.reasonRequired ? null : (
+                  {submit?.reasonLabel ?? (isEdit ? "Reason for this change" : "Reason")}
+                  {submit?.reasonRequired || isEdit ? (
+                    <span style={{ color: "#B23B3B" }}> · required</span>
+                  ) : (
                     <span style={{ color: MUTED }}> · optional</span>
                   )}
                 </span>
@@ -342,8 +869,18 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
                   onChange={(event) => setReason(event.target.value)}
                   rows={3}
                   className="w-full resize-y rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5] outline-none focus:border-[#BFDCD1]"
+                  placeholder={
+                    isEdit
+                      ? "Say what changed and why — the next person to open this record sees it."
+                      : undefined
+                  }
                   style={{ borderColor: "#DEE8E2", color: INK }}
                 />
+                {isEdit ? (
+                  <span className="text-[10px] leading-[1.45]" style={{ color: MUTED }}>
+                    Kept with the before and after values, permanently.
+                  </span>
+                ) : null}
               </label>
             ) : null}
           </div>
@@ -353,25 +890,43 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
           className="flex flex-none flex-wrap items-center justify-between gap-x-[14.5px] gap-y-[10px] px-[23.5px] py-[14.5px]"
           style={{ background: "#FBFDFC", borderTop: "1px solid #EDF3EF" }}
         >
-          <p
-            className="min-w-[140px] flex-1 basis-[200px] text-pretty text-[10.5px] leading-[1.4]"
-            style={{ color: MUTED }}
-          >
-            {committed ? "" : (spec.commitNote ?? "")}
-          </p>
+          <div className="flex min-w-[140px] flex-1 basis-[200px] items-center gap-[12px]">
+            {spec.remove && !committed && !spec.readOnly ? (
+              <button
+                type="button"
+                onClick={() => setConfirm("delete")}
+                disabled={pending}
+                className="whitespace-nowrap rounded-[9px] px-[4px] py-[6px] text-[11.5px] font-semibold disabled:opacity-50"
+                style={{ color: "#B23B3B" }}
+              >
+                Delete
+              </button>
+            ) : null}
+            <p className="text-pretty text-[10.5px] leading-[1.4]" style={{ color: MUTED }}>
+              {committed
+                ? ""
+                : staged && reviewing
+                  ? "Confirmed on the next step"
+                  : staged
+                    ? (spec.commitNote ?? (isEdit ? "Logged with your name and both values" : "Nothing is written until you confirm"))
+                    : (spec.commitNote ?? "")}
+            </p>
+          </div>
 
           <div className="ml-auto flex flex-none flex-wrap items-center justify-end gap-2">
             {isCommit && !committed ? (
               <>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[9px] text-[11.5px] font-semibold"
-                  style={{ borderColor: "#DEE8E2", color: "#435048" }}
-                >
-                  Cancel
-                </button>
-                {steps.length && stepIndex > 0 ? (
+                {!(staged && reviewing) ? (
+                  <button
+                    type="button"
+                    onClick={requestClose}
+                    className="whitespace-nowrap rounded-[9px] border bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold"
+                    style={{ borderColor: "#CFDDD5", color: "#435048" }}
+                  >
+                    Cancel
+                  </button>
+                ) : null}
+                {steps.length && stepIndex > 0 && !(staged && reviewing) ? (
                   <button
                     type="button"
                     onClick={() => setStepIndex((current) => current - 1)}
@@ -381,7 +936,36 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
                     Back
                   </button>
                 ) : null}
-                {!onLastStep ? (
+                {staged && reviewing ? (
+                  <button
+                    type="button"
+                    onClick={() => setReviewing(false)}
+                    className="whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[9px] text-[11.5px] font-semibold"
+                    style={{ borderColor: "#DEE8E2", color: "#435048" }}
+                  >
+                    Back to the form
+                  </button>
+                ) : null}
+                {staged && !reviewing && onLastStep ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setError(null);
+                      setReviewing(true);
+                    }}
+                    disabled={unanswered.length > 0}
+                    title={
+                      unanswered.length
+                        ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
+                        : undefined
+                    }
+                    className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
+                  >
+                    {isEdit ? "Review changes" : "Review"}
+                  </button>
+                ) : null}
+                {!onLastStep && !(staged && reviewing) ? (
                   <button
                     type="button"
                     onClick={() => setStepIndex((current) => current + 1)}
@@ -391,7 +975,7 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
                         ? `Answer ${unanswered.map((field) => field.label).join(", ")} first.`
                         : undefined
                     }
-                    className="whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                    className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
                     Next
@@ -399,31 +983,45 @@ function DrawerPanel({ spec, onClose }: { spec: DrawerSpec; onClose: () => void 
                 ) : null}
                 <button
                   type="button"
-                  onClick={commit}
-                  hidden={!onLastStep}
+                  onClick={() => (staged ? setConfirm("save") : commit())}
+                  hidden={!onLastStep || (staged && !reviewing)}
                   disabled={pending || reasonMissing || unanswered.length > 0}
                   title={reasonMissing ? "Say why before you send this." : undefined}
-                  className="whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
+                  className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                   style={{
                     background: INK,
                     boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)",
                   }}
                 >
-                  {pending ? "Sending…" : (spec.commitLabel ?? "Confirm")}
+                  {pending ? "Sending…" : primaryLabel}
                 </button>
               </>
             ) : (
-              <button
-                type="button"
-                onClick={onClose}
-                className="whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[9px] text-[11.5px] font-semibold"
-                style={{ borderColor: "#DEE8E2", color: "#435048" }}
-              >
-                Close
-              </button>
+              <>
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="whitespace-nowrap rounded-[9px] border bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold"
+                  style={{ borderColor: "#CFDDD5", color: "#435048" }}
+                >
+                  Close
+                </button>
+                {onEdit && !committed ? (
+                  <button
+                    type="button"
+                    onClick={onEdit}
+                    className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white"
+                    style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
+                  >
+                    {spec.editLabel ?? "Edit this record"}
+                  </button>
+                ) : null}
+              </>
             )}
           </div>
         </footer>
+
+        {confirm ? <ConfirmSheet {...confirmView[confirm]} /> : null}
       </div>
     </div>,
     document.body,

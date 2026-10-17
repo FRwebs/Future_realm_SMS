@@ -56,6 +56,20 @@ export type DrawerSubmit = {
    * reject alongside the ones it accepts.
    */
   map?: Record<string, string>;
+  /**
+   * Field label → (what the person picked → what the endpoint stores).
+   *
+   * A select reads "Senior Secondary" and the column holds SENIOR_SECONDARY.
+   * Putting the enum on screen to keep the payload honest is the wrong trade,
+   * and a callback cannot travel in server-authored content — so the pairing
+   * is carried as data beside the field it belongs to.
+   */
+  encode?: Record<string, Record<string, string>>;
+  /**
+   * Field label → [record key, entry key]: gathers many fields into one object, for an endpoint that
+   * takes "who covers each of these" as a record. `encode` still applies to each value.
+   */
+  nest?: Record<string, [key: string, entry: string]>;
   /** Set this and the drawer asks for a reason, sent under this key. */
   reasonKey?: string;
   reasonLabel?: string;
@@ -75,8 +89,17 @@ export type DrawerSpec = {
   title: string;
   sub?: string;
   facts?: PanelFact[];
-  /** A "commit" drawer asks for confirmation and reports what happened. */
-  mode?: "read" | "commit";
+  /**
+   * What kind of decision the modal is, in the mockup's own vocabulary.
+   *
+   * The mode is not decoration: it picks the chip at the top of the modal —
+   * a tone, an icon and a plain label ("Full record", "Confirm before it
+   * runs") — so a person knows what is about to happen before they read the
+   * title. "edit" additionally takes the change in two stages.
+   *
+   * "read" is kept as the older name for "view".
+   */
+  mode?: "read" | "view" | "edit" | "form" | "decide" | "output" | "commit" | "info";
   commitLabel?: string;
   commitNote?: string;
   commitDone?: string;
@@ -104,10 +127,44 @@ export type DrawerSpec = {
    * same hollow gesture the commit button used to be.
    */
   fields?: FormField[];
+  /**
+   * A URL that answers with the rest of this drawer as JSON, read when it is opened. For a record that
+   * would cost a query per row to prepare for a list nobody opens — the drawer shows what it knows
+   * (title, kicker) while the rest arrives, and is replaced by it.
+   */
+  load?: string;
+  /** Offered once it has gone through, for the page that follows from it — "Back to the register". */
+  next?: { label: string; href: string };
   /** A record that can be read but never edited — an audit entry, say. */
   readOnly?: boolean;
   readOnlyNote?: string;
   tone?: PanelTone;
+  /**
+   * Said above the values on the review stage of a form, e.g. "School days are
+   * counted from the dates and the weekly pattern". The mockup gives every form
+   * one, because the review is where a person decides whether to trust the save.
+   */
+  reviewNote?: string;
+  /**
+   * What opens when a record that was only being read is taken into editing —
+   * the mockup's "Edit this record". A record is read first and changed on
+   * purpose, so nobody lands in a form they did not ask for.
+   */
+  edit?: DrawerSpec;
+  /** What the button into `edit` says, where "Edit this record" would be the wrong verb — "Notify them". */
+  editLabel?: string;
+  /**
+   * Deleting the record this drawer shows. It always asks first, and says what
+   * is being deleted and what it takes with it.
+   */
+  remove?: {
+    endpoint: string;
+    /** "event", "term" — used in "Delete this event?" */
+    noun: string;
+    warn?: string;
+    done?: string;
+    doneBody?: string;
+  };
 };
 
 /** Where a trigger goes: another page, or a drawer over this one. */
@@ -136,12 +193,16 @@ export type TableCellKind =
       avatar?: false;
       avatarTone?: PanelTone;
     }
-  | { kind: "pill"; label: string; tone?: PanelTone }
+  | ({ kind: "pill"; label: string; tone?: PanelTone } & Trigger)
+  /** How full something is: a bar with the figure beside it, e.g. "34 / 32". */
+  | { kind: "bar"; pct: number; label: string; tone?: PanelTone }
   /** A capability a tier either has or does not: a tick, or a muted dash. */
   | { kind: "mark"; ok: boolean }
   | ({ kind: "action"; label: string } & Trigger);
 
 export type TableRow = {
+  /** What a bulk action sends for this row. */
+  id?: string;
   cells: TableCellKind[];
   /** Opened when the row itself is clicked. */
   drawer?: DrawerSpec;
@@ -158,6 +219,11 @@ export type TableFilter = {
   options: string[];
   /** Which column the filter narrows, by head index. Omit to match any cell. */
   column?: number;
+  /**
+   * What an option is looked for as, where the words on screen would match too much —
+   * "Assigned" is inside "Unassigned". The row's `keywords` carry the token.
+   */
+  match?: Record<string, string>;
 };
 
 export type PanelAction = {
@@ -165,6 +231,13 @@ export type PanelAction = {
   primary?: boolean;
   /** SVG path for the header's primary button. Defaults to a plus. */
   icon?: string;
+  /** On a table: download the rows as they are (or only the ticked ones, from the bulk bar) as a CSV. */
+  export?: boolean;
+  /**
+   * On a table's bulk bar: the drawer acts on the ticked rows. Their `id`s are sent
+   * under `key`, and the drawer says how many rows it applies to.
+   */
+  selection?: { key: string; noun: string };
 } & Trigger;
 
 export type ListItem = {
@@ -196,6 +269,26 @@ export type TileItem = {
   icon?: string;
 } & Trigger;
 
+export type PickerOption = { value: string; label: string; sub?: string; group?: string };
+export type MatrixRow = {
+  key: string;
+  label: string;
+  sub?: string;
+  /** Columns that can never be ticked on this row. */
+  lock?: string[];
+  /** The module this row belongs to; hidden unless `groupFrom` ticks it. */
+  group?: string;
+};
+export type LineColumn = {
+  key: string;
+  label: string;
+  kind?: "text" | "select";
+  options?: string[];
+  num?: boolean;
+  w?: string;
+  placeholder?: string;
+};
+
 /**
  * One field of a form panel.
  *
@@ -212,14 +305,66 @@ export type FormField = {
   optional?: boolean;
   /** Shown to the right of a text field, e.g. "characters". */
   unit?: string;
+  /** Shown only while another field holds (or includes) a value, e.g. a duty question for a non-teaching role. */
+  when?: { field: string; equals?: string | string[]; includes?: string; excludes?: string };
 } & (
   | { kind: "text"; value?: string; placeholder?: string; readOnly?: boolean; type?: "text" | "password" | "date" }
   | { kind: "area"; value?: string; placeholder?: string }
   | { kind: "select"; value?: string; options: string[] }
   | { kind: "toggle"; on?: boolean; onLabel?: string; offLabel?: string }
   | { kind: "choice"; value?: string; options: string[] }
-  | { kind: "checks"; checked?: string[]; options: string[]; /** Lay short options out as one wrapping line. */ row?: boolean }
-  | { kind: "static"; value: string }
+  | {
+      kind: "checks";
+      checked?: string[];
+      options: string[];
+      /** Lay short options out as one wrapping line. */
+      row?: boolean;
+      /** Lets the person type an option the list does not hold; it becomes a real, ticked one. */
+      addable?: boolean;
+      addPlaceholder?: string;
+      addLabel?: string;
+      /** Starts again from the set for another field's value whenever that field changes. */
+      seeds?: { field: string; sets: Record<string, string[]> };
+    }
+  | {
+      kind: "static";
+      value: string;
+      /** What it says depends on another field: the case for that field's current value, else `value`. */
+      by?: { field: string; cases: Record<string, { value: string; hint?: string }> };
+    }
+  /** Many people (or things) picked from a searchable list, with the chosen ones shown beside it. */
+  | { kind: "picker"; options: PickerOption[]; checked?: string[]; placeholder?: string; noun?: string; nounPlural?: string; groupAll?: string }
+  /**
+   * Rows down, actions across: a tick for each. A row may belong to a group (a module), and a
+   * group's rows are only offered while another field ticks that group. `seeds` replaces the
+   * ticks when the field it names changes, so a role chosen as a starting point arrives set.
+   */
+  | {
+      kind: "matrix";
+      cols: string[];
+      rows: MatrixRow[];
+      checked?: string[];
+      rowHead?: string;
+      quick?: Array<{ label: string; set: "view" | "all" | "none" }>;
+      groupFrom?: string;
+      seeds?: { field: string; sets: Record<string, string[]> };
+    }
+  /** Rows a person writes: each column a text, a number or a choice. */
+  | {
+      kind: "lines";
+      cols: LineColumn[];
+      rows?: Array<Record<string, string>>;
+      blank: Record<string, string>;
+      addLabel?: string;
+      presets?: Array<{ label: string; rows: Array<Record<string, string>> }>;
+    }
+  /**
+   * A file the school keeps on record — a logo, a signature, a stamp. Three
+   * choices, in this order: keep what is there, upload a new one, remove it.
+   * Choosing the second opens a file picker; the image is shrunk in the browser
+   * and kept on the record as it is, so nothing depends on a file store.
+   */
+  | { kind: "asset"; options: [keep: string, upload: string, remove: string] }
 );
 
 /**
@@ -318,6 +463,90 @@ export type ScoreSheetPanel = {
   emptyNote?: string;
 };
 
+/**
+ * A register being taken: a status for every child of an arm on one day, kept as a draft until it
+ * is submitted whole. The component owns the grid; the panel carries the roll and what the server
+ * says about it.
+ */
+export type MarkerStudent = {
+  id: string;
+  roll: number;
+  name: string;
+  adm: string;
+  status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED" | null;
+  reason: string;
+  reasonCode: string;
+  termRate: number | null;
+};
+
+export type MarkerPanel = {
+  type: "marker";
+  classId: string;
+  arm: string;
+  date: string;
+  label: string;
+  students: MarkerStudent[];
+  reasons: string[];
+  /** new, draft or submitted. */
+  mode: string;
+  /** Null when the person can edit; otherwise the reason they cannot. */
+  whyNot: string | null;
+  backdated: boolean;
+  cutoff: string;
+  startedAt: string | null;
+  markedAt: string | null;
+  draftEndpoint: string;
+  submitEndpoint: string;
+  overviewHref: string;
+};
+
+/** One column of a score sheet, pinned to the sheet when it was begun. */
+export type SheetColumn = { key: string; id: string | null; code: string; name: string; short: string; max: number; weight: number };
+
+export type SheetRowData = {
+  id: string;
+  name: string;
+  adm: string;
+  /** Column key → what is entered: a mark, "ABS" for absent, or null for nothing yet. */
+  cells: Record<string, number | "ABS" | null>;
+  /** What the other sheets of this child say, for the anomaly check. */
+  others: number | null;
+};
+
+/**
+ * A score sheet being entered: every child of an arm against the components of one subject.
+ * Blank is not zero and absent is not zero, so the three states stay distinct all the way down.
+ */
+export type SheetEntryPanel = {
+  type: "sheet";
+  classId: string;
+  subjectId: string;
+  arm: string;
+  subject: string;
+  columns: SheetColumn[];
+  rows: SheetRowData[];
+  /** Grade bands in force, highest first. */
+  bands: Array<{ label: string; min: number }>;
+  passMark: number;
+  /** Null when it can be typed into; otherwise why not. */
+  whyNot: string | null;
+  frameworkLabel: string;
+  saveEndpoint: string;
+  /** Deleting the whole entry: asks why, and says what goes with it. */
+  remove?: DrawerSpec;
+  previewHref: string;
+  backHref: string;
+  status: string;
+};
+
+/** A strip of days (or weeks) that can be walked: each is a link to the same page on another date. */
+export type DayStripPanel = {
+  type: "days";
+  title: string;
+  sub?: string;
+  days: Array<{ label: string; sub?: string; href: string; state: "now" | "done" | "missing" | "plain" }>;
+};
+
 export type BlockerItem = {
   title: string;
   detail: string;
@@ -337,13 +566,113 @@ export type TrackerRow = {
   state: string;
   age: string;
   overdue?: boolean;
+  /** Where the work that clears it is done. */
+  href?: string;
+  /** How many records are behind the row; zero reads as clear. */
+  count?: number;
+  /** Opened by the row's own action, for work done in place rather than elsewhere. */
+  drawer?: DrawerSpec;
+  /** What that action says. */
+  act?: string;
 };
+
+/** One cell of an editable grid: a figure or a sentence a person may type over. */
+export type GridCell = {
+  value: string;
+  /** Not typed into. */
+  static?: boolean;
+  num?: boolean;
+  bold?: boolean;
+  /** Draws it as wrong (a rung that pays less than the one below it). */
+  bad?: boolean;
+  placeholder?: string;
+  /** Shown in full naira, grouped, instead of as typed. */
+  naira?: boolean;
+  /** Worked out from other cells of the row: "c2 + c3", "(c2 + c3) * 12". Cells count from 0. */
+  calc?: string;
+};
+
+export type GridRow = {
+  /** What a save sends this row back as. */
+  id?: string;
+  cells: GridCell[];
+  /** Offers to remove the row, which calls this endpoint. */
+  remove?: { endpoint: string; method?: "DELETE" | "POST"; warn: string };
+};
+
+/**
+ * A table whose cells are typed over in place — the pay ladder, the allowances, the KPI set.
+ * Nothing is written until Save; the meter says whether what is typed is acceptable.
+ */
+export type GridPanel = {
+  type: "grid";
+  title: string;
+  sub?: string;
+  meta?: string;
+  tag?: string;
+  tagTone?: PanelTone;
+  head: string[];
+  /** Grid columns template, e.g. "0.4fr 1.05fr 0.85fr". */
+  cols?: string;
+  /** Column indexes laid right-aligned. */
+  right?: number[];
+  rows: GridRow[];
+  /** Buttons that reshape a column: "grow" compounds `rate` % a row from the first, "flat" copies the first, "reset" restores. */
+  presets?: Array<{ label: string; column: number; apply: "grow" | "flat" | "reset"; rate?: number; on?: boolean }>;
+  presetLabel?: string;
+  /** A last row the person fills in and adds. */
+  draft?: { label: string; cells: GridCell[]; add: { endpoint: string; method?: "POST"; keys: string[]; body?: Record<string, unknown> } };
+  /** A reading of a column's total against a target. */
+  meter?: { label: string; column: number; target: number; unit?: string; note: string; okNote: string };
+  /** Where Save sends the typed values: one object per row, by `keys`. */
+  save?: { endpoint: string; method?: "PATCH" | "POST" | "PUT"; keys: string[]; label?: string; body?: Record<string, unknown>; done: string };
+  acts?: PanelAction[];
+  foot?: string;
+};
+
+/** One stage of a process: who acts, what they may do, how long they have, what happens if they do nothing. */
+export type FlowStage = {
+  name: string;
+  who: string;
+  does: string;
+  scope: string;
+  win: string;
+  silence: string;
+  notify: string[];
+};
+
+/** A process shown as its stages in order, each editable, movable and removable. */
+export type FlowPanel = {
+  type: "flow";
+  flow: string;
+  title: string;
+  sub?: string;
+  tag?: string;
+  tagTone?: PanelTone;
+  stages: FlowStage[];
+  /** The stage the live item is at, if one is. */
+  nowIndex?: number;
+  /** A line generated from the stages. */
+  plain?: string;
+  presets?: Array<{ label: string }>;
+  rules?: string[];
+  /** Drawers for each stage's edit form, same order as `stages`, then one for adding. */
+  editDrawers: DrawerSpec[];
+  addDrawer: DrawerSpec;
+  endpoint: string;
+  acts?: PanelAction[];
+};
+
+export type Quote = { label: string; by: string; role?: string; when?: string; pill?: string; tone?: PanelTone; text?: string; emptyText?: string; act?: string; trigger?: Trigger };
+export type QuotesPanel = { type: "quotes"; title: string; sub?: string; quotes: Quote[] };
 
 export type Panel =
   | {
       type: "kpi";
       /** Names what the row counts. Left out, the tab's own heading is used. */
       title?: string;
+      /** The line under it: the term the figures are for, or how to read them. */
+      sub?: string;
       per?: number;
       cards: KpiCard[];
     }
@@ -353,11 +682,22 @@ export type Panel =
       sub?: string;
       meta?: string;
       rows: TrackerRow[];
+      /** What the count of rows with nothing outstanding is called, e.g. "checks clear". */
+      noun?: string;
+      /** Ways the rows can be grouped, e.g. ["By issue type", "By owner"]. */
+      groups?: string[];
+      /** Rows for a group that is a different reading of the findings, not a re-sort of `rows`. */
+      groupRows?: Record<string, TrackerRow[]>;
       /** Shown when nothing is outstanding. */
       clear?: { title: string; body: string };
     }
   | {
       type: "table";
+      /** Lifted off the page: offered as one line at its foot, which opens it. The rule behind a page without making the page half rules. */
+      tuck?: string;
+      tuckIcon?: string;
+      tuckKicker?: string;
+      tuckNote?: string;
       title: string;
       sub?: string;
       meta?: string;
@@ -369,6 +709,8 @@ export type Panel =
       foot?: string;
       /** Shown instead of rows when there are none. */
       empty?: string;
+      /** The cells are themselves the controls, so a row does not also open a record behind them. */
+      noRowOpen?: boolean;
       /** Placeholder for the table's own search box. */
       search?: string;
       filters?: TableFilter[];
@@ -377,14 +719,26 @@ export type Panel =
       bulkActs?: PanelAction[];
       /** Rows per page. Omit to show every row. */
       per?: number;
+      /** Totals laid under the last page, e.g. a leave table's days taken. */
+      summaryRows?: TableCellKind[][];
+      emptyTitle?: string;
+      emptyBody?: string;
       /** What one row is, for counts: "3 arms", "no teachers match". */
       noun?: string;
       nounPlural?: string;
     }
   | {
       type: "list";
+      /** Lifted off the page: offered as one line at its foot, which opens it. The rule behind a page without making the page half rules. */
+      tuck?: string;
+      tuckIcon?: string;
+      tuckKicker?: string;
+      tuckNote?: string;
       title: string;
       sub?: string;
+      meta?: string;
+      tag?: string;
+      tagTone?: PanelTone;
       items: ListItem[];
       acts?: PanelAction[];
       readOnly?: boolean;
@@ -392,6 +746,11 @@ export type Panel =
     }
   | {
       type: "facts";
+      /** Lifted off the page: offered as one line at its foot, which opens it. The rule behind a page without making the page half rules. */
+      tuck?: string;
+      tuckIcon?: string;
+      tuckKicker?: string;
+      tuckNote?: string;
       title: string;
       sub?: string;
       meta?: string;
@@ -408,6 +767,11 @@ export type Panel =
     }
   | {
       type: "note";
+      /** Lifted off the page: offered as one line at its foot, which opens it. The rule behind a page without making the page half rules. */
+      tuck?: string;
+      tuckIcon?: string;
+      tuckKicker?: string;
+      tuckNote?: string;
       title?: string;
       body: string;
       tone?: PanelTone;
@@ -417,6 +781,9 @@ export type Panel =
     }
   | RosterPanel
   | ScoreSheetPanel
+  | MarkerPanel
+  | DayStripPanel
+  | SheetEntryPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
   | {
       type: "tiles";
@@ -446,6 +813,9 @@ export type Panel =
       actions?: PanelAction[];
     }
   | { type: "quote"; body: string; attribution?: string }
+  | GridPanel
+  | FlowPanel
+  | QuotesPanel
   | {
       type: "blockers";
       title: string;
@@ -509,6 +879,10 @@ export function name(
 
 export function pill(label: string, tone: PanelTone = "neutral"): TableCellKind {
   return { kind: "pill", label, tone };
+}
+
+export function bar(pct: number, label: string, tone: PanelTone = "positive"): TableCellKind {
+  return { kind: "bar", pct, label, tone };
 }
 
 export function action(label: string, href?: string): TableCellKind {

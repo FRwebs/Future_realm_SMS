@@ -35,6 +35,8 @@ import {
   StudentFinanceLedgerView
 } from "../../../../src/lib/domain/types";
 import { getPaymentGateway } from "../../../../src/lib/integrations/payment-gateways";
+import { sendNotification } from "../../../../src/lib/integrations/notifications";
+import { componentFor } from "../../../../src/lib/modules/allocation-build";
 import { formatNigeriaClassName, normalizeNigeriaClassValue } from "../../../../src/lib/school-options";
 
 const moneySchema = z.coerce.number().min(0);
@@ -50,7 +52,48 @@ const feeStructureItemSchema = z.object({
     .enum(["TUITION", "DEVELOPMENT_LEVY", "EXAM_FEE", "ICT_FEE", "PTA_FEE", "TRANSPORT", "HOSTEL", "BOOKS", "UNIFORM", "OTHER"])
     .default("OTHER"),
   amount: moneySchema,
+  // What a family is asked to buy, and what one of them costs. `amount` stays
+  // the line total so nothing reading a structure has to multiply.
+  quantity: z.coerce.number().int().min(1).max(999).default(1),
+  unitAmount: moneySchema.optional(),
+  note: z.string().max(240).optional().or(z.literal("")),
+  category: z.string().max(60).optional().or(z.literal("")),
+  source: z.string().max(120).optional().or(z.literal("")),
+  supplier: z.string().max(120).optional().or(z.literal("")),
+  audience: z.enum(["EVERYONE", "BOARDERS", "DAY"]).default("EVERYONE"),
+  showPrice: z.coerce.boolean().default(true),
   isOptional: z.coerce.boolean().default(false)
+});
+
+/** One line added to, or changed on, a list that already exists. */
+export const allocationItemSchema = z
+  .object({
+    label: z.string().trim().min(2, "Name the item."),
+    category: z.string().trim().max(60).optional().or(z.literal("")),
+    componentType: feeStructureItemSchema.shape.componentType,
+    note: z.string().trim().max(240).optional().or(z.literal("")),
+    quantity: z.coerce.number().int().min(1).max(999).default(1),
+    unitAmount: moneySchema,
+    source: z.string().trim().max(120).optional().or(z.literal("")),
+    supplier: z.string().trim().max(120).optional().or(z.literal("")),
+    // "Required", "Optional", "Boarders only" and "Day students only" are one
+    // question in the form and two columns in the table.
+    needed: z.enum(["REQUIRED", "OPTIONAL", "BOARDERS", "DAY"]).default("REQUIRED"),
+    showPrice: z.coerce.boolean().default(true)
+  })
+  .partial({ componentType: true, quantity: true, needed: true, showPrice: true });
+
+export const allocationSendSchema = z.object({
+  prices: z.string().default("Yes \u2014 with a total per category"),
+  channel: z.enum(["IN_APP", "EMAIL"]).default("IN_APP"),
+  deadline: z.string().default("Resumption day"),
+  note: z.string().trim().max(600).optional().or(z.literal(""))
+});
+
+export const allocationStateSchema = z.object({
+  listState: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+  ownerName: z.string().trim().max(120).optional().or(z.literal("")),
+  familyNote: z.string().trim().max(600).optional().or(z.literal(""))
 });
 
 export const feeStructureSchema = z.object({
@@ -62,6 +105,9 @@ export const feeStructureSchema = z.object({
   recurrence: z.enum(["TERM", "SESSION", "ONE_TIME"]).default("TERM"),
   isOneTime: z.coerce.boolean().default(false),
   dueDate: dateStringSchema.optional().or(z.literal("")),
+  listState: z.enum(["DRAFT", "PUBLISHED", "ARCHIVED"]).optional(),
+  ownerName: z.string().optional().or(z.literal("")),
+  familyNote: z.string().optional().or(z.literal("")),
   items: z.array(feeStructureItemSchema).min(1)
 });
 
@@ -498,6 +544,9 @@ export class FinanceService {
       recurrence: structure.recurrence,
       isOneTime: structure.isOneTime,
       isActive: structure.isActive,
+      listState: structure.listState,
+      ownerName: structure.ownerName,
+      familyNote: structure.familyNote,
       dueDate: structure.dueDate?.toISOString(),
       total: structure.items.reduce((sum, item) => sum + Number(item.amount), 0),
       items: structure.items.map((item) => ({
@@ -505,6 +554,14 @@ export class FinanceService {
         label: item.label,
         componentType: item.componentType,
         amount: Number(item.amount),
+        quantity: item.quantity,
+        unitAmount: item.unitAmount === null ? Number(item.amount) : Number(item.unitAmount),
+        note: item.note,
+        category: item.category,
+        source: item.source,
+        supplier: item.supplier,
+        audience: item.audience,
+        showPrice: item.showPrice,
         isOptional: item.isOptional,
         isActive: item.isActive
       }))
@@ -541,11 +598,26 @@ export class FinanceService {
         recurrence: parsed.recurrence,
         isOneTime: parsed.isOneTime || parsed.recurrence === "ONE_TIME",
         dueDate: parsed.dueDate ? new Date(parsed.dueDate) : null,
+        // A draft is yours alone: it is not active, so nothing is billed from it.
+        listState: parsed.listState ?? "PUBLISHED",
+        isActive: (parsed.listState ?? "PUBLISHED") === "PUBLISHED",
+        ownerName: parsed.ownerName || null,
+        familyNote: parsed.familyNote || null,
         items: {
           create: parsed.items.map((item) => ({
             label: item.label,
             componentType: item.componentType,
             amount: item.amount,
+            quantity: item.quantity,
+            // A line priced once is its own unit price; stating it keeps a
+            // printed list honest without the reader doing the division.
+            unitAmount: item.unitAmount ?? item.amount / Math.max(1, item.quantity),
+            note: item.note || null,
+            category: item.category || null,
+            source: item.source || null,
+            supplier: item.supplier || null,
+            audience: item.audience,
+            showPrice: item.showPrice,
             isOptional: item.isOptional
           }))
         }
@@ -605,6 +677,194 @@ export class FinanceService {
       },
     );
     return (await this.listFeeStructures(schoolId)).find((item) => item.id === updated.id);
+  }
+
+  /** The columns a line carries, from the one question the form asks. */
+  private allocationItemData(parsed: z.infer<typeof allocationItemSchema>) {
+    const needed = parsed.needed ?? "REQUIRED";
+    const quantity = parsed.quantity ?? 1;
+    return {
+      label: parsed.label,
+      // The school's own category decides the type when the form named none.
+      componentType: (parsed.componentType ?? componentFor(parsed.category ?? "")) as
+        | "TUITION" | "DEVELOPMENT_LEVY" | "EXAM_FEE" | "ICT_FEE" | "PTA_FEE" | "TRANSPORT" | "HOSTEL" | "BOOKS" | "UNIFORM" | "OTHER",
+      note: parsed.note || null,
+      category: parsed.category || null,
+      quantity,
+      unitAmount: parsed.unitAmount,
+      amount: Math.round(parsed.unitAmount * quantity * 100) / 100,
+      source: parsed.source || null,
+      supplier: parsed.supplier || null,
+      isOptional: needed === "OPTIONAL",
+      audience: needed === "BOARDERS" ? "BOARDERS" : needed === "DAY" ? "DAY" : "EVERYONE",
+      showPrice: parsed.showPrice ?? true
+    };
+  }
+
+  async addAllocationItem(schoolId: string, feeStructureId: string, actorId: string, payload: unknown) {
+    const parsed = allocationItemSchema.required({ label: true, unitAmount: true }).parse(payload);
+    const structure = await prisma.feeStructure.findFirst({ where: { schoolId, id: feeStructureId, deletedAt: null } });
+    if (!structure) throw new NotFoundException("Allocation not found.");
+    const created = await prisma.feeStructureItem.create({
+      data: { feeStructureId, ...this.allocationItemData(parsed) }
+    });
+    await this.audit(schoolId, actorId, "CREATE", "FeeStructureItem", created.id, { list: structure.name, item: created.label });
+    return (await this.listFeeStructures(schoolId)).find((item) => item.id === feeStructureId);
+  }
+
+  async updateAllocationItem(schoolId: string, feeStructureId: string, itemId: string, actorId: string, payload: unknown) {
+    const parsed = allocationItemSchema.required({ label: true, unitAmount: true }).parse(payload);
+    const existing = await prisma.feeStructureItem.findFirst({
+      where: { id: itemId, feeStructureId, feeStructure: { schoolId, deletedAt: null } }
+    });
+    if (!existing) throw new NotFoundException("That item is not on this list.");
+    const data = this.allocationItemData(parsed);
+    // A line keeps the type it was filed under unless the form named another.
+    const updated = await prisma.feeStructureItem.update({
+      where: { id: itemId },
+      data: { ...data, componentType: parsed.componentType ?? existing.componentType }
+    });
+    await this.audit(schoolId, actorId, "UPDATE", "FeeStructureItem", itemId, {
+      item: updated.label,
+      was: { unit: existing.unitAmount === null ? Number(existing.amount) : Number(existing.unitAmount), quantity: existing.quantity },
+      now: { unit: parsed.unitAmount, quantity: data.quantity }
+    });
+    return (await this.listFeeStructures(schoolId)).find((item) => item.id === feeStructureId);
+  }
+
+  async deleteAllocationItem(schoolId: string, feeStructureId: string, itemId: string, actorId: string) {
+    const existing = await prisma.feeStructureItem.findFirst({
+      where: { id: itemId, feeStructureId, feeStructure: { schoolId, deletedAt: null } }
+    });
+    if (!existing) throw new NotFoundException("That item is not on this list.");
+    const remaining = await prisma.feeStructureItem.count({ where: { feeStructureId, isActive: true } });
+    if (remaining <= 1) {
+      throw new BadRequestException("A list cannot be left with no items. Archive it instead.");
+    }
+    await prisma.feeStructureItem.delete({ where: { id: itemId } });
+    await this.audit(schoolId, actorId, "DELETE", "FeeStructureItem", itemId, { item: existing.label });
+    return { id: itemId };
+  }
+
+  /**
+   * Publish, archive or reopen a list, and name who owns it.
+   *
+   * A published list is the one families can see and the one invoices can be
+   * raised from; a draft or an archived one is neither, so the state and
+   * `isActive` always move together.
+   */
+  async setAllocationState(schoolId: string, feeStructureId: string, actorId: string, payload: unknown) {
+    const parsed = allocationStateSchema.parse(payload);
+    const existing = await prisma.feeStructure.findFirst({ where: { schoolId, id: feeStructureId, deletedAt: null } });
+    if (!existing) throw new NotFoundException("Allocation not found.");
+    const itemCount = await prisma.feeStructureItem.count({ where: { feeStructureId, isActive: true } });
+    if (parsed.listState === "PUBLISHED" && itemCount === 0) {
+      throw new BadRequestException("A list with no items cannot be published.");
+    }
+    await prisma.feeStructure.update({
+      where: { id: feeStructureId },
+      data: {
+        listState: parsed.listState,
+        isActive: parsed.listState ? parsed.listState === "PUBLISHED" : undefined,
+        ownerName: parsed.ownerName === undefined ? undefined : parsed.ownerName || null,
+        familyNote: parsed.familyNote === undefined ? undefined : parsed.familyNote || null
+      }
+    });
+    await this.audit(schoolId, actorId, "UPDATE", "FeeStructure", feeStructureId, {
+      name: existing.name,
+      from: existing.listState,
+      to: parsed.listState ?? existing.listState
+    });
+    return (await this.listFeeStructures(schoolId)).find((item) => item.id === feeStructureId);
+  }
+
+  /** What a list says when it is sent: the items by category, priced as the school chose. */
+  private allocationMessage(
+    structure: { name: string; familyNote: string | null; classRoom: { name: string } | null; term: { name: string } | null; items: Array<{ label: string; category: string | null; quantity: number; unitAmount: unknown; amount: unknown; isOptional: boolean; audience: string; showPrice: boolean; source: string | null; isActive: boolean }> },
+    input: z.infer<typeof allocationSendSchema>
+  ) {
+    const naira = (value: number) => `\u20a6${Math.round(value).toLocaleString("en-NG")}`;
+    const withLinePrices = input.prices.startsWith("Yes \u2014 with");
+    const withTotals = input.prices.startsWith("Yes");
+    const lines: string[] = [];
+    const grouped = new Map<string, typeof structure.items>();
+    for (const item of structure.items.filter((entry) => entry.isActive)) {
+      const key = item.category ?? "Other";
+      grouped.set(key, [...(grouped.get(key) ?? []), item]);
+    }
+    let required = 0;
+    for (const [category, items] of grouped) {
+      const total = items.reduce((sum, item) => sum + Number(item.amount), 0);
+      lines.push(withTotals ? `${category} (${naira(total)})` : category);
+      for (const item of items) {
+        const unit = Number(item.unitAmount ?? item.amount);
+        const tags = [
+          item.isOptional ? "optional" : null,
+          item.audience === "BOARDERS" ? "boarders only" : item.audience === "DAY" ? "day students only" : null,
+          /school store only/i.test(item.source ?? "") ? "from the school store" : null
+        ].filter(Boolean);
+        const price = withLinePrices && item.showPrice ? ` \u2014 ${item.quantity > 1 ? `${item.quantity} \u00d7 ${naira(unit)} = ` : ""}${naira(Number(item.amount))}` : "";
+        lines.push(`  \u2022 ${item.label}${item.quantity > 1 && !price ? ` \u00d7 ${item.quantity}` : ""}${price}${tags.length ? ` (${tags.join(", ")})` : ""}`);
+        if (!item.isOptional && item.audience === "EVERYONE") required += Number(item.amount);
+      }
+    }
+    const requiredLine = withTotals ? `\nRequired for every child: ${naira(required)}` : "";
+    const deadline = input.deadline === "No deadline" ? "" : `\nPlease have everything by: ${input.deadline.toLowerCase()}.`;
+    const note = input.note || structure.familyNote;
+    return {
+      title: `${structure.name} \u00b7 what to buy${structure.term ? ` for ${structure.term.name}` : ""}`,
+      body: `${lines.join("\n")}${requiredLine}${deadline}${note ? `\n\n${note}` : ""}`
+    };
+  }
+
+  private async announceAllocation(
+    schoolId: string,
+    actorId: string,
+    structure: Parameters<FinanceService["allocationMessage"]>[0],
+    input: z.infer<typeof allocationSendSchema>
+  ) {
+    const { title, body } = this.allocationMessage(structure, input);
+    // The parent portal reads the words "guardian", "parent" and "all" as everyone, so a
+    // class's list is addressed to that class's families and to nobody else.
+    const audience = structure.classRoom ? `${structure.classRoom.name} families` : "All families";
+    const record = await prisma.announcement.create({
+      data: { schoolId, createdById: actorId, title, body, audience, channel: input.channel }
+    });
+    await sendNotification({ channel: input.channel, recipient: audience, title, body });
+    return record;
+  }
+
+  async sendAllocation(schoolId: string, feeStructureId: string, actorId: string, payload: unknown) {
+    const input = allocationSendSchema.parse(payload);
+    const structure = await prisma.feeStructure.findFirst({
+      where: { schoolId, id: feeStructureId, deletedAt: null },
+      include: { classRoom: true, term: true, items: true }
+    });
+    if (!structure) throw new NotFoundException("Allocation not found.");
+    if (structure.listState !== "PUBLISHED") {
+      throw new BadRequestException("Only a published list can be sent. Publish it first.");
+    }
+    const record = await this.announceAllocation(schoolId, actorId, structure, input);
+    await this.audit(schoolId, actorId, "CREATE", "Announcement", record.id, { allocation: structure.name, audience: record.audience });
+    return { id: record.id, audience: record.audience };
+  }
+
+  async sendPublishedAllocations(schoolId: string, actorId: string, payload: unknown) {
+    const input = allocationSendSchema.parse(payload);
+    const term = payload && typeof payload === "object" && typeof (payload as Record<string, unknown>).term === "string"
+      ? ((payload as Record<string, unknown>).term as string)
+      : null;
+    const structures = await prisma.feeStructure.findMany({
+      where: { schoolId, deletedAt: null, listState: "PUBLISHED", ...(term ? { term: { name: term } } : {}) },
+      include: { classRoom: true, term: true, items: true }
+    });
+    const sendable = structures.filter((structure) => structure.items.length > 0);
+    if (!sendable.length) throw new BadRequestException("No published list is waiting to be sent.");
+    for (const structure of sendable) {
+      const record = await this.announceAllocation(schoolId, actorId, structure, input);
+      await this.audit(schoolId, actorId, "CREATE", "Announcement", record.id, { allocation: structure.name, audience: record.audience });
+    }
+    return { sent: sendable.length };
   }
 
   async archiveFeeStructure(schoolId: string, feeStructureId: string, actorId: string) {

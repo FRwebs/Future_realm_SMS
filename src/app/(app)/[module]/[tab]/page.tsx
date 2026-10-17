@@ -7,15 +7,17 @@ import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getTabContent } from "@/lib/modules/content";
 import { getLiveTabContent } from "@/lib/modules/live";
 import { withKpiTitles } from "@/lib/modules/kpi-titles";
-import { moduleLevelForRole } from "@/lib/modules/school-access";
+import { canOpenModule, getServerPermissions } from "@/lib/auth/server-access";
+import { isSchoolStaffRole } from "@/lib/modules/school-access";
 import {
   getSchoolModule,
   getSchoolModuleTab,
   schoolModules,
+  schoolPermissionKey,
 } from "@/lib/modules/school-modules";
 import { getServerSession } from "@/lib/auth/session";
 
-type PageProps = { params: Promise<{ module: string; tab: string }> };
+type PageProps = { params: Promise<{ module: string; tab: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> };
 
 export async function generateStaticParams() {
   return schoolModules.flatMap((module) =>
@@ -37,8 +39,9 @@ export async function generateMetadata({
   };
 }
 
-export default async function SchoolModuleTabPage({ params }: PageProps) {
+export default async function SchoolModuleTabPage({ params, searchParams }: PageProps) {
   const { module: moduleSlug, tab: tabSlug } = await params;
+  const query = Object.fromEntries(Object.entries((await searchParams) ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
 
   const module = getSchoolModule(moduleSlug);
   if (!module) notFound();
@@ -50,19 +53,21 @@ export default async function SchoolModuleTabPage({ params }: PageProps) {
   if (!session) return null;
 
   // A module the holder cannot reach is absent from their navigation entirely;
-  // reaching it by URL is refused rather than quietly shown empty.
-  if (moduleLevelForRole(session.role, module.code) === 0) {
+  // reaching it by URL is refused rather than quietly shown empty. A tab is the same:
+  // what Permissions took away from this person is honoured here, not only the module.
+  const held = isSchoolStaffRole(session.role) ? new Set(await getServerPermissions(session)) : null;
+  const canViewTab = (slug: string) => !held || held.has(schoolPermissionKey(module.slug, slug, "View"));
+  if (!(await canOpenModule(session, module.code)) || !canViewTab(tab.slug)) {
     return <AccessDenied backHref="/command-center/today" />;
   }
 
   // A module that has graduated to the API builds its tab from this school's
   // own records; one that has not keeps rendering the authored content.
   const content =
-    (await getLiveTabContent(module.code, tab.slug)) ?? getTabContent(module.code, tab.slug);
+    (await getLiveTabContent(module.code, tab.slug, query)) ?? getTabContent(module.code, tab.slug);
 
-  // Every tab of a module the holder can open is visible to them: the mockup
-  // scopes access by module, and by action within it, never by tab.
-  const visibleTabSlugs = module.tabs.map((moduleTab) => moduleTab.slug);
+  // The tabs of this module they can open — one they cannot is absent from the strip.
+  const visibleTabSlugs = module.tabs.filter((moduleTab) => canViewTab(moduleTab.slug)).map((moduleTab) => moduleTab.slug);
 
   return (
     <ModuleWorkspace

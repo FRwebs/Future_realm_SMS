@@ -5,6 +5,7 @@ import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { isExamComponentCode } from "../../../../src/lib/domain/grading";
 import { buildReportCardPdf } from "../../../../src/lib/pdf/report-card";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 import { CurrentSession } from "../../auth/current-session.decorator";
@@ -176,8 +177,8 @@ export class ReportsController {
         total: 0,
         grade: latestSheet.grade ?? "N/A"
       };
-      if (entry.assessmentComponent.code === "CA") existing.ca = entry.score;
-      if (entry.assessmentComponent.code === "EXAM") existing.exam = entry.score;
+      if (isExamComponentCode(entry.assessmentComponent.code)) existing.exam += entry.score;
+      else existing.ca += entry.score;
       existing.total = existing.ca + existing.exam;
       gradeMap.set(key, existing);
     });

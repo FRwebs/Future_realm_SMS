@@ -3,7 +3,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { calculateSubjectTotals, resolveGradeLabel } from "../../../../src/lib/domain/grading";
+import { calculateSubjectTotals, isExamComponentCode, resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import { canTeacherManageAssignedSubject, canUseTeacherPortal } from "../../../../src/lib/domain/teacher-portal";
 import {
   AnnouncementView,
@@ -675,8 +675,8 @@ export class TeacherPortalService {
           teacherComment: score.resultSheet.teacherComment ?? undefined
         } satisfies TeacherScoreEntryView);
 
-      if (score.assessmentComponent.code === "CA") entry.continuousAssessment = score.score;
-      if (score.assessmentComponent.code === "EXAM") entry.exam = score.score;
+      if (isExamComponentCode(score.assessmentComponent.code)) entry.exam += score.score;
+      else entry.continuousAssessment += score.score;
       entry.total = entry.continuousAssessment + entry.exam;
       entry.grade = resolveGradeLabel(entry.total).label;
       grouped.set(key, entry);

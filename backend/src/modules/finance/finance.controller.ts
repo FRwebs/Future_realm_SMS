@@ -1,4 +1,4 @@
-import { Body, Controller, ForbiddenException, Get, Header, Headers, Param, Post, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Header, Headers, Param, Patch, Post, Req, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request } from "express";
 
@@ -46,6 +46,78 @@ export class FinanceController {
   async createFeeStructure(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     this.assertFinanceManager(session);
     return { ok: true, data: await this.financeService.createFeeStructure(session.schoolId, body) };
+  }
+
+  @Post("fee-structures/send-published")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeManagerRoles)
+  async sendPublishedAllocations(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    this.assertFinanceManager(session);
+    return { ok: true, data: await this.financeService.sendPublishedAllocations(session.schoolId, session.userId, body) };
+  }
+
+  @Post("fee-structures/:feeStructureId/send")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeManagerRoles)
+  async sendAllocation(
+    @CurrentSession() session: SessionPayload,
+    @Param("feeStructureId") feeStructureId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    this.assertFinanceManager(session);
+    return { ok: true, data: await this.financeService.sendAllocation(session.schoolId, feeStructureId, session.userId, body) };
+  }
+
+  @Post("fee-structures/:feeStructureId/items")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeManagerRoles)
+  async addAllocationItem(
+    @CurrentSession() session: SessionPayload,
+    @Param("feeStructureId") feeStructureId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    this.assertFinanceManager(session);
+    return { ok: true, data: await this.financeService.addAllocationItem(session.schoolId, feeStructureId, session.userId, body) };
+  }
+
+  @Patch("fee-structures/:feeStructureId/items/:itemId")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeManagerRoles)
+  async updateAllocationItem(
+    @CurrentSession() session: SessionPayload,
+    @Param("feeStructureId") feeStructureId: string,
+    @Param("itemId") itemId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    this.assertFinanceManager(session);
+    return {
+      ok: true,
+      data: await this.financeService.updateAllocationItem(session.schoolId, feeStructureId, itemId, session.userId, body)
+    };
+  }
+
+  @Delete("fee-structures/:feeStructureId/items/:itemId")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeManagerRoles)
+  async deleteAllocationItem(
+    @CurrentSession() session: SessionPayload,
+    @Param("feeStructureId") feeStructureId: string,
+    @Param("itemId") itemId: string
+  ) {
+    this.assertFinanceManager(session);
+    return { ok: true, data: await this.financeService.deleteAllocationItem(session.schoolId, feeStructureId, itemId, session.userId) };
+  }
+
+  @Patch("fee-structures/:feeStructureId/state")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeManagerRoles)
+  async setAllocationState(
+    @CurrentSession() session: SessionPayload,
+    @Param("feeStructureId") feeStructureId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    this.assertFinanceManager(session);
+    return { ok: true, data: await this.financeService.setAllocationState(session.schoolId, feeStructureId, session.userId, body) };
   }
 
   @Get("invoices")

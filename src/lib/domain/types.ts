@@ -1584,7 +1584,26 @@ export interface FeeStructureView {
   isActive: boolean;
   dueDate?: string;
   total: number;
-  items: Array<{ id: string; label: string; componentType: string; amount: number; isOptional: boolean; isActive: boolean }>;
+  /** DRAFT, PUBLISHED or ARCHIVED — a list is a draft until somebody publishes it. */
+  listState?: string;
+  ownerName?: string | null;
+  familyNote?: string | null;
+  items: Array<{
+    id: string;
+    label: string;
+    componentType: string;
+    amount: number;
+    quantity?: number;
+    unitAmount?: number;
+    note?: string | null;
+    category?: string | null;
+    source?: string | null;
+    supplier?: string | null;
+    audience?: string;
+    showPrice?: boolean;
+    isOptional: boolean;
+    isActive: boolean;
+  }>;
 }
 
 export interface FeeAssignmentView {
