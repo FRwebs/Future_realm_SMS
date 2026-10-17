@@ -1,371 +1,299 @@
 import { apiGet } from "@/lib/api/server";
 import {
+  addStaffDrawer,
+  API,
+  delegationDrawer,
+  inviteDrawer,
+  type Option,
+} from "@/lib/modules/live/m7-forms";
+import { appraisalTab, loadAppraisal, loadModeration } from "@/lib/modules/live/m7-appraisal";
+import { leaveTab, loadLeave } from "@/lib/modules/live/m7-leave";
+import { loadPayroll, payrollTab } from "@/lib/modules/live/m7-payroll";
+import { permissionsTab } from "@/lib/modules/live/m7-permissions";
+import type {
+  AccessOverview,
+  AccountState,
+  Activity,
+  DelegationRow,
+  Directory,
+  DirectoryRow,
+  RoleOption,
+} from "@/lib/modules/live/m7-types";
+import {
+  bar,
   name as nameCell,
   pill,
   text,
   type DrawerSpec,
   type KpiCard,
-  type PanelFact,
+  type ListItem,
   type PanelTone,
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
 
 /**
- * M07 Staff & Access · Directory, read from `GET /v1/staff`.
+ * M07 Staff & Access, read from `/api/v1/staff-access`.
  *
- * Directory only. Permissions, Payroll, Leave, Appraisal and Activity keep
- * their authored content — payroll and leave have their own endpoints but not
- * ones shaped for these tabs, and the permissions grid is a 330-key matrix that
- * deserves its own pass rather than a table squeezed out of this call.
+ * Six tabs over one idea — who works here, what they hold and what they can reach. The
+ * Directory is the people; Permissions is what each can open; Activity is whether they are
+ * using it. Payroll, Leave and Appraisal read their own endpoints.
  */
 
-type StaffRow = {
-  id: string;
-  userId: string;
-  fullName: string;
-  email: string;
-  phone: string | null;
-  role: string;
-  roles: string[];
-  status: string;
-  isActive: boolean;
-  staffType: string | null;
-  employeeNo: string | null;
-  designation: string | null;
-  departmentName?: string | null;
-  campusName?: string | null;
+import { ACCOUNT_TONE, dayLabel, dayLong, lastSeen, plural } from "@/lib/modules/live/m7-format";
+
+export { ACCOUNT_TONE, dayLabel, dayLong, lastSeen, plural };
+
+/* ───────────────────────────── Directory ───────────────────────────── */
+
+export type DirectoryContext = {
+  roles: RoleOption[];
+  subjects: Option[];
+  arms: Option[];
+  groups: string[];
+  ceiling: number;
 };
 
-const STATUS_TONE: Record<string, PanelTone> = {
-  ACTIVE: "positive",
-  PENDING: "attention",
-  INACTIVE: "neutral",
-  SUSPENDED: "negative",
-  LOCKED: "negative",
-};
-
-/** A role reads as a title, not a constant. */
-function roleLabel(role: string): string {
-  return role
-    .toLowerCase()
-    .split("_")
-    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
-    .join(" ");
+export async function loadDirectory() {
+  return apiGet<Directory>(`${API}/directory`);
+}
+export async function loadOverview() {
+  return apiGet<AccessOverview>(`${API}/access/overview`);
+}
+export async function loadActivity() {
+  return apiGet<Activity>(`${API}/activity`);
 }
 
-/**
- * The drawer behind a staff row.
- *
- * Its command is the account's standing, because that is the decision this page
- * exists to carry: somebody has left, or should not be signing in today. The
- * reason is required and kept — a suspension nobody can explain later is how a
- * directory stops being trusted. Everything else about a person (their pay,
- * their leave, their appraisal) belongs to the tab that owns it.
- */
-function staffDrawer(staff: StaffRow): DrawerSpec {
-  const suspended = staff.status === "SUSPENDED" || staff.status === "LOCKED";
+type TeachingLite = { schoolCeiling: number; catalogue: Array<{ id: string; name: string; code?: string; category?: string }> };
+type OverviewLite = { arms: Array<{ id: string; name: string }> };
 
+/** Two subjects can share a name; a form that pairs names with ids cannot, so the second is told apart. */
+export function uniqueLabels(items: Array<{ id: string; label: string; extra?: string }>): Option[] {
+  const seen = new Map<string, number>();
+  const counts = new Map<string, number>();
+  for (const item of items) counts.set(item.label, (counts.get(item.label) ?? 0) + 1);
+  return items.map((item) => {
+    if ((counts.get(item.label) ?? 0) < 2) return { id: item.id, label: item.label };
+    const withExtra = item.extra ? `${item.label} (${item.extra})` : item.label;
+    const times = (seen.get(withExtra) ?? 0) + 1;
+    seen.set(withExtra, times);
+    return { id: item.id, label: times > 1 ? `${withExtra} · ${times}` : withExtra };
+  });
+}
+
+/** What the Add-staff wizard needs: roles, the subject and arm catalogue, and the groups. */
+export async function loadDirectoryContext(): Promise<DirectoryContext> {
+  const [roles, teaching, structure, access] = await Promise.all([
+    apiGet<RoleOption[]>(`${API}/role-options`),
+    apiGet<TeachingLite>("/api/v1/class-structure/teaching").catch(() => ({ schoolCeiling: 24, catalogue: [] }) as TeachingLite),
+    apiGet<OverviewLite>("/api/v1/class-structure/overview").catch(() => ({ arms: [] }) as OverviewLite),
+    loadOverview().catch(() => null),
+  ]);
   return {
-    kicker: staff.employeeNo ?? roleLabel(staff.role),
-    title: staff.fullName,
-    sub: `${staff.designation ?? roleLabel(staff.role)} · ${staff.status.toLowerCase()}`,
-    tone: STATUS_TONE[staff.status] ?? "neutral",
-    facts: [
-      ["Employee number", staff.employeeNo ?? "Not issued"],
-      ["Role", roleLabel(staff.role)],
-      ["Designation", staff.designation ?? "—"],
-      ["Department", staff.departmentName ?? "Not assigned"],
-      ["Campus", staff.campusName ?? "—"],
-      ["Staff type", staff.staffType ? roleLabel(staff.staffType) : "—"],
-      ["Email", staff.email],
-      ["Phone", staff.phone ?? "—"],
-      ["Account", staff.status],
-      ["Extra roles held", staff.roles.length ? staff.roles.join(", ") : "None beyond their role"],
-    ],
-    mode: "commit",
-    commitLabel: suspended ? "Restore this account" : "Suspend this account",
-    commitNote: suspended
-      ? "They will be able to sign in again immediately."
-      : "They are signed out and cannot sign in again until the account is restored.",
-    commitDone: suspended ? "Account restored" : "Account suspended",
-    commitDoneBody: suspended
-      ? `${staff.fullName} can sign in again.`
-      : `${staff.fullName} can no longer sign in.`,
-    submit: {
-      endpoint: `/api/v1/staff/${staff.id}/status`,
-      method: "PATCH",
-      body: { status: suspended ? "ACTIVE" : "SUSPENDED" },
-      reasonKey: "reason",
-      reasonLabel: suspended ? "Why they are coming back" : "Why they are being suspended",
-      reasonRequired: true,
-    },
+    roles,
+    subjects: uniqueLabels(teaching.catalogue.map((subject) => ({ id: subject.id, label: subject.name, extra: subject.code ?? subject.category }))),
+    arms: uniqueLabels(structure.arms.map((arm) => ({ id: arm.id, label: arm.name }))),
+    groups: access?.groups.map((group) => group.name) ?? [],
+    ceiling: teaching.schoolCeiling,
   };
 }
 
-export function directoryTab(staff: StaffRow[]): TabContent {
-  const active = staff.filter((person) => person.status === "ACTIVE");
-  const blocked = staff.filter(
-    (person) => person.status === "SUSPENDED" || person.status === "LOCKED",
-  );
-  const pending = staff.filter((person) => person.status === "PENDING");
-  const academic = staff.filter((person) => person.staffType === "ACADEMIC");
-  const noDepartment = staff.filter((person) => !person.departmentName);
+/** The next EMP-### the way the backend counts them, so the wizard can show what it will be given. */
+export function nextStaffNumber(rows: Array<{ staffNo: string | null }>): string {
+  const highest = rows.reduce((max, row) => Math.max(max, Number.parseInt((row.staffNo ?? "").replace(/\D+/g, ""), 10) || 0), 0);
+  return `EMP-${String(highest + 1).padStart(3, "0")}`;
+}
+
+export function addStaffFor(directory: Directory, context: DirectoryContext): DrawerSpec {
+  return addStaffDrawer({
+    roles: context.roles,
+    departments: directory.departmentOptions,
+    people: directory.rows.map((row) => ({ id: row.userId, name: row.name, role: row.role })),
+    subjects: context.subjects,
+    arms: context.arms,
+    groups: context.groups,
+    nextStaffNo: nextStaffNumber(directory.rows),
+    ceiling: context.ceiling,
+  });
+}
+
+function delegationDrawerFor(item: DelegationRow): DrawerSpec {
+  const active = item.status === "Active";
+  return {
+    mode: "view",
+    kicker: "Delegation",
+    title: `${item.person} · ${item.holds}`,
+    sub: active ? "Held for a while, by a named person, with an end date." : "This delegation has ended; the record is kept.",
+    tone: active ? "progress" : "neutral",
+    facts: [
+      ["Holds", item.holds],
+      ["Person", item.person],
+      ["Granted by", item.grantedBy, dayLong(item.grantedOn)],
+      ["Ends", item.expiresOn ? dayLong(item.expiresOn) : "No end date", active ? "Ends on its own that day" : "Ended"],
+      ["Why", item.reason || "No reason recorded"],
+    ],
+    remove: {
+      endpoint: `${API}/access/delegations/${item.id}`,
+      noun: "delegation",
+      warn: "They stop holding it today. What they decided while they held it stays on the record.",
+    },
+    readOnlyNote: "End it here; to change it, record a new one.",
+  };
+}
+
+const ACCOUNT_STATES: Array<[AccountState | "Offboarded", string]> = [
+  ["Active", "Signed in within the last 90 days"],
+  ["Dormant", "Has signed in, but not for 90 days or more"],
+  ["Never activated", "The account exists and the activation link has never been used"],
+  ["Suspended", "Cannot sign in; the record and history are intact and it can be restored"],
+  ["Offboarded", "Left the school; the account is closed and what they held moved on"],
+];
+
+export function directoryTab(directory: Directory, context: DirectoryContext): TabContent {
+  const { counts, rows } = directory;
+  const never = rows.filter((row) => row.account === "Never activated");
+  const addStaff = addStaffFor(directory, context);
+  const resendAll = inviteDrawer(never, { title: "Resend the activation links" });
 
   const cards: KpiCard[] = [
-    { label: "On the payroll list", value: String(staff.length), sub: "Every staff record" },
+    { label: "Total staff", value: String(counts.total), sub: `Across ${plural(counts.departments, "department")}` },
+    { label: "Activated", value: String(counts.active), tone: counts.active ? "positive" : "neutral", sub: "Signed in within the last 90 days" },
     {
-      label: "Active accounts",
-      value: `${active.length} of ${staff.length}`,
-      tone: active.length === staff.length ? "positive" : "attention",
-      sub: pending.length ? `${pending.length} never signed in` : "Nobody is pending",
+      label: "Never activated",
+      value: String(counts.never),
+      tone: counts.never ? "negative" : "positive",
+      sub: counts.never ? "Invited, never signed in" : "Everyone has signed in",
+      ...(counts.never ? { link: "Resend invitations", drawer: resendAll } : {}),
     },
+    { label: "Dormant", value: String(counts.dormant), tone: counts.dormant ? "attention" : "positive", sub: "No sign-in for 90 days or more" },
     {
-      label: "Suspended or locked",
-      value: String(blocked.length),
-      tone: blocked.length > 0 ? "negative" : "positive",
-      sub: blocked.length ? "Cannot sign in today" : "Nobody is shut out",
-    },
-    {
-      label: "Teaching staff",
-      value: String(academic.length),
-      sub: `${staff.length - academic.length} non-teaching`,
-    },
-    {
-      label: "No department",
-      value: String(noDepartment.length),
-      tone: noDepartment.length > 0 ? "attention" : "positive",
-      sub: noDepartment.length ? "Nothing to report them under" : "Everybody is placed",
+      label: "Active delegations",
+      value: String(counts.delegationsActive),
+      sub: counts.delegationsExpired ? `${counts.delegationsExpired} expired` : "None have expired",
     },
   ];
 
-  const rows: TableRow[] = staff.map((person) => ({
-    cells: [
-      nameCell(person.fullName, person.email),
-      text(roleLabel(person.role)),
-      text(person.departmentName ?? "—", {
-        tone: person.departmentName ? "neutral" : "attention",
-      }),
-      text(person.employeeNo ?? "—", { mono: true }),
-      text(person.staffType ? roleLabel(person.staffType) : "—"),
-      pill(person.status, STATUS_TONE[person.status] ?? "neutral"),
-      { kind: "action" as const, label: "Open", drawer: staffDrawer(person) },
-    ],
-    drawer: staffDrawer(person),
-    keywords: `${person.email} ${person.phone ?? ""} ${person.designation ?? ""}`,
+  const roleNames = Array.from(new Set(rows.map((row) => row.role)));
+  const departments = Array.from(new Set(rows.map((row) => row.department)));
+  const employments = Array.from(new Set(rows.map((row) => row.employment)));
+  const states = Array.from(new Set(rows.map((row) => row.account)));
+  const token = (kind: string, value: string) => `${kind}:${value}|`;
+
+  const tableRows: TableRow[] = rows.map((row) => {
+    const href = `/staff-access/directory/${row.id}`;
+    return {
+      id: row.userId,
+      cells: [
+        nameCell(row.isYou ? `${row.name} (you)` : row.name, row.phone ?? row.email),
+        text(row.staffNo ?? "—", { mono: true }),
+        { kind: "name", name: row.role, sub: row.department, avatar: false },
+        { kind: "name", name: row.employment, sub: row.joinedLabel, avatar: false },
+        row.account === "Never activated"
+          ? { kind: "pill", label: row.account, tone: ACCOUNT_TONE[row.account], drawer: inviteDrawer([row]) }
+          : pill(row.account, ACCOUNT_TONE[row.account]),
+        text(lastSeen(row), { tone: row.account === "Dormant" || row.account === "Never activated" ? "attention" : undefined }),
+        text(String(row.openTasks), { tone: row.openTasks ? "attention" : undefined }),
+        text(row.periods ? String(row.periods) : "—"),
+        { kind: "action", label: "Open", href },
+      ],
+      href,
+      keywords: `${token("role", row.role)}${token("dept", row.department)}${token("emp", row.employment)}${token("acct", row.account)}${row.email} ${row.staffNo ?? ""}`,
+    };
+  });
+
+  const matchFor = (kind: string, values: string[]) => Object.fromEntries(values.map((value) => [value, token(kind, value)]));
+
+  const delegationItems: ListItem[] = directory.delegations.map((item) => ({
+    label: `${item.person} · ${item.holds}`,
+    sub: `${item.grantedBy} · ${item.expiresOn ? `ends ${dayLabel(item.expiresOn)}` : "no end date"}${item.reason ? ` · ${item.reason}` : ""}`,
+    pill: item.status,
+    tone: item.status === "Active" ? "progress" : "neutral",
+    viewLabel: item.status === "Active" ? "Manage" : "View",
+    drawer: delegationDrawerFor(item),
   }));
 
   return {
     title: "Directory",
-    desc: "Everybody who works here, what they are allowed to be, and whether they can sign in today.",
-    launchers: [{ label: "Permissions", href: "/staff-access/permissions" }],
+    desc: "Everyone who works here, what state their account is in, and what they are holding.",
+    primary: { label: "Add staff", drawer: addStaff },
+    launchers: [{ label: "Offboard someone", href: "/staff-access/directory/offboard" }],
     rows: [
-      {
-        cols: "1fr",
-        panels: [{ type: "kpi", title: "Who works here", per: 5, cards }],
-      },
+      { cols: "1fr", panels: [{ type: "kpi", title: "Staff and activation", sub: "Account states are read from sign-ins, never typed", per: 5, cards }] },
+      ...(never.length
+        ? [
+            {
+              cols: "1fr",
+              panels: [
+                {
+                  type: "note" as const,
+                  tone: "negative" as PanelTone,
+                  title: `${plural(never.length, "person", "people")} invited and never activated`,
+                  body: `${never
+                    .slice(0, 3)
+                    .map((row) => row.name)
+                    .join(", ")}${never.length > 3 ? ` and ${never.length - 3} more` : ""} ${never.length === 1 ? "has" : "have"} an account and no sign-in. Anything routed to their role waits unread until they use their link.`,
+                  acts: [
+                    { label: "Resend invitations", drawer: resendAll },
+                    { label: "Correct a contact", href: `/staff-access/directory/${rows.find((row) => row.account === "Never activated")?.id ?? ""}` },
+                  ],
+                },
+              ],
+            },
+          ]
+        : []),
       {
         cols: "1fr",
         panels: [
           {
             type: "table",
-            title: "Every staff record",
-            sub: staff.length
-              ? `${staff.length} record${staff.length === 1 ? "" : "s"}.`
-              : "No staff record has been created yet.",
-            head: ["Name", "Role", "Department", "Employee no.", "Type", "Account", ""],
-            rows,
-            per: 10,
-            empty: "No staff member matches this filter.",
-          },
-        ],
-      },
-    ],
-  };
-}
-
-
-type RoleRow = {
-  id: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  isSystem: boolean;
-  systemRole: string | null;
-  permissionsCount: number;
-  staffCount: number;
-};
-
-type PermissionGroup = {
-  module: string;
-  permissions: Array<{ key: string; label: string; description: string; module: string }>;
-};
-
-type AuditEntry = {
-  id: string;
-  action: string;
-  entityType: string;
-  actor: string | null;
-  actorRole: string | null;
-  ipAddress: string | null;
-  createdAt: string;
-};
-
-type AuditFeed = {
-  entries: AuditEntry[];
-  total: number;
-  byAction: Array<{ action: string; count: number }>;
-  byActor: Array<{ actor: string; count: number }>;
-};
-
-function readableKey(value: string): string {
-  const words = value.replace(/_/g, " ").toLowerCase().trim();
-  return words.charAt(0).toUpperCase() + words.slice(1);
-}
-
-function whenStamp(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleString("en-NG", {
-    day: "numeric",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
-/**
- * M07 · Permissions, read from the roles-management endpoints.
- *
- * The thing worth seeing here is not the catalogue but the shape of it: how
- * many roles exist, how many are actually held by somebody, and how wide the
- * widest one is. A role nobody holds is not access control, it is furniture.
- */
-function permissionsTab(roles: RoleRow[], groups: PermissionGroup[]): TabContent {
-  const held = roles.filter((role) => role.staffCount > 0);
-  const unheld = roles.filter((role) => role.staffCount === 0);
-  const totalKeys = groups.reduce((sum, group) => sum + group.permissions.length, 0);
-  const widest = roles.slice().sort((a, b) => b.permissionsCount - a.permissionsCount)[0];
-  const custom = roles.filter((role) => !role.isSystem);
-
-  return {
-    title: "Permissions",
-    desc: "Which roles exist, who holds them, and how much each one can reach.",
-    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
-    rows: [
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "kpi",
-            title: "How access is shaped",
-            per: 4,
-            cards: [
-              { label: "Roles defined", value: String(roles.length), sub: `${custom.length} custom` },
-              {
-                label: "Roles actually held",
-                value: String(held.length),
-                sub: `${unheld.length} held by nobody`,
-                tone: unheld.length > held.length ? "attention" : "positive",
-              },
-              {
-                label: "Permission keys",
-                value: String(totalKeys),
-                sub: `Across ${groups.length} areas`,
-              },
-              {
-                label: "Widest role",
-                value: widest ? String(widest.permissionsCount) : "—",
-                sub: widest ? widest.name : "none",
-                tone: widest && widest.permissionsCount > totalKeys * 0.8 ? "attention" : undefined,
-              },
+            title: "Staff",
+            sub: "Open a person to see what they hold, what they are paid and what they can reach.",
+            meta: `${plural(rows.length, "person", "people")} · ${plural(counts.departments, "department")}`,
+            noun: "person",
+            nounPlural: "people",
+            search: "Find a person by name, staff number or email",
+            filters: [
+              { label: "Role", value: "All roles", options: ["All roles", ...roleNames], match: matchFor("role", roleNames) },
+              { label: "Department", value: "All departments", options: ["All departments", ...departments], match: matchFor("dept", departments) },
+              { label: "Employment", value: "All types", options: ["All types", ...employments], match: matchFor("emp", employments) },
+              { label: "Account", value: "All accounts", options: ["All accounts", ...states], match: matchFor("acct", states) },
             ],
+            acts: [{ label: "Export directory", export: true }],
+            selectable: true,
+            bulkActs: [
+              { label: "Resend invitation", drawer: inviteDrawer([], { selection: true }), selection: { key: "userIds", noun: "person" } },
+              { label: "Export for review", primary: true, export: true },
+            ],
+            head: ["Name", "Staff ID", "Role", "Employment", "Account", "Last sign-in", "Open tasks", "Periods / week", ""],
+            rows: tableRows,
+            per: 10,
+            empty: "Nobody matches this filter.",
+            foot: "Never-activated and dormant accounts are the first thing to look at: work routed to them sits unread.",
           },
         ],
       },
       {
-        cols: "1fr",
-        panels: [
-          unheld.length
-            ? {
-                type: "note",
-                tone: "attention",
-                title: `${unheld.length} of the ${roles.length} roles are held by nobody`,
-                body: "An unheld role still carries its permissions, so it is a grant waiting to be made rather than one in force. Worth pruning the ones this school will never use — a shorter list is one somebody can actually audit.",
-              }
-            : {
-                type: "note",
-                tone: "positive",
-                title: "Every role is held by somebody",
-                body: "Nothing in the list is a grant waiting to happen.",
-              },
-        ],
-      },
-      {
-        cols: "1fr",
+        cols: "1.4fr 1fr",
         panels: [
           {
-            type: "table",
-            title: "Roles",
-            sub: "Most widely held first.",
-            meta: `${roles.length} roles · ${totalKeys} permission keys`,
-            head: ["Role", "Holders", "Permissions", "Kind", ""],
-            per: 12,
-            rows: roles
-              .slice()
-              .sort((a, b) => b.staffCount - a.staffCount || b.permissionsCount - a.permissionsCount)
-              .map((role) => ({
-                cells: [
-                  nameCell(role.name, role.description ?? ""),
-                  text(String(role.staffCount), {
-                    tone: role.staffCount ? "positive" : "attention",
-                    strong: role.staffCount > 0,
-                  }),
-                  text(String(role.permissionsCount)),
-                  pill(role.isSystem ? "System" : "Custom", role.isSystem ? "neutral" : "positive"),
-                  {
-                    kind: "action" as const,
-                    label: "View",
-                    drawer: {
-                      kicker: role.isSystem ? "System role" : "Custom role",
-                      title: role.name,
-                      sub: role.description ?? undefined,
-                      readOnly: true,
-                      readOnlyNote:
-                        "A system role's permissions are defined by the platform. Changing what somebody can reach is done by moving them between roles, which keeps the change on the audit trail.",
-                      facts: [
-                        ["Role", role.name],
-                        ["Slug", role.slug],
-                        ["Kind", role.isSystem ? "System" : "Custom"],
-                        ["Maps to", role.systemRole ?? "—"],
-                        ["Held by", `${role.staffCount} staff`],
-                        ["Permissions", String(role.permissionsCount)],
-                        ["Description", role.description ?? "none"],
-                      ],
-                    },
-                  },
-                ],
-                keywords: `${role.name} ${role.slug} ${role.systemRole ?? ""}`,
-              })),
+            type: "list",
+            title: "Active delegations",
+            sub: "Named people holding a named responsibility for a while.",
+            tag: String(counts.delegationsActive),
+            acts: [{ label: "Record a delegation", drawer: delegationDrawer({ people: rows.map((row) => ({ userId: row.userId, name: row.name })) }) }],
+            items: delegationItems,
+            readOnly: false,
+            foot: delegationItems.length ? "Each ends on its date. One with no end date survives every recertification, so none is allowed here." : "Nobody is holding anything on behalf of somebody else.",
           },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
           {
-            type: "bars",
-            title: "Permission keys by area",
-            sub: "Where the surface area is.",
-            rows: groups
-              .slice()
-              .sort((a, b) => b.permissions.length - a.permissions.length)
-              .slice(0, 10)
-              .map((group) => ({
-                label: group.module,
-                value: group.permissions.length,
-                display: String(group.permissions.length),
-              })),
+            type: "facts",
+            title: "Account states in use",
+            sub: "Every account is in exactly one of these.",
+            per: 1,
+            facts: ACCOUNT_STATES.map(([state, meaning]) => {
+              const value = state === "Offboarded" ? counts.offboarded : state === "Active" ? counts.active : state === "Dormant" ? counts.dormant : state === "Never activated" ? counts.never : counts.suspended;
+              return [`${state} · ${value}`, meaning] as [string, string];
+            }),
           },
         ],
       },
@@ -373,656 +301,129 @@ function permissionsTab(roles: RoleRow[], groups: PermissionGroup[]): TabContent
   };
 }
 
-/**
- * M07 · Activity, read from `GET /v1/audit/recent`.
- *
- * Same trail M15 reads, asked a different question: not what happened to the
- * records, but which members of staff are doing things — and whether anybody
- * is acting without leaving a name behind.
- */
-function activityTab(feed: AuditFeed): TabContent {
-  const named = feed.entries.filter((entry) => entry.actor);
-  const system = feed.entries.filter((entry) => !entry.actor);
-  const roles = new Map<string, number>();
-  for (const entry of named) {
-    const key = entry.actorRole ? readableKey(entry.actorRole) : "Unknown";
-    roles.set(key, (roles.get(key) ?? 0) + 1);
-  }
+/* ───────────────────────────── Activity ───────────────────────────── */
+
+const ratio = (done: number, of: number) => (of > 0 ? Math.round((done / of) * 100) : 0);
+
+export function activityTab(activity: Activity): TabContent {
+  const { totals, rows } = activity;
+  const term = activity.term ? `${activity.term.name} · day ${activity.term.day}` : "No active term";
+  const cards: KpiCard[] = [
+    { label: "Staff", value: String(totals.staff), sub: term },
+    {
+      label: "Registers marked",
+      value: totals.registerPct === null ? "—" : `${totals.registerPct}%`,
+      tone: totals.registerPct === null ? "neutral" : totals.registerPct >= 90 ? "positive" : "attention",
+      sub: totals.registerPct === null ? "No register has been marked this term" : "Of the days a register was taken, by their form masters",
+    },
+    {
+      label: "Score sheets outstanding",
+      value: String(totals.sheetsOutstanding),
+      tone: totals.sheetsOutstanding ? "attention" : "positive",
+      sub: totals.sheetsOutstanding ? `Across ${plural(totals.teachersWithSheets, "teacher")}` : "None owed",
+    },
+    {
+      label: "Remarks outstanding",
+      value: String(totals.remarksOutstanding),
+      tone: totals.remarksOutstanding ? "attention" : "positive",
+      sub: totals.formMastersNotStarted ? `${plural(totals.formMastersNotStarted, "form master")} not started` : "Every form master has started",
+    },
+  ];
+
+  const roleNames = Array.from(new Set(rows.map((row) => row.role)));
+  const outstanding = (row: Activity["rows"][number]) =>
+    (row.sheets ? row.sheets.inProgress + row.sheets.returned : 0) > 0 ||
+    (row.remarks ? row.remarks.of - row.remarks.written : 0) > 0 ||
+    (row.registers ? row.registers.of - row.registers.marked : 0) > 0 ||
+    (row.approvals ? row.approvals.open : 0) > 0;
+
+  const tableRows: TableRow[] = rows.map((row) => {
+    const pending = outstanding(row);
+    return {
+      id: row.userId,
+      cells: [
+        nameCell(row.isYou ? `${row.name} (you)` : row.name, `${row.role} · ${row.department}`),
+        row.registers
+          ? bar(ratio(row.registers.marked, row.registers.of), `${row.registers.marked} / ${row.registers.of}`, ratio(row.registers.marked, row.registers.of) >= 90 ? "positive" : "attention")
+          : text("Not a form master"),
+        row.sheets
+          ? text(`${row.sheets.submitted} of ${row.sheets.total} submitted${row.sheets.returned ? ` · ${row.sheets.returned} returned` : ""}`, { tone: row.sheets.inProgress + row.sheets.returned ? "attention" : undefined })
+          : text("None"),
+        row.remarks
+          ? bar(ratio(row.remarks.written, row.remarks.of), `${row.remarks.written} / ${row.remarks.of}`, row.remarks.written >= row.remarks.of ? "positive" : "attention")
+          : text("None"),
+        row.approvals ? text(`${row.approvals.decided} decided${row.approvals.open ? ` · ${row.approvals.open} waiting` : ""}`, { tone: row.approvals.open ? "attention" : undefined }) : text("None"),
+        text(row.messages ? String(row.messages) : "—"),
+        text(row.lastLoginAt ? dayLabel(row.lastLoginAt) : "Never", { tone: row.account === "Dormant" || row.account === "Never activated" ? "attention" : undefined }),
+      ],
+      href: `/staff-access/directory/${row.id}`,
+      keywords: `|role:${row.role}| |work:${pending ? "Has work outstanding" : "Nothing outstanding"}|`,
+    };
+  });
 
   return {
     title: "Activity",
-    desc: "What staff have been doing, from the school's own audit trail.",
-    launchers: [{ label: "Full audit log", href: "/audit-security/audit-log" }],
+    desc: "Whether the access people hold is being used: registers, score sheets, remarks and approvals this term.",
+    primary: { label: "Export for review", export: true },
     rows: [
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "kpi",
-            title: "Who is acting on this school",
-            per: 4,
-            cards: [
-              { label: "Entries read", value: String(feed.entries.length), sub: `of ${feed.total.toLocaleString()} on file` },
-              {
-                label: "Named people",
-                value: String(feed.byActor.length),
-                sub: feed.byActor.length ? `Busiest: ${feed.byActor[0]?.actor}` : "Nobody named",
-              },
-              {
-                label: "By the system",
-                value: String(system.length),
-                sub: system.length ? "No person attached" : "Every action has a name",
-                tone: system.length ? "attention" : "positive",
-              },
-              {
-                label: "Roles acting",
-                value: String(roles.size),
-                sub: Array.from(roles.keys()).slice(0, 2).join(" · ") || "none",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        cols: "1.1fr 1fr",
-        panels: [
-          {
-            type: "bars",
-            title: "Busiest staff",
-            sub: "Counted off the entries read, not the whole table.",
-            rows: feed.byActor.map((row) => ({
-              label: row.actor,
-              value: row.count,
-              display: String(row.count),
-            })),
-          },
-          {
-            type: "bars",
-            title: "By role",
-            sub: "Which seats the work is being done from.",
-            rows: Array.from(roles.entries())
-              .sort((a, b) => b[1] - a[1])
-              .slice(0, 8)
-              .map(([role, count]) => ({ label: role, value: count, display: String(count) })),
-          },
-        ],
-      },
+      { cols: "1fr", panels: [{ type: "kpi", title: "What staff have done", sub: term, per: 4, cards }] },
       {
         cols: "1fr",
         panels: [
           {
             type: "table",
-            title: "Recent staff activity",
-            sub: "Most recent first.",
-            meta: `${named.length} named · ${system.length} by the system`,
-            head: ["Who", "Role", "Action", "Record", "From", "When"],
-            per: 15,
-            rows: feed.entries.map((entry) => ({
-              cells: [
-                text(entry.actor ?? "System", {
-                  strong: Boolean(entry.actor),
-                  tone: entry.actor ? undefined : "attention",
-                }),
-                text(entry.actorRole ? readableKey(entry.actorRole) : "—"),
-                pill(readableKey(entry.action), "neutral"),
-                text(entry.entityType),
-                text(entry.ipAddress ?? "—", { mono: Boolean(entry.ipAddress) }),
-                text(whenStamp(entry.createdAt)),
-              ],
-              keywords: `${entry.actor ?? "system"} ${entry.action} ${entry.entityType}`,
-            })),
-          },
-        ],
-      },
-    ],
-  };
-}
-
-
-type LeaveRow = {
-  id: string;
-  staffId: string;
-  staffName: string | null;
-  employeeNo: string | null;
-  designation: string | null;
-  department: string | null;
-  type: string;
-  reason: string;
-  status: string;
-  startDate: string;
-  endDate: string;
-  reviewedAt: string | null;
-  days: number;
-  active: boolean;
-};
-
-type PayrollFeed = {
-  runs: Array<{
-    id: string;
-    month: number;
-    year: number;
-    status: string;
-    processedAt: string | null;
-    publishedAt: string | null;
-    itemCount: number;
-    netTotal: number;
-    payslipsSent: number;
-    paid: number;
-  }>;
-  staffCount: number;
-  bands: Array<{ band: string; count: number }>;
-  unbanded: number;
-};
-
-function leaveTone(status: string): PanelTone {
-  switch (status.toUpperCase()) {
-    case "APPROVED":
-      return "positive";
-    case "PENDING":
-      return "attention";
-    case "REJECTED":
-    case "CANCELLED":
-      return "negative";
-    default:
-      return "neutral";
-  }
-}
-
-function dayStamp(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
-}
-
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
-];
-
-/** M07 · Leave, read from `GET /v1/staff/leave`. */
-function leaveTab(rows: LeaveRow[]): TabContent {
-  const pending = rows.filter((row) => row.status.toUpperCase() === "PENDING");
-  const active = rows.filter((row) => row.active);
-  const days = rows.reduce((sum, row) => sum + row.days, 0);
-  const unreviewed = pending.filter((row) => !row.reviewedAt);
-
-  return {
-    title: "Leave",
-    desc: "Who is away, who is asking to be, and what is waiting on a decision.",
-    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
-    rows: [
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "kpi",
-            title: "Leave on file",
-            per: 4,
-            cards: [
-              { label: "Requests", value: String(rows.length), sub: `${days} days in total` },
+            title: "This term by staff member",
+            sub: "What each person has actually done, against what they were given to do.",
+            meta: `${plural(rows.length, "person", "people")}`,
+            noun: "person",
+            nounPlural: "people",
+            search: "Find a person",
+            filters: [
+              { label: "Role", value: "All roles", options: ["All roles", ...roleNames], match: Object.fromEntries(roleNames.map((role) => [role, `|role:${role}|`])) },
               {
-                label: "Waiting on a decision",
-                value: String(pending.length),
-                sub: pending.length ? "Nobody has answered these" : "Nothing outstanding",
-                tone: pending.length ? "attention" : "positive",
-              },
-              {
-                label: "Away right now",
-                value: String(active.length),
-                sub: active.length ? "Covered by somebody, hopefully" : "Everyone is in",
-                tone: active.length ? "attention" : "positive",
-              },
-              {
-                label: "Longest request",
-                value: rows.length ? `${Math.max(...rows.map((row) => row.days))} days` : "—",
-                sub: "Single stretch",
+                label: "Work",
+                value: "Everyone",
+                options: ["Everyone", "Has work outstanding", "Nothing outstanding"],
+                match: { "Has work outstanding": "|work:Has work outstanding|", "Nothing outstanding": "|work:Nothing outstanding|" },
               },
             ],
+            acts: [{ label: "Export for review", export: true }],
+            head: ["Person", "Registers", "Score sheets", "Remarks", "Approvals", "Messages sent", "Last sign-in"],
+            rows: tableRows,
+            per: 10,
+            empty: "Nobody matches this filter.",
+            foot: "Read from the registers, score sheets, report cards and approvals themselves — nobody types these.",
           },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          unreviewed.length
-            ? {
-                type: "note",
-                tone: "attention",
-                title: `${unreviewed.length} request${unreviewed.length === 1 ? " has" : "s have"} never been looked at`,
-                body: "A leave request with no decision is a teacher who does not know whether to plan cover. The dates arrive whether or not anybody answered.",
-              }
-            : {
-                type: "note",
-                tone: "positive",
-                title: "Every request has been answered",
-                body: "Nobody is waiting to hear whether they can go.",
-              },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          rows.length
-            ? {
-                type: "table",
-                title: "Requests",
-                sub: "Most recent dates first.",
-                meta: `${rows.length} request${rows.length === 1 ? "" : "s"} · ${pending.length} pending`,
-                head: ["Who", "Type", "From", "To", "Days", "Status", ""],
-                per: 12,
-                rows: rows.map((row) => ({
-                  cells: [
-                    nameCell(row.staffName ?? "—", `${row.designation ?? ""}${row.department ? ` · ${row.department}` : ""}`),
-                    text(row.type),
-                    text(dayStamp(row.startDate)),
-                    text(dayStamp(row.endDate)),
-                    text(String(row.days), { strong: row.days > 5 }),
-                    pill(row.status.toLowerCase(), leaveTone(row.status)),
-                    {
-                      kind: "action" as const,
-                      label: "View",
-                      drawer: {
-                        kicker: row.type,
-                        title: row.staffName ?? "Staff member",
-                        sub: `${row.days} day${row.days === 1 ? "" : "s"} from ${dayStamp(row.startDate)}`,
-                        tone: leaveTone(row.status),
-                        readOnly: true,
-                        facts: [
-                          ["Staff", row.staffName ?? "—"],
-                          ["Employee number", row.employeeNo ?? "—"],
-                          ["Designation", row.designation ?? "—"],
-                          ["Department", row.department ?? "—"],
-                          ["Type", row.type],
-                          ["From", dayStamp(row.startDate)],
-                          ["To", dayStamp(row.endDate)],
-                          ["Days", String(row.days)],
-                          ["Reason", row.reason],
-                          ["Status", row.status.toLowerCase()],
-                          ["Reviewed", row.reviewedAt ? dayStamp(row.reviewedAt) : "not yet"],
-                        ],
-                      },
-                    },
-                  ],
-                  keywords: `${row.staffName ?? ""} ${row.type} ${row.status}`,
-                })),
-              }
-            : {
-                type: "note",
-                tone: "attention",
-                title: "No leave has been requested",
-                body: "Nothing on this school has been asked for or recorded.",
-              },
         ],
       },
     ],
   };
 }
 
-/** M07 · Payroll, read from `GET /v1/staff/payroll`. */
-function payrollTab(feed: PayrollFeed): TabContent {
-  const published = feed.runs.filter((run) => run.publishedAt);
-  const lastRun = feed.runs[0];
-  const banded = feed.staffCount - feed.unbanded;
-
-  return {
-    title: "Payroll",
-    desc: "What the school pays, and whether a run has ever been made.",
-    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
-    rows: [
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "kpi",
-            title: "Payroll as configured",
-            per: 4,
-            cards: [
-              {
-                label: "Runs",
-                value: String(feed.runs.length),
-                sub: feed.runs.length ? `${published.length} published` : "None has ever been made",
-                tone: feed.runs.length ? undefined : "attention",
-              },
-              {
-                label: "Staff on the books",
-                value: String(feed.staffCount),
-                sub: "Would be on a run",
-              },
-              {
-                label: "On a salary band",
-                value: String(banded),
-                sub: feed.unbanded ? `${feed.unbanded} unbanded` : "Everyone is banded",
-                tone: feed.unbanded ? "negative" : "positive",
-              },
-              {
-                label: "Last run",
-                value: lastRun ? `${MONTHS[lastRun.month - 1] ?? lastRun.month} ${lastRun.year}` : "—",
-                sub: lastRun ? lastRun.status.toLowerCase() : "nothing to show",
-              },
-            ],
-          },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          feed.unbanded === feed.staffCount && feed.staffCount > 0
-            ? {
-                type: "note",
-                tone: "negative",
-                title: "No member of staff has a salary band",
-                body: `All ${feed.staffCount} staff are unbanded, and no payroll run has ever been processed. A run compiled today would have nothing to compute a basic salary from — the band is the input, not an attribute of the run. Payroll cannot start from this page until the bands are set on the staff records.`,
-              }
-            : feed.unbanded
-              ? {
-                  type: "note",
-                  tone: "attention",
-                  title: `${feed.unbanded} staff have no salary band`,
-                  body: "A run would skip them or compute nothing for them. The band is what a basic salary is derived from.",
-                }
-              : {
-                  type: "note",
-                  tone: "positive",
-                  title: "Every staff record carries a salary band",
-                  body: "A run has everything it needs to compute from.",
-                },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          feed.runs.length
-            ? {
-                type: "table",
-                title: "Runs",
-                sub: "Most recent first.",
-                meta: `${feed.runs.length} run${feed.runs.length === 1 ? "" : "s"}`,
-                head: ["Period", "Status", "Staff", "Net total", "Payslips", "Paid"],
-                per: 12,
-                rows: feed.runs.map((run) => ({
-                  cells: [
-                    text(`${MONTHS[run.month - 1] ?? run.month} ${run.year}`, { strong: true }),
-                    pill(run.status.toLowerCase(), run.publishedAt ? "positive" : "attention"),
-                    text(String(run.itemCount)),
-                    text(run.netTotal.toLocaleString("en-NG", { style: "currency", currency: "NGN", maximumFractionDigits: 0 })),
-                    text(`${run.payslipsSent}/${run.itemCount}`),
-                    text(`${run.paid}/${run.itemCount}`, {
-                      tone: run.paid === run.itemCount ? "positive" : "attention",
-                    }),
-                  ],
-                  keywords: `${run.year} ${run.status}`,
-                })),
-              }
-            : {
-                type: "table",
-                title: "Salary bands",
-                sub: "What the staff records say today, since no run exists to show instead.",
-                head: ["Band", "Staff"],
-                per: 10,
-                rows: feed.bands.map((band) => ({
-                  cells: [
-                    text(band.band, {
-                      tone: band.band === "Unbanded" ? "negative" : undefined,
-                      strong: true,
-                    }),
-                    text(String(band.count)),
-                  ],
-                  keywords: band.band,
-                })),
-              },
-        ],
-      },
-    ],
-  };
-}
-
-
-const CHECK_ICON = "M20 6 9 17l-5-5";
-
-type AppraisalRating = { criterion: string; score: number; comment: string | null };
-
-type Appraisal = {
-  id: string;
-  staffId: string;
-  staffName: string | null;
-  employeeNo: string | null;
-  designation: string | null;
-  department: string | null;
-  reviewer: string | null;
-  cycle: string;
-  status: string;
-  overallScore: number | null;
-  strengths: string | null;
-  improvements: string | null;
-  reviewerComment: string | null;
-  staffComment: string | null;
-  ratings: AppraisalRating[];
-  sharedAt: string | null;
-  acknowledgedAt: string | null;
-  createdAt: string;
-  isSubject: boolean;
-  awaitingAcknowledgement: boolean;
-};
-
-function appraisalTone(status: string): PanelTone {
-  switch (status.toUpperCase()) {
-    case "ACKNOWLEDGED":
-      return "positive";
-    case "SHARED":
-      return "attention";
-    default:
-      return "neutral";
-  }
-}
-
-function scoreTone(score: number | null): PanelTone {
-  if (score === null) return "neutral";
-  if (score >= 4) return "positive";
-  if (score >= 3) return "attention";
-  return "negative";
-}
-
-/**
- * M07 · Appraisal, read from `GET /v1/staff/appraisals`.
- *
- * The figure the page leads on is how many appraisals are still drafts,
- * because a draft is a judgement recorded about somebody who has not been told
- * it exists. That is the state worth counting — not the average score.
- */
-function appraisalTab(rows: Appraisal[]): TabContent {
-  const drafts = rows.filter((row) => row.status.toUpperCase() === "DRAFT");
-  const waiting = rows.filter((row) => row.awaitingAcknowledgement);
-  const done = rows.filter((row) => row.status.toUpperCase() === "ACKNOWLEDGED");
-  const scored = rows.filter((row) => row.overallScore !== null);
-  const average = scored.length
-    ? Math.round((scored.reduce((sum, row) => sum + (row.overallScore ?? 0), 0) / scored.length) * 10) / 10
-    : null;
-
-  return {
-    title: "Appraisal",
-    desc: "How staff are reviewed, and whether they have been told what was written.",
-    launchers: [{ label: "Directory", href: "/staff-access/directory" }],
-    rows: [
-      {
-        cols: "1fr",
-        panels: [
-          {
-            type: "kpi",
-            title: "This cycle",
-            per: 4,
-            cards: [
-              { label: "Appraisals", value: String(rows.length), sub: rows[0]?.cycle ?? "No cycle" },
-              {
-                label: "Still a draft",
-                value: String(drafts.length),
-                sub: drafts.length ? "Written, not shown to the person" : "Nothing withheld",
-                tone: drafts.length ? "negative" : "positive",
-              },
-              {
-                label: "Waiting on the staff member",
-                value: String(waiting.length),
-                sub: waiting.length ? "Shared, not yet acknowledged" : "Nothing outstanding",
-                tone: waiting.length ? "attention" : "positive",
-              },
-              {
-                label: "Average score",
-                value: average === null ? "—" : `${average} / 5`,
-                sub: scored.length < 5 ? `From ${scored.length} appraisal(s)` : "Across the cycle",
-                tone: scored.length < 5 ? "attention" : scoreTone(average),
-              },
-            ],
-          },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          drafts.length
-            ? {
-                type: "note",
-                tone: "negative",
-                title: `${drafts.length} appraisal${drafts.length === 1 ? " is" : "s are"} written but not shared`,
-                body: "A draft is a judgement recorded about somebody who does not know it exists and cannot answer it. The contents are withheld from them until it is shared, which is the point — but leaving it in that state indefinitely turns a review into a file kept on a person.",
-              }
-            : waiting.length
-              ? {
-                  type: "note",
-                  tone: "attention",
-                  title: `${waiting.length} appraisal${waiting.length === 1 ? " is" : "s are"} waiting to be acknowledged`,
-                  body: "These have been shared. The person can read them and write their own response, and until they do the review is one-sided.",
-                }
-              : {
-                  type: "note",
-                  tone: "positive",
-                  icon: CHECK_ICON,
-                  title: "Every appraisal has been shared and acknowledged",
-                  body: "Each one has been read by the person it is about, with a chance to respond.",
-                },
-        ],
-      },
-      {
-        cols: "1fr",
-        panels: [
-          rows.length
-            ? {
-                type: "table",
-                title: "Appraisals",
-                sub: "Drafts first, because those are the ones nobody has been shown.",
-                meta: `${rows.length} in ${rows[0]?.cycle ?? "this cycle"} · ${done.length} acknowledged`,
-                head: ["Staff", "Department", "Reviewer", "Score", "State", ""],
-                per: 12,
-                rows: rows
-                  .slice()
-                  .sort((a, b) => {
-                    const rank = (status: string) =>
-                      status.toUpperCase() === "DRAFT" ? 0 : status.toUpperCase() === "SHARED" ? 1 : 2;
-                    return rank(a.status) - rank(b.status);
-                  })
-                  .map((row) => ({
-                    cells: [
-                      nameCell(row.staffName ?? "—", row.designation ?? row.employeeNo ?? ""),
-                      text(row.department ?? "—"),
-                      text(row.reviewer ?? "—"),
-                      text(row.overallScore === null ? "—" : `${row.overallScore} / 5`, {
-                        tone: scoreTone(row.overallScore),
-                        strong: true,
-                      }),
-                      pill(row.status.toLowerCase(), appraisalTone(row.status)),
-                      {
-                        kind: "action" as const,
-                        label: "View",
-                        drawer: {
-                          kicker: row.cycle,
-                          title: row.staffName ?? "Appraisal",
-                          sub: `${row.overallScore ?? "—"} / 5 · ${row.status.toLowerCase()}`,
-                          tone: appraisalTone(row.status),
-                          readOnly: true,
-                          readOnlyNote:
-                            row.status.toUpperCase() === "DRAFT"
-                              ? "This is a draft. Its contents are withheld from the person it is about until it is shared."
-                              : "The person appraised can read this and has their own right of reply below.",
-                          facts: [
-                            ["Staff", row.staffName ?? "—"],
-                            ["Designation", row.designation ?? "—"],
-                            ["Department", row.department ?? "—"],
-                            ["Reviewer", row.reviewer ?? "—"],
-                            ["Cycle", row.cycle],
-                            ["Overall", row.overallScore === null ? "—" : `${row.overallScore} / 5`],
-                            ...row.ratings.map(
-                              (rating) => [rating.criterion, `${rating.score} / 5`] as PanelFact,
-                            ),
-                            ["Strengths", row.strengths ?? "—"],
-                            ["To improve", row.improvements ?? "—"],
-                            ["Reviewer's note", row.reviewerComment ?? "—"],
-                            ["Their response", row.staffComment ?? "none written"],
-                            ["Shared", row.sharedAt ? whenStamp(row.sharedAt) : "not yet"],
-                            [
-                              "Acknowledged",
-                              row.acknowledgedAt ? whenStamp(row.acknowledgedAt) : "not yet",
-                            ],
-                          ] as PanelFact[],
-                        },
-                      },
-                    ],
-                    keywords: `${row.staffName ?? ""} ${row.department ?? ""} ${row.status}`,
-                  })),
-              }
-            : {
-                type: "note",
-                tone: "attention",
-                title: "No appraisal has been recorded",
-                body: "Nobody on this school has been reviewed in any cycle.",
-              },
-        ],
-      },
-    ],
-  };
-}
+/* ───────────────────────────── the module ───────────────────────────── */
 
 export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "directory") {
-    const staff = await apiGet<StaffRow[]>("/api/v1/staff");
-    return directoryTab(staff ?? []);
+    const [directory, context] = await Promise.all([loadDirectory(), loadDirectoryContext()]);
+    return directoryTab(directory, context);
   }
-
   if (tabSlug === "permissions") {
-    // roles-management is addressed by school in the path and dashboard/context
-    // does not carry the id, so the school record supplies it. One extra call,
-    // and it is the only place the id is available without a session here.
-    const school = await apiGet<{ record: { id: string } }>(
-      "/api/v1/configuration/school-information",
-    );
-    const schoolId = school?.record?.id;
-    if (!schoolId) return undefined;
-
-    const base = `/api/v1/school/${schoolId}/roles-management`;
-    const [roles, groups] = await Promise.all([
-      apiGet<RoleRow[]>(`${base}/roles`),
-      apiGet<PermissionGroup[]>(`${base}/permissions`).catch(() => [] as PermissionGroup[]),
-    ]);
-    return permissionsTab(roles ?? [], groups ?? []);
+    return permissionsTab(await loadOverview());
   }
-
   if (tabSlug === "activity") {
-    const feed = await apiGet<AuditFeed>("/api/v1/audit/recent?take=100");
-    return activityTab(feed);
+    return activityTab(await loadActivity());
   }
-
-  if (tabSlug === "leave") {
-    const rows = await apiGet<LeaveRow[]>("/api/v1/staff/leave");
-    return leaveTab(rows ?? []);
-  }
-
   if (tabSlug === "payroll") {
-    const feed = await apiGet<PayrollFeed>("/api/v1/staff/payroll");
-    if (!feed) return undefined;
-    return payrollTab(feed);
+    return payrollTab(await loadPayroll());
   }
-
+  if (tabSlug === "leave") {
+    return leaveTab(await loadLeave());
+  }
   if (tabSlug === "appraisal") {
-    const rows = await apiGet<Appraisal[]>("/api/v1/staff/appraisals");
-    return appraisalTab(rows ?? []);
+    const [overview, moderation] = await Promise.all([loadAppraisal(), loadModeration()]);
+    return appraisalTab(overview, moderation);
   }
-
   return undefined;
 }
+
+export type { DirectoryRow };

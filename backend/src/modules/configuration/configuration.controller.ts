@@ -34,6 +34,21 @@ export class ConfigurationController {
     return this.configurationService.ok(this.configurationService.listResource(session, resource, query));
   }
 
+  // Declared before @Post(":resource") — a literal route registered after a
+  // parameterised one at the same depth is never reached.
+  @Post("curricula/:id/apply")
+  @UseGuards(SessionGuard, CsrfGuard)
+  applyCurriculum(
+    @CurrentSession() session: SessionPayload,
+    @Param("id") id: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    return this.configurationService.ok(
+      this.configurationService.applyCurriculum(session, id, body),
+      "Curriculum put in force."
+    );
+  }
+
   @Post(":resource")
   @UseGuards(SessionGuard, CsrfGuard)
   create(

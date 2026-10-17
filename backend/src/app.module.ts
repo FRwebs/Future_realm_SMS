@@ -8,6 +8,14 @@ import { AuthFeatureModule } from "./modules/auth/auth.module";
 import { CommunicationsModule } from "./modules/communications/communications.module";
 import { ConfigurationModule } from "./modules/configuration/configuration.module";
 import { ClassesModule } from "./modules/classes/classes.module";
+import { FeeManagementModule } from "./modules/fee-management/fee-management.module";
+import { GuardianManagementModule } from "./modules/guardian-management/guardian-management.module";
+import { ScoreResultsModule } from "./modules/score-results/score-results.module";
+import { AttendanceManagementModule } from "./modules/attendance-management/attendance-management.module";
+import { SubscriptionBillingModule } from "./modules/subscription-billing/subscription-billing.module";
+import { StudentRecordsModule } from "./modules/student-records/student-records.module";
+import { StaffAccessModule } from "./modules/staff-access/staff-access.module";
+import { ClassStructureModule } from "./modules/class-structure/class-structure.module";
 import { CurriculumExtrasModule } from "./modules/curriculum-extras/curriculum-extras.module";
 import { DashboardModule } from "./modules/dashboard/dashboard.module";
 import { ExamOfficerModule } from "./modules/exam-officer/exam-officer.module";
@@ -56,6 +64,14 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     StudentsModule,
     AttendanceModule,
     ClassesModule,
+    ClassStructureModule,
+    StaffAccessModule,
+    FeeManagementModule,
+    StudentRecordsModule,
+    GuardianManagementModule,
+    SubscriptionBillingModule,
+    AttendanceManagementModule,
+    ScoreResultsModule,
     CurriculumExtrasModule,
     AcademicsModule,
     FeatureFlagExtrasModule,

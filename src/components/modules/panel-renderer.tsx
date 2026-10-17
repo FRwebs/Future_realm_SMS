@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import type { Route } from "next";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 import {
   ArrowRight,
@@ -14,7 +15,11 @@ import {
 } from "lucide-react";
 
 import { AttendanceGrid } from "@/components/modules/attendance-grid";
+import { DayStrip } from "@/components/modules/day-strip";
+import { SheetEntry } from "@/components/modules/sheet-entry";
+import { RegisterMarker } from "@/components/modules/register-marker";
 import { ScoreGrid } from "@/components/modules/score-grid";
+import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modules/panel-extras";
 import { Field, initialValue } from "@/components/modules/field";
 import { ModuleDrawer } from "@/components/modules/module-drawer";
 import type {
@@ -79,6 +84,57 @@ function tonePillStyle(tone: PanelTone = "neutral"): React.CSSProperties {
   return { background: swatch.bg, color: swatch.fg, borderColor: swatch.bd };
 }
 
+/** The plain text of a cell, for a row's detail and for search. */
+function cellPlain(cell: TableCellKind | undefined): string {
+  if (!cell) return "";
+  if (cell.kind === "name") return cell.name;
+  if (cell.kind === "pill") return cell.label;
+  if (cell.kind === "bar") return cell.label;
+  if (cell.kind === "mark") return cell.ok ? "Yes" : "No";
+  if (cell.kind === "action") return "";
+  return cell.text;
+}
+
+/**
+ * What a row opens when nobody authored anything for it: the row itself, read back
+ * heading by heading. A read, never a write — so it can be offered everywhere.
+ */
+function rowDetailDrawer(panel: Extract<Panel, { type: "table" }>, row: TableRow): DrawerSpec | null {
+  const facts: PanelFact[] = panel.head
+    .map((heading, index): PanelFact | null => {
+      if (!heading.trim()) return null;
+      const cell = row.cells[index];
+      const value = cellPlain(cell);
+      if (!value) return null;
+      return [heading, value, cell?.kind === "name" ? cell.sub : undefined].filter((part) => part !== undefined) as PanelFact;
+    })
+    .filter((fact): fact is PanelFact => fact !== null);
+  if (!facts.length) return null;
+  return { mode: "view", kicker: panel.title, title: facts[0][1], facts, readOnly: true, readOnlyNote: "This is the row as it stands. Use the actions on the row to change it." };
+}
+
+/** A tucked panel, read back as the reference drawer the mockup opens from the line at the foot of a page. */
+export function tuckDrawer(panel: Panel): DrawerSpec {
+  const facts: PanelFact[] = [];
+  const push = (label: string | undefined, value: string | undefined, note?: string) => {
+    if (label) facts.push([label, value && value !== "" ? value : "—", note ?? ""].filter((part, index) => index < 2 || part) as PanelFact);
+  };
+  if (panel.type === "facts") panel.facts.forEach((fact) => push(fact[0], fact[1], fact[2]));
+  else if (panel.type === "list") panel.items.forEach((item) => push(item.label, item.pill ?? "—", item.sub));
+  else if (panel.type === "note") push(panel.title, panel.body);
+  else if (panel.type === "table") panel.rows.forEach((row) => push(cellPlain(row.cells[0]), cellPlain(row.cells[1]), [cellPlain(row.cells[2]), cellPlain(row.cells[3])].filter(Boolean).join(" · ")));
+  const title = "title" in panel && panel.title ? panel.title : "For reference";
+  const kicker = "tuckKicker" in panel && panel.tuckKicker ? panel.tuckKicker : "Reference";
+  const note = "tuckNote" in panel && panel.tuckNote ? panel.tuckNote : "Nothing here needs doing now — it is the rule behind the page.";
+  return { mode: "info", kicker, title, sub: "sub" in panel ? panel.sub : undefined, facts, readOnly: true, readOnlyNote: note };
+}
+
+const TUCK_ICON = "M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17M12 8h.02M11.4 11.5h1.2v5h-1.2z";
+
+function isTucked(panel: Panel): panel is Panel & { tuck: string } {
+  return "tuck" in panel && Boolean((panel as { tuck?: string }).tuck);
+}
+
 /**
  * A control that does what its trigger says: follows a route, opens a drawer,
  * or — when the mockup gives it neither — stays inert rather than pretending.
@@ -138,7 +194,7 @@ function TriggerControl({
  * corners, and its heading in a band ruled off from the body. The band and the
  * foot bleed to the box edge; the body keeps an 18px gutter.
  */
-const PANEL_SHELL =
+export const PANEL_SHELL =
   "min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[12px]";
 
 /** The mockup's two panel-action faces: ink for the primary, outlined otherwise. */
@@ -151,7 +207,7 @@ function panelActClass(primary?: boolean) {
   );
 }
 
-function PanelHeader({
+export function PanelHeader({
   title,
   sub,
   meta,
@@ -159,6 +215,7 @@ function PanelHeader({
   tagTone = "neutral",
   acts,
   openDrawer,
+  onExport,
   flush,
   joined,
 }: {
@@ -169,6 +226,8 @@ function PanelHeader({
   tagTone?: PanelTone;
   acts?: PanelAction[];
   openDrawer: OpenDrawer;
+  /** Runs an act marked `export`, which only a table knows how to do. */
+  onExport?: () => void;
   /** Card rows and tile grids carry no rule under their heading. */
   flush?: boolean;
   /** Ruled, but the next band (filters, table head) sits right against it. */
@@ -226,15 +285,26 @@ function PanelHeader({
           ) : null}
           {acts?.length ? (
             <div className="flex flex-none items-center gap-[7px]">
-              {acts.map((act) => (
-                <TriggerControl
-                  key={act.label}
-                  trigger={act}
-                  label={act.label}
-                  openDrawer={openDrawer}
-                  className={panelActClass(act.primary)}
-                />
-              ))}
+              {acts.map((act) =>
+                act.export ? (
+                  <button
+                    key={act.label}
+                    type="button"
+                    onClick={onExport}
+                    className={panelActClass(act.primary)}
+                  >
+                    {act.label}
+                  </button>
+                ) : (
+                  <TriggerControl
+                    key={act.label}
+                    trigger={act}
+                    label={act.label}
+                    openDrawer={openDrawer}
+                    className={panelActClass(act.primary)}
+                  />
+                ),
+              )}
             </div>
           ) : null}
         </div>
@@ -355,17 +425,58 @@ function Cell({
   }
 
   if (cell.kind === "pill") {
-    return (
-      <span
-        className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold"
-        style={tonePillStyle(cell.tone ?? "neutral")}
-      >
+    const body = (
+      <>
         <span
           className="h-[5px] w-[5px] flex-none rounded-full"
           style={{ background: toneOf(cell.tone ?? "neutral").dot }}
         />
         {cell.label}
+      </>
+    );
+    const base = "inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold";
+    // A pill that is also the control — the payment status you click to change.
+    if (cell.href || cell.drawer) {
+      return (
+        <TriggerControl
+          trigger={cell}
+          label={cell.label}
+          openDrawer={openDrawer}
+          className={cn(base, "cursor-pointer hover:brightness-95")}
+          style={tonePillStyle(cell.tone ?? "neutral")}
+        >
+          {body}
+        </TriggerControl>
+      );
+    }
+    return (
+      <span className={base} style={tonePillStyle(cell.tone ?? "neutral")}>
+        {body}
       </span>
+    );
+  }
+
+  if (cell.kind === "bar") {
+    const swatch = toneOf(cell.tone ?? "positive");
+    return (
+      <div className="min-w-[96px]">
+        <span
+          className="block text-[10.5px] font-semibold tabular-nums"
+          style={{ color: cell.tone === "negative" ? swatch.fg : "#435048" }}
+        >
+          {cell.label}
+        </span>
+        <span
+          className="mt-[4px] block h-[4px] overflow-hidden rounded-full"
+          style={{ background: "#EDF3EF" }}
+          aria-hidden="true"
+        >
+          <span
+            className="block h-full rounded-full"
+            style={{ width: `${Math.max(0, Math.min(100, cell.pct))}%`, background: swatch.dot }}
+          />
+        </span>
+      </div>
     );
   }
 
@@ -408,6 +519,7 @@ function rowText(tableRow: TableRow): string[] {
   const cells = tableRow.cells.map((cell) => {
     if (cell.kind === "name") return `${cell.name} ${cell.sub ?? ""}`;
     if (cell.kind === "pill") return cell.label;
+    if (cell.kind === "bar") return cell.label;
     if (cell.kind === "action") return "";
     // A tick is searchable as the word, so "included" narrows a comparison table.
     if (cell.kind === "mark") return cell.ok ? "Included" : "Not included";
@@ -434,8 +546,9 @@ function TablePanel({
       (panel.filters ?? []).map((filter) => [filter.label, filter.value]),
     ),
   );
-  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [selected, setSelected] = useState<Set<TableRow>>(new Set());
   const [page, setPage] = useState(0);
+  const router = useRouter();
 
   const noun = panel.noun ?? "row";
   const nounPlural = panel.nounPlural ?? `${noun}s`;
@@ -460,11 +573,8 @@ function TablePanel({
 
         const haystack =
           filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
-        if (
-          !haystack.some((value) =>
-            value.toLowerCase().includes(chosen.toLowerCase()),
-          )
-        ) {
+        const wanted = (filter.match?.[chosen] ?? chosen).toLowerCase();
+        if (!haystack.some((value) => value.toLowerCase().includes(wanted))) {
           return false;
         }
       }
@@ -473,7 +583,8 @@ function TablePanel({
     });
   }, [panel.rows, panel.filters, query, filterValues]);
 
-  const perPage = panel.per ?? filtered.length ?? 0;
+  // Any list long enough to need it is paged, without each page asking for it.
+  const perPage = panel.per ?? (filtered.length > 12 ? 12 : filtered.length);
   const pageCount =
     perPage > 0 ? Math.max(1, Math.ceil(filtered.length / perPage)) : 1;
   const safePage = Math.min(page, pageCount - 1);
@@ -483,15 +594,15 @@ function TablePanel({
       : filtered;
 
   const hasControls = Boolean(panel.search || panel.filters?.length);
-  const allVisibleSelected =
-    visible.length > 0 &&
-    visible.every((_, index) => selected.has(safePage * perPage + index));
+  const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row));
 
-  function toggleRow(index: number) {
+  // A row is ticked by what it is, not where it sits, so a filter or a page turn
+  // never moves a tick onto a different record.
+  function toggleRow(row: TableRow) {
     setSelected((current) => {
       const next = new Set(current);
-      if (next.has(index)) next.delete(index);
-      else next.add(index);
+      if (next.has(row)) next.delete(row);
+      else next.add(row);
       return next;
     });
   }
@@ -499,13 +610,68 @@ function TablePanel({
   function toggleAllVisible() {
     setSelected((current) => {
       const next = new Set(current);
-      visible.forEach((_, index) => {
-        const absolute = safePage * perPage + index;
-        if (allVisibleSelected) next.delete(absolute);
-        else next.add(absolute);
+      visible.forEach((row) => {
+        if (allVisibleSelected) next.delete(row);
+        else next.add(row);
       });
       return next;
     });
+  }
+
+  /** The ticked rows, or every row that passes the filters when none is ticked. */
+  function exportRows(onlySelected: boolean) {
+    const rows = onlySelected ? panel.rows.filter((row) => selected.has(row)) : filtered;
+    const keep = panel.head.map((heading, index) => (heading.trim() ? index : -1)).filter((index) => index >= 0);
+    const cell = (value: TableCellKind | undefined) => {
+      if (!value) return "";
+      if (value.kind === "name") return value.sub ? `${value.name} (${value.sub})` : value.name;
+      if (value.kind === "pill") return value.label;
+      if (value.kind === "bar") return value.label;
+      if (value.kind === "mark") return value.ok ? "Yes" : "No";
+      if (value.kind === "action") return "";
+      return value.text;
+    };
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const lines = [
+      keep.map((index) => escape(panel.head[index])).join(","),
+      ...rows.map((row) => keep.map((index) => escape(cell(row.cells[index]))).join(",")),
+    ];
+    const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `${panel.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "export"}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+  }
+
+  /** A bulk drawer, told which rows it is about. */
+  function forSelection(act: PanelAction): DrawerSpec | null {
+    if (!act.drawer || !act.selection) return act.drawer ?? null;
+    const rows = panel.rows.filter((row) => selected.has(row));
+    const ids = rows.map((row) => row.id).filter((id): id is string => Boolean(id));
+    const names = rows.map((row) => {
+      const first = row.cells[0];
+      return first?.kind === "name" ? first.name : first?.kind === "text" ? first.text : "";
+    });
+    const summary = `${rows.length} ${rows.length === 1 ? act.selection.noun : `${act.selection.noun}s`}`;
+    const listed = names.filter(Boolean).slice(0, 4).join(", ") + (names.length > 4 ? ` and ${names.length - 4} more` : "");
+    const spec = act.drawer;
+    return {
+      ...spec,
+      sub: spec.sub ?? `${summary} selected`,
+      fields: spec.fields
+        ? [{ label: "Applies to", kind: "static" as const, value: summary, hint: listed, span: 2 as const }, ...spec.fields]
+        : spec.fields,
+      steps: spec.steps?.map((step, index) =>
+        index === 0
+          ? { ...step, fields: [{ label: "Applies to", kind: "static" as const, value: summary, hint: listed, span: 2 as const }, ...step.fields] }
+          : step,
+      ),
+      submit: spec.submit
+        ? { ...spec.submit, body: { ...(spec.submit.body ?? {}), [act.selection.key]: ids } }
+        : spec.submit,
+    };
   }
 
   // A column reads one way from its heading to its last row: figures and row
@@ -526,6 +692,13 @@ function TablePanel({
       index === 0 && !panel.selectable ? "pl-[18px]" : "pl-[9px]",
       index === lastIndex ? "pr-[18px]" : "pr-[9px]",
     );
+  // The meta line asserts a count; the pager states the truth below it. Where the two disagree the
+  // line says which it is, appended — so an authored figure can never contradict the rows.
+  const claimed = panel.meta?.match(/^([\d,]+)\s+(\S+)/);
+  const metaLine =
+    panel.meta && claimed && claimed[2].toLowerCase().replace(/[^a-z]/g, "") === nounPlural.toLowerCase().replace(/[^a-z]/g, "") && Number(claimed[1].replace(/,/g, "")) !== filtered.length
+      ? `${panel.meta} · showing ${filtered.length.toLocaleString("en-NG")}`
+      : panel.meta;
   const filterNote =
     filtered.length === panel.rows.length
       ? `${panel.rows.length.toLocaleString("en-NG")} ${panel.rows.length === 1 ? noun : nounPlural}`
@@ -539,11 +712,12 @@ function TablePanel({
       <PanelHeader
         title={panel.title}
         sub={panel.sub}
-        meta={panel.meta}
+        meta={metaLine}
         tag={panel.tag}
         tagTone={panel.tagTone}
         acts={panel.acts}
         openDrawer={openDrawer}
+        onExport={() => exportRows(false)}
         joined
       />
 
@@ -661,20 +835,31 @@ function TablePanel({
               </button>
             </div>
             <div className="flex flex-wrap items-center gap-[7px]">
-              {(panel.bulkActs ?? []).map((act) => (
-                <TriggerControl
-                  key={act.label}
-                  trigger={act}
-                  label={act.label}
-                  openDrawer={openDrawer}
-                  className={cn(
-                    "inline-flex items-center whitespace-nowrap rounded-[8px] px-[11px] py-[6px] text-[10.5px] font-semibold transition",
-                    act.primary
-                      ? "bg-white text-[#0D2315] hover:bg-[#EAF3EE]"
-                      : "border border-white/20 bg-white/10 text-white hover:bg-white/20",
-                  )}
-                />
-              ))}
+              {(panel.bulkActs ?? []).map((act) => {
+                const className = cn(
+                  "inline-flex items-center whitespace-nowrap rounded-[8px] px-[11px] py-[6px] text-[10.5px] font-semibold transition",
+                  act.primary
+                    ? "bg-white text-[#0D2315] hover:bg-[#EAF3EE]"
+                    : "border border-white/20 bg-white/10 text-white hover:bg-white/20",
+                );
+                if (act.export) {
+                  return (
+                    <button key={act.label} type="button" onClick={() => exportRows(true)} className={className}>
+                      {act.label}
+                    </button>
+                  );
+                }
+                const spec = forSelection(act);
+                return (
+                  <TriggerControl
+                    key={act.label}
+                    trigger={{ href: act.href, drawer: spec ?? undefined }}
+                    label={act.label}
+                    openDrawer={openDrawer}
+                    className={className}
+                  />
+                );
+              })}
             </div>
           </div>
         </div>
@@ -687,7 +872,7 @@ function TablePanel({
             style={{ color: "#435048" }}
           >
             {panel.rows.length === 0
-              ? "Nothing here yet"
+              ? (panel.emptyTitle ?? "Nothing here yet")
               : `No ${nounPlural} match that`}
           </p>
           <p
@@ -695,7 +880,7 @@ function TablePanel({
             style={{ color: MUTED }}
           >
             {panel.rows.length === 0
-              ? (panel.empty ?? "Records will appear here as they are created.")
+              ? (panel.emptyBody ?? panel.empty ?? "Records will appear here as they are created.")
               : "Clear the search or widen a filter to see more."}
           </p>
         </div>
@@ -742,23 +927,40 @@ function TablePanel({
             <tbody>
               {visible.map((tableRow, index) => {
                 const absolute = safePage * perPage + index;
-                const isSelected = selected.has(absolute);
+                const isSelected = selected.has(tableRow);
+                // A row opens exactly what its own first action opens; with none authored it
+                // opens the row read back. A table whose cells are the controls says so.
+                const ownAction = tableRow.cells.find((cell): cell is Extract<TableCellKind, { kind: "action" }> => cell.kind === "action" && Boolean(cell.href || cell.drawer));
+                const rowHref = tableRow.href ?? (tableRow.drawer ? undefined : ownAction?.href);
+                const rowDrawer = tableRow.href ? undefined : (tableRow.drawer ?? ownAction?.drawer ?? (panel.noRowOpen ? undefined : rowDetailDrawer(panel, tableRow) ?? undefined));
+                const opens = Boolean(rowHref || rowDrawer);
 
                 return (
                   <tr
                     key={absolute}
                     className={cn(
-                      "transition-colors duration-150 hover:bg-[#F7FAF8]",
+                      "transition-colors duration-150 hover:bg-[#F1F8F4]",
                       isSelected && "bg-[#F1F8F4]",
+                      opens && "cursor-pointer",
                     )}
                     style={{ borderBottom: "1px solid #F2F7F4" }}
+                    onClick={
+                      opens
+                        ? (event) => {
+                            // A control inside the row keeps its own behaviour.
+                            if ((event.target as HTMLElement).closest("a,button,input,select,textarea,label")) return;
+                            if (rowHref) router.push(rowHref as Route);
+                            else if (rowDrawer) openDrawer(rowDrawer);
+                          }
+                        : undefined
+                    }
                   >
                     {panel.selectable ? (
                       <td className="py-[11px] pl-[18px] pr-[9px] align-middle">
                         <input
                           type="checkbox"
                           checked={isSelected}
-                          onChange={() => toggleRow(absolute)}
+                          onChange={() => toggleRow(tableRow)}
                           aria-label={`Select this ${noun}`}
                           className="h-[14.5px] w-[14.5px] accent-[#0d2315]"
                         />
@@ -780,6 +982,23 @@ function TablePanel({
                 );
               })}
             </tbody>
+            {panel.summaryRows?.length ? (
+              <tfoot>
+                {panel.summaryRows.map((summary, rowIndex) => (
+                  <tr key={rowIndex} style={{ background: "#F7FAF8", borderTop: "1px solid #E6EEE9" }}>
+                    {panel.selectable ? <td /> : null}
+                    {summary.map((cell, cellIndex) => (
+                      <td
+                        key={cellIndex}
+                        className={cn("py-[11px] align-middle", edge(cellIndex), aligns[cellIndex] === "right" && "text-right")}
+                      >
+                        <Cell cell={cell} openDrawer={openDrawer} />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tfoot>
+            ) : null}
           </table>
         </div>
       )}
@@ -839,6 +1058,168 @@ function TablePanel({
   );
 }
 
+const TRACKER_STATE_TONE: Record<string, PanelTone> = {
+  Complete: "positive",
+  Marked: "positive",
+  "In progress": "progress",
+  Draft: "attention",
+  Unassigned: "negative",
+  "Not started": "negative",
+  Resolved: "positive",
+  Declined: "neutral",
+  Overdue: "negative",
+  New: "attention",
+  Assigned: "progress",
+};
+
+/** A row is finished when nothing more is owed on it. */
+const TRACKER_DONE = new Set(["Complete", "Resolved", "Declined"]);
+
+/**
+ * A tracker: one row per thing that has to be true before the school can go on,
+ * each naming the person who owns it and, where there is somewhere to do the work,
+ * the link that takes you there. Rows can be read by issue or gathered by owner.
+ */
+function TrackerPanel({
+  panel,
+  openDrawer,
+}: {
+  panel: Extract<Panel, { type: "tracker" }>;
+  openDrawer: OpenDrawer;
+}) {
+  const groups = panel.groups ?? [];
+  const [group, setGroup] = useState(groups[0] ?? "");
+  const clear = panel.rows.filter((row) => TRACKER_DONE.has(row.state)).length;
+  const outstanding = panel.rows.length - clear;
+
+  if (panel.rows.length === 0 && panel.clear) {
+    return (
+      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+        <PanelHeader title={panel.title} sub={panel.sub} meta={panel.meta} openDrawer={openDrawer} />
+        <div className="rounded-[12px] border border-[var(--color-success)] bg-[var(--color-success-dim)] px-4 py-3.5">
+          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{panel.clear.title}</p>
+          <p className="mt-1 text-[12px] leading-[1.5] text-[var(--color-text-secondary)]">{panel.clear.body}</p>
+        </div>
+      </section>
+    );
+  }
+
+  const byOwner = group === "By owner";
+  const own = panel.groupRows?.[group];
+  const source = own ?? panel.rows;
+  const ordered = byOwner ? [...source].sort((a, b) => a.owner.localeCompare(b.owner)) : source;
+
+  return (
+    <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+      <PanelHeader
+        title={panel.title}
+        sub={panel.sub}
+        meta={panel.meta}
+        tag={panel.noun ? `${clear} of ${panel.rows.length} ${panel.noun}` : undefined}
+        tagTone={outstanding ? "attention" : "positive"}
+        openDrawer={openDrawer}
+      />
+      {groups.length > 1 ? (
+        <div className="mb-[10px] flex flex-wrap items-center gap-[6px]">
+          {groups.map((name) => (
+            <button
+              key={name}
+              type="button"
+              onClick={() => setGroup(name)}
+              className="rounded-full border px-[11px] py-[5px] text-[10.5px] font-semibold"
+              style={
+                name === group
+                  ? { background: INK, color: "#fff", borderColor: INK }
+                  : { background: "#fff", color: "#5F6E65", borderColor: "#DEE8E2" }
+              }
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {own && own.length === 0 ? (
+        <p className="rounded-[12px] border border-dashed px-4 py-5 text-center text-[11.5px] text-[#67766D]" style={{ borderColor: "#DEE8E2" }}>
+          Nothing is outstanding when read this way.
+        </p>
+      ) : null}
+      <ul className="grid gap-2">
+        {ordered.map((trackerRow, index) => {
+          const tone = TRACKER_STATE_TONE[trackerRow.state] ?? "attention";
+          const showOwnerHeading = byOwner && (index === 0 || ordered[index - 1].owner !== trackerRow.owner);
+          return (
+            <li key={`${trackerRow.unit}-${index}`} className="list-none">
+              {showOwnerHeading ? (
+                <p className="mb-[5px] mt-[4px] text-[9.5px] font-semibold uppercase tracking-[0.06em] text-[#67766D]">
+                  {trackerRow.owner} · {trackerRow.role}
+                </p>
+              ) : null}
+              <div
+                className={cn(
+                  "flex flex-wrap items-center justify-between gap-3 rounded-[12px] border px-3.5 py-2.5",
+                  trackerRow.overdue
+                    ? "border-[var(--color-danger)] bg-[var(--color-danger-dim)]"
+                    : "border-[var(--color-border-default)]",
+                )}
+              >
+                <div className="min-w-0 flex-[1_1_260px]">
+                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{trackerRow.unit}</p>
+                  {trackerRow.sub ? (
+                    <p className="text-[11.5px] text-[var(--color-text-muted)]">{trackerRow.sub}</p>
+                  ) : null}
+                </div>
+                <div className="flex flex-none flex-wrap items-center gap-2.5">
+                  {byOwner ? null : (
+                    <span className="text-[11.5px] text-[var(--color-text-secondary)]">
+                      {trackerRow.owner}
+                      <span className="text-[var(--color-text-muted)]"> · {trackerRow.role}</span>
+                    </span>
+                  )}
+                  <span
+                    className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
+                    style={tonePillStyle(tone)}
+                  >
+                    {trackerRow.state}
+                  </span>
+                  <span
+                    className={cn(
+                      "min-w-[52px] text-right text-[11.5px] tabular-nums",
+                      trackerRow.overdue
+                        ? "font-semibold text-[var(--color-danger)]"
+                        : "text-[var(--color-text-muted)]",
+                    )}
+                  >
+                    {trackerRow.age}
+                  </span>
+                  {trackerRow.href ? (
+                    <Link
+                      href={trackerRow.href as Route}
+                      className="text-[11px] font-semibold hover:underline"
+                      style={{ color: "#12796A" }}
+                    >
+                      {trackerRow.state === "Complete" ? "Review" : "Open"}
+                    </Link>
+                  ) : null}
+                  {trackerRow.drawer ? (
+                    <button
+                      type="button"
+                      onClick={() => openDrawer(trackerRow.drawer as DrawerSpec)}
+                      className="text-[11px] font-semibold hover:underline"
+                      style={{ color: "#12796A" }}
+                    >
+                      {trackerRow.act ?? (TRACKER_DONE.has(trackerRow.state) ? "Review" : "Open")}
+                    </button>
+                  ) : null}
+                </div>
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
 function pagerClass(active: boolean) {
   return cn(
     "inline-flex h-[26px] min-w-[26px] items-center justify-center rounded-[7px] border px-[7px] text-[10.5px] font-semibold tabular-nums transition disabled:opacity-40",
@@ -882,6 +1263,7 @@ export function PanelView({
       >
         <PanelHeader
           title={panel.title ?? "Summary"}
+          sub={panel.sub}
           openDrawer={openDrawer}
           flush
         />
@@ -893,7 +1275,14 @@ export function PanelView({
         >
           {panel.cards.map((card) => {
             const swatch = card.tone ? toneOf(card.tone) : null;
-            const linked = Boolean(card.href || card.drawer || card.link);
+            // A card that offers a link always goes somewhere: with no page or form of its own it
+            // opens a plain reading of the figure, so the link is never a dead end.
+            const drawerSpec: DrawerSpec | undefined =
+              card.drawer ??
+              (card.link && !card.href
+                ? { mode: "view", kicker: panel.title ?? "Summary", title: card.label, facts: [[card.label, `${card.value}${card.unit ? ` ${card.unit}` : ""}`, card.sub ?? ""].filter((part, index) => index < 2 || part) as PanelFact], readOnly: true, readOnlyNote: "A figure, read as it stands." }
+                : undefined);
+            const linked = Boolean(card.href || drawerSpec || card.link);
 
             const body = (
               <>
@@ -966,8 +1355,8 @@ export function PanelView({
               );
             }
 
-            if (card.drawer) {
-              const spec = card.drawer;
+            if (drawerSpec) {
+              const spec = drawerSpec;
               return (
                 <button
                   key={card.label}
@@ -1005,6 +1394,9 @@ export function PanelView({
         <PanelHeader
           title={panel.title}
           sub={panel.sub}
+          meta={panel.meta}
+          tag={panel.tag}
+          tagTone={panel.tagTone}
           acts={panel.acts}
           openDrawer={openDrawer}
         />
@@ -1025,12 +1417,18 @@ export function PanelView({
                   : undefined),
             };
             const actionable = Boolean(trigger.href || trigger.drawer);
+            // Every row can be read: with nothing authored for it, the row opens what it says.
+            const rowRead: DrawerSpec | undefined = trigger.href
+              ? undefined
+              : (trigger.drawer ??
+                { mode: "view", kicker: panel.title, title: item.label, sub: item.sub, facts: [["Item", item.label, item.sub ?? ""], ["State", item.pill ?? "—", ""]].map((fact) => (fact[2] ? fact : [fact[0], fact[1]])) as PanelFact[], readOnly: true, readOnlyNote: "This is a record of what happened. It is read-only." });
 
             return (
               <li
                 key={`${item.label}-${index}`}
-                className="flex items-start gap-[10px] border-b py-[10px]"
+                className={cn("flex items-start gap-[10px] border-b py-[10px]", rowRead && "cursor-pointer")}
                 style={{ borderColor: "#F2F7F4" }}
+                onClick={rowRead ? (event) => { if ((event.target as HTMLElement).closest("a,button")) return; openDrawer(rowRead); } : undefined}
               >
                 <span
                   className="mt-[4.5px] h-[7px] w-[7px] flex-none rounded-full"
@@ -1281,92 +1679,7 @@ export function PanelView({
   }
 
   if (panel.type === "tracker") {
-    if (panel.rows.length === 0 && panel.clear) {
-      return (
-        <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
-          <PanelHeader
-            title={panel.title}
-            sub={panel.sub}
-            meta={panel.meta}
-            openDrawer={openDrawer}
-          />
-          <div className="rounded-[12px] border border-[var(--color-success)] bg-[var(--color-success-dim)] px-4 py-3.5">
-            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">
-              {panel.clear.title}
-            </p>
-            <p className="mt-1 text-[12px] leading-[1.5] text-[var(--color-text-secondary)]">
-              {panel.clear.body}
-            </p>
-          </div>
-        </section>
-      );
-    }
-
-    return (
-      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
-        <PanelHeader
-          title={panel.title}
-          sub={panel.sub}
-          meta={panel.meta}
-          openDrawer={openDrawer}
-        />
-        <ul className="grid gap-2">
-          {panel.rows.map((trackerRow, index) => (
-            <li
-              key={`${trackerRow.unit}-${index}`}
-              className={cn(
-                "flex flex-wrap items-center justify-between gap-3 rounded-[12px] border px-3.5 py-2.5",
-                trackerRow.overdue
-                  ? "border-[var(--color-danger)] bg-[var(--color-danger-dim)]"
-                  : "border-[var(--color-border-default)]",
-              )}
-            >
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">
-                  {trackerRow.unit}
-                </p>
-                {trackerRow.sub ? (
-                  <p className="text-[11.5px] text-[var(--color-text-muted)]">
-                    {trackerRow.sub}
-                  </p>
-                ) : null}
-              </div>
-              <div className="flex flex-none flex-wrap items-center gap-2.5">
-                <span className="text-[11.5px] text-[var(--color-text-secondary)]">
-                  {trackerRow.owner}
-                  <span className="text-[var(--color-text-muted)]">
-                    {" "}
-                    · {trackerRow.role}
-                  </span>
-                </span>
-                <span
-                  className="rounded-full border px-2.5 py-1 text-[11px] font-semibold"
-                  style={tonePillStyle(
-                    trackerRow.state === "Marked"
-                      ? "positive"
-                      : trackerRow.state === "In progress"
-                        ? "progress"
-                        : "attention",
-                  )}
-                >
-                  {trackerRow.state}
-                </span>
-                <span
-                  className={cn(
-                    "text-[11.5px] tabular-nums",
-                    trackerRow.overdue
-                      ? "font-semibold text-[var(--color-danger)]"
-                      : "text-[var(--color-text-muted)]",
-                  )}
-                >
-                  {trackerRow.age}
-                </span>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </section>
-    );
+    return <TrackerPanel panel={panel} openDrawer={openDrawer} />;
   }
 
   if (panel.type === "blockers") {
@@ -1382,6 +1695,17 @@ export function PanelView({
           tagTone={panel.tagTone}
           acts={panel.acts}
           openDrawer={openDrawer}
+          onExport={() => {
+            const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+            const lines = [["Item", "Detail"].map(escape).join(","), ...panel.items.map((item) => [item.title, item.detail].map(escape).join(","))];
+            const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `${panel.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "list"}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+          }}
         />
         <ul>
           {panel.items.map((item) => (
@@ -1706,6 +2030,14 @@ function FormPanel({
     return <ScoreGrid panel={panel} />;
   }
 
+  if (panel.type === "marker") return <RegisterMarker panel={panel} openDrawer={openDrawer} />;
+  if (panel.type === "sheet") return <SheetEntry panel={panel} openDrawer={openDrawer} />;
+  if (panel.type === "days") return <DayStrip panel={panel} />;
+
+  if (panel.type === "grid") return <GridPanelView panel={panel} openDrawer={openDrawer} />;
+  if (panel.type === "flow") return <FlowPanelView panel={panel} openDrawer={openDrawer} />;
+  if (panel.type === "quotes") return <QuotesPanelView panel={panel} openDrawer={openDrawer} />;
+
   // pending
   return (
     <section className="surface-card border-dashed p-4 md:p-5">
@@ -1741,9 +2073,27 @@ export function PanelRowsWithDrawer({
   rows: PanelRow[];
   openDrawer: OpenDrawer;
 }) {
+  // A panel marked `tuck` is not on the page: it is one line at the foot of it that opens the
+  // same content, so the rules a page runs on stay reachable without the page being half rules.
+  const tucked: Panel[] = [];
+  const kept = rows
+    .map((panelRow) => {
+      const panels = panelRow.panels.filter((panel) => {
+        if (isTucked(panel)) {
+          tucked.push(panel);
+          return false;
+        }
+        return true;
+      });
+      if (!panels.length) return null;
+      const cols = panels.length === panelRow.panels.length ? panelRow.cols : panels.map(() => "1fr").join(" ");
+      return { cols, panels };
+    })
+    .filter((row): row is PanelRow => row !== null);
+
   return (
     <div className="grid min-w-0 gap-4">
-      {rows.map((panelRow, index) => (
+      {kept.map((panelRow, index) => (
         <div
           key={index}
           // One column on small screens; the mockup's ratios apply from lg up via
@@ -1758,6 +2108,26 @@ export function PanelRowsWithDrawer({
           ))}
         </div>
       ))}
+      {tucked.length ? (
+        <div className="flex flex-wrap items-center gap-2 pt-[2px]">
+          {tucked.map((panel, index) => (
+            <button
+              key={index}
+              type="button"
+              onClick={() => openDrawer(tuckDrawer(panel))}
+              className="flex items-center gap-[7px] rounded-full border bg-white py-[7px] pl-[10px] pr-[14px] transition hover:border-[#BFDCD1] hover:bg-[#F1F8F4]"
+              style={{ borderColor: "#E3ECE6" }}
+            >
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#12796A" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" className="flex-none">
+                <path d={("tuckIcon" in panel && panel.tuckIcon) || TUCK_ICON} />
+              </svg>
+              <span className="whitespace-nowrap text-[10.5px] font-semibold" style={{ color: "#435048" }}>
+                {(panel as { tuck: string }).tuck}
+              </span>
+            </button>
+          ))}
+        </div>
+      ) : null}
     </div>
   );
 }

@@ -138,6 +138,68 @@ export class AcademicsController {
     return { ok: true, data: await this.academicsService.listSectionAssessmentComponents(session) };
   }
 
+  @Patch("section-assessment-components/:componentId")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async updateSectionAssessmentComponent(
+    @CurrentSession() session: SessionPayload,
+    @Param("componentId") componentId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    return { ok: true, data: await this.academicsService.updateSectionAssessmentComponent(session, componentId, body) };
+  }
+
+  @Delete("section-assessment-components/:componentId")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async retireSectionAssessmentComponent(
+    @CurrentSession() session: SessionPayload,
+    @Param("componentId") componentId: string
+  ) {
+    return { ok: true, data: await this.academicsService.retireSectionAssessmentComponent(session, componentId) };
+  }
+
+  @Post("grading-schemes/:schemeId/bands")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async addGradeBand(
+    @CurrentSession() session: SessionPayload,
+    @Param("schemeId") schemeId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    return { ok: true, data: await this.academicsService.addGradeBand(session, schemeId, body) };
+  }
+
+  @Patch("grading-schemes/:schemeId/bands/:bandId")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async updateGradeBand(
+    @CurrentSession() session: SessionPayload,
+    @Param("schemeId") schemeId: string,
+    @Param("bandId") bandId: string,
+    @Body() body: Record<string, unknown>
+  ) {
+    return { ok: true, data: await this.academicsService.updateGradeBand(session, schemeId, bandId, body) };
+  }
+
+  @Delete("grading-schemes/:schemeId/bands/:bandId")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async deleteGradeBand(
+    @CurrentSession() session: SessionPayload,
+    @Param("schemeId") schemeId: string,
+    @Param("bandId") bandId: string
+  ) {
+    return { ok: true, data: await this.academicsService.deleteGradeBand(session, schemeId, bandId) };
+  }
+
+  @Post("section-assessment-components/bulk")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")
+  async replaceSectionAssessmentComponents(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return { ok: true, data: await this.academicsService.replaceSectionAssessmentComponents(session, body) };
+  }
+
   @Post("section-assessment-components")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles("SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMIN_OFFICER", "EXAM_OFFICER", "EXAMINATION_OFFICER")

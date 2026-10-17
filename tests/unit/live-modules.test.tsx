@@ -3,7 +3,6 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { PanelRows } from "@/components/modules/panel-renderer";
 import type { ReportCardView } from "@/lib/domain/types";
 import { archiveTab, completionTab, remarksTab } from "@/lib/modules/live/m6-report-cards";
-import { directoryTab } from "@/lib/modules/live/m7-staff-access";
 import type { TabContent } from "@/lib/modules/panels";
 
 vi.mock("next/navigation", () => ({
@@ -91,48 +90,5 @@ describe("M06 Report Cards", () => {
     expect(html).toContain("Published Child");
     expect(html).toContain("Locked Child");
     expect(html).not.toContain("Draft Child");
-  });
-});
-
-describe("M07 Staff & Access", () => {
-  const person = (over: Record<string, unknown> = {}) => ({
-    id: "sp-1",
-    userId: "u-1",
-    fullName: "Boma Hart",
-    email: "teacher@greenfieldcollege.ng",
-    phone: null,
-    role: "TEACHER",
-    roles: [],
-    status: "ACTIVE",
-    isActive: true,
-    staffType: "ACADEMIC",
-    employeeNo: "EMP-002",
-    designation: null,
-    departmentName: "Sciences",
-    ...over,
-  });
-
-  it("reads a role as a title rather than a constant", () => {
-    const html = markup(directoryTab([person({ role: "VICE_PRINCIPAL_ACADEMICS" }) as never]));
-    expect(html).toContain("Vice Principal Academics");
-    expect(html).not.toContain("VICE_PRINCIPAL_ACADEMICS");
-  });
-
-  it("counts a locked account as shut out, not merely inactive", () => {
-    const staff = [
-      person({ status: "ACTIVE" }),
-      person({ id: "sp-2", fullName: "Locked Out", status: "LOCKED" }),
-      person({ id: "sp-3", fullName: "Suspended One", status: "SUSPENDED" }),
-    ];
-
-    const html = markup(directoryTab(staff as never));
-    // Two of three cannot sign in today.
-    expect(html).toContain("Suspended or locked");
-    expect(html).toContain("Cannot sign in today");
-  });
-
-  it("names the people with no department rather than only counting them", () => {
-    const html = markup(directoryTab([person({ departmentName: null }) as never]));
-    expect(html).toContain("Nothing to report them under");
   });
 });

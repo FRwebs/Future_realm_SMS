@@ -25,7 +25,7 @@ import { studentRecordsLiveTab } from "@/lib/modules/live/m8-student-records";
  * registering a builder here; one with no builder keeps rendering exactly as it
  * did, so wiring the next module cannot disturb the other fifteen.
  */
-export type LiveTabBuilder = (tabSlug: string) => Promise<TabContent | null | undefined>;
+export type LiveTabBuilder = (tabSlug: string, query?: Record<string, string | undefined>) => Promise<TabContent | null | undefined>;
 
 const liveModules: Record<string, LiveTabBuilder> = {
   m1: commandCenterLiveTab,
@@ -80,6 +80,7 @@ function withFallbackNote(authored: TabContent, reason: string): TabContent {
 export async function getLiveTabContent(
   code: string,
   tabSlug: string,
+  query?: Record<string, string | undefined>,
 ): Promise<TabContent | undefined> {
   const builder = liveModules[code];
   if (!builder) return undefined;
@@ -87,7 +88,7 @@ export async function getLiveTabContent(
   try {
     // A builder returning nothing means "this tab is not wired yet", which is
     // not a failure: the page falls back to the authored tab with no banner.
-    return (await builder(tabSlug)) ?? undefined;
+    return (await builder(tabSlug, query)) ?? undefined;
   } catch (error) {
     const authored = getTabContent(code, tabSlug);
     if (!authored) return undefined;

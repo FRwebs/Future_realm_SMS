@@ -1,5 +1,10 @@
 import { renderToStaticMarkup } from "react-dom/server";
 
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ refresh: () => {}, push: () => {}, replace: () => {} }),
+  usePathname: () => "/",
+}));
+
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { accountContentFor, accountTabs } from "@/lib/modules/account";
 import type { SessionUser } from "@/lib/domain/types";

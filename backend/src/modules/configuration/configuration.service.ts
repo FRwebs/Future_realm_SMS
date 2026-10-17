@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { policyDefinition, validatePolicyValues } from "../../../../src/lib/modules/school-policies";
 import { RolesManagementService } from "../roles-management/roles-management.service";
 
 type ConfigGroup = "General" | "Finance" | "Academics" | "Others";
@@ -15,7 +16,7 @@ type ResourceDefinition = {
   group: ConfigGroup;
   description: string;
   mode: "table" | "settings" | "readonly";
-  backend: "sessions_terms" | "school" | "class_levels" | "calendar" | "subjects" | "login_history" | "generic";
+  backend: "sessions_terms" | "school" | "class_levels" | "calendar" | "subjects" | "departments" | "login_history" | "assessment_windows" | "generic";
   actions: ConfigAction[];
   fields: Array<{ name: string; label: string; type: "text" | "number" | "date" | "textarea" | "select"; required?: boolean; options?: Array<{ label: string; value: string }> }>;
 };
@@ -23,6 +24,8 @@ type ResourceDefinition = {
 const resourceDefinitions: ResourceDefinition[] = [
   { key: "sessions-terms", label: "Sessions & Terms", group: "General", description: "Academic sessions, terms, and current period controls.", mode: "table", backend: "sessions_terms", actions: ["view", "create", "update", "delete", "manage"], fields: [] },
   { key: "school-information", label: "School Information", group: "General", description: "Registered school identity, contacts, branding, and locale.", mode: "settings", backend: "school", actions: ["view", "update"], fields: [] },
+  { key: "assessment-windows", label: "Assessment Windows", group: "Academics", description: "When each assessment component can be scored in a term, and when its result is released.", mode: "table", backend: "assessment_windows", actions: ["view", "create", "update", "delete"], fields: [] },
+  { key: "school-policies", label: "School Policies", group: "General", description: "The rules that make the product behave like this school.", mode: "settings", backend: "generic", actions: ["view", "update", "manage"], fields: [] },
   { key: "class-levels", label: "Class Levels", group: "General", description: "Creche, Nursery, Primary, JSS, and SS level ordering.", mode: "table", backend: "class_levels", actions: ["view", "create", "update", "delete"], fields: [] },
   { key: "class-arms", label: "Class Arms", group: "General", description: "Reusable arms such as Gold, Silver, A, B, C, Science, Arts, and Commercial.", mode: "table", backend: "generic", actions: ["view", "create", "update", "delete", "manage"], fields: [] },
   { key: "school-calendar", label: "School Calendar", group: "General", description: "Holidays, resumption, PTA, speech day, exams, and vacation events.", mode: "table", backend: "calendar", actions: ["view", "create", "update", "delete"], fields: [] },
@@ -35,6 +38,8 @@ const resourceDefinitions: ResourceDefinition[] = [
   { key: "inventory-settings", label: "Inventory Settings", group: "Finance", description: "Inventory categories, units, reorder settings, and stock defaults.", mode: "settings", backend: "generic", actions: ["view", "update"], fields: [] },
   { key: "payroll-settings", label: "Payroll Settings", group: "Finance", description: "Earnings, deductions, pension defaults, tax labels, and pay frequency.", mode: "settings", backend: "generic", actions: ["view", "update"], fields: [] },
   { key: "subjects", label: "Subjects", group: "Academics", description: "Subject codes, departments, category, class applicability, and core/elective flags.", mode: "table", backend: "subjects", actions: ["view", "create", "update", "delete"], fields: [] },
+  { key: "departments", label: "Departments", group: "Academics", description: "Teaching departments, their codes, and the subjects and staff each one holds.", mode: "readonly", backend: "departments", actions: ["view", "export"], fields: [] },
+  { key: "curricula", label: "Curricula", group: "Academics", description: "Whole curricula: name, basis, levels, subjects, assessment, grading, report card, and rollout.", mode: "table", backend: "generic", actions: ["view", "create", "update", "delete", "manage"], fields: [] },
   { key: "performance-configuration", label: "Performance Configuration", group: "Academics", description: "Grading scales, score bands, assessment weights, and comment templates.", mode: "settings", backend: "generic", actions: ["view", "update", "manage"], fields: [] },
   { key: "report-templates", label: "Report Templates", group: "Academics", description: "Report card template metadata, default templates, and applicability.", mode: "table", backend: "generic", actions: ["view", "create", "update", "delete", "manage"], fields: [] },
   { key: "promotions", label: "Promotions", group: "Academics", description: "Promotion thresholds, repeat criteria, and approval workflow defaults.", mode: "settings", backend: "generic", actions: ["view", "update", "manage"], fields: [] },
@@ -55,6 +60,8 @@ const genericSchema = z.object({
   data: z.unknown().optional()
 });
 
+const WEEKDAYS = ["MON", "TUE", "WED", "THU", "FRI", "SAT", "SUN"] as const;
+
 const sessionSchema = z.object({
   recordType: z.enum(["session", "term"]),
   name: z.string().trim().min(2),
@@ -62,11 +69,61 @@ const sessionSchema = z.object({
   startDate: z.string().min(4),
   endDate: z.string().min(4),
   order: z.coerce.number().int().min(1).default(1),
-  isCurrent: z.coerce.boolean().default(false)
+  isCurrent: z.coerce.boolean().default(false),
+  breakStart: z.string().optional().or(z.literal("")),
+  breakEnd: z.string().optional().or(z.literal("")),
+  // The form says "Mon"; the column holds "MON". Either is accepted.
+  schoolDays: z
+    .array(z.string().transform((value) => value.trim().toUpperCase().slice(0, 3)).pipe(z.enum(WEEKDAYS)))
+    .min(1, "Pick at least one school day.")
+    .optional(),
+  activateOnOpen: z.coerce.boolean().optional()
 });
 
+/** A date the form may leave blank: blank clears it, absent leaves it alone. */
+function optionalDate(value: string | undefined): Date | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === "") return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) throw new BadRequestException("That date is not a real date.");
+  return date;
+}
+
+function assertTermDates(startDate: Date, endDate: Date, breakStart?: Date | null, breakEnd?: Date | null) {
+  if (endDate.getTime() <= startDate.getTime()) {
+    throw new BadRequestException("A term has to close after the day it opens.");
+  }
+  if ((breakStart && !breakEnd) || (!breakStart && breakEnd)) {
+    throw new BadRequestException("Give the mid-term break both a first and a last day, or neither.");
+  }
+  if (breakStart && breakEnd) {
+    if (breakEnd.getTime() < breakStart.getTime()) throw new BadRequestException("The break cannot end before it starts.");
+    if (breakStart.getTime() < startDate.getTime() || breakEnd.getTime() > endDate.getTime()) {
+      throw new BadRequestException("The mid-term break has to fall inside the term.");
+    }
+  }
+}
+
+const stringList = z.array(z.string().trim().min(1)).optional();
+
 const schoolSchema = z.object({
-  name: z.string().trim().min(2),
+  name: z.string().trim().min(2).optional(),
+  schoolType: z.string().trim().max(60).optional().or(z.literal("")),
+  composition: z.string().trim().max(40).optional().or(z.literal("")),
+  attendancePattern: stringList,
+  stagesOperated: stringList,
+  foundedYear: z.union([z.coerce.number().int().min(1800).max(2100), z.literal("")]).optional(),
+  mainPhone: z.string().trim().max(40).optional().or(z.literal("")),
+  postalCode: z.string().trim().max(20).optional().or(z.literal("")),
+  cacNumber: z.string().trim().max(80).optional().or(z.literal("")),
+  ministryApprovalNumber: z.string().trim().max(80).optional().or(z.literal("")),
+  regulatingAuthority: z.string().trim().max(120).optional().or(z.literal("")),
+  approvalExpiresAt: z.string().optional().or(z.literal("")),
+  showMottoUnderLogo: z.coerce.boolean().optional(),
+  brandingAppliesTo: stringList,
+  logoUrl: z.string().trim().max(100000).optional().or(z.literal("")),
+  signatureUrl: z.string().trim().max(100000).optional().or(z.literal("")),
+  stampUrl: z.string().trim().max(100000).optional().or(z.literal("")),
   shortName: z.string().trim().max(24).optional().or(z.literal("")),
   motto: z.string().trim().max(200).optional().or(z.literal("")),
   vision: z.string().trim().max(600).optional().or(z.literal("")),
@@ -79,8 +136,8 @@ const schoolSchema = z.object({
   ownerEmail: z.string().trim().email().optional().or(z.literal("")),
   ownerPhone: z.string().trim().optional().or(z.literal("")),
   timezone: z.string().trim().default("Africa/Lagos"),
-  primaryColor: z.string().trim().optional().or(z.literal("")),
-  secondaryColor: z.string().trim().optional().or(z.literal(""))
+  primaryColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Write the colour as a hex code, like #0D2315.").optional().or(z.literal("")),
+  secondaryColor: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Write the colour as a hex code, like #12796A.").optional().or(z.literal(""))
 });
 
 const classLevelSchema = z.object({
@@ -96,7 +153,32 @@ const calendarSchema = z.object({
   description: z.string().trim().optional().or(z.literal("")),
   audience: z.string().trim().default("ALL"),
   startsAt: z.string().min(4),
-  endsAt: z.string().min(4)
+  endsAt: z.string().optional().or(z.literal("")),
+  type: z.string().trim().max(60).optional(),
+  location: z.string().trim().max(160).optional().or(z.literal("")),
+  startTime: z.string().trim().max(10).optional().or(z.literal("")),
+  endTime: z.string().trim().max(10).optional().or(z.literal("")),
+  allDay: z.coerce.boolean().optional(),
+  schoolClosed: z.coerce.boolean().optional(),
+  visibleTo: stringList,
+  reminder: z.string().trim().max(60).optional().or(z.literal("")),
+  secondReminder: z.string().trim().max(60).optional().or(z.literal("")),
+  reminderChannels: stringList
+});
+
+const assessmentWindowSchema = z.object({
+  termId: z.string().min(1, "Choose the term this window belongs to."),
+  componentId: z.string().min(1, "Choose the component this window opens."),
+  opensAt: z.string().min(4, "When does it open?"),
+  closesAt: z.string().min(4, "When does it close?"),
+  releaseAt: z.string().min(4, "When does the result reach a guardian?"),
+  appliesTo: z.string().trim().max(80).optional(),
+  remindTeachers: z.coerce.boolean().optional(),
+  allowLateEntry: z.coerce.boolean().optional(),
+  // A blank box means "leave the component as it is", not "make it zero".
+  maxScore: z.preprocess((value) => (value === "" ? undefined : value), z.coerce.number().positive().max(1000).optional()),
+  weight: z.preprocess((value) => (value === "" ? undefined : value), z.coerce.number().min(0).max(100).optional()),
+  reopenReason: z.string().trim().optional()
 });
 
 const subjectSchema = z.object({
@@ -110,8 +192,19 @@ const subjectSchema = z.object({
   status: z.string().default("ACTIVE")
 });
 
+/**
+ * Resources that ride on another resource's permission rather than minting a
+ * key of their own: a window is part of the calendar, a policy is part of how
+ * the school is set up. A new key would need granting to every role before
+ * anyone could use the screen it belongs to.
+ */
+const permissionAlias: Record<string, string> = {
+  "assessment-windows": "school-calendar",
+  "school-policies": "school-information"
+};
+
 function permissionKey(resource: string, action: ConfigAction) {
-  const key = resource.replace(/-/g, "_");
+  const key = (permissionAlias[resource] ?? resource).replace(/-/g, "_");
   const normalizedAction = action === "update" ? "update" : action;
   return `config.${key}.${normalizedAction}`;
 }
@@ -194,12 +287,35 @@ export class ConfigurationService {
     if (definition.backend === "sessions_terms") return this.sessionsTerms(session);
     if (definition.backend === "class_levels") return this.classLevels(session);
     if (definition.backend === "calendar") return this.calendarEvents(session, search);
+    if (definition.backend === "assessment_windows") return this.assessmentWindows(session, query.termId);
     if (definition.backend === "subjects") return this.subjects(session, search);
+    if (definition.backend === "departments") return this.departments(session, search);
     if (definition.backend === "login_history") return this.loginHistory(session, query);
     return this.genericItems(session, resourceKey, search);
   }
 
+  /**
+   * A term flagged "become active when it opens" is made active the first time
+   * anyone looks after its opening day. There is no scheduler behind this, so the
+   * promotion happens on read; the promise it keeps is that nobody has to
+   * remember to switch the term themselves.
+   */
+  private async promoteDueTerm(schoolId: string) {
+    const due = await prisma.term.findFirst({
+      where: { schoolId, activateOnOpen: true, isCurrent: false, startDate: { lte: new Date() }, endDate: { gte: new Date() } },
+      orderBy: { startDate: "desc" }
+    });
+    if (!due) return;
+    await prisma.$transaction([
+      prisma.term.updateMany({ where: { schoolId }, data: { isCurrent: false } }),
+      prisma.term.update({ where: { id: due.id }, data: { isCurrent: true, activateOnOpen: false } }),
+      prisma.academicSession.updateMany({ where: { schoolId }, data: { isCurrent: false } }),
+      prisma.academicSession.update({ where: { id: due.academicSessionId }, data: { isCurrent: true } })
+    ]);
+  }
+
   private async sessionsTerms(session: SessionPayload) {
+    await this.promoteDueTerm(session.schoolId);
     const sessions = await prisma.academicSession.findMany({
       where: { schoolId: session.schoolId },
       include: { terms: { orderBy: { order: "asc" } } },
@@ -222,14 +338,18 @@ export class ConfigurationService {
           order: term.order,
           startDate: term.startDate.toISOString().slice(0, 10),
           endDate: term.endDate.toISOString().slice(0, 10),
-          isCurrent: term.isCurrent
+          isCurrent: term.isCurrent,
+          breakStart: term.breakStart ? term.breakStart.toISOString().slice(0, 10) : null,
+          breakEnd: term.breakEnd ? term.breakEnd.toISOString().slice(0, 10) : null,
+          schoolDays: term.schoolDays,
+          activateOnOpen: term.activateOnOpen
         }))
       }))
     };
   }
 
   private async schoolInformation(session: SessionPayload) {
-    const [school, principal, levels] = await Promise.all([
+    const [school, principal, levels, lastEdit] = await Promise.all([
       prisma.school.findUnique({ where: { id: session.schoolId } }),
       prisma.user.findFirst({
         where: { schoolId: session.schoolId, role: "PRINCIPAL", deletedAt: null },
@@ -237,10 +357,28 @@ export class ConfigurationService {
       }),
       prisma.classLevel.findMany({
         where: { schoolId: session.schoolId },
-        select: { name: true, order: true },
+        select: { name: true, order: true, schoolSection: true },
         orderBy: { order: "asc" }
+      }),
+      prisma.auditLog.findFirst({
+        where: { schoolId: session.schoolId, entityType: "School", entityId: session.schoolId, action: AuditAction.SETTINGS_UPDATE },
+        orderBy: { createdAt: "desc" },
+        select: { createdAt: true, actorId: true }
       })
     ]);
+    const editor = lastEdit?.actorId
+      ? await prisma.user.findUnique({ where: { id: lastEdit.actorId }, select: { firstName: true, lastName: true } })
+      : null;
+    const stageNames: Record<string, string> = {
+      CRECHE: "Early Years",
+      NURSERY: "Nursery",
+      PRIMARY: "Primary",
+      JUNIOR_SECONDARY: "Junior Secondary",
+      SENIOR_SECONDARY: "Senior Secondary"
+    };
+    const derivedStages = Array.from(
+      new Set(levels.map((level) => (level.schoolSection ? stageNames[level.schoolSection] : null)).filter((name): name is string => Boolean(name)))
+    );
 
     return {
       mode: "settings",
@@ -255,7 +393,15 @@ export class ConfigurationService {
               : null,
             principalPhone: principal?.phone ?? null,
             principalEmail: principal?.email ?? null,
-            levelsOperated: levels.map((level) => level.name)
+            levelsOperated: levels.map((level) => level.name),
+            derivedStages,
+            lastEdited: lastEdit
+              ? {
+                  at: lastEdit.createdAt.toISOString(),
+                  by: editor ? [editor.firstName, editor.lastName].filter(Boolean).join(" ") : null,
+                  byYou: lastEdit.actorId === session.userId
+                }
+              : null
           }
         : null
     };
@@ -302,6 +448,231 @@ export class ConfigurationService {
     return { mode: "table", records };
   }
 
+  /**
+   * Departments, each with what it actually holds.
+   *
+   * The subjects resource returns `departmentId` and nothing else, so every
+   * screen that wanted a department name had either to show a cuid or drop the
+   * column. The counts come back with it because a department is only
+   * meaningful as the subjects and staff sitting under it.
+   */
+  /**
+   * Put a curriculum built in the builder into force.
+   *
+   * The builder writes a curriculum as one record and deliberately changes
+   * nothing live — "nothing is in force until you say so". This is the step
+   * that says so: it reads the stored design, checks it is actually usable,
+   * and writes the two layers the product computes results from — the grading
+   * bands and each section's assessment components.
+   *
+   * It refuses to do that mid-term when scores already exist, because the
+   * scores were entered against the framework in force and changing the
+   * weights underneath them silently restates results families have already
+   * been given.
+   */
+  async applyCurriculum(session: SessionPayload, id: string, body: Record<string, unknown>) {
+    await this.assertPermission(session, "curricula", "manage");
+
+    const record = await prisma.configurationItem.findFirst({
+      where: { schoolId: session.schoolId, resource: "curricula", id, deletedAt: null }
+    });
+    if (!record) throw new NotFoundException("That curriculum does not exist.");
+
+    const data = (record.data ?? {}) as {
+      assessment?: { components?: Array<{ name?: string; max?: number; weight?: number }> };
+      grading?: { bands?: Array<{ grade?: string; lo?: number; hi?: number; label?: string; points?: number }> };
+    };
+    const components = data.assessment?.components ?? [];
+    const bands = data.grading?.bands ?? [];
+
+    if (!components.length) throw new BadRequestException("This curriculum sets no assessment components.");
+    if (!bands.length) throw new BadRequestException("This curriculum sets no grading bands.");
+
+    const weightTotal = Number(components.reduce((sum, item) => sum + Number(item.weight ?? 0), 0).toFixed(2));
+    if (Math.abs(weightTotal - 100) > 0.01) {
+      throw new BadRequestException(`Assessment weights total ${weightTotal}. They must total 100 before this can go in force.`);
+    }
+
+    const ordered = bands
+      .map((band) => ({
+        label: String(band.grade ?? "").trim(),
+        minScore: Number(band.lo ?? 0),
+        maxScore: Number(band.hi ?? 0),
+        remark: String(band.label ?? band.grade ?? "").trim(),
+        order: Number(band.points ?? 0)
+      }))
+      .sort((a, b) => a.minScore - b.minScore);
+
+    if (ordered.some((band) => !band.label)) throw new BadRequestException("Every grading band needs a grade.");
+    if (ordered[0].minScore !== 0 || ordered[ordered.length - 1].maxScore !== 100) {
+      throw new BadRequestException("Grading bands must cover every mark from 0 to 100.");
+    }
+    for (let index = 0; index < ordered.length - 1; index += 1) {
+      const current = ordered[index];
+      const next = ordered[index + 1];
+      if (next.minScore <= current.maxScore) throw new BadRequestException(`${current.label} and ${next.label} overlap.`);
+      if (next.minScore > current.maxScore + 1) {
+        throw new BadRequestException(`Nothing covers ${current.maxScore + 1} to ${next.minScore - 1}.`);
+      }
+    }
+
+    const term = await prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true } });
+    const scored = await prisma.scoreEntry.count({
+      where: { schoolId: session.schoolId, isDraft: false }
+    });
+    const effectiveFrom = body.effectiveFrom === "NOW" ? "NOW" : "NEXT_TERM";
+    if (scored > 0 && effectiveFrom === "NOW") {
+      throw new BadRequestException(
+        `${scored} score(s) have already been submitted against the framework in force. A curriculum in force cannot be swapped mid-term — put this one in force from the next term instead.`
+      );
+    }
+
+    // The sections the school actually runs; a section with no components
+    // today gets this curriculum's set like any other.
+    const sections = await prisma.sectionAssessmentComponent.findMany({
+      where: { schoolId: session.schoolId },
+      select: { section: true },
+      distinct: ["section"]
+    });
+    const targetSections = sections.length
+      ? sections.map((row) => row.section)
+      : ((await prisma.subject.findMany({
+          where: { schoolId: session.schoolId, section: { not: null } },
+          select: { section: true },
+          distinct: ["section"]
+        })).map((row) => row.section!) as typeof sections[number]["section"][]);
+
+    const codeFor = (name: string, index: number) =>
+      (name.replace(/[^A-Za-z0-9]+/g, "_").replace(/^_|_$/g, "").toUpperCase() || `COMPONENT_${index + 1}`).slice(0, 30);
+
+    const typeFor = (name: string) => {
+      const lower = name.toLowerCase();
+      if (lower.includes("exam")) return "EXAMINATION" as const;
+      if (lower.includes("project")) return "PROJECT" as const;
+      if (lower.includes("practical")) return "PRACTICAL" as const;
+      if (lower.includes("assign")) return "ASSIGNMENT" as const;
+      if (lower.includes("class")) return "CLASSWORK" as const;
+      return "TEST" as const;
+    };
+
+    const scheme = await prisma.$transaction(async (tx) => {
+      await tx.gradingScheme.updateMany({ where: { schoolId: session.schoolId }, data: { isActive: false } });
+
+      const created = await tx.gradingScheme.create({
+        data: {
+          schoolId: session.schoolId,
+          name: record.name,
+          description: record.description,
+          isActive: true,
+          rankingEnabled: true,
+          passMark: ordered.find((band) => band.remark.toLowerCase().includes("pass"))?.minScore ?? 40,
+          bands: {
+            create: ordered
+              .slice()
+              .sort((a, b) => b.minScore - a.minScore)
+              .map((band, index) => ({
+                schoolId: session.schoolId,
+                label: band.label,
+                minScore: band.minScore,
+                maxScore: band.maxScore,
+                remark: band.remark,
+                order: band.order || index + 1
+              }))
+          }
+        },
+        include: { bands: { orderBy: { order: "asc" } } }
+      });
+
+      for (const section of targetSections) {
+        const codes = components.map((item, index) => codeFor(String(item.name ?? ""), index));
+        await tx.sectionAssessmentComponent.updateMany({
+          where: { schoolId: session.schoolId, section, termId: term?.id ?? null, code: { notIn: codes } },
+          data: { isActive: false }
+        });
+
+        for (const [index, item] of components.entries()) {
+          const code = codes[index];
+          const name = String(item.name ?? `Component ${index + 1}`);
+          const existing = await tx.sectionAssessmentComponent.findFirst({
+            where: { schoolId: session.schoolId, section, termId: term?.id ?? null, code }
+          });
+          const values = {
+            name,
+            type: typeFor(name),
+            weight: Number(item.weight ?? 0),
+            maxScore: Number(item.max ?? 100),
+            order: index + 1,
+            isActive: true
+          };
+          if (existing) {
+            await tx.sectionAssessmentComponent.update({ where: { id: existing.id }, data: values });
+          } else {
+            await tx.sectionAssessmentComponent.create({
+              data: { schoolId: session.schoolId, section, termId: term?.id, code, ...values }
+            });
+          }
+        }
+      }
+
+      // Exactly one curriculum is in force at a time.
+      await tx.configurationItem.updateMany({
+        where: { schoolId: session.schoolId, resource: "curricula", status: "ACTIVE" },
+        data: { status: "INACTIVE" }
+      });
+      await tx.configurationItem.update({ where: { id: record.id }, data: { status: "ACTIVE" } });
+
+      return created;
+    });
+
+    await this.audit(session, AuditAction.UPDATE, "ConfigurationItem", record.id, {
+      action: "curriculum-in-force",
+      curriculum: record.name,
+      effectiveFrom,
+      sections: targetSections.length,
+      components: components.length,
+      bands: ordered.length
+    });
+
+    return {
+      curriculum: { id: record.id, name: record.name, status: "ACTIVE" },
+      effectiveFrom,
+      gradingSchemeId: scheme.id,
+      bands: scheme.bands.length,
+      sections: targetSections,
+      componentsPerSection: components.length
+    };
+  }
+
+  private async departments(session: SessionPayload, search?: string) {
+    const records = await prisma.department.findMany({
+      where: {
+        schoolId: session.schoolId,
+        ...(search
+          ? {
+              OR: [
+                { name: { contains: search, mode: "insensitive" } },
+                { code: { contains: search, mode: "insensitive" } }
+              ]
+            }
+          : {})
+      },
+      orderBy: { name: "asc" },
+      include: { _count: { select: { subjects: true, staff: true, classRooms: true } } }
+    });
+
+    return {
+      mode: "readonly",
+      records: records.map((department) => ({
+        id: department.id,
+        name: department.name,
+        code: department.code,
+        subjectCount: department._count.subjects,
+        staffCount: department._count.staff,
+        classRoomCount: department._count.classRooms
+      }))
+    };
+  }
+
   private async loginHistory(session: SessionPayload, query: Record<string, string | undefined>) {
     const records = await prisma.loginAttempt.findMany({
       where: {
@@ -335,6 +706,8 @@ export class ConfigurationService {
     if (resource === "class-levels") return this.createClassLevel(session, body);
     if (resource === "school-calendar") return this.createCalendarEvent(session, body);
     if (resource === "subjects") return this.createSubject(session, body);
+    if (resource === "assessment-windows") return this.createAssessmentWindow(session, body);
+    if (resource === "school-policies") throw new BadRequestException("A policy is set by saving it, not created.");
     return this.createGeneric(session, resource, body);
   }
 
@@ -342,10 +715,13 @@ export class ConfigurationService {
     this.definition(resource);
     await this.assertPermission(session, resource, "update");
     if (resource === "school-information") return this.updateSchool(session, body);
+    if (resource === "sessions-terms" && id === "active") return this.setActiveTerm(session, body);
     if (resource === "sessions-terms") return this.updateSessionTerm(session, id, body);
     if (resource === "class-levels") return this.updateClassLevel(session, id, body);
     if (resource === "school-calendar") return this.updateCalendarEvent(session, id, body);
     if (resource === "subjects") return this.updateSubject(session, id, body);
+    if (resource === "assessment-windows") return this.updateAssessmentWindow(session, id, body);
+    if (resource === "school-policies") return this.savePolicy(session, id, body);
     return this.updateGeneric(session, resource, id, body);
   }
 
@@ -357,6 +733,7 @@ export class ConfigurationService {
     if (resource === "class-levels") return this.deleteClassLevel(session, id);
     if (resource === "school-calendar") return this.deleteCalendarEvent(session, id);
     if (resource === "subjects") return this.deleteSubject(session, id);
+    if (resource === "assessment-windows") return this.deleteAssessmentWindow(session, id);
     return this.deleteGeneric(session, resource, id);
   }
 
@@ -371,16 +748,29 @@ export class ConfigurationService {
       return created;
     }
     if (!parsed.academicSessionId) throw new BadRequestException("Select the academic session for this term.");
+    const startDate = new Date(parsed.startDate);
+    const endDate = new Date(parsed.endDate);
+    const breakStart = optionalDate(parsed.breakStart) ?? null;
+    const breakEnd = optionalDate(parsed.breakEnd) ?? null;
+    assertTermDates(startDate, endDate, breakStart, breakEnd);
+    const siblings = await prisma.term.findMany({ where: { academicSessionId: parsed.academicSessionId }, select: { order: true } });
+    const order = siblings.some((item) => item.order === parsed.order)
+      ? Math.max(...siblings.map((item) => item.order)) + 1
+      : parsed.order;
     if (parsed.isCurrent) await prisma.term.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } });
     const created = await prisma.term.create({
       data: {
         schoolId: session.schoolId,
         academicSessionId: parsed.academicSessionId,
         name: parsed.name,
-        order: parsed.order,
-        startDate: new Date(parsed.startDate),
-        endDate: new Date(parsed.endDate),
-        isCurrent: parsed.isCurrent
+        order,
+        startDate,
+        endDate,
+        isCurrent: parsed.isCurrent,
+        breakStart,
+        breakEnd,
+        ...(parsed.schoolDays ? { schoolDays: parsed.schoolDays } : {}),
+        activateOnOpen: parsed.isCurrent ? false : Boolean(parsed.activateOnOpen)
       }
     });
     await this.audit(session, AuditAction.CREATE, "Term", created.id, { name: created.name });
@@ -389,17 +779,28 @@ export class ConfigurationService {
 
   private async updateSessionTerm(session: SessionPayload, id: string, body: Record<string, unknown>) {
     const parsed = sessionSchema.partial({ startDate: true, endDate: true, recordType: true, name: true }).parse(body);
+    // The schema defaults `isCurrent` to false, which is right for a create and
+    // wrong for a patch: a rename must not quietly deactivate the active term.
+    const makeCurrent = "isCurrent" in body ? parsed.isCurrent : undefined;
     const term = await prisma.term.findFirst({ where: { id, schoolId: session.schoolId } });
     if (term) {
-      if (parsed.isCurrent) await prisma.term.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } });
+      const startDate = parsed.startDate ? new Date(parsed.startDate) : term.startDate;
+      const endDate = parsed.endDate ? new Date(parsed.endDate) : term.endDate;
+      const breakStart = parsed.breakStart === undefined ? term.breakStart : optionalDate(parsed.breakStart) ?? null;
+      const breakEnd = parsed.breakEnd === undefined ? term.breakEnd : optionalDate(parsed.breakEnd) ?? null;
+      assertTermDates(startDate, endDate, breakStart, breakEnd);
+      if (makeCurrent) await prisma.term.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } });
       const updated = await prisma.term.update({
         where: { id },
         data: {
           name: parsed.name,
-          order: parsed.order,
-          startDate: parsed.startDate ? new Date(parsed.startDate) : undefined,
-          endDate: parsed.endDate ? new Date(parsed.endDate) : undefined,
-          isCurrent: parsed.isCurrent
+          startDate: parsed.startDate ? startDate : undefined,
+          endDate: parsed.endDate ? endDate : undefined,
+          isCurrent: makeCurrent,
+          breakStart: parsed.breakStart === undefined ? undefined : breakStart,
+          breakEnd: parsed.breakEnd === undefined ? undefined : breakEnd,
+          schoolDays: parsed.schoolDays,
+          activateOnOpen: makeCurrent ? false : parsed.activateOnOpen
         }
       });
       await this.audit(session, AuditAction.UPDATE, "Term", id, { name: updated.name });
@@ -407,18 +808,41 @@ export class ConfigurationService {
     }
     const academicSession = await prisma.academicSession.findFirst({ where: { id, schoolId: session.schoolId } });
     if (!academicSession) throw new NotFoundException("Session or term not found.");
-    if (parsed.isCurrent) await prisma.academicSession.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } });
+    if (makeCurrent) await prisma.academicSession.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } });
     const updated = await prisma.academicSession.update({
       where: { id },
       data: {
         name: parsed.name,
         startDate: parsed.startDate ? new Date(parsed.startDate) : undefined,
         endDate: parsed.endDate ? new Date(parsed.endDate) : undefined,
-        isCurrent: parsed.isCurrent
+        isCurrent: makeCurrent
       }
     });
     await this.audit(session, AuditAction.UPDATE, "AcademicSession", id, { name: updated.name });
     return updated;
+  }
+
+  /**
+   * Make one term the active term. Every dated figure in the product — attendance
+   * rates, collection, report cards — is computed against the active term, so
+   * there is exactly one, and it moves the session it belongs to with it.
+   */
+  private async setActiveTerm(session: SessionPayload, body: Record<string, unknown>) {
+    const termId = typeof body.termId === "string" ? body.termId : "";
+    const term = await prisma.term.findFirst({ where: { id: termId, schoolId: session.schoolId } });
+    if (!term) throw new BadRequestException("Choose the term that is to become active.");
+    await prisma.$transaction([
+      prisma.term.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } }),
+      prisma.term.update({ where: { id: term.id }, data: { isCurrent: true, activateOnOpen: false } }),
+      prisma.academicSession.updateMany({ where: { schoolId: session.schoolId }, data: { isCurrent: false } }),
+      prisma.academicSession.update({ where: { id: term.academicSessionId }, data: { isCurrent: true } })
+    ]);
+    await this.audit(session, AuditAction.UPDATE, "Term", term.id, {
+      name: term.name,
+      change: "made the active term",
+      reason: typeof body.reason === "string" ? body.reason : undefined
+    });
+    return { id: term.id };
   }
 
   private async deleteSessionTerm(session: SessionPayload, id: string) {
@@ -455,10 +879,33 @@ export class ConfigurationService {
     const whenGiven = <T>(value: T | undefined, map: (input: T) => unknown) =>
       value === undefined ? undefined : map(value);
 
+    if (parsed.stagesOperated) await this.assertStagesRemovable(session.schoolId, parsed.stagesOperated);
+
+    const before = await prisma.school.findUnique({
+      where: { id: session.schoolId },
+      select: { primaryColor: true, secondaryColor: true, logoUrl: true, brandingAppliesTo: true }
+    });
+
     const updated = await prisma.school.update({
       where: { id: session.schoolId },
       data: {
         name: parsed.name,
+        schoolType: whenGiven(parsed.schoolType, (value) => value || null) as string | null | undefined,
+        composition: whenGiven(parsed.composition, (value) => value || null) as string | null | undefined,
+        attendancePattern: parsed.attendancePattern,
+        stagesOperated: parsed.stagesOperated,
+        foundedYear: parsed.foundedYear === undefined ? undefined : parsed.foundedYear === "" ? null : parsed.foundedYear,
+        mainPhone: whenGiven(parsed.mainPhone, (value) => value || null) as string | null | undefined,
+        postalCode: whenGiven(parsed.postalCode, (value) => value || null) as string | null | undefined,
+        cacNumber: whenGiven(parsed.cacNumber, (value) => value || null) as string | null | undefined,
+        ministryApprovalNumber: whenGiven(parsed.ministryApprovalNumber, (value) => value || null) as string | null | undefined,
+        regulatingAuthority: whenGiven(parsed.regulatingAuthority, (value) => value || null) as string | null | undefined,
+        approvalExpiresAt: optionalDate(parsed.approvalExpiresAt),
+        showMottoUnderLogo: parsed.showMottoUnderLogo,
+        brandingAppliesTo: parsed.brandingAppliesTo,
+        logoUrl: whenGiven(parsed.logoUrl, (value) => value || null) as string | null | undefined,
+        signatureUrl: whenGiven(parsed.signatureUrl, (value) => value || null) as string | null | undefined,
+        stampUrl: whenGiven(parsed.stampUrl, (value) => value || null) as string | null | undefined,
         shortName: whenGiven(parsed.shortName, (value) => value || null) as string | null | undefined,
         motto: whenGiven(parsed.motto, (value) => value || null) as string | null | undefined,
         vision: whenGiven(parsed.vision, (value) => value || null) as string | null | undefined,
@@ -475,8 +922,69 @@ export class ConfigurationService {
         secondaryColor: parsed.secondaryColor || undefined
       }
     });
+    await this.recordBrandingVersion(session, before, updated);
     await this.audit(session, AuditAction.SETTINGS_UPDATE, "School", session.schoolId, { name: updated.name });
     return updated;
+  }
+
+  /**
+   * "Anything already printed keeps the branding it was printed with" is only
+   * true if the branding it was printed with is still on record. So a change to
+   * the colours, the logo or what they apply to is written as a new version, and
+   * the one before it is kept, marked as superseded rather than overwritten.
+   */
+  private async recordBrandingVersion(
+    session: SessionPayload,
+    before: { primaryColor: string | null; secondaryColor: string | null; logoUrl: string | null; brandingAppliesTo: string[] } | null,
+    after: { primaryColor: string | null; secondaryColor: string | null; logoUrl: string | null; brandingAppliesTo: string[] }
+  ) {
+    if (!before) return;
+    const changed =
+      before.primaryColor !== after.primaryColor ||
+      before.secondaryColor !== after.secondaryColor ||
+      before.logoUrl !== after.logoUrl ||
+      before.brandingAppliesTo.join("|") !== after.brandingAppliesTo.join("|");
+    if (!changed) return;
+    await prisma.$transaction([
+      prisma.brandingAsset.updateMany({ where: { schoolId: session.schoolId, status: "APPLIED" }, data: { status: "SUPERSEDED" } }),
+      prisma.brandingAsset.create({
+        data: {
+          schoolId: session.schoolId,
+          logoUrl: after.logoUrl,
+          primaryColour: after.primaryColor ?? "#0D2315",
+          secondaryColour: after.secondaryColor ?? "#12796A",
+          appliedTo: after.brandingAppliesTo.length ? after.brandingAppliesTo.join(", ") : "report_card",
+          status: "APPLIED",
+          approvedById: session.userId,
+          appliedAt: new Date()
+        }
+      })
+    ]);
+  }
+
+  /** A school cannot stop operating a stage it still has children in. */
+  private async assertStagesRemovable(schoolId: string, next: string[]) {
+    const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { stagesOperated: true } });
+    const removed = (school?.stagesOperated ?? []).filter((stage) => !next.includes(stage));
+    const bySection: Record<string, SchoolSection> = {
+      "Early Years": SchoolSection.CRECHE,
+      Nursery: SchoolSection.NURSERY,
+      Primary: SchoolSection.PRIMARY,
+      "Junior Secondary": SchoolSection.JUNIOR_SECONDARY,
+      "Senior Secondary": SchoolSection.SENIOR_SECONDARY
+    };
+    for (const stage of removed) {
+      const section = bySection[stage];
+      if (!section) continue;
+      const enrolled = await prisma.student.count({
+        where: { schoolId, status: "ACTIVE", currentClass: { classLevel: { schoolSection: section } } }
+      });
+      if (enrolled > 0) {
+        throw new BadRequestException(
+          `${stage} still has ${enrolled} enrolled student${enrolled === 1 ? "" : "s"}. Move or withdraw them before the school stops operating it.`
+        );
+      }
+    }
   }
 
   private async createClassLevel(session: SessionPayload, body: Record<string, unknown>) {
@@ -503,10 +1011,46 @@ export class ConfigurationService {
     return { id };
   }
 
+  private calendarData(parsed: z.infer<typeof calendarSchema>) {
+    const startsAt = new Date(parsed.startsAt);
+    const endsAt = parsed.endsAt ? new Date(parsed.endsAt) : startsAt;
+    if (Number.isNaN(startsAt.getTime()) || Number.isNaN(endsAt.getTime())) {
+      throw new BadRequestException("Those dates are not real dates.");
+    }
+    if (endsAt.getTime() < startsAt.getTime()) {
+      throw new BadRequestException("An event cannot end before it starts.");
+    }
+    return { startsAt, endsAt };
+  }
+
+  /** The audience string the portals match against, written from who the event is visible to. */
+  private audienceFor(parsed: { audience?: string; visibleTo?: string[] }) {
+    return parsed.visibleTo?.length ? parsed.visibleTo.join(", ") : parsed.audience ?? "ALL";
+  }
+
   private async createCalendarEvent(session: SessionPayload, body: Record<string, unknown>) {
     const parsed = calendarSchema.parse(body);
+    const { startsAt, endsAt } = this.calendarData(parsed);
     const created = await prisma.calendarEvent.create({
-      data: { schoolId: session.schoolId, createdById: session.userId, title: parsed.title, description: parsed.description || null, audience: parsed.audience, startsAt: new Date(parsed.startsAt), endsAt: new Date(parsed.endsAt) }
+      data: {
+        schoolId: session.schoolId,
+        createdById: session.userId,
+        title: parsed.title,
+        description: parsed.description || null,
+        audience: this.audienceFor(parsed),
+        startsAt,
+        endsAt,
+        type: parsed.type ?? "School event",
+        location: parsed.location || null,
+        startTime: parsed.allDay ? null : parsed.startTime || null,
+        endTime: parsed.allDay ? null : parsed.endTime || null,
+        allDay: Boolean(parsed.allDay),
+        schoolClosed: Boolean(parsed.schoolClosed),
+        visibleTo: parsed.visibleTo ?? [],
+        reminder: parsed.reminder || null,
+        secondReminder: parsed.secondReminder || null,
+        reminderChannels: parsed.reminderChannels ?? []
+      }
     });
     await this.audit(session, AuditAction.CREATE, "CalendarEvent", created.id, { title: created.title });
     return created;
@@ -516,9 +1060,29 @@ export class ConfigurationService {
     const parsed = calendarSchema.partial().parse(body);
     const existing = await prisma.calendarEvent.findFirst({ where: { id, schoolId: session.schoolId } });
     if (!existing) throw new NotFoundException("Calendar event not found.");
+    const startsAt = parsed.startsAt ? new Date(parsed.startsAt) : existing.startsAt;
+    const endsAt = parsed.endsAt === undefined ? existing.endsAt : parsed.endsAt ? new Date(parsed.endsAt) : startsAt;
+    if (endsAt.getTime() < startsAt.getTime()) throw new BadRequestException("An event cannot end before it starts.");
+    const allDay = parsed.allDay ?? existing.allDay;
     const updated = await prisma.calendarEvent.update({
       where: { id },
-      data: { title: parsed.title, description: parsed.description, audience: parsed.audience, startsAt: parsed.startsAt ? new Date(parsed.startsAt) : undefined, endsAt: parsed.endsAt ? new Date(parsed.endsAt) : undefined }
+      data: {
+        title: parsed.title,
+        description: parsed.description === undefined ? undefined : parsed.description || null,
+        audience: parsed.visibleTo ? this.audienceFor(parsed) : parsed.audience,
+        startsAt,
+        endsAt,
+        type: parsed.type,
+        location: parsed.location === undefined ? undefined : parsed.location || null,
+        startTime: allDay ? null : parsed.startTime === undefined ? undefined : parsed.startTime || null,
+        endTime: allDay ? null : parsed.endTime === undefined ? undefined : parsed.endTime || null,
+        allDay: parsed.allDay,
+        schoolClosed: parsed.schoolClosed,
+        visibleTo: parsed.visibleTo,
+        reminder: parsed.reminder === undefined ? undefined : parsed.reminder || null,
+        secondReminder: parsed.secondReminder === undefined ? undefined : parsed.secondReminder || null,
+        reminderChannels: parsed.reminderChannels
+      }
     });
     await this.audit(session, AuditAction.UPDATE, "CalendarEvent", id, { title: updated.title });
     return updated;
@@ -611,6 +1175,165 @@ export class ConfigurationService {
     await prisma.configurationItem.update({ where: { id }, data: { status: "ARCHIVED", deletedAt: new Date() } });
     await this.audit(session, AuditAction.DELETE, "ConfigurationItem", id, { resource, name: existing.name });
     return { id };
+  }
+
+  /* ───────────── assessment windows ───────────── */
+
+  private async assessmentWindows(session: SessionPayload, termId?: string) {
+    const rows = await prisma.assessmentWindow.findMany({
+      where: { schoolId: session.schoolId, ...(termId ? { termId } : {}) },
+      include: { component: { select: { id: true, name: true, code: true, maxScore: true, weight: true } }, term: { select: { id: true, name: true } } },
+      orderBy: [{ opensAt: "asc" }]
+    });
+    const day = (value: Date) => value.toISOString().slice(0, 10);
+    return {
+      mode: "table",
+      records: rows.map((row) => ({
+        id: row.id,
+        termId: row.termId,
+        termName: row.term.name,
+        componentId: row.componentId,
+        componentName: row.component.name,
+        componentCode: row.component.code,
+        maxScore: row.component.maxScore,
+        weight: row.component.weight,
+        opensAt: day(row.opensAt),
+        closesAt: day(row.closesAt),
+        releaseAt: day(row.releaseAt),
+        appliesTo: row.appliesTo,
+        remindTeachers: row.remindTeachers,
+        allowLateEntry: row.allowLateEntry,
+        reopenedAt: row.reopenedAt ? row.reopenedAt.toISOString() : null,
+        reopenedReason: row.reopenedReason
+      }))
+    };
+  }
+
+  private windowDates(parsed: { opensAt: string; closesAt: string; releaseAt: string }) {
+    const opensAt = new Date(parsed.opensAt);
+    const closesAt = new Date(parsed.closesAt);
+    const releaseAt = new Date(parsed.releaseAt);
+    if ([opensAt, closesAt, releaseAt].some((date) => Number.isNaN(date.getTime()))) {
+      throw new BadRequestException("Those dates are not real dates.");
+    }
+    if (closesAt.getTime() < opensAt.getTime()) throw new BadRequestException("A window cannot close before it opens.");
+    if (releaseAt.getTime() < closesAt.getTime()) {
+      throw new BadRequestException("A result cannot reach a guardian before the window that produces it has closed.");
+    }
+    return { opensAt, closesAt, releaseAt };
+  }
+
+  /** Weight and maximum live on the component, so editing them from the window edits the component. */
+  private async syncComponent(schoolId: string, componentId: string, parsed: { maxScore?: number; weight?: number }) {
+    if (parsed.maxScore === undefined && parsed.weight === undefined) return;
+    await prisma.assessmentComponent.updateMany({
+      where: { id: componentId, schoolId },
+      data: { maxScore: parsed.maxScore, weight: parsed.weight }
+    });
+  }
+
+  private async createAssessmentWindow(session: SessionPayload, body: Record<string, unknown>) {
+    const parsed = assessmentWindowSchema.parse(body);
+    const dates = this.windowDates(parsed);
+    const [term, component] = await Promise.all([
+      prisma.term.findFirst({ where: { id: parsed.termId, schoolId: session.schoolId } }),
+      prisma.assessmentComponent.findFirst({ where: { id: parsed.componentId, schoolId: session.schoolId } })
+    ]);
+    if (!term) throw new NotFoundException("That term does not exist.");
+    if (!component) throw new NotFoundException("That assessment component does not exist.");
+    const existing = await prisma.assessmentWindow.findUnique({ where: { termId_componentId: { termId: term.id, componentId: component.id } } });
+    if (existing) {
+      throw new BadRequestException(`${component.name} already has a window in ${term.name}. Edit that one instead of making a second.`);
+    }
+    await this.syncComponent(session.schoolId, component.id, parsed);
+    const created = await prisma.assessmentWindow.create({
+      data: {
+        schoolId: session.schoolId,
+        termId: term.id,
+        componentId: component.id,
+        ...dates,
+        appliesTo: parsed.appliesTo ?? "Every class",
+        remindTeachers: parsed.remindTeachers ?? true,
+        allowLateEntry: parsed.allowLateEntry ?? false,
+        createdById: session.userId
+      }
+    });
+    await this.audit(session, AuditAction.CREATE, "AssessmentWindow", created.id, { component: component.name, term: term.name });
+    return created;
+  }
+
+  private async updateAssessmentWindow(session: SessionPayload, id: string, body: Record<string, unknown>) {
+    const existing = await prisma.assessmentWindow.findFirst({ where: { id, schoolId: session.schoolId } });
+    if (!existing) throw new NotFoundException("Assessment window not found.");
+    const parsed = assessmentWindowSchema.partial().parse(body);
+    const next = this.windowDates({
+      opensAt: parsed.opensAt ?? existing.opensAt.toISOString(),
+      closesAt: parsed.closesAt ?? existing.closesAt.toISOString(),
+      releaseAt: parsed.releaseAt ?? existing.releaseAt.toISOString()
+    });
+    const reopening = Boolean(parsed.reopenReason) && next.closesAt.getTime() > existing.closesAt.getTime() && existing.closesAt.getTime() < Date.now();
+    await this.syncComponent(session.schoolId, existing.componentId, parsed);
+    const updated = await prisma.assessmentWindow.update({
+      where: { id },
+      data: {
+        ...next,
+        appliesTo: parsed.appliesTo,
+        remindTeachers: parsed.remindTeachers,
+        allowLateEntry: parsed.allowLateEntry,
+        ...(reopening ? { reopenedAt: new Date(), reopenedReason: parsed.reopenReason } : {})
+      }
+    });
+    await this.audit(session, AuditAction.UPDATE, "AssessmentWindow", id, { reopened: reopening, reason: parsed.reopenReason });
+    return updated;
+  }
+
+  private async deleteAssessmentWindow(session: SessionPayload, id: string) {
+    const existing = await prisma.assessmentWindow.findFirst({ where: { id, schoolId: session.schoolId } });
+    if (!existing) throw new NotFoundException("Assessment window not found.");
+    await prisma.assessmentWindow.delete({ where: { id } });
+    await this.audit(session, AuditAction.DELETE, "AssessmentWindow", id);
+    return { id };
+  }
+
+  /* ───────────── policies ───────────── */
+
+  /**
+   * Save one policy by its code, creating the record the first time. A policy is
+   * either at the product's default or set by this school; there is no third state
+   * to model, so the caller never has to know which it is.
+   */
+  private async savePolicy(session: SessionPayload, code: string, body: Record<string, unknown>) {
+    const definition = policyDefinition(code);
+    if (!definition) throw new NotFoundException("There is no such policy.");
+    const problem = validatePolicyValues(definition, body);
+    if (problem) throw new BadRequestException(problem);
+    const values = Object.fromEntries(definition.fields.map((field) => [field.key, body[field.key]]));
+    const reason = typeof body.reason === "string" ? body.reason.trim() : "";
+    const existing = await prisma.configurationItem.findFirst({
+      where: { schoolId: session.schoolId, resource: "school-policies", code, deletedAt: null }
+    });
+    const data = { values, ...(reason ? { lastReason: reason } : {}), changedAt: new Date().toISOString() } as Prisma.InputJsonObject;
+    const saved = existing
+      ? await prisma.configurationItem.update({ where: { id: existing.id }, data: { data, status: "ACTIVE" } })
+      : await prisma.configurationItem.create({
+          data: {
+            schoolId: session.schoolId,
+            resource: "school-policies",
+            code,
+            name: definition.label,
+            description: definition.changes,
+            data,
+            displayOrder: 0
+          }
+        });
+    await this.audit(session, AuditAction.SETTINGS_UPDATE, "ConfigurationItem", saved.id, {
+      resource: "school-policies",
+      policy: code,
+      values: values as Prisma.InputJsonObject,
+      reason: reason || undefined,
+      previous: (existing?.data ?? null) as Prisma.InputJsonValue
+    });
+    return saved;
   }
 
   /** Branding versions, so a card's history is readable rather than asserted. */

@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { canAssignRole, canManageRole, isOwnerRole, isPlatformRole, isSchoolStaffRole } from "../../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { schoolPermissionsForRole } from "../../../../src/lib/modules/school-access";
+import { roleTemplateFor, schoolPermissionsForRole } from "../../../../src/lib/modules/school-access";
 import { allGrantablePermissionKeys, allPermissionKeys, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
 
 const roleSchema = z.object({
@@ -148,27 +148,9 @@ export class RolesManagementService {
     // resolves it on the other side. Without this the two disagree: the sidebar
     // shows a module the API then refuses, which reads as a broken page rather
     // than a permission the school never gave.
-    const resolved = new Set<string>([
-      ...(systemRolePermissionKeys[role] ?? []),
-      ...schoolPermissionsForRole(role),
-    ]);
-    if (roleManagerFallback.has(role)) {
-      resolved.add("roles.view");
-      resolved.add("roles.create");
-      resolved.add("roles.edit");
-      resolved.add("roles.assign");
-      if (schoolOwnerRoles.has(role)) resolved.add("roles.delete");
-    }
+    const resolved = await this.basePermissionSet(user?.id ?? null, schoolId, role);
 
     if (user) {
-      const assignments = await prisma.userRoleAssignment.findMany({
-        where: { schoolId, userId: user.id, role: { deletedAt: null } },
-        include: { role: { include: { rolePermissions: { include: { permission: true } } } } }
-      });
-      for (const assignment of assignments) {
-        for (const rolePermission of assignment.role.rolePermissions) resolved.add(rolePermission.permission.key);
-      }
-
       const overrides = await prisma.userPermissionOverride.findMany({
         where: { schoolId, userId: user.id },
         include: { permission: true }
@@ -182,6 +164,44 @@ export class RolesManagementService {
     const permissions = Array.from(resolved).sort();
     RolesManagementService.permissionCache.set(cacheKey, permissions);
     return permissions;
+  }
+
+  /**
+   * What somebody holds before anything has been granted or taken from them individually:
+   * their role template (with whatever the school has changed on it), and the custom roles
+   * they have been put on. A person's "above their template" is measured from here.
+   */
+  async basePermissionSet(userId: string | null, schoolId: string, role: UserRole): Promise<Set<string>> {
+    const resolved = new Set<string>([...(systemRolePermissionKeys[role] ?? []), ...schoolPermissionsForRole(role)]);
+    if (roleManagerFallback.has(role)) {
+      resolved.add("roles.view");
+      resolved.add("roles.create");
+      resolved.add("roles.edit");
+      resolved.add("roles.assign");
+      if (schoolOwnerRoles.has(role)) resolved.add("roles.delete");
+    }
+
+    // A school may change what its role template grants; that applies to everyone on it.
+    const template = roleTemplateFor(role as never);
+    if (template) {
+      const row = await prisma.configurationItem.findFirst({
+        where: { schoolId, resource: "template-grids", code: template, deletedAt: null }
+      });
+      const data = (row?.data ?? null) as { grant?: string[]; revoke?: string[] } | null;
+      for (const key of data?.grant ?? []) resolved.add(key);
+      for (const key of data?.revoke ?? []) resolved.delete(key);
+    }
+
+    if (userId) {
+      const assignments = await prisma.userRoleAssignment.findMany({
+        where: { schoolId, userId, role: { deletedAt: null } },
+        include: { role: { include: { rolePermissions: { include: { permission: true } } } } }
+      });
+      for (const assignment of assignments) {
+        for (const rolePermission of assignment.role.rolePermissions) resolved.add(rolePermission.permission.key);
+      }
+    }
+    return resolved;
   }
 
   async listRoles(session: SessionPayload, schoolId: string) {
