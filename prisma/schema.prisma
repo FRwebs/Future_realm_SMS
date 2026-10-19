@@ -848,6 +848,9 @@ model School {
   ownershipTransfers            OwnershipTransfer[]
   staffAppraisals               StaffAppraisal[]
   automationRules               AutomationRule[]
+  messageCampaigns              MessageCampaign[]
+  messageDeliveries             MessageDelivery[]
+  schoolMessageTemplates        SchoolMessageTemplate[]
   generatedReports              GeneratedReport[]
   feeContacts                   FeeContact[]
   studentChangeRequests         StudentChangeRequest[]
@@ -865,6 +868,10 @@ model School {
   attendanceCases               AttendanceCase[]
   scoreSheets                   ScoreSheet[]
   scoreCorrections              ScoreCorrection[]
+  reportRemarks                 ReportRemark[]
+  reportCardRevisions           ReportCardRevision[]
+  cardBatches                   CardBatch[]
+  approvalMessages              ApprovalMessage[]
 
   @@index([status, billingStatus])
   @@index([country, state])
@@ -1246,6 +1253,7 @@ model User {
   approvalsRequested               ApprovalRequest[]             @relation("ApprovalRequestedBy")
   approvalsAssigned                ApprovalRequest[]             @relation("ApprovalAssignee")
   approvalsDecided                 ApprovalRequest[]             @relation("ApprovalDecidedBy")
+  approvalMessages                 ApprovalMessage[]             @relation("ApprovalMessageAuthor")
   resultPublications               ResultPublication[]           @relation("ResultPublicationActor")
   broadsheetsCompiled              Broadsheet[]                  @relation("BroadsheetCompiledBy")
   broadsheetApprovals              BroadsheetApprovalHistory[]   @relation("BroadsheetApprovalActor")
@@ -1261,6 +1269,8 @@ model User {
   paymentsReversed                 Payment[]                     @relation("PaymentReversedBy")
   receiptsIssued                   Receipt[]                     @relation("ReceiptIssuedBy")
   announcements                    Announcement[]
+  messageCampaignsCreated          MessageCampaign[]             @relation("MessageCampaignCreatedBy")
+  messageCampaignsApproved         MessageCampaign[]             @relation("MessageCampaignApprovedBy")
   messagesSent                     InternalMessage[]             @relation("MessageSender")
   messagesReceived                 InternalMessage[]             @relation("MessageRecipient")
   logs                             AuditLog[]
@@ -2544,6 +2554,26 @@ model ApprovalRequest {
   @@index([schoolId, subjectType, subjectId])
 }
 
+/// A message on a decision, or a line the system wrote about it.
+///
+/// The decision itself lives in whichever module raised it, so a thread is
+/// keyed by "source:id" rather than by a foreign key: one conversation per
+/// decision, whatever table the decision is in.
+model ApprovalMessage {
+  id        String   @id @default(cuid())
+  schoolId  String
+  itemKey   String
+  authorId  String?
+  /// COMMENT, or SYSTEM for what the queue itself did — an escalation, a reminder.
+  kind      String   @default("COMMENT")
+  body      String
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  author    User?    @relation("ApprovalMessageAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, itemKey, createdAt])
+}
+
 model ResultPublication {
   id            String     @id @default(cuid())
   schoolId      String
@@ -2622,6 +2652,16 @@ model ReportCard {
   pdfUrl            String?
   publishedAt       DateTime?
   lockedAt          DateTime?
+  /// 1 is the card as first issued; every correction after publishing adds one, and keeps the last.
+  revision          Int              @default(1)
+  reference         String?
+  publishedById     String?
+  /// Held back from the family on purpose, with the reason the school recorded.
+  withheldAt        DateTime?
+  withheldReason    String?
+  withheldById      String?
+  /// DELIVERED (reached a portal), UNDELIVERED (nobody to reach), NOT_SENT (withheld).
+  deliveryState     String?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
   school            School           @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -5278,6 +5318,13 @@ enum AutomationTrigger {
   RESULT_PUBLISHED
   TERM_STARTING
   BIRTHDAY
+  /// The four a school cannot switch off, and the rest the mockup names.
+  RESULT_REVISED
+  PAYMENT_REVERSAL
+  EMERGENCY_BROADCAST
+  APPROVAL_DECISION
+  ABSENCE_RECORDED
+  INVOICE_PUBLISHED
 }
 
 /// A standing rule that sends something without anybody pressing a button.
@@ -5287,22 +5334,29 @@ enum AutomationTrigger {
 /// behalf. `lastRunAt` and `sendCount` are what make that auditable: a rule
 /// nobody can see firing is indistinguishable from one that is broken.
 model AutomationRule {
-  id          String            @id @default(cuid())
-  schoolId    String
-  name        String
-  trigger     AutomationTrigger
+  id           String            @id @default(cuid())
+  schoolId     String
+  name         String
+  trigger      AutomationTrigger
   /// Trigger-specific threshold, e.g. days before due, or absences in a row.
-  threshold   Int?
-  channel     String            @default("SMS")
-  audience    String            @default("Guardians")
-  template    String
-  isActive    Boolean           @default(true)
-  lastRunAt   DateTime?
-  sendCount   Int               @default(0)
-  createdById String?
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
-  school      School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  threshold    Int?
+  channel      String            @default("SMS")
+  audience     String            @default("Guardians")
+  template     String
+  /// When it fires, in the words the rules table shows — "Immediately", "16:00 daily", "Day 14".
+  timing       String?
+  /// A mandatory rule cannot be switched off by the school. Four of them exist
+  /// because a parent must be told: a result published or revised, money leaving
+  /// a ledger, an emergency. Each carries its one-sentence reason.
+  isMandatory  Boolean           @default(false)
+  lockedReason String?
+  isActive     Boolean           @default(true)
+  lastRunAt    DateTime?
+  sendCount    Int               @default(0)
+  createdById  String?
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+  school       School            @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, isActive])
 }
@@ -5705,4 +5759,176 @@ model ScoreCorrection {
 
   @@index([schoolId, status, createdAt])
   @@index([schoolId, classId, subjectId])
+}
+
+/// What a form master or the Principal wrote about a child's term, kept as a draft until it is submitted
+/// onto the card. A submitted remark is also written to the result sheet, where older readers look.
+model ReportRemark {
+  id          String    @id @default(cuid())
+  schoolId    String
+  studentId   String
+  termId      String
+  classId     String?
+  /// FORM_MASTER or PRINCIPAL.
+  author      String
+  text        String
+  tone        String?
+  flags       String[]  @default([])
+  /// DRAFT or SUBMITTED.
+  state       String    @default("SUBMITTED")
+  authorId    String
+  onBehalf    Boolean   @default(false)
+  submittedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, termId, author])
+  @@index([schoolId, termId, classId])
+}
+
+/// Every version of a card that has reached a family. A correction is stored beside the original,
+/// never over it.
+model ReportCardRevision {
+  id          String   @id @default(cuid())
+  schoolId    String
+  cardId      String
+  studentId   String
+  termId      String
+  revision    Int
+  /// ISSUE, CORRECTION or REISSUE.
+  kind        String
+  reason      String
+  data        Json
+  createdById String?
+  notified    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  school      School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, cardId, revision])
+  @@index([schoolId, termId])
+}
+
+/// A run of printing, publishing or sending: who did it, for what scope, how many cards, and when.
+model CardBatch {
+  id        String   @id @default(cuid())
+  schoolId  String
+  termId    String
+  /// PRINT, PUBLISH, SEND or UNPUBLISH.
+  kind      String
+  scope     String
+  cards     Int
+  skipped   Int      @default(0)
+  channels  String[] @default([])
+  byId      String
+  cardIds   String[] @default([])
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, termId, createdAt])
+}
+
+/// A send: who it went to, what it cost, and where it got to.
+///
+/// Separate from `Campaign`, which carries no schoolId and belongs to platform
+/// marketing. A school's send has to be scoped to the school, countable in
+/// credits, and answerable to the mass-communication threshold.
+model MessageCampaign {
+  id             String                @id @default(cuid())
+  schoolId       String
+  name           String
+  channel        NotificationChannel   @default(SMS)
+  /// The criteria, kept as criteria rather than a frozen list, so a family who
+  /// clears their fees drops out of a saved segment on its own.
+  audience       Json?
+  audienceLabel  String                @default("Guardians")
+  body           String
+  status         MessageCampaignStatus @default(DRAFT)
+  /// Set when the send is above the school's threshold and needs a decision.
+  thresholdAt    Int?
+  scheduledAt    DateTime?
+  sentAt         DateTime?
+  recipientCount Int                   @default(0)
+  deliveredCount Int                   @default(0)
+  failedCount    Int                   @default(0)
+  /// What it actually cost, in credits — never an estimate after the fact.
+  creditsUsed    Int                   @default(0)
+  decisionNote   String?
+  createdById    String?
+  approvedById   String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+  school         School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  createdBy      User?                 @relation("MessageCampaignCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy     User?                 @relation("MessageCampaignApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+  deliveries     MessageDelivery[]
+
+  @@index([schoolId, status, createdAt])
+  @@index([schoolId, sentAt])
+}
+
+/// One recipient's outcome. The failures table is read from here, with the
+/// reason attached to the row that fixes it rather than to the campaign.
+model MessageDelivery {
+  id            String                @id @default(cuid())
+  schoolId      String
+  campaignId    String
+  guardianId    String?
+  recipientName String
+  destination   String?
+  status        MessageDeliveryStatus @default(PENDING)
+  /// Why it failed, in words somebody can act on.
+  failureReason String?
+  deliveredAt   DateTime?
+  createdAt     DateTime              @default(now())
+  school        School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  campaign      MessageCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+  @@index([campaignId, status])
+}
+
+/// A school's own message wording, versioned so a sent message always renders
+/// as the version that was sent rather than as the template reads today.
+model SchoolMessageTemplate {
+  id         String              @id @default(cuid())
+  schoolId   String
+  name       String
+  channel    NotificationChannel @default(SMS)
+  body       String
+  /// Merge fields the body uses, validated before a send unlocks.
+  variables  String[]            @default([])
+  owner      TemplateOwner       @default(SCHOOL)
+  version    Int                 @default(1)
+  lastUsedAt DateTime?
+  createdAt  DateTime            @default(now())
+  updatedAt  DateTime            @updatedAt
+  school     School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, name])
+  @@index([schoolId, owner])
+}
+
+enum MessageCampaignStatus {
+  DRAFT
+  AWAITING_APPROVAL
+  SCHEDULED
+  SENT
+  CANCELLED
+  RETURNED
+}
+
+enum MessageDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  EXCLUDED
+}
+
+/// Who owns the wording: the school, the system, or Future Realm's
+/// pre-approved library.
+enum TemplateOwner {
+  SCHOOL
+  SYSTEM
+  PLATFORM
 }
