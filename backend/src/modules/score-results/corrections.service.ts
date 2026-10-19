@@ -5,8 +5,8 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { LEADER_ROLES, currentTerm, iso, notifyStaff } from "../attendance-management/attendance.shared";
-import { notifyGuardian } from "../guardian-management/guardians.shared";
 import { type ArmData, loadArm, loadStaffNames, studentResults } from "./arm";
+import { CardService } from "../report-cards/card.service";
 import { ABSENT, fullName, ordinal, readFramework } from "./scores.shared";
 import { syncResultSheets } from "./sync";
 
@@ -37,6 +37,8 @@ const personAverage = (arm: ArmData, studentId: string) => {
 
 @Injectable()
 export class ScoreCorrectionsService {
+  constructor(private readonly cards: CardService) {}
+
   private async audit(session: SessionPayload, action: AuditAction, entityId: string, metadata: Prisma.InputJsonValue) {
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action, entityType: "ScoreCorrection", entityId, metadata } });
   }
@@ -177,7 +179,6 @@ export class ScoreCorrectionsService {
     const existing = await prisma.scoreEntry.findFirst({ where: { schoolId: session.schoolId, studentId: row.studentId, subjectId: row.subjectId, assessmentComponentId: row.componentId, resultSheetId: resultSheet.id } });
     const absences = { ...((subject.sheet?.absences ?? {}) as Record<string, string[]>) };
     const absent = row.toScore < 0;
-    const revisions = await prisma.scoreCorrection.count({ where: { schoolId: session.schoolId, studentId: row.studentId, termId: row.termId, status: "APPROVED" } });
     await prisma.$transaction([
       ...(absent
         ? [...(existing ? [prisma.scoreEntry.delete({ where: { id: existing.id } })] : []), prisma.scoreSheet.update({ where: { id: subject.sheet?.id as string }, data: { absences: { ...absences, [row.studentId]: Array.from(new Set([...(absences[row.studentId] ?? []), column?.key ?? ""])) } as Prisma.InputJsonValue } })]
@@ -185,21 +186,22 @@ export class ScoreCorrectionsService {
             ...(existing ? [prisma.scoreEntry.update({ where: { id: existing.id }, data: { score: row.toScore, recordedAt: stamp } })] : [prisma.scoreEntry.create({ data: { schoolId: session.schoolId, studentId: row.studentId, resultSheetId: resultSheet.id, subjectId: row.subjectId, assessmentComponentId: row.componentId, enteredById: row.requestedById, score: row.toScore, maxScore: column?.max ?? 100, isDraft: false, submittedAt: stamp } })]),
             ...(column && (absences[row.studentId] ?? []).includes(column.key) ? [prisma.scoreSheet.update({ where: { id: subject.sheet?.id as string }, data: { absences: { ...absences, [row.studentId]: absences[row.studentId].filter((key) => key !== column.key) } as Prisma.InputJsonValue } })] : [])
           ]),
-      prisma.scoreCorrection.update({ where: { id }, data: { status: "APPROVED", decidedById: session.userId, decidedAt: stamp, decisionNote: input.note ?? null, revision: row.reachedParent ? revisions + 2 : null } })
+      prisma.scoreCorrection.update({ where: { id }, data: { status: "APPROVED", decidedById: session.userId, decidedAt: stamp, decisionNote: input.note ?? null } })
     ]);
     await syncResultSheets(session.schoolId, term, row.classId, session.userId);
     const after = await loadArm(session.schoolId, term, row.classId);
     const now = after ? personAverage(after, row.studentId) : before;
     await prisma.scoreCorrection.update({ where: { id }, data: { effect: { avgBefore: before.average, avgAfter: now.average, posBefore: before.pos, posAfter: now.pos } as unknown as Prisma.InputJsonValue } });
     let told = 0;
+    let issued: number | null = null;
     if (row.reachedParent) {
-      const links = await prisma.studentGuardian.findMany({ where: { studentId: row.studentId }, select: { guardianId: true } });
-      for (const link of links) {
-        const sent = await notifyGuardian(session.schoolId, link.guardianId, "A revised result", `${subject.name} was corrected after a review (revision ${revisions + 2}). The earlier version is kept on record.`, ["In-app", "SMS"]);
-        if (sent.sent.length) told += 1;
-      }
+      /* the card the family holds is revised beside the original, never replaced, and they are told why */
+      const reissued = await this.cards.reissue(session.schoolId, session.userId, row.studentId, row.termId, `${subject.name} · ${row.componentName} corrected — ${row.explanation}`);
+      told = reissued?.told ?? 0;
+      issued = reissued?.revision ?? null;
+      if (issued) await prisma.scoreCorrection.update({ where: { id }, data: { revision: issued } });
     }
-    await this.audit(session, AuditAction.APPROVE, id, { summary: `Score correction approved · ${subject.name} · ${row.fromScore ?? "blank"} → ${absent ? "absent" : row.toScore}`, revision: row.reachedParent ? revisions + 2 : null, selfPass });
-    return { state: "Approved", fields: [["The mark", `${row.fromScore ?? "blank"} → ${absent ? "absent" : row.toScore}`], ["Average", `${before.average ?? "—"} → ${now.average ?? "—"}`], ["Position", `${before.pos ? ordinal(before.pos) : "—"} → ${now.pos ? ordinal(now.pos) : "—"}`], ...(row.reachedParent ? [["Revision", `Revision ${revisions + 2} issued · ${told} ${told === 1 ? "family" : "families"} told · the earlier version is kept`]] : [])] };
+    await this.audit(session, AuditAction.APPROVE, id, { summary: `Score correction approved · ${subject.name} · ${row.fromScore ?? "blank"} → ${absent ? "absent" : row.toScore}`, revision: issued, selfPass });
+    return { state: "Approved", fields: [["The mark", `${row.fromScore ?? "blank"} → ${absent ? "absent" : row.toScore}`], ["Average", `${before.average ?? "—"} → ${now.average ?? "—"}`], ["Position", `${before.pos ? ordinal(before.pos) : "—"} → ${now.pos ? ordinal(now.pos) : "—"}`], ...(row.reachedParent ? [["Revision", `Revision ${issued ?? "—"} issued · ${told} ${told === 1 ? "family" : "families"} told · the earlier version is kept`]] : [])] };
   }
 }

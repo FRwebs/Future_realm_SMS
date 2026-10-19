@@ -1,3 +1,4 @@
+import { cardDrawer } from "@/lib/modules/live/m6-forms";
 import { apiGet } from "@/lib/api/server";
 import { type Crumb, gradeTone, num, stateTone, when } from "@/lib/modules/live/m5-enter";
 import { armReviewHref, correctionLabel, correctionTone, decideCorrectionDrawer, requestCorrectionDrawer, resultArmHref, resultStudentHref, SR, viewCorrectionDrawer } from "@/lib/modules/live/m5-forms";
@@ -176,7 +177,7 @@ export function studentResultPage(p: StudentPage, from: "review" | "results", op
     panels: [{
       type: "table", title: "Every subject, every component", sub: "The components are shown separately so a parent can see how each total was reached.", meta: `${p.subjects.length} subjects · ${keys.map((column) => `${column.short} ${column.max}`).join(", ")}`, search: "Find a subject",
       filters: [{ label: "Grade", value: "All", options: ["All", ...p.bands.map((band) => band.label)], match: Object.fromEntries(p.bands.map((band) => [band.label, `grade:${band.label}`])) }],
-      acts: [{ label: "Print this result", href: `/print/result/${p.student.id}/${p.term.id}` }, { label: "Explain this result", primary: true, drawer: explain }],
+      acts: [{ label: "Print this result", drawer: cardDrawer(p.student.id, p.term.id, p.student.name) }, { label: "Explain this result", primary: true, drawer: explain }],
       head: ["Subject", ...keys.map((column) => column.short), "Total", "Grade", "Pos", "Teacher", ""], noun: "subject", nounPlural: "subjects", noRowOpen: true,
       rows: p.subjects.map((subject) => ({
         keywords: `${subject.name} grade:${subject.grade ?? "None"}`,
@@ -225,7 +226,7 @@ export function studentResultPage(p: StudentPage, from: "review" | "results", op
       launchers: [
         { label: "Request a correction", drawer: requestCorrectionDrawer(options, { student: p.student.id, arm: p.arm.name, label: p.student.name }) },
         { label: "Open the full student record", href: `/student-records/registry/${p.student.id}/academic?term=${p.term.id}` },
-        { label: "Print this result", href: `/print/result/${p.student.id}/${p.term.id}` },
+        { label: "Print this result", drawer: cardDrawer(p.student.id, p.term.id, p.student.name) },
       ],
       rows,
     },

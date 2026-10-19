@@ -5,12 +5,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
+import { DocumentModal } from "@/components/modules/document-modal";
 import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
 import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 
-function FactRows({ facts }: { facts: PanelFact[] }) {
+export function FactRows({ facts }: { facts: PanelFact[] }) {
   return (
     <div className="overflow-hidden rounded-[12px] border" style={{ borderColor: "#E6EEE9" }}>
       {facts.map(([label, value, note], index) => (
@@ -78,6 +79,7 @@ const DRAWER_MODES: Record<string, { label: string }> = {
   output: { label: "Produce a document" },
   commit: { label: "Confirm before it runs" },
   info: { label: "For reference" },
+  document: { label: "Document" },
 };
 
 export function ModuleDrawer({
@@ -94,8 +96,12 @@ export function ModuleDrawer({
   const [swapped, setSwapped] = useState<{ from: DrawerSpec; to: DrawerSpec } | null>(null);
 
   if (!spec || !mounted) return null;
-  if (spec.load) return <LazyDrawer key={spec.load} spec={spec} onClose={onClose} />;
   const active = swapped && swapped.from === spec ? swapped.to : spec;
+  // A document can hand the person on to another — the next child's card, the form that sends it —
+  // and it does so by replacing itself, so one overlay is ever open at a time.
+  const swap = (next: DrawerSpec) => setSwapped({ from: spec, to: next });
+  if (active.load) return <LazyDrawer key={active.load} spec={active} onClose={onClose} onSwap={swap} />;
+  if (active.doc) return <DocumentModal key={`${active.title}:doc`} spec={active} onClose={onClose} onSwap={swap} />;
 
   // Keyed on the record so moving from one row's drawer to another's starts
   // clean — the open panel owns its own committed/pending/error state, and
@@ -114,7 +120,7 @@ export function ModuleDrawer({
  * A drawer whose body is read when it opens. It shows what it already knows — the title, the kicker —
  * and swaps itself for the full record when that arrives, or says plainly that it could not.
  */
-function LazyDrawer({ spec, onClose }: { spec: DrawerSpec; onClose: () => void }) {
+function LazyDrawer({ spec, onClose, onSwap }: { spec: DrawerSpec; onClose: () => void; onSwap: (next: DrawerSpec) => void }) {
   const [loaded, setLoaded] = useState<{ url: string; spec: DrawerSpec | null; error: string | null } | null>(null);
   useEffect(() => {
     let live = true;
@@ -135,6 +141,7 @@ function LazyDrawer({ spec, onClose }: { spec: DrawerSpec; onClose: () => void }
   const ready = loaded && loaded.url === spec.load ? loaded : null;
   const base: DrawerSpec = ready?.spec ?? { ...spec, load: undefined, mode: spec.mode ?? "view", readOnly: true, sub: ready?.error ?? "Reading the record…", readOnlyNote: ready?.error ? ready.error : "Reading the record…", facts: [] };
   const shown = editing && base.edit ? base.edit : base;
+  if (shown.doc) return <DocumentModal key={`${spec.title}:doc`} spec={shown} onClose={onClose} onSwap={onSwap} />;
   return <DrawerPanel key={`${spec.title}:${ready?.spec ? "loaded" : "wait"}:${editing ? "edit" : "read"}`} spec={shown} onClose={onClose} onEdit={base.edit && !editing ? () => setEditing(true) : undefined} />;
 }
 
@@ -147,7 +154,7 @@ type ConfirmKind = "save" | "discard" | "delete";
  * away what was typed, and whether to delete. Each says what it is about to do in
  * words, and the way out is always the first thing the eye lands on.
  */
-function ConfirmSheet({
+export function ConfirmSheet({
   title,
   body,
   ok,
@@ -235,7 +242,7 @@ function prettyDate(text: string): string {
   return `${Number(match[3])} ${months[Number(match[2]) - 1] ?? match[2]} ${match[1]}`;
 }
 
-const asText = (value: unknown) =>
+export const asText = (value: unknown) =>
   Array.isArray(value)
     ? value.join(", ")
     : typeof value === "boolean"
@@ -247,7 +254,7 @@ const asText = (value: unknown) =>
         : prettyDate(String(value ?? ""));
 
 /** What a field's answer reads as when it is read back before saving. */
-function describe(field: FormField, value: unknown): string {
+export function describe(field: FormField, value: unknown): string {
   if (field.kind === "matrix") {
     const ticks = (value as string[] | undefined) ?? [];
     const rows = new Set(ticks.map((tick) => tick.split("|")[0]));
@@ -264,6 +271,183 @@ function describe(field: FormField, value: unknown): string {
     return chosen.length ? chosen.map((item) => field.options.find((option) => option.value === item)?.label ?? item).join(", ") : "Nobody";
   }
   return asText(value);
+}
+
+/**
+ * What a form sends: only the fields named in `map` travel, exactly as a form panel does, so a
+ * drawer can show a value the endpoint would reject beside ones it takes.
+ */
+export function buildBody(
+  submit: NonNullable<DrawerSpec["submit"]>,
+  allFields: FormField[],
+  values: Record<string, unknown>,
+  reason: string,
+): Record<string, unknown> {
+  const edited: Record<string, unknown> = {};
+  for (const [label, key] of Object.entries(submit.map ?? {})) {
+    let value = values[label];
+    if (value === undefined) continue;
+    // A file the school keeps is sent as what it is: nothing at all when it
+    // is being kept, an empty string when it is being removed, the image
+    // itself when a new one was chosen.
+    const field = allFields.find((item) => item.label === label);
+    if (field && !fieldVisible(field, values)) continue;
+    // A line that only informs — "None exist yet" — is not an answer, and must not travel as one.
+    if (field?.kind === "static") continue;
+    // Ticks on rows whose module is no longer ticked are not part of the answer.
+    if (field?.kind === "matrix" && field.groupFrom) {
+      const groups = (values[field.groupFrom] as string[] | undefined) ?? [];
+      const live = new Set(field.rows.filter((row) => !row.group || groups.includes(row.group)).map((row) => row.key));
+      value = (value as string[]).filter((tick) => live.has(tick.split("|")[0]));
+    }
+    if (field?.kind === "asset") {
+      const asset = value as { choice: string; data?: string };
+      if (asset.choice === field.options[0]) continue;
+      if (asset.choice === field.options[2]) value = "";
+      else if (asset.data) value = asset.data;
+      else continue;
+    }
+    // A select shows a label and the endpoint stores a code; `encode` is
+    // the pairing, so what travels is what the column actually holds.
+    const table = submit.encode?.[label];
+    edited[key] = Array.isArray(value) && table
+      ? value.map((item) => (typeof item === "string" && item in table ? table[item] : item))
+      : table && typeof value === "string" && value in table
+        ? table[value]
+        : value;
+  }
+
+  for (const [label, [key, entry]] of Object.entries(submit.nest ?? {})) {
+    const raw = values[label];
+    const field = allFields.find((item) => item.label === label);
+    if (typeof raw !== "string" || (field && !fieldVisible(field, values))) continue;
+    const table = submit.encode?.[label];
+    const bucket = (edited[key] as Record<string, string> | undefined) ?? {};
+    bucket[entry] = table && raw in table ? table[raw] : raw;
+    edited[key] = bucket;
+  }
+
+  return {
+    ...(submit.body ?? {}),
+    ...edited,
+    ...(reason.trim() ? { [submit.reasonKey ?? "reason"]: reason.trim() } : {}),
+  };
+}
+
+/** A matrix or list seeded from another field starts again whenever that field changes. */
+export function withSeeds(allFields: FormField[], current: Record<string, unknown>, field: FormField, next: unknown): Record<string, unknown> {
+  const updated: Record<string, unknown> = { ...current, [field.label]: next };
+  for (const other of allFields) {
+    if ((other.kind === "matrix" || other.kind === "checks") && other.seeds?.field === field.label) {
+      const set = other.seeds.sets[String(next)];
+      if (set) updated[other.label] = [...set];
+    }
+  }
+  return updated;
+}
+
+export type CommitResult = { links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string };
+
+/** What a committed form says: what happened, what the server handed back, and where to go next. */
+export function CommitDone({
+  spec,
+  result,
+  doneTitle,
+  doneBody,
+  doneLines,
+}: {
+  spec: DrawerSpec;
+  result: CommitResult | null;
+  doneTitle: string;
+  doneBody?: string;
+  /** The first few answers a person gave, repeated back; left out when there are none to show. */
+  doneLines?: PanelFact[];
+}) {
+  return (
+              <>
+                <div
+                  className="rounded-[12px] border px-[13px] py-[11px]"
+                  style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }}
+                >
+                  <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
+                    {doneTitle}
+                  </p>
+                  {doneBody ? (
+                    <p
+                      className="mt-[5px] text-pretty text-[11px] leading-[1.55]"
+                      style={{ color: "#17604F" }}
+                    >
+                      {doneBody}
+                    </p>
+                  ) : null}
+                </div>
+                {doneLines?.length ? <FactRows facts={doneLines.map(([label, value]) => [label, value])} /> : null}
+                {result?.fields?.length ? <FactRows facts={result.fields.map(([label, value]) => [label, value])} /> : null}
+                {result?.note ? (
+                  <p className="text-[11px] leading-[1.55]" style={{ color: MUTED }}>
+                    {result.note}
+                  </p>
+                ) : null}
+                {result?.checkoutUrl ? (
+                  <div className="grid gap-[6px]">
+                    <a href={result.checkoutUrl} className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
+                      Continue to payment
+                    </a>
+                    <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                      {result.gateway === "test" ? "The payment provider is in test mode: no card is charged and the payment is simulated." : "Your card is entered on the payment provider's page — it never touches this school's records."}
+                    </p>
+                  </div>
+                ) : null}
+                {result?.href ? (
+                  <a href={result.href} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
+                    {result.hrefLabel ?? "Open it"}
+                  </a>
+                ) : null}
+                {spec.next ? (
+                  <a href={spec.next.href} className="inline-flex items-center justify-center rounded-[10px] border px-[14px] py-[10px] text-[12px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>
+                    {spec.next.label}
+                  </a>
+                ) : null}
+                {result?.warnings?.length ? (
+                  <div className="rounded-[12px] border px-[13px] py-[10px]" style={{ background: "#FBF6E8", borderColor: "#E7D9B4" }}>
+                    <p className="text-[11px] font-semibold" style={{ color: "#8A6410" }}>
+                      Created, with {result.warnings.length === 1 ? "one thing" : `${result.warnings.length} things`} to look at
+                    </p>
+                    <ul className="mt-[4px] grid gap-[3px]">
+                      {result.warnings.map((warning) => (
+                        <li key={warning} className="text-[10.5px] leading-[1.5]" style={{ color: "#8A6410" }}>
+                          {warning}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+                {(() => {
+                  const links = result?.links ?? (result?.link ? [{ name: result.name ?? "Activation link", link: result.link }] : []);
+                  return links.length ? (
+                    <div className="grid gap-[7px]">
+                      <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                        Share each link with the person it is for. It works once, and the one before it no longer does.
+                      </p>
+                      {links.map((item) => {
+                        const full = `${typeof window === "undefined" ? "" : window.location.origin}${item.link}`;
+                        return (
+                          <div key={item.link} className="grid gap-[4px] rounded-[11px] border px-[12px] py-[9px]" style={{ borderColor: "#E4EDE8" }}>
+                            <span className="text-[11px] font-semibold" style={{ color: INK }}>{item.name}</span>
+                            <div className="flex items-center gap-[7px]">
+                              <input readOnly value={full} aria-label={`Link for ${item.name}`} className="min-w-0 flex-1 rounded-[8px] border bg-[#F7FAF8] px-[9px] py-[6px] text-[10.5px]" style={{ borderColor: "#DEE8E2" }} onFocus={(event) => event.currentTarget.select()} />
+                              <button type="button" onClick={() => navigator.clipboard?.writeText(full)} className="rounded-[8px] border border-[#CFDDD5] bg-white px-[10px] py-[6px] text-[10.5px] font-semibold text-[#435048]">
+                                Copy
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : null;
+                })()}
+              </>
+  );
 }
 
 /**
@@ -289,7 +473,7 @@ function DrawerPanel({
   const [reason, setReason] = useState("");
   const [doneKind, setDoneKind] = useState<"saved" | "deleted">("saved");
   /** What the server handed back that the person needs to see: links to share, warnings to read. */
-  const [result, setResult] = useState<{ links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string } | null>(null);
+  const [result, setResult] = useState<CommitResult | null>(null);
   const [confirm, setConfirm] = useState<ConfirmKind | null>(null);
   const allFields = useMemo(
     () => (spec.steps?.length ? spec.steps.flatMap((step) => step.fields) : (spec.fields ?? [])),
@@ -411,55 +595,7 @@ function DrawerPanel({
     setPending(true);
     setError(null);
     try {
-      // Only fields named in `map` travel, exactly as a form panel does, so a
-      // drawer can show a value the endpoint would reject beside ones it takes.
-      const edited: Record<string, unknown> = {};
-      for (const [label, key] of Object.entries(submit.map ?? {})) {
-        let value = values[label];
-        if (value === undefined) continue;
-        // A file the school keeps is sent as what it is: nothing at all when it
-        // is being kept, an empty string when it is being removed, the image
-        // itself when a new one was chosen.
-        const field = allFields.find((item) => item.label === label);
-        if (field && !fieldVisible(field, values)) continue;
-        // Ticks on rows whose module is no longer ticked are not part of the answer.
-        if (field?.kind === "matrix" && field.groupFrom) {
-          const groups = (values[field.groupFrom] as string[] | undefined) ?? [];
-          const live = new Set(field.rows.filter((row) => !row.group || groups.includes(row.group)).map((row) => row.key));
-          value = (value as string[]).filter((tick) => live.has(tick.split("|")[0]));
-        }
-        if (field?.kind === "asset") {
-          const asset = value as { choice: string; data?: string };
-          if (asset.choice === field.options[0]) continue;
-          if (asset.choice === field.options[2]) value = "";
-          else if (asset.data) value = asset.data;
-          else continue;
-        }
-        // A select shows a label and the endpoint stores a code; `encode` is
-        // the pairing, so what travels is what the column actually holds.
-        const table = submit.encode?.[label];
-        edited[key] = Array.isArray(value) && table
-          ? value.map((item) => (typeof item === "string" && item in table ? table[item] : item))
-          : table && typeof value === "string" && value in table
-            ? table[value]
-            : value;
-      }
-
-      for (const [label, [key, entry]] of Object.entries(submit.nest ?? {})) {
-        const raw = values[label];
-        const field = allFields.find((item) => item.label === label);
-        if (typeof raw !== "string" || (field && !fieldVisible(field, values))) continue;
-        const table = submit.encode?.[label];
-        const bucket = (edited[key] as Record<string, string> | undefined) ?? {};
-        bucket[entry] = table && raw in table ? table[raw] : raw;
-        edited[key] = bucket;
-      }
-
-      const answer = await sendJsonForData<typeof result>(submit.endpoint, submit.method ?? "POST", {
-        ...(submit.body ?? {}),
-        ...edited,
-        ...(reason.trim() ? { [submit.reasonKey ?? "reason"]: reason.trim() } : {}),
-      });
+      const answer = await sendJsonForData<typeof result>(submit.endpoint, submit.method ?? "POST", buildBody(submit, allFields, values, reason));
       setResult(answer && typeof answer === "object" ? answer : null);
       setDoneKind("saved");
       setCommitted(true);
@@ -650,89 +786,7 @@ function DrawerPanel({
         <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-[23.5px] py-[21.5px]">
           <div className="grid gap-[14px]">
             {committed ? (
-              <>
-                <div
-                  className="rounded-[12px] border px-[13px] py-[11px]"
-                  style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }}
-                >
-                  <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
-                    {doneTitle}
-                  </p>
-                  {doneBody ? (
-                    <p
-                      className="mt-[5px] text-pretty text-[11px] leading-[1.55]"
-                      style={{ color: "#17604F" }}
-                    >
-                      {doneBody}
-                    </p>
-                  ) : null}
-                </div>
-                {doneKind === "saved" && staged && doneLines.length ? <FactRows facts={doneLines.map(([label, value]) => [label, value])} /> : null}
-                {result?.fields?.length ? <FactRows facts={result.fields.map(([label, value]) => [label, value])} /> : null}
-                {result?.note ? (
-                  <p className="text-[11px] leading-[1.55]" style={{ color: MUTED }}>
-                    {result.note}
-                  </p>
-                ) : null}
-                {result?.checkoutUrl ? (
-                  <div className="grid gap-[6px]">
-                    <a href={result.checkoutUrl} className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
-                      Continue to payment
-                    </a>
-                    <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
-                      {result.gateway === "test" ? "The payment provider is in test mode: no card is charged and the payment is simulated." : "Your card is entered on the payment provider's page — it never touches this school's records."}
-                    </p>
-                  </div>
-                ) : null}
-                {result?.href ? (
-                  <a href={result.href} target="_blank" rel="noreferrer" className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
-                    {result.hrefLabel ?? "Open it"}
-                  </a>
-                ) : null}
-                {spec.next ? (
-                  <a href={spec.next.href} className="inline-flex items-center justify-center rounded-[10px] border px-[14px] py-[10px] text-[12px] font-semibold" style={{ borderColor: "#CFDDD5", color: "#435048" }}>
-                    {spec.next.label}
-                  </a>
-                ) : null}
-                {result?.warnings?.length ? (
-                  <div className="rounded-[12px] border px-[13px] py-[10px]" style={{ background: "#FBF6E8", borderColor: "#E7D9B4" }}>
-                    <p className="text-[11px] font-semibold" style={{ color: "#8A6410" }}>
-                      Created, with {result.warnings.length === 1 ? "one thing" : `${result.warnings.length} things`} to look at
-                    </p>
-                    <ul className="mt-[4px] grid gap-[3px]">
-                      {result.warnings.map((warning) => (
-                        <li key={warning} className="text-[10.5px] leading-[1.5]" style={{ color: "#8A6410" }}>
-                          {warning}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                ) : null}
-                {(() => {
-                  const links = result?.links ?? (result?.link ? [{ name: result.name ?? "Activation link", link: result.link }] : []);
-                  return links.length ? (
-                    <div className="grid gap-[7px]">
-                      <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
-                        Share each link with the person it is for. It works once, and the one before it no longer does.
-                      </p>
-                      {links.map((item) => {
-                        const full = `${typeof window === "undefined" ? "" : window.location.origin}${item.link}`;
-                        return (
-                          <div key={item.link} className="grid gap-[4px] rounded-[11px] border px-[12px] py-[9px]" style={{ borderColor: "#E4EDE8" }}>
-                            <span className="text-[11px] font-semibold" style={{ color: INK }}>{item.name}</span>
-                            <div className="flex items-center gap-[7px]">
-                              <input readOnly value={full} aria-label={`Link for ${item.name}`} className="min-w-0 flex-1 rounded-[8px] border bg-[#F7FAF8] px-[9px] py-[6px] text-[10.5px]" style={{ borderColor: "#DEE8E2" }} onFocus={(event) => event.currentTarget.select()} />
-                              <button type="button" onClick={() => navigator.clipboard?.writeText(full)} className="rounded-[8px] border border-[#CFDDD5] bg-white px-[10px] py-[6px] text-[10.5px] font-semibold text-[#435048]">
-                                Copy
-                              </button>
-                            </div>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  ) : null;
-                })()}
-              </>
+              <CommitDone spec={spec} result={result} doneTitle={doneTitle} doneBody={doneBody} doneLines={doneKind === "saved" && staged ? doneLines : undefined} />
             ) : null}
 
             {spec.readOnly ? (
@@ -835,19 +889,7 @@ function DrawerPanel({
                       field={field}
                       value={values[field.label]}
                       values={values}
-                      setValue={(next) =>
-                        setValues((current) => {
-                          const updated: Record<string, unknown> = { ...current, [field.label]: next };
-                          // A matrix seeded from another field starts again whenever that field changes.
-                          for (const other of allFields) {
-                            if ((other.kind === "matrix" || other.kind === "checks") && other.seeds?.field === field.label) {
-                              const set = other.seeds.sets[String(next)];
-                              if (set) updated[other.label] = [...set];
-                            }
-                          }
-                          return updated;
-                        })
-                      }
+                      setValue={(next) => setValues((current) => withSeeds(allFields, current, field, next))}
                     />
                   </div>
                 ))}

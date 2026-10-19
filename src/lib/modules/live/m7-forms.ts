@@ -829,6 +829,20 @@ export function addStaffDrawer(o: {
     commitDone: "Staff member created",
     commitDoneBody: "Their access is live exactly as you set it. No password is ever set here — they choose their own from the activation link below, which you hand to them.",
     reviewNote: "Their role and the access you defined decide what they can see and do from the first sign-in. Nothing is written until you create the account.",
+    page: {
+      reviewDesc: "The person, their role, their assignment and their access — all of it, before the account exists.",
+      confirmBody: "Their role and the access you defined decide what they can see and do from the first sign-in.",
+      railTitle: "How staff onboarding works here",
+      rail: [
+        ["No password here", "They set their own from the activation link"],
+        ["The role decides the shape", "Teaching roles are asked for subjects; others are not"],
+        ["Access is explicit", "The role seeds it; you confirm every module"],
+        ["Nothing is silent", "Every grant is logged against your name"],
+        ["The link", "Shown to you once created — you hand it over, and it can be resent from their record"],
+      ],
+      footNote: "Nothing is written until you create the account. The activation link is issued at that moment, not before.",
+      back: { label: "Back to the directory", href: "/staff-access/directory" },
+    },
     steps: [
       {
         title: "Person",

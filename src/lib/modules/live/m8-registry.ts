@@ -1,6 +1,6 @@
 import { apiGet } from "@/lib/api/server";
 import { plural } from "@/lib/modules/live/m7-format";
-import { enrolDrawer, listDrawer, moveDrawer, resendDrawer, SR } from "@/lib/modules/live/m8-forms";
+import { listDrawer, moveDrawer, resendDrawer, SR } from "@/lib/modules/live/m8-forms";
 import type { EnrolOptions, FeeState, Registry, RegistryRow, StudentState } from "@/lib/modules/live/m8-types";
 import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 
@@ -20,12 +20,12 @@ export const STATE_TONE: Record<StudentState, PanelTone> = { Enrolled: "positive
 export const attTone = (value: number | null): PanelTone | undefined => (value === null ? undefined : value < 75 ? "negative" : value < 92 ? "attention" : "positive");
 export const gradeTone = (avg: number | null): PanelTone => (avg === null ? "neutral" : avg >= 65 ? "positive" : avg >= 45 ? "attention" : "negative");
 
-export function registryTab(data: Registry, enrol: EnrolOptions, rooms: Array<{ id: string; name: string; level: string; seats: number }>): TabContent {
+export function registryTab(data: Registry, rooms: Array<{ id: string; name: string; level: string; seats: number }>): TabContent {
   const { totals, rows } = data;
   const unplaced = rows.filter((row) => row.state === "Enrolled" && row.arm === "No arm");
   const noPortal = data.totals.noGuardianPortal;
   const unreachableChildren = rows.filter((row) => row.guardian && row.portal !== "Active").length;
-  const enrolAction = { label: "Add student", primary: true, drawer: enrolDrawer(enrol) };
+  const enrolAction = { label: "Add student", primary: true, href: "/student-records/registry/new" };
   const resend = { label: `Resend ${plural(noPortal, "portal invite")}`, drawer: resendDrawer(noPortal, unreachableChildren) };
 
   const cards: KpiCard[] = [
@@ -66,7 +66,7 @@ export function registryTab(data: Registry, enrol: EnrolOptions, rooms: Array<{ 
   return {
     title: "Registry",
     desc: "The authoritative record of every student.",
-    primary: { label: "Add student", icon: "M12 5.5v13M5.5 12h13", drawer: enrolDrawer(enrol) },
+    primary: { label: "Add student", icon: "M12 5.5v13M5.5 12h13", href: "/student-records/registry/new" },
     launchers: [
       {
         label: "Migrate from another system",

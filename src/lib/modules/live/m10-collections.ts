@@ -1,3 +1,4 @@
+import { receiptDrawer } from "@/lib/modules/live/documents";
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { FEES, adjustDrawer, meetingDrawer, naira, nairaShort, planDrawer, recordPaymentDrawer, remindersDrawer, writeOffDrawer } from "@/lib/modules/live/m10-forms";
@@ -29,7 +30,6 @@ export const STAGE_TONE: Record<string, PanelTone> = { "Not started": "neutral",
 const KIND_TONE: Record<string, PanelTone> = { "Full payment": "positive", "Part payment": "attention" };
 const token = (kind: string, value: string) => `${kind}:${value}|`;
 
-export const receiptHref = (id: string, duplicate = false) => `/print/receipt/${id}${duplicate ? "?duplicate=1" : ""}`;
 export const familyHref = (id: string) => `/fee-management/collections/families/${encodeURIComponent(id)}`;
 
 export function collectionsTab(data: Collections): TabContent {
@@ -74,7 +74,7 @@ export function collectionsTab(data: Collections): TabContent {
       payment.bankRef ? text(payment.bankRef, { mono: true }) : text("—"),
       nameCell(payment.by, "Bursary"),
       text(payment.at ? dayLabel(payment.at) : "—"),
-      { kind: "action", label: "Print receipt", href: receiptHref(payment.id) },
+      { kind: "action", label: "Print receipt", drawer: receiptDrawer(payment.id, payment.ref) },
     ],
     keywords: `${payment.kind} ${payment.mode} ${payment.arm}`,
   }));
@@ -274,7 +274,7 @@ export function familyPage(detail: FamilyDetail, data: Collections): FeePage {
 
   const receiptRows: TableRow[] = detail.receipts.map((receipt) => ({
     id: receipt.id,
-    cells: [text(receipt.ref, { mono: true, strong: true }), text(naira(receipt.amount), { mono: true, strong: true }), text(receipt.mode), text(receipt.bankRef ?? "—", { mono: true }), text(receipt.at ? dayLong(receipt.at) : "—"), { kind: "action", label: "View receipt", href: receiptHref(receipt.id) }],
+    cells: [text(receipt.ref, { mono: true, strong: true }), text(naira(receipt.amount), { mono: true, strong: true }), text(receipt.mode), text(receipt.bankRef ?? "—", { mono: true }), text(receipt.at ? dayLong(receipt.at) : "—"), { kind: "action", label: "View receipt", drawer: receiptDrawer(receipt.id, receipt.ref) }],
   }));
 
   const aged = (bucket: string) => (family.bucket === bucket && owing > 0 ? naira(owing) : naira(0));

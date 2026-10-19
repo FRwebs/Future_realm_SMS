@@ -10,6 +10,7 @@ import { ConfigurationModule } from "./modules/configuration/configuration.modul
 import { ClassesModule } from "./modules/classes/classes.module";
 import { FeeManagementModule } from "./modules/fee-management/fee-management.module";
 import { GuardianManagementModule } from "./modules/guardian-management/guardian-management.module";
+import { ReportCardsModule } from "./modules/report-cards/report-cards.module";
 import { ScoreResultsModule } from "./modules/score-results/score-results.module";
 import { AttendanceManagementModule } from "./modules/attendance-management/attendance-management.module";
 import { SubscriptionBillingModule } from "./modules/subscription-billing/subscription-billing.module";
@@ -72,6 +73,7 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     SubscriptionBillingModule,
     AttendanceManagementModule,
     ScoreResultsModule,
+    ReportCardsModule,
     CurriculumExtrasModule,
     AcademicsModule,
     FeatureFlagExtrasModule,

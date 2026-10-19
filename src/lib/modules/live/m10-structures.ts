@@ -1,3 +1,4 @@
+import { structureDrawer } from "@/lib/modules/live/documents";
 import { apiGet } from "@/lib/api/server";
 import { plural } from "@/lib/modules/live/m7-format";
 import { FEES, createStructureDrawer, deleteStructureDrawer, duplicateDrawer, editItemsDrawer, mapClassDrawer, naira, nairaShort, publishDrawer, raiseDrawer, ruleDrawer, unmapDrawer } from "@/lib/modules/live/m10-forms";
@@ -206,7 +207,7 @@ export function structurePage(detail: StructureDetail, preview: PublishPreview, 
     crumb: { label: "Back to Structures", href: "/fee-management/structures" },
     primary: draft ? { label: "Publish this structure", icon: "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15", drawer: publish } : { label: "Edit the fee items", icon: "M4 20h4L20 8l-4-4L4 16z", drawer: edit },
     launchers: [
-      { label: "Preview and print", href: `/print/structure/${detail.id}` },
+      { label: "Preview and print", drawer: structureDrawer(detail.id, detail.name) },
       { label: "Map another class", drawer: mapClassDrawer(detail) },
       { label: "Duplicate for next session", drawer: duplicateDrawer(data, terms, detail) },
       { label: "Delete this structure", drawer: deleteStructureDrawer(detail) },
@@ -232,7 +233,7 @@ export function structurePage(detail: StructureDetail, preview: PublishPreview, 
               { label: "Type", value: "All", options: ["All", "Mandatory", "Optional", "Concession"] },
               { label: "Frequency", value: "All", options: ["All", "Termly", "Sessional", "Once"] },
             ],
-            acts: [{ label: "Apply a percentage increase", drawer: raiseDrawer(data, detail) }, { label: "Preview and print", href: `/print/structure/${detail.id}` }, { label: "Add, edit or remove items", primary: true, drawer: edit }],
+            acts: [{ label: "Apply a percentage increase", drawer: raiseDrawer(data, detail) }, { label: "Preview and print", drawer: structureDrawer(detail.id, detail.name) }, { label: "Add, edit or remove items", primary: true, drawer: edit }],
             head: ["Fee item", "Type", "Frequency", "Amount", "Expected", "Collected", ""],
             rows: itemRows,
             per: 12,

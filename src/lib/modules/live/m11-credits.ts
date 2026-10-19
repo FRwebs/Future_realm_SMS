@@ -1,7 +1,7 @@
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { SB, creditSettingsDrawer, naira, rate2, receiptDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
-import { invoiceHref } from "@/lib/modules/live/m11-plan";
+import { invoiceDocDrawer } from "@/lib/modules/live/documents";
 import type { Credits } from "@/lib/modules/live/m11-types";
 import { pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 
@@ -39,7 +39,7 @@ export function creditsTab(c: Credits): TabContent {
 
   const history: TableRow[] = c.topUps.map((row) => ({
     keywords: `${row.channel} ${row.method} ${row.invoice ?? ""}`,
-    cells: [text(dayLabel(row.at), { strong: true }), pill(row.channel, row.channel === "SMS" ? "progress" : "submitted"), text(row.credits.toLocaleString("en-NG"), { mono: true }), text(naira(row.amount), { mono: true, strong: true }), text(row.method), text(row.invoice ?? "—", { mono: true }), row.invoiceId ? { kind: "action" as const, label: "Receipt", href: invoiceHref(row.invoiceId) } : { kind: "action" as const, label: "Receipt", drawer: receiptDrawer(row) }],
+    cells: [text(dayLabel(row.at), { strong: true }), pill(row.channel, row.channel === "SMS" ? "progress" : "submitted"), text(row.credits.toLocaleString("en-NG"), { mono: true }), text(naira(row.amount), { mono: true, strong: true }), text(row.method), text(row.invoice ?? "—", { mono: true }), row.invoiceId ? { kind: "action" as const, label: "Receipt", drawer: invoiceDocDrawer(row.invoiceId, row.invoice ?? "") } : { kind: "action" as const, label: "Receipt", drawer: receiptDrawer(row) }],
   }));
 
   return {

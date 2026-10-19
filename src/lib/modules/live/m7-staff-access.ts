@@ -149,10 +149,9 @@ const ACCOUNT_STATES: Array<[AccountState | "Offboarded", string]> = [
   ["Offboarded", "Left the school; the account is closed and what they held moved on"],
 ];
 
-export function directoryTab(directory: Directory, context: DirectoryContext): TabContent {
+export function directoryTab(directory: Directory): TabContent {
   const { counts, rows } = directory;
   const never = rows.filter((row) => row.account === "Never activated");
-  const addStaff = addStaffFor(directory, context);
   const resendAll = inviteDrawer(never, { title: "Resend the activation links" });
 
   const cards: KpiCard[] = [
@@ -215,7 +214,7 @@ export function directoryTab(directory: Directory, context: DirectoryContext): T
   return {
     title: "Directory",
     desc: "Everyone who works here, what state their account is in, and what they are holding.",
-    primary: { label: "Add staff", drawer: addStaff },
+    primary: { label: "Add staff", href: "/staff-access/directory/new" },
     launchers: [{ label: "Offboard someone", href: "/staff-access/directory/offboard" }],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Staff and activation", sub: "Account states are read from sign-ins, never typed", per: 5, cards }] },
@@ -404,8 +403,7 @@ export function activityTab(activity: Activity): TabContent {
 
 export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "directory") {
-    const [directory, context] = await Promise.all([loadDirectory(), loadDirectoryContext()]);
-    return directoryTab(directory, context);
+    return directoryTab(await loadDirectory());
   }
   if (tabSlug === "permissions") {
     return permissionsTab(await loadOverview());

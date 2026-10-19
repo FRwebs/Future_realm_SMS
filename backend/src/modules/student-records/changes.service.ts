@@ -1,3 +1,4 @@
+import { ruleFor } from "../approvals/standing-rules";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -163,6 +164,14 @@ export class ChangesService {
     if (await prisma.studentChangeRequest.findFirst({ where: { studentId: student.id, field, status: "PENDING" } })) throw new BadRequestException(`A change to ${field} is already waiting for a decision.`);
     const created = await prisma.studentChangeRequest.create({ data: { schoolId, studentId: student.id, field, before, after: input.after, reason: input.reason, evidence: input.evidence || null, requestedById: session.userId } });
     await this.audit(session, AuditAction.CREATE, "Student", student.id, { summary: `Record change requested · ${field}`, before, after: input.after });
+    // A change so small it can only be a correction may already have been agreed to need no human.
+    const rule = await ruleFor(schoolId, { field, before, after: input.after });
+    if (rule) {
+      await prisma.student.update({ where: { id: student.id }, data: await this.apply(student.id, field, input.after, schoolId) });
+      await prisma.studentChangeRequest.update({ where: { id: created.id }, data: { status: "APPROVED", decidedAt: new Date(), decisionNote: `Approved by the standing rule “${rule.name}”` } });
+      await this.audit(session, AuditAction.APPROVE, "Student", student.id, { summary: `Record change approved by standing rule · ${field}`, rule: rule.name, before, after: input.after });
+      return { id: created.id, field, before, autoApproved: rule.name };
+    }
     return { id: created.id, field, before };
   }
 

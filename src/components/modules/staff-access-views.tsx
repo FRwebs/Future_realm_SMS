@@ -1,9 +1,11 @@
 import { notFound } from "next/navigation";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { CreateWizard } from "@/components/modules/create-wizard";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { TabBar } from "@/components/modules/tab-bar";
 import { getServerSession } from "@/lib/auth/session";
+import { addStaffFor, loadDirectory, loadDirectoryContext } from "@/lib/modules/live/m7-staff-access";
 import { appraisalOnePage, loadAppraisal, loadAppraisalOne, roleKpiPage } from "@/lib/modules/live/m7-appraisal";
 import { bandPage, loadBand, loadPayroll, runPage } from "@/lib/modules/live/m7-payroll";
 import {
@@ -141,4 +143,18 @@ export async function AppraisalOneView({ id }: { id: string }) {
   if (!one) notFound();
   const content = appraisalOnePage(one);
   return <Shell content={content} back={content.crumb} />;
+}
+
+/** Onboarding a member of staff is a page of its own, as the mockup has it: the stages named, and every one read back before the write. */
+export async function AddStaffView() {
+  const ok = await allowed();
+  if (ok === null) return null;
+  if (!ok) return <AccessDenied backHref="/command-center/today" />;
+  const [directory, context] = await Promise.all([loadDirectory(), loadDirectoryContext()]);
+  const spec = addStaffFor(directory, context);
+  return (
+    <ModuleWorkspace eyebrow={EYEBROW} title={spec.title} description={spec.sub ?? ""} rows={[]} back={spec.page?.back}>
+      <CreateWizard spec={spec} />
+    </ModuleWorkspace>
+  );
 }

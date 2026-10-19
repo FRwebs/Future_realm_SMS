@@ -1,12 +1,14 @@
 import { notFound } from "next/navigation";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { CreateWizard } from "@/components/modules/create-wizard";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { TabBar } from "@/components/modules/tab-bar";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import { applicantPage, loadAdmissionOptions, loadApplicant, loadPipeline, pipelinePage, type AdmissionPage } from "@/lib/modules/live/m8-admissions";
-import { loadMoveOptions } from "@/lib/modules/live/m8-registry";
+import { enrolDrawer } from "@/lib/modules/live/m8-forms";
+import { loadEnrolOptions, loadMoveOptions } from "@/lib/modules/live/m8-registry";
 import { SECTIONS, studentRecordPage, type RecordSection } from "@/lib/modules/live/m8-record";
 import { apiGet } from "@/lib/api/server";
 
@@ -69,4 +71,17 @@ export async function PipelineView({ state }: { state: string }) {
   if (!known.includes(name)) notFound();
   const [data, options] = await Promise.all([loadPipeline(name), loadAdmissionOptions()]);
   return <Shell content={pipelinePage(name, data, options).content} />;
+}
+
+/** Enrolling a student is a page of its own, as the mockup has it: the stages named, and every one read back before the write. */
+export async function EnrolStudentView() {
+  const ok = await allowed();
+  if (ok === null) return null;
+  if (!ok) return <AccessDenied backHref="/command-center/today" />;
+  const spec = enrolDrawer(await loadEnrolOptions());
+  return (
+    <ModuleWorkspace eyebrow={EYEBROW} title={spec.title} description={spec.sub ?? ""} rows={[]} back={spec.page?.back}>
+      <CreateWizard spec={spec} />
+    </ModuleWorkspace>
+  );
 }

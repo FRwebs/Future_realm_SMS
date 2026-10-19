@@ -12,6 +12,7 @@ import { StructuresService } from "./structures.service";
 @Module({
   imports: [FinanceModule, RolesManagementModule],
   controllers: [FeeManagementController],
-  providers: [CollectionsService, StructuresService, ReviewService, HistoryService, PermissionsGuard]
+  providers: [CollectionsService, StructuresService, ReviewService, HistoryService, PermissionsGuard],
+  exports: [ReviewService]
 })
 export class FeeManagementModule {}
