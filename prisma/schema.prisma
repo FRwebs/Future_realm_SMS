@@ -849,6 +849,10 @@ model School {
   staffAppraisals               StaffAppraisal[]
   automationRules               AutomationRule[]
   messageCampaigns              MessageCampaign[]
+  complianceReturns             ComplianceReturn[]
+  dataSubjectRequests           DataSubjectRequest[]
+  retentionPolicies             RetentionPolicy[]
+  integrityFlags                IntegrityFlag[]
   messageDeliveries             MessageDelivery[]
   schoolMessageTemplates        SchoolMessageTemplate[]
   generatedReports              GeneratedReport[]
@@ -1270,6 +1274,9 @@ model User {
   receiptsIssued                   Receipt[]                     @relation("ReceiptIssuedBy")
   announcements                    Announcement[]
   messageCampaignsCreated          MessageCampaign[]             @relation("MessageCampaignCreatedBy")
+  complianceReturnsOwned           ComplianceReturn[]            @relation("ComplianceReturnOwner")
+  dataSubjectRequestsOwned         DataSubjectRequest[]          @relation("DataSubjectRequestOwner")
+  integrityFlagsResolved           IntegrityFlag[]               @relation("IntegrityFlagResolvedBy")
   messageCampaignsApproved         MessageCampaign[]             @relation("MessageCampaignApprovedBy")
   messagesSent                     InternalMessage[]             @relation("MessageSender")
   messagesReceived                 InternalMessage[]             @relation("MessageRecipient")
@@ -5931,4 +5938,135 @@ enum TemplateOwner {
   SCHOOL
   SYSTEM
   PLATFORM
+}
+
+/// A return this school owes somebody: a ministry, a board, an examinations
+/// council, an inspectorate. Unlike analytics, a return has a recipient, a
+/// deadline and a format, and it is either filed or it is not.
+model ComplianceReturn {
+  id        String                 @id @default(cuid())
+  schoolId  String
+  name      String
+  /// Who it goes to. Not an enum: every country has its own bodies.
+  body      String
+  period    String
+  dueOn     DateTime
+  format    String
+  covers    String
+  status    ComplianceReturnStatus @default(NOT_STARTED)
+  filedOn   DateTime?
+  /// The officer answerable for it, by role, so it survives them leaving.
+  ownerRole String?
+  ownerId   String?
+  createdAt DateTime               @default(now())
+  updatedAt DateTime               @updatedAt
+  school    School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  owner     User?                  @relation("ComplianceReturnOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, name, period])
+  @@index([schoolId, status, dueOn])
+}
+
+/// A data subject exercising a right. The clock is statutory, so the days left
+/// are computed from receivedOn rather than stored and left to go stale.
+model DataSubjectRequest {
+  id            String                   @id @default(cuid())
+  schoolId      String
+  reference     String
+  kind          DataSubjectRequestKind
+  requesterName String
+  /// Whose data it is about, when that is not the requester.
+  subjectName   String?
+  status        DataSubjectRequestStatus @default(OPEN)
+  receivedOn    DateTime                 @default(now())
+  /// Statutory response window in days — 30 under the NDPA, but set per case.
+  dueDays       Int                      @default(30)
+  closedOn      DateTime?
+  outcome       String?
+  ownerId       String?
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+  school        School                   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  owner         User?                    @relation("DataSubjectRequestOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  @@unique([schoolId, reference])
+  @@index([schoolId, status, receivedOn])
+}
+
+/// How long a class of data is kept, and on what basis.
+///
+/// The one control on the Data Protection tab that cannot be derived: it has to
+/// be decided and then enforced. Until a row exists, the honest answer is that
+/// the data is held indefinitely.
+model RetentionPolicy {
+  id        String   @id @default(cuid())
+  schoolId  String
+  dataClass String
+  /// Null means permanent — a transcript may be asked for decades later.
+  years     Int?
+  untilAge  Int?
+  basis     String
+  hostedIn  String   @default("Nigeria")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([schoolId, dataClass])
+}
+
+/// Something a monitor found that a person should look at. Raised by the
+/// integrity checks, cleared by somebody who says why.
+model IntegrityFlag {
+  id           String              @id @default(cuid())
+  schoolId     String
+  monitor      String
+  detail       String
+  severity     IntegritySeverity   @default(ATTENTION)
+  status       IntegrityFlagStatus @default(OPEN)
+  entityType   String?
+  entityId     String?
+  resolution   String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  school       School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  resolvedBy   User?               @relation("IntegrityFlagResolvedBy", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, status, createdAt])
+}
+
+enum ComplianceReturnStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  BLOCKED
+  FILED
+  AMENDED
+}
+
+enum DataSubjectRequestKind {
+  ACCESS
+  CORRECTION
+  ERASURE
+  PORTABILITY
+  OBJECTION
+}
+
+enum DataSubjectRequestStatus {
+  OPEN
+  RESPONDED
+  CLOSED
+  REFUSED
+}
+
+enum IntegritySeverity {
+  NORMAL
+  ATTENTION
+  CRITICAL
+}
+
+enum IntegrityFlagStatus {
+  OPEN
+  RESOLVED
+  DISMISSED
 }

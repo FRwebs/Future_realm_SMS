@@ -1,9 +1,14 @@
 import { apiGet } from "@/lib/api/server";
 import {
+  name as nameCell,
   pill,
   text,
+  type DrawerSpec,
+  type KpiCard,
+  type PanelRow,
   type PanelTone,
   type TabContent,
+  type TableRow,
 } from "@/lib/modules/panels";
 
 /**
@@ -468,6 +473,222 @@ function complianceTab(data: Compliance): TabContent {
   };
 }
 
+
+/* ─────────── Compliance returns · the records half of this tab ─────────── */
+
+type TrackedReturn = {
+  id: string;
+  name: string;
+  body: string;
+  period: string;
+  dueOn: string;
+  days: number;
+  format: string;
+  covers: string;
+  status: string;
+  filedOn: string | null;
+  ownerRole: string | null;
+  ready: boolean;
+  blocker: string | null;
+};
+
+type ReturnsPayload = {
+  stats: {
+    tracked: number;
+    bodies: number;
+    dueSoon: number;
+    blocked: number;
+    ready: number;
+    filed: number;
+    nextDays: number | null;
+  };
+  returns: TrackedReturn[];
+  gaps: Array<{ what: string; count: number; blocks: string; fix: string }>;
+};
+
+const RETURN_TONE: Record<string, PanelTone> = {
+  NOT_STARTED: "neutral",
+  IN_PROGRESS: "progress",
+  BLOCKED: "negative",
+  FILED: "positive",
+  AMENDED: "attention",
+};
+
+function returnLabel(status: string): string {
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function dueLabel(iso: string): string {
+  const date = new Date(iso);
+  return Number.isNaN(date.getTime())
+    ? "—"
+    : date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+}
+
+/**
+ * A return reads as a record, not a report: who it goes to, by when, in what
+ * format, and whether the data on file can actually produce it today.
+ */
+function returnDrawer(item: TrackedReturn): DrawerSpec {
+  const filed = item.status === "FILED";
+  return {
+    kicker: `Compliance · ${item.body}`,
+    title: item.name,
+    sub: item.ready
+      ? "Built from live data at the moment you file it."
+      : "This return cannot be produced yet.",
+    tone: RETURN_TONE[item.status] ?? "neutral",
+    facts: [
+      ["Return", item.name, item.body],
+      ["Period", item.period],
+      ["Due", dueLabel(item.dueOn), filed ? "Filed" : `${item.days} days`],
+      ["Format", item.format, "Exactly as the recipient requires"],
+      ["Covers", item.covers],
+      ["Source", "Live data at the moment you generate", "Never a cached figure"],
+      [
+        "State",
+        item.ready ? "Ready to file" : "Blocked",
+        item.blocker ?? "Everything it needs is on file",
+      ],
+      ["Responsible", item.ownerRole ?? "Not assigned"],
+      ["Kept", "Every filed return is archived", "With who filed it and when"],
+    ],
+    ...(filed
+      ? {
+          readOnly: true as const,
+          readOnlyNote: "This return has been filed. A refiling is versioned; the original is never overwritten.",
+        }
+      : {
+          mode: "commit" as const,
+          commitLabel: item.ready ? "File this return" : "See what is missing",
+          commitNote: item.ready
+            ? "Filing records it against this school with the data it was built from."
+            : `Filing is refused until the gap is closed — ${item.blocker}.`,
+          commitDone: "Return filed",
+          commitDoneBody: `${item.name} is recorded as filed with ${item.body}.`,
+          submit: {
+            endpoint: `/api/v1/governance/compliance-returns/${item.id}`,
+            method: "PATCH" as const,
+            body: { action: "FILE" },
+          },
+        }),
+  };
+}
+
+function returnsRows(payload: ReturnsPayload): PanelRow[] {
+  const { stats, returns, gaps } = payload;
+  const blocked = returns.filter((item) => !item.ready);
+
+  const cards: KpiCard[] = [
+    { label: "Returns tracked", value: String(stats.tracked), sub: `Across ${stats.bodies} bodies` },
+    {
+      label: "Due within 35 days",
+      value: String(stats.dueSoon),
+      tone: stats.dueSoon ? "attention" : "positive",
+      sub: stats.nextDays === null ? "Nothing outstanding" : `Soonest in ${stats.nextDays} days`,
+    },
+    {
+      label: "Blocked",
+      value: String(stats.blocked),
+      tone: stats.blocked ? "negative" : "positive",
+      sub: stats.blocked ? "Missing data on file" : "Nothing is blocked",
+    },
+    { label: "Ready to file", value: String(stats.ready), tone: "positive", sub: "One decision each" },
+    { label: "Filed", value: String(stats.filed), tone: "positive", sub: "Archived with its evidence" },
+  ];
+
+  const rows: TableRow[] = returns.map((item) => ({
+    cells: [
+      nameCell(item.name, item.covers),
+      text(item.body),
+      text(dueLabel(item.dueOn), {
+        tone: item.status === "FILED" ? "positive" : item.days <= 14 ? "negative" : item.days <= 35 ? "attention" : "neutral",
+      }),
+      text(item.status === "FILED" ? "—" : String(item.days), { mono: true }),
+      text(item.ownerRole ?? "—"),
+      pill(returnLabel(item.status), RETURN_TONE[item.status] ?? "neutral"),
+      { kind: "action" as const, label: item.status === "FILED" ? "Open" : item.ready ? "File" : "What is missing", drawer: returnDrawer(item) },
+    ],
+    drawer: returnDrawer(item),
+    keywords: `${item.body} ${item.period}`,
+  }));
+
+  const gapRows: TableRow[] = gaps.map((gap) => ({
+    cells: [
+      text(gap.what, { strong: true }),
+      text(String(gap.count), { mono: true, tone: "negative" }),
+      text(gap.blocks),
+      text(gap.fix),
+    ],
+    keywords: gap.blocks,
+  }));
+
+  return [
+    { cols: "1fr", panels: [{ type: "kpi", title: "Returns this school owes", per: 5, cards }] },
+    ...(blocked.length
+      ? [
+          {
+            cols: "1fr",
+            panels: [
+              {
+                type: "note" as const,
+                tone: "negative" as PanelTone,
+                title: `${blocked.length} return${blocked.length === 1 ? "" : "s"} cannot be produced from the data on file today`,
+                body: `${blocked.map((item) => `${item.name} — ${item.blocker}`).join(". ")}. None of this is a reporting problem; it is missing data, and it is fixable now rather than the week the return is due.`,
+                acts: [
+                  { label: "Fix the record gaps", href: "/student-records/registry" },
+                  { label: "Fix the staff gaps", href: "/staff-access/directory" },
+                ],
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      cols: "1fr",
+      panels: [
+        {
+          type: "table",
+          title: "Compliance returns",
+          tag: `${stats.tracked} tracked`,
+          sub: "Each one names its recipient, its deadline, its format and whether it can be produced today.",
+          meta: `${stats.tracked} returns · ${stats.filed} filed · ${stats.blocked} blocked${stats.nextDays === null ? "" : ` · next due in ${stats.nextDays} days`}`,
+          search: "Find a return or a body",
+          head: ["Return", "Goes to", "Due", "Days", "Responsible", "State", ""],
+          rows,
+          per: 10,
+          empty: "No return matches this filter.",
+          foot: "A return is built from live data at the moment you file it, never from a cached figure — and every filed copy is archived with who produced it.",
+        },
+      ],
+    },
+    ...(gapRows.length
+      ? [
+          {
+            cols: "1fr",
+            panels: [
+              {
+                type: "table" as const,
+                title: "What is missing before a return can be filed",
+                sub: "Each row names the return it blocks, so the gap has a consequence.",
+                meta: `${gaps.reduce((sum, gap) => sum + gap.count, 0)} record gaps`,
+                head: ["What is missing", "Count", "Blocks", "Where to fix it"],
+                rows: gapRows,
+                per: 8,
+                empty: "Nothing is missing.",
+                foot: "A missing photograph is not a filing problem — it is a record problem that only becomes urgent the week a return is due.",
+              },
+            ],
+          },
+        ]
+      : []),
+  ];
+}
+
 export async function analyticsReportsLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -483,9 +704,22 @@ export async function analyticsReportsLiveTab(
   }
 
   if (tabSlug === "compliance") {
-    const data = await apiGet<Compliance>("/api/v1/audit/compliance");
+    const [data, tracked] = await Promise.all([
+      apiGet<Compliance>("/api/v1/audit/compliance"),
+      apiGet<ReturnsPayload>("/api/v1/governance/compliance-returns"),
+    ]);
     if (!data) return undefined;
-    return complianceTab(data);
+    const base = complianceTab(data);
+    // The returns this school owes come first; the readiness checks that were
+    // already here stay underneath, because they are what makes a return
+    // produceable in the first place.
+    return tracked
+      ? {
+          ...base,
+          desc: "Every return this school owes, and whether it can be filed today.",
+          rows: [...returnsRows(tracked), ...base.rows],
+        }
+      : base;
   }
 
   return undefined;
