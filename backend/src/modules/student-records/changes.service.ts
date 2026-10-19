@@ -1,3 +1,4 @@
+import { assertSubmission } from "../approvals/hub.shared";
 import { ruleFor } from "../approvals/standing-rules";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
@@ -156,6 +157,7 @@ export class ChangesService {
   async request(session: SessionPayload, body: unknown) {
     const input = requestSchema.parse(body);
     const schoolId = session.schoolId;
+    await assertSubmission(session, "RECORD_CHANGE", { evidence: Boolean(input.evidence) });
     const student = await prisma.student.findFirst({ where: { id: input.student, schoolId } });
     if (!student) throw new NotFoundException("That student is not on this school's roll.");
     const field = input.field as Field;

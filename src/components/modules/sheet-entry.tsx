@@ -121,9 +121,10 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
     }
     setBusy(true);
     try {
-      await sendJson(panel.saveEndpoint, "POST", { rows });
+      const { queued } = await sendJson(panel.saveEndpoint, "POST", { rows });
       setBaseline(cells);
-      if (!quiet) setNote({ tone: "ok", text: `Draft saved. Nothing has been submitted — the sheet stays with you until you preview and submit it.` });
+      if (queued) setNote({ tone: "ok", text: "No connection — these marks are held on this device and go to the school by themselves when it is back online. The sheet does not have them yet." });
+      else if (!quiet) setNote({ tone: "ok", text: `Draft saved. Nothing has been submitted — the sheet stays with you until you preview and submit it.` });
       return true;
     } catch (cause) {
       setNote({ tone: "error", text: cause instanceof Error ? cause.message : "The draft could not be saved." });

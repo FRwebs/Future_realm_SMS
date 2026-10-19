@@ -13,7 +13,7 @@ import { LeaveService } from "../staff-access/leave.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { ChangesService } from "../student-records/changes.service";
 import { ApprovalsService } from "./approvals.service";
-import { APPROVER_LABELS, ESCALATE_TO, labelOfRole, loadRoutes, mayDecide, NOTIFY, OVERSIGHT, OWNERS, parseKey, ROLES_OF, ROUTE_DEFAULTS, WHO_MAY_SUBMIT, daysBetween, type Decided, type Item, type Route, type RouteType } from "./hub.shared";
+import { APPROVER_LABELS, ENFORCED, ESCALATE_TO, labelOfRole, loadRoutes, mayDecide, NOTIFY, OVERSIGHT, OWNERS, parseKey, ROLES_OF, ROUTE_DEFAULTS, WHO_MAY_SUBMIT, daysBetween, type Decided, type Item, type Route, type RouteType } from "./hub.shared";
 import { contextOf, loadDecided, loadPending } from "./hub.sources";
 import { RULE_FIELDS, type StandingRule } from "./standing-rules";
 
@@ -219,7 +219,7 @@ export class HubService {
   }
 
   /** The module that holds a decision is the one that decides it — this only says which and passes the answer on. */
-  private async delegate(session: SessionPayload, item: Item, decision: "approve" | "return" | "decline", note: string | undefined): Promise<{ state: string; fields: Array<[string, string]> }> {
+  private async delegate(session: SessionPayload, item: Item, decision: "approve" | "return" | "decline", note: string | undefined, notifyRequester: boolean): Promise<{ state: string; fields: Array<[string, string]> }> {
     const body = { note };
     const out = (answer: unknown, fallback: string) => {
       const data = (answer ?? {}) as { state?: string; fields?: Array<[string, string]>; decision?: string };
@@ -241,7 +241,7 @@ export class HubService {
       default: {
         const action = decision === "approve" ? "APPROVE" : decision === "return" ? "RETURN" : "REJECT";
         const row = await this.natives.decide(session, item.id, { action, note });
-        if (item.requester && item.requester.id !== session.userId) await notifyStaff(session.schoolId, session.userId, [item.requester.id], { title: `Approvals · ${row.status.toLowerCase()}`, body: `${item.title}${note ? ` — ${note}` : ""}`, channels: ["In-app inbox"] });
+        if (notifyRequester && item.requester && item.requester.id !== session.userId) await notifyStaff(session.schoolId, session.userId, [item.requester.id], { title: `Approvals · ${row.status.toLowerCase()}`, body: `${item.title}${note ? ` — ${note}` : ""}`, channels: ["In-app inbox"] });
         return { state: row.status === ApprovalStatus.APPROVED ? "Approved" : row.status === ApprovalStatus.RETURNED ? "Returned" : "Declined", fields: [] };
       }
     }
@@ -259,7 +259,7 @@ export class HubService {
       throw new ForbiddenException(`This sits with the ${view.item.step === 2 && route.second ? route.second : route.approver}, not with you.`);
     }
     if (input.decision !== "approve" && !(input.note ?? "").trim()) throw new BadRequestException("Say why. A decision returned or declined without a reason cannot be acted on.");
-    const result = await this.delegate(session, view.item, input.decision, input.note);
+    const result = await this.delegate(session, view.item, input.decision, input.note, route.notify !== NOTIFY[2]);
     const stillOpen = result.state === "In review";
     if (input.note) await prisma.approvalMessage.create({ data: { schoolId: session.schoolId, itemKey: key, authorId: session.userId, kind: "COMMENT", body: `${result.state}: ${input.note}` } });
     await this.audit(session, input.decision === "approve" ? AuditAction.APPROVE : AuditAction.UPDATE, "Approval", id, { summary: `Decision from the queue · ${typeName(view.item.type)} · ${result.state.toLowerCase()}`, source, key, note: input.note ?? null });
@@ -277,7 +277,9 @@ export class HubService {
     // The other side of the conversation is told: the requester when an approver writes, the approvers when the requester does.
     const route = view.route;
     const approvers = await prisma.user.findMany({ where: { schoolId: session.schoolId, isActive: true, deletedAt: null, role: { in: [...(ROLES_OF[route.approver] ?? []), ...(route.second ? ROLES_OF[route.second] ?? [] : [])] as never[] } }, select: { id: true } });
-    const audience = view.raisedByMe ? approvers.map((person) => person.id) : view.item.requester ? [view.item.requester.id] : [];
+    // The route says when the person who asked is told: on every step (a message is a step), only on the decision, or never.
+    const requesterHears = route.notify === NOTIFY[0];
+    const audience = view.raisedByMe ? approvers.map((person) => person.id) : view.item.requester && requesterHears ? [view.item.requester.id] : [];
     if (audience.length) await notifyStaff(session.schoolId, session.userId, audience, { title: "Approvals · a message on a decision", body: `${view.item.title}: ${input.text.slice(0, 160)}`, channels: ["In-app inbox"], link: `/approvals-workflow/queue/${encodeURIComponent(key)}/conversation` });
     return { id: row.id };
   }
@@ -381,7 +383,7 @@ export class HubService {
     const rows = routes.map((route) => {
       const done = decided.filter((entry) => entry.type === route.type);
       const avg = done.length ? done.reduce((sum, entry) => sum + daysBetween(entry.raisedAt, entry.decidedAt), 0) / done.length : null;
-      return { type: route.type, name: route.name, module: route.module, moduleSlug: route.moduleSlug, approver: route.approver, second: route.second, escalateDays: route.escalateDays, escalateTo: route.escalateTo, overridden: route.overridden, why: route.why, blocks: route.blocks, open: views.filter((view) => view.item.type === route.type).length, avgDays: avg === null ? null : Math.round(avg * 10) / 10, locked: LOCKED_BULK.has(route.type), bulk: route.bulk && !LOCKED_BULK.has(route.type), evidence: route.evidence };
+      return { type: route.type, name: route.name, module: route.module, moduleSlug: route.moduleSlug, approver: route.approver, second: route.second, escalateDays: route.escalateDays, escalateTo: route.escalateTo, overridden: route.overridden, why: route.why, blocks: route.blocks, open: views.filter((view) => view.item.type === route.type).length, avgDays: avg === null ? null : Math.round(avg * 10) / 10, locked: LOCKED_BULK.has(route.type), bulk: route.bulk && !LOCKED_BULK.has(route.type), evidence: route.evidence, who: route.who, notify: route.notify, enforces: { evidence: ENFORCED[route.type]?.evidence ?? false, who: ENFORCED[route.type]?.who ?? false } };
     });
     const slow = rows.filter((row) => row.avgDays !== null).sort((a, b) => (b.avgDays ?? 0) - (a.avgDays ?? 0))[0] ?? null;
     return {
@@ -389,7 +391,7 @@ export class HubService {
       modules: Array.from(new Set(routes.map((route) => route.module))),
       approvers: APPROVER_LABELS,
       rules: rules.map((rule) => ({ id: rule.id, code: rule.code, name: rule.name, kind: rule.kind, fields: rule.fields, maxChars: rule.maxChars, state: rule.state, fired: rule.fired ?? 0, by: rule.createdBy, why: rule.why, at: rule.createdAt })),
-      locked: rows.filter((row) => row.locked || !row.bulk).map((row) => ({ name: row.name, why: row.why })),
+      locked: rows.filter((row) => row.locked).map((row) => ({ name: row.name, why: row.why })),
       slowest: slow ? { name: slow.name, type: slow.type, avgDays: slow.avgDays } : null,
       options: { approvers: APPROVER_LABELS, escalateTo: ESCALATE_TO, who: WHO_MAY_SUBMIT, notify: NOTIFY, days: [1, 2, 3, 5, 7, 14], ruleFields: RULE_FIELDS },
     };

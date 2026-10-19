@@ -29,7 +29,7 @@ const returnSchema = z.object({
   name: z.string().trim().min(3),
   body: z.string().trim().min(2),
   period: z.string().trim().min(2),
-  dueOn: z.string().datetime(),
+  dueOn: z.string().refine((value) => !Number.isNaN(new Date(value).getTime()), "Give the date it is due."),
   format: z.string().trim().min(2),
   covers: z.string().trim().min(3),
   ownerRole: z.string().trim().optional(),

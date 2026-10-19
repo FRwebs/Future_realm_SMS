@@ -264,6 +264,53 @@ export class SheetsService {
     return { saved: changed, state: sheet.status === "RETURNED" ? "Returned" : "In progress" };
   }
 
+  /**
+   * A save that was typed on a device with no connection. Only the cells nobody has touched since it was captured are
+   * written. A cell somebody else moved to a different mark in the meantime is set aside — both marks kept — so a person
+   * chooses, instead of the later arrival silently overwriting the earlier one.
+   */
+  async replay(session: SessionPayload, classId: string, subjectId: string, body: unknown, capturedAt: Date) {
+    const input = saveSchema.parse(body);
+    const term = await this.term(session.schoolId);
+    const arm = await loadArm(session.schoolId, term, classId);
+    if (!arm) throw new NotFoundException("That arm is not in this school.");
+    const subject = arm.subjects.find((entry) => entry.subjectId === subjectId);
+    if (!subject) throw new NotFoundException(`${arm.room.name} does not offer that subject.`);
+    const refusal = this.mayEnter(session, subject);
+    if (refusal) throw new ForbiddenException(refusal);
+    const lockedWhy = this.locked(subject);
+    if (lockedWhy) throw new BadRequestException(lockedWhy);
+
+    const byKey = new Map(subject.columns.map((column) => [column.key, column]));
+    const existing = subject.sheet
+      ? await prisma.scoreEntry.findMany({ where: { schoolId: session.schoolId, subjectId, student: { currentClassId: classId }, resultSheet: { termId: term.id } }, select: { studentId: true, assessmentComponentId: true, score: true, recordedAt: true, enteredById: true } })
+      : [];
+    const entryOf = new Map(existing.map((entry) => [`${entry.studentId}|${entry.assessmentComponentId}`, entry]));
+    const names = new Map(arm.students.map((student) => [student.id, student.name]));
+    const who = new Map((await prisma.user.findMany({ where: { id: { in: Array.from(new Set(existing.map((entry) => entry.enteredById))) } }, select: { id: true, firstName: true, lastName: true } })).map((user) => [user.id, fullName(user)]));
+
+    const clear: Array<{ studentId: string; cells: Record<string, string> }> = [];
+    const conflicts: Array<{ studentId: string; student: string; key: string; column: string; max: number; school: { value: number; by: string; at: string }; device: { value: number | null; text: string } }> = [];
+    for (const row of input.rows) {
+      const cells: Record<string, string> = {};
+      for (const [key, text] of Object.entries(row.cells)) {
+        const column = byKey.get(key);
+        const value = column ? this.parse(text, column) : "ERR";
+        const current = column?.id ? entryOf.get(`${row.studentId}|${column.id}`) : undefined;
+        const mine = typeof value === "number" ? value : null;
+        if (column && current && value !== "ERR" && value !== ABSENT && current.enteredById !== session.userId && current.recordedAt > capturedAt && current.score !== mine) {
+          conflicts.push({ studentId: row.studentId, student: names.get(row.studentId) ?? "A child", key, column: column.name, max: column.max, school: { value: current.score, by: who.get(current.enteredById) ?? "Someone", at: current.recordedAt.toISOString() }, device: { value: mine, text } });
+          continue;
+        }
+        cells[key] = text;
+      }
+      if (Object.keys(cells).length) clear.push({ studentId: row.studentId, cells });
+    }
+    const applied = clear.reduce((sum, row) => sum + Object.keys(row.cells).length, 0);
+    if (clear.length) await this.save(session, classId, subjectId, { rows: clear, note: input.note });
+    return { applied, conflicts, subject: subject.name, arm: arm.room.name };
+  }
+
   async submit(session: SessionPayload, classId: string, subjectId: string, body: unknown) {
     const note = z.object({ note: z.string().optional() }).parse(body ?? {}).note;
     const term = await this.term(session.schoolId);

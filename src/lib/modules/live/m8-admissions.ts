@@ -35,11 +35,18 @@ const NEXT_WORD: Record<string, string> = {
   Enrolled: "Nothing — already on the registry",
 };
 
+/** Where an applicant stands with the entrance assessment, as the Screening filter reads it. */
+function screenState(row: ApplicantRow): string {
+  if (row.score !== null) return "sat";
+  if (row.needsScreening || !row.screening) return "notscheduled";
+  return new Date(row.screening.at).getTime() < Date.now() ? "notsat" : "scheduled";
+}
+
 function applicantRow(row: ApplicantRow): TableRow {
   return {
     id: row.id,
     href: applicantHref(row.id),
-    keywords: `${row.name} ${row.ref} ${row.guardian} ${row.phone} ${row.forClass}`,
+    keywords: `${row.name} ${row.ref} ${row.guardian} ${row.phone} ${row.forClass} screen:${screenState(row)}`,
     cells: [
       nameCell(row.name, `${row.gender} · born ${born(row.dob)}`),
       text(row.ref, { mono: true }),
@@ -73,7 +80,7 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
     link: "Open the list",
     href: pipelineHref(stage),
   }));
-  const steps: StepItem[] = STAGES.map((stage, index) => ({ label: `${stage} · ${counts.get(stage) ?? 0}`, state: (counts.get(stage) ?? 0) === 0 ? "todo" : index === last ? "current" : "done" }));
+  const steps: StepItem[] = STAGES.map((stage, index) => ({ label: `${stage} · ${counts.get(stage) ?? 0}`, state: index < last ? "done" : index === last ? "current" : "todo", href: pipelineHref(stage) }));
 
   const diary: TableRow[] = data.sessions.map((session: DiarySession) => ({
     cells: [
@@ -104,8 +111,8 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
     primary: { label: "Add application", icon: "M12 5.5v13M5.5 12h13", drawer: addApplicationDrawer(o) },
     launchers: [{ label: "Schedule a screening session", drawer: addSessionDrawer(o) }, { label: "Past admission cycles", href: pipelineHref("History") }],
     rows: [
-      { cols: "1fr", panels: [{ type: "kpi", title: `This cycle · ${data.cycle}`, per: 6, cards }] },
-      { cols: "1fr", panels: [{ type: "steps", title: "The pipeline", sub: "Each count opens the applicants behind it.", steps }] },
+      { cols: "1fr", panels: [{ type: "kpi", title: `This cycle · ${data.cycle} intake`, per: 6, cards }] },
+      { cols: "1fr", panels: [{ type: "steps", steps }] },
       {
         cols: "1fr",
         panels: [
@@ -120,7 +127,7 @@ export function admissionsTab(data: AdmissionsBoard, o: AdmissionOptions): TabCo
             filters: [
               { label: "State", value: "All", options: ["All", ...STAGES, "Declined", "Waitlisted"], column: 6 },
               { label: "Applying for", value: "All", options: ["All", ...levels], column: 2 },
-              { label: "Screening", value: "All", options: ["All", "Not scheduled"], match: { "Not scheduled": "Not scheduled" }, column: 4 },
+              { label: "Screening", value: "All", options: ["All", "Not scheduled", "Scheduled", "Sat", "Not sat"], match: { "Not scheduled": "screen:notscheduled", Scheduled: "screen:scheduled", Sat: "screen:sat", "Not sat": "screen:notsat" } },
             ],
             acts: [{ label: "Export the pipeline", export: true }, schedule, add],
             head: HEAD,
@@ -244,7 +251,7 @@ export function applicantPage(a: Applicant, o: AdmissionOptions, arms: Array<{ n
         ...(needsDate ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "No screening date has been booked for this child", body: a.feeCleared ? "They cannot be assessed, offered or enrolled until they sit the entrance assessment." : "Before a seat can be held the application fee must be verified or waived — start with “Verify the application fee”.", acts: [{ label: a.next?.label ?? "Book a seat", drawer: advance ?? scheduleDrawer(o, [{ id: a.id, name: a.name, ref: a.ref, forClass: a.forClass }], a.id) }] }] }] : []),
         ...(a.duplicate ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "Possible duplicate", body: a.duplicate }] }] : []),
         { cols: "1fr", panels: [{ type: "kpi", title: "Where this application stands", per: 5, cards }] },
-        { cols: "1fr", panels: [{ type: "steps", title: "Progress", steps }] },
+        { cols: "1fr", panels: [{ type: "steps", steps }] },
         {
           cols: "1.2fr 1fr",
           panels: [

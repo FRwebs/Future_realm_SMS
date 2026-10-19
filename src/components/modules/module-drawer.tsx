@@ -346,7 +346,7 @@ export function withSeeds(allFields: FormField[], current: Record<string, unknow
   return updated;
 }
 
-export type CommitResult = { links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string };
+export type CommitResult = { queued?: boolean; links?: Array<{ name: string; link: string }>; warnings?: string[]; link?: string; name?: string; fields?: Array<[string, string]>; checkoutUrl?: string; note?: string; gateway?: string; href?: string; hrefLabel?: string };
 
 /** What a committed form says: what happened, what the server handed back, and where to go next. */
 export function CommitDone({
@@ -370,9 +370,9 @@ export function CommitDone({
                   style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }}
                 >
                   <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
-                    {doneTitle}
+                    {result?.queued ? "Saved on this device — not yet at the school" : doneTitle}
                   </p>
-                  {doneBody ? (
+                  {doneBody && !result?.queued ? (
                     <p
                       className="mt-[5px] text-pretty text-[11px] leading-[1.55]"
                       style={{ color: "#17604F" }}

@@ -15,6 +15,12 @@ import { SupportService } from "./support.service";
 export class SupportController {
   constructor(private readonly supportService: SupportService) {}
 
+  @Get("overview")
+  @RequirePermission("sync-support.help-support.view")
+  overview(@CurrentSession() session: SessionPayload) {
+    return this.supportService.ok(this.supportService.overview(session));
+  }
+
   @Get("tickets")
   @RequirePermission("sync-support.help-support.view")
   tickets(@CurrentSession() session: SessionPayload) {

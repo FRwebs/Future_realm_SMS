@@ -5232,16 +5232,31 @@ model PlatformSetting {
   updatedAt                DateTime @updatedAt
 }
 
+/// Something captured on a device with no connection, and what happened when it reached the school's record.
+/// state: PENDING (arrived, not yet applied), APPLIED, CONFLICT (the record had changed — both versions kept until a leader chooses),
+/// REJECTED (the record refused it, with the reason), RESOLVED (a conflict somebody chose), DISCARDED.
 model SyncDraft {
-  id        String        @id @default(cuid())
-  schoolId  String
-  userId    String
-  type      SyncDraftType
-  payload   Json
-  syncedAt  DateTime?
-  createdAt DateTime      @default(now())
-  school    School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user      User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id           String        @id @default(cuid())
+  schoolId     String
+  userId       String
+  type         SyncDraftType
+  payload      Json
+  syncedAt     DateTime?
+  createdAt    DateTime      @default(now())
+  clientId     String?
+  state        String        @default("PENDING")
+  capturedAt   DateTime?
+  deviceLabel  String?
+  message      String?
+  conflict     Json?
+  resolution   String?
+  resolvedById String?
+  resolvedAt   DateTime?
+  school       School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, state])
+  @@unique([userId, clientId])
 }
 
 model IntegrationConfig {
@@ -5385,6 +5400,10 @@ model GeneratedReport {
   sizeBytes     Int?
   generatedById String?
   generatedAt   DateTime @default(now())
+  /// Which standard report, dataset, return or saved definition this was ("STANDARD:broadsheet", "RETURN:<id>").
+  code          String?
+  /// The file itself, kept so a filed return can be downloaded again exactly as it was produced.
+  content       String?
   school        School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   generatedBy   User?    @relation("GeneratedReportBy", fields: [generatedById], references: [id], onDelete: SetNull)
 

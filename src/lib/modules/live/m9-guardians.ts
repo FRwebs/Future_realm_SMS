@@ -1,6 +1,6 @@
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
-import { addGuardianDrawer, duplicateReviewDrawer, editContactDrawer, inviteDrawer, mapChildDrawer, mergeDrawer, PG, phoneOnlyDrawer } from "@/lib/modules/live/m9-forms";
+import { duplicateReviewDrawer, editContactDrawer, inviteDrawer, mapChildDrawer, mergeDrawer, PG, phoneOnlyDrawer } from "@/lib/modules/live/m9-forms";
 import { FEE_TONE, attTone, gradeTone, studentHref } from "@/lib/modules/live/m8-registry";
 import type { FeeState } from "@/lib/modules/live/m8-types";
 import type { Families, Family, FamilyRow, GuardianOptions } from "@/lib/modules/live/m9-types";
@@ -25,11 +25,11 @@ export const CONSENT_TONE: Record<string, PanelTone> = { Complete: "positive", G
 
 const kids = (row: Pick<FamilyRow, "children">) => row.children.map((child) => `${child.name.split(" ")[0]} · ${child.arm}`).join("  ·  ");
 
-export function guardiansTab(data: Families, o: GuardianOptions): TabContent {
+export function guardiansTab(data: Families): TabContent {
   const { totals, rows } = data;
   const never = rows.filter((row) => row.portal !== "Active" && !row.phoneOnly);
   const average = totals.families ? (totals.children / totals.families).toFixed(1) : "0";
-  const add = { label: "Add guardian", primary: true, drawer: addGuardianDrawer(o) };
+  const add = { label: "Add guardian", primary: true, href: "/parents-guardians/guardians/new" };
   const invite = inviteDrawer(never.length, totals.neverChildren);
   const phoneOnly = phoneOnlyDrawer(never.map((row) => ({ id: row.id, name: row.name, phone: row.phone })));
 
@@ -72,7 +72,7 @@ export function guardiansTab(data: Families, o: GuardianOptions): TabContent {
   return {
     title: "Guardians",
     desc: "One guardian, one account, however many children.",
-    primary: { label: "Add guardian", icon: "M12 5.5v13M5.5 12h13", drawer: addGuardianDrawer(o) },
+    primary: { label: "Add guardian", icon: "M12 5.5v13M5.5 12h13", href: "/parents-guardians/guardians/new" },
     launchers: [{ label: "Resend every outstanding invite", drawer: invite }, { label: "Request the missing consent", href: "/parents-guardians/consent" }],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Families", per: 5, cards }] },

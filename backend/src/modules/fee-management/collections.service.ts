@@ -1,3 +1,4 @@
+import { assertSubmission } from "../approvals/hub.shared";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -561,6 +562,7 @@ export class CollectionsService {
     const limit = 50_000;
     const mayDecide = OWNERS.has(session.role) || session.role === "PRINCIPAL";
     if (type !== "FINE" && amount > limit && !mayDecide) {
+      await assertSubmission(session, "FEE_WAIVER");
       const invoice = owed[0];
       const student = family.children.find((child) => child.invoices.some((row) => row.id === invoice.id));
       await prisma.feeWaiver.create({

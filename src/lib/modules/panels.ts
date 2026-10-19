@@ -444,6 +444,8 @@ export type StepItem = {
   label: string;
   sub?: string;
   state: "done" | "current" | "todo" | "blocked";
+  /** Where the stage opens — the applicants behind a pipeline count, say. */
+  href?: string;
 };
 
 /**
@@ -850,7 +852,12 @@ export type Panel =
       per?: number;
       tiles: TileItem[];
     }
-  | { type: "steps"; title: string; sub?: string; steps: StepItem[]; foot?: string }
+  /**
+   * What this device itself knows and the server cannot: whether it is online, what it has queued, and how much
+   * of the browser's storage it holds. Drawn on the device, so it is always about the device being used.
+   */
+  | { type: "device"; title?: string; sub?: string }
+  | { type: "steps"; title?: string; sub?: string; steps: StepItem[]; foot?: string }
   | {
       type: "form";
       title?: string;

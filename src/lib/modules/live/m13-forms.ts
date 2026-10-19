@@ -91,10 +91,10 @@ export function editRouteDrawer(page: RoutePage): DrawerSpec {
       select("Second approver", SECOND(options.approvers), { value: config.second || "Not required", hint: "Only for decisions that are irreversible or involve money." }),
       select("Escalates after", options.days.map(days), { value: days(config.escalateDays), required: true }),
       select("Escalates to", options.escalateTo, { value: config.escalateTo, required: true }),
-      toggle("Evidence required", config.evidence, "A request without evidence is worth a question", "Evidence optional", { span: 2, hint: "Recorded for the route. Each module's own form decides what it asks for." }),
+      toggle("Evidence required", config.evidence, "A request without evidence is refused", "Evidence optional", { span: 2, hint: route.enforces.evidence ? "Checked when someone submits it: a request with no evidence attached is refused." : "This kind's own form has nowhere to attach evidence yet, so this is recorded but not checked." }),
       choice("Bulk approval", route.locked ? ["Never — locked for this type"] : ["Never", "Up to 20 at a time"], { span: 2, value: route.locked ? "Never — locked for this type" : config.bulk ? "Up to 20 at a time" : "Never", hint: route.locked ? "This type can never be bulk-approved, whatever is set here." : "Used by the queue's bulk bar." }),
-      select("Who may submit", options.who, { value: config.who }),
-      select("Notify the requester", options.notify, { value: config.notify, hint: "Recorded for the route." }),
+      select("Who may submit", options.who, { value: config.who, hint: route.enforces.who ? "Checked when someone submits it." : "Recorded; this kind is raised by a flow that is open to everyone it concerns." }),
+      select("Notify the requester", options.notify, { value: config.notify, hint: "Applies to what the queue sends — a comment, or the outcome of a decision made here. A module's own notice about its own decision is separate." }),
     ],
     submit: { endpoint: `/api/v1/approvals-hub/routes/${encodeURIComponent(route.type)}`, method: "PUT", map: { Approver: "approver", "Second approver": "second", "Escalates after": "escalateDays", "Escalates to": "escalateTo", "Evidence required": "evidence", "Bulk approval": "bulk", "Who may submit": "who", "Notify the requester": "notify" }, encode: { "Escalates after": Object.fromEntries(options.days.map((value) => [days(value), String(value)])) } },
   };
