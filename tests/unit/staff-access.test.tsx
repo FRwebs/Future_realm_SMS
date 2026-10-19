@@ -4,7 +4,7 @@ import { PanelRows } from "@/components/modules/panel-renderer";
 import { changeRoleDrawer, inviteDrawer, permMapDrawer, recertifyDrawer, tabRows, templateTicks } from "@/lib/modules/live/m7-forms";
 import { permissionsTab, againstTemplate } from "@/lib/modules/live/m7-permissions";
 import { plainWords } from "@/lib/modules/live/m7-pages";
-import { activityTab, directoryTab, nextStaffNumber } from "@/lib/modules/live/m7-staff-access";
+import { activityTab, addStaffFor, directoryTab, nextStaffNumber } from "@/lib/modules/live/m7-staff-access";
 import type { AccessOverview, Activity, Directory, DirectoryRow, ModuleGrant, Person, PersonAccess } from "@/lib/modules/live/m7-types";
 import type { TabContent } from "@/lib/modules/panels";
 
@@ -76,7 +76,6 @@ describe("M07 Directory", () => {
   it("says how many were invited and never activated, by name", () => {
     const tab = directoryTab(
       directory([row(), row({ id: "sp-2", userId: "u-2", name: "Ada Obi", account: "Never activated", lastLoginAt: null, accountDays: 12 })]),
-      context,
     );
     const html = markup(tab);
     expect(html).toContain("1 person invited and never activated");
@@ -85,16 +84,22 @@ describe("M07 Directory", () => {
   });
 
   it("reads the last sign-in from the account, not from a typed field", () => {
-    const html = markup(directoryTab(directory([row({ accountDays: 0 }), row({ id: "sp-3", userId: "u-3", name: "Never In", account: "Never activated", lastLoginAt: null })]), context));
+    const html = markup(directoryTab(directory([row({ accountDays: 0 }), row({ id: "sp-3", userId: "u-3", name: "Never In", account: "Never activated", lastLoginAt: null })])));
     expect(html).toContain("Today");
     expect(html).toContain("Never");
   });
 
-  it("offers the wizard, and offboarding as a way out", () => {
-    const tab = directoryTab(directory([row()]), context);
-    expect(tab.primary?.label).toBe("Add staff");
-    expect(tab.primary?.drawer?.steps?.map((step) => step.title)).toEqual(["Person", "Role", "Teaching or duties", "Access", "Review"]);
+  it("opens the wizard as a page of its own, and offboarding as a way out", () => {
+    const tab = directoryTab(directory([row()]));
+    expect(tab.primary).toMatchObject({ label: "Add staff", href: "/staff-access/directory/new" });
     expect(tab.launchers?.[0]).toMatchObject({ label: "Offboard someone", href: "/staff-access/directory/offboard" });
+  });
+
+  it("walks five named stages, and says how onboarding works on the first", () => {
+    const spec = addStaffFor(directory([row()]), context);
+    expect(spec.steps?.map((step) => step.title)).toEqual(["Person", "Role", "Teaching or duties", "Access", "Review"]);
+    expect(spec.page?.rail.map(([title]) => title)).toContain("No password here");
+    expect(spec.page?.back.href).toBe("/staff-access/directory");
   });
 
   it("numbers the next staff member the way the server will", () => {
@@ -103,7 +108,7 @@ describe("M07 Directory", () => {
   });
 
   it("sends a bulk resend the ticked people, not a fixed list", () => {
-    const tab = directoryTab(directory([row()]), context);
+    const tab = directoryTab(directory([row()]));
     const table = tab.rows.flatMap((item) => item.panels).find((panel) => panel.type === "table" && panel.title === "Staff");
     expect(table && table.type === "table" ? table.bulkActs?.[0].selection : null).toEqual({ key: "userIds", noun: "person" });
     expect(inviteDrawer([], { selection: true }).submit?.body).toBeUndefined();

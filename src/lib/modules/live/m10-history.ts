@@ -1,3 +1,4 @@
+import { receiptDrawer } from "@/lib/modules/live/documents";
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
 import { FEES, naira, nairaShort } from "@/lib/modules/live/m10-forms";
@@ -46,7 +47,7 @@ export function historyTab(data: History): TabContent {
   }));
   const receiptRows: TableRow[] = data.receipts.map((row) => ({
     id: row.id,
-    cells: [text(row.ref, { strong: true, mono: true }), nameCell(row.student, row.adm), text(row.arm), text(naira(row.amount), { mono: true, strong: true }), text(row.mode), row.bankRef ? text(row.bankRef, { mono: true }) : text("—"), nameCell(row.by, "Bursary"), text(dayLabel(row.at)), { kind: "action", label: "Reprint", href: `/print/receipt/${row.id}?duplicate=1` }],
+    cells: [text(row.ref, { strong: true, mono: true }), nameCell(row.student, row.adm), text(row.arm), text(naira(row.amount), { mono: true, strong: true }), text(row.mode), row.bankRef ? text(row.bankRef, { mono: true }) : text("—"), nameCell(row.by, "Bursary"), text(dayLabel(row.at)), { kind: "action", label: "Reprint", drawer: receiptDrawer(row.id, row.ref, true) }],
     keywords: `${row.mode} ${row.by} ${row.arm}`,
   }));
   const modes = Array.from(new Set(data.receipts.map((row) => row.mode)));

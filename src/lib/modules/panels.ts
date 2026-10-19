@@ -46,7 +46,7 @@ export type PanelFact = [label: string, value: string, hint?: string];
  */
 export type DrawerSubmit = {
   endpoint: string;
-  method?: "POST" | "PATCH" | "PUT";
+  method?: "POST" | "PATCH" | "PUT" | "DELETE";
   /** Sent as-is, so the drawer never has to know what the record is. */
   body?: Record<string, unknown>;
   /**
@@ -84,6 +84,43 @@ export type DrawerStep = {
   fields: FormField[];
 };
 
+/**
+ * A document — a report card, a receipt, a fee schedule, an invoice — as data.
+ *
+ * The mockup shows these in a modal over the page they were opened from, with the page behind still
+ * there, and prints the same paper. One spec draws both: the modal reads it, and so does the print page.
+ */
+export type DocCell = string | { text: string; tone?: PanelTone; bold?: boolean; mono?: boolean };
+export type DocAct = { label: string; href?: string; drawer?: DrawerSpec; /** Prints the paper itself. */ print?: boolean; primary?: boolean };
+export type DocumentSpec = {
+  /** What the modal's bar calls it: "Report card preview". */
+  heading: string;
+  state?: { label: string; tone: PanelTone };
+  meta?: string;
+  letterhead: { name: string; place?: string; contact?: string };
+  kicker: string;
+  title: string;
+  ref?: string;
+  /** Stamped across the paper, so it can never pass for something it is not: DRAFT, DUPLICATE, PAID. */
+  stamp?: { text: string; tone: PanelTone };
+  idents: Array<[string, string]>;
+  tables?: Array<{ title?: string; heads: Array<{ label: string; align?: "left" | "center" | "right" }>; rows: DocCell[][] }>;
+  totals?: Array<{ label: string; value: string; sub?: string; tone?: PanelTone }>;
+  /** Lines that sum something up, right-aligned under the table: subtotal, VAT, total. */
+  summary?: Array<{ label: string; value: string; strong?: boolean }>;
+  groups?: Array<{ title: string; items: Array<[string, string]> }>;
+  blocks?: Array<{ label: string; body: string; by?: string }>;
+  /** A short list under the blocks: the payments against an invoice. */
+  list?: { title: string; empty: string; items: Array<{ left: string; right: string }> };
+  footNote?: string;
+  footRef?: string;
+  /** Said in the modal's footer, beside the actions. */
+  note?: string;
+  /** Others like this one, to move between without closing: the rest of the arm. */
+  peers?: { label: string; items: Array<{ label: string; load: string; active?: boolean }> };
+  acts?: DocAct[];
+};
+
 export type DrawerSpec = {
   kicker?: string;
   title: string;
@@ -99,7 +136,9 @@ export type DrawerSpec = {
    *
    * "read" is kept as the older name for "view".
    */
-  mode?: "read" | "view" | "edit" | "form" | "decide" | "output" | "commit" | "info";
+  mode?: "read" | "view" | "edit" | "form" | "decide" | "output" | "commit" | "info" | "document";
+  /** Set, and the overlay is the paper itself rather than a drawer: a report card, a receipt, an invoice. */
+  doc?: DocumentSpec;
   commitLabel?: string;
   commitNote?: string;
   commitDone?: string;
@@ -118,6 +157,22 @@ export type DrawerSpec = {
    * all of them and sends one payload at the end.
    */
   steps?: DrawerStep[];
+  /**
+   * Set on a staged form that the mockup takes as a page rather than a modal — enrolling a student,
+   * onboarding a member of staff. The page walks the same steps with the stages named, shows what has been
+   * entered so far, and reads each stage back before anything is written.
+   */
+  page?: {
+    /** What the person is making, for the review page's header. */
+    reviewDesc?: string;
+    /** Said in the confirmation that stands between the last stage and the write. */
+    confirmBody: string;
+    railTitle: string;
+    rail: Array<[string, string]>;
+    /** Said under the last stage's form. */
+    footNote?: string;
+    back: { label: string; href: string };
+  };
   /**
    * Inputs, for an "Edit …" drawer.
    *

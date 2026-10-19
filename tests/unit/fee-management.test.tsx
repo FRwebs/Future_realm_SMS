@@ -156,9 +156,10 @@ describe("M10 Collections", () => {
   });
 
   it("offers the receipt for a payment on record", () => {
-    const html = markup(collectionsTab(collections()));
-    expect(html).toContain("RCT-2026-001");
-    expect(html).toContain("/print/receipt/p-1");
+    const tab = collectionsTab(collections());
+    expect(markup(tab)).toContain("RCT-2026-001");
+    // The receipt opens in its modal over this page, so its trigger names where the paper is read from.
+    expect(JSON.stringify(tab)).toContain("/documents/receipt/p-1");
   });
 
   it("shows a form master only the status of their own class, never an amount", () => {

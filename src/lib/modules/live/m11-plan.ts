@@ -1,3 +1,4 @@
+import { invoiceDocDrawer } from "@/lib/modules/live/documents";
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { SB, cancelSwitchDrawer, invoiceDrawer, naira, payOneDrawer, renewDrawer, switchDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
@@ -12,7 +13,6 @@ import { pill, text, type KpiCard, type PanelTone, type TabContent, type TableRo
 export const loadPlan = () => apiGet<Plan>(`${SB}/plan`);
 export const loadCreditsForTopUp = () => apiGet<Credits>(`${SB}/credits`);
 export const loadInvoice = (id: string) => apiGet<InvoiceDoc>(`${SB}/invoices/${encodeURIComponent(id)}`);
-export const invoiceHref = (id: string) => `/print/platform-invoice/${encodeURIComponent(id)}`;
 
 export const STATE_TONE: Record<string, PanelTone> = { Paid: "positive", Outstanding: "attention", Overdue: "negative", Active: "positive", Low: "attention", "No wallet": "negative", "Not included": "neutral", Completed: "neutral", ACTIVE: "positive", TRIAL: "attention" };
 const accountTone = (state: string): PanelTone => (state === "Paid and current" ? "positive" : state === "Overdue" ? "negative" : "attention");
@@ -47,9 +47,9 @@ export function planTab(p: Plan, credits: Credits): TabContent {
   }));
 
   const invoiceRows: TableRow[] = p.invoices.map((invoice: InvoiceRow) => ({
-    href: invoiceHref(invoice.id),
+    drawer: invoiceDocDrawer(invoice.id, invoice.no),
     keywords: `${invoice.no} ${invoice.period} kind:${invoice.kindLabel} state:${invoice.state}`,
-    cells: [text(invoice.no, { strong: true, mono: true }), text(invoice.period), text(naira(invoice.total), { mono: true, strong: true }), text(dayLabel(invoice.issued)), pill(invoice.state, STATE_TONE[invoice.state]), invoice.state === "Paid" ? { kind: "action" as const, label: "Download", href: invoiceHref(invoice.id) } : { kind: "action" as const, label: "Pay", drawer: payOneDrawer(invoice, p) }],
+    cells: [text(invoice.no, { strong: true, mono: true }), text(invoice.period), text(naira(invoice.total), { mono: true, strong: true }), text(dayLabel(invoice.issued)), pill(invoice.state, STATE_TONE[invoice.state]), invoice.state === "Paid" ? { kind: "action" as const, label: "View invoice", drawer: invoiceDocDrawer(invoice.id, invoice.no) } : { kind: "action" as const, label: "Pay", drawer: payOneDrawer(invoice, p) }],
   }));
 
   const yes = (ok: boolean) => ({ kind: "mark" as const, ok });

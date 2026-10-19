@@ -1,6 +1,6 @@
 import { admissionsTab, loadAdmissionOptions, loadBoard } from "@/lib/modules/live/m8-admissions";
 import { changesTab, loadChanges } from "@/lib/modules/live/m8-changes";
-import { loadEnrolOptions, loadMoveOptions, loadRegistry, registryTab } from "@/lib/modules/live/m8-registry";
+import { loadMoveOptions, loadRegistry, registryTab } from "@/lib/modules/live/m8-registry";
 import type { TabContent } from "@/lib/modules/panels";
 
 /**
@@ -12,8 +12,8 @@ import type { TabContent } from "@/lib/modules/panels";
  */
 export async function studentRecordsLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "registry") {
-    const [data, enrol, rooms] = await Promise.all([loadRegistry(), loadEnrolOptions(), loadMoveOptions()]);
-    return registryTab(data, enrol, rooms);
+    const [data, rooms] = await Promise.all([loadRegistry(), loadMoveOptions()]);
+    return registryTab(data, rooms);
   }
   if (tabSlug === "admissions") {
     const [board, options] = await Promise.all([loadBoard(), loadAdmissionOptions()]);

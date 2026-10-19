@@ -12,6 +12,7 @@ import { StudentRecordsController } from "./student-records.controller";
 @Module({
   imports: [AdmissionsModule, RolesManagementModule],
   controllers: [StudentRecordsController],
-  providers: [RegistryService, RecordService, ChangesService, AdmissionsBoardService, PermissionsGuard]
+  providers: [RegistryService, RecordService, ChangesService, AdmissionsBoardService, PermissionsGuard],
+  exports: [ChangesService]
 })
 export class StudentRecordsModule {}

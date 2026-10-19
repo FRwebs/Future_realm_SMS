@@ -49,7 +49,19 @@ type ApiApproval = {
   ageDays: number;
   overdue: boolean;
   raisedAt: string;
+  /** Set when the decision was read from the Approvals & Workflow queue, which opens it on its own page. */
+  key?: string;
+  typeName?: string;
 };
+
+type HubQueue = { waiting: Array<{ key: string; type: string; typeName: string; title: string; summary: string | null; blocking: string | null; state: string; requester: { name: string } | null; age: number; overdue: boolean; raisedAt: string }> };
+
+/** What is waiting on this person, from the queue that reads every module — not only the decisions raised in the queue itself. */
+async function waitingOnMe(): Promise<ApiApproval[]> {
+  const hub = await apiGet<HubQueue>("/api/v1/approvals-hub/queue").catch(() => null);
+  if (!hub) return apiGet<ApiApproval[]>("/api/v1/approvals/queue?assignee=me").catch(() => [] as ApiApproval[]);
+  return hub.waiting.map((item) => ({ id: item.key, key: item.key, kind: item.type, typeName: item.typeName, title: item.title, summary: item.summary, blocking: item.blocking, status: item.state, requestedBy: item.requester?.name ?? null, assignedTo: null, ageDays: item.age, overdue: item.overdue, raisedAt: item.raisedAt }));
+}
 
 /** ₦63.7m, ₦254.7k, ₦940 — the scale the mockup prints money at. */
 function nairaShort(value: number): string {
@@ -185,13 +197,15 @@ function queueTable(queue: ApiApproval[]): Panel {
     rows: queue.map((item) => ({
       cells: [
         name(item.title, item.summary ?? item.requestedBy ?? ""),
-        pill(kindLabel(item.kind)),
+        pill(item.typeName ?? kindLabel(item.kind)),
         text(item.blocking ?? "—", { tone: item.blocking ? "attention" : undefined, strong: Boolean(item.blocking) }),
         text(ageText(item.ageDays), {
           tone: item.overdue ? "negative" : undefined,
           strong: item.overdue,
         }),
-        {
+        item.key
+          ? { kind: "action" as const, label: "Decide", href: `/approvals-workflow/queue/${encodeURIComponent(item.key)}` }
+          : {
           kind: "action" as const,
           label: "Decide",
           drawer: {
@@ -453,7 +467,7 @@ export async function commandCenterLiveTab(
   if (tabSlug === "today") {
     const [data, queue] = await Promise.all([
       apiGet<ApiToday>("/api/v1/command-center/today"),
-      apiGet<ApiApproval[]>("/api/v1/approvals/queue?assignee=me").catch(() => [] as ApiApproval[]),
+      waitingOnMe(),
     ]);
 
     return {
@@ -476,7 +490,7 @@ export async function commandCenterLiveTab(
     const [sheets, cards, queue, data] = await Promise.all([
       apiGet<BroadsheetRow[]>("/api/v1/academics/broadsheets").catch(() => [] as BroadsheetRow[]),
       apiGet<ReportCardRow[]>("/api/v1/academics/report-cards").catch(() => [] as ReportCardRow[]),
-      apiGet<ApiApproval[]>("/api/v1/approvals/queue?assignee=me").catch(() => [] as ApiApproval[]),
+      waitingOnMe(),
       apiGet<ApiToday>("/api/v1/command-center/today"),
     ]);
     return oversightTab(sheets ?? [], cards ?? [], queue ?? [], data?.term ?? null);

@@ -1224,3 +1224,34 @@ a:focus-visible,
     padding: 20px;
   }
 }
+
+/*
+ * A document open in its modal prints as the paper alone: the page behind it, the bar above and the
+ * actions beneath are hidden, and the paper is let out of its scrolling desk. Pages that are not
+ * showing a document are untouched.
+ */
+@media print {
+  body:has([data-doc-print]) > *:not([data-doc-print]) {
+    display: none !important;
+  }
+  [data-doc-print] {
+    position: static !important;
+    display: block !important;
+    padding: 0 !important;
+  }
+  [data-doc-print] > div {
+    display: block !important;
+    max-height: none !important;
+    max-width: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+  }
+  [data-doc-print] [data-print-hide] {
+    display: none !important;
+  }
+  [data-doc-print] [data-print-scroll] {
+    overflow: visible !important;
+    padding: 0 !important;
+    background: #fff !important;
+  }
+}

@@ -27,6 +27,14 @@ export function enrolDrawer(data: EnrolOptions): DrawerSpec {
     commitDone: "Student enrolled",
     commitDoneBody: "The student is on the register, in the arm you chose, and visible to every module that needs them.",
     reviewNote: "Core record processing cannot be waived — it is the basis for holding the record.",
+    page: {
+      reviewDesc: "Everything you entered, and the consent that has to be recorded.",
+      confirmBody: "The child goes onto the register and into the arm you chose.",
+      railTitle: "What enrolment sets up",
+      rail: [["A record", "Admission number, identity, and family"], ["A place", "A level and an arm from day one"], ["A consent basis", "Required before the record can be held"]],
+      footNote: "Core record processing cannot be waived — it is the basis for holding the record.",
+      back: { label: "Back to the registry", href: "/student-records/registry" },
+    },
     steps: [
       {
         title: "Student",

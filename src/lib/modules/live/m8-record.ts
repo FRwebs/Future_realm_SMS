@@ -1,3 +1,5 @@
+import { cardDrawer } from "@/lib/modules/live/m6-forms";
+import { receiptDrawer } from "@/lib/modules/live/documents";
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { attendanceSessionDrawer, collectorDrawer, documentDrawer, mapGuardianDrawer, noteDrawer, requestChangeDrawer, sensitiveDrawer, SR } from "@/lib/modules/live/m8-forms";
@@ -44,7 +46,7 @@ export async function studentRecordPage(id: string, section: RecordSection, o: {
   const base = {
     title: d.name,
     desc: `${d.arm?.name ?? "No arm"} · ${d.adm} · age ${d.age} · form master ${fm}.`,
-    primary: d.term ? { label: "Preview the report card", icon: "M6.5 3.5h8L18.5 8v12.5h-12zM9 12.5h6M9 16h4", href: `/print/result/${d.id}/${d.term.id}` } : undefined,
+    primary: d.term ? { label: "Preview the report card", icon: "M6.5 3.5h8L18.5 8v12.5h-12zM9 12.5h6M9 16h4", drawer: cardDrawer(d.id, d.term.id, d.name) } : undefined,
     launchers: [
       { label: "Message the guardian", href: "/communication-center/compose" },
       { label: "Request a record change", drawer: requestChangeDrawer(["Given name", "Surname", "Date of birth", "Gender", "Status", "Arm", "Home address", "Nationality", "Previous school", "Languages at home", "House"], registry?.rows ?? [], { id: d.id, name: d.name }) },
@@ -172,7 +174,7 @@ function overview({ d, wrap }: Body): RecordPage {
               { label: "Standing", value: "All", options: ["All", "Above the class", "Around the class", "Below the class"], column: 6 },
               { label: "Scores", value: "All", options: ["All", "Published", "Approved", "Submitted", "Blocked", "Draft", "Not started"], column: 7 },
             ],
-            acts: [{ label: "Open the broadsheet", href: sectionHref(d, "academic") }, ...(d.term ? [{ label: "Preview the report card", primary: true, href: `/print/result/${d.id}/${d.term.id}` }] : [])],
+            acts: [{ label: "Open the broadsheet", href: sectionHref(d, "academic") }, ...(d.term ? [{ label: "Preview the report card", primary: true, drawer: cardDrawer(d.id, d.term.id, d.name) }] : [])],
             head: ["Subject", "Teacher", "Total", "Grade", "Pos", "Class avg", "Standing", "Scores", ""],
             noun: "subject",
             nounPlural: "subjects",
@@ -223,7 +225,7 @@ function academic({ d, termResult, wrap }: Body): RecordPage {
     return wrap({
       title: `${d.name} · ${t.term.name}`,
       desc: `${t.term.session} · ${t.arm} · average ${t.avg} · position ${t.position ?? "—"}.`,
-      primary: { label: "Print this result", icon: "M7 8.5V3.5h10v5M7 18.5v3h10v-3M4.5 8.5h15v10h-15z", href: `/print/result/${d.id}/${t.term.id}` },
+      primary: { label: "Print this result", icon: "M7 8.5V3.5h10v5M7 18.5v3h10v-3M4.5 8.5h15v10h-15z", drawer: cardDrawer(d.id, t.term.id, d.name) },
       launchers: [
         ...(at > 0 ? [{ label: `Previous · ${history[at - 1].term}`, href: `${sectionHref(d, "academic")}?term=${history[at - 1].termId}` }] : []),
         ...(at >= 0 && at < history.length - 1 ? [{ label: `Next · ${history[at + 1].term}`, href: `${sectionHref(d, "academic")}?term=${history[at + 1].termId}` }] : []),
@@ -239,7 +241,7 @@ function academic({ d, termResult, wrap }: Body): RecordPage {
               title: `Every subject in ${t.term.name}`,
               sub: "Each component as the teacher entered it, out of its own maximum.",
               meta: `${plural(t.subjects.length, "subject")} · average ${t.avg}`,
-              acts: [{ label: "Print this result", primary: true, href: `/print/result/${d.id}/${t.term.id}` }],
+              acts: [{ label: "Print this result", primary: true, drawer: cardDrawer(d.id, t.term.id, d.name) }],
               head: ["Subject", "Category", ...t.components, "Total", "Grade", "Class avg", "Standing"],
               noun: "subject",
               nounPlural: "subjects",
@@ -426,7 +428,7 @@ function family({ d, registry, pool, wrap }: Body): RecordPage {
 function fees({ d, wrap }: Body): RecordPage {
   const f = d.fees;
   const items: TableRow[] = f.items.map((item) => ({ cells: [text(item.name, { strong: true }), text(item.structure), text(naira(item.amount), { mono: true }), pill(f.owing === 0 ? "Paid" : f.paid ? "Part paid" : "Unpaid", f.owing === 0 ? "positive" : f.paid ? "attention" : "negative")] }));
-  const receipts: TableRow[] = f.receipts.map((receipt) => ({ cells: [text(receipt.ref, { mono: true, strong: true }), text(receipt.at ? dayLabel(receipt.at) : "—", { mono: true }), text(receipt.term), text(receipt.mode), text(naira(receipt.amount), { mono: true, strong: true }), text(receipt.reference, { mono: true }), text(receipt.by), { kind: "action" as const, label: "Print receipt", href: `/print/receipt/${receipt.id}` }] }));
+  const receipts: TableRow[] = f.receipts.map((receipt) => ({ cells: [text(receipt.ref, { mono: true, strong: true }), text(receipt.at ? dayLabel(receipt.at) : "—", { mono: true }), text(receipt.term), text(receipt.mode), text(naira(receipt.amount), { mono: true, strong: true }), text(receipt.reference, { mono: true }), text(receipt.by), { kind: "action" as const, label: "Print receipt", drawer: receiptDrawer(receipt.id, receipt.ref) }] }));
   return wrap({
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "This term", per: 5, cards: [{ label: "Billed", value: naira(f.billed), sub: `${plural(f.items.length, "fee item")} billed`, tone: "neutral" }, { label: "Paid", value: naira(f.paid), sub: f.paid ? `${plural(f.receipts.length, "receipt")} on record` : "Nothing received", tone: f.paid ? "positive" : f.billed ? "negative" : "neutral" }, { label: "Outstanding", value: naira(f.owing), sub: f.owing ? `${plural(f.days, "day")} old` : f.billed ? "Settled in full" : "Not billed", tone: f.owing ? "attention" : "positive" }, { label: "Family", value: d.family.siblings ? `${d.family.siblings + 1} children` : "One child", sub: d.family.siblings ? "A family pays once" : "Only child on the roll", tone: "neutral" }, { label: "State", value: f.state, sub: "Read from the invoices", tone: FEE_TONE[f.state], link: "Open the family", href: `/fee-management/collections/families/${encodeURIComponent(f.familyId)}` }] }] },

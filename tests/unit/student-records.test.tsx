@@ -39,29 +39,37 @@ const rooms = [{ id: "a-1", name: "JSS 1 A", level: "JSS 1", seats: 5 }];
 
 describe("M8 Registry", () => {
   it("names a student with no arm and no guardian rather than hiding them", () => {
-    const html = markup(registryTab(registry(), enrol, rooms));
+    const html = markup(registryTab(registry(), rooms));
     expect(html).toContain("No arm");
     expect(html).toContain("None on file");
   });
 
   it("counts families, not children, against fees", () => {
-    const html = markup(registryTab(registry(), enrol, rooms));
+    const html = markup(registryTab(registry(), rooms));
     expect(html).toContain("Families, not children");
   });
 
   it("opens each student at their own record", () => {
-    const html = markup(registryTab(registry(), enrol, rooms));
+    const html = markup(registryTab(registry(), rooms));
     expect(html).toContain("/student-records/registry/s-1");
   });
 
   it("states the net of a term as in and out, never as a bare number", () => {
-    const html = markup(registryTab(registry(), enrol, rooms));
+    const html = markup(registryTab(registry(), rooms));
     expect(html).toContain("2 in · 1 out");
     expect(html).toContain("+1");
   });
 });
 
 describe("M8 enrolment and record forms", () => {
+  it("opens enrolment as a page of its own with four named stages", () => {
+    const html = markup(registryTab(registry(), rooms));
+    expect(html).toContain("/student-records/registry/new");
+    const spec = enrolDrawer(enrol);
+    expect(spec.steps?.map((step) => step.title)).toEqual(["Student", "Academic", "Family", "Review"]);
+    expect(spec.page?.back.href).toBe("/student-records/registry");
+  });
+
   it("will not enrol without core record processing ticked by default", () => {
     const spec = enrolDrawer(enrol);
     const consent = spec.steps?.flatMap((step) => step.fields).find((field) => field.label === "Consent recorded");
@@ -135,7 +143,8 @@ async function page(section: RecordSection, d: Dossier = dossier(), extra: Recor
     throw new Error(`unexpected ${url}`);
   });
   const result = await studentRecordPage("s-1", section, { termId: extra.termId as string | undefined });
-  return result ? markup(result.content) : "";
+  // A document opens in its modal, so its trigger is data rather than markup: keep both in view.
+  return result ? markup(result.content) + JSON.stringify(result.content) : "";
 }
 
 describe("M8 student record", () => {
@@ -184,7 +193,7 @@ describe("M8 student record", () => {
 
   it("puts every receipt within reach of a reprint", async () => {
     const html = await page("fees");
-    expect(html).toContain("/print/receipt/p-1");
+    expect(html).toContain("/documents/receipt/p-1");
     expect(html).toContain("never reissued");
   });
 
