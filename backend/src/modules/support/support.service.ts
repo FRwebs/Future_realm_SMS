@@ -149,4 +149,33 @@ export class SupportService {
     });
     return { id: ticket.id };
   }
+
+  /**
+   * Everything the Help & Support tab shows besides the tickets: whether the system answered just now (so "is it my
+   * internet or is it the system" does not become a ticket), and the help articles written for this person's role.
+   */
+  async overview(session: SessionPayload) {
+    const started = Date.now();
+    let database = true;
+    try {
+      await prisma.$queryRaw`select 1`;
+    } catch {
+      database = false;
+    }
+    const latency = Date.now() - started;
+    const [articles, csat, tickets] = await Promise.all([
+      prisma.knowledgeBaseArticle.findMany({ where: { status: "PUBLISHED" }, orderBy: [{ views: "desc" }, { createdAt: "desc" }], take: 60, select: { id: true, title: true, slug: true, category: true, roleTarget: true, videoUrl: true, views: true, helpfulYes: true, helpfulNo: true, body: true } }),
+      prisma.ticketCsatResponse.aggregate({ where: { ticket: { schoolId: session.schoolId } }, _avg: { score: true }, _count: { _all: true } }),
+      this.tickets(session),
+    ]);
+    const mine = String(session.role);
+    const target = (roleTarget: string | null) => !roleTarget || roleTarget.split(/[,;|]/).map((value) => value.trim().toUpperCase().replace(/\s+/g, "_")).includes(mine);
+    return {
+      status: { ok: database, checkedAt: new Date().toISOString(), databaseMs: latency, uptimeMinutes: Math.round(process.uptime() / 60) },
+      articles: articles.map((article) => ({ id: article.id, title: article.title, category: article.category, roleTarget: article.roleTarget, video: Boolean(article.videoUrl), views: article.views, helpful: article.helpfulYes, unhelpful: article.helpfulNo, forMe: target(article.roleTarget), summary: article.body.replace(/\s+/g, " ").slice(0, 140), body: article.body.slice(0, 4000), slug: article.slug })),
+      satisfaction: { average: csat._avg.score === null ? null : Math.round(csat._avg.score * 10) / 10, responses: csat._count._all },
+      tickets,
+      responseTarget: "4 working hours",
+    };
+  }
 }

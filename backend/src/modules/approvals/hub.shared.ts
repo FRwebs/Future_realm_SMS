@@ -1,3 +1,4 @@
+import { BadRequestException, ForbiddenException } from "@nestjs/common";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 
@@ -16,11 +17,11 @@ export type RouteDefault = { type: RouteType; name: string; module: string; modu
 /** In the order the queue lists them. */
 export const ROUTE_DEFAULTS: RouteDefault[] = [
   { type: "SCORE_SHEET", name: "Score sheet approval", module: "Scores & Results", moduleSlug: "score-entry-results", approver: "Exam Officer", second: "", escalateDays: 3, why: "The last check before a mark is final", blocks: "Every report card in the arm", bulk: true, evidence: false },
-  { type: "SCORE_CORRECTION", name: "Score correction", module: "Scores & Results", moduleSlug: "score-entry-results", approver: "Exam Officer", second: "Principal", escalateDays: 5, why: "Changes a number a family may already have seen", blocks: "One child's result", bulk: false, evidence: true },
+  { type: "SCORE_CORRECTION", name: "Score correction", module: "Scores & Results", moduleSlug: "score-entry-results", approver: "Exam Officer", second: "Principal", escalateDays: 5, why: "Changes a number a family may already have seen", blocks: "One child's result", bulk: false, evidence: false },
   { type: "RESULTS_PUBLICATION", name: "Results publication", module: "Report Cards", moduleSlug: "report-cards", approver: "Principal", second: "Proprietor", escalateDays: 3, why: "Irreversible once published", blocks: "The arm's report cards", bulk: false, evidence: false },
-  { type: "ATTENDANCE_CORRECTION", name: "Register correction", module: "Attendance", moduleSlug: "attendance", approver: "Principal", second: "", escalateDays: 2, why: "Changes a child's attendance figure", blocks: "One register", bulk: true, evidence: true },
-  { type: "FEE_WAIVER", name: "Fee waiver", module: "Fee Management", moduleSlug: "fee-management", approver: "Principal", second: "", escalateDays: 7, why: "Money leaving the ledger", blocks: "A family's balance", bulk: false, evidence: true },
-  { type: "RECORD_CHANGE", name: "Record change", module: "Student Records", moduleSlug: "student-records", approver: "Principal", second: "", escalateDays: 5, why: "Evidence required", blocks: "The child's record", bulk: true, evidence: true },
+  { type: "ATTENDANCE_CORRECTION", name: "Register correction", module: "Attendance", moduleSlug: "attendance", approver: "Principal", second: "", escalateDays: 2, why: "Changes a child's attendance figure", blocks: "One register", bulk: true, evidence: false },
+  { type: "FEE_WAIVER", name: "Fee waiver", module: "Fee Management", moduleSlug: "fee-management", approver: "Principal", second: "", escalateDays: 7, why: "Money leaving the ledger", blocks: "A family's balance", bulk: false, evidence: false },
+  { type: "RECORD_CHANGE", name: "Record change", module: "Student Records", moduleSlug: "student-records", approver: "Principal", second: "", escalateDays: 5, why: "Evidence required", blocks: "The child's record", bulk: true, evidence: false },
   { type: "LEAVE", name: "Staff leave", module: "Staff & Access", moduleSlug: "staff-access", approver: "Principal", second: "", escalateDays: 3, why: "Decided stage by stage under the leave sequence", blocks: "The member of staff's cover", bulk: true, evidence: false },
   { type: "STAFF_ACCESS", name: "Access above the role template", module: "Staff & Access", moduleSlug: "staff-access", approver: "Proprietor", second: "", escalateDays: 3, why: "More reach than the role intends", blocks: "The staff member", bulk: false, evidence: false },
   { type: "MASS_COMMUNICATION", name: "Mass communication above threshold", module: "Communication", moduleSlug: "communication-center", approver: "Principal", second: "", escalateDays: 1, why: "A message to many families", blocks: "The send", bulk: false, evidence: false },
@@ -32,7 +33,17 @@ export type RouteConfig = { approver: string; second: string; escalateDays: numb
 
 export const APPROVER_LABELS = ["Principal", "Proprietor", "Exam Officer", "Bursar", "Administrator", "Head of Department", "Vice Principal", "HR Officer"];
 export const ESCALATE_TO = ["The Principal", "The Proprietor", "Nobody — it just waits"];
-export const WHO_MAY_SUBMIT = ["Anyone with Create in the module", "Heads of department only", "Named roles only"];
+export const WHO_MAY_SUBMIT = ["Anyone with Create in the module", "Heads of department and above", "School leadership only"];
+
+/** Which of a route's settings the module that raises the decision actually checks when somebody submits it. */
+export const ENFORCED: Partial<Record<RouteType, { evidence: boolean; who: boolean }>> = {
+  SCORE_CORRECTION: { evidence: true, who: true },
+  RECORD_CHANGE: { evidence: true, who: true },
+  FEE_WAIVER: { evidence: false, who: true },
+};
+
+const LEADERS = new Set(["SCHOOL_OWNER", "PROPRIETOR", "SUPER_ADMIN", "PRINCIPAL", "ADMINISTRATOR", "VICE_PRINCIPAL_ACADEMICS", "VICE_PRINCIPAL_ADMINISTRATION", "VICE_PRINCIPAL_SPECIAL_DUTIES", "HEAD_TEACHER"]);
+const HEADS = new Set([...LEADERS, "HEAD_OF_DEPARTMENT", "EXAM_OFFICER", "EXAMINATION_OFFICER"]);
 export const NOTIFY = ["On every step", "On the decision only", "Never"];
 
 /** The roles behind each label a school can choose — a role, never a person, so a resignation does not strand a route. */
@@ -56,6 +67,19 @@ export const roleLabel = (role: string) => role.toLowerCase().split("_").map((wo
 export const labelOfRole = (role: string) => Object.entries(ROLES_OF).find(([, roles]) => roles.includes(role))?.[0] ?? roleLabel(role);
 
 export type Route = RouteDefault & RouteConfig & { overridden: boolean };
+
+/**
+ * Called by the module that raises a decision, at the moment somebody submits it: may this person raise it,
+ * and has the evidence the route asks for come with it? Only what the module can really check is checked.
+ */
+export async function assertSubmission(session: Pick<SessionPayload, "schoolId" | "role">, type: RouteType, o: { evidence?: boolean } = {}) {
+  const route = (await loadRoutes(session.schoolId)).find((entry) => entry.type === type);
+  const enforced = ENFORCED[type];
+  if (!route || !enforced) return;
+  if (enforced.who && route.who === WHO_MAY_SUBMIT[1] && !HEADS.has(session.role)) throw new ForbiddenException(`The school's route for a ${route.name.toLowerCase()} lets heads of department and above raise it.`);
+  if (enforced.who && route.who === WHO_MAY_SUBMIT[2] && !LEADERS.has(session.role)) throw new ForbiddenException(`The school's route for a ${route.name.toLowerCase()} lets only school leadership raise it.`);
+  if (enforced.evidence && route.evidence && !o.evidence) throw new BadRequestException(`The school's route for a ${route.name.toLowerCase()} asks for evidence, and none came with this one.`);
+}
 
 export const defaultConfig = (item: RouteDefault): RouteConfig => ({ approver: item.approver, second: item.second, escalateDays: item.escalateDays, escalateTo: "The Principal", evidence: item.evidence, bulk: item.bulk, who: WHO_MAY_SUBMIT[0], notify: NOTIFY[0] });
 

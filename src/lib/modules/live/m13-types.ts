@@ -63,7 +63,7 @@ export type PerformanceData = {
   requesters: Array<{ name: string; total: number; returned: number; pct: number; reason: string | null }>;
 };
 
-export type RouteRow = { type: string; name: string; module: string; moduleSlug: string; approver: string; second: string; escalateDays: number; escalateTo: string; overridden: boolean; why: string; blocks: string; open: number; avgDays: number | null; locked: boolean; bulk: boolean; evidence: boolean };
+export type RouteRow = { type: string; name: string; module: string; moduleSlug: string; approver: string; second: string; escalateDays: number; escalateTo: string; overridden: boolean; why: string; blocks: string; open: number; avgDays: number | null; locked: boolean; bulk: boolean; evidence: boolean; who: string; notify: string; enforces: { evidence: boolean; who: boolean } };
 
 export type RuleRow = { id: string; code: string | null; name: string; kind: string; fields: string[]; maxChars: number; state: "Active" | "Revoked"; fired: number; by: string; why: string; at: string };
 

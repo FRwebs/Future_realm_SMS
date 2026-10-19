@@ -477,7 +477,11 @@ export class RegisterService {
     return { id: saved.id, saved: input.entries.length, roll };
   }
 
-  async submit(session: SessionPayload, classId: string, body: unknown) {
+  /**
+   * `capturedAt` is for a register taken on a device with no connection: it is judged as of the moment it was taken, so one
+   * marked on Tuesday and synced on Wednesday is a Tuesday register — not a backdated one — and is not "late" for arriving late.
+   */
+  async submit(session: SessionPayload, classId: string, body: unknown, opts: { capturedAt?: Date } = {}) {
     const input = submitSchema.parse(body);
     const schoolId = session.schoolId;
     const term = await this.termOrThrow(schoolId);
@@ -485,7 +489,7 @@ export class RegisterService {
     const arm = await this.arm(schoolId, classId);
     this.access.assertMarker(session, arm);
     const date = dayOf(input.date);
-    const now = today();
+    const now = opts.capturedAt ? today(opts.capturedAt) : today();
     if (date > now) throw new BadRequestException("A register cannot be taken for a day that has not happened.");
     if (!isSchoolDay(term, date)) throw new BadRequestException(`${longDay(date)} is not a school day in ${term.name}.`);
 
@@ -510,7 +514,7 @@ export class RegisterService {
       backdateReason = input.backdateReason as string;
     }
 
-    const stamp = new Date();
+    const stamp = opts.capturedAt ?? new Date();
     const byStudent = new Map(existingRows.map((row) => [row.studentId, row]));
     const changes: Array<{ studentId: string; from: string; to: string }> = [];
     const creates: Prisma.StudentAttendanceCreateManyInput[] = [];

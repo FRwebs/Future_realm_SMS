@@ -34,39 +34,41 @@ const options: GuardianOptions = { students: [{ id: "s-1", name: "Daniel Yusuf",
 
 describe("M9 Guardians", () => {
   it("is one row per family, with every child under it", () => {
-    const html = markup(guardiansTab(families(), options));
+    const html = markup(guardiansTab(families()));
     expect(html).toContain("Daniel · Nursery 2 A");
     expect(html).toContain("Maryam · Nursery 2 A");
     expect(html).toContain("2 children");
   });
 
   it("says how many families never activated the portal, and how many children that leaves unreachable", () => {
-    const html = markup(guardiansTab(families(), options));
+    const html = markup(guardiansTab(families()));
     expect(html).toContain("2 families have never activated the portal — 3 children between them");
   });
 
   it("does not count a deliberately phone-only family as a failure", () => {
     const data = families({ rows: [family({ phoneOnly: true })], totals: { ...families().totals, families: 1, never: 0, neverChildren: 0, phoneOnly: 1 } });
-    const html = markup(guardiansTab(data, options));
+    const html = markup(guardiansTab(data));
     expect(html).toContain("Phone-only");
     expect(html).not.toContain("have never activated the portal");
   });
 
   it("offers to merge a duplicate whose records carry one name", () => {
-    const html = markup(guardiansTab(families(), options));
+    const html = markup(guardiansTab(families()));
     expect(html).toContain("08031112223 appears on 2 guardian records");
     expect(html).toContain("Merge");
   });
 
   it("opens each family at its own page", () => {
-    expect(markup(guardiansTab(families(), options))).toContain("/parents-guardians/guardians/g-1");
+    expect(markup(guardiansTab(families()))).toContain("/parents-guardians/guardians/g-1");
   });
 });
 
 describe("M9 forms", () => {
   it("requires every child to be mapped when adding a guardian", () => {
     const spec = addGuardianDrawer(options);
-    expect(spec.fields?.find((field) => field.label === "Children in this school")?.required).toBe(true);
+    const fields = spec.steps?.flatMap((step) => step.fields) ?? [];
+    expect(spec.steps?.map((step) => step.title)).toEqual(["Guardian", "Children", "Review"]);
+    expect(fields.find((field) => field.label === "Children in this school")?.required).toBe(true);
     expect(spec.submit?.endpoint).toBe("/api/v1/parents-guardians/guardians");
   });
 

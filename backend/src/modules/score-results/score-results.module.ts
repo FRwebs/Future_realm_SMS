@@ -14,6 +14,6 @@ import { SheetsService } from "./sheets.service";
   imports: [RolesManagementModule, AttendanceManagementModule, ReportCardsModule],
   controllers: [ScoreResultsController],
   providers: [SheetsService, ReviewService, ResultsService, ScoreCorrectionsService, PermissionsGuard],
-  exports: [ResultsService, ScoreCorrectionsService, ReviewService]
+  exports: [ResultsService, ScoreCorrectionsService, ReviewService, SheetsService]
 })
 export class ScoreResultsModule {}

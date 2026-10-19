@@ -1,3 +1,4 @@
+import { assertSubmission } from "../approvals/hub.shared";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
@@ -98,6 +99,7 @@ export class ScoreCorrectionsService {
 
   async request(session: SessionPayload, body: unknown) {
     const input = requestSchema.parse(body);
+    await assertSubmission(session, "SCORE_CORRECTION", { evidence: Boolean(input.evidence) });
     const term = await this.term(session.schoolId);
     const student = await prisma.student.findFirst({ where: { id: input.student, schoolId: session.schoolId }, select: { id: true, currentClassId: true } });
     if (!student?.currentClassId) throw new BadRequestException("That child is not on an arm's roll.");

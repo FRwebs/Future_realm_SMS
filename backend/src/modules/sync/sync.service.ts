@@ -71,4 +71,40 @@ export class SyncService {
       devices: new Set(entries.map((entry) => entry.userId)).size,
     };
   }
+
+  /**
+   * What the Sync tab reads: what has arrived but not been applied (and what the record refused, with the reason),
+   * the conflicts waiting for a choice, and when the school's record last took a write.
+   */
+  async overview(session: SessionPayload) {
+    const schoolId = session.schoolId;
+    const author = { select: { firstName: true, lastName: true, preferredName: true, role: true } } as const;
+    const [pending, conflicted, synced, lastWrite, mine] = await Promise.all([
+      prisma.syncDraft.findMany({ where: { schoolId, state: { in: ["PENDING", "REJECTED"] } }, orderBy: { createdAt: "asc" }, include: { user: author }, take: 500 }),
+      prisma.syncDraft.findMany({ where: { schoolId, state: "CONFLICT" }, orderBy: { createdAt: "asc" }, include: { user: author }, take: 100 }),
+      prisma.syncDraft.aggregate({ where: { schoolId, state: { in: ["APPLIED", "RESOLVED"] } }, _count: { _all: true }, _max: { syncedAt: true } }),
+      prisma.auditLog.findFirst({ where: { schoolId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+      prisma.auditLog.findFirst({ where: { schoolId, actorId: session.userId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+    ]);
+    const key = (row: (typeof pending)[number]) => `${row.type}|${row.state}`;
+    const byType = new Map<string, typeof pending>();
+    for (const row of pending) byType.set(key(row), [...(byType.get(key(row)) ?? []), row]);
+    const name = (user: (typeof pending)[number]["user"]) => (user ? user.preferredName?.trim() || [user.firstName, user.lastName].filter(Boolean).join(" ") : "Unknown");
+    const minutes = (date: Date) => Math.max(0, Math.round((Date.now() - date.getTime()) / 60_000));
+    type Side = { summary?: string; by?: string; at?: string | null };
+    return {
+      pending: pending.length,
+      oldestMinutes: pending.length ? minutes(pending[0].createdAt) : null,
+      devices: new Set(pending.map((row) => row.userId)).size,
+      synced: synced._count._all,
+      lastSyncedAt: synced._max.syncedAt?.toISOString() ?? null,
+      lastWriteAt: lastWrite?.createdAt.toISOString() ?? null,
+      lastWriteMineAt: mine?.createdAt.toISOString() ?? null,
+      queue: Array.from(byType.entries()).map(([, rows]) => ({ type: String(rows[0].type), count: rows.length, oldestMinutes: minutes(rows[0].createdAt), who: name(rows[0].user), role: rows[0].user?.role ? String(rows[0].user.role) : null, refused: rows[0].state === "REJECTED", message: rows[0].state === "REJECTED" ? rows[0].message : null })),
+      conflicts: conflicted.map((row) => {
+        const detail = (row.conflict ?? {}) as { record?: string; school?: Side; device?: Side; differing?: number };
+        return { id: row.id, kind: String(row.type), record: detail.record ?? "A record", school: { summary: detail.school?.summary ?? "", by: detail.school?.by ?? "Someone", at: detail.school?.at ?? null }, device: { summary: detail.device?.summary ?? "", by: detail.device?.by ?? name(row.user), at: detail.device?.at ?? row.capturedAt?.toISOString() ?? null }, differing: detail.differing ?? 0, deviceLabel: row.deviceLabel };
+      }),
+    };
+  }
 }

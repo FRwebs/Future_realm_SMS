@@ -1,5 +1,5 @@
 import { consentTab, loadConsent } from "@/lib/modules/live/m9-consent";
-import { guardiansTab, loadFamilies, loadGuardianOptions } from "@/lib/modules/live/m9-guardians";
+import { guardiansTab, loadFamilies } from "@/lib/modules/live/m9-guardians";
 import { loadSubmissionOptions, loadSubmissions, submissionsTab } from "@/lib/modules/live/m9-submissions";
 import type { TabContent } from "@/lib/modules/panels";
 
@@ -11,8 +11,7 @@ import type { TabContent } from "@/lib/modules/panels";
  */
 export async function parentsGuardiansLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "guardians") {
-    const [data, options] = await Promise.all([loadFamilies(), loadGuardianOptions()]);
-    return guardiansTab(data, options);
+    return guardiansTab(await loadFamilies());
   }
   if (tabSlug === "submissions") {
     const [data, options] = await Promise.all([loadSubmissions(), loadSubmissionOptions()]);

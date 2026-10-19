@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api/server";
+import { deliveryRow, type DeliveryStatus } from "@/lib/modules/live/m12-delivery";
 import {
   name as nameCell,
   pill,
@@ -761,8 +762,12 @@ export async function communicationCenterLiveTab(
   }
 
   if (tabSlug === "sent") {
-    const payload = await apiGet<CampaignsPayload>(`${BASE}/campaigns`);
-    return sentTab(payload);
+    const [payload, delivery] = await Promise.all([
+      apiGet<CampaignsPayload>(`${BASE}/campaigns`),
+      apiGet<DeliveryStatus>("/api/v1/delivery/status"),
+    ]);
+    const tab = sentTab(payload);
+    return { ...tab, rows: [deliveryRow(delivery), ...tab.rows] };
   }
 
   if (tabSlug === "automation") {

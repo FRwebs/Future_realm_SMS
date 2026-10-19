@@ -1,5 +1,6 @@
 "use client";
 
+import { DevicePanel } from "@/components/modules/device-panel";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -1634,46 +1635,56 @@ export function PanelView({
     );
   }
 
-  if (panel.type === "steps") {
-    const stateStyles: Record<string, string> = {
-      done: "bg-[var(--color-success)] text-white",
-      current: "bg-[#0d2315] text-white",
-      todo: "bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]",
-      blocked: "bg-[var(--color-danger-dim)] text-[var(--color-danger)]",
-    };
+  if (panel.type === "device") {
+    return <DevicePanel title={panel.title} sub={panel.sub} />;
+  }
 
+  if (panel.type === "steps") {
+    // The mockup draws a pipeline as one ink bar of numbered pills: what is done is ticked, where things
+    // stand is lifted, and what is still to come is dimmed. A stage that opens somewhere is a link.
     return (
-      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
-        <PanelHeader
-          title={panel.title}
-          sub={panel.sub}
-          openDrawer={openDrawer}
-        />
-        <ol className="grid gap-2.5">
-          {panel.steps.map((step, index) => (
-            <li key={step.label} className="flex items-start gap-3">
-              <span
-                className={cn(
-                  "mt-0.5 flex h-[22px] w-[22px] flex-none items-center justify-center rounded-full text-[11px] font-bold",
-                  stateStyles[step.state],
+      <section className="min-w-0 overflow-hidden rounded-[14px]" style={{ background: "#0D2315" }} aria-label={panel.title ?? "Stages"}>
+        {panel.title || panel.sub ? (
+          <div className="px-[16px] pt-[12px]">
+            {panel.title ? <h3 className="text-[12px] font-semibold text-white">{panel.title}</h3> : null}
+            {panel.sub ? <p className="mt-[2px] text-[10.5px]" style={{ color: "rgba(255,255,255,0.55)" }}>{panel.sub}</p> : null}
+          </div>
+        ) : null}
+        <ol className="flex flex-wrap items-center gap-[7px] px-[16px] py-[14px]">
+          {panel.steps.map((step, index) => {
+            const now = step.state === "current";
+            const next = step.state === "todo";
+            const blocked = step.state === "blocked";
+            const body = (
+              <>
+                <span
+                  className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full text-[9.5px] font-bold"
+                  style={{ background: step.state === "done" ? "#fff" : blocked ? "#DB5555" : now ? "#12796A" : "rgba(255,255,255,0.12)", color: step.state === "done" ? "#0D2315" : "#fff" }}
+                >
+                  {step.state === "done" ? "\u2713" : index + 1}
+                </span>
+                <span className="whitespace-nowrap text-[10.5px] font-semibold">{step.label}</span>
+                {step.sub ? <span className="whitespace-nowrap text-[10px]" style={{ color: "rgba(255,255,255,0.55)" }}>{step.sub}</span> : null}
+              </>
+            );
+            const style = { color: next ? "rgba(255,255,255,0.5)" : "#fff", background: now ? "rgba(255,255,255,0.14)" : "transparent", border: `1px solid ${now ? "rgba(255,255,255,0.2)" : "transparent"}` };
+            const className = "flex items-center gap-[8px] rounded-full px-[11.5px] py-[7px]";
+            return (
+              <li key={`${step.label}-${index}`} aria-current={now ? "step" : undefined}>
+                {step.href ? (
+                  <Link href={step.href as Route} className={className} style={style}>
+                    {body}
+                  </Link>
+                ) : (
+                  <span className={className} style={style}>
+                    {body}
+                  </span>
                 )}
-              >
-                {index + 1}
-              </span>
-              <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">
-                  {step.label}
-                </p>
-                {step.sub ? (
-                  <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
-                    {step.sub}
-                  </p>
-                ) : null}
-              </div>
-            </li>
-          ))}
+              </li>
+            );
+          })}
         </ol>
-        {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
+        {panel.foot ? <p className="px-[16px] pb-[12px] text-[10.5px]" style={{ color: "rgba(255,255,255,0.55)" }}>{panel.foot}</p> : null}
       </section>
     );
   }
