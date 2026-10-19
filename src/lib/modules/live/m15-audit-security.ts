@@ -3,9 +3,13 @@ import {
   name as nameCell,
   pill,
   text,
+  type DrawerSpec,
+  type KpiCard,
   type PanelFact,
+  type PanelRow,
   type PanelTone,
   type TabContent,
+  type TableRow,
 } from "@/lib/modules/panels";
 
 /**
@@ -579,6 +583,304 @@ function dataProtectionTab(data: DataProtection): TabContent {
   };
 }
 
+
+/* ───────── Integrity monitors and the data-protection register ───────── */
+
+type IntegrityPayload = {
+  stats: {
+    open: number;
+    monitors: number;
+    noMfa: number;
+    activeUsers: number;
+    failedLogins: number;
+    dormant: number;
+    exports30: number;
+    permChanges: number;
+  };
+  monitors: Array<{ monitor: string; count: number; detail: string; severity: string; clean: boolean }>;
+  flags: Array<{
+    id: string;
+    monitor: string;
+    detail: string;
+    severity: string;
+    status: string;
+    ageDays: number;
+    resolution: string | null;
+    resolvedBy: string | null;
+  }>;
+};
+
+type DsrPayload = {
+  stats: { open: number; closestDays: number | null; consentHeld: number; consentTotal: number; incidents: number };
+  requests: Array<{
+    id: string;
+    reference: string;
+    kind: string;
+    requesterName: string;
+    subjectName: string | null;
+    status: string;
+    receivedOn: string;
+    daysLeft: number | null;
+    closedOn: string | null;
+    outcome: string | null;
+    ownerName: string | null;
+    ownerRole: string | null;
+  }>;
+  retention: Array<{ id: string; dataClass: string; retention: string; basis: string; hostedIn: string }>;
+};
+
+const SEVERITY_TONE: Record<string, PanelTone> = {
+  NORMAL: "neutral",
+  ATTENTION: "attention",
+  CRITICAL: "negative",
+};
+
+function titleCase(value: string): string {
+  return value.toLowerCase().split("_").map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
+}
+
+/**
+ * A flag is closed by saying what was found, never by a bare click — the
+ * resolution is what somebody reads a year later when they ask why this was
+ * dismissed.
+ */
+function flagDrawer(flag: IntegrityPayload["flags"][number]): DrawerSpec {
+  const open = flag.status === "OPEN";
+  return {
+    kicker: titleCase(flag.severity),
+    title: flag.monitor,
+    sub: open ? `Open for ${flag.ageDays} day${flag.ageDays === 1 ? "" : "s"}` : titleCase(flag.status),
+    tone: SEVERITY_TONE[flag.severity] ?? "neutral",
+    facts: [
+      ["Monitor", flag.monitor],
+      ["What was found", flag.detail],
+      ["Severity", titleCase(flag.severity)],
+      ["Age", `${flag.ageDays} days`],
+      ["State", titleCase(flag.status)],
+      ...(flag.resolution ? ([["Resolution", flag.resolution]] as PanelFact[]) : []),
+      ...(flag.resolvedBy ? ([["Closed by", flag.resolvedBy]] as PanelFact[]) : []),
+    ],
+    ...(open
+      ? {
+          mode: "commit" as const,
+          commitLabel: "Close this flag",
+          commitNote: "A flag raised by the records closes itself when the records are fixed. Closing it by hand records your reason instead.",
+          commitDone: "Flag closed",
+          commitDoneBody: `${flag.monitor} is no longer open.`,
+          submit: {
+            endpoint: `/api/v1/governance/integrity/${flag.id}`,
+            method: "PATCH" as const,
+            body: { action: "RESOLVE" },
+            reasonKey: "resolution",
+            reasonLabel: "What was found",
+            reasonRequired: true,
+          },
+        }
+      : { readOnly: true as const, readOnlyNote: "This flag is closed. The record of why is kept." }),
+  };
+}
+
+function integrityRows(payload: IntegrityPayload): PanelRow[] {
+  const { stats, monitors, flags } = payload;
+  const open = flags.filter((flag) => flag.status === "OPEN");
+
+  const cards: KpiCard[] = [
+    {
+      label: "Open integrity flags",
+      value: String(stats.open),
+      tone: stats.open ? "attention" : "positive",
+      sub: `Across ${stats.monitors} monitors`,
+    },
+    {
+      label: "Users without two-factor",
+      value: `${stats.noMfa} of ${stats.activeUsers}`,
+      tone: stats.noMfa ? "negative" : "positive",
+      sub: stats.noMfa ? "A password alone opens the school" : "Every account is protected",
+      link: "See users",
+      href: "/staff-access/permissions",
+    },
+    {
+      label: "Dormant accounts",
+      value: String(stats.dormant),
+      tone: stats.dormant ? "attention" : "positive",
+      sub: "No sign-in for 90 days, or never",
+    },
+    {
+      label: "Exports, 30 days",
+      value: String(stats.exports30),
+      sub: `${stats.permChanges} permission changes in the same window`,
+    },
+  ];
+
+  const monitorRows: TableRow[] = monitors.map((monitor) => ({
+    cells: [
+      text(monitor.monitor, { strong: true }),
+      text(String(monitor.count), { mono: true, tone: monitor.clean ? "neutral" : "negative" }),
+      text(monitor.detail),
+      pill(monitor.clean ? "Clean" : titleCase(monitor.severity), monitor.clean ? "positive" : SEVERITY_TONE[monitor.severity] ?? "attention"),
+    ],
+    keywords: monitor.detail,
+  }));
+
+  const flagRows: TableRow[] = flags.map((flag) => ({
+    cells: [
+      nameCell(flag.monitor, flag.detail),
+      pill(titleCase(flag.severity), SEVERITY_TONE[flag.severity] ?? "neutral"),
+      text(`${flag.ageDays}d`, { mono: true }),
+      pill(titleCase(flag.status), flag.status === "OPEN" ? "attention" : "positive"),
+      { kind: "action" as const, label: flag.status === "OPEN" ? "Review" : "Open", drawer: flagDrawer(flag) },
+    ],
+    drawer: flagDrawer(flag),
+    keywords: flag.detail,
+  }));
+
+  return [
+    { cols: "1fr", panels: [{ type: "kpi", title: "What needs attention now", per: 4, cards }] },
+    ...(open.length
+      ? [
+          {
+            cols: "1fr",
+            panels: [
+              {
+                type: "note" as const,
+                tone: "attention" as PanelTone,
+                title: `${open.length} integrity flag${open.length === 1 ? " is" : "s are"} open`,
+                body: `${open.map((flag) => flag.detail).join(" ")} Each one was raised by the records themselves, and closes on its own once the records stop matching.`,
+              },
+            ],
+          },
+        ]
+      : []),
+    {
+      cols: "1fr",
+      panels: [
+        {
+          type: "table",
+          title: "Integrity monitors",
+          sub: "Each runs against the records on every read, so a clean monitor is a fact rather than a claim.",
+          meta: `${stats.monitors} monitors · ${stats.open} open`,
+          head: ["Monitor", "Found", "What was found", "State"],
+          rows: monitorRows,
+          per: 10,
+          empty: "No monitor is configured.",
+        },
+      ],
+    },
+    ...(flagRows.length
+      ? [
+          {
+            cols: "1fr",
+            panels: [
+              {
+                type: "table" as const,
+                title: "Flags",
+                sub: "Raised by a monitor, closed by somebody who says what they found.",
+                meta: `${open.length} open · ${flagRows.length - open.length} closed`,
+                head: ["Flag", "Severity", "Age", "State", ""],
+                rows: flagRows,
+                per: 8,
+                empty: "Nothing has been flagged.",
+              },
+            ],
+          },
+        ]
+      : []),
+  ];
+}
+
+function dsrRows(payload: DsrPayload): PanelRow[] {
+  const { stats, requests, retention } = payload;
+  const open = requests.filter((item) => item.status === "OPEN");
+
+  const cards: KpiCard[] = [
+    {
+      label: "Open subject requests",
+      value: String(stats.open),
+      tone: stats.open ? "attention" : "positive",
+      sub: "Five types · statutory 30 days",
+    },
+    {
+      label: "Closest deadline",
+      value: stats.closestDays === null ? "—" : `${stats.closestDays} days`,
+      tone: stats.closestDays !== null && stats.closestDays <= 7 ? "negative" : "neutral",
+      sub: stats.closestDays === null ? "Nothing outstanding" : "Statutory clock, from the day it arrived",
+    },
+    {
+      label: "Core consent held",
+      value: `${stats.consentHeld} of ${stats.consentTotal}`,
+      tone: stats.consentHeld < stats.consentTotal ? "attention" : "positive",
+      sub: stats.consentHeld < stats.consentTotal ? `${stats.consentTotal - stats.consentHeld} guardians have given none` : "Everybody has been asked",
+      link: "See consent",
+      href: "/parents-guardians/guardians",
+    },
+    {
+      label: "Incidents recorded",
+      value: String(stats.incidents),
+      tone: stats.incidents ? "negative" : "positive",
+      sub: stats.incidents ? "Breach register has entries" : "Breach register is empty",
+    },
+  ];
+
+  const requestRows: TableRow[] = requests.map((item) => ({
+    cells: [
+      text(item.reference, { mono: true, strong: true }),
+      text(titleCase(item.kind)),
+      nameCell(item.requesterName, item.subjectName ?? ""),
+      text(item.ownerRole ? `${item.ownerName} · ${item.ownerRole}` : (item.ownerName ?? "Not assigned")),
+      text(
+        item.closedOn ? "Closed" : item.daysLeft === null ? "—" : `${item.daysLeft} days`,
+        { tone: item.daysLeft !== null && item.daysLeft <= 7 ? "negative" : "neutral" },
+      ),
+      pill(titleCase(item.status), item.status === "OPEN" ? "attention" : "positive"),
+    ],
+    keywords: `${item.requesterName} ${item.kind}`,
+  }));
+
+  const retentionRows: TableRow[] = retention.map((item) => ({
+    cells: [
+      text(item.dataClass, { strong: true }),
+      text(item.retention),
+      text(item.basis),
+      text(item.hostedIn),
+    ],
+    keywords: item.basis,
+  }));
+
+  return [
+    { cols: "1fr", panels: [{ type: "kpi", title: "The school as data controller", per: 4, cards }] },
+    {
+      cols: "1fr",
+      panels: [
+        {
+          type: "table",
+          title: "Subject requests",
+          sub: "Five types, each with a reference, an owner and a response clock.",
+          meta: `${open.length} open · statutory response 30 days`,
+          head: ["Reference", "Type", "Requester", "Owner", "Days left", "State"],
+          rows: requestRows,
+          per: 8,
+          empty: "No subject request has been logged. The register exists; nothing has been asked yet.",
+        },
+      ],
+    },
+    {
+      cols: "1fr",
+      panels: [
+        {
+          type: "table",
+          title: "Retention schedule",
+          sub: "How long each class of data is kept, and on what basis.",
+          meta: `${retention.length} classes · hosted in ${retention[0]?.hostedIn ?? "Nigeria"}`,
+          head: ["Data class", "Retention", "Basis", "Hosted"],
+          rows: retentionRows,
+          per: 8,
+          empty: "No retention rule is configured, so everything is held indefinitely.",
+        },
+      ],
+    },
+  ];
+}
+
 export async function auditSecurityLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
@@ -589,16 +891,30 @@ export async function auditSecurityLiveTab(
   }
 
   if (tabSlug === "monitoring") {
-    const payload = await apiGet<{ records: LoginAttempt[] }>(
-      "/api/v1/configuration/login-history",
-    );
-    return monitoringTab(payload?.records ?? []);
+    const [payload, integrity] = await Promise.all([
+      apiGet<{ records: LoginAttempt[] }>("/api/v1/configuration/login-history"),
+      apiGet<IntegrityPayload>("/api/v1/governance/integrity"),
+    ]);
+    const base = monitoringTab(payload?.records ?? []);
+    // The monitors lead: what needs attention now, which is the tab's job. The
+    // sign-in history that was already here stays underneath as the evidence.
+    return integrity ? { ...base, rows: [...integrityRows(integrity), ...base.rows] } : base;
   }
 
   if (tabSlug === "data-protection") {
-    const data = await apiGet<DataProtection>("/api/v1/audit/data-protection");
+    const [data, register] = await Promise.all([
+      apiGet<DataProtection>("/api/v1/audit/data-protection"),
+      apiGet<DsrPayload>("/api/v1/governance/data-subject-requests"),
+    ]);
     if (!data) return undefined;
-    return dataProtectionTab(data);
+    const base = dataProtectionTab(data);
+    return register
+      ? {
+          ...base,
+          desc: "The school operating its own responsibility as data controller.",
+          rows: [...dsrRows(register), ...base.rows],
+        }
+      : base;
   }
 
   return undefined;
