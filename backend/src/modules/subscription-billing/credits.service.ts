@@ -1,3 +1,4 @@
+import { platformPolicy } from "../platform-policy/policy.service";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
 import { z } from "zod";
@@ -87,7 +88,7 @@ export class CreditsService {
     const { key, rate, subtotal, discount } = this.price(input.channel, credits);
     const tax = round2(subtotal * (await taxRate(school.country)));
     const invoice = await prisma.platformInvoice.create({
-      data: { schoolId, invoiceNo: await nextInvoiceNo(), amount: subtotal, taxAmount: tax, currency: school.currency, status: "PENDING", dueAt: new Date(Date.now() + 7 * 86_400_000), metadata: json({ kind: "TOPUP", description: `Credit top-up · ${credits.toLocaleString("en-NG")} ${key === "SMS" ? "SMS" : "WhatsApp"}`, channel: key, credits, rate, discount }) }
+      data: { schoolId, invoiceNo: await nextInvoiceNo(), amount: (await platformPolicy.invoiceTerms(Number(subtotal))).amount, taxAmount: tax, currency: school.currency, status: "PENDING", dueAt: (await platformPolicy.invoiceTerms(0)).dueAt, metadata: json({ kind: "TOPUP", description: `Credit top-up · ${credits.toLocaleString("en-NG")} ${key === "SMS" ? "SMS" : "WhatsApp"}`, channel: key, credits, rate, discount }) }
     });
     await this.saveSettings(session, { auto: input.auto, channel: input.channel, quantity: String(credits), warnAt: input.warnAt ?? "2,000 credits", warnWho: input.warnWho ?? "The Bursar" }, true);
     await prisma.auditLog.create({ data: { schoolId, actorId: session.userId, action: AuditAction.BILLING_UPDATE, entityType: "PlatformInvoice", entityId: invoice.id, metadata: json({ summary: `Credit top-up invoiced · ${invoice.invoiceNo}`, credits, channel: key, total: round2(subtotal + tax) }) } });

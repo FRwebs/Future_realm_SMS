@@ -1,3 +1,4 @@
+import { OnboardingService } from "../onboarding/onboarding.service";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, ApprovalStatus } from "@prisma/client";
 import { z } from "zod";
@@ -54,6 +55,7 @@ export class HubService {
     private readonly waivers: FeeReviewService,
     private readonly changes: ChangesService,
     private readonly leave: LeaveService,
+    private readonly onboarding: OnboardingService,
   ) {}
 
   private async audit(session: SessionPayload, action: AuditAction, entityType: string, entityId: string, metadata: Record<string, unknown>) {
@@ -236,6 +238,8 @@ export class HubService {
         return out(await this.waivers.decideWaiver(session, item.id, { decision: decision === "approve" ? "approve" : "decline", ...body }), decision === "approve" ? "Approved" : "Declined");
       case "RECORD_CHANGE":
         return out(await this.changes.decide(session, item.id, { decision: decision === "approve" ? "approve" : "decline", ...body }), decision === "approve" ? "Approved" : "Declined");
+      case "JOIN_REQUEST":
+        return out(await this.onboarding.decideJoinRequest(session, item.id, { decision: decision === "approve" ? "APPROVE" : "DECLINE", note }), decision === "approve" ? "Approved" : "Declined");
       case "LEAVE":
         return out(await this.leave.decide(session, item.id, { decision, ...body }), decision === "approve" ? "Approved" : decision === "return" ? "Returned" : "Declined");
       default: {

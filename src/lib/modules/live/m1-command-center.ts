@@ -1,3 +1,4 @@
+import { sampleRow, trialRow } from "@/lib/modules/live/m1-trial";
 import { apiGet } from "@/lib/api/server";
 import type { KpiCard, Panel, PanelFact, TabContent } from "@/lib/modules/panels";
 import { name, pill, row, text } from "@/lib/modules/panels";
@@ -465,9 +466,11 @@ export async function commandCenterLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
   if (tabSlug === "today") {
-    const [data, queue] = await Promise.all([
+    const [data, queue, trial, sample] = await Promise.all([
       apiGet<ApiToday>("/api/v1/command-center/today"),
       waitingOnMe(),
+      trialRow(),
+      sampleRow(),
     ]);
 
     return {
@@ -478,6 +481,8 @@ export async function commandCenterLiveTab(
       primary: { label: "Review submissions", href: "/score-entry-results/review" },
       launchers: [{ label: "Open the queue", href: "/approvals-workflow/queue" }],
       rows: [
+        ...(trial ? [trial] : []),
+        ...(sample ? [sample] : []),
         row("1fr", [
           { type: "kpi", title: "Where the school stands today", per: 6, cards: kpiCards(data) },
         ]),

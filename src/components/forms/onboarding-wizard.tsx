@@ -129,9 +129,11 @@ const CURRICULUM_OPTIONS = [
 
 const AUTO_SETUP_ADMIN = [
   "School record created and your web address goes live",
-  "12 default staff role templates installed",
-  "Admin account created — permanent login issued",
-  "Trial record created, every feature unlocked for 30 days",
+  "Curriculum and grading template loaded for your country, and a class ladder built from the levels you chose",
+  "Default staff role templates ready to assign",
+  "Admin account created — permanent 6-digit User ID issued",
+  "Sample demo class loaded: 30 students, a marked term, full scores, 30 report cards — remove it any time",
+  "Trial record created and notification credits issued",
   "Audit logging switched on and a background risk check run"
 ];
 
@@ -216,6 +218,12 @@ export function OnboardingWizard() {
   const [teacherSchoolName, setTeacherSchoolName] = useState("");
   const [teacherSchoolMatches, setTeacherSchoolMatches] = useState<Array<{ id: string; name: string; location: string | null }>>([]);
   const [joinRequestChoice, setJoinRequestChoice] = useState<"none" | "sent" | "declined">("none");
+  /** The school the teacher chose to ask, once they have pressed "Send join request". */
+  const [joinSchoolId, setJoinSchoolId] = useState<string | null>(null);
+  /** What the school was actually given, as the server reports it — the "you're done" screen reads this back. */
+  const [account, setAccount] = useState<{ userCode: string; address: string; trialStarted: boolean; setup: Array<{ key: string; label: string; detail: string }>; joinRequest?: { school: string; status: string } | null } | null>(null);
+  const [changingEmail, setChangingEmail] = useState(false);
+  const [newEmail, setNewEmail] = useState("");
   const [subjects, setSubjects] = useState<Record<string, boolean>>({});
   const [subjectsOther, setSubjectsOther] = useState("");
 
@@ -228,6 +236,51 @@ export function OnboardingWizard() {
   const [expiresInSeconds, setExpiresInSeconds] = useState(15 * 60);
   const [doneRole, setDoneRole] = useState<SignupRole>("admin");
   const [doneSchoolSlug, setDoneSchoolSlug] = useState("");
+
+  /* "Progress is saved at every step — you can leave and come back." Everything but the password and the code. */
+  const DRAFT_KEY = "fr:signup-draft";
+  const [restored, setRestored] = useState(false);
+
+  function clearDraft() {
+    try {
+      localStorage.removeItem(DRAFT_KEY);
+    } catch {
+      // Storage can be blocked; there is nothing to clear then.
+    }
+  }
+
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem(DRAFT_KEY) ?? "null") as Record<string, unknown> | null;
+      if (saved && typeof saved === "object" && saved.view === "wiz") {
+        const text = (key: string) => (typeof saved[key] === "string" ? (saved[key] as string) : "");
+        setRole(saved.role === "teacher" ? "teacher" : "admin");
+        setStep(typeof saved.step === "number" ? Math.min(Math.max(saved.step, 1), 4) : 1);
+        setFirstName(text("firstName")); setLastName(text("lastName")); setGender(text("gender")); setPhone(text("phone")); setEmail(text("email")); setPosition(text("position"));
+        setCountry(text("country") || "Nigeria"); setSchoolName(text("schoolName")); setSlug(text("slug")); setState(text("state")); setLga(text("lga")); setCity(text("city")); setAddress(text("address")); setWebsite(text("website"));
+        setSchoolType(text("schoolType")); setCurriculum(text("curriculum")); setStudentCount(text("studentCount")); setRegNumber1(text("regNumber1")); setRegNumber2(text("regNumber2")); setLevelsOther(text("levelsOther"));
+        setTeacherSchoolName(text("teacherSchoolName")); setSubjectsOther(text("subjectsOther"));
+        if (saved.levels && typeof saved.levels === "object") setLevels(saved.levels as Record<string, boolean>);
+        if (saved.subjects && typeof saved.subjects === "object") setSubjects(saved.subjects as Record<string, boolean>);
+        setView("wiz");
+      }
+    } catch {
+      // A draft that cannot be read is simply not restored.
+    }
+    setRestored(true);
+  }, []);
+
+  useEffect(() => {
+    if (!restored || view !== "wiz") return;
+    const handle = window.setTimeout(() => {
+      try {
+        localStorage.setItem(DRAFT_KEY, JSON.stringify({ view, role, step, firstName, lastName, gender, phone, email, position, country, schoolName, slug, state, lga, city, address, website, schoolType, curriculum, studentCount, regNumber1, regNumber2, levels, levelsOther, teacherSchoolName, subjects, subjectsOther }));
+      } catch {
+        // Storage can be blocked; progress is then simply not kept.
+      }
+    }, 300);
+    return () => window.clearTimeout(handle);
+  }, [restored, view, role, step, firstName, lastName, gender, phone, email, position, country, schoolName, slug, state, lga, city, address, website, schoolType, curriculum, studentCount, regNumber1, regNumber2, levels, levelsOther, teacherSchoolName, subjects, subjectsOther]);
 
   const admin = role === "admin";
   const lastStep = admin ? 4 : 3;
@@ -373,7 +426,7 @@ export function OnboardingWizard() {
       window.scrollTo(0, 0);
       return;
     }
-    await submit();
+    await submit(true);
   }
 
   function levelsList() {
@@ -398,7 +451,7 @@ export function OnboardingWizard() {
     return [...picked, ...extra];
   }
 
-  async function submit() {
+  async function submit(startTrial = true) {
     setPending(true);
     try {
       const endpoint = admin ? "/api/v1/onboarding/schools" : "/api/v1/onboarding/teachers";
@@ -422,7 +475,10 @@ export function OnboardingWizard() {
             curriculumPreference: curriculum || undefined,
             studentCount: studentCount ? Number(studentCount) : undefined,
             cacNumber: regNumber1 || undefined,
-            ministryApprovalNumber: regNumber2 || undefined
+            ministryApprovalNumber: regNumber2 || undefined,
+            startTrial,
+            levels: levelsList(),
+            partnerCode: new URLSearchParams(window.location.search).get("partner") ?? undefined
           }
         : {
             firstName,
@@ -435,6 +491,7 @@ export function OnboardingWizard() {
             schoolName: teacherSchoolName || undefined,
             subjects: subjectsList(),
             levels: levelsList(),
+            joinSchoolId: joinRequestChoice === "sent" ? joinSchoolId ?? undefined : undefined,
             password
           };
 
@@ -447,7 +504,7 @@ export function OnboardingWizard() {
       const responseBody = (await response.json()) as {
         ok?: boolean;
         error?: string;
-        data?: { user: { role: string }; school: { slug: string } };
+        data?: { user: { role: string }; school: { slug: string }; account?: NonNullable<typeof account> };
       };
 
       if (!response.ok || responseBody.ok === false || !responseBody.data) {
@@ -458,6 +515,8 @@ export function OnboardingWizard() {
       }
 
       setDoneRole(role);
+      setAccount(responseBody.data.account ?? null);
+      clearDraft();
       setDoneSchoolSlug(responseBody.data.school?.slug ?? "");
       setView("done");
       window.scrollTo(0, 0);
@@ -504,6 +563,31 @@ export function OnboardingWizard() {
         description: "Unable to reach the server. Please try again."
       });
       setVerifyPending(false);
+    }
+  }
+
+  async function handleChangeEmail() {
+    try {
+      const csrf = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1] ?? "";
+      const response = await fetch("/api/v1/onboarding/change-email", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "x-csrf-token": csrf },
+        body: JSON.stringify({ email: newEmail })
+      });
+      const body = (await response.json()) as { ok?: boolean; error?: string; data?: { email: string } };
+      if (!response.ok || body.ok === false || !body.data) {
+        showToast({ variant: "error", title: "Could not change it", description: body.error ?? "Please try again." });
+        return;
+      }
+      setEmail(body.data.email);
+      setChangingEmail(false);
+      setNewEmail("");
+      setOtp("");
+      setExpiresInSeconds(15 * 60);
+      showToast({ variant: "success", title: "Code sent", description: `A new code is on its way to ${body.data.email}.` });
+    } catch {
+      showToast({ variant: "error", title: "Server unavailable", description: "Please try again shortly." });
     }
   }
 
@@ -1032,20 +1116,16 @@ export function OnboardingWizard() {
                           {teacherSchoolMatches[0]!.location ? ` (${teacherSchoolMatches[0]!.location})` : ""}.
                         </div>
                         <div className="mb-[10px] text-[10.5px] leading-[1.55] text-[#435048]">
-                          Your account is created either way. A formal link to that school&apos;s roster isn&apos;t
-                          built yet — your claimed school name is kept on your profile so it can be matched up
-                          later.
+                          Would you like to request to join their portal? Your account is created immediately either
+                          way — an administrator at the school approves the link.
                         </div>
                         <div className="flex gap-2">
                           <button
                             type="button"
-                            onClick={() =>
-                              showToast({
-                                variant: "info",
-                                title: "Not built",
-                                description: "There's no school-approval inbox yet — your claimed school is saved on your account instead."
-                              })
-                            }
+                            onClick={() => {
+                              setJoinSchoolId(teacherSchoolMatches[0]!.id);
+                              setJoinRequestChoice("sent");
+                            }}
                             className="rounded-[9px] px-[12.5px] py-[7px] text-[11px] font-semibold text-white"
                             style={{ background: "#0d2315" }}
                           >
@@ -1060,6 +1140,11 @@ export function OnboardingWizard() {
                           </button>
                         </div>
                       </div>
+                    </div>
+                  ) : null}
+                  {joinRequestChoice === "sent" ? (
+                    <div className="mt-[11px] rounded-xl border border-[#bfe3cd] bg-[#edf7f1] px-[13.5px] py-[10px] text-[10.5px] leading-[1.55] text-[#17604f]">
+                      <b>Join request ready.</b> It goes to {teacherSchoolMatches[0]?.name ?? "the school"} when you create your account. You can use your workspace while you wait.
                     </div>
                   ) : null}
                   <div className="mt-1.5 text-[10px] text-[#8c9a92]">
@@ -1227,7 +1312,7 @@ export function OnboardingWizard() {
 
             {step === 4 && admin ? (
               <div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 30-day free trial</div>
+                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 1-month free trial</div>
                 <p className="mb-[25px] text-[12px] text-[#77857c]">Every feature unlocked. No card required. No charge at the end.</p>
                 <div className="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
                   <div className="relative overflow-hidden rounded-[18px] p-[23.5px]" style={{ background: "#0d2315" }}>
@@ -1237,14 +1322,23 @@ export function OnboardingWizard() {
                         <span className="text-[9.5px] font-bold tracking-[0.06em] text-white">30 DAYS · EVERY FEATURE</span>
                       </div>
                       <div className="mb-3.5 font-[var(--font-heading)] text-[20px] font-bold leading-[1.3] text-white">
-                        Results, report cards, fees, attendance and parent notifications.
+                        A whole term, end to end — attendance marked, scores approved, report cards issued and fees reconciled, with parents told the moment anything changes.
                       </div>
                       <div className="mb-6 text-[11.5px] leading-[1.6] text-[rgba(255,255,255,0.6)]">
-                        Your school starts with a clean workspace ready for your first academic session — classes,
-                        subjects, staff and students, all set up your way.
+                        Your school arrives fully populated with a demo class — 30 students, a marked term of attendance,
+                        complete scores and 30 finished report cards — so you can see the payoff in your first hour, not
+                        your first term.
                       </div>
-                      <div className="text-[10px] leading-[1.5] text-[rgba(255,255,255,0.45)]">
-                        Your trial starts the moment you finish this step.
+                      <div className="flex flex-wrap items-center gap-3">
+                        <button type="button" disabled={pending} onClick={() => void submit(true)} className="rounded-[11px] bg-white px-[18px] py-[10px] text-[12px] font-semibold text-[#0d2315] disabled:opacity-60">
+                          {pending ? "Creating..." : "Start my free trial"}
+                        </button>
+                        <button type="button" disabled={pending} onClick={() => void submit(false)} className="rounded-[11px] border border-[rgba(255,255,255,0.3)] px-[18px] py-[10px] text-[12px] font-semibold text-white disabled:opacity-60">
+                          Not yet
+                        </button>
+                      </div>
+                      <div className="mt-3 text-[10px] leading-[1.5] text-[rgba(255,255,255,0.5)]">
+                        Choosing &ldquo;Not yet&rdquo; still creates your school. The 30 days only begin when you start them from your dashboard.
                       </div>
                     </div>
                   </div>
@@ -1272,6 +1366,7 @@ export function OnboardingWizard() {
               >
                 Back
               </button>
+              {!(step === 4 && admin) ? (
               <button
                 type="button"
                 disabled={pending}
@@ -1282,6 +1377,7 @@ export function OnboardingWizard() {
                 {pending ? "Creating..." : step === lastStep ? (admin ? "Create my school" : "Create my account") : "Continue"}
                 <ArrowRight className="h-[13.5px] w-[13.5px]" />
               </button>
+              ) : null}
               <span className="hidden text-[10.5px] text-[#9fb8a7] sm:inline">
                 Progress is saved at every step — you can leave and come back.
               </span>
@@ -1295,16 +1391,16 @@ export function OnboardingWizard() {
   if (view === "done") {
     const doneRows = doneRole === "admin"
       ? [
-          { k: "Your web address", v: `${doneSchoolSlug}.futurerealm.school` },
-          { k: "Trial", v: "30 days · every feature unlocked" }
+          { k: "Your web address", v: account?.address ?? `${doneSchoolSlug}.futurerealm.school` },
+          { k: "Your User ID", v: account ? `${account.userCode} · permanent` : "—" },
+          { k: "Trial", v: account?.trialStarted ? "30 days · every feature unlocked" : "Not started · begin it from your dashboard" },
+          { k: "Loaded for you", v: account?.setup.find((line) => line.key === "sample")?.detail ?? "A clean school, ready for your own data" }
         ]
       : [
-          { k: "Where you work", v: "app.futurerealm.school" },
+          { k: "Where you work", v: account?.address ?? "app.futurerealm.school" },
+          { k: "Your User ID", v: account ? `${account.userCode} · permanent` : "—" },
           { k: "Cost", v: "Free, indefinitely" },
-          {
-            k: "Join request",
-            v: joinRequestChoice === "declined" || teacherSchoolMatches.length === 0 ? "None — add a school any time" : `Saved for ${teacherSchoolMatches[0]?.name ?? "your school"}`
-          }
+          { k: "Join request", v: account?.joinRequest ? `Sent to ${account.joinRequest.school} · waiting for their decision` : "None — add a school any time" }
         ];
 
     return (
@@ -1318,8 +1414,8 @@ export function OnboardingWizard() {
           </div>
           <p className="mx-auto mb-[23px] max-w-[378px] text-[12px] leading-[1.65] text-[#77857c]">
             {doneRole === "admin"
-              ? "Your school exists and your web address is live. One step left — verify your email address, then head to your new dashboard."
-              : "Your personal teaching workspace is created and free for as long as you use it. One step left — verify your email address."}
+              ? "Your school exists, your web address is live, and a demo class is already loaded. One step left — verify your email address, then sign in to your new portal."
+              : "Your personal teaching workspace is created and free for as long as you use it. One step left — verify your email address, then sign in."}
           </p>
 
           <div className="mb-[21.5px] rounded-[14px] border border-[#e6eee9] bg-[#f7faf8] px-[18px] py-[16px] text-left">
@@ -1335,7 +1431,7 @@ export function OnboardingWizard() {
             <Mail className="mt-px h-[15px] w-[15px] shrink-0" style={{ color: "#12796a" }} strokeWidth={1.9} />
             <div className="text-[10.5px] leading-[1.55] text-[#435048]">
               Check your inbox for a <b>6-digit verification code</b>. It is valid for 15 minutes, allows 3 attempts,
-              and you can request a new one at any time.
+              and you can request a new one at any time. We never send passwords by email.
             </div>
           </div>
 
@@ -1438,12 +1534,27 @@ export function OnboardingWizard() {
           <p className="text-[10.5px] leading-[1.55] text-[#8c9a92]">
             Codes go to email only. We never send passwords by email.
           </p>
-          <p className="mt-[14px] text-[11px] text-[#9fb8a7]">
+          <div className="mt-[14px] text-[11px] text-[#9fb8a7]">
             Wrong address?{" "}
-            <button type="button" onClick={() => setView("done")} className="font-semibold text-[#12796a] hover:underline">
-              Go back
-            </button>
-          </p>
+            {changingEmail ? (
+              <span className="mt-2 flex gap-2">
+                <input
+                  value={newEmail}
+                  onChange={(e) => setNewEmail(e.target.value)}
+                  type="email"
+                  placeholder="The right email address"
+                  className={inputClass("flex-1")}
+                />
+                <button type="button" onClick={handleChangeEmail} className="rounded-[10px] px-[14px] py-[8px] text-[11.5px] font-semibold text-white" style={{ background: "#0d2315" }}>
+                  Resend
+                </button>
+              </span>
+            ) : (
+              <button type="button" onClick={() => setChangingEmail(true)} className="font-semibold text-[#12796a] hover:underline">
+                Change it and resend
+              </button>
+            )}
+          </div>
         </div>
       </div>
     </div>

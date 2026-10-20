@@ -26,6 +26,12 @@ export interface SchoolDormancyRow {
   status: string;
   createdAt: string;
   lastSuccessfulLoginAt: string | null;
+  billingStatus: string;
+  address: string | null;
+  dormantAt: string | null;
+  noticeSentAt: string | null;
+  releaseDueAt: string | null;
+  lifecycleNote: string | null;
 }
 
 @Injectable()
@@ -42,7 +48,7 @@ export class SchoolDirectoryExtrasService {
     const [schools, lastLogins] = await Promise.all([
       prisma.school.findMany({
         where: { deletedAt: null },
-        select: { id: true, name: true, status: true, createdAt: true }
+        select: { id: true, name: true, status: true, billingStatus: true, createdAt: true, dormantAt: true, dormancyNoticeAt: true, addressReleaseDueAt: true, lifecycleNote: true, subdomain: true }
       }),
       prisma.loginAttempt.groupBy({
         by: ["schoolId"],
@@ -64,7 +70,13 @@ export class SchoolDirectoryExtrasService {
         name: school.name,
         status: school.status,
         createdAt: school.createdAt.toISOString(),
-        lastSuccessfulLoginAt: lastLoginMap.get(school.id)?.toISOString() ?? null
+        lastSuccessfulLoginAt: lastLoginMap.get(school.id)?.toISOString() ?? null,
+        billingStatus: school.billingStatus,
+        address: school.subdomain,
+        dormantAt: school.dormantAt?.toISOString() ?? null,
+        noticeSentAt: school.dormancyNoticeAt?.toISOString() ?? null,
+        releaseDueAt: school.addressReleaseDueAt?.toISOString() ?? null,
+        lifecycleNote: school.lifecycleNote
       }))
       .sort((a, b) => {
         // Never-logged-in schools first, then oldest last-login first.

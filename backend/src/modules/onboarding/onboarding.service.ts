@@ -1,12 +1,19 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password";
+import { rememberPassword } from "../../../../src/lib/auth/password-history";
+import { issueUserCode } from "../../../../src/lib/auth/user-code";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
+import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import type { Role, SessionUser } from "../../../../src/lib/domain/types";
+import { ConfigStore } from "../staff-access/staff-access.shared";
+import { partnerEngine } from "../partners/partner-engine.service";
+import { platformPolicy } from "../platform-policy/policy.service";
+import { ProvisioningService, type ProvisionStep } from "./provisioning.service";
 
 function planModules(value: unknown) {
   if (Array.isArray(value)) return value.map((item) => String(item));
@@ -47,7 +54,12 @@ const registerSchoolSchema = z.object({
   // original Nigeria-derived names, but store whatever the frontend labels for the selected
   // country — there's no per-country validation on the values themselves.
   cacNumber: z.string().trim().optional(),
-  ministryApprovalNumber: z.string().trim().optional()
+  ministryApprovalNumber: z.string().trim().optional(),
+  /** "Start my free trial" begins the 30 days now; "Not yet" still creates the school and leaves them for the dashboard. */
+  startTrial: z.boolean().default(true),
+  levels: z.array(z.string()).default([]),
+  /** The reference code of the partner who introduced the school, carried on their link. */
+  partnerCode: z.string().trim().optional()
 });
 
 // The six positions the mockup offers a solo teacher signup don't all have a matching real
@@ -76,6 +88,8 @@ const registerTeacherSchema = z.object({
   schoolName: z.string().trim().optional(),
   subjects: z.array(z.string()).default([]),
   levels: z.array(z.string()).default([]),
+  /** A school already on the platform that the teacher asked to be linked to. */
+  joinSchoolId: z.string().trim().optional(),
   password: z.string().min(8, "Password must be at least 8 characters")
 });
 
@@ -88,7 +102,6 @@ const resendVerificationSchema = z.object({
   email: z.string().trim().email("Enter a valid email address")
 });
 
-const TRIAL_DAYS = 30;
 const OTP_LENGTH = 6;
 const OTP_TTL_MINUTES = 15;
 const OTP_MAX_ATTEMPTS = 3;
@@ -272,6 +285,8 @@ interface SlugEvaluation {
 
 @Injectable()
 export class OnboardingService {
+  constructor(private readonly provisioning: ProvisioningService) {}
+
   async evaluateSlug(rawSlug: string): Promise<SlugEvaluation> {
     const slug = (rawSlug || "").toLowerCase().trim();
 
@@ -344,6 +359,7 @@ export class OnboardingService {
   }
 
   async registerSchool(payload: unknown, signupIp?: string) {
+    const startedAt = Date.now();
     const parsed = registerSchoolSchema.parse(payload);
     const ownerEmail = parsed.ownerEmail.toLowerCase();
 
@@ -366,7 +382,11 @@ export class OnboardingService {
 
     const schoolCode = `SCH-${Date.now().toString(36).toUpperCase()}`;
     const ownerNameParts = splitName(parsed.ownerName);
-    const trialEndsAt = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+    const trialDays = (await platformPolicy.get()).trial.days;
+    const trialStartedAt = parsed.startTrial ? new Date() : null;
+    const trialEndsAt = trialStartedAt ? new Date(trialStartedAt.getTime() + trialDays * 24 * 60 * 60 * 1000) : null;
+    const userCode = await issueUserCode("ADMIN");
+    const passwordHash = hashPassword(parsed.password);
     const riskAssessment = await computeRiskAssessment({
       schoolName: parsed.schoolName,
       state: parsed.state,
@@ -409,6 +429,7 @@ export class OnboardingService {
         status: "TRIAL",
         billingStatus: "TRIAL",
         trialEndsAt,
+        trialStartedAt,
         nextBillingAt: trialEndsAt,
         featureFlags: featureDefaults(),
         healthScore: 65,
@@ -422,7 +443,9 @@ export class OnboardingService {
             lastName: ownerNameParts.lastName,
             phone: parsed.ownerPhone,
             jobTitle: parsed.position,
-            passwordHash: hashPassword(parsed.password),
+            userCode,
+            passwordHash,
+            passwordChangedAt: new Date(),
             role: "SCHOOL_OWNER"
           }
         }
@@ -443,11 +466,30 @@ export class OnboardingService {
       }
     });
 
+    await rememberPassword(owner.id, passwordHash);
+    const address = `${school.slug}.futurerealm.school`;
+    await partnerEngine.attributeAtSignup(school.id, school.name, parsed.partnerCode).catch(() => undefined);
+    const academics = await this.provisioning.academics(school.id, owner.id, { country: parsed.country, levels: parsed.levels, withSample: true });
+    const [curriculum, ladder, sample] = [academics.find((step) => step.key === "curriculum"), academics.find((step) => step.key === "ladder"), academics.find((step) => step.key === "sample")];
+    const setup: ProvisionStep[] = [
+      { key: "school", label: "School record created and your web address goes live", detail: address },
+      ...(curriculum ? [curriculum] : []),
+      ...(ladder ? [ladder] : []),
+      this.provisioning.roleTemplates(),
+      { key: "admin", label: "Admin account created — permanent 6-digit User ID issued", detail: `User ID ${userCode}` },
+      ...(sample ? [sample] : []),
+      await this.provisioning.issueTrial(prisma, school.id, owner.id, ownerEmail),
+      { key: "audit", label: "Audit logging switched on and a background risk check run", detail: riskAssessment.flaggedForReviewReason ? "Held for a quick review while you keep working" : "Nothing to review" },
+    ];
+
+    // What the school was given and how long it took — the Back Office reads this back as its provisioning log.
+    await prisma.auditLog.create({ data: { schoolId: school.id, actorId: owner.id, action: "CREATE", entityType: "Provisioning", entityId: school.id, metadata: { summary: `Provisioned ${school.name}`, elapsedMs: Date.now() - startedAt, steps: setup, clean: !setup.some((step) => /could not/i.test(step.label)) } as unknown as Prisma.InputJsonValue } });
+
     await sendNotification({
       channel: "EMAIL",
       recipient: ownerEmail,
       title: "Welcome to FutureRealm SMS",
-      body: `Your school workspace for ${school.name} is ready. Your 30-day trial ends on ${trialEndsAt.toDateString()}.`
+      body: `Your school workspace for ${school.name} is ready at ${address}. Your User ID is ${userCode} — it is permanent, and you can sign in with it or with this email address. ${trialEndsAt ? `Your 30-day trial ends on ${trialEndsAt.toDateString()}.` : "Your 30-day trial begins when you start it from your dashboard."}`
     });
 
     await this.issueVerificationCode(owner.id, ownerEmail);
@@ -462,7 +504,8 @@ export class OnboardingService {
 
     return {
       sessionUser,
-      school: { id: school.id, name: school.name, slug: school.slug, trialEndsAt }
+      school: { id: school.id, name: school.name, slug: school.slug, trialEndsAt },
+      account: { userCode, address, trialStarted: Boolean(trialStartedAt), setup }
     };
   }
 
@@ -479,6 +522,9 @@ export class OnboardingService {
     const slug = `${baseSlug}-${Date.now().toString(36)}`;
     const schoolCode = `IND-${Date.now().toString(36).toUpperCase()}`;
     const role = TEACHER_POSITION_TO_ROLE[parsed.position] ?? "SUBJECT_TEACHER";
+    const userCode = await issueUserCode("TEACHER");
+    const passwordHash = hashPassword(parsed.password);
+    const target = parsed.joinSchoolId ? await prisma.school.findFirst({ where: { id: parsed.joinSchoolId, deletedAt: null, isPersonalWorkspace: false }, select: { id: true, name: true } }) : null;
 
     const workspace = await prisma.school.create({
       data: {
@@ -503,7 +549,9 @@ export class OnboardingService {
             gender: parsed.gender,
             country: parsed.country,
             jobTitle: parsed.position,
-            passwordHash: hashPassword(parsed.password),
+            userCode,
+            passwordHash,
+            passwordChangedAt: new Date(),
             role
           }
         }
@@ -530,6 +578,20 @@ export class OnboardingService {
       }
     });
 
+    await rememberPassword(teacher.id, passwordHash);
+    const joinRequest = target
+      ? await prisma.schoolJoinRequest.create({ data: { userId: teacher.id, schoolId: target.id, nameClaimed: parsed.schoolName ?? target.name, subjects: parsed.subjects, levels: parsed.levels } })
+      : null;
+    if (target && joinRequest) {
+      const admins = await prisma.user.findMany({ where: { schoolId: target.id, isActive: true, deletedAt: null, role: { in: ["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL", "ADMINISTRATOR"] } }, select: { id: true } });
+      if (admins.length) await prisma.notificationLog.createMany({ data: admins.map((admin) => ({ schoolId: target.id, userId: admin.id, channel: "IN_APP" as const, title: "A teacher asked to join your school", body: `${parsed.firstName} ${parsed.lastName} (${parsed.position}) asked to be linked to ${target.name}. Decide under Approvals & Workflow.`, status: "QUEUED", sentAt: new Date() })) });
+    }
+    await sendNotification({
+      channel: "EMAIL",
+      recipient: email,
+      title: "Welcome to FutureRealm SMS",
+      body: `Your teaching workspace is ready. Your User ID is ${userCode} — it is permanent, and you can sign in with it or with this email address.${target ? ` Your request to join ${target.name} has been sent; an administrator there decides, and your account works either way.` : ""}`
+    });
     await this.issueVerificationCode(teacher.id, email);
 
     const sessionUser: Omit<SessionUser, "csrfToken"> = {
@@ -542,7 +604,8 @@ export class OnboardingService {
 
     return {
       sessionUser,
-      school: { id: workspace.id, name: workspace.name, slug: workspace.slug, trialEndsAt: null }
+      school: { id: workspace.id, name: workspace.name, slug: workspace.slug, trialEndsAt: null },
+      account: { userCode, address: "app.futurerealm.school", trialStarted: false, joinRequest: target ? { school: target.name, status: "PENDING" } : null, setup: [] as ProvisionStep[] }
     };
   }
 
@@ -656,5 +719,107 @@ export class OnboardingService {
 
     await this.issueVerificationCode(user.id, email);
     return { sent: true, alreadyVerified: false };
+  }
+
+  /* ───────────────────────── after signup ───────────────────────── */
+
+  private assertLeader(session: SessionPayload) {
+    if (!["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL", "ADMINISTRATOR"].includes(String(session.role))) {
+      throw new ForbiddenException("Only the school's proprietor, principal or administrator can do this.");
+    }
+  }
+
+  /** "Not yet" at signup still created the school. The thirty days begin here, when somebody chooses. */
+  async startTrial(session: SessionPayload) {
+    this.assertLeader(session);
+    const school = await prisma.school.findUnique({ where: { id: session.schoolId } });
+    if (!school || school.isPersonalWorkspace) throw new NotFoundException("There is no school trial to start here.");
+    if (school.trialStartedAt) throw new BadRequestException("The trial has already started.");
+    if (school.billingStatus !== "TRIAL") throw new BadRequestException("This school is already on a paid plan.");
+    const startedAt = new Date();
+    const trialDays = (await platformPolicy.get()).trial.days;
+    const endsAt = new Date(startedAt.getTime() + trialDays * 86_400_000);
+    await prisma.school.update({ where: { id: school.id }, data: { trialStartedAt: startedAt, trialEndsAt: endsAt, nextBillingAt: endsAt } });
+    await prisma.auditLog.create({ data: { schoolId: school.id, actorId: session.userId, action: "UPDATE", entityType: "School", entityId: school.id, metadata: { summary: "Free trial started", endsAt: endsAt.toISOString() } } });
+    return { startedAt: startedAt.toISOString(), endsAt: endsAt.toISOString(), days: trialDays };
+  }
+
+  /** What the dashboard says about the trial. */
+  async trialStatus(session: SessionPayload) {
+    const school = await prisma.school.findUnique({ where: { id: session.schoolId }, select: { isPersonalWorkspace: true, status: true, billingStatus: true, trialStartedAt: true, trialEndsAt: true } });
+    const policy = await platformPolicy.get();
+    if (!school || school.isPersonalWorkspace || school.billingStatus !== "TRIAL") return { state: "none" as const };
+    if (!school.trialStartedAt) return { state: "not-started" as const, days: policy.trial.days };
+    const left = Math.max(0, Math.ceil(((school.trialEndsAt?.getTime() ?? 0) - Date.now()) / 86_400_000));
+    if (school.status === "GRACE_PERIOD") {
+      const lockOn = new Date((school.trialEndsAt?.getTime() ?? Date.now()) + policy.trial.readOnlyDays * 86_400_000);
+      return { state: "read-only" as const, lockOn: lockOn.toISOString(), daysToLock: Math.max(0, Math.ceil((lockOn.getTime() - Date.now()) / 86_400_000)) };
+    }
+    return { state: left > 0 ? ("running" as const) : ("ended" as const), daysLeft: left, endsAt: school.trialEndsAt?.toISOString() ?? null };
+  }
+
+  /** Is the sample class still there? */
+  async sampleStatus(session: SessionPayload) {
+    const manifest = await new ConfigStore(session.schoolId, "sample-data").get<{ students: number; days: number; subjects: number }>("manifest");
+    return manifest ? { loaded: true, students: manifest.data.students, days: manifest.data.days, subjects: manifest.data.subjects } : { loaded: false };
+  }
+
+  async clearSample(session: SessionPayload) {
+    this.assertLeader(session);
+    const result = await this.provisioning.clearSample(session.schoolId, session.userId);
+    return { removed: result.removed, fields: [["Removed", `${result.removed} sample students, with their attendance, scores and report cards`], ["Kept", "Your classes, subjects, grading scale and everything you added"]] };
+  }
+
+  /** The address on the account was wrong: change it while it is still unverified, and send the code to the new one. */
+  async changeEmail(session: SessionPayload, payload: unknown) {
+    const { email } = z.object({ email: z.string().trim().email("Enter a valid email address") }).parse(payload);
+    const next = email.toLowerCase();
+    const user = await prisma.user.findUnique({ where: { id: session.userId } });
+    if (!user) throw new NotFoundException("No account found.");
+    if (user.emailVerifiedAt) throw new BadRequestException("This email address is already verified. Change it from your profile.");
+    if (next === user.email) return { email: next, changed: false };
+    if (await prisma.user.findUnique({ where: { email: next }, select: { id: true } })) throw new ConflictException("An account with that email address already exists.");
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: user.id }, data: { email: next } }),
+      prisma.emailVerificationCode.updateMany({ where: { userId: user.id, consumedAt: null }, data: { consumedAt: new Date() } }),
+      ...(user.email === (await prisma.school.findUnique({ where: { id: user.schoolId }, select: { ownerEmail: true } }))?.ownerEmail ? [prisma.school.update({ where: { id: user.schoolId }, data: { ownerEmail: next } })] : []),
+    ]);
+    await prisma.auditLog.create({ data: { schoolId: user.schoolId, actorId: user.id, action: "UPDATE", entityType: "User", entityId: user.id, metadata: { summary: "Sign-up email corrected before verification", from: user.email, to: next } } });
+    await this.issueVerificationCode(user.id, next);
+    return { email: next, changed: true };
+  }
+
+  /* ───────────────────────── teachers asking to join ───────────────────────── */
+
+  async joinRequests(session: SessionPayload) {
+    this.assertLeader(session);
+    const rows = await prisma.schoolJoinRequest.findMany({ where: { schoolId: session.schoolId }, orderBy: { createdAt: "desc" }, take: 100, include: { user: { select: { id: true, firstName: true, lastName: true, email: true, phone: true, jobTitle: true, userCode: true } } } });
+    return rows.map((row) => ({ id: row.id, status: row.status, name: `${row.user.firstName} ${row.user.lastName}`.trim(), position: row.user.jobTitle, email: row.user.email, phone: row.user.phone, userCode: row.user.userCode, subjects: row.subjects, levels: row.levels, claimed: row.nameClaimed, note: row.note, at: row.createdAt.toISOString() }));
+  }
+
+  /** Approving links the teacher's own account to this school: they keep the login and the User ID, and gain the school. */
+  async decideJoinRequest(session: SessionPayload, id: string, payload: unknown) {
+    this.assertLeader(session);
+    const input = z.object({ decision: z.enum(["APPROVE", "DECLINE"]), note: z.string().trim().max(300).optional() }).parse(payload);
+    const request = await prisma.schoolJoinRequest.findFirst({ where: { id, schoolId: session.schoolId, status: "PENDING" }, include: { user: { include: { school: true } } } });
+    if (!request) throw new NotFoundException("That request has already been decided, or does not exist.");
+    const teacher = request.user;
+    const targetSchool = await prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true } });
+    if (input.decision === "DECLINE") {
+      await prisma.schoolJoinRequest.update({ where: { id }, data: { status: "DECLINED", decidedAt: new Date(), decidedById: session.userId, note: input.note ?? null } });
+      await prisma.notificationLog.create({ data: { schoolId: teacher.schoolId, userId: teacher.id, channel: "IN_APP", title: "Your request to join a school was declined", body: `${targetSchool?.name ?? "The school"} did not link your account.${input.note ? ` ${input.note}` : ""} Your own workspace is unchanged.`, status: "QUEUED", sentAt: new Date() } });
+      return { decision: "DECLINE", fields: [["Teacher", `${teacher.firstName} ${teacher.lastName}`.trim()], ["Result", "Declined — their own workspace is unchanged"]] };
+    }
+    const workspaceId = teacher.schoolId;
+    const employeeNo = `T-${(teacher.userCode ?? teacher.id.slice(-5)).replace(/^TC-/, "")}`;
+    await prisma.$transaction([
+      prisma.user.update({ where: { id: teacher.id }, data: { schoolId: session.schoolId } }),
+      prisma.staffProfile.create({ data: { schoolId: session.schoolId, userId: teacher.id, employeeNo, designation: teacher.jobTitle ?? "Teacher", staffType: "ACADEMIC", employmentDate: new Date(), notes: "Linked from a teacher's own workspace" } }),
+      prisma.schoolJoinRequest.update({ where: { id }, data: { status: "APPROVED", decidedAt: new Date(), decidedById: session.userId, note: input.note ?? null } }),
+      ...(workspaceId !== session.schoolId ? [prisma.school.update({ where: { id: workspaceId }, data: { status: "ARCHIVED", archivedAt: new Date(), statusReason: "Teacher linked to a school" } })] : []),
+    ]);
+    await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: "UPDATE", entityType: "User", entityId: teacher.id, metadata: { summary: `Teacher linked to the school · ${teacher.firstName} ${teacher.lastName}`.trim(), userCode: teacher.userCode } } });
+    await prisma.notificationLog.create({ data: { schoolId: session.schoolId, userId: teacher.id, channel: "IN_APP", title: "You are now linked to a school", body: "Your account keeps its login and its User ID, and now belongs to the school. Sign in again to see it.", status: "QUEUED", sentAt: new Date() } });
+    return { decision: "APPROVE", fields: [["Teacher", `${teacher.firstName} ${teacher.lastName}`.trim()], ["Result", "Linked — they sign in again to see the school"], ["User ID", teacher.userCode ?? "—"]] };
   }
 }

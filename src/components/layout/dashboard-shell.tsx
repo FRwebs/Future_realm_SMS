@@ -1,6 +1,7 @@
 "use client";
 
 import { OutboxSync } from "@/components/layout/outbox-sync";
+import { PageLoadBeacon } from "@/components/layout/page-load-beacon";
 import { useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
@@ -123,6 +124,7 @@ export function DashboardShell({
           />
           <ImpersonationBanner session={session} />
           <OutboxSync />
+          <PageLoadBeacon />
           <main
             className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5"
           >

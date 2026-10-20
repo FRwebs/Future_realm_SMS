@@ -1,7 +1,8 @@
-import { Controller, Get, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { Roles } from "../../auth/roles.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
@@ -26,5 +27,22 @@ export class UserCaseContextController {
   @Get()
   getCaseReviewContext(@CurrentSession() session: SessionPayload) {
     return this.caseContextService.getCaseReviewContext(session);
+  }
+
+  @Get("contact-quality")
+  contactQuality(@CurrentSession() session: SessionPayload) {
+    return this.caseContextService.contactQuality(session);
+  }
+
+  @Post("contact-quality/:schoolId/notify")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  askSchoolToFix(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string) {
+    return this.caseContextService.askSchoolToFix(session, schoolId);
+  }
+
+  @Post("contacts")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  recordContact(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.caseContextService.recordContact(session, body);
   }
 }

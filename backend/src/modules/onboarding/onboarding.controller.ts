@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Query, Req, Res, UnauthorizedException } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Req, Res, UnauthorizedException, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import type { Request, Response } from "express";
 
@@ -9,6 +9,10 @@ import {
   SESSION_COOKIE_NAME,
   verifySessionToken
 } from "../../../../src/lib/auth/session-core";
+import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { CsrfGuard } from "../../auth/csrf.guard";
+import { CurrentSession } from "../../auth/current-session.decorator";
+import { SessionGuard } from "../../auth/session.guard";
 import { OnboardingService } from "./onboarding.service";
 
 @ApiTags("onboarding")
@@ -22,8 +26,8 @@ export class OnboardingController {
     @Req() request: Request,
     @Res({ passthrough: true }) response: Response
   ) {
-    const { sessionUser, school } = await this.onboardingService.registerSchool(body, request.ip);
-    return this.establishSession(sessionUser, school, response);
+    const { sessionUser, school, account } = await this.onboardingService.registerSchool(body, request.ip);
+    return this.establishSession(sessionUser, school, response, account);
   }
 
   @Post("teachers")
@@ -31,8 +35,8 @@ export class OnboardingController {
     @Body() body: unknown,
     @Res({ passthrough: true }) response: Response
   ) {
-    const { sessionUser, school } = await this.onboardingService.registerTeacher(body);
-    return this.establishSession(sessionUser, school, response);
+    const { sessionUser, school, account } = await this.onboardingService.registerTeacher(body);
+    return this.establishSession(sessionUser, school, response, account);
   }
 
   @Get("slug-check")
@@ -68,7 +72,8 @@ export class OnboardingController {
   private async establishSession(
     sessionUser: Parameters<typeof createSessionToken>[0],
     school: unknown,
-    response: Response
+    response: Response,
+    account?: unknown
   ) {
     const token = await createSessionToken(sessionUser);
     const session = await verifySessionToken(token);
@@ -83,8 +88,51 @@ export class OnboardingController {
       ok: true,
       data: {
         user: session,
-        school
+        school,
+        account
       }
     };
+  }
+
+  @Get("trial")
+  @UseGuards(SessionGuard)
+  async trial(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.onboardingService.trialStatus(session) };
+  }
+
+  @Post("trial/start")
+  @UseGuards(SessionGuard, CsrfGuard)
+  async startTrial(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.onboardingService.startTrial(session) };
+  }
+
+  @Post("change-email")
+  @UseGuards(SessionGuard, CsrfGuard)
+  async changeEmail(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.onboardingService.changeEmail(session, body) };
+  }
+
+  @Get("join-requests")
+  @UseGuards(SessionGuard)
+  async joinRequests(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.onboardingService.joinRequests(session) };
+  }
+
+  @Post("join-requests/:id/decide")
+  @UseGuards(SessionGuard, CsrfGuard)
+  async decideJoinRequest(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return { ok: true, data: await this.onboardingService.decideJoinRequest(session, id, body) };
+  }
+
+  @Get("sample")
+  @UseGuards(SessionGuard)
+  async sample(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.onboardingService.sampleStatus(session) };
+  }
+
+  @Post("sample/clear")
+  @UseGuards(SessionGuard, CsrfGuard)
+  async clearSample(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.onboardingService.clearSample(session) };
   }
 }

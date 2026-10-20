@@ -1,3 +1,4 @@
+import { REAL_STUDENTS } from "../super-admin/sample";
 import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -72,7 +73,7 @@ export function rateOf(school: { plan: string; schoolSubscription: { tier: strin
 }
 
 export async function rollCount(schoolId: string): Promise<number> {
-  return prisma.student.count({ where: { schoolId, status: "ACTIVE" } });
+  return prisma.student.count({ where: { schoolId, status: "ACTIVE", ...REAL_STUDENTS } });
 }
 
 /** The term after the one running now — what a renewal is for. */

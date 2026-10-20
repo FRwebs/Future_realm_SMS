@@ -76,8 +76,43 @@ export class InfraExtrasService {
       ? Math.round((compileDurations.reduce((sum, h) => sum + h, 0) / compileDurations.length) * 10) / 10
       : null;
 
+    /* what the computation has actually done: runs, how long they took, who keeps re-running them, and frameworks that cannot compute */
+    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const [runs, components] = await Promise.all([
+      prisma.computationRun.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } }, select: { schoolId: true, durationMs: true, records: true, recompute: true, createdAt: true } }),
+      prisma.sectionAssessmentComponent.findMany({ where: { isActive: true, school: { deletedAt: null } }, select: { schoolId: true, section: true, weight: true, school: { select: { name: true } } } })
+    ]);
+    const percentile = (values: number[], q: number) => (values.length ? values.slice().sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * q))] : null);
+    const today = runs.filter((run) => run.createdAt >= startOfDay);
+    const schoolNames = new Map((await prisma.school.findMany({ where: { id: { in: Array.from(new Set(runs.map((run) => run.schoolId))) } }, select: { id: true, name: true } })).map((school) => [school.id, school.name]));
+    const bySchool = new Map<string, { records: number; durations: number[]; recomputes: number }>();
+    for (const run of runs) {
+      const row = bySchool.get(run.schoolId) ?? { records: 0, durations: [], recomputes: 0 };
+      row.records += run.records;
+      row.durations.push(run.durationMs);
+      if (run.recompute) row.recomputes += 1;
+      bySchool.set(run.schoolId, row);
+    }
+    const frameworkTotals = new Map<string, { school: string; section: string; total: number }>();
+    for (const component of components) {
+      const key = `${component.schoolId}:${component.section}`;
+      const row = frameworkTotals.get(key) ?? { school: component.school.name, section: component.section, total: 0 };
+      row.total += component.weight;
+      frameworkTotals.set(key, row);
+    }
+    const failingFrameworks = Array.from(frameworkTotals.values()).filter((row) => Math.abs(row.total - 100) > 0.01);
+    const computation = {
+      runsToday: today.length,
+      schoolsToday: new Set(today.map((run) => run.schoolId)).size,
+      medianMs: percentile(runs.map((run) => run.durationMs), 0.5),
+      p95Ms: percentile(runs.map((run) => run.durationMs), 0.95),
+      failingFrameworks,
+      bySchool: Array.from(bySchool.entries()).map(([schoolId, row]) => ({ school: schoolNames.get(schoolId) ?? "A school", runs: row.durations.length, records: row.records, medianMs: percentile(row.durations, 0.5), recomputes: row.recomputes, state: row.recomputes >= 4 ? "INVESTIGATE" : percentile(row.durations, 0.95)! > 15_000 ? "SLOW" : "HEALTHY" })).sort((a, b) => b.recomputes - a.recomputes || b.records - a.records).slice(0, 12)
+    };
+
     return {
       data: {
+        computation,
         assessments: {
           pendingApproval: pendingApprovalCount,
           oldestAgeHours: assessmentOldestAgeHours,

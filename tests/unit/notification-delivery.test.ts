@@ -25,6 +25,8 @@ vi.mock("../../src/lib/db/prisma", () => ({
   },
 }));
 
+vi.mock("../../backend/src/modules/platform-policy/policy.service", () => ({ platformPolicy: { get: async () => ({ messaging: { quietFrom: "21:00", quietTo: "06:00", quietHoursOn: false, dailyCapPerRecipient: 0, maxAttempts: 3 } }) } }));
+
 import { DeliveryService } from "../../backend/src/modules/notification-delivery/delivery.service";
 import { msisdn } from "../../backend/src/modules/notification-delivery/providers";
 
