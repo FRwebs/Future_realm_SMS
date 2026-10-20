@@ -21,7 +21,7 @@ export interface RoleBreakdownRow {
 function InertAction({ label, note }: { label: string; note: string }) {
   const { showToast } = useToast();
   return (
-    <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[12.5px]">
+    <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[11.5px]">
       {label}
     </button>
   );
@@ -32,7 +32,7 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-secondary px-4 text-[12.5px]">
+      <button type="button" onClick={() => setOpen(true)} className="btn-secondary px-4 text-[11.5px]">
         Open
       </button>
 
@@ -72,8 +72,8 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
           ) : null}
 
           <div className="rounded-[12px] border p-4" style={{ background: "var(--color-warning-dim)", borderColor: "#F2E4C6" }}>
-            <p className="mb-1.5 text-[12.5px] font-bold text-[var(--color-warning)]">Two rules the mockup describes — checked against this codebase</p>
-            <p className="text-[12px] leading-relaxed text-[var(--color-warning)]">
+            <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules the mockup describes — checked against this codebase</p>
+            <p className="text-[11px] leading-relaxed text-[var(--color-warning)]">
               &quot;A Department Lead can lower but never raise&quot; is not enforced here — there is no department-lead ceiling logic; any Super Admin can set any grid
               cell to any level for anyone. What is real: nobody, including Super Admin, holds an action that lets them read a child&apos;s record — that function was
               never built, so it cannot be granted here or anywhere.
@@ -99,7 +99,7 @@ export function PrivilegesByRoleTable({ items }: { items: RoleBreakdownRow[] }) 
           header: "Breadth",
           render: (row) => (
             <span
-              className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+              className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
               style={row.breadth === "Full" ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" } : { background: "var(--color-success-dim)", color: "var(--color-success)" }}
             >
               {row.breadth}
@@ -109,7 +109,7 @@ export function PrivilegesByRoleTable({ items }: { items: RoleBreakdownRow[] }) 
         { key: "holders", header: "People", render: (row) => row.holders },
         { key: "modulesOpen", header: "Modules open", render: (row) => `${row.modulesWithAccess} of ${row.totalModules}` },
         { key: "modulesFull", header: "Modules at Full", render: (row) => `${row.modulesAtFull} of ${row.totalModules}` },
-        { key: "purpose", header: "What it is for", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
+        { key: "purpose", header: "What it is for", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
         { key: "actions", header: "", sortable: false, render: (row) => <RoleReview row={row} /> }
       ]}
     />

@@ -102,14 +102,14 @@ export function JobsTable({ jobs }: JobsTableProps) {
             ].filter(Boolean);
             return (
               <div className="flex max-w-[280px] flex-wrap gap-1.5">
-                {enabled.length === 0 ? <span className="text-[12px] text-[var(--color-text-muted)]">No scope selected</span> : null}
+                {enabled.length === 0 ? <span className="text-[11px] text-[var(--color-text-muted)]">No scope selected</span> : null}
                 {enabled.slice(0, 4).map((label) => (
-                  <span key={label} className="rounded-full bg-[#F0F5F2] px-2 py-0.5 text-[10.5px] font-bold text-[#5D6B63]">
+                  <span key={label} className="rounded-full bg-[#F0F5F2] px-2 py-0.5 text-[9.5px] font-bold text-[#5D6B63]">
                     {label}
                   </span>
                 ))}
                 {enabled.length > 4 ? (
-                  <span className="rounded-full bg-[#E4F1EC] px-2 py-0.5 text-[10.5px] font-bold text-[#17604F]">
+                  <span className="rounded-full bg-[#E4F1EC] px-2 py-0.5 text-[9.5px] font-bold text-[#17604F]">
                     +{enabled.length - 4}
                   </span>
                 ) : null}

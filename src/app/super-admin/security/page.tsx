@@ -1,4 +1,4 @@
-import { AlertTriangle, FileWarning, MonitorCheck } from "lucide-react";
+import { AlertTriangle, FileWarning, MonitorCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
@@ -7,7 +7,6 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { StructurePreviewDialog } from "@/components/forms/structure-preview-dialog";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminAuditLogRow, SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -31,6 +30,8 @@ type LoginAttempt = {
   status: string;
   ipAddress?: string | null;
   device?: string | null;
+  location?: string | null;
+  newDevice?: boolean;
   failureReason?: string | null;
   createdAt: string;
   school?: { name: string } | null;
@@ -56,9 +57,34 @@ type SecurityIncident = {
   detectedAt: string;
   resolvedAt?: string;
   postIncidentNotes?: string | null;
+  containedAt?: string | null;
+  containment?: string | null;
+  assessment?: string | null;
+  affectedSchoolIds?: string[];
+  regulatorNotifiedAt?: string | null;
+  regulatorReference?: string | null;
+  schoolsNotifiedAt?: string | null;
+  schoolsNotifiedCount?: number | null;
   reportedBy: string;
   resolvedBy?: string | null;
 };
+
+type ComplianceOverview = {
+  obligations: Array<{ id: string; code: string; title: string; cadence: string; ownerRole: string; status: string; state: string; dueAt: string | null; lastDoneAt: string | null; reference: string | null; notes: string | null; evidence: string | null; daysToDue: number | null }>;
+  nextFiling: { title: string; dueAt: string | null; days: number | null } | null;
+  dpa: { current: string | null; versions: Array<{ id: string; version: string; effectiveFrom: string; summary: string | null; isCurrent: boolean }>; coverage: Array<{ version: string; label: string; schools: string[] }>; onCurrent: number; totalSchools: number };
+  consent: Array<{ school: string; guardians: number; consented: number; pct: number; state: string }>;
+  subjects: { students: number; guardians: number; accounts: number };
+  grievances: { open: number; total: number };
+  retention: Array<{ id: string; dataClass: string; retentionDays: number; basis: string; trigger: string; enforcement: string; enforced: boolean; waiting: number | null; oldest: string | null; nextDue: string | null }>;
+  deletionSchedule: Array<{ id: string; subject: string; dataClass: string; started: string; due: string; state: string; evidence: string | null }>;
+  signIn: { lockouts30d: number; ipAllow: number; ipDeny: number; idleMinutes: number };
+  generatedAt: string;
+};
+
+type AuditExportRow = { id: string; by: string; reason: string; format: string; rowCount: number; truncated: boolean; filters: Record<string, string | null>; createdAt: string };
+
+const retentionLabel = (days: number) => (days === 0 ? "While the account is open" : days % 365 === 0 ? `${days / 365} year${days === 365 ? "" : "s"}` : days % 30 === 0 && days >= 90 ? `${days / 30} months` : `${days} days`);
 
 type SecurityView = {
   sessions: PlatformSession[];
@@ -84,7 +110,7 @@ const incidentStatusOptions = [
   { label: "Resolved", value: "RESOLVED" }
 ];
 
-const privacyRequestTypeOptions = ["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"].map((v) => ({ label: v, value: v }));
+const privacyRequestTypeOptions = ["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION", "GRIEVANCE"].map((v) => ({ label: v, value: v }));
 
 const privacyStatusOptions = [
   { label: "Open", value: "OPEN" },
@@ -95,7 +121,7 @@ const privacyStatusOptions = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -112,7 +138,7 @@ function AuditDetailsPreview({ details }: { details: unknown }) {
   if (details === null || details === undefined) return <span className="text-[var(--color-text-muted)]">—</span>;
   if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
   const text = typeof details === "string" ? details : JSON.stringify(details);
-  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[11px] text-[var(--color-text-secondary)]">{text}</span>;
+  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">{text}</span>;
 }
 
 function tabHref(tab: string) {
@@ -121,7 +147,13 @@ function tabHref(tab: string) {
 
 export default async function SuperAdminSecurityPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab = "audit" } = searchParams ? await searchParams : {};
-  const data = await apiGet<SecurityView>("/api/super-admin/security");
+  const [data, overview, schoolsEnvelope, actors] = await Promise.all([
+    apiGet<SecurityView>("/api/super-admin/security"),
+    apiGet<ComplianceOverview>("/api/super-admin/compliance"),
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
+    apiGet<Array<{ id: string; name: string; role: string }>>("/api/super-admin/compliance/audit-actors").catch(() => [])
+  ]);
+  const schools = schoolsEnvelope.data ?? [];
   const openIncidents = (data.incidents ?? []).filter((incident) => incident.status !== "RESOLVED").length;
   const pendingRequests = (data.privacy ?? []).filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW").length;
 
@@ -139,42 +171,49 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
         title="Security & Compliance"
         description="The accountability layer — active sessions, login activity and the platform audit trail, security incidents tracked from detection to resolution, NDPC-compliant data deletion evidence, and data subject requests."
         action={
-          <StructurePreviewDialog
+          <ResourceActionDialog
             triggerLabel="Export the audit log"
             title="Export the audit log"
-            description="The record of who did what. Taking a copy of it is itself an act — checked against what this export can actually do today."
+            description="The record of who did what. Taking a copy of it is itself an act — the reason you give, the filters, and the row count are written back to the audit log and kept with the copy."
+            endpoint="/api/super-admin/compliance/audit-exports"
+            method="POST"
+            variant="heroWhite"
+            submitLabel="Create export"
             fields={[
-              { label: "Date range", value: "Real — filters the real export", note: "Maps to dateFrom/dateTo on the real export link.", section: "Filters" },
-              { label: "Actor", value: "Not filterable", note: "No actor filter exists on the export — only on-screen table search filters by actor.", section: "Filters" },
-              { label: "School", value: "Real — filters the real export", section: "Filters" },
-              { label: "Action type", value: "Real — filters the real export", section: "Filters" },
-              { label: "Entity", value: "Not filterable", note: "No entity-type filter exists.", section: "Filters" },
-              { label: "Origin", value: "Not tracked", note: "Panel vs. API origin isn't recorded on any audit log row.", section: "Filters" },
-              { label: "Format", value: "CSV only", note: "Real, but fixed — there is no format choice.", section: "Output" },
-              { label: "Rows matched", value: "Capped at 100", note: "The export always reads page 1 at a 100-row limit, even when far more rows match your filters.", section: "Output" },
-              { label: "Why this export is needed", value: "Not captured", note: "There's no reason field, and the export itself isn't written back to the audit log the way this note describes.", section: "Reason (required)" }
+              { name: "dateFrom", label: "From", type: "date", section: "Filters" },
+              { name: "dateTo", label: "To", type: "date", section: "Filters" },
+              { name: "actorId", label: "Actor", type: "select", defaultValue: "", options: [{ label: "Anyone", value: "" }, ...actors.map((actor) => ({ label: `${actor.name} · ${actor.role.replaceAll("_", " ").toLowerCase()}`, value: actor.id }))], section: "Filters" },
+              { name: "schoolId", label: "School", type: "select", defaultValue: "", options: [{ label: "Any school", value: "" }, ...schools.map((school) => ({ label: school.name, value: school.id }))], section: "Filters" },
+              { name: "action", label: "Action type", type: "select", defaultValue: "", options: [{ label: "Any action", value: "" }, ...["CREATE", "UPDATE", "DELETE", "LOGIN", "EXPORT", "APPROVE", "REJECT", "PAYMENT", "SUSPEND", "ACTIVATE", "RESET_PASSWORD", "IMPERSONATE", "SETTINGS_UPDATE", "BILLING_UPDATE"].map((value) => ({ label: value.replaceAll("_", " "), value }))], section: "Filters" },
+              { name: "entityType", label: "Entity", type: "text", placeholder: "e.g. School, Invoice, User — blank for all", section: "Filters" },
+              { name: "origin", label: "Origin", type: "select", defaultValue: "", options: [{ label: "Anywhere", value: "" }, { label: "Back Office (platform staff)", value: "BACK_OFFICE" }, { label: "School app (school staff)", value: "SCHOOL" }, { label: "System (no person — schedulers, signup)", value: "SYSTEM" }], note: "Worked out from who acted — a row with no actor is the system itself.", section: "Filters" },
+              { name: "format", label: "Format", type: "select", defaultValue: "CSV", options: [{ label: "CSV", value: "CSV" }, { label: "JSON", value: "JSON" }], section: "Output" },
+              { name: "rows", label: "Rows", type: "static", placeholder: "Every match, up to 20,000", note: "If more than that match, the file says so and the export register marks it truncated — narrow the dates.", section: "Output" },
+              { name: "reason", label: "Why this export is needed", type: "textarea", required: true, placeholder: "e.g. NDPC information request ref …", section: "Reason (required)" }
             ]}
-            cta={{ label: "Open the real export", href: "/super-admin/audit-logs" }}
           />
         }
       />
 
       <DetailTabs tabs={tabs} />
 
-      {tab === "incidents" ? <IncidentsTab incidents={data.incidents ?? []} /> : null}
+      {tab === "incidents" ? <IncidentsTab incidents={data.incidents ?? []} schools={schools} /> : null}
       {tab === "compliance" ? (
-        <ComplianceTab incidents={data.incidents ?? []} privacy={data.privacy ?? []} />
+        <ComplianceTab incidents={data.incidents ?? []} privacy={data.privacy ?? []} overview={overview} />
       ) : null}
-      {tab === "requests" ? <RequestsTab privacy={data.privacy ?? []} /> : null}
+      {tab === "requests" ? <RequestsTab privacy={data.privacy ?? []} schools={schools} /> : null}
       {tab === "audit" || !["incidents", "compliance", "requests"].includes(tab) ? (
-        <AuditLogTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} mfaCoverage={data.mfaCoverage} />
+        <AuditLogTab sessions={data.sessions ?? []} attempts={data.attempts ?? []} mfaCoverage={data.mfaCoverage} signIn={overview.signIn} />
       ) : null}
     </div>
   );
 }
 
-async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: PlatformSession[]; attempts: LoginAttempt[]; mfaCoverage: { enabled: number; total: number } }) {
-  const envelope = await apiGetEnvelope<SuperAdminAuditLogRow[]>("/api/super-admin/audit-logs?limit=30");
+async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessions: PlatformSession[]; attempts: LoginAttempt[]; mfaCoverage: { enabled: number; total: number }; signIn: ComplianceOverview["signIn"] }) {
+  const [envelope, exportsList] = await Promise.all([
+    apiGetEnvelope<SuperAdminAuditLogRow[]>("/api/super-admin/audit-logs?limit=30"),
+    apiGet<AuditExportRow[]>("/api/super-admin/compliance/audit-exports").catch(() => [] as AuditExportRow[])
+  ]);
   const logs = envelope.data ?? [];
   const adminSessions = sessions.filter((s) => s.user && platformRoles.has(s.user.role));
   const failedAttempts = attempts.filter((a) => a.status === "FAILED").length;
@@ -184,26 +223,26 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: Plat
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Active admin sessions" value={adminSessions.length} detail="Platform-role accounts only" icon={MonitorCheck} tone="dark" />
         <StatCard label="Failed logins (recent)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
-        <StatCard label="Auto-lockouts" value="N/A" detail="Real, but narrow — 5+ failures in 10 minutes blocks that email; a separate 10+/hour review flag needs a manual recalculation" icon={AlertTriangle} tone="neutral" />
+        <StatCard label="Auto-lockouts (30d)" value={signIn.lockouts30d} detail="Accounts locked for 15 minutes after 5 failed sign-ins in 10 — each one raises a High incident" icon={AlertTriangle} tone={signIn.lockouts30d ? "warning" : "neutral"} />
         <StatCard
           label="MFA coverage"
           value={`${mfaCoverage.enabled}/${mfaCoverage.total}`}
-          detail="Real, self-service, opt-in — platform/internal accounts with an authenticator turned on, out of all active ones"
+          detail="Back Office accounts with an authenticator app on, out of all active ones — separate from the email code every sign-in asks for"
           icon={AlertTriangle}
           tone={mfaCoverage.enabled === 0 ? "warning" : "neutral"}
         />
-        <StatCard label="IP whitelist" value="N/A" detail="Real for platform/internal accounts, exact-address only — school accounts are unaffected" icon={AlertTriangle} tone="neutral" />
+        <StatCard label="IP whitelist" value={signIn.ipAllow ? `${signIn.ipAllow} allowed` : "Off"} detail={signIn.ipAllow || signIn.ipDeny ? `${signIn.ipAllow} allow · ${signIn.ipDeny} deny rule${signIn.ipDeny === 1 ? "" : "s"}, exact address, Back Office accounts only` : "No rules set — any address may sign in to the Back Office"} icon={ShieldCheck} tone={signIn.ipAllow ? "success" : "neutral"} />
       </section>
 
       <TableCard
         title="Admin login policy — what's actually enforced"
         description="Verified against the real session and login code, not stated as intent."
         items={[
-          { control: "Multi-factor authentication", spec: "Real TOTP-based MFA, self-service from Profile → Sessions & security. It's opt-in, not enforced — an account without it turned on signs in with password alone.", state: "partial" as const },
-          { control: "Session expiry", spec: "A fixed 8-hour session from login. Not a 30-minute idle timeout — activity does not reset the clock, and the session is equally valid whether idle or active.", state: "partial" as const },
-          { control: "Failed-login handling", spec: "5+ failed attempts for one email in 10 minutes blocks that email's sign-in immediately for the rest of the window. Separately, 10+ failures in an hour creates a review flag on the Users → Reviews & Cases queue when the suspicious-activity recalculation is run — that part isn't automatic.", state: "partial" as const },
-          { control: "IP whitelist", spec: "Enforced at sign-in for platform/internal accounts, exact address only — see Internal Team → Security for the rules and their real (login-time-only) limits.", state: "partial" as const },
-          { control: "Unrecognised device/location challenge", spec: "Extra verification when a login looks unusual.", state: "not-built" as const }
+          { control: "Multi-factor authentication", spec: "Every Back Office sign-in asks for a one-time code sent to the account's email (when a mail server is configured). An authenticator app can be turned on top of it from Profile → Sessions & security; with the app on, its code is asked for instead.", state: "enforced" as const },
+          { control: "Session expiry", spec: `An 8-hour session from sign-in, and a Back Office session ends after ${signIn.idleMinutes} minutes without a request (PLATFORM_IDLE_MINUTES). School accounts keep the full session.`, state: "enforced" as const },
+          { control: "Failed-login handling", spec: "5 failed attempts for one account in 10 minutes lock it for 15 minutes, counted by account so switching between email and User ID does not reset it. Each lockout opens a High incident automatically.", state: "enforced" as const },
+          { control: "IP whitelist", spec: "Enforced at sign-in for Back Office accounts, exact address only — any allow rule switches it to allow-list mode. See Internal Team → Security for the rules.", state: "enforced" as const },
+          { control: "Unrecognised device/location challenge", spec: "A sign-in from a device the account has not used before is flagged on the login record and the account's owner is emailed. It does not block the sign-in — the email code already gates it. Location shows only where a network edge (Cloudflare, Vercel, CloudFront) reports it.", state: "partial" as const }
         ]}
         getRowKey={(row) => row.control}
         columns={[
@@ -213,7 +252,7 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: Plat
             key: "state",
             header: "State",
             render: (row) => {
-              const tone = row.state === "partial" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partially enforced" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" };
+              const tone = row.state === "enforced" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" } : row.state === "partial" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Alerts, does not block" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" };
               return <StatusPill bg={tone.bg} fg={tone.fg} label={tone.label} />;
             }
           }
@@ -253,14 +292,14 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: Plat
 
       <TableCard
         title="Login activity"
-        description="Every account type, not admin-only — this system has no separate admin-login log."
+        description="Every account type — Back Office and school sign-ins share one log. A device the account has never used is marked."
         items={attempts}
         emptyState="No login attempts have been recorded."
         columns={[
           { key: "email", header: "Email", render: (item) => item.email },
           { key: "ip", header: "IP address", render: (item) => (item.ipAddress ? <span className="font-[var(--font-mono)]">{item.ipAddress}</span> : "-") },
-          { key: "location", header: "Location", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
-          { key: "device", header: "Device", render: (item) => item.device ?? <span className="text-[var(--color-text-muted)]">Not recorded</span> },
+          { key: "location", header: "Location", render: (item) => (item.location ? item.location : <span className="text-[var(--color-text-muted)]">Not reported by the network</span>) },
+          { key: "device", header: "Device", render: (item) => <div><p className="max-w-[16rem] truncate">{item.device ?? <span className="text-[var(--color-text-muted)]">Not recorded</span>}</p>{item.newDevice ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="New device" /> : null}</div> },
           {
             key: "status",
             header: "Result",
@@ -272,6 +311,21 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: Plat
               )
           },
           { key: "created", header: "Date", render: (item) => formatDate(item.createdAt) }
+        ]}
+      />
+
+      <TableCard
+        title="Audit exports"
+        description="Every copy of the audit trail taken out of the system — who, why, which filters, how many rows. The file is kept so a second download is identical to the first."
+        items={exportsList}
+        emptyState="No audit export has been taken yet."
+        columns={[
+          { key: "when", header: "Taken", render: (item) => formatDate(item.createdAt) },
+          { key: "by", header: "By", render: (item) => item.by },
+          { key: "reason", header: "Reason", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.reason}</span> },
+          { key: "filters", header: "Filters", render: (item) => <span className="text-[10.5px] text-[var(--color-text-muted)]">{Object.entries(item.filters).filter(([, value]) => value).map(([key, value]) => `${key}: ${String(value).slice(0, 10)}`).join(" · ") || "None"}</span> },
+          { key: "rows", header: "Rows", render: (item) => <span>{item.rowCount.toLocaleString()} {item.format}{item.truncated ? <span className="ml-1 text-[var(--color-warning)]">truncated</span> : null}</span> },
+          { key: "dl", header: "File", render: (item) => <a href={`/api/super-admin/compliance/audit-exports/${item.id}/download`} className="font-semibold text-[var(--color-text-accent)] underline">Download</a> }
         ]}
       />
 
@@ -299,7 +353,7 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage }: { sessions: Plat
               return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
             }
           },
-          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[12px]">{item.target}</span> },
+          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.target}</span> },
           { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
           { key: "details", header: "Details", render: (item) => <AuditDetailsPreview details={item.details} /> }
         ]}
@@ -319,16 +373,16 @@ const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: str
 function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
   return (
     <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[14px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
+      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
+      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
           const tone = flowToneStyle[step.tone ?? "plain"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>
@@ -339,7 +393,37 @@ function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: A
   );
 }
 
-function IncidentsTab({ incidents }: { incidents: SecurityIncident[] }) {
+const REGULATOR_WINDOW_HOURS = 72;
+
+function BreachSteps({ incident }: { incident: SecurityIncident }) {
+  const step = (label: string, done: boolean, detail?: string | null) => (
+    <span key={label} className="inline-flex items-center gap-1 text-[10px]" title={detail ?? undefined}>
+      <span className={done ? "text-[var(--color-success)]" : "text-[var(--color-text-muted)]"}>{done ? "●" : "○"}</span>
+      <span className={done ? "font-semibold text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}>{label}</span>
+    </span>
+  );
+  const open = incident.status !== "RESOLVED";
+  const hoursOpen = (Date.now() - new Date(incident.detectedAt).getTime()) / 3_600_000;
+  const clock = open && !incident.regulatorNotifiedAt && (incident.severity === "CRITICAL" || incident.severity === "HIGH") ? REGULATOR_WINDOW_HOURS - hoursOpen : null;
+  return (
+    <div className="grid gap-1">
+      <div className="flex flex-wrap gap-x-3 gap-y-1">
+        {step("Assessed", Boolean(incident.assessment), incident.assessment)}
+        {step("Contained", Boolean(incident.containedAt), incident.containment)}
+        {step("Regulator", Boolean(incident.regulatorNotifiedAt), incident.regulatorReference ? `Reference ${incident.regulatorReference}` : null)}
+        {step(incident.schoolsNotifiedCount ? `Schools (${incident.schoolsNotifiedCount})` : "Schools", Boolean(incident.schoolsNotifiedAt))}
+      </div>
+      {clock !== null ? (
+        <span className={clock < 0 ? "text-[10px] font-semibold text-[var(--color-danger)]" : clock < 24 ? "text-[10px] font-semibold text-[var(--color-warning)]" : "text-[10px] text-[var(--color-text-muted)]"}>
+          {clock < 0 ? `Regulator window passed ${Math.round(-clock)}h ago` : `Regulator window: ${Math.round(clock)}h left of ${REGULATOR_WINDOW_HOURS}h`}
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
+function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; schools: SuperAdminSchoolRow[] }) {
+  const schoolOptions = schools.map((school) => ({ label: school.name, value: school.id }));
   return (
     <div className="grid gap-5">
       <FlowSteps
@@ -354,100 +438,173 @@ function IncidentsTab({ incidents }: { incidents: SecurityIncident[] }) {
           { label: "Post-incident note", note: "Root cause + prevention", tone: "ink" }
         ]}
       />
-    <TableCard
-      title="Security incidents"
-      items={incidents}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="Log incident"
-          title="Log a security incident"
-          description="Record a detected or reported security incident."
-          endpoint="/api/super-admin/security/incidents"
-          method="POST"
-          submitLabel="Log incident"
-          fields={[
-            { name: "type", label: "Type", required: true, placeholder: "e.g. UNAUTHORIZED_ACCESS" },
-            { name: "severity", label: "Severity", type: "select", options: [{ label: "Critical", value: "CRITICAL" }, { label: "High", value: "HIGH" }, { label: "Medium", value: "MEDIUM" }, { label: "Low", value: "LOW" }] },
-            { name: "description", label: "Description", type: "textarea", required: true }
-          ]}
-        />
-      }
-      columns={[
-        { key: "type", header: "Incident", render: (item) => <span className="font-[var(--font-mono)] font-semibold text-[var(--color-text-primary)]">{item.type.replaceAll("_", " ")}</span> },
-        { key: "description", header: "Description", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.description}</span> },
-        {
-          key: "severity",
-          header: "Severity",
-          render: (item) => {
-            const tone =
-              item.severity === "CRITICAL" || item.severity === "HIGH"
-                ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
-                : item.severity === "MEDIUM"
-                  ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
-                  : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" };
-            return <StatusPill bg={tone.bg} fg={tone.fg} label={item.severity} />;
-          }
-        },
-        { key: "detected", header: "Detected", render: (item) => formatDate(item.detectedAt) },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) =>
-            item.status !== "RESOLVED" ? (
-              <ResourceActionDialog
-                triggerLabel="Update"
-                title={`Update incident — ${item.type}`}
-                description="Advance the incident lifecycle. Resolving requires a post-incident note."
-                endpoint={`/api/super-admin/security/incidents/${item.id}`}
-                method="PATCH"
-                variant="secondary"
-                submitLabel="Update"
-                fields={[
-                  { name: "status", label: "Status", type: "select", defaultValue: item.status, options: incidentStatusOptions },
-                  { name: "postIncidentNotes", label: "Post-incident note (root cause, actions, prevention)", type: "textarea" }
-                ]}
-              />
-            ) : (
-              <span className="text-xs text-[var(--color-text-muted)]">Resolved {item.resolvedAt ? formatDate(item.resolvedAt) : ""}</span>
-            )
+      <TableCard
+        title="Security incidents"
+        items={incidents}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Log incident"
+            title="Log a security incident"
+            description="Record a detected or reported security incident."
+            endpoint="/api/super-admin/security/incidents"
+            method="POST"
+            submitLabel="Log incident"
+            fields={[
+              { name: "type", label: "Type", required: true, placeholder: "e.g. UNAUTHORIZED_ACCESS" },
+              { name: "severity", label: "Severity", type: "select", options: [{ label: "Critical", value: "CRITICAL" }, { label: "High", value: "HIGH" }, { label: "Medium", value: "MEDIUM" }, { label: "Low", value: "LOW" }] },
+              { name: "description", label: "Description", type: "textarea", required: true }
+            ]}
+          />
         }
-      ]}
-      emptyState="No security incidents logged."
-    />
+        columns={[
+          { key: "type", header: "Incident", render: (item) => <span className="font-[var(--font-mono)] font-semibold text-[var(--color-text-primary)]">{item.type.replaceAll("_", " ")}</span> },
+          { key: "description", header: "Description", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.description}</span> },
+          {
+            key: "severity",
+            header: "Severity",
+            render: (item) => {
+              const tone =
+                item.severity === "CRITICAL" || item.severity === "HIGH"
+                  ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
+                  : item.severity === "MEDIUM"
+                    ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
+                    : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" };
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={item.severity} />;
+            }
+          },
+          { key: "detected", header: "Detected", render: (item) => formatDate(item.detectedAt) },
+          { key: "workflow", header: "Breach handling", render: (item) => <BreachSteps incident={item} /> },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (item) =>
+              item.status !== "RESOLVED" ? (
+                <div className="flex max-w-[15rem] flex-wrap items-center gap-x-3 gap-y-1">
+                  <ResourceActionDialog
+                    triggerLabel="Update"
+                    title={`Update incident — ${item.type}`}
+                    description="Advance the incident lifecycle. Resolving requires a post-incident note."
+                    endpoint={`/api/super-admin/security/incidents/${item.id}`}
+                    method="PATCH"
+                    variant="textAction"
+                    submitLabel="Update"
+                    fields={[
+                      { name: "status", label: "Status", type: "select", defaultValue: item.status, options: incidentStatusOptions },
+                      { name: "postIncidentNotes", label: "Post-incident note (root cause, actions, prevention)", type: "textarea" }
+                    ]}
+                  />
+                  <ResourceActionDialog
+                    triggerLabel={item.assessment ? "Re-assess" : "Assess"}
+                    title={`Assess — ${item.type}`}
+                    description="What was affected, and which schools. The schools named here are the ones containment and notices reach."
+                    endpoint={`/api/super-admin/compliance/incidents/${item.id}/assess`}
+                    method="POST"
+                    variant="textAction"
+                    submitLabel="Record assessment"
+                    fields={[
+                      { name: "assessment", label: "What data and people were affected", type: "textarea", required: true, defaultValue: item.assessment ?? "" },
+                      { name: "affectedSchoolIds", label: "Affected schools", type: "multiselect", options: schoolOptions, defaultValue: item.affectedSchoolIds ?? [], note: "Hold Cmd/Ctrl to pick several. Leave empty if no school's data was touched." }
+                    ]}
+                  />
+                  <ResourceActionDialog
+                    triggerLabel="Contain"
+                    title={`Contain — ${item.type}`}
+                    description="Stops the incident spreading. Ending sign-ins makes everyone in scope sign in again (and pass the email code); it never touches Back Office staff."
+                    endpoint={`/api/super-admin/compliance/incidents/${item.id}/contain`}
+                    method="POST"
+                    variant="textAction"
+                    submitLabel="Record containment"
+                    confirmLabel="Confirm"
+                    confirmMessage="This signs people out immediately if you chose a scope."
+                    fields={[
+                      { name: "scope", label: "End sign-ins for", type: "select", defaultValue: item.affectedSchoolIds?.length ? "AFFECTED_SCHOOLS" : "NONE", options: [{ label: "Affected schools' people", value: "AFFECTED_SCHOOLS" }, { label: "Every school account", value: "ALL_SCHOOL_USERS" }, { label: "Nobody — record the step only", value: "NONE" }] },
+                      { name: "note", label: "What was done to contain it", type: "textarea", required: true }
+                    ]}
+                  />
+                  <ResourceActionDialog
+                    triggerLabel="Regulator"
+                    title={`Notify the regulator — ${item.type}`}
+                    description="The filing is made with the regulator itself; this records that it was made, when, and the reference they gave. The 72-hour window is measured from detection."
+                    endpoint={`/api/super-admin/compliance/incidents/${item.id}/regulator`}
+                    method="POST"
+                    variant="textAction"
+                    submitLabel="Record notice"
+                    fields={[
+                      { name: "reference", label: "Regulator's reference or filing receipt", type: "text", required: true, defaultValue: item.regulatorReference ?? "" },
+                      { name: "notifiedAt", label: "Notified on", type: "date", note: "Blank means now." },
+                      { name: "notes", label: "Notes", type: "textarea" }
+                    ]}
+                  />
+                  <ResourceActionDialog
+                    triggerLabel="Tell schools"
+                    title={`Tell the affected schools — ${item.type}`}
+                    description={`Sends this message to every affected school's owner, proprietor and principal — in the app and by email.${item.affectedSchoolIds?.length ? ` ${item.affectedSchoolIds.length} school${item.affectedSchoolIds.length === 1 ? "" : "s"} recorded.` : " No school is recorded yet — assess first."}`}
+                    endpoint={`/api/super-admin/compliance/incidents/${item.id}/schools`}
+                    method="POST"
+                    variant="textActionDanger"
+                    submitLabel="Send notice"
+                    confirmLabel="Send"
+                    confirmMessage="This sends real email to school leadership and cannot be recalled."
+                    fields={[{ name: "message", label: "What happened, what it means for them, what to do", type: "textarea", required: true }]}
+                  />
+                </div>
+              ) : (
+                <span className="text-xs text-[var(--color-text-muted)]">Resolved {item.resolvedAt ? formatDate(item.resolvedAt) : ""}</span>
+              )
+          }
+        ]}
+        emptyState="No security incidents logged."
+      />
 
-    <TableCard
-      title="Severity reference"
-      description="Sets the response path — this is guidance for whoever logs the incident, not an enforced classifier."
-      items={[
-        { severity: "Critical", examples: "Data breach, unauthorised access to student records, database compromise" },
-        { severity: "High", examples: "Brute-force attack on admin panel, mass account lockout" },
-        { severity: "Medium", examples: "Suspicious admin login from unrecognised location, API credential exposure" },
-        { severity: "Low", examples: "Single failed login alert, minor configuration anomaly" }
-      ]}
-      getRowKey={(row) => row.severity}
-      columns={[
-        { key: "severity", header: "Severity", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.severity}</span> },
-        { key: "examples", header: "Examples", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.examples}</span> }
-      ]}
-    />
+      <TableCard
+        title="Severity reference"
+        description="Sets the response path — this is guidance for whoever logs the incident, not an enforced classifier. A Critical or High incident shows the regulator's 72-hour window until a notice is recorded."
+        items={[
+          { severity: "Critical", examples: "Data breach, unauthorised access to student records, database compromise" },
+          { severity: "High", examples: "Brute-force attack on admin panel, mass account lockout, a failed backup" },
+          { severity: "Medium", examples: "Suspicious admin login from unrecognised location, API credential exposure" },
+          { severity: "Low", examples: "Single failed login alert, minor configuration anomaly" }
+        ]}
+        getRowKey={(row) => row.severity}
+        columns={[
+          { key: "severity", header: "Severity", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.severity}</span> },
+          { key: "examples", header: "Examples", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.examples}</span> }
+        ]}
+      />
     </div>
   );
 }
 
-async function ComplianceTab({ incidents, privacy }: { incidents: SecurityIncident[]; privacy: PrivacyRequest[] }) {
+function ObligationState({ state }: { state: string }) {
+  const tone = state === "COMPLIANT" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Compliant" } : state === "IN_PROGRESS" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "In progress" } : state === "OVERDUE" ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Overdue" } : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not started" };
+  return <StatusPill bg={tone.bg} fg={tone.fg} label={tone.label} />;
+}
+
+async function ComplianceTab({ incidents, privacy, overview }: { incidents: SecurityIncident[]; privacy: PrivacyRequest[]; overview: ComplianceOverview }) {
   const report = await apiGet<ComplianceReport>("/api/super-admin/security/compliance-report");
-  const unresolvedCritical = incidents.filter((incident) => incident.severity === "CRITICAL" && incident.status !== "RESOLVED").length;
   const openRequests = privacy.filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW").length;
   const shortestClockDays = privacy
     .filter((request) => request.status === "OPEN" || request.status === "IN_REVIEW")
     .map((request) => NDPA_RESPONSE_WINDOW_DAYS - Math.floor((Date.now() - new Date(request.createdAt).getTime()) / (24 * 60 * 60 * 1000)))
     .sort((a, b) => a - b)[0];
+  const unresolvedBreaches = incidents.filter((incident) => (incident.severity === "CRITICAL" || incident.severity === "HIGH") && incident.status !== "RESOLVED" && !incident.regulatorNotifiedAt).length;
+  const { dpa, nextFiling, subjects } = overview;
+  const total = subjects.students + subjects.guardians + subjects.accounts;
+  const tier = total >= 5000 ? "Ultra-High Level" : total >= 1000 ? "Extra-High Level" : total >= 200 ? "Ordinary High Level" : "Below the registration thresholds";
+  const platformAttrs = ["Data protection impact assessment", "Record of processing activities", "Grievance mechanism", "Cross-border transfer record"];
+  const artefacts = overview.obligations.filter((row) => platformAttrs.includes(row.title));
 
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-5">
-        <StatCard label="Days to next filing" value="N/A" detail="Not tracked — no regulatory registration or filing deadline exists in this system." tone="dark" icon={AlertTriangle} />
+        <StatCard
+          label="Days to next filing"
+          value={nextFiling?.days === null || nextFiling === null ? "None set" : nextFiling.days! < 0 ? `${Math.abs(nextFiling.days!)}d over` : `${nextFiling.days}d`}
+          detail={nextFiling ? nextFiling.title : "No obligation has a due date yet — set one in the register below"}
+          tone={nextFiling && (nextFiling.days ?? 1) < 0 ? "danger" : "dark"}
+          icon={AlertTriangle}
+        />
         <StatCard
           label="Open data subject requests"
           value={openRequests}
@@ -455,63 +612,99 @@ async function ComplianceTab({ incidents, privacy }: { incidents: SecurityIncide
           icon={FileWarning}
           tone={openRequests ? "warning" : "success"}
         />
-        <StatCard label="Open grievances" value="N/A" detail="Not tracked — this system has no request type distinct from Access/Export/Erasure/Rectification." icon={AlertTriangle} tone="neutral" />
-        <StatCard label="DPA coverage — current version" value="N/A" detail="Not tracked — no data-processing-agreement version is recorded per school." icon={FileWarning} tone="neutral" />
-        <StatCard label="Unresolved breach obligations" value={unresolvedCritical} detail="Real, but a proxy — this is unresolved Critical-severity incidents, not a formal breach-obligation tracker (none exists)." icon={AlertTriangle} tone={unresolvedCritical ? "danger" : "success"} />
+        <StatCard label="Open grievances" value={overview.grievances.open} detail={`${overview.grievances.total} logged in all — raise one from Requests with the type “Grievance”`} icon={AlertTriangle} tone={overview.grievances.open ? "warning" : "neutral"} />
+        <StatCard label={`DPA coverage — v${dpa.current ?? "—"}`} value={`${dpa.onCurrent}/${dpa.totalSchools}`} detail="Schools that have accepted the version now in force" icon={FileWarning} tone={dpa.totalSchools && dpa.onCurrent === dpa.totalSchools ? "success" : "warning"} />
+        <StatCard label="Unresolved breach obligations" value={unresolvedBreaches} detail="Open Critical or High incidents with no regulator notice recorded yet" icon={AlertTriangle} tone={unresolvedBreaches ? "danger" : "success"} />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <TableCard
           title="Data processing agreement coverage"
-          description="Would show schools on the current DPA version, on an outdated one, and not yet accepted."
-          items={[]}
+          description="What each school accepted, set against the version in force. Publishing a new version tells every school that is behind."
+          items={dpa.coverage}
+          getRowKey={(row) => row.version}
+          actions={
+            <ResourceActionDialog
+              triggerLabel="Publish a version"
+              title="Publish a new agreement version"
+              description="The new version becomes the one every school is asked to accept. Schools on an earlier version show as outdated until they accept."
+              endpoint="/api/super-admin/compliance/dpa-versions"
+              method="POST"
+              submitLabel="Publish"
+              confirmLabel="Publish"
+              confirmMessage="Every school that has not accepted this version is told in the app."
+              fields={[
+                { name: "version", label: "Version", required: true, placeholder: dpa.current ? `Now ${dpa.current} — e.g. ${(Number(dpa.current) + 0.1).toFixed(1)}` : "e.g. 4.0" },
+                { name: "effectiveFrom", label: "Effective from", type: "date", note: "Blank means today." },
+                { name: "summary", label: "What changed", type: "textarea" },
+                { name: "notifySchools", label: "Tell schools that are behind", type: "select", defaultValue: "true", options: [{ label: "Yes — notify their owners in the app", value: "true" }, { label: "No — publish quietly", value: "false" }] }
+              ]}
+            />
+          }
           columns={[
-            { key: "version", header: "Version", render: () => null },
-            { key: "schools", header: "Schools", render: () => null },
-            { key: "state", header: "State", render: () => null }
+            { key: "version", header: "Version", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.version}</span> },
+            { key: "schools", header: "Schools", render: (row) => <div><p>{row.schools.length}</p><p className="max-w-[18rem] truncate text-[10px] text-[var(--color-text-muted)]" title={row.schools.join(", ")}>{row.schools.slice(0, 3).join(", ")}{row.schools.length > 3 ? ` +${row.schools.length - 3}` : ""}</p></div> },
+            { key: "state", header: "State", render: (row) => <StatusPill bg={row.label === "Current" ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.label === "Current" ? "var(--color-success)" : "var(--color-warning)"} label={row.label} /> }
           ]}
-          emptyState="No DPA-version field exists on a school record — every school is simply on whatever terms it agreed to at signup, untracked afterward."
+          emptyState="No school is on the platform yet."
+          footnote={`Versions published: ${dpa.versions.map((v) => `${v.version}${v.isCurrent ? " (current)" : ""}`).join(", ") || "none"}.`}
         />
         <TableCard
           title="Consent coverage by school"
-          description="Would show what share of each school's guardians have recorded consent on file."
-          items={[]}
+          description="Share of each school's guardians who have the core record-processing consent given — the consent every other one depends on."
+          items={overview.consent}
+          getRowKey={(row) => row.school}
           columns={[
-            { key: "school", header: "School", render: () => null },
-            { key: "coverage", header: "Coverage", render: () => null },
-            { key: "state", header: "State", render: () => null }
+            { key: "school", header: "School", render: (row) => row.school },
+            { key: "coverage", header: "Coverage", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.pct}%</p><p className="text-[10px] text-[var(--color-text-muted)]">{row.consented} of {row.guardians} guardians</p></div> },
+            { key: "state", header: "State", render: (row) => <StatusPill bg={row.state === "COMPLIANT" ? "var(--color-success-dim)" : row.state === "PARTIAL" ? "var(--color-warning-dim)" : "var(--color-danger-dim)"} fg={row.state === "COMPLIANT" ? "var(--color-success)" : row.state === "PARTIAL" ? "var(--color-warning)" : "var(--color-danger)"} label={row.state === "COMPLIANT" ? "Covered" : row.state === "PARTIAL" ? "Partial" : "Gap"} /> }
           ]}
-          emptyState="No guardian-consent field exists anywhere in this schema — consent coverage cannot be computed because it was never recorded."
+          emptyState="No school has guardians on record yet."
+          footnote="Read from the consents each school records against its families (Guardians → Consent). Nothing here is estimated."
         />
       </div>
 
       <TableCard
         title="Regulatory obligations register"
-        description="Each real-world obligation a mature compliance program would operate, checked against what this system actually tracks — not a claim about the business's real compliance status."
-        items={[
-          { obligation: "Registration as controller and processor of major importance", cadence: "At launch, then per cycle", owner: "Data Protection Officer" },
-          { obligation: "Annual compliance audit filing", cadence: "Annual", owner: "DPO with Finance" },
-          { obligation: "DPO appointed, details published and registered", cadence: "At launch; on change", owner: "Super Admin" },
-          { obligation: "Data protection impact assessment", cadence: "Before launch; on new processing", owner: "DPO with CTO" },
-          { obligation: "Record of processing activities", cadence: "Continuous", owner: "Data Protection Officer" },
-          { obligation: "Breach notification", cadence: "Within the applicable window", owner: "CTO and DPO" },
-          { obligation: "Grievance mechanism", cadence: "Continuous", owner: "Support Lead with DPO" },
-          { obligation: "Cross-border transfer record", cadence: "On any provider or region change", owner: "CTO with DPO" },
-          { obligation: "Data processing agreement with every school", cadence: "At onboarding; on version change", owner: "Legal with Onboarding" }
-        ]}
-        getRowKey={(row) => row.obligation}
+        description="Each obligation the platform owes a regulator, with who owns it, when it is next due and what proves it was met. Marking one compliant needs a reference."
+        items={overview.obligations}
+        getRowKey={(row) => row.id}
         columns={[
-          { key: "obligation", header: "Obligation", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.obligation}</span> },
+          { key: "obligation", header: "Obligation", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.title}</p>{row.evidence ? <p className="text-[10px] text-[var(--color-text-muted)]">{row.evidence}</p> : null}</div> },
           { key: "cadence", header: "Cadence", render: (row) => row.cadence },
-          { key: "owner", header: "Owner", render: (row) => row.owner },
-          { key: "state", header: "State", render: () => <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label="Not tracked in this system" /> }
+          { key: "owner", header: "Owner", render: (row) => row.ownerRole },
+          { key: "due", header: "Due", render: (row) => (row.dueAt ? <span className={row.state === "OVERDUE" ? "font-semibold text-[var(--color-danger)]" : ""}>{formatDate(row.dueAt)}</span> : <span className="text-[var(--color-text-muted)]">Not set</span>) },
+          { key: "proof", header: "Proof", render: (row) => (row.reference ? <span className="font-[var(--font-mono)] text-[10.5px]">{row.reference}</span> : <span className="text-[var(--color-text-muted)]">None</span>) },
+          { key: "state", header: "State", render: (row) => <ObligationState state={row.state} /> },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (row) => (
+              <ResourceActionDialog
+                triggerLabel="Update"
+                title={row.title}
+                description="Record where this obligation stands. Compliant needs a reference — a filing receipt, document name or link."
+                endpoint={`/api/super-admin/compliance/obligations/${row.id}`}
+                method="PATCH"
+                variant="textAction"
+                submitLabel="Save"
+                fields={[
+                  { name: "status", label: "Status", type: "select", defaultValue: row.status, options: [{ label: "Not started", value: "NOT_STARTED" }, { label: "In progress", value: "IN_PROGRESS" }, { label: "Compliant", value: "COMPLIANT" }] },
+                  { name: "dueAt", label: "Next due", type: "date", defaultValue: row.dueAt?.slice(0, 10) },
+                  { name: "lastDoneAt", label: "Last done", type: "date", defaultValue: row.lastDoneAt?.slice(0, 10) },
+                  { name: "reference", label: "Reference / proof", defaultValue: row.reference ?? "", placeholder: "Filing receipt, document name or link" },
+                  { name: "notes", label: "Notes", type: "textarea", defaultValue: row.notes ?? "" }
+                ]}
+              />
+            )
+          }
         ]}
       />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <TableCard
           title="Registration tiers"
-          description="NDPA reference thresholds — informational, not a claim about which tier this business currently sits in."
+          description={`NDPA reference thresholds, set against what this platform holds: ${subjects.students.toLocaleString()} students, ${subjects.guardians.toLocaleString()} guardians and ${subjects.accounts.toLocaleString()} staff accounts — ${total.toLocaleString()} people. That puts the platform in: ${tier}.`}
           items={[
             { tier: "Ordinary High Level", threshold: "200 – 999", who: "An individual client school" },
             { tier: "Extra-High Level", threshold: "1,000 +", who: "A larger school group" },
@@ -519,38 +712,36 @@ async function ComplianceTab({ incidents, privacy }: { incidents: SecurityIncide
           ]}
           getRowKey={(row) => row.tier}
           columns={[
-            { key: "tier", header: "Tier", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.tier}</span> },
+            { key: "tier", header: "Tier", render: (row) => <span className={row.tier === tier ? "font-bold text-[var(--color-text-accent)]" : "font-semibold text-[var(--color-text-primary)]"}>{row.tier}{row.tier === tier ? " ← you are here" : ""}</span> },
             { key: "threshold", header: "Threshold", render: (row) => row.threshold },
             { key: "who", header: "Who sits here", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.who}</span> }
           ]}
+          footnote="Counts exclude the sample students every new school starts with. Which tier you must register in is a legal call — this shows the numbers behind it."
         />
         <TableCard
-          title="Live compliance artefacts — real vs. not tracked"
-          items={[
-            { label: "Data protection impact assessment", state: "Not tracked in this system", tone: "bad" },
-            { label: "Record of processing activities", state: "Not tracked in this system", tone: "bad" },
-            { label: "Grievance mechanism", state: "Not tracked as a distinct request type", tone: "bad" },
-            { label: "Cross-border transfer record", state: "Not tracked — this codebase has no data-residency configuration to record", tone: "bad" }
-          ]}
-          getRowKey={(row) => row.label}
+          title="Live compliance artefacts"
+          description="Read from the register above — the state is whatever the owner last recorded, with the proof beside it."
+          items={artefacts}
+          getRowKey={(row) => row.id}
           columns={[
-            { key: "label", header: "Artefact", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.label}</span> },
-            { key: "state", header: "State", render: (row) => <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label={row.state} /> }
+            { key: "label", header: "Artefact", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.title}</span> },
+            { key: "proof", header: "Proof", render: (row) => (row.evidence ?? row.reference ?? <span className="text-[var(--color-text-muted)]">None recorded</span>) },
+            { key: "state", header: "State", render: (row) => <ObligationState state={row.state} /> }
           ]}
         />
       </div>
 
       <FlowSteps
-        title="Breach handling — the aspiration, checked against real code"
-        sub="No automated breach-notification workflow exists in this codebase — a Super Admin would run every one of these steps manually today."
+        title="Breach handling"
+        sub="Each step is something this page does, and each is stamped on the incident with who did it and when. Filing with the regulator happens outside the platform — the platform keeps the clock and the proof."
         steps={[
           { label: "Potential breach detected", note: "Monitoring, staff, school or provider" },
-          { label: "Incident opened at Critical", note: "Real — log it as a Critical incident above", tone: "bad" },
-          { label: "Contain", note: "Manual — no automated session-kill or flag-rollback exists", tone: "warn" },
-          { label: "Assess", note: "Manual — no data-scope assessment tooling exists", tone: "warn" },
-          { label: "Notify the regulator", note: "Not built — no notification workflow exists", tone: "warn" },
-          { label: "Notify each affected school", note: "Not built — no notification workflow exists", tone: "warn" },
-          { label: "Post-incident review", note: "Real — the incident's post-incident note field", tone: "ink" }
+          { label: "Incident opened at Critical", note: "Log it from the Incidents tab", tone: "bad" },
+          { label: "Assess", note: "Record what was affected and which schools", tone: "good" },
+          { label: "Contain", note: "End sign-ins for the affected schools or everyone", tone: "good" },
+          { label: "Notify the regulator", note: "Record the filing and its reference; 72-hour clock shown", tone: "warn" },
+          { label: "Notify each affected school", note: "Real email and in-app notice to their leadership", tone: "good" },
+          { label: "Post-incident review", note: "The incident's post-incident note", tone: "ink" }
         ]}
       />
 
@@ -577,7 +768,7 @@ async function ComplianceTab({ incidents, privacy }: { incidents: SecurityIncide
             }
           },
           { key: "by", header: "Completed by", render: (item) => item.completedBy ?? "—" },
-          { key: "hash", header: "Confirmation hash", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.confirmationHash ?? "—"}</span> }
+          { key: "hash", header: "Confirmation hash", render: (item) => <span className="font-[var(--font-mono)] text-[10px]">{item.confirmationHash ?? "—"}</span> }
         ]}
         emptyState="No deletion requests recorded yet."
         footnote="All three below must be satisfied before a request can be marked complete."
@@ -599,7 +790,7 @@ async function ComplianceTab({ incidents, privacy }: { incidents: SecurityIncide
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.tone as "good" | "warn"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -607,38 +798,75 @@ async function ComplianceTab({ incidents, privacy }: { incidents: SecurityIncide
 
       <TableCard
         title="Retention schedule"
-        description="Would show, per data class, how long it's kept and what triggers deletion."
-        items={[]}
+        description="How long each class of data is kept, why, and what starts the clock. Classes marked automatic are deleted by the platform once past their time; the rest are policy a person acts on."
+        items={overview.retention}
+        getRowKey={(row) => row.id}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Run retention now"
+            title="Run retention now"
+            description="Deletes every record in an automatic class that is past its keep-period. It runs by itself every six hours; this runs it immediately and writes the result to the audit log."
+            endpoint="/api/super-admin/compliance/retention/run"
+            method="POST"
+            variant="secondary"
+            submitLabel="Run now"
+            confirmLabel="Run"
+            confirmMessage="Expired sign-in records, API logs and page-load samples are deleted permanently."
+            fields={[]}
+          />
+        }
         columns={[
-          { key: "class", header: "Data class", render: () => null },
-          { key: "retention", header: "Retention", render: () => null },
-          { key: "basis", header: "Basis", render: () => null },
-          { key: "due", header: "Due", render: () => null }
+          { key: "class", header: "Data class", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.dataClass}</span> },
+          { key: "retention", header: "Retention", render: (row) => retentionLabel(row.retentionDays) },
+          { key: "basis", header: "Basis", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.basis}</span> },
+          { key: "trigger", header: "Clock starts", render: (row) => <span className="text-[11px]">{row.trigger}</span> },
+          { key: "how", header: "Enforcement", render: (row) => <StatusPill bg={row.enforced ? "var(--color-success-dim)" : "var(--color-bg-subtle)"} fg={row.enforced ? "var(--color-success)" : "var(--color-text-muted)"} label={row.enforcement} /> },
+          { key: "due", header: "Due", render: (row) => (!row.enforced ? <span className="text-[var(--color-text-muted)]">Reviewed by a person</span> : row.waiting ? <span className="font-semibold text-[var(--color-warning)]">{row.waiting.toLocaleString()} past due</span> : row.nextDue ? `Oldest record expires ${formatDate(row.nextDue)}` : <span className="text-[var(--color-text-muted)]">Nothing waiting</span>) },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (row) => (
+              <ResourceActionDialog
+                triggerLabel="Edit"
+                title={`Retention — ${row.dataClass}`}
+                description={row.enforced ? "Changing this changes what the next automatic run deletes. Data deleted on a schedule must be kept at least 30 days." : "Policy only: nothing is deleted automatically for this class."}
+                endpoint={`/api/super-admin/compliance/retention/${row.id}`}
+                method="PATCH"
+                variant="textAction"
+                submitLabel="Save"
+                fields={[
+                  { name: "retentionDays", label: "Keep for (days, 0 = while the account is open)", type: "number", required: true, defaultValue: row.retentionDays, min: 0 },
+                  { name: "basis", label: "Basis", defaultValue: row.basis },
+                  { name: "trigger", label: "Clock starts", defaultValue: row.trigger }
+                ]}
+              />
+            )
+          }
         ]}
-        emptyState="No retention-schedule model exists in this system — nothing here has a defined keep-period or an automatic deletion clock, active-school data and closed-school data alike."
       />
       <TableCard
         title="Deletion schedule"
-        description="Would show every pending deletion clock, executed and evidenced."
-        items={[]}
+        description="Every deletion clock that is running — a school's closure request, and each erasure request. A clock that has run out stays marked Due until someone executes it and the evidence is recorded."
+        items={overview.deletionSchedule}
+        getRowKey={(row) => row.id}
         columns={[
-          { key: "subject", header: "Subject", render: () => null },
-          { key: "class", header: "Class", render: () => null },
-          { key: "started", header: "Clock started", render: () => null },
-          { key: "due", header: "Deletion due", render: () => null },
-          { key: "state", header: "State", render: () => null }
+          { key: "subject", header: "Subject", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.subject}</span> },
+          { key: "class", header: "Class", render: (row) => row.dataClass },
+          { key: "started", header: "Clock started", render: (row) => formatDate(row.started) },
+          { key: "due", header: "Deletion due", render: (row) => formatDate(row.due) },
+          { key: "state", header: "State", render: (row) => <StatusPill bg={row.state === "EXECUTED" ? "var(--color-success-dim)" : row.state === "DUE" ? "var(--color-danger-dim)" : "var(--color-bg-subtle)"} fg={row.state === "EXECUTED" ? "var(--color-success)" : row.state === "DUE" ? "var(--color-danger)" : "var(--color-text-muted)"} label={row.state === "EXECUTED" ? "Executed" : row.state === "DUE" ? "Due now" : row.state === "REJECTED" ? "Rejected" : "Scheduled"} /> },
+          { key: "evidence", header: "Evidence", render: (row) => (row.evidence ? <span className="font-[var(--font-mono)] text-[10px]">{row.evidence}</span> : "—") }
         ]}
-        emptyState="Nothing is scheduled — since no retention schedule exists (above), there is no clock to start or evidence to show."
+        emptyState="Nothing is scheduled — no school has asked to close and no erasure request is open."
       />
     </div>
   );
 }
 
-async function RequestsTab({ privacy }: { privacy: PrivacyRequest[] }) {
-  const schoolsEnvelope = await apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100");
+function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools: SuperAdminSchoolRow[] }) {
   const schoolOptions = [
     { label: "Platform-wide (no specific school)", value: "" },
-    ...(schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }))
+    ...schools.map((school) => ({ label: school.name, value: school.id }))
   ];
 
   return (
@@ -651,13 +879,14 @@ async function RequestsTab({ privacy }: { privacy: PrivacyRequest[] }) {
           { type: "Correction", route: "Through the school", role: "Handled through the school's own record-correction tools, with its own authorisation." },
           { type: "Erasure", route: "Through the school", role: "Assessed case by case; never executed by us without the controller's instruction." },
           { type: "Objection / withdrawal of consent", route: "Through the school for school data; directly to us for our own marketing", role: "Real for our own marketing consent; assisted for school data — there is no separate withdrawal flow for a school's own guardians." },
+          { type: "Grievance", route: "Directly to us", role: "A complaint about how Future Realm or a school handled someone's data. Log it here with the type “Grievance” — it gets the same 30-day clock and shows in the compliance counts." },
           { type: "Portability", route: "Through the school", role: "Would be satisfied by the school's own full export — a Super Admin-only export exists (Security & Compliance); a school cannot self-serve one." }
         ]}
         getRowKey={(row) => row.type}
         columns={[
           { key: "type", header: "Request type", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.type}</span> },
           { key: "route", header: "Route", render: (row) => row.route },
-          { key: "role", header: "Our role", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.role}</span> }
+          { key: "role", header: "Our role", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.role}</span> }
         ]}
       />
 
@@ -669,7 +898,7 @@ async function RequestsTab({ privacy }: { privacy: PrivacyRequest[] }) {
           <ResourceActionDialog
             triggerLabel="New request"
             title="Create data privacy request"
-            description="Track access, export, erasure, and rectification requests."
+            description="Track access, export, erasure, rectification requests and grievances."
             endpoint="/api/super-admin/security/privacy-requests"
             method="POST"
             submitLabel="Create request"
@@ -695,7 +924,7 @@ async function RequestsTab({ privacy }: { privacy: PrivacyRequest[] }) {
             }
           },
           { key: "status", header: "State", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "hash", header: "Confirmation hash", render: (item) => item.confirmationHash ? <span className="font-[var(--font-mono)] text-[11px]">{item.confirmationHash.slice(0, 16)}…</span> : "-" },
+          { key: "hash", header: "Confirmation hash", render: (item) => item.confirmationHash ? <span className="font-[var(--font-mono)] text-[10px]">{item.confirmationHash.slice(0, 16)}…</span> : "-" },
           {
             key: "actions",
             header: "Actions",

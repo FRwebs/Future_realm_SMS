@@ -39,7 +39,7 @@ const ipRuleTypes = [{ label: "Allow", value: "ALLOW" }, { label: "Deny", value:
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -219,8 +219,8 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
       <section className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="section-eyebrow">Lifecycle</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Onboarding &amp; offboarding</h2>
-          <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Onboarding &amp; offboarding</h2>
+          <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
             New hires from the last 30 days, and everyone whose access has been revoked. Start a new hire or offboard
             a member from the roster above.
           </p>
@@ -329,8 +329,8 @@ async function RolesTab() {
 
       <section className="surface-card p-6">
         <p className="section-eyebrow">Roles &amp; scopes</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">What each role can do</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">What each role can do</h2>
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Role templates define the reusable default permission grid applied when a new account is created. The
           access matrix below shows the resulting per-person permissions, which can differ from the template once
           adjusted for an individual.
@@ -425,7 +425,7 @@ async function RolesTab() {
             render: (member) => (
               <>
                 <span className="font-semibold text-[var(--color-text-primary)]">{member.name}</span>
-                <p className="text-[11px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
+                <p className="text-[10px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
               </>
             )
           },
@@ -490,7 +490,7 @@ async function ActivityTab() {
               const parts: string[] = [];
               if (item.ticketsResolved > 0) parts.push(`${item.ticketsResolved} tickets resolved`);
               if (item.revenueReconciled > 0) parts.push(`${formatNaira(item.revenueReconciled)} reconciled`);
-              return <span className="text-[12px] text-[var(--color-text-secondary)]">{parts.length > 0 ? parts.join(" · ") : "Nothing recorded this window"}</span>;
+              return <span className="text-[11px] text-[var(--color-text-secondary)]">{parts.length > 0 ? parts.join(" · ") : "Nothing recorded this window"}</span>;
             }
           },
           {
@@ -500,7 +500,7 @@ async function ActivityTab() {
               const idle = !item.lastLoginAt || new Date(item.lastLoginAt).getTime() < sevenDaysAgo;
               return (
                 <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                  className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
                   style={idle ? { background: "var(--color-warning-dim)", color: "var(--color-warning)" } : { background: "var(--color-success-dim)", color: "var(--color-success)" }}
                 >
                   {idle ? "Idle" : "Active"}
@@ -525,8 +525,8 @@ async function SecurityTab() {
     <div className="grid gap-5">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Security settings</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Sessions &amp; network access</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Sessions &amp; network access</h2>
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Every currently active sign-in session for a Platform Admin account, and the IP allow/deny rules that gate
           access to the platform admin panel.
         </p>

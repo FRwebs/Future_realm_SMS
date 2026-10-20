@@ -36,7 +36,7 @@ function InertFooterAction({ label, note }: { label: string; note: string }) {
     <button
       type="button"
       onClick={() => showToast({ variant: "info", title: "Not built", description: note })}
-      className="btn-secondary px-4 text-[12.5px]"
+      className="btn-secondary px-4 text-[11.5px]"
     >
       {label}
     </button>
@@ -83,7 +83,7 @@ function RowReviewAction({
 
   return (
     <>
-      <button type="button" onClick={() => setReviewOpen(true)} className="btn-secondary px-4 text-[12.5px]">
+      <button type="button" onClick={() => setReviewOpen(true)} className="btn-secondary px-4 text-[11.5px]">
         {triggerLabel}
       </button>
 
@@ -103,7 +103,7 @@ function RowReviewAction({
                 setReviewOpen(false);
                 setEditOpen(true);
               }}
-              className="btn-primary px-4 text-[12.5px]"
+              className="btn-primary px-4 text-[11.5px]"
             >
               {editTitle}
             </button>
@@ -120,8 +120,8 @@ function RowReviewAction({
               background: extraNote.tone === "warn" ? "var(--color-warning-dim)" : extraNote.tone === "bad" ? "var(--color-danger-dim)" : extraNote.tone === "good" ? "var(--color-success-dim)" : "var(--color-bg-subtle)",
               borderColor: extraNote.tone === "warn" ? "#F2E4C6" : extraNote.tone === "bad" ? "#F3E0E0" : extraNote.tone === "good" ? "#CFE4DB" : "var(--color-border-default)"
             }}>
-              {extraNote.title ? <p className="mb-1.5 text-[12.5px] font-bold" style={{ color: extraNote.tone === "warn" ? "var(--color-warning)" : extraNote.tone === "bad" ? "var(--color-danger)" : extraNote.tone === "good" ? "var(--color-success)" : "var(--color-text-secondary)" }}>{extraNote.title}</p> : null}
-              <p className="text-[12px] leading-relaxed" style={{ color: extraNote.tone === "warn" ? "var(--color-warning)" : extraNote.tone === "bad" ? "var(--color-danger)" : extraNote.tone === "good" ? "var(--color-success)" : "var(--color-text-secondary)" }}>{extraNote.text}</p>
+              {extraNote.title ? <p className="mb-1.5 text-[11.5px] font-bold" style={{ color: extraNote.tone === "warn" ? "var(--color-warning)" : extraNote.tone === "bad" ? "var(--color-danger)" : extraNote.tone === "good" ? "var(--color-success)" : "var(--color-text-secondary)" }}>{extraNote.title}</p> : null}
+              <p className="text-[11px] leading-relaxed" style={{ color: extraNote.tone === "warn" ? "var(--color-warning)" : extraNote.tone === "bad" ? "var(--color-danger)" : extraNote.tone === "good" ? "var(--color-success)" : "var(--color-text-secondary)" }}>{extraNote.text}</p>
             </div>
           ) : null}
         </div>

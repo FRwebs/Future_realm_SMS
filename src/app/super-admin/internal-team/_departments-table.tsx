@@ -27,7 +27,7 @@ function DepartmentReview({ department }: { department: SuperAdminDepartmentRow 
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-secondary px-4 text-[12.5px]">
+      <button type="button" onClick={() => setOpen(true)} className="btn-secondary px-4 text-[11.5px]">
         Manage
       </button>
 
@@ -82,7 +82,7 @@ function DepartmentReview({ department }: { department: SuperAdminDepartmentRow 
               { label: "Raw value", value: ceilingSet ? JSON.stringify(department.permissionCeiling) : "Not set" }
             ]}
           />
-          <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
             The schema reserves a permissionCeiling field on every department, meant to cap what its lead can grant within their team. It is stored and editable here, but
             nothing in this codebase reads it back — no request is checked against it, and no permission-grid save is blocked by it today.
           </p>
@@ -108,7 +108,7 @@ export function DepartmentsTable({ items, actions }: { items: SuperAdminDepartme
           header: "Permission ceiling",
           render: (item) => (
             <span
-              className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+              className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
               style={hasCeiling(item.permissionCeiling) ? { background: "#E4F1EC", color: "#12796A" } : { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}
             >
               {hasCeiling(item.permissionCeiling) ? "Set" : "Not set"}

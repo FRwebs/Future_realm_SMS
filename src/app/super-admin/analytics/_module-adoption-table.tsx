@@ -27,8 +27,8 @@ export function ModuleAdoptionTable({ heatmapByTier, tierColumns, schoolsInScope
   return (
     <section className="surface-card overflow-hidden">
       <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Module adoption by tier</p>
-        <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Module adoption by tier</p>
+        <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">
           Share of schools on each tier with the module switched on — a real usage signal, not an entitlement gate. Every school gets every module at signup and enables or disables it from its own configuration.
         </p>
       </div>
@@ -50,30 +50,30 @@ export function ModuleAdoptionTable({ heatmapByTier, tierColumns, schoolsInScope
 
       <div className="px-5 py-3.5">
         <div className="grid items-end gap-1.5 border-b border-[#EDF3EF] pb-2.5" style={{ gridTemplateColumns: cols }}>
-          <div className="min-w-0 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">Module</div>
+          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">Module</div>
           {visibleTierIndexes.map((index) => (
-            <div key={tierColumns[index].plan} className="min-w-0 text-center text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
+            <div key={tierColumns[index].plan} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
               <div>{tierColumns[index].plan}</div>
-              <div className="mt-[3px] overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-medium normal-case tracking-normal text-[#B4C4BB]">
+              <div className="mt-[3px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium normal-case tracking-normal text-[#B4C4BB]">
                 {tierColumns[index].schoolCount} school{tierColumns[index].schoolCount === 1 ? "" : "s"}
               </div>
             </div>
           ))}
-          <div className="text-right text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">12-week trend</div>
+          <div className="text-right text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">12-week trend</div>
         </div>
 
         {heatmapByTier.length === 0 ? (
-          <p className="py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No module usage recorded yet.</p>
+          <p className="py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No module usage recorded yet.</p>
         ) : (
           heatmapByTier.map((row) => (
             <div key={row.module} className="grid items-center gap-1.5 py-[3px]" style={{ gridTemplateColumns: cols }}>
-              <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-[#0D2315]">{moduleLabel(row.module)}</div>
+              <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#0D2315]">{moduleLabel(row.module)}</div>
               {visibleTierIndexes.map((index) => (
                 <div key={index} className="flex justify-center">
                   <HeatCell value={row.cells[index] ?? null} />
                 </div>
               ))}
-              <div className="text-right text-[11px] text-[#9FB8A7]">Not tracked</div>
+              <div className="text-right text-[10px] text-[#9FB8A7]">Not tracked</div>
             </div>
           ))
         )}

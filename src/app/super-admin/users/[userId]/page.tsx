@@ -38,9 +38,9 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
         <div className="relative z-[1]">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">User profile</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-white/60">User profile</p>
             <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">{user.name}</h1>
-            <p className="mt-2 text-[13px] text-[rgba(255,255,255,0.74)]">{user.email} · {user.role.replaceAll("_", " ")}</p>
+            <p className="mt-2 text-[11.5px] text-[rgba(255,255,255,0.74)]">{user.email} · {user.role.replaceAll("_", " ")}</p>
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={user.status} />
@@ -98,12 +98,12 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
       <section className="grid gap-5 lg:grid-cols-2">
         <section className="surface-card p-6">
           <p className="section-eyebrow">Activity</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Role-specific activity (last 90 days)</h2>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Role-specific activity (last 90 days)</h2>
           <div className="mt-4 grid gap-2.5">
             {activitySummaryItems(user.activitySummary).map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{item.label}</span>
-                <span className="font-[var(--font-mono)] text-[16px] font-bold text-[var(--color-text-primary)]">{item.value}</span>
+                <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</span>
+                <span className="font-[var(--font-mono)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{item.value}</span>
               </div>
             ))}
           </div>
@@ -111,17 +111,17 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
 
         <section className="surface-card p-6">
           <p className="section-eyebrow">Guardians</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Linked accounts</h2>
-          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Student records linked to this parent/guardian account.</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Linked accounts</h2>
+          <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Student records linked to this parent/guardian account.</p>
           <div className="mt-4 grid gap-2.5">
             {user.linkedAccounts.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No linked student accounts.</p>
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No linked student accounts.</p>
             ) : (
               user.linkedAccounts.map((child) => (
                 <div key={child.studentId} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                  <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{child.studentName}</span>
+                  <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{child.studentName}</span>
                   {child.isPrimary ? (
-                    <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
+                    <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                       Primary
                     </span>
                   ) : null}

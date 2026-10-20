@@ -191,13 +191,13 @@ function TagEditor({
               key={value}
               type="button"
               onClick={() => onChange(values.filter((item) => item !== value))}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[12px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
+              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
             >
               {value}
               <X className="h-3 w-3" />
             </button>
           ))}
-          {values.length === 0 ? <span className="text-[12px] text-[var(--color-text-muted)]">No items added yet.</span> : null}
+          {values.length === 0 ? <span className="text-[11px] text-[var(--color-text-muted)]">No items added yet.</span> : null}
         </div>
         <div className="mt-3 flex gap-2">
           <input
@@ -212,7 +212,7 @@ function TagEditor({
             placeholder={placeholder}
             className="field-control h-10"
           />
-          <button type="button" onClick={addValue} className="btn-secondary h-10 px-3 text-[12px]">
+          <button type="button" onClick={addValue} className="btn-secondary h-10 px-3 text-[11px]">
             <Plus className="h-3.5 w-3.5" />
             Add
           </button>
@@ -255,7 +255,7 @@ function ModuleToggleGrid({
               type="button"
               onClick={() => toggle(module)}
               className={cn(
-                "flex min-h-[46px] items-center justify-between gap-3 rounded-[12px] border px-3 py-2 text-left text-[13px] font-semibold transition",
+                "flex min-h-[46px] items-center justify-between gap-3 rounded-[12px] border px-3 py-2 text-left text-[11.5px] font-semibold transition",
                 on
                   ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
                   : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]"
@@ -292,7 +292,7 @@ function ModuleToggleGrid({
             placeholder="e.g. CBT engine"
             className="field-control h-10"
           />
-          <button type="button" onClick={addCustomModule} className="btn-secondary h-10 px-3 text-[12px]">
+          <button type="button" onClick={addCustomModule} className="btn-secondary h-10 px-3 text-[11px]">
             <Plus className="h-3.5 w-3.5" />
             Add
           </button>
@@ -304,7 +304,7 @@ function ModuleToggleGrid({
                 key={value}
                 type="button"
                 onClick={() => onChange(values.filter((item) => item !== value))}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-white px-2.5 py-1 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
+                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
               >
                 {value}
                 <X className="h-3 w-3" />
@@ -408,11 +408,11 @@ function PlanDialog({
         data-popover-close={variant === "menu" ? "true" : undefined}
         className={cn(
           "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
-          variant === "cardPrimary" ? "" : "text-[13px] font-semibold",
+          variant === "cardPrimary" ? "" : "text-[11.5px] font-semibold",
           variant === "menu"
             ? "flex w-full items-center justify-start rounded-[10px] px-3 py-2.5 text-left text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
             : variant === "cardPrimary"
-              ? "rounded-[8px] bg-[#0d2315] px-3 py-[7px] text-[11.5px] font-semibold text-white hover:bg-[#132e1d]"
+              ? "rounded-[8px] bg-[#0d2315] px-3 py-[7px] text-[10.5px] font-semibold text-white hover:bg-[#132e1d]"
               : mode === "create"
                 ? "btn-primary px-5"
                 : "btn-secondary px-5"
@@ -440,13 +440,13 @@ function PlanDialog({
                   type="button"
                   onClick={() => setStep(item.n)}
                   className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[12px] font-semibold transition",
+                    "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-semibold transition",
                     current || done
                       ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
                       : "border-[var(--color-border-default)] text-[var(--color-text-muted)]"
                   )}
                 >
-                  <span className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[10px]", current || done ? "bg-[var(--color-accent-primary)] text-white" : "bg-[var(--color-bg-subtle)]")}>
+                  <span className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px]", current || done ? "bg-[var(--color-accent-primary)] text-white" : "bg-[var(--color-bg-subtle)]")}>
                     {done ? <Check className="h-3 w-3" /> : item.n}
                   </span>
                   {item.label}
@@ -458,10 +458,10 @@ function PlanDialog({
           {step === 1 ? (
             <>
               <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
-                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Pricing templates</p>
+                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Pricing templates</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {(Object.keys(pricingTemplates) as Array<keyof typeof pricingTemplates>).map((key) => (
-                    <button key={key} type="button" onClick={() => applyTemplate(key)} className="btn-secondary h-9 px-3 text-[12px]">
+                    <button key={key} type="button" onClick={() => applyTemplate(key)} className="btn-secondary h-9 px-3 text-[11px]">
                       {pricingTemplates[key].label}
                     </button>
                   ))}
@@ -515,11 +515,11 @@ function PlanDialog({
                 </label>
                 <label className="flex items-center gap-3 rounded-[12px] border border-[var(--color-border-default)] px-3 py-2">
                   <input type="checkbox" checked={form.apiAccess} onChange={(event) => update("apiAccess", event.target.checked)} />
-                  <span className="text-[13px] font-semibold text-[var(--color-text-secondary)]">API access</span>
+                  <span className="text-[11.5px] font-semibold text-[var(--color-text-secondary)]">API access</span>
                 </label>
                 <label className="flex items-center gap-3 rounded-[12px] border border-[var(--color-border-default)] px-3 py-2">
                   <input type="checkbox" checked={form.customBranding} onChange={(event) => update("customBranding", event.target.checked)} />
-                  <span className="text-[13px] font-semibold text-[var(--color-text-secondary)]">Custom branding</span>
+                  <span className="text-[11.5px] font-semibold text-[var(--color-text-secondary)]">Custom branding</span>
                 </label>
               </div>
             </>
@@ -528,8 +528,8 @@ function PlanDialog({
           {step === 2 ? (
             <div>
               <p className="section-eyebrow">Included modules</p>
-              <h3 className="mt-1 text-[17px] font-bold text-[var(--color-text-primary)]">Turn plan modules on or off</h3>
-              <p className="mt-1 text-[12.5px] leading-5 text-[var(--color-text-secondary)]">These toggles control the modules shown on billing, onboarding, and plan comparison surfaces.</p>
+              <h3 className="mt-1 text-[15.5px] font-bold text-[var(--color-text-primary)]">Turn plan modules on or off</h3>
+              <p className="mt-1 text-[11.5px] leading-5 text-[var(--color-text-secondary)]">These toggles control the modules shown on billing, onboarding, and plan comparison surfaces.</p>
               <div className="mt-4">
                 <ModuleToggleGrid values={form.modules} onChange={(modules) => update("modules", modules)} />
               </div>
@@ -540,17 +540,17 @@ function PlanDialog({
             <div className="grid gap-4 md:grid-cols-2">
             <TagEditor label="Feature bullets" placeholder="e.g. 251-700 students" values={form.features} onChange={(features) => update("features", features)} />
               <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                <p className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Review</p>
-                <p className="mt-3 text-[14px] font-bold text-[var(--color-text-primary)]">{form.name || "Untitled plan"}</p>
-                <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">Semester price: NGN {Number(form.semesterPrice || 0).toLocaleString("en-NG")}</p>
-                <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">Modules enabled: {form.modules.length}</p>
-                <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">Feature bullets: {form.features.length}</p>
+                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Review</p>
+                <p className="mt-3 text-[12.5px] font-bold text-[var(--color-text-primary)]">{form.name || "Untitled plan"}</p>
+                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Semester price: NGN {Number(form.semesterPrice || 0).toLocaleString("en-NG")}</p>
+                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Modules enabled: {form.modules.length}</p>
+                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Feature bullets: {form.features.length}</p>
               </div>
             </div>
           ) : null}
 
           <div className="flex items-center justify-between border-t border-[var(--color-border-default)] pt-4">
-            <p className="text-[12px] text-[var(--color-text-muted)]">
+            <p className="text-[11px] text-[var(--color-text-muted)]">
               Two-semester estimate stored for reports: NGN {twoSemesterEstimate.toLocaleString("en-NG")}
             </p>
             <div className="flex gap-2">

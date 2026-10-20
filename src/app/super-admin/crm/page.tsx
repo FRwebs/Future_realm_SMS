@@ -78,7 +78,7 @@ const boardColumns = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -87,8 +87,8 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
 function KpiTile({ label, value }: { label: string; value: string }) {
   return (
     <article className="surface-card p-4">
-      <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
-      <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+      <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">{value}</p>
     </article>
   );
 }
@@ -138,9 +138,9 @@ export default async function SuperAdminCrmPage({ searchParams }: { searchParams
         </svg>
         <div className="relative z-[1] flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Customer success</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Customer success</p>
             <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">CRM & Sales</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+            <p className="mt-2 max-w-3xl text-[11.5px] leading-6 text-[rgba(255,255,255,0.74)]">
               School health, sales pipeline, account interactions, and NPS feedback — everything needed to keep
               schools happy and grow the book of business.
             </p>
@@ -249,25 +249,25 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
           return (
             <section key={column.stage} className="surface-card flex max-h-[70vh] flex-col p-3">
               <div className="flex items-center justify-between px-1 pb-2">
-                <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{column.label}</p>
-                <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-text-muted)]">
+                <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{column.label}</p>
+                <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-muted)]">
                   {columnLeads.length}
                 </span>
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                 {columnLeads.length === 0 ? (
-                  <p className="rounded-[10px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[11px] text-[var(--color-text-muted)]">
+                  <p className="rounded-[10px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">
                     No leads
                   </p>
                 ) : (
                   columnLeads.map((lead) => (
                     <div key={lead.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
                       <div className="flex items-start justify-between gap-2">
-                        <p className="line-clamp-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">{lead.prospectName}</p>
+                        <p className="line-clamp-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">{lead.prospectName}</p>
                         <StatusPill bg={tone.bg} fg={tone.fg} label={column.label} />
                       </div>
-                      <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">{lead.contactName} · {lead.email}</p>
-                      <p className="mt-1.5 font-[var(--font-mono)] text-[12px] font-bold text-[var(--color-text-primary)]">{formatCurrency(lead.estimatedMrr)}</p>
+                      <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">{lead.contactName} · {lead.email}</p>
+                      <p className="mt-1.5 font-[var(--font-mono)] text-[11px] font-bold text-[var(--color-text-primary)]">{formatCurrency(lead.estimatedMrr)}</p>
                       {lead.stage !== "WON" && lead.stage !== "LOST" ? (
                         <ResourceActionDialog
                           triggerLabel="Move stage"
@@ -284,7 +284,7 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
                           ]}
                         />
                       ) : (
-                        <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
+                        <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
                           {(lead.stage === "WON" ? lead.wonReason : lead.lostReason) || "No reason recorded"}
                         </p>
                       )}
@@ -323,8 +323,8 @@ function FeedbackTab({ nps }: { nps: Nps[] }) {
     <div className="grid gap-5">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Sentiment</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Recent NPS responses</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Recent NPS responses</h2>
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Read-only view of the most recent Net Promoter Score responses across all schools. Full NPS trends and
           survey management live in{" "}
           <Link href="/super-admin/analytics?tab=nps" className="font-semibold text-[var(--color-text-accent)] underline">

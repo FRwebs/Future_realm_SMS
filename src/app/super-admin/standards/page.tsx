@@ -20,18 +20,18 @@ function ReferenceList({ title, sub, items }: { title: string; sub?: string; ite
   return (
     <section className="surface-card overflow-hidden">
       <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {sub ? <p className="mt-1 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
+        {sub ? <p className="mt-1 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
       </div>
       <div className="grid gap-3 p-5">
         {items.map((item) => (
           <div key={item.label} className="flex items-start justify-between gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
             <div className="min-w-0">
-              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-              <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+              <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
             </div>
             {item.pill ? (
-              <span className="shrink-0 rounded-full px-2.5 py-1 text-[10.5px] font-bold" style={{ background: toneStyle[item.tone ?? "mute"].bg, color: toneStyle[item.tone ?? "mute"].fg }}>
+              <span className="shrink-0 rounded-full px-2.5 py-1 text-[9.5px] font-bold" style={{ background: toneStyle[item.tone ?? "mute"].bg, color: toneStyle[item.tone ?? "mute"].fg }}>
                 {item.pill}
               </span>
             ) : null}
@@ -45,16 +45,16 @@ function ReferenceList({ title, sub, items }: { title: string; sub?: string; ite
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: Tone }> }) {
   return (
     <section className="surface-card p-6">
-      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-2xl text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
+      <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
+      {sub ? <p className="mt-1.5 max-w-2xl text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
       <div className="mt-5 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
           const tone = toneStyle[step.tone ?? "mute"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>
@@ -145,8 +145,8 @@ function WorkflowsTab() {
         columns={[
           { key: "n", header: "#", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.n}</span> },
           { key: "flow", header: "Flow", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.flow}</span> },
-          { key: "gate", header: "The gate", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.gate}</span> },
-          { key: "prevents", header: "What it prevents", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.prevents}</span> }
+          { key: "gate", header: "The gate", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.gate}</span> },
+          { key: "prevents", header: "What it prevents", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.prevents}</span> }
         ]}
       />
 
@@ -240,8 +240,8 @@ function PrinciplesTab() {
       getRowKey={(item) => item.code}
       columns={[
         { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.code}</span> },
-        { key: "principle", header: "Principle", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.principle}</span> },
-        { key: "forbids", header: "What it forbids", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.forbids}</span> }
+        { key: "principle", header: "Principle", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.principle}</span> },
+        { key: "forbids", header: "What it forbids", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.forbids}</span> }
       ]}
     />
   );
@@ -269,10 +269,10 @@ function AccessTab() {
           header: "Status",
           render: (item) => {
             const tone = toneStyle[item.tone as Tone];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
+            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
           }
         },
-        { key: "authority", header: "Authority", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.authority}</span> }
+        { key: "authority", header: "Authority", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.authority}</span> }
       ]}
       emptyState="Nothing recorded."
     />
@@ -315,9 +315,9 @@ function ChangelogTab() {
         getRowKey={(item) => item.code}
         columns={[
           { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-          { key: "was", header: "Said before", render: (item) => <span className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">{item.was}</span> },
-          { key: "now", header: "Says now", render: (item) => <span className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">{item.now}</span> },
-          { key: "why", header: "Why", render: (item) => <span className="text-[12px] leading-relaxed text-[var(--color-text-muted)]">{item.why}</span> }
+          { key: "was", header: "Said before", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.was}</span> },
+          { key: "now", header: "Says now", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.now}</span> },
+          { key: "why", header: "Why", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{item.why}</span> }
         ]}
       />
 
@@ -340,7 +340,7 @@ function ChangelogTab() {
           columns={[
             { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
             { key: "added", header: "Added", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.added}</span> },
-            { key: "from", header: "Where it was promised", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.from}</span> }
+            { key: "from", header: "Where it was promised", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.from}</span> }
           ]}
         />
         <TableCard
@@ -357,7 +357,7 @@ function ChangelogTab() {
           getRowKey={(item) => item.code}
           columns={[
             { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-            { key: "correction", header: "Correction", render: (item) => <span className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">{item.correction}</span> }
+            { key: "correction", header: "Correction", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.correction}</span> }
           ]}
         />
       </section>
@@ -377,7 +377,7 @@ function ChangelogTab() {
         getRowKey={(item) => item.code}
         columns={[
           { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-          { key: "correction", header: "Correction", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.correction}</span> }
+          { key: "correction", header: "Correction", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.correction}</span> }
         ]}
       />
     </section>
@@ -402,8 +402,8 @@ function NonFunctionalTab() {
         getRowKey={(item) => item.area}
         columns={[
           { key: "area", header: "Area", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.area}</span> },
-          { key: "requirement", header: "Requirement", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.requirement}</span> },
-          { key: "state", header: "State", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.state}</span> }
+          { key: "requirement", header: "Requirement", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.requirement}</span> },
+          { key: "state", header: "State", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.state}</span> }
         ]}
       />
 
@@ -424,7 +424,7 @@ function NonFunctionalTab() {
         getRowKey={(item) => item.excluded}
         columns={[
           { key: "excluded", header: "Excluded", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.excluded}</span> },
-          { key: "returns", header: "Returns when", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.returns}</span> }
+          { key: "returns", header: "Returns when", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.returns}</span> }
         ]}
       />
     </section>
@@ -448,16 +448,16 @@ function IssuesTab() {
       getRowKey={(item) => item.code}
       columns={[
         { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.code}</span> },
-        { key: "issue", header: "Issue", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.issue}</span> },
+        { key: "issue", header: "Issue", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.issue}</span> },
         {
           key: "status",
           header: "Status",
           render: (item) => {
             const tone = toneStyle[item.tone as Tone];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
+            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
           }
         },
-        { key: "blocks", header: "Blocks", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.blocks}</span> }
+        { key: "blocks", header: "Blocks", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.blocks}</span> }
       ]}
     />
   );

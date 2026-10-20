@@ -20,7 +20,7 @@ function DenseHeatCell({ value }: { value: number | null }) {
   const style = heatCellDenseStyle(value);
   return (
     <span
-      className="inline-flex min-w-11 items-center justify-center rounded-[7px] px-0.5 py-[6px] font-[var(--font-heading)] text-[10.5px] font-semibold"
+      className="inline-flex min-w-11 items-center justify-center rounded-[7px] px-0.5 py-[6px] font-[var(--font-heading)] text-[9.5px] font-semibold"
       style={{ background: style.background, color: style.color, border: value === null ? "1px solid #E9F0EC" : "1px solid transparent" }}
     >
       {value === null ? "—" : `${value}%`}
@@ -41,30 +41,30 @@ export function StateAdoptionTable({ heatmapByState, stateHeatmapModules }: Stat
     <section className="surface-card overflow-hidden">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[var(--color-border-default)] px-5 py-4">
         <div>
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Adoption by state — where the product is actually landing</p>
-          <p className="mt-1 max-w-2xl text-[11.5px] text-[var(--color-text-muted)]">Same metric grouped by region, to separate a product problem from a connectivity or training problem.</p>
+          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Adoption by state — where the product is actually landing</p>
+          <p className="mt-1 max-w-2xl text-[10.5px] text-[var(--color-text-muted)]">Same metric grouped by region, to separate a product problem from a connectivity or training problem.</p>
         </div>
-        <p className="whitespace-nowrap text-[11.5px] text-[#8C9A92]">Rolling 4-week average</p>
+        <p className="whitespace-nowrap text-[10.5px] text-[#8C9A92]">Rolling 4-week average</p>
       </div>
 
       <div className="px-5 py-3.5">
         <div className="grid items-end gap-1.5 border-b border-[#EDF3EF] pb-2.5" style={{ gridTemplateColumns: cols }}>
-          <div className="min-w-0 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">State / region</div>
+          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">State / region</div>
           {stateHeatmapModules.map((module) => (
-            <div key={module} className="min-w-0 text-center text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
+            <div key={module} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
               {moduleLabel(module)}
             </div>
           ))}
         </div>
 
         {heatmapByState.length === 0 ? (
-          <p className="py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No school location data yet.</p>
+          <p className="py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No school location data yet.</p>
         ) : (
           heatmapByState.map((row) => (
             <div key={row.state} className="grid items-center gap-1.5 py-[3px]" style={{ gridTemplateColumns: cols }}>
               <div className="min-w-0">
-                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[12px] text-[#0D2315]">{row.state}</div>
-                <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[10.5px] text-[#9FB8A7]">
+                <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#0D2315]">{row.state}</div>
+                <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-[#9FB8A7]">
                   {row.schoolCount} school{row.schoolCount === 1 ? "" : "s"}
                 </div>
               </div>
@@ -79,9 +79,9 @@ export function StateAdoptionTable({ heatmapByState, stateHeatmapModules }: Stat
 
         {heatmapByState.length > 0 ? (
           <div className="mt-2.5 grid items-center gap-1.5 border-t border-[#EDF3EF] pt-2.5" style={{ gridTemplateColumns: cols }}>
-            <div className="text-[11px] font-semibold text-[#77857C]">Platform average</div>
+            <div className="text-[10px] font-semibold text-[#77857C]">Platform average</div>
             {platformAverages.map((value, index) => (
-              <div key={stateHeatmapModules[index]} className="text-center font-[var(--font-mono)] text-[11.5px] font-bold text-[#0D2315]">
+              <div key={stateHeatmapModules[index]} className="text-center font-[var(--font-mono)] text-[10.5px] font-bold text-[#0D2315]">
                 {value === null ? "—" : `${value}%`}
               </div>
             ))}

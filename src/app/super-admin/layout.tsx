@@ -1,3 +1,4 @@
+import { PageLoadBeacon } from "@/components/layout/page-load-beacon";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { SuperAdminShell } from "@/components/super-admin/super-admin-shell";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
@@ -76,6 +77,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
         sa_security: openIncidentCount,
       }}
     >
+      <PageLoadBeacon />
       {children}
     </SuperAdminShell>
   );

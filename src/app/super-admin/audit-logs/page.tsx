@@ -21,7 +21,7 @@ function actionTone(action: string) {
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -31,7 +31,7 @@ function DetailsPreview({ details }: { details: unknown }) {
   if (details === null || details === undefined) return <span className="text-[var(--color-text-muted)]">—</span>;
   if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
   const text = typeof details === "string" ? details : JSON.stringify(details);
-  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[11px] text-[var(--color-text-secondary)]">{text}</span>;
+  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">{text}</span>;
 }
 
 export default async function SuperAdminAuditLogsPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
@@ -61,9 +61,9 @@ export default async function SuperAdminAuditLogsPage({ searchParams }: { search
         </svg>
         <div className="relative z-[1] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Compliance trail</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Compliance trail</p>
             <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Audit Logs</h1>
-            <p className="mt-2 max-w-3xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">
+            <p className="mt-2 max-w-3xl text-[11.5px] leading-6 text-[rgba(255,255,255,0.74)]">
               Every significant action taken on the platform, logged here immutably — who did what, to what, and
               when. This is the accountability layer behind every other module.
             </p>
@@ -102,7 +102,7 @@ export default async function SuperAdminAuditLogsPage({ searchParams }: { search
               return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
             }
           },
-          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[12px]">{item.target}</span> },
+          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.target}</span> },
           { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
           { key: "details", header: "Details", render: (item) => <DetailsPreview details={item.details} /> }
         ]}

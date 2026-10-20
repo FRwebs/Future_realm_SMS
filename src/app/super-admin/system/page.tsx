@@ -13,7 +13,7 @@ import { formatDate } from "@/lib/utils/formatters";
 
 function statusTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "HEALTHY") return "success";
-  if (status === "WARNING") return "warning";
+  if (status === "WARNING" || status === "SLOW" || status === "INVESTIGATE" || status === "PARTIAL") return "warning";
   if (status === "CRITICAL") return "danger";
   return "neutral";
 }
@@ -44,43 +44,51 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
           <ResourceActionDialog
             triggerLabel="Run manual backup"
             title="Run a manual backup"
-            description="Runs a full database backup now. A missed or failed backup raises a critical alert until a successful one completes — see the honest gaps below before you rely on this."
+            description="Takes a real pg_dump of the whole database now, fingerprints it, and can read it back and restore it into a scratch database to prove it works. A failed run is logged as a high-severity incident and the platform team is emailed."
             endpoint="/api/super-admin/system/backups"
             method="POST"
             variant="heroWhite"
             submitLabel="Run backup now"
             confirmLabel="Confirm"
             fields={[
-              { name: "scope", label: "What to back up", type: "static", placeholder: "Full platform", note: "Real — every manual run is the whole database; there's no partial or per-school option.", section: "Scope" },
-              { name: "region", label: "Storage region", type: "static", placeholder: "Not tracked", note: "No region selection exists — the location is a fixed string, not a real multi-region choice.", section: "Scope" },
-              { name: "window", label: "Window", type: "static", placeholder: "Starts now", note: "Real — a manual run has no scheduling option; it always starts immediately.", section: "Scope" },
-              { name: "lastRestoreTest", label: "Last successful restore test", type: "static", placeholder: "Not tracked", note: "No restore-test record exists anywhere in this system — a backup has never been proven restorable here.", section: "Scope" },
+              { name: "scope", label: "What to back up", type: "static", placeholder: "Full platform", note: "Every manual run is the whole database — there is no partial or per-school option.", section: "Scope" },
+              { name: "region", label: "Storage region", type: "static", placeholder: data.backups.region ?? "This server", note: "Where the archive is written — set by BACKUP_REGION on the server, not chosen per run.", section: "Scope" },
+              { name: "window", label: "Window", type: "static", placeholder: "Starts now", note: "A manual run always starts immediately.", section: "Scope" },
+              {
+                name: "lastRestoreTest",
+                label: "Last successful restore test",
+                type: "static",
+                placeholder: data.backups.lastRestoreTestAt ? formatDate(data.backups.lastRestoreTestAt) : "Never",
+                note: data.backups.lastRestoreTestAt ? (data.backups.lastRestoreResult ?? "Restored into a scratch database and checked.") : "No backup has been restored yet — until one is, none is proven restorable.",
+                section: "Scope"
+              },
               {
                 name: "verifyArchive",
                 label: "Verify the archive afterwards",
-                type: "toggle",
-                disabled: true,
-                note: "Not real — every run is recorded as an immediate SUCCESS with a randomly generated size; nothing is independently verified.",
+                type: "select",
+                defaultValue: "true",
+                options: [{ label: "Yes — read the file back and check it", value: "true" }, { label: "No — just write it", value: "false" }],
+                note: "Reads the dump back with pg_restore and compares its SHA-256 fingerprint.",
                 section: "Verification"
               },
-              { name: "restoreTest", label: "Run a restore test into staging", type: "toggle", disabled: true, section: "Verification" },
+              {
+                name: "restoreTest",
+                label: "Run a restore test into staging",
+                type: "select",
+                defaultValue: "false",
+                options: [{ label: "No", value: "false" }, { label: "Yes — restore into a scratch database, then drop it", value: "true" }],
+                note: "Slower on a large database. Never touches the live database.",
+                section: "Verification"
+              },
               {
                 name: "notifyOnCompletion",
                 label: "Notify Infrastructure on completion",
                 type: "static",
-                disabled: true,
                 placeholder: "Sent automatically",
-                note: "Real — every platform owner, developer, and platform/super admin gets an email as soon as this run finishes. There's no toggle because it isn't optional.",
+                note: "Every platform owner, developer, and platform/super admin is told when this run finishes. It isn't optional.",
                 section: "Verification"
               },
-              {
-                name: "reason",
-                label: "Why this run is being made now",
-                type: "static",
-                placeholder: "Not stored",
-                note: "The backup endpoint takes no reason field — anything typed here wouldn't be saved, so it isn't collected.",
-                section: "Reason"
-              }
+              { name: "reason", label: "Why this run is being made now", type: "textarea", placeholder: "e.g. Before the term-3 fee migration", note: "Stored on the backup record and in the audit log.", section: "Reason" }
             ]}
           />
         }
@@ -98,16 +106,33 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
   );
 }
 
+function formatUptime(minutes: number) {
+  return minutes >= 1440 ? `${Math.floor(minutes / 1440)}d` : minutes >= 60 ? `${Math.floor(minutes / 60)}h` : `${minutes}m`;
+}
+
 function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  const rt = data.runtime;
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="API uptime (24h)" value={`${data.uptime.apiUptime}%`} detail={`${data.uptime.requestsLast24h.toLocaleString()} requests · target 99.5%`} tone="dark" icon={Server} />
         <StatCard label="API response (avg)" value={`${data.uptime.avgResponseMs}ms`} detail="Warning above 1.5s" tone={statusTone(data.uptime.responseStatus)} icon={Timer} />
-        <StatCard label="Server CPU" value="N/A" detail="Not tracked — no APM agent is wired in" tone="neutral" icon={Cpu} />
-        <StatCard label="DB query time" value="N/A" detail="Not tracked — no query profiler is wired in" tone="neutral" icon={Database} />
-        <StatCard label="Concurrent users" value="N/A" detail="Not tracked — no live session-concurrency metric exists" tone="neutral" icon={Users} />
-        <StatCard label="Page load (3G)" value="N/A" detail="Not tracked — no client-side page-load telemetry exists" tone="neutral" icon={Gauge} />
+        <StatCard label="Server CPU" value={rt ? `${rt.cpuPercent}%` : "N/A"} detail={rt ? `Load ${rt.loadAverage} on ${rt.cpuCores} cores · API uses ${rt.memoryMb} MB · up ${formatUptime(rt.processUptimeMinutes)}` : "Runtime figures unavailable"} tone={rt && rt.cpuPercent > 85 ? "danger" : rt && rt.cpuPercent > 70 ? "warning" : "neutral"} icon={Cpu} />
+        <StatCard label="DB query time" value={rt ? `${rt.dbPingMs}ms` : "N/A"} detail="A round-trip to the database, measured when this page loaded" tone={rt && rt.dbPingMs > 250 ? "warning" : "neutral"} icon={Database} />
+        <StatCard label="Concurrent users" value={rt ? String(rt.concurrentUsers) : "N/A"} detail="Distinct people with a live sign-in active in the last 5 minutes" tone="neutral" icon={Users} />
+        <StatCard
+          label="Page load (3G)"
+          value={rt?.pageLoad.slowP75Ms != null ? `${(rt.pageLoad.slowP75Ms / 1000).toFixed(1)}s` : rt?.pageLoad.p75Ms != null ? `${(rt.pageLoad.p75Ms / 1000).toFixed(1)}s` : "No data"}
+          detail={
+            rt?.pageLoad.slowSamples
+              ? `75th percentile over ${rt.pageLoad.slowSamples} slow-connection loads · target under 3s`
+              : rt?.pageLoad.samples
+                ? `No slow-connection loads yet — showing all ${rt.pageLoad.samples} loads (75th percentile)`
+                : "Measured in users' browsers — fills in as pages are opened"
+          }
+          tone={(rt?.pageLoad.slowP75Ms ?? rt?.pageLoad.p75Ms ?? 0) > 3000 ? "warning" : "neutral"}
+          icon={Gauge}
+        />
       </section>
 
       <TableCard
@@ -123,10 +148,10 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
           { key: "current", header: "Current", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.current}</span> },
           { key: "warning", header: "Warning", render: (row) => <span className="text-[var(--color-text-muted)]">{row.warning}</span> },
           { key: "critical", header: "Critical", render: (row) => <span className="text-[var(--color-text-muted)]">{row.critical}</span> },
-          { key: "action", header: "Action on breach", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.action}</span> },
+          { key: "action", header: "Action on breach", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.action}</span> },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={statusTone(row.status)} /> }
         ]}
-        footnote="All tables and reports need to hold these thresholds at real scale, not just at current traffic — but there is no load-tested ceiling recorded anywhere in this codebase."
+        footnote="CPU is the one-minute load average over core count; DB time is a live round-trip; page load comes from a beacon each browser sends after a page finishes loading. None of it is a load-test ceiling — it is what the platform is doing now."
       />
     </div>
   );
@@ -154,10 +179,11 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
             { key: "school", header: "School", render: (row) => row.schoolName },
             { key: "queued", header: "Queued", render: (row) => row.queued },
             { key: "oldest", header: "Oldest record", render: (row) => `${row.oldestAgeHours}h` },
-            { key: "failures", header: "Consecutive failures", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
+            { key: "refused", header: "Refused", render: (row) => (row.refused ? <span className="font-semibold text-[var(--color-danger)]">{row.refused}</span> : 0) },
+            { key: "conflicts", header: "Conflicts", render: (row) => (row.conflicts ? <span className="font-semibold text-[var(--color-warning)]">{row.conflicts}</span> : 0) },
             { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} tone={statusTone(row.status)} /> }
           ]}
-          footnote={`A queue age above 2 hours means a group of schools has been offline for an extended period — they may need proactive outreach rather than a server fix. There is no per-record retry-attempt count kept, so "consecutive failures" is honestly not tracked — a queued record is simply pending or synced.`}
+          footnote="A queue age above 2 hours means a group of schools has been offline for an extended period — they may need proactive outreach rather than a server fix. Refused means the server turned an entry down (for example a closed register); a conflict means the school already holds a different value and someone must choose."
         />
         <TableCard
           title="Sync failure alert thresholds"
@@ -166,7 +192,7 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
             { metric: "Platform-wide sync failure rate", warning: "> 5%", critical: "> 15%" },
             { metric: "Oldest unsynced record", warning: "> 2 hours", critical: "> 6 hours" },
             { metric: "Average queue age", warning: "> 2 hours", critical: "> 6 hours" },
-            { metric: "Single school sync failures", warning: "Not tracked", critical: "Not tracked" }
+            { metric: "Single school refused entries", warning: "Any", critical: "5 or more" }
           ]}
           getRowKey={(row) => row.metric}
           columns={[
@@ -180,7 +206,11 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
   );
 }
 
-function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
+type DeliveryFailures = { sent: number; failed: number; held: number; reasons: Array<{ reason: string; channel: string; count: number }> };
+
+async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  const failures = await apiGet<DeliveryFailures>("/api/super-admin/communications/delivery-failures").catch(() => null);
+  const topReason = (channel: string) => failures?.reasons.find((row) => row.channel === channel);
   const thresholds: Record<string, { warning: string; critical: string }> = {
     EMAIL: { warning: "> 3%", critical: "> 10%" },
     SMS: { warning: "> 3%", critical: "> 10%" },
@@ -191,32 +221,41 @@ function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
     <div className="grid gap-5">
       <TableCard
         title="Notification delivery monitoring"
-        description="Infrastructure-level, distinct from Communications' campaign tracking — this answers whether the send actually went through, not whether the message resonated. Failure rate over the last 30 days."
+        description="Infrastructure-level, distinct from Communications' campaign tracking — this answers whether the send actually went through, not whether the message resonated. Failure rate is failed ÷ attempted over the last 30 days; messages still waiting, or simulated before delivery was real, are not counted as either."
         items={data.deliveryHealth}
         columns={[
           { key: "channel", header: "Channel", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.channel}</span> },
-          { key: "total", header: "Messages", render: (item) => item.total },
+          { key: "total", header: "Messages", render: (item) => <div><p>{item.total}</p><p className="text-[10px] text-[var(--color-text-muted)]">{item.sent ?? 0} sent · {item.failed ?? 0} failed · {item.queued ?? 0} waiting{item.simulated ? ` · ${item.simulated} simulated` : ""}</p></div> },
           { key: "failure", header: "Failure rate", render: (item) => `${item.failureRate}%` },
           { key: "warning", header: "Warning", render: (item) => thresholds[item.channel]?.warning ?? "—" },
           { key: "critical", header: "Critical", render: (item) => thresholds[item.channel]?.critical ?? "—" },
-          { key: "reason", header: "Top failure reason", render: () => <span className="text-[var(--color-text-muted)]">Not tracked — a send only records success/fail, not why</span> },
+          {
+            key: "reason",
+            header: "Top failure reason",
+            render: (item) => {
+              const top = topReason(item.channel);
+              return top ? <span className="text-[11.5px] text-[var(--color-text-secondary)]">{top.reason} <span className="text-[var(--color-text-muted)]">({top.count})</span></span> : <span className="text-[var(--color-text-muted)]">None recorded</span>;
+            }
+          },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
         ]}
         emptyState="No notification activity recorded."
       />
 
-      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
-        <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Failure volume by reason — not tracked</p>
-        </div>
-        <div className="p-5">
-          <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
-            A notification-log entry stores a channel and a success/fail status only — there is no failure-reason field (bounced mailbox,
-            invalid number, carrier block, opt-out) to break down. The table above is the honest ceiling of what this system can report on
-            delivery failure today.
-          </p>
-        </div>
-      </section>
+      <TableCard
+        title="Failure volume by reason"
+        description={`Last 30 days — ${failures?.sent ?? 0} delivered, ${failures?.failed ?? 0} failed, ${failures?.held ?? 0} held back (quiet hours, daily cap or no wallet credit). The reason is the carrier's or mail server's own words, stored on the failed row.`}
+        items={failures?.reasons ?? []}
+        getRowKey={(row) => `${row.channel}:${row.reason}`}
+        columns={[
+          { key: "reason", header: "Reason", render: (row) => <span className="text-[var(--color-text-primary)]">{row.reason}</span> },
+          { key: "channel", header: "Channel", render: (row) => row.channel },
+          { key: "count", header: "Messages", render: (row) => row.count },
+          { key: "share", header: "Share of failures", render: (row) => (failures?.failed ? `${Math.round((row.count / failures.failed) * 100)}%` : "-") }
+        ]}
+        emptyState="No failed sends in the last 30 days."
+        footnote="Rows sent before delivery was switched on carry no reason, so they show as “No reason recorded”. Email and SMS are real; WhatsApp has no provider and is never sent."
+      />
 
       <TableCard
         title="Third-party integration status"
@@ -226,7 +265,7 @@ function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
           { key: "name", header: "Integration", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
           { key: "freq", header: "Check", render: (item) => item.checkFrequency },
           { key: "last", header: "Last checked", render: () => "Just now — this page load" },
-          { key: "onfail", header: "On failure", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
+          { key: "onfail", header: "On failure", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={statusTone(item.status)} /> }
         ]}
       />
@@ -236,37 +275,59 @@ function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
 
 async function ComputationTab() {
   const data = await apiGet<SuperAdminComputationMonitoring>("/api/super-admin/infra-extras/computation");
+  const comp = data.computation;
 
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Trace completeness" value="N/A" detail="Not tracked — no per-computation calculation trace is stored" tone="dark" icon={Activity} />
-        <StatCard label="Regression suite" value="N/A" detail="Not tracked at runtime — this is a CI/deployment concern, not data this page can read" tone="neutral" icon={FlaskConical} />
-        <StatCard label="Computations today" value="N/A" detail="Not tracked as one aggregate — see the real pending-queue depths below instead" tone="neutral" icon={Cpu} />
+        <StatCard label="Trace completeness" value="N/A" detail="Not built — no per-step calculation trace is stored; a run records its size and duration only" tone="neutral" icon={Activity} />
+        <StatCard label="Regression suite" value="CI only" detail="The golden-dataset tests run before a release, not at runtime — this page cannot read their result" tone="neutral" icon={FlaskConical} />
+        <StatCard label="Computations today" value={comp ? String(comp.runsToday) : "N/A"} detail={comp ? `Across ${comp.schoolsToday} school${comp.schoolsToday === 1 ? "" : "s"} — every broadsheet, ranking and report-card run` : "Unavailable"} tone="dark" icon={Cpu} />
         <StatCard
           label="Median duration"
-          value={data.broadsheets.avgCompileHours === null ? "N/A" : data.broadsheets.avgCompileHours >= 48 ? `${Math.round((data.broadsheets.avgCompileHours / 24) * 10) / 10}d` : `${data.broadsheets.avgCompileHours}h`}
-          detail="Real, but a proxy — broadsheet creation-to-approval time, across schools approved in the last 90 days, not raw compute duration"
+          value={comp?.medianMs != null ? (comp.medianMs >= 1000 ? `${(comp.medianMs / 1000).toFixed(1)}s` : `${comp.medianMs}ms`) : "No runs yet"}
+          detail={comp?.p95Ms != null ? `Measured compute time · 95th percentile ${comp.p95Ms >= 1000 ? `${(comp.p95Ms / 1000).toFixed(1)}s` : `${comp.p95Ms}ms`} (30 days)` : "Measured compute time, from the runs recorded in the last 30 days"}
           tone="neutral"
           icon={Activity}
         />
-        <StatCard label="Frameworks failing validation" value="0" detail="Structurally guaranteed — an assessment framework whose weights don't total 100 is rejected at save, so one can never exist to fail here" tone="success" />
+        <StatCard
+          label="Frameworks failing validation"
+          value={String(comp?.failingFrameworks.length ?? 0)}
+          detail={comp?.failingFrameworks.length ? "Active assessment sections whose weights do not total 100 — listed below" : "Every active assessment framework's weights total 100"}
+          tone={comp?.failingFrameworks.length ? "danger" : "success"}
+        />
       </section>
 
       <TableCard
         title="Computation health by school"
-        description="Would show per-school record counts, computation duration, trace completeness, and recompute events."
-        items={[]}
+        description="What each school's recorded runs processed in the last 30 days — records computed, measured median duration, and how often results were recomputed."
+        items={comp?.bySchool ?? []}
+        getRowKey={(row) => row.school}
         columns={[
-          { key: "school", header: "School", render: () => null },
-          { key: "records", header: "Records", render: () => null },
-          { key: "duration", header: "Duration", render: () => null },
-          { key: "trace", header: "Trace", render: () => null },
-          { key: "recomputes", header: "Recomputes", render: () => null },
-          { key: "state", header: "State", render: () => null }
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "runs", header: "Runs", render: (row) => row.runs },
+          { key: "records", header: "Records", render: (row) => row.records.toLocaleString() },
+          { key: "duration", header: "Duration (median)", render: (row) => (row.medianMs == null ? "-" : row.medianMs >= 1000 ? `${(row.medianMs / 1000).toFixed(1)}s` : `${row.medianMs}ms`) },
+          { key: "recomputes", header: "Recomputes", render: (row) => row.recomputes },
+          { key: "state", header: "State", render: (row) => <StatusBadge status={row.state} tone={statusTone(row.state)} /> }
         ]}
-        emptyState="Duration, trace, and recompute-event counts aren't tracked per school — see the real pending-queue stats below for what this system actually measures instead."
+        emptyState="No computation has been run in the last 30 days."
+        footnote="A recompute is a run over a class and term that already had a run. Trace completeness is not recorded — see the table below."
       />
+
+      {comp?.failingFrameworks.length ? (
+        <TableCard
+          title="Frameworks failing validation"
+          items={comp.failingFrameworks}
+          getRowKey={(row) => `${row.school}:${row.section}`}
+          columns={[
+            { key: "school", header: "School", render: (row) => row.school },
+            { key: "section", header: "Assessment section", render: (row) => row.section },
+            { key: "total", header: "Weights total", render: (row) => <span className="font-bold text-[var(--color-danger)]">{row.total}</span> }
+          ]}
+          footnote="Results for these sections cannot be trusted until the weights are corrected to total 100."
+        />
+      ) : null}
 
       <section className="grid gap-3 md:grid-cols-3">
         <StatCard label="Assessments awaiting approval" value={String(data.assessments.pendingApproval)} detail={data.assessments.oldestAgeHours === null ? "Nothing pending" : `Oldest: ${data.assessments.oldestAgeHours}h · ${data.assessments.oldestLabel}`} tone="dark" icon={Layers3} />
@@ -278,10 +339,10 @@ async function ComputationTab() {
         title="What is monitored here — real vs. not tracked"
         items={[
           { label: "Golden-dataset regression on every deployment", state: "Not tracked at runtime — a CI/deployment concern this page has no visibility into.", tone: "bad" },
-          { label: "Computation volume and duration by school", state: "Partial — pending-queue depth and age are real; there is no per-school computation-duration metric.", tone: "warn" },
+          { label: "Computation volume and duration by school", state: "Real — each broadsheet, ranking and report-card run records its school, size and measured duration.", tone: "good" },
           { label: "Trace completeness", state: "Not built — no calculation-trace concept exists in this codebase.", tone: "bad" },
-          { label: "Recomputation events, with reason", state: "Not built — a recompute isn't logged as a distinct event anywhere.", tone: "bad" },
-          { label: "Assessment frameworks failing validation", state: "Structurally guaranteed at zero — see the KPI above.", tone: "good" }
+          { label: "Recomputation events", state: "Partial — a re-run over an already-computed class and term is counted; the reason is not captured.", tone: "warn" },
+          { label: "Assessment frameworks failing validation", state: "Real — checked live against every active school's section weights.", tone: "good" }
         ]}
         getRowKey={(row) => row.label}
         columns={[
@@ -291,13 +352,13 @@ async function ComputationTab() {
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.tone as "good" | "warn" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
         footnote={
           <>
-            There is no separate background job queue for result computation — broadsheet compilation and report card generation are
+            Computation runs from the start of instrumentation onward are counted; earlier results are not back-filled. There is no separate background job queue — broadsheet compilation and report card generation are
             workflow steps schools trigger directly. A stage is flagged Warning once its oldest pending record has sat for more than 14
             days, Critical past 30 days. Data as of {formatDate(data.generatedAt)}.
           </>
@@ -308,35 +369,49 @@ async function ComputationTab() {
 }
 
 function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
+  const backups = data.backups;
+  const ok = (status: string) => ["SUCCESS", "COMPLETED", "COMPLETED_SUCCESSFULLY"].includes(status.toUpperCase());
+  const lastOk = backups.recent.find((item) => ok(item.status));
+  const hoursSince = (iso: string | null | undefined) => (iso ? Math.round((Date.now() - new Date(iso).getTime()) / 36e5) : null);
+  const age = hoursSince(backups.lastSuccessfulAt);
+
   return (
     <div className="grid gap-5">
-      <StatCard label="Last successful backup" value={data.backups.lastSuccessfulAt ? formatDate(data.backups.lastSuccessfulAt) : "None logged"} icon={DatabaseBackup} tone="dark" />
+      <section className="grid gap-3 md:grid-cols-3">
+        <StatCard label="Last successful backup" value={backups.lastSuccessfulAt ? formatDate(backups.lastSuccessfulAt) : "None logged"} detail={age === null ? "Run one from the button above" : age < 1 ? "Less than an hour ago" : `${age}h ago`} icon={DatabaseBackup} tone={age === null || age > 48 ? "danger" : age > 26 ? "warning" : "dark"} />
+        <StatCard label="Last verified" value={backups.lastVerifiedAt ? formatDate(backups.lastVerifiedAt) : "Never"} detail="Archive read back and its fingerprint matched" icon={Activity} tone={backups.lastVerifiedAt ? "neutral" : "warning"} />
+        <StatCard label="Last restore test" value={backups.lastRestoreTestAt ? formatDate(backups.lastRestoreTestAt) : "Never"} detail={backups.lastRestoreResult ?? "No backup has been restored into a scratch database yet"} icon={FlaskConical} tone={backups.lastRestoreTestAt ? "success" : "warning"} />
+      </section>
 
       <TableCard
         title="Backup and disaster recovery schedule"
-        description="Would show, per backup type, how often it runs, how long it's retained, and how it's verified."
-        items={[]}
-        columns={[
-          { key: "type", header: "Backup type", render: () => null },
-          { key: "frequency", header: "Frequency", render: () => null },
-          { key: "retention", header: "Retention", render: () => null },
-          { key: "verification", header: "Verification", render: () => null },
-          { key: "last", header: "Last run", render: () => null }
+        description="How backups are made, where they go, and how they are proven."
+        items={[
+          { type: "Full database (pg_dump)", frequency: backups.scheduled ? "Daily, automatic (if the last good one is over 23 hours old)" : "Manual only — set BACKUP_SCHEDULER=on for a daily run", retention: `${backups.retentionDays ?? 14} days of archives kept, then deleted`, verification: "Read back with pg_restore --list and SHA-256 fingerprinted; a restore into a scratch database on request", last: lastOk ? formatDate(lastOk.startedAt) : "-" }
         ]}
-        emptyState="No stored policy record exists for backup frequency, retention period, or verification cadence — a backup happens when triggered manually (above) or by whatever runs outside this codebase."
+        getRowKey={(row) => row.type}
+        columns={[
+          { key: "type", header: "Backup type", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.type}</span> },
+          { key: "frequency", header: "Frequency", render: (row) => row.frequency },
+          { key: "retention", header: "Retention", render: (row) => row.retention },
+          { key: "verification", header: "Verification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.verification}</span> },
+          { key: "last", header: "Last run", render: (row) => row.last }
+        ]}
+        footnote={`Archives are written to ${backups.region ?? "this server"}. Keeping them on the same machine as the database does not protect against losing that machine — point BACKUP_DIR at separate storage for that.`}
       />
 
       <TableCard
         title="Backup log"
-        description="The last 30 backup events — every real one this platform knows about, not evidence of a fixed schedule. A missed or failed backup raises a critical alert until a successful backup completes."
-        items={data.backups.recent}
+        description="The last 30 backup events. A failed backup is logged as a high-severity incident and the platform team is emailed."
+        items={backups.recent}
         columns={[
-          { key: "started", header: "Completed", render: (item) => formatDate(item.startedAt) },
+          { key: "started", header: "Completed", render: (item) => formatDate(item.endedAt ?? item.startedAt) },
           { key: "scope", header: "Type", render: (item) => item.scope.replaceAll("_", " ") },
           { key: "school", header: "Target", render: (item) => item.school },
           { key: "size", header: "Size", render: (item) => (item.sizeMb ? `${item.sizeMb} MB` : "-") },
-          { key: "verified", header: "Verified", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={item.status.toUpperCase().includes("SUCCESS") || item.status.toUpperCase().includes("COMPLETED") ? "success" : "danger"} /> }
+          { key: "verified", header: "Verified", render: (item) => (item.verified ? <span className="font-semibold text-[var(--color-success)]">{item.restoreTested ? "Restored" : "Read back"}</span> : <span className="text-[var(--color-text-muted)]">No</span>) },
+          { key: "note", header: "Detail", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{item.note ?? item.reason ?? "-"}</span> },
+          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={ok(item.status) ? "success" : "danger"} /> }
         ]}
         emptyState="No backups have been logged yet."
       />

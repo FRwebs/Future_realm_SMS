@@ -6,6 +6,31 @@ import { ResourceActionDialog } from "@/components/forms/resource-action-dialog"
 import { apiGet } from "@/lib/api/server";
 import type { SuperAdminInfraMonitoring, SuperAdminSettingsView } from "@/lib/domain/types";
 
+type Policy = {
+  trial: { days: number; readOnlyDays: number; lockReminderDays: number };
+  dormancy: { watchDays: number; dormantDays: number; noticeDays: number };
+  invoice: { netDays: number; rounding: "NONE" | "NEAREST_NAIRA" | "NEAREST_FIVE" | "NEAREST_TEN" };
+  messaging: { quietFrom: string; quietTo: string; quietHoursOn: boolean; dailyCapPerRecipient: number; maxAttempts: number };
+};
+type LifecycleItem = { schoolId: string; school: string; kind: string; status: string; lastLoginAt: string | null };
+type CarrierStatus = { enabled: boolean; carriers: Array<{ channel: string; provider: string; configured: boolean }>; emailMfa: boolean; scheduler: boolean };
+
+const ROUNDING_LABEL: Record<Policy["invoice"]["rounding"], string> = { NONE: "No rounding — to the kobo", NEAREST_NAIRA: "Nearest ₦1", NEAREST_FIVE: "Nearest ₦5", NEAREST_TEN: "Nearest ₦10" };
+const LIFECYCLE_LABEL: Record<string, string> = {
+  CONCESSION_DUE: "Remind the owner the NGO / mission discount is ending",
+  CONCESSION_EXPIRED: "End the discount and move the school to Standard",
+  TRIAL_ENDING: "Remind the owner the trial is ending",
+  TRIAL_READ_ONLY: "Make the school read-only (trial ended)",
+  TRIAL_LOCK_DUE: "Remind the owner the school will be locked",
+  TRIAL_LOCK: "Lock the school (read-only window over)",
+  DORMANT_WATCH: "Put on inactivity watch and tell the account manager",
+  DORMANT: "Mark dormant and tell the owner",
+  RECOVERED: "Clear dormancy — somebody signed in",
+  ADDRESS_RELEASE: "Release the web address",
+};
+
+const loadPolicy = () => apiGet<Policy>("/api/super-admin/platform-policy");
+
 function integrationStatusTone(status: string): "success" | "warning" | "danger" | "neutral" {
   if (status === "HEALTHY") return "success";
   if (status === "WARNING" || status === "PARTIAL") return "warning";
@@ -27,8 +52,8 @@ function ReferenceList({ title, sub, items }: { title: string; sub?: string; ite
   return (
     <section className="surface-card overflow-hidden">
       <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {sub ? <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
+        {sub ? <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
       </div>
       <div className="grid gap-3 p-5">
         {items.map((item) => {
@@ -37,8 +62,8 @@ function ReferenceList({ title, sub, items }: { title: string; sub?: string; ite
             <div key={item.label} className="flex items-start gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
               <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: tone.fg }} />
               <div className="min-w-0">
-                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-                <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+                <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+                <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
               </div>
             </div>
           );
@@ -81,7 +106,12 @@ export default async function SuperAdminSettingsPage({ searchParams }: { searchP
 }
 
 async function PlatformTab() {
-  const settings = await apiGet<SuperAdminSettingsView>("/api/super-admin/settings");
+  const [settings, policy, lifecycle, carriers] = await Promise.all([
+    apiGet<SuperAdminSettingsView>("/api/super-admin/settings"),
+    loadPolicy(),
+    apiGet<LifecycleItem[]>("/api/super-admin/lifecycle/preview").catch(() => [] as LifecycleItem[]),
+    apiGet<CarrierStatus>("/api/super-admin/delivery-carriers")
+  ]);
 
   return (
     <section className="grid gap-5">
@@ -97,11 +127,11 @@ async function PlatformTab() {
 
       <section className="surface-card p-6">
         <p className="section-eyebrow">Platform-wide</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Maintenance and announcement</h2>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">Maintenance blocks non-Super Admin logins. The announcement is shown to school admins after login.</p>
+        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Maintenance and announcement</h2>
+        <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">Maintenance blocks non-Super Admin logins. The announcement is shown to school admins after login.</p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <span
-            className="inline-flex items-center rounded-full px-3 py-1.5 text-[12px] font-bold"
+            className="inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-bold"
             style={
               settings.maintenanceMode
                 ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" }
@@ -149,7 +179,7 @@ async function PlatformTab() {
           {
             key: "changeableBy",
             header: "Changeable by",
-            render: () => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>Nobody — hardcoded</span>
+            render: () => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>Nobody — hardcoded</span>
           }
         ]}
       />
@@ -162,7 +192,7 @@ async function PlatformTab() {
             { setting: "Pricing currency", value: "NGN — every plan is authored directly in Naira", state: "Fixed" },
             { setting: "Rate source", value: "Not applicable — there's no foreign-exchange rate to source", state: "N/A" },
             { setting: "Rate refresh", value: "Not applicable — nothing to refresh", state: "N/A" },
-            { setting: "Rounding", value: "Prices are entered as whole Naira amounts; no rounding rule is applied", state: "Not built" },
+            { setting: "Rounding", value: ROUNDING_LABEL[policy.invoice.rounding], state: "Enforced" },
             { setting: "Currency shock guard", value: "Not applicable — no exchange-rate exposure to guard against", state: "N/A" },
             { setting: "Invoicing currency", value: "Naira, always — every school's invoice", state: "Enforced" }
           ]}
@@ -171,28 +201,81 @@ async function PlatformTab() {
           columns={[
             { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
             { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
-            { key: "state", header: "State", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.state}</span> }
+            { key: "state", header: "State", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.state}</span> }
           ]}
         />
         <TableCard
-          title="Trial and grace defaults"
+          title="Trial, dormancy and invoice defaults"
+          description="Enforced by the lifecycle engine and by every platform invoice. A change applies from the next run; nothing already done is undone."
           items={[
-            { setting: "Trial length", value: "30 calendar days — enforced automatically at signup" },
-            { setting: "Read-only window after a trial", value: "Not built — no read-only period exists between trial end and further action; access follows the school's status directly" },
-            { setting: "Trial lock", value: "Not built — no fixed lock day exists; access changes are driven by school status, not a day count" },
-            { setting: "Invoice payment terms", value: "Not built — no platform-wide Net-X default; each school's own fee structure sets its own due date" },
-            { setting: "Grace period after due", value: "Set manually by a Super Admin per school — not on an automatic day count" },
-            { setting: "Dormancy stage 1", value: "Not built — no day-count threshold exists for inactivity" },
-            { setting: "Web address reservation after dormancy", value: "Not built — a school's web address is never automatically released" }
+            { setting: "Trial length", value: `${policy.trial.days} calendar days from the day the school starts its trial` },
+            { setting: "Read-only window after a trial", value: `${policy.trial.readOnlyDays} days — the school can read and export but not change anything; paying switches editing back on` },
+            { setting: "Trial lock", value: `Day ${policy.trial.readOnlyDays} after the trial ends — the school is locked and only support can reopen it. The owner is reminded ${policy.trial.lockReminderDays} days before.` },
+            { setting: "Invoice payment terms", value: `Net ${policy.invoice.netDays} — every platform invoice falls due ${policy.invoice.netDays} days after it is raised` },
+            { setting: "Grace period after due", value: "Set by a Super Admin per school" },
+            { setting: "Dormancy stage 1 — watch", value: `${policy.dormancy.watchDays} days without a sign-in: the account manager is told` },
+            { setting: "Dormancy stage 2 — dormant", value: `${policy.dormancy.dormantDays} days without a sign-in: the school is marked dormant and its owner is told when the address will be released` },
+            { setting: "Web address release", value: `${policy.dormancy.noticeDays} days after the owner is told, unless somebody signs in. A school that pays is never released automatically.` }
           ]}
+          actions={
+            <ResourceActionDialog
+              triggerLabel="Edit defaults"
+              title="Trial, dormancy and invoice defaults"
+              description="Each value is checked against the others before it is saved. The change is written to the audit log with the old and new values."
+              endpoint="/api/super-admin/platform-policy"
+              method="PUT"
+              variant="secondary"
+              submitLabel="Save defaults"
+              fields={[
+                { name: "trial_days", label: "Trial length (days)", type: "number", defaultValue: policy.trial.days, min: 1, max: 120, section: "Trial" },
+                { name: "trial_readOnlyDays", label: "Read-only days after the trial", type: "number", defaultValue: policy.trial.readOnlyDays, min: 0, max: 60, section: "Trial" },
+                { name: "trial_lockReminderDays", label: "Remind the owner this many days before", type: "number", defaultValue: policy.trial.lockReminderDays, min: 0, max: 30, section: "Trial" },
+                { name: "dormancy_watchDays", label: "Inactivity watch after (days)", type: "number", defaultValue: policy.dormancy.watchDays, min: 7, max: 720, section: "Dormancy" },
+                { name: "dormancy_dormantDays", label: "Dormant after (days)", type: "number", defaultValue: policy.dormancy.dormantDays, min: 14, max: 1080, section: "Dormancy" },
+                { name: "dormancy_noticeDays", label: "Release the address after the notice (days)", type: "number", defaultValue: policy.dormancy.noticeDays, min: 7, max: 365, section: "Dormancy" },
+                { name: "invoice_netDays", label: "Invoice terms — Net (days)", type: "number", defaultValue: policy.invoice.netDays, min: 0, max: 90, section: "Invoices" },
+                { name: "invoice_rounding", label: "Rounding", type: "select", defaultValue: policy.invoice.rounding, options: (Object.keys(ROUNDING_LABEL) as Array<Policy["invoice"]["rounding"]>).map((value) => ({ label: ROUNDING_LABEL[value], value })), section: "Invoices" }
+              ]}
+            />
+          }
           pageSize={false}
           getRowKey={(item) => item.setting}
           columns={[
             { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
-            { key: "value", header: "Default", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> }
+            { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> }
           ]}
         />
       </section>
+
+      <TableCard
+        title="What the lifecycle engine would do now"
+        description={`Checked every 30 minutes${carriers.scheduler ? "" : " — the scheduler is switched off on this deployment, so nothing runs by itself"}. Nothing below has happened yet.`}
+        items={lifecycle}
+        pageSize={false}
+        getRowKey={(item) => `${item.schoolId}:${item.kind}`}
+        emptyState="Nothing is due. Every school is where its trial and its sign-ins say it should be."
+        actions={
+          lifecycle.length ? (
+            <ResourceActionDialog
+              triggerLabel="Run it now"
+              title="Run the lifecycle engine"
+              description="Applies every action listed. Each one is written to the audit log and tells the school's owner."
+              endpoint="/api/super-admin/lifecycle/run"
+              method="POST"
+              variant="secondary"
+              submitLabel="Run now"
+              confirmLabel="Apply to every school listed"
+              fields={[]}
+            />
+          ) : undefined
+        }
+        columns={[
+          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.school}</span> },
+          { key: "status", header: "Status now", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.status.replaceAll("_", " ").toLowerCase()}</span> },
+          { key: "kind", header: "What happens", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{LIFECYCLE_LABEL[item.kind] ?? item.kind}</span> },
+          { key: "login", header: "Last sign-in", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.lastLoginAt ? new Date(item.lastLoginAt).toLocaleDateString("en-GB") : "Never"}</span> }
+        ]}
+      />
     </section>
   );
 }
@@ -204,20 +287,21 @@ async function DefaultsTab() {
     <section className="grid gap-5">
       <TableCard
         title="What a new school starts with"
-        description="What's actually configured for a school automatically at signup — not what a mature onboarding flow would ideally set up. Most of this is genuinely not built yet; that's stated plainly below rather than glossed over."
+        description="What is configured for a school automatically at signup, and who can change it afterwards. Each row is what the signup actually writes."
         items={[
-          { setting: "Curriculum template", value: "None — a school builds its own curriculum configuration from scratch", canChange: "N/A", where: "Not built" },
-          { setting: "Grading scale", value: "The JSON below, applied to every new school", canChange: "Yes", where: "This page — Default grading scale" },
-          { setting: "Report card layout", value: "None — no template model is linked to a school at signup", canChange: "N/A", where: "Not built" },
-          { setting: "Assessment weights (CA/exam)", value: "None — empty until the school configures its own components", canChange: "N/A", where: "Not built" },
-          { setting: "Academic calendar", value: "Not tracked — the School record has no calendar-type field at all", canChange: "N/A", where: "Not built" },
-          { setting: "Notification channels", value: "Not defaulted — the channel enum has no WhatsApp entry despite WhatsApp credit wallets existing", canChange: "N/A", where: "Not built" },
-          { setting: "Quiet hours", value: "No such concept exists anywhere in this system", canChange: "N/A", where: "Not built" },
-          { setting: "Fee balance on report cards", value: "No such field exists — report cards store a free-form data blob", canChange: "N/A", where: "Not built" },
-          { setting: "Class position on report cards", value: "No such field exists", canChange: "N/A", where: "Not built" },
-          { setting: "Guardian portal", value: "Not in the default module-enable set created at signup", canChange: "N/A", where: "Not built" },
+          { setting: "Curriculum template", value: "The country's own: the Nigerian subject catalogue for Nigeria, a plain international set for every other country — loaded for each section the school runs, with each class offered its own level's subjects", canChange: "Yes", where: "Curriculum & Academics, then the school's own School Configuration" },
+          { setting: "Grading scale", value: "The scale below, applied to every new school. If it is not a usable scale (it must cover 0 to 100), the country's own scale is used instead.", canChange: "Yes", where: "This page — Default grading scale" },
+          { setting: "Report card layout", value: "One platform layout. No per-school template model exists, so nothing is linked at signup.", canChange: "No", where: "Fixed" },
+          { setting: "Assessment weights (CA/exam)", value: "Seven components: assignment, classwork, two tests, project and practical at 10 each, and a terminal exam at 40", canChange: "Yes", where: "The school's Score Entry framework" },
+          { setting: "Academic calendar", value: "The school year the school is in, September to July in three terms, with the current term set. A sample class marks attendance up to yesterday.", canChange: "Yes", where: "School Configuration → Calendar" },
+          { setting: "Notification channels", value: "SMS, email and in-app. WhatsApp has wallets and a ledger but no channel to send on yet.", canChange: "Yes", where: "Communication Center" },
+          { setting: "Quiet hours", value: "Platform-wide, in the Notifications tab", canChange: "No", where: "This page — Notifications" },
+          { setting: "Fee balance on report cards", value: "Not on the card. The report card carries scores, position, attendance, remarks and traits.", canChange: "No", where: "Fixed" },
+          { setting: "Class position on report cards", value: "Shown — competition ranking within the arm, from the approved sheets", canChange: "No", where: "Fixed" },
+          { setting: "Guardian portal", value: "On from the Premium tier up. A school on a trial has every feature.", canChange: "Yes", where: "Subscription & Billing → Plan" },
           { setting: "Student portal", value: "On for every student account — access is role-based, not gated by class or grade", canChange: "No — always on", where: "Real, but not a configurable default" },
-          { setting: "Full account data export", value: "Not self-service — a school cannot trigger its own export; only a Super Admin can run one, for NDPC compliance requests", canChange: "No", where: "Security & Compliance, not here" },
+          { setting: "Sample class", value: "30 sample students with a marked term, scored subjects and 30 report cards — no guardians, phones or emails, removable in one action", canChange: "Yes — the school removes it", where: "Schools → Provisioning" },
+          { setting: "Full account data export", value: "A school's proprietor can request a full export with the password and a code; a Super Admin can also run one for a compliance request", canChange: "Yes", where: "Analytics & Reports · Security & Compliance" },
           { setting: "Audit log", value: "Written platform-wide on every mutating action", canChange: "No", where: "AuditLog — no toggle to hide it from a school exists" }
         ]}
         pageSize={false}
@@ -234,10 +318,10 @@ async function DefaultsTab() {
                 : item.canChange === "N/A"
                   ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
                   : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.canChange}</span>;
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.canChange}</span>;
             }
           },
-          { key: "where", header: "Where it lives", render: (item) => <span className="text-[12px] text-[var(--color-text-muted)]">{item.where}</span> }
+          { key: "where", header: "Where it lives", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.where}</span> }
         ]}
       />
 
@@ -254,7 +338,7 @@ async function DefaultsTab() {
             header: "Status",
             render: (item) => (
               <span
-                className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
                 style={item.enabled ? { background: "var(--color-success-dim)", color: "var(--color-success)" } : { background: "var(--color-bg-elevated)", color: "var(--color-text-muted)" }}
               >
                 {item.enabled ? "Enabled" : "Disabled"}
@@ -280,8 +364,8 @@ async function DefaultsTab() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="section-eyebrow">Academic defaults</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Default grading scale</h2>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Default grading scale</h2>
+            <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
               Used as the platform-level default for newly created school tenants — each school can then edit its own copy. Curriculum
               templates, assessment frameworks, and report card layouts are managed in Curriculum &amp; Academics, not duplicated here.
             </p>
@@ -297,25 +381,46 @@ async function DefaultsTab() {
             fields={[{ name: "defaultGradingScale", label: "Grading JSON", type: "textarea", parse: "json", defaultValue: JSON.stringify(settings.defaultGradingScale, null, 2) }]}
           />
         </div>
-        <pre className="mt-5 overflow-x-auto rounded-[12px] bg-[#0D2315] p-5 text-[12px] leading-6 text-[rgba(255,255,255,0.85)]">{JSON.stringify(settings.defaultGradingScale, null, 2)}</pre>
+        <pre className="mt-5 overflow-x-auto rounded-[12px] bg-[#0D2315] p-5 text-[11px] leading-6 text-[rgba(255,255,255,0.85)]">{JSON.stringify(settings.defaultGradingScale, null, 2)}</pre>
       </section>
     </section>
   );
 }
 
 async function NotificationsTab() {
+  const [policy, carriers] = await Promise.all([loadPolicy(), apiGet<CarrierStatus>("/api/super-admin/delivery-carriers")]);
+  const m = policy.messaging;
+  const carrier = (channel: string) => carriers.carriers.find((entry) => entry.channel === channel);
   return (
     <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
       <TableCard
         title="Sending rules"
-        description="How the platform actually behaves when it sends something, above any individual template."
+        description="How the platform behaves when it sends something, above any individual template. Enforced by the delivery worker."
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Edit rules"
+            title="Sending rules"
+            description="Applies to every school's queued SMS and email from the next delivery run."
+            endpoint="/api/super-admin/platform-policy"
+            method="PUT"
+            variant="secondary"
+            submitLabel="Save rules"
+            fields={[
+              { name: "messaging_quietHoursOn", label: "Quiet hours", type: "select", defaultValue: String(m.quietHoursOn), options: [{ label: "Off — messages can send at any time", value: "false" }, { label: "On — hold messages during the quiet window", value: "true" }] },
+              { name: "messaging_quietFrom", label: "Quiet from (Lagos time)", type: "text", defaultValue: m.quietFrom, placeholder: "21:00" },
+              { name: "messaging_quietTo", label: "Quiet until", type: "text", defaultValue: m.quietTo, placeholder: "06:00" },
+              { name: "messaging_dailyCapPerRecipient", label: "Daily cap per recipient (0 = none)", type: "number", defaultValue: m.dailyCapPerRecipient, min: 0, max: 100 },
+              { name: "messaging_maxAttempts", label: "Attempts before a message is marked failed", type: "number", defaultValue: m.maxAttempts, min: 1, max: 10 }
+            ]}
+          />
+        }
         items={[
-          { rule: "Quiet hours", value: "Not enforced — messages can send at any time", state: "mute" },
-          { rule: "Retry on failure", value: "Not implemented — a failed send is not automatically retried", state: "bad" },
-          { rule: "Daily cap per recipient", value: "Not enforced", state: "mute" },
+          { rule: "Quiet hours", value: m.quietHoursOn ? `Held between ${m.quietFrom} and ${m.quietTo} (Lagos time) and sent when they end` : "Off — messages can send at any time", state: m.quietHoursOn ? "good" : "mute" },
+          { rule: "Retry on failure", value: `A message the carrier could not take is retried until it has had ${m.maxAttempts} attempts; one the carrier refuses outright is failed at once, with the carrier's reason`, state: "good" },
+          { rule: "Daily cap per recipient", value: m.dailyCapPerRecipient ? `${m.dailyCapPerRecipient} a day to any one address; the rest are held and go the next day` : "None", state: m.dailyCapPerRecipient ? "good" : "mute" },
+          { rule: "SMS credits", value: "One credit is taken for each SMS before it is sent and given back if the carrier refuses it; with none left the message is held", state: "good" },
           { rule: "Marketing consent", value: "Checked per recipient at send time, for promotional campaigns only — operational messages bypass it", state: "good" },
           { rule: "Administrative messages", value: "Sent regardless of marketing consent — maintenance, billing, and security notices concern the service a school is paying for", state: "good" },
-          { rule: "Email", value: "Two different code paths: signup verification mail is real over SMTP when configured, else logged to the console. Every other email — invoices, announcements, admissions, campaigns — goes through a separate, fully mocked sender that always reports delivered, regardless of SMTP configuration.", state: "warn" },
           { rule: "Third-party commercial messages to parents", value: "Not built — no code path composes or sends one", state: "bad" }
         ]}
         pageSize={false}
@@ -327,8 +432,8 @@ async function NotificationsTab() {
             key: "state",
             header: "State",
             render: (item) => {
-              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not enforced" } }[item.state as "good" | "warn" | "bad" | "mute"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not set" } }[item.state as "good" | "warn" | "bad" | "mute"];
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -336,11 +441,11 @@ async function NotificationsTab() {
       />
       <ReferenceList
         title="Providers in use"
-        sub="What actually sends a message today, stated plainly rather than as an aspiration."
+        sub="Read from this deployment's own settings — what is set up to send right now."
         items={[
-          { label: "Email", detail: "Real over SMTP, but only for signup verification mail (logged to console if SMTP isn't configured). Invoices, announcements, admissions, and campaign mail all go through a separate mocked sender that always reports delivered, SMTP or not.", tone: "warn" },
-          { label: "SMS", detail: "No real provider is wired in — every SMS send today is simulated.", tone: "bad" },
-          { label: "WhatsApp Business", detail: "Credit wallets exist and are topped up manually, but no real WhatsApp API call happens on send yet.", tone: "bad" },
+          { label: "Email", detail: carrier("EMAIL")?.configured ? "Sent over SMTP: signup and sign-in codes, invoices, notices, and the school's own queued mail." : "No mail server is set up on this deployment, so mail is logged, not sent. Set SMTP_HOST, SMTP_USER and SMTP_PASSWORD.", tone: carrier("EMAIL")?.configured ? "good" : "bad" },
+          { label: "SMS", detail: carrier("SMS")?.configured ? `Sent through ${carrier("SMS")?.provider}. ${carriers.enabled ? "The delivery worker is on." : "The delivery worker is off — queued messages wait. Set DELIVERY_ENABLED=true."}` : "No SMS carrier has keys on this deployment (TERMII_API_KEY, TERMII_SENDER_ID). SMS is queued and recorded, not sent.", tone: carrier("SMS")?.configured && carriers.enabled ? "good" : "bad" },
+          { label: "WhatsApp Business", detail: "Credit wallets and a ledger exist, but no WhatsApp channel or provider does, so nothing is sent on it.", tone: "bad" },
           { label: "In-app", detail: "Real — its own delivery channel, written to the notification log and read back in the parent, teacher, and student portals' own notification inboxes.", tone: "good" }
         ]}
       />
@@ -349,16 +454,19 @@ async function NotificationsTab() {
 }
 
 async function SecurityTab() {
+  const carriers = await apiGet<CarrierStatus>("/api/super-admin/delivery-carriers");
   return (
     <TableCard
       title="Internal security"
       description="Applied to FutureRealm team accounts. What's actually true of this system today, not what's planned."
       items={[
-        { requirement: "Two-factor authentication", spec: "Not implemented — sign-in is email and password only. A 6-digit email code exists for onboarding verification, not for login.", state: "bad" },
-        { requirement: "Password minimum", spec: "8 characters, no breach-list check", state: "warn" },
+        { requirement: "Two-factor authentication", spec: "Every team account, and every Principal, Proprietor and Bursar, confirms each sign-in with a 6-digit code sent by email — valid 10 minutes, 3 attempts. It applies wherever mail can be delivered (SMTP set, or AUTH_EMAIL_MFA=on); an authenticator-app code is available to anyone from Profile.", state: carriers.emailMfa ? "good" : "warn" },
+        { requirement: "Password minimum", spec: "8 characters with letters and numbers; no breach-list check", state: "warn" },
+        { requirement: "Password reuse", spec: "A password cannot repeat any of the last 3", state: "good" },
+        { requirement: "Sign-in lockout", spec: "5 failed attempts in 10 minutes lock the account for 15, counted per account whichever way it is typed", state: "good" },
         { requirement: "Password rotation", spec: "None enforced", state: "mute" },
         { requirement: "Session lifetime", spec: "8 hours by default, 30 days if “Trust this device” is checked at login — no idle timeout", state: "warn" },
-        { requirement: "Privilege change effect", spec: "Neither takes effect until the next login — the session token is trusted as issued, and no request re-checks the database for a role change, an offboard, or a fine-grained permission-grid edit.", state: "bad" },
+        { requirement: "Privilege change effect", spec: "A role change, an offboard or a switched-off account ends the session on its next request (checked every few seconds). A fine-grained permission-grid edit is read from the database on each protected request.", state: "bad" },
         { requirement: "Support access to a school", spec: "A 30-minute logged impersonation with a required reason — not read-only, the acting admin can take any action the account holder could", state: "warn" },
         { requirement: "Acting on a school's behalf beyond support access", spec: "Not built — there's no separate escalation tier that additionally requires the school's own recorded confirmation before proceeding", state: "bad" },
         { requirement: "Reading a student's academic record directly", spec: "Not possible outside the logged impersonation flow above — no platform-level endpoint exposes it", state: "good" },
@@ -369,13 +477,13 @@ async function SecurityTab() {
       getRowKey={(item) => item.requirement}
       columns={[
         { key: "requirement", header: "Requirement", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.requirement}</span> },
-        { key: "spec", header: "Specification", render: (item) => <span className="text-[12.5px] leading-5 text-[var(--color-text-secondary)]">{item.spec}</span> },
+        { key: "spec", header: "Specification", render: (item) => <span className="text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{item.spec}</span> },
         {
           key: "state",
           header: "State",
           render: (item) => {
             const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "By design" } }[item.state as "good" | "warn" | "bad" | "mute"];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
           }
         }
       ]}
@@ -404,9 +512,9 @@ async function IntegrationsTab() {
       pageSize={false}
       getRowKey={(item) => item.name}
       columns={[
-        { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11px] text-[var(--color-text-muted)]">Checked {item.checkFrequency.toLowerCase()}</p></div> },
+        { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10px] text-[var(--color-text-muted)]">Checked {item.checkFrequency.toLowerCase()}</p></div> },
         { key: "purpose", header: "Purpose", render: (item) => integrationPurpose[item.name] ?? "—" },
-        { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
+        { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
         { key: "owner", header: "Owner", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
         { key: "status", header: "State", render: (item) => <StatusBadge status={item.status} tone={integrationStatusTone(item.status)} /> }
       ]}

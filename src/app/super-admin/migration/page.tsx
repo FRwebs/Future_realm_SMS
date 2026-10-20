@@ -43,7 +43,7 @@ const migrationStatuses: Array<{ status: MigrationJobRow["status"]; label: strin
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: Tone }> }) {
   return (
     <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
-      <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">{title}</p>
+      <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">{title}</p>
       {sub ? <p className="sr-only">{sub}</p> : null}
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
@@ -51,8 +51,8 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>
@@ -73,11 +73,11 @@ function StatusBuckets({ jobs }: { jobs: MigrationJobRow[] }) {
           <article key={item.status} className="rounded-[14px] border border-[#DEE8E2] bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="h-2 w-2 rounded-full" style={{ background: style.fg }} />
-              <span className="rounded-full px-2 py-0.5 text-[10.5px] font-bold" style={{ background: style.bg, color: style.fg }}>
+              <span className="rounded-full px-2 py-0.5 text-[9.5px] font-bold" style={{ background: style.bg, color: style.fg }}>
                 {count}
               </span>
             </div>
-            <p className="mt-3 text-[12.5px] font-bold text-[#0D2315]">{item.label}</p>
+            <p className="mt-3 text-[11.5px] font-bold text-[#0D2315]">{item.label}</p>
           </article>
         );
       })}
@@ -256,7 +256,7 @@ function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
         getRowKey={(row) => row.metric}
         columns={[
           { key: "metric", header: "Metric", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.metric}</span> },
-          { key: "value", header: "Value", render: (row) => <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{row.value}</span> },
+          { key: "value", header: "Value", render: (row) => <span className="font-[var(--font-mono)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{row.value}</span> },
           { key: "detail", header: "Detail", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.detail}</span> }
         ]}
       />
@@ -306,7 +306,7 @@ function RetentionTable({ jobs }: { jobs: MigrationJobRow[] }) {
           header: "State",
           render: (job) => {
             const tone = job.daysLeft < 0 ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Past due — not purged" } : job.daysLeft <= 7 ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: `${job.daysLeft} days left` } : { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: `${job.daysLeft} days left` };
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
           }
         }
       ]}
@@ -352,7 +352,7 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
                   <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                     <div className="h-full rounded-full" style={{ width: `${step.completionRatePct}%`, background: step.completionRatePct >= 70 ? "var(--color-success)" : step.completionRatePct >= 40 ? "var(--color-warning)" : "var(--color-danger)" }} />
                   </div>
-                  <span className="text-[12px] font-semibold text-[var(--color-text-primary)]">{step.completed}</span>
+                  <span className="text-[11px] font-semibold text-[var(--color-text-primary)]">{step.completed}</span>
                 </div>
               )
             },
@@ -362,11 +362,11 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
 
         <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="border-b border-[var(--color-border-muted)] px-5 py-4">
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Stalled schools — outreach queue</p>
-            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Incomplete setup after 5 days alerts the assigned Account Manager.</p>
+            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Stalled schools — outreach queue</p>
+            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Incomplete setup after 5 days alerts the assigned Account Manager.</p>
           </div>
           {progress.stalled.length === 0 ? (
-            <p className="px-5 py-8 text-center text-[13px] text-[var(--color-text-muted)]">No school has been stalled past 5 days.</p>
+            <p className="px-5 py-8 text-center text-[11.5px] text-[var(--color-text-muted)]">No school has been stalled past 5 days.</p>
           ) : (
             <div className="grid gap-0">
               {progress.stalled.map((item) => {
@@ -378,14 +378,14 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
                   <div key={item.schoolName} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] px-5 py-3.5 last:border-b-0">
                     <span className="mt-[5px] h-2 w-2 shrink-0 rounded-[3px]" style={{ background: tone.fg }} />
                     <div className="min-w-0 flex-1">
-                      <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.schoolName}</p>
-                      <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
+                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.schoolName}</p>
+                      <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">
                         {item.daysSinceSignup} day{item.daysSinceSignup === 1 ? "" : "s"} since signup · {item.incompleteCount} step{item.incompleteCount === 1 ? "" : "s"} remaining
                       </p>
                     </div>
                     <a
                       href={`/super-admin/schools?search=${encodeURIComponent(item.schoolName)}`}
-                      className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold"
                       style={{ background: tone.bg, color: tone.fg }}
                     >
                       Review
@@ -489,7 +489,7 @@ async function SourceAdaptersTab() {
                     ? { bg: "var(--color-info-dim)", fg: "var(--color-info)" }
                     : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
               return (
-                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                   {adapter.status}
                 </span>
               );

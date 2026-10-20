@@ -18,7 +18,7 @@ import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
-import { apiGetEnvelope } from "@/lib/api/server";
+import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
   SuperAdminAccountRecoveryRow,
   SuperAdminDuplicateFlagRow,
@@ -53,7 +53,7 @@ function DecisionAction({ action, note }: { action: ReactNode; note: string }) {
   return (
     <div className="grid gap-1.5">
       {action}
-      <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{note}</p>
+      <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">{note}</p>
     </div>
   );
 }
@@ -68,7 +68,7 @@ const roleTabs = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -126,7 +126,7 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
         action={
           <a
             href={`/api/super-admin/users/export?${exportQuery.toString()}`}
-            className="whitespace-nowrap rounded-full bg-white px-5 py-3 text-[13px] font-semibold text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] transition hover:bg-[#eaf3ee]"
+            className="whitespace-nowrap rounded-full bg-white px-5 py-3 text-[11.5px] font-semibold text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] transition hover:bg-[#eaf3ee]"
           >
             Export registry
           </a>
@@ -297,9 +297,9 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
       />
 
       <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-        <p className="text-[14px] font-semibold text-[#0D2315]">Multi-school memberships — not built</p>
-        <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
-          This system's account model gives every user exactly one <code className="rounded bg-[var(--color-bg-subtle)] px-1 py-0.5 text-[11px]">schoolId</code>, and email addresses are
+        <p className="text-[12.5px] font-semibold text-[#0D2315]">Multi-school memberships — not built</p>
+        <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
+          This system's account model gives every user exactly one <code className="rounded bg-[var(--color-bg-subtle)] px-1 py-0.5 text-[10px]">schoolId</code>, and email addresses are
           globally unique. A guardian with children at two schools, or a teacher employed by two, needs a
           separate account and a separate email at each — there is no single account holding several
           independent school memberships, and no plan to add one without a data-model change.
@@ -321,6 +321,8 @@ async function ReviewsAndCasesTab({
   openCaseCount: number;
 }) {
   const contextEnvelope = await apiGetEnvelope<SuperAdminUserCaseReviewContext>("/api/super-admin/user-case-review-context");
+  type QualityRow = { schoolId: string; school: string; guardians: number; badPhone: number; badEmail: number; sharedPhone: number; failed: number; topReason: string | null; problems: number };
+  const contactQuality: { rows: QualityRow[] } = (await apiGet<{ rows: QualityRow[] }>("/api/super-admin/user-case-review-context/contact-quality").catch(() => null)) ?? { rows: [] };
   const caseContext = contextEnvelope.data;
   const suspiciousContextById = new Map((caseContext?.suspicious ?? []).map((entry) => [entry.flagId, entry]));
   const duplicateContextById = new Map((caseContext?.duplicates ?? []).map((entry) => [entry.flagId, entry]));
@@ -344,7 +346,7 @@ async function ReviewsAndCasesTab({
         { label: "User", value: `${flag.userName} (${flag.userEmail})` },
         { label: "School", value: ctx?.schoolName ?? "Unknown" },
         { label: "Last login", value: ctx?.lastLoginAt ? formatDate(ctx.lastLoginAt) : "Never logged in" },
-        { label: "MFA status", value: "Not tracked by this system" }
+        { label: "MFA status", value: ctx?.mfa ?? "Unknown" }
       ],
       signals,
       evidence: (ctx?.loginAttempts ?? []).map((attempt) => ({
@@ -354,11 +356,31 @@ async function ReviewsAndCasesTab({
       checks: [
         { label: "Account locked / suspended pending review", done: ctx ? !ctx.isActive : false, who: ctx?.suspendedAt ? `Suspended ${formatDate(ctx.suspendedAt)}` : undefined },
         { label: "Password reset issued", done: ctx?.passwordResetRequired ?? false },
-        { label: "School contacted", done: false, who: "Not tracked by this system" }
+        { label: "School contacted", done: Boolean(ctx?.contacted), who: ctx?.contacted ? `${ctx.contacted.by} · ${ctx.contacted.how} · ${formatDate(ctx.contacted.at)} — ${ctx.contacted.note}` : "Not yet — record it below when someone has been in touch" }
       ],
       history: [],
       decisions: (
         <>
+          <DecisionAction
+            note="Writes down that somebody has been in touch with the school about this account."
+            action={
+              <ResourceActionDialog
+                triggerLabel="Record contact with the school"
+                title="Record contact with the school"
+                description="This becomes a fact on the case — who, how and what was said — and ticks “School contacted”."
+                endpoint="/api/super-admin/user-case-review-context/contacts"
+                method="POST"
+                variant="secondary"
+                submitLabel="Record"
+                fields={[
+                  { name: "flagId", label: "Flag", type: "select", defaultValue: flag.id, options: [{ label: flag.userName, value: flag.id }] },
+                  { name: "schoolId", label: "School", type: "select", defaultValue: ctx?.schoolId ?? "", options: [{ label: ctx?.schoolName ?? "The school", value: ctx?.schoolId ?? "" }] },
+                  { name: "how", label: "How", type: "select", defaultValue: "Phone", options: ["Phone", "Email", "In person", "In-app message"].map((value) => ({ label: value, value })) },
+                  { name: "note", label: "What was said, and to whom", type: "textarea", required: true }
+                ]}
+              />
+            }
+          />
           <DecisionAction
             note="Marks this flag reviewed with no action needed."
             action={
@@ -432,7 +454,7 @@ async function ReviewsAndCasesTab({
       evidence: [],
       checks: [
         { label: "Match basis confirmed", done: true, who: flag.matchCriteria },
-        { label: "Same school tenant", done: sameSchool ?? false, who: sameSchool === undefined ? "Not tracked by this system" : sameSchool ? undefined : "Different schools" }
+        { label: "Same school tenant", done: sameSchool ?? false, who: sameSchool === undefined ? "Unknown — the case has no school context" : sameSchool ? undefined : "Different schools" }
       ],
       history: [],
       decisions: (
@@ -545,7 +567,7 @@ async function ReviewsAndCasesTab({
         { what: `${completed ? "Completed" : "Initiated"} by ${record.verifiedBy}`, when: formatDate(record.completedAt ?? record.createdAt) }
       ],
       decisions: (
-        <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
           No further action is available on this record — the temporary password and notification are issued the
           moment a recovery is created, so there is nothing left pending here. To recover a different account, use
           &quot;Recover account&quot; from the Directory tab.
@@ -577,8 +599,8 @@ async function ReviewsAndCasesTab({
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>
-            <p className="text-[13px] font-extrabold text-[var(--color-text-primary)]">Case queue</p>
-            <p className="text-[12px] text-[var(--color-text-muted)]">Signals are scanned, selected, and resolved from one review surface.</p>
+            <p className="text-[11.5px] font-extrabold text-[var(--color-text-primary)]">Case queue</p>
+            <p className="text-[11px] text-[var(--color-text-muted)]">Signals are scanned, selected, and resolved from one review surface.</p>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap gap-2">
@@ -613,15 +635,24 @@ async function ReviewsAndCasesTab({
         searchPlaceholder="Search a subject, type or assignee"
       />
 
-      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-        <p className="text-[14px] font-semibold text-[#0D2315]">Contact quality repair — not tracked</p>
-        <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
-          This system does not aggregate guardian notification-delivery failures into a per-school queue for
-          correction, because delivery itself isn&apos;t tracked at that level yet — the notification pipeline has no
-          real send/failure log to build one from. The cases below are the reviews this system can actually back
-          with real signals: suspicious activity, duplicate accounts, and account recovery.
-        </p>
-      </section>
+      <TableCard
+        title="Contact quality repair"
+        description="Guardians a school cannot reach, school by school: phones no carrier can take, invalid email addresses, the same phone on several guardians, and what the delivery worker has already failed to send. It is the school's record, so the fix is the school's — ask them from here."
+        items={contactQuality.rows}
+        emptyState="Every school's guardian contacts are reachable, and nothing has failed to send in the last 30 days."
+        pageSize={false}
+        getRowKey={(row) => row.schoolId}
+        columns={[
+          { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "guardians", header: "Guardians", render: (row) => row.guardians.toLocaleString() },
+          { key: "phone", header: "Unreachable phone", render: (row) => row.badPhone },
+          { key: "email", header: "Invalid email", render: (row) => row.badEmail },
+          { key: "shared", header: "Phone on several guardians", render: (row) => row.sharedPhone },
+          { key: "failed", header: "Failed sends (30d)", render: (row) => <div>{row.failed}{row.topReason ? <p className="text-[9.5px] text-[var(--color-text-muted)]">{row.topReason}</p> : null}</div> },
+          { key: "act", header: "", render: (row) => (row.problems ? <ResourceActionDialog triggerLabel="Ask the school to fix" title={`Ask ${row.school} to correct its contacts`} description="Sends the owner an in-app note with the counts, and records that it was sent." endpoint={`/api/super-admin/user-case-review-context/contact-quality/${row.schoolId}/notify`} method="POST" variant="secondary" submitLabel="Send" fields={[]} /> : null) }
+        ]}
+        footnote="A phone is unreachable when it is not a number a carrier can take. Failed sends come from the delivery worker, with the carrier's reason; they only exist once SMS or email delivery is switched on."
+      />
     </div>
   );
 }
@@ -644,8 +675,8 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
   return (
     <div className="grid gap-5">
       <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-        <p className="text-[14px] font-semibold text-[#0D2315]">Individual, non-customer teachers — not representable</p>
-        <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
+        <p className="text-[12.5px] font-semibold text-[#0D2315]">Individual, non-customer teachers — not representable</p>
+        <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
           Every account in this system belongs to exactly one onboarded school — there is no concept of a teacher
           using the platform independently of a paying customer, and so no cluster of unaffiliated teachers naming
           the same non-customer school to route to Sales or a partner. What follows is simply every real teacher
@@ -712,16 +743,16 @@ const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: str
 function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
   return (
     <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[14px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
+      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
+      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
           const tone = flowToneStyle[step.tone ?? "plain"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>
@@ -742,15 +773,15 @@ function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: strin
   return (
     <section className="surface-card overflow-hidden">
       <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Support access controls</p>
-        <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Support access controls</p>
+        <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
       </div>
       <div className="grid gap-0 p-5">
         {rows.map((row) => (
           <div key={row.control} className="grid grid-cols-[1fr_2fr_auto] items-start gap-4 border-b border-[var(--color-border-muted)] py-3 last:border-b-0">
-            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{row.control}</p>
-            <p className="text-[12px] leading-relaxed text-[var(--color-text-secondary)]">{row.spec}</p>
-            <span className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: stateStyle[row.state].bg, color: stateStyle[row.state].fg }}>
+            <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{row.control}</p>
+            <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{row.spec}</p>
+            <span className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: stateStyle[row.state].bg, color: stateStyle[row.state].fg }}>
               {stateStyle[row.state].label}
             </span>
           </div>
