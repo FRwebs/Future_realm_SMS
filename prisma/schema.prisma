@@ -588,6 +588,7 @@ enum DataPrivacyRequestType {
   EXPORT
   ERASURE
   RECTIFICATION
+  GRIEVANCE
 }
 
 enum DataPrivacyRequestStatus {
@@ -674,6 +675,20 @@ model School {
   status                        TenantStatus                   @default(TRIAL)
   billingStatus                 BillingStatus                  @default(TRIAL)
   trialEndsAt                   DateTime?
+  /// Null until the school chooses to begin its 30 days — "Not yet" at signup still creates the school.
+  trialStartedAt                DateTime?
+  /// Inactivity: when the school was first judged dormant, when its owner was told, and when its web address falls due for release.
+  dormantAt                     DateTime?
+  dormancyNoticeAt              DateTime?
+  addressReleaseDueAt           DateTime?
+  /// The last thing the lifecycle engine did to this school, and when.
+  lifecycleNote                 String?
+  lifecycleAt                   DateTime?
+  /// Sample class loaded at signup, and when it was cleared. What it created is listed in the school's `sample-data` configuration item so it can be removed whole.
+  sampleDataLoadedAt            DateTime?
+  sampleDataClearedAt           DateTime?
+  joinRequests                  SchoolJoinRequest[]
+  concessions                   SchoolConcession[]
   suspendedAt                   DateTime?
   suspendedReason               String?
   archivedAt                    DateTime?
@@ -1191,6 +1206,11 @@ model User {
   email                            String                        @unique
   phone                            String?
   username                         String?
+  /// The permanent sign-in ID issued at signup: six digits for a school administrator, TC-nnnn for a teacher who signed up alone.
+  userCode                         String?                       @unique
+  passwordChangedAt                DateTime?
+  passwordHistory                  PasswordHistory[]
+  joinRequests                     SchoolJoinRequest[]           @relation("JoinRequester")
   firstName                        String
   middleName                       String?
   lastName                         String
@@ -1378,6 +1398,8 @@ model User {
   assessedStudentTopicProgress     StudentTopicProgress[]        @relation("StudentTopicProgressAssessedBy")
   appraisalsGiven                  StaffAppraisal[]              @relation("StaffAppraisalReviewer")
   generatedReports                 GeneratedReport[]             @relation("GeneratedReportBy")
+  auditExports                     AuditExport[]
+  AdminTrustedDevice               AdminTrustedDevice[]
 }
 
 model ProfileDocument {
@@ -3662,6 +3684,9 @@ model Campaign {
   deliveredCount Int       @default(0)
   failedCount    Int       @default(0)
   openedCount    Int       @default(0)
+  /// WEEKLY or MONTHLY: when a run finishes, the next one is scheduled.
+  recurrence     String?
+  lastRunAt      DateTime?
   createdById    String?
   approvedById   String?
   createdAt      DateTime  @default(now())
@@ -3673,16 +3698,23 @@ model Campaign {
 }
 
 model MessageTemplate {
-  id             String   @id @default(cuid())
+  id             String    @id @default(cuid())
   name           String
   channel        String
   category       String
   body           String
-  placeholders   String[] @default([])
-  approvalStatus String   @default("PENDING_META_APPROVAL")
+  placeholders   String[]  @default([])
+  approvalStatus String    @default("PENDING_META_APPROVAL")
   metaTemplateId String?
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  /// Editing a template makes a new version; the old one is retired, never changed.
+  version        Int       @default(1)
+  supersedesId   String?
+  createdById    String?
+  reviewedById   String?
+  reviewNote     String?
+  retiredAt      DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([category, channel])
 }
@@ -3691,6 +3723,9 @@ model ConsentRecord {
   id         String    @id @default(cuid())
   userId     String
   channel    String
+  /// The school the person belonged to when they answered, and how the answer was given.
+  schoolId   String?
+  source     String?
   optedIn    Boolean   @default(true)
   optedOutAt DateTime?
   updatedAt  DateTime  @updatedAt
@@ -4228,6 +4263,9 @@ model PlatformSubscriptionPlan {
   customBranding     Boolean             @default(false)
   includedModules    Json
   isActive           Boolean             @default(true)
+  /// DRAFT (not yet offered), ACTIVE (offered), LEGACY (closed to new schools, kept for those on it), ARCHIVED (empty and gone).
+  lifecycle          String              @default("ACTIVE")
+  version            Int                 @default(1)
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
@@ -4448,11 +4486,19 @@ model PlatformFeatureFlag {
   rolloutPercent   Int                           @default(0)
   pilotSchoolIds   String[]                      @default([])
   planRestrictions Json?
+  /// The part of the product this flag changes, and the person accountable for the stage it is in.
+  area             String?
+  ownerId          String?
+  exitCriteria     String?
+  /// Days a flag must sit in a stage before it may move up.
+  observationDays  Int                           @default(7)
+  stageStartedAt   DateTime                      @default(now())
   createdById      String?
   createdAt        DateTime                      @default(now())
   updatedAt        DateTime                      @updatedAt
   createdBy        User?                         @relation("FeatureFlagCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   overrides        PlatformFeatureFlagOverride[]
+  stages           FeatureFlagStage[]
 
   @@index([enabledGlobally])
 }
@@ -4481,14 +4527,20 @@ model PlatformFeatureFlagOverride {
 }
 
 model TierFeature {
-  id             String   @id @default(cuid())
-  name           String   @unique
-  module         String
-  starterAccess  Boolean  @default(false)
-  standardAccess Boolean  @default(false)
-  eliteAccess    Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                 String   @id @default(cuid())
+  name               String   @unique
+  module             String
+  starterAccess      Boolean  @default(false)
+  standardAccess     Boolean  @default(false)
+  eliteAccess        Boolean  @default(true)
+  /// The five tiers a school is really billed on. starter = Basic, elite = Enterprise.
+  professionalAccess Boolean  @default(false)
+  customAccess       Boolean  @default(false)
+  /// The registry key the product looks up. A feature with no key is catalogue only.
+  featureKey         String?  @unique
+  version            Int      @default(1)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 }
 
 model BrandingAsset {
@@ -4593,19 +4645,49 @@ enum PartnerDealStatus {
   CONVERTED
   EXPIRED
   COMMISSION_PAID
+  REJECTED
 }
 
 model Partner {
-  id                    String        @id @default(cuid())
-  name                  String
-  email                 String?
-  territory             String?
-  agreementReference    String?
-  agreementValidTo      DateTime?
-  commissionRatePercent Decimal       @default(20) @db.Decimal(5, 2)
-  isActive              Boolean       @default(true)
-  createdAt             DateTime      @default(now())
-  deals                 PartnerDeal[]
+  id                      String             @id @default(cuid())
+  name                    String
+  email                   String?
+  territory               String?
+  agreementReference      String?
+  agreementValidTo        DateTime?
+  commissionRatePercent   Decimal            @default(20) @db.Decimal(5, 2)
+  isActive                Boolean            @default(true)
+  /// The permanent reference a school carries at signup so it maps to the partner without anyone typing a name.
+  code                    String?            @unique
+  /// Reseller, Consultant, Association, NGO, Individual agent.
+  type                    String?
+  tier                    String?
+  /// ACTIVE, DORMANT or SUSPENDED. isActive stays true only for ACTIVE.
+  status                  String             @default("ACTIVE")
+  suspendedReason         String?
+  registrationNumber      String?
+  primaryContactName      String?
+  primaryContactPhone     String?
+  opsContactName          String?
+  opsContactPhone         String?
+  partnerManagerId        String?
+  /// The condition the channel must meet: this many new registrations every term, and this much second-term retention.
+  minRegistrationsPerTerm Int?
+  minRetentionPercent     Int?
+  bankName                String?
+  bankAccountNumber       String?
+  bankAccountName         String?
+  agreementVersion        String?
+  countersignedAt         DateTime?
+  countersignedRef        String?
+  /// Percent paid in relationship year 1, 2, 3… for subscription (stream B) commission. After the last year it ends.
+  yearRates               Json?
+  /// Flat percent for agency/IT projects (stream A).
+  streamARatePercent      Decimal?           @db.Decimal(5, 2)
+  accruals                PartnerAccrual[]
+  statements              PartnerStatement[]
+  createdAt               DateTime           @default(now())
+  deals                   PartnerDeal[]
 
   @@index([isActive])
 }
@@ -4618,6 +4700,11 @@ model PartnerDeal {
   prospectLocation      String?
   expectedTier          String?
   stream                String?
+  contactName           String?
+  contactPhone          String?
+  expectedStudents      Int?
+  rejectedReason        String?
+  accruals              PartnerAccrual[]
   introductionEvidence  String?
   registeredAt          DateTime          @default(now())
   validUntil            DateTime
@@ -4950,19 +5037,28 @@ model DataPrivacyRequest {
 }
 
 model SecurityIncident {
-  id                String    @id @default(cuid())
-  type              String
-  severity          String
-  description       String
-  status            String    @default("DETECTED")
-  detectedAt        DateTime  @default(now())
-  reportedById      String?
-  resolvedById      String?
-  resolvedAt        DateTime?
-  postIncidentNotes String?
-  createdAt         DateTime  @default(now())
-  reportedBy        User?     @relation("SecurityIncidentReporter", fields: [reportedById], references: [id], onDelete: SetNull)
-  resolvedBy        User?     @relation("SecurityIncidentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+  id                   String    @id @default(cuid())
+  type                 String
+  severity             String
+  description          String
+  status               String    @default("DETECTED")
+  detectedAt           DateTime  @default(now())
+  reportedById         String?
+  resolvedById         String?
+  resolvedAt           DateTime?
+  postIncidentNotes    String?
+  /// The breach workflow: contain, assess, tell the regulator, tell the schools — each step stamped when it happened.
+  containedAt          DateTime?
+  containment          String?
+  assessment           String?
+  affectedSchoolIds    String[]
+  regulatorNotifiedAt  DateTime?
+  regulatorReference   String?
+  schoolsNotifiedAt    DateTime?
+  schoolsNotifiedCount Int?
+  createdAt            DateTime  @default(now())
+  reportedBy           User?     @relation("SecurityIncidentReporter", fields: [reportedById], references: [id], onDelete: SetNull)
+  resolvedBy           User?     @relation("SecurityIncidentResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
 
   @@index([status, severity, detectedAt])
 }
@@ -5034,6 +5130,10 @@ model LoginAttempt {
   reason    String?
   ipAddress String?
   device    String?
+  /// Country/city a network edge reported for the address — empty when the request came straight from a client.
+  location  String?
+  /// True when this device had not signed this person in before.
+  newDevice Boolean  @default(false)
   createdAt DateTime @default(now())
   user      User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
   school    School?  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
@@ -5110,15 +5210,24 @@ model EmailVerificationCode {
 }
 
 model BackupRecord {
-  id        String    @id @default(cuid())
-  schoolId  String?
-  scope     String
-  status    String
-  sizeMb    Float?
-  location  String?
-  startedAt DateTime  @default(now())
-  endedAt   DateTime?
-  school    School?   @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  id              String    @id @default(cuid())
+  schoolId        String?
+  scope           String
+  status          String
+  sizeMb          Float?
+  location        String?
+  startedAt       DateTime  @default(now())
+  endedAt         DateTime?
+  /// What was actually checked: the file's SHA-256, whether pg_restore could read it, and whether it restored into an empty database.
+  sha256          String?
+  verifiedAt      DateTime?
+  restoreTestedAt DateTime?
+  restoreResult   String?
+  region          String?
+  reason          String?
+  note            String?
+  startedById     String?
+  school          School?   @relation(fields: [schoolId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, startedAt])
 }
@@ -5228,6 +5337,8 @@ model PlatformSetting {
   platformAnnouncement     String?
   defaultGradingScale      Json
   globalModuleAvailability Json
+  /// Trial, dormancy, invoice and messaging defaults the platform enforces. Missing keys fall back to the built-in defaults.
+  policies                 Json     @default("{}")
   createdAt                DateTime @default(now())
   updatedAt                DateTime @updatedAt
 }
@@ -5255,8 +5366,8 @@ model SyncDraft {
   school       School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([schoolId, state])
   @@unique([userId, clientId])
+  @@index([schoolId, state])
 }
 
 model IntegrationConfig {
@@ -6088,4 +6199,304 @@ enum IntegrityFlagStatus {
   OPEN
   RESOLVED
   DISMISSED
+}
+
+/// The last few passwords, kept as hashes so a new one cannot be one of them.
+model PasswordHistory {
+  id        String   @id @default(cuid())
+  userId    String
+  hash      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+}
+
+/// A teacher who signed up alone asking to be linked to a school that is already on the platform. The school's administrator decides.
+model SchoolJoinRequest {
+  id          String    @id @default(cuid())
+  userId      String
+  schoolId    String
+  nameClaimed String
+  subjects    String[]  @default([])
+  levels      String[]  @default([])
+  status      String    @default("PENDING")
+  note        String?
+  decidedById String?
+  decidedAt   DateTime?
+  createdAt   DateTime  @default(now())
+  user        User      @relation("JoinRequester", fields: [userId], references: [id], onDelete: Cascade)
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+  @@index([userId])
+}
+
+/// A time-boxed discount grant for an NGO or a mission school: who verified it, on what evidence, and when it must be verified again.
+/// status: PENDING (asked for, not yet verified), VERIFIED, EXPIRED (the year ran out and the plan was moved off the discount), REVOKED.
+model SchoolConcession {
+  id            String    @id @default(cuid())
+  schoolId      String
+  kind          String
+  status        String    @default("PENDING")
+  evidence      String?
+  evidenceRef   String?
+  verifiedAt    DateTime?
+  verifiedById  String?
+  expiresAt     DateTime?
+  revokedReason String?
+  priorPlan     String?
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  school        School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status])
+}
+
+/// One line of commission: what was collected on a reconciled invoice, at what rate, in which year of the relationship.
+/// kind ACCRUAL is money earned; CLAWBACK is negative, from a payment that was reversed or refunded.
+model PartnerAccrual {
+  id               String            @id @default(cuid())
+  partnerId        String
+  dealId           String?
+  schoolId         String
+  invoiceId        String?
+  transactionId    String?
+  stream           String            @default("B")
+  kind             String            @default("ACCRUAL")
+  collected        Decimal           @db.Decimal(14, 2)
+  ratePercent      Decimal           @db.Decimal(5, 2)
+  relationshipYear Int?
+  commission       Decimal           @db.Decimal(14, 2)
+  reconciledAt     DateTime
+  statementId      String?
+  voidedAt         DateTime?
+  voidReason       String?
+  note             String?
+  createdAt        DateTime          @default(now())
+  partner          Partner           @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  deal             PartnerDeal?      @relation(fields: [dealId], references: [id], onDelete: SetNull)
+  statement        PartnerStatement? @relation(fields: [statementId], references: [id], onDelete: SetNull)
+
+  @@index([partnerId, statementId])
+  @@index([schoolId])
+  @@index([invoiceId, kind])
+}
+
+/// A statement of account, issued whether or not the amount is positive. Its lines are kept as they were issued.
+model PartnerStatement {
+  id          String           @id @default(cuid())
+  partnerId   String
+  ref         String           @unique
+  period      String
+  periodStart DateTime
+  periodEnd   DateTime
+  gross       Decimal          @db.Decimal(14, 2)
+  clawbacks   Decimal          @db.Decimal(14, 2)
+  net         Decimal          @db.Decimal(14, 2)
+  invoices    Int              @default(0)
+  status      String           @default("ISSUED")
+  lines       Json
+  issuedAt    DateTime         @default(now())
+  issuedById  String?
+  dueAt       DateTime
+  settledAt   DateTime?
+  settledById String?
+  paymentRef  String?
+  partner     Partner          @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  accruals    PartnerAccrual[]
+
+  @@index([partnerId, status])
+}
+
+/// Two parties claiming one school. Decided against the registration record; where it is upheld, commission moves from the point of attribution.
+model PartnerDispute {
+  id                String    @id @default(cuid())
+  schoolId          String
+  raisedByPartnerId String?
+  counterpartyLabel String
+  grounds           String
+  evidence          String?
+  status            String    @default("OPEN")
+  outcome           String?
+  decidedById       String?
+  decidedAt         DateTime?
+  reattributedTo    String?
+  recalculation     Json?
+  createdById       String?
+  createdAt         DateTime  @default(now())
+
+  @@index([status])
+}
+
+/// How long a page took to become usable on a real person's device, and on what kind of connection.
+model PageLoadSample {
+  id         String   @id @default(cuid())
+  schoolId   String?
+  path       String
+  loadMs     Int
+  connection String?
+  createdAt  DateTime @default(now())
+
+  @@index([createdAt])
+  @@index([connection, createdAt])
+}
+
+/// One run of the result computation for an arm: how many students and scores it read, how long it took, and whether it re-ran over results already published.
+model ComputationRun {
+  id         String   @id @default(cuid())
+  schoolId   String
+  classId    String
+  termId     String
+  students   Int
+  records    Int
+  durationMs Int
+  recompute  Boolean  @default(false)
+  reason     String?
+  createdAt  DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+  @@index([createdAt])
+}
+
+/// What the platform owes a regulator, one row per obligation, with the date it is next due and the proof it was met.
+model ComplianceObligation {
+  id          String    @id @default(cuid())
+  code        String    @unique
+  title       String
+  cadence     String
+  ownerRole   String
+  /// NOT_STARTED, IN_PROGRESS or COMPLIANT. "Overdue" is worked out from dueAt, never stored.
+  status      String    @default("NOT_STARTED")
+  dueAt       DateTime?
+  lastDoneAt  DateTime?
+  reference   String?
+  notes       String?
+  updatedById String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+/// Every version of the data processing agreement the platform has published; exactly one is current.
+model DpaVersion {
+  id            String   @id @default(cuid())
+  version       String   @unique
+  effectiveFrom DateTime
+  summary       String?
+  isCurrent     Boolean  @default(false)
+  createdById   String?
+  createdAt     DateTime @default(now())
+}
+
+/// How long a class of data is kept, why, and what starts the clock.
+model RetentionRule {
+  id            String   @id @default(cuid())
+  dataClass     String   @unique
+  retentionDays Int
+  basis         String
+  trigger       String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+/// A copy of the audit trail taken out of the system: who took it, why, which filters, and exactly what they got.
+model AuditExport {
+  id        String   @id @default(cuid())
+  actorId   String?
+  reason    String
+  format    String   @default("CSV")
+  filters   Json
+  rowCount  Int
+  truncated Boolean  @default(false)
+  content   String
+  createdAt DateTime @default(now())
+  actor     User?    @relation(fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([createdAt])
+}
+
+/// Every stage a feature flag has been through: who moved it, when, and what they said was met.
+model FeatureFlagStage {
+  id        String              @id @default(cuid())
+  flagId    String
+  fromStage String
+  toStage   String
+  percent   Int                 @default(0)
+  note      String?
+  byId      String?
+  createdAt DateTime            @default(now())
+  flag      PlatformFeatureFlag @relation(fields: [flagId], references: [id], onDelete: Cascade)
+
+  @@index([flagId, createdAt])
+}
+
+/// A change to who may use a feature: what it was, what it became, why, and how many schools it touched.
+model TierFeatureChange {
+  id              String   @id @default(cuid())
+  featureName     String
+  kind            String
+  before          Json?
+  after           Json
+  reason          String
+  migrationPlan   String?
+  affectedSchools Int      @default(0)
+  byId            String?
+  createdAt       DateTime @default(now())
+
+  @@index([createdAt])
+}
+
+/// A snapshot of a plan as it stood, taken whenever it changes — the plan's own history.
+model PlanVersion {
+  id          String   @id @default(cuid())
+  planId      String
+  version     Int
+  snapshot    Json
+  summary     String
+  changedById String?
+  effectiveAt DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  @@unique([planId, version])
+}
+
+/// A new price for a plan, announced to the schools on it and applied only once the notice period has run.
+model PlanPriceChange {
+  id              String    @id @default(cuid())
+  planId          String
+  oldMonthly      Decimal   @db.Decimal(12, 2)
+  newMonthly      Decimal   @db.Decimal(12, 2)
+  oldAnnual       Decimal   @db.Decimal(12, 2)
+  newAnnual       Decimal   @db.Decimal(12, 2)
+  announcedAt     DateTime  @default(now())
+  effectiveAt     DateTime
+  status          String    @default("SCHEDULED")
+  subscribersTold Int       @default(0)
+  reason          String?
+  createdById     String?
+  appliedAt       DateTime?
+
+  @@index([status, effectiveAt])
+}
+
+/// A device a platform admin has chosen to trust, so MFA is not re-asked for
+/// thirty days.
+///
+/// The token is stored hashed and never returned after issue: a trusted-device
+/// cookie is a second factor in its own right, and a table of readable ones
+/// would be a list of ways past MFA.
+model AdminTrustedDevice {
+  id         String    @id @default(cuid())
+  userId     String
+  tokenHash  String    @unique
+  label      String?
+  ipAddress  String?
+  lastUsedAt DateTime  @default(now())
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  createdAt  DateTime  @default(now())
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, revokedAt, expiresAt])
 }
