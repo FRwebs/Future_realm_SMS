@@ -109,14 +109,14 @@ function reasonFromDetails(details: unknown): string | null {
 
 function DetailSection({ title, fields }: { title: string; fields: Array<{ label: string; value: ReactNode }> }) {
   return (
-    <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-      <div className="border-b border-[var(--color-border-muted)] px-[18px] py-[13px] text-[12px] font-semibold text-[var(--color-text-primary)]">
+    <div className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+      <div className="border-b border-[var(--color-border-muted)] px-[16px] py-[11.5px] text-[12px] font-semibold text-[var(--color-text-primary)]">
         {title}
       </div>
       {fields.map((field, index) => (
         <div
           key={field.label}
-          className={`flex items-start justify-between gap-4 px-[18px] py-[10px] ${index < fields.length - 1 ? "border-b border-[var(--color-border-muted)]" : ""}`}
+          className={`flex items-start justify-between gap-4 px-[16px] py-[9px] ${index < fields.length - 1 ? "border-b border-[var(--color-border-muted)]" : ""}`}
         >
           <dt className="shrink-0 text-[11px] text-[var(--color-text-muted)]">{field.label}</dt>
           <dd className="text-right text-[11px] font-semibold text-[var(--color-text-primary)]">{field.value}</dd>
@@ -132,7 +132,7 @@ function tabHref(schoolId: string, tab: string) {
 
 function FieldList({ fields }: { fields: Array<{ label: string; value: ReactNode }> }) {
   return (
-    <dl className="overflow-hidden rounded-[10px] border border-[var(--color-border-default)]">
+    <dl className="overflow-hidden rounded-[9px] border border-[var(--color-border-default)]">
       {fields.map((field, index) => (
         <div
           key={field.label}
@@ -187,20 +187,20 @@ export default async function SuperAdminSchoolDetailPage({
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-[22px]">
+      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-[20px]">
         <Link href="/super-admin/schools" className="mb-4 inline-flex text-[11.5px] font-semibold text-[#12796A] underline">
           ← Back to schools
         </Link>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-center gap-3.5">
-            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-[#0D2315] font-[var(--font-heading)] text-[15.5px] font-bold text-white">
+            <div className="flex h-[47px] w-[47px] shrink-0 items-center justify-center rounded-[12.5px] bg-[#0D2315] font-[var(--font-heading)] text-[15.5px] font-bold text-white">
               {initials(school.name)}
             </div>
             <div className="min-w-0">
-              <div className="mb-[5px] flex flex-wrap items-center gap-2.5">
+              <div className="mb-[4.5px] flex flex-wrap items-center gap-2.5">
                 <h1 className="truncate font-[var(--font-heading)] text-[17px] font-bold text-[#0D2315]">{school.name}</h1>
                 <StatusBadge status={school.status} />
-                <span className="inline-flex rounded-full bg-[#0D2315] px-[9px] py-[3px] text-[10px] font-bold text-white">
+                <span className="inline-flex rounded-full bg-[#0D2315] px-[8px] py-[2.5px] text-[10px] font-bold text-white">
                   {school.plan} tier
                 </span>
                 <StatusBadge status={verification.label} tone={verification.tone} />
@@ -258,7 +258,7 @@ export default async function SuperAdminSchoolDetailPage({
                 {
                   label: "Web address",
                   value: school.subdomain ? (
-                    <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px]">{school.subdomain}</span>
+                    <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px]">{school.subdomain}</span>
                   ) : (
                     <span className="text-[var(--color-warning)]">Not assigned</span>
                   )
@@ -309,7 +309,7 @@ export default async function SuperAdminSchoolDetailPage({
               <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Contact & ownership</h2>
               <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Account manager, school group and status actions for this tenant.</p>
 
-              <div className="mt-5 rounded-[10px] bg-[var(--color-bg-subtle)] p-4">
+              <div className="mt-5 rounded-[9px] bg-[var(--color-bg-subtle)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Account manager</p>
@@ -330,7 +330,7 @@ export default async function SuperAdminSchoolDetailPage({
                 </div>
               </div>
 
-              <div className="mt-3 rounded-[10px] bg-[var(--color-bg-subtle)] p-4">
+              <div className="mt-3 rounded-[9px] bg-[var(--color-bg-subtle)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
                     <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">School group</p>
@@ -427,10 +427,10 @@ export default async function SuperAdminSchoolDetailPage({
               </div>
               <div className="mt-4 grid gap-2">
                 {school.contacts.length === 0 ? (
-                  <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No additional contacts recorded.</p>
+                  <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No additional contacts recorded.</p>
                 ) : null}
                 {school.contacts.map((contact) => (
-                  <div key={contact.id} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                  <div key={contact.id} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
                     <div>
                       <p className="flex items-center gap-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                         {contact.name}
@@ -517,7 +517,7 @@ export default async function SuperAdminSchoolDetailPage({
           <p className="mt-6 text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Feature modules</p>
           <div className="mt-3 grid gap-2">
             {Object.entries(school.featureFlags).map(([key, enabled]) => (
-              <div key={key} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+              <div key={key} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
                 <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{moduleLabels[key] ?? key}</span>
                 <TogglePill enabled={enabled} />
               </div>
@@ -589,8 +589,8 @@ export default async function SuperAdminSchoolDetailPage({
       ) : null}
 
       {tab === "activity" ? (
-        <section className="overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-          <div className="border-b border-[var(--color-border-muted)] px-[22px] py-[17px]">
+        <section className="overflow-hidden rounded-[14.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="border-b border-[var(--color-border-muted)] px-[20px] py-[15.5px]">
             <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">History</p>
             <h2 className="mt-1 font-[var(--font-heading)] text-[15.5px] font-bold text-[var(--color-text-primary)]">{school.name}</h2>
             <p className="mt-2 text-[10.5px] leading-[1.5] text-[var(--color-text-secondary)]">
@@ -598,16 +598,16 @@ export default async function SuperAdminSchoolDetailPage({
             </p>
           </div>
           {school.activityLog.length === 0 ? (
-            <p className="px-[22px] py-10 text-center text-[11.5px] text-[var(--color-text-muted)]">No audit activity recorded for this school yet.</p>
+            <p className="px-[20px] py-10 text-center text-[11.5px] text-[var(--color-text-muted)]">No audit activity recorded for this school yet.</p>
           ) : (
             school.activityLog.map((entry) => {
               const isSystem = entry.superAdmin === "System";
               const reason = reasonFromDetails(entry.details);
               const detailLine = metadataLine(entry.details);
               return (
-                <div key={entry.id} className="flex items-start gap-[11px] border-b border-[var(--color-border-muted)] px-[22px] py-[15px] last:border-b-0">
+                <div key={entry.id} className="flex items-start gap-[10px] border-b border-[var(--color-border-muted)] px-[20px] py-[13.5px] last:border-b-0">
                   <span
-                    className="mt-[5px] h-2 w-2 shrink-0 rounded-full"
+                    className="mt-[4.5px] h-2 w-2 shrink-0 rounded-full"
                     style={{ background: isSystem ? "var(--color-text-muted)" : "var(--color-accent-primary)" }}
                   />
                   <div className="min-w-0 flex-1">
@@ -619,7 +619,7 @@ export default async function SuperAdminSchoolDetailPage({
                     </div>
                     {reason ? <p className="mt-1.5 text-[10.5px] leading-[1.5] text-[var(--color-text-secondary)]">{reason}</p> : null}
                     {!reason && detailLine ? (
-                      <span className="mt-1.5 inline-block rounded-[7px] border border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">
+                      <span className="mt-1.5 inline-block rounded-[6.5px] border border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">
                         {detailLine}
                       </span>
                     ) : null}
@@ -629,7 +629,7 @@ export default async function SuperAdminSchoolDetailPage({
               );
             })
           )}
-          <div className="flex items-center justify-between px-[22px] py-4">
+          <div className="flex items-center justify-between px-[20px] py-4">
             <p className="text-[10.5px] text-[var(--color-text-muted)]">This trail is permanent — entries are never edited or deleted.</p>
             <Link href={`/super-admin/audit-logs?schoolId=${school.id}`} className="text-[10.5px] font-semibold text-[var(--color-text-accent)] underline">
               View in the full audit log & export

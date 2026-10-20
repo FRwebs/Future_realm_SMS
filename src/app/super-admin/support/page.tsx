@@ -86,7 +86,7 @@ function hoursUntil(value?: string) {
 
 function TicketMiniMetric({ label, value }: { label: string; value: string | number }) {
   return (
-    <div className="min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
+    <div className="min-w-0 rounded-[9px] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
       <p className="truncate text-[9.5px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">{label}</p>
       <p className="mt-1 truncate text-[11.5px] font-extrabold text-[var(--color-text-primary)] tabular-nums" title={String(value)}>
         {value}
@@ -116,7 +116,7 @@ function TicketPreviewCard({ ticket }: { ticket: SuperAdminTicketRow }) {
         <TicketMiniMetric label="Agent" value={ticket.assignedTo || "Unassigned"} />
       </div>
 
-      <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] p-3">
+      <div className="flex items-center justify-between gap-3 rounded-[9px] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] p-3">
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">SLA</p>
           <p className="mt-1 text-[11.5px] font-semibold text-[var(--color-text-primary)]">
@@ -142,7 +142,7 @@ const flowToneStyle: Record<string, { bg: string; fg: string }> = {
 
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: string }> }) {
   return (
-    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
       <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">{title}</p>
       {sub ? <p className="sr-only">{sub}</p> : null}
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
@@ -150,7 +150,7 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
           const tone = flowToneStyle[step.tone ?? "mute"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
+              <div className="min-w-[9.5rem] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
                 <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
                 <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
               </div>
@@ -304,7 +304,7 @@ async function TicketBoardTab() {
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                 {columnTickets.length === 0 ? (
-                  <p className="rounded-[10px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">
+                  <p className="rounded-[9px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">
                     No tickets
                   </p>
                 ) : (
@@ -314,7 +314,7 @@ async function TicketBoardTab() {
                       <Link
                         key={ticket.id}
                         href={`/super-admin/support/${ticket.id}`}
-                        className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3 transition hover:border-[var(--color-accent-primary)]"
+                        className="rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3 transition hover:border-[var(--color-accent-primary)]"
                       >
                         <div className="flex items-center justify-between gap-2">
                           <span className="font-[var(--font-mono)] text-[10px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</span>
@@ -427,7 +427,7 @@ async function TicketAnalyticsSection() {
           <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Avg resolution time by priority</h3>
           <div className="mt-4 grid gap-2">
             {Object.entries(analytics.avgResolutionByPriority).map(([priority, hours]) => (
-              <div key={priority} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+              <div key={priority} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
                 <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{priority}</span>
                 <span className="font-[var(--font-mono)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{hours}h</span>
               </div>
@@ -439,7 +439,7 @@ async function TicketAnalyticsSection() {
           <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Category breakdown (30d)</h3>
           <div className="mt-4 grid gap-2">
             {analytics.categoryBreakdown.map((item) => (
-              <div key={item.category} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+              <div key={item.category} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
                 <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{formatLabel(item.category)}</span>
                 <span className="font-[var(--font-mono)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{item.count}</span>
               </div>

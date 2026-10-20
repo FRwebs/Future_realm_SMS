@@ -184,7 +184,7 @@ function TagEditor({
   return (
     <div className="md:col-span-2">
       <span className="field-label">{label}</span>
-      <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
+      <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
         <div className="flex flex-wrap gap-2">
           {values.map((value) => (
             <button
@@ -255,7 +255,7 @@ function ModuleToggleGrid({
               type="button"
               onClick={() => toggle(module)}
               className={cn(
-                "flex min-h-[46px] items-center justify-between gap-3 rounded-[12px] border px-3 py-2 text-left text-[11.5px] font-semibold transition",
+                "flex min-h-[41.5px] items-center justify-between gap-3 rounded-[11px] border px-3 py-2 text-left text-[11.5px] font-semibold transition",
                 on
                   ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
                   : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]"
@@ -277,7 +277,7 @@ function ModuleToggleGrid({
         })}
       </div>
 
-      <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
+      <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
         <span className="field-label">Custom modules</span>
         <div className="flex gap-2">
           <input
@@ -410,9 +410,9 @@ function PlanDialog({
           "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
           variant === "cardPrimary" ? "" : "text-[11.5px] font-semibold",
           variant === "menu"
-            ? "flex w-full items-center justify-start rounded-[10px] px-3 py-2.5 text-left text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+            ? "flex w-full items-center justify-start rounded-[9px] px-3 py-2.5 text-left text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
             : variant === "cardPrimary"
-              ? "rounded-[8px] bg-[#0d2315] px-3 py-[7px] text-[10.5px] font-semibold text-white hover:bg-[#132e1d]"
+              ? "rounded-[7px] bg-[#0d2315] px-3 py-[6.5px] text-[10.5px] font-semibold text-white hover:bg-[#132e1d]"
               : mode === "create"
                 ? "btn-primary px-5"
                 : "btn-secondary px-5"
@@ -457,7 +457,7 @@ function PlanDialog({
 
           {step === 1 ? (
             <>
-              <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
+              <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
                 <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Pricing templates</p>
                 <div className="mt-3 flex flex-wrap gap-2">
                   {(Object.keys(pricingTemplates) as Array<keyof typeof pricingTemplates>).map((key) => (
@@ -513,11 +513,11 @@ function PlanDialog({
                   <span className="field-label">Email sends / semester</span>
                   <input type="number" min={0} value={form.emailSendsPerMonth} onChange={(event) => update("emailSendsPerMonth", Number(event.target.value))} className="field-control h-10" />
                 </label>
-                <label className="flex items-center gap-3 rounded-[12px] border border-[var(--color-border-default)] px-3 py-2">
+                <label className="flex items-center gap-3 rounded-[11px] border border-[var(--color-border-default)] px-3 py-2">
                   <input type="checkbox" checked={form.apiAccess} onChange={(event) => update("apiAccess", event.target.checked)} />
                   <span className="text-[11.5px] font-semibold text-[var(--color-text-secondary)]">API access</span>
                 </label>
-                <label className="flex items-center gap-3 rounded-[12px] border border-[var(--color-border-default)] px-3 py-2">
+                <label className="flex items-center gap-3 rounded-[11px] border border-[var(--color-border-default)] px-3 py-2">
                   <input type="checkbox" checked={form.customBranding} onChange={(event) => update("customBranding", event.target.checked)} />
                   <span className="text-[11.5px] font-semibold text-[var(--color-text-secondary)]">Custom branding</span>
                 </label>
@@ -539,7 +539,7 @@ function PlanDialog({
           {step === 3 ? (
             <div className="grid gap-4 md:grid-cols-2">
             <TagEditor label="Feature bullets" placeholder="e.g. 251-700 students" values={form.features} onChange={(features) => update("features", features)} />
-              <div className="rounded-[12px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+              <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
                 <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Review</p>
                 <p className="mt-3 text-[12.5px] font-bold text-[var(--color-text-primary)]">{form.name || "Untitled plan"}</p>
                 <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Semester price: NGN {Number(form.semesterPrice || 0).toLocaleString("en-NG")}</p>

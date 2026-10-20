@@ -256,12 +256,12 @@ function PipelineTab({ leads }: { leads: Lead[] }) {
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                 {columnLeads.length === 0 ? (
-                  <p className="rounded-[10px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">
+                  <p className="rounded-[9px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">
                     No leads
                   </p>
                 ) : (
                   columnLeads.map((lead) => (
-                    <div key={lead.id} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
+                    <div key={lead.id} className="rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
                       <div className="flex items-start justify-between gap-2">
                         <p className="line-clamp-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">{lead.prospectName}</p>
                         <StatusPill bg={tone.bg} fg={tone.fg} label={column.label} />

@@ -20,7 +20,7 @@ function DenseHeatCell({ value }: { value: number | null }) {
   const style = heatCellDenseStyle(value);
   return (
     <span
-      className="inline-flex min-w-11 items-center justify-center rounded-[7px] px-0.5 py-[6px] font-[var(--font-heading)] text-[9.5px] font-semibold"
+      className="inline-flex min-w-11 items-center justify-center rounded-[6.5px] px-0.5 py-[5.5px] font-[var(--font-heading)] text-[9.5px] font-semibold"
       style={{ background: style.background, color: style.color, border: value === null ? "1px solid #E9F0EC" : "1px solid transparent" }}
     >
       {value === null ? "—" : `${value}%`}
@@ -61,7 +61,7 @@ export function StateAdoptionTable({ heatmapByState, stateHeatmapModules }: Stat
           <p className="py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No school location data yet.</p>
         ) : (
           heatmapByState.map((row) => (
-            <div key={row.state} className="grid items-center gap-1.5 py-[3px]" style={{ gridTemplateColumns: cols }}>
+            <div key={row.state} className="grid items-center gap-1.5 py-[2.5px]" style={{ gridTemplateColumns: cols }}>
               <div className="min-w-0">
                 <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#0D2315]">{row.state}</div>
                 <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-[#9FB8A7]">

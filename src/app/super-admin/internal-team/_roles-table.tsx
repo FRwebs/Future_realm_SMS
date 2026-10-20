@@ -71,7 +71,7 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
             <DetailFacts title="People holding this role" rows={row.holderNames.map((name) => ({ label: name, value: "" }))} />
           ) : null}
 
-          <div className="rounded-[12px] border p-4" style={{ background: "var(--color-warning-dim)", borderColor: "#F2E4C6" }}>
+          <div className="rounded-[11px] border p-4" style={{ background: "var(--color-warning-dim)", borderColor: "#F2E4C6" }}>
             <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules the mockup describes — checked against this codebase</p>
             <p className="text-[11px] leading-relaxed text-[var(--color-warning)]">
               &quot;A Department Lead can lower but never raise&quot; is not enforced here — there is no department-lead ceiling logic; any Super Admin can set any grid

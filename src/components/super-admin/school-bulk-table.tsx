@@ -246,16 +246,16 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
   }
 
   return (
-    <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+    <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
       {filterBar}
       <div className="p-0">
         {selectedIds.length > 0 ? (
-          <div className="m-3 flex flex-wrap items-center justify-between gap-3 rounded-[12px] bg-[#0d2315] px-4 py-[11px]">
+          <div className="m-3 flex flex-wrap items-center justify-between gap-3 rounded-[11px] bg-[#0d2315] px-4 py-[10px]">
             <div className="flex items-center gap-3">
               <button
                 type="button"
                 onClick={clearSelection}
-                className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] bg-white"
+                className="flex h-[15.5px] w-[15.5px] shrink-0 items-center justify-center rounded-[4.5px] bg-white"
                 aria-label="Clear selection"
               >
                 <X className="h-3 w-3 text-[#0d2315]" strokeWidth={3.4} />
@@ -271,7 +271,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={() => setNotifyDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-[8px] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#0d2315]"
+                className="inline-flex items-center gap-1.5 rounded-[7px] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#0d2315]"
               >
                 <Send className="h-3.5 w-3.5" />
                 Send notification
@@ -279,7 +279,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={handleExport}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-[7px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export data
@@ -287,7 +287,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={() => setStatusDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-[7px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
               >
                 <Shuffle className="h-3.5 w-3.5" />
                 Batch status change
@@ -295,7 +295,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={() => setManagerDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-[7px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
               >
                 <User className="h-3.5 w-3.5" />
                 Assign account manager
@@ -323,13 +323,13 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                 return (
                   <article
                     key={school.id}
-                    className="rounded-[14px] border border-[#DEE8E2] bg-white p-4"
+                    className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-4"
                   >
                     <div className="flex items-start gap-3">
                       <button
                         type="button"
                         onClick={() => toggleSchool(school.id)}
-                        className="mt-1 flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border-[1.5px]"
+                        className="mt-1 flex h-[15.5px] w-[15.5px] shrink-0 items-center justify-center rounded-[4.5px] border-[1.5px]"
                         style={{
                           background: selected[school.id] ? "#0d2315" : "#fff",
                           borderColor: selected[school.id] ? "#0d2315" : "var(--color-border-default)"
@@ -353,19 +353,19 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                       <span className="truncate text-[10px] text-[#9fb8a7]">{verification.note}</span>
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-3">
-                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                      <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
                         <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Tier</dt>
                         <dd className="mt-1 text-[11.5px] text-[#435048]">{planLabel(school.plan)}</dd>
                       </div>
-                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                      <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
                         <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Students</dt>
                         <dd className="mt-1 text-[11.5px] text-[#435048]">{school.totalStudents.toLocaleString()}</dd>
                       </div>
-                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                      <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
                         <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Last login</dt>
                         <dd className="mt-1 text-[11.5px] text-[#435048]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
                       </div>
-                      <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
+                      <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
                         <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Churn risk</dt>
                         <dd className="mt-1 text-[11.5px] font-bold" style={{ color: riskColor(risk) }}>{risk}%</dd>
                       </div>
@@ -381,11 +381,11 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                   <table className="min-w-full border-separate border-spacing-0">
                     <thead className="bg-[#F7FAF8]">
                       <tr>
-                        <th className="w-[34px] border-b border-[#E6EEE9] px-[18px] py-3">
+                        <th className="w-[30.5px] border-b border-[#E6EEE9] px-[16px] py-3">
                           <button
                             type="button"
                             onClick={toggleAll}
-                            className="flex h-[17px] w-[17px] items-center justify-center rounded-[5px] border-[1.5px]"
+                            className="flex h-[15.5px] w-[15.5px] items-center justify-center rounded-[4.5px] border-[1.5px]"
                             style={{
                               background: allChecked || someChecked ? "#0d2315" : "#fff",
                               borderColor: allChecked || someChecked ? "#0d2315" : "var(--color-border-default)"
@@ -402,7 +402,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                         {["School", "Tier", "Status", "Risk assessment", "Students", "Last login", "Trial / renewal", "Churn risk", ""].map((header) => (
                           <th
                             key={header}
-                            className="border-b border-[#E6EEE9] px-[18px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]"
+                            className="border-b border-[#E6EEE9] px-[16px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]"
                           >
                             {header}
                           </th>
@@ -421,11 +421,11 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             className="text-[11.5px] text-[#435048] transition hover:bg-[#F7FBF9]"
                             style={{ background: selected[school.id] ? "#F7FBF9" : "#fff" }}
                           >
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <button
                                 type="button"
                                 onClick={() => toggleSchool(school.id)}
-                                className="flex h-[17px] w-[17px] items-center justify-center rounded-[5px] border-[1.5px]"
+                                className="flex h-[15.5px] w-[15.5px] items-center justify-center rounded-[4.5px] border-[1.5px]"
                                 style={{
                                   background: selected[school.id] ? "#0d2315" : "#fff",
                                   borderColor: selected[school.id] ? "#0d2315" : "var(--color-border-default)"
@@ -435,9 +435,9 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                 {selected[school.id] ? <span className="block h-2 w-2 rounded-[2px] bg-white" /> : null}
                               </button>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <Link href={`/super-admin/schools/${school.id}`} className="group flex items-center gap-3">
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-[var(--font-heading)] text-[11px] font-bold text-[#0D2315]">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#F0F5F2] font-[var(--font-heading)] text-[11px] font-bold text-[#0D2315]">
                                   {initials(school.name)}
                                 </span>
                                 <span className="min-w-0">
@@ -448,28 +448,28 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                 </span>
                               </Link>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">{planLabel(school.plan)}</td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">{planLabel(school.plan)}</td>
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                                 {tone.label}
                               </span>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                                 {verification.label}
                               </span>
-                              <div className="mt-[3px] max-w-[160px] truncate text-[9.5px] text-[#9fb8a7]">{verification.note}</div>
+                              <div className="mt-[2.5px] max-w-[160px] truncate text-[9.5px] text-[#9fb8a7]">{verification.note}</div>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top font-[var(--font-mono)]">{school.totalStudents.toLocaleString()}</td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top font-[var(--font-mono)]">{school.totalStudents.toLocaleString()}</td>
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               {school.lastSuccessfulLoginAt ? (
                                 formatDate(school.lastSuccessfulLoginAt)
                               ) : (
                                 <span className="font-semibold text-[#B23B3B]">Never</span>
                               )}
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">{renewalText(school)}</td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">{renewalText(school)}</td>
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <div className="w-16">
                                 <span className="text-[11.5px] font-bold font-[var(--font-mono)]" style={{ color: riskColor(risk) }}>
                                   {risk}%
@@ -479,7 +479,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                 </div>
                               </div>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
+                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <ActionMenu triggerLabel={`Actions for ${school.name}`}>
                                 <ActionMenuLink href="/super-admin/schools?tab=approval-queue">Review verification</ActionMenuLink>
                                 <ActionMenuLink href={`/super-admin/schools/${school.id}`}>Open school profile</ActionMenuLink>
@@ -489,7 +489,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                     selectOnly(school.id);
                                     setNotifyDialogOpen(true);
                                   }}
-                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+                                  className="flex w-full items-center justify-start gap-2 rounded-[9px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                                 >
                                   Send notification
                                 </button>
@@ -499,7 +499,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                     selectOnly(school.id);
                                     setManagerDialogOpen(true);
                                   }}
-                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+                                  className="flex w-full items-center justify-start gap-2 rounded-[9px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                                 >
                                   Assign account manager
                                 </button>
@@ -541,7 +541,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             <select
               value={statusValue}
               onChange={(event) => setStatusValue(event.target.value)}
-              className="field-control h-10 w-full rounded-[10px] text-[11.5px]"
+              className="field-control h-10 w-full rounded-[9px] text-[11.5px]"
             >
               {statusChangeOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -554,12 +554,12 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               value={statusReason}
               onChange={(event) => setStatusReason(event.target.value)}
               rows={3}
-              className="field-control w-full rounded-[10px] text-[11.5px]"
+              className="field-control w-full rounded-[9px] text-[11.5px]"
               placeholder="Why are these schools changing status?"
             />
           </label>
         </div>
-        <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
+        <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setStatusDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitBatchStatus} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Updating…" : `Update ${selectedIds.length} school(s)`}
@@ -575,13 +575,13 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               type="email"
               value={managerEmail}
               onChange={(event) => setManagerEmail(event.target.value)}
-              className="field-control h-10 w-full rounded-[10px] text-[11.5px]"
+              className="field-control h-10 w-full rounded-[9px] text-[11.5px]"
               placeholder="manager@futurerealm.sms"
             />
             <span className="mt-1.5 block text-[10px] text-[var(--color-text-muted)]">Must be an active internal team member.</span>
           </label>
         </div>
-        <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
+        <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setManagerDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitAccountManager} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Assigning…" : `Assign to ${selectedIds.length} school(s)`}
@@ -596,7 +596,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             <input
               value={notifyTitle}
               onChange={(event) => setNotifyTitle(event.target.value)}
-              className="field-control h-10 w-full rounded-[10px] text-[11.5px]"
+              className="field-control h-10 w-full rounded-[9px] text-[11.5px]"
               placeholder="e.g. Scheduled maintenance this weekend"
             />
           </label>
@@ -606,12 +606,12 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               value={notifyBody}
               onChange={(event) => setNotifyBody(event.target.value)}
               rows={4}
-              className="field-control w-full rounded-[10px] text-[11.5px]"
+              className="field-control w-full rounded-[9px] text-[11.5px]"
               placeholder="What do these schools need to know?"
             />
           </label>
         </div>
-        <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
+        <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setNotifyDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitNotification} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Sending…" : `Send to ${selectedIds.length} school(s)`}

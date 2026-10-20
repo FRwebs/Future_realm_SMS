@@ -101,7 +101,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
           <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Role-specific activity (last 90 days)</h2>
           <div className="mt-4 grid gap-2.5">
             {activitySummaryItems(user.activitySummary).map((item) => (
-              <div key={item.label} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+              <div key={item.label} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
                 <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</span>
                 <span className="font-[var(--font-mono)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{item.value}</span>
               </div>
@@ -115,10 +115,10 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
           <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Student records linked to this parent/guardian account.</p>
           <div className="mt-4 grid gap-2.5">
             {user.linkedAccounts.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No linked student accounts.</p>
+              <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No linked student accounts.</p>
             ) : (
               user.linkedAccounts.map((child) => (
-                <div key={child.studentId} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+                <div key={child.studentId} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
                   <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{child.studentName}</span>
                   {child.isPrimary ? (
                     <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>

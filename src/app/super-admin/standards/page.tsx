@@ -52,7 +52,7 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
           const tone = toneStyle[step.tone ?? "mute"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
+              <div className="min-w-[9.5rem] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
                 <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
                 <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
               </div>

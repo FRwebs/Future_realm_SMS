@@ -38,7 +38,7 @@ function BackupCodesView({ codes, onDone }: { codes: string[]; onDone: () => voi
         Save these codes somewhere safe. Each one works once, as a way in if you lose access to your authenticator app.
         They won&apos;t be shown again.
       </p>
-      <div className="grid grid-cols-2 gap-2 rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 font-[var(--font-mono)] text-[11.5px]">
+      <div className="grid grid-cols-2 gap-2 rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 font-[var(--font-mono)] text-[11.5px]">
         {codes.map((code) => (
           <span key={code}>{code}</span>
         ))}
@@ -120,9 +120,9 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
         Scan this with an authenticator app (Google Authenticator, Authy, 1Password), or enter the code manually.
       </p>
       <div className="flex justify-center">
-        <img src={setup.qrCodeDataUrl} alt="Scan this QR code with your authenticator app" width={200} height={200} className="rounded-[10px] border border-[var(--color-border-default)]" />
+        <img src={setup.qrCodeDataUrl} alt="Scan this QR code with your authenticator app" width={200} height={200} className="rounded-[9px] border border-[var(--color-border-default)]" />
       </div>
-      <div className="rounded-[8px] bg-[var(--color-bg-subtle)] px-3 py-2 text-center font-[var(--font-mono)] text-[11.5px] tracking-wider text-[var(--color-text-primary)]">
+      <div className="rounded-[7px] bg-[var(--color-bg-subtle)] px-3 py-2 text-center font-[var(--font-mono)] text-[11.5px] tracking-wider text-[var(--color-text-primary)]">
         {setup.secret}
       </div>
       <label className="block">
@@ -132,7 +132,7 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
           autoFocus
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          className="w-full rounded-[10px] border border-[var(--color-border-default)] px-3.5 py-2.5 text-[12px] outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-[9px] border border-[var(--color-border-default)] px-3.5 py-2.5 text-[12px] outline-none focus:border-[var(--color-accent-primary)]"
           placeholder="123456"
         />
       </label>
@@ -202,7 +202,7 @@ function PasswordConfirmFlow({
           autoFocus
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-[10px] border border-[var(--color-border-default)] px-3.5 py-2.5 text-[12px] outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-[9px] border border-[var(--color-border-default)] px-3.5 py-2.5 text-[12px] outline-none focus:border-[var(--color-accent-primary)]"
         />
       </label>
       {error ? <p className="text-[11.5px] text-[var(--color-danger)]">{error}</p> : null}

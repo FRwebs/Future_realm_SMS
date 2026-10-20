@@ -421,14 +421,14 @@ export default async function SuperAdminDashboardPage() {
 
   return (
     <div className="grid gap-5">
-      <section className="relative overflow-hidden rounded-[20px] bg-[#0d2315] px-6 py-[30px] text-white md:px-8">
-        <div className="pointer-events-none absolute -right-[110px] -top-40 h-[420px] w-[420px] rounded-full border border-[rgba(95,214,180,0.13)]" />
-        <div className="pointer-events-none absolute -right-10 -top-[90px] h-[270px] w-[270px] rounded-full border border-[rgba(95,214,180,0.09)]" />
-        <div className="pointer-events-none absolute -bottom-[150px] -left-[60px] h-[300px] w-[300px] rounded-full border border-white/5" />
-        <div className="relative z-[1] flex flex-wrap items-end justify-between gap-[30px]">
+      <section className="relative overflow-hidden rounded-[18px] bg-[#0d2315] px-6 py-[27px] text-white md:px-8">
+        <div className="pointer-events-none absolute -right-[99px] -top-40 h-[420px] w-[420px] rounded-full border border-[rgba(95,214,180,0.13)]" />
+        <div className="pointer-events-none absolute -right-10 -top-[81px] h-[270px] w-[270px] rounded-full border border-[rgba(95,214,180,0.09)]" />
+        <div className="pointer-events-none absolute -bottom-[135px] -left-[54px] h-[300px] w-[300px] rounded-full border border-white/5" />
+        <div className="relative z-[1] flex flex-wrap items-end justify-between gap-[27px]">
           <div className="min-w-0 flex-1">
-            <div className="mb-[17px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-white/[0.09] px-[14px] py-[6px]">
-              <Sparkles className="h-[13px] w-[13px] shrink-0 text-[#5FD6B4]" />
+            <div className="mb-[15.5px] inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.16)] bg-white/[0.09] px-[12.5px] py-[5.5px]">
+              <Sparkles className="h-[11.5px] w-[11.5px] shrink-0 text-[#5FD6B4]" />
               <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.13em] text-white/[0.84]">{profile.eyebrow}</span>
             </div>
             <h2 className="max-w-[600px] text-pretty font-[var(--font-heading)] text-[23.5px] font-extrabold leading-[1.1] tracking-[-0.032em] text-white md:text-[29.5px]">
@@ -458,12 +458,12 @@ export default async function SuperAdminDashboardPage() {
           const dotColor = cell.tone === "danger" ? "#e97070" : cell.tone === "warn" ? "#e5b33d" : "#3ee08a";
           const valueColor = cell.tone === "danger" ? "#f0a0a0" : cell.tone === "warn" ? "#f2c766" : "#fff";
           return (
-            <div key={cell.label} className="border-white/[0.09] px-[18px] py-4 lg:border-r lg:last:border-r-0">
-              <div className="flex items-center gap-[7px]">
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: dotColor }} />
+            <div key={cell.label} className="border-white/[0.09] px-[16px] py-4 lg:border-r lg:last:border-r-0">
+              <div className="flex items-center gap-[6.5px]">
+                <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: dotColor }} />
                 <p className="truncate text-[9px] font-bold uppercase tracking-[0.09em] text-white/50">{cell.label}</p>
               </div>
-              <p className="mt-[9px] truncate font-[var(--font-mono)] text-[20.5px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
+              <p className="mt-[8px] truncate font-[var(--font-mono)] text-[20.5px] font-extrabold leading-none tracking-tight" style={{ color: valueColor }}>{cell.value}</p>
               <p className="mt-1.5 truncate text-[10px] text-white/55">{cell.sub}</p>
             </div>
           );
@@ -471,7 +471,7 @@ export default async function SuperAdminDashboardPage() {
       </section>
 
       <section className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
-        <article className="flex flex-col justify-between rounded-[16px] bg-[#0d2315] px-6 pb-5 pt-[22px]">
+        <article className="flex flex-col justify-between rounded-[14.5px] bg-[#0d2315] px-6 pb-5 pt-[20px]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-white/50">Collected against invoiced · Term 1</p>
@@ -485,7 +485,7 @@ export default async function SuperAdminDashboardPage() {
             </div>
           </div>
           <div className="mt-5">
-            <div className="h-[9px] overflow-hidden rounded-full bg-white/10">
+            <div className="h-[8px] overflow-hidden rounded-full bg-white/10">
               <div className="h-full rounded-full" style={{ width: `${collectedPct}%`, background: "linear-gradient(90deg,#2FA98F,#5FD6B4)" }} />
             </div>
             <div className="mt-2.5 flex flex-wrap items-center justify-between gap-3">
@@ -503,11 +503,11 @@ export default async function SuperAdminDashboardPage() {
           </div>
         </article>
 
-        <article className="flex flex-col rounded-[16px] border px-[22px] py-5" style={{ borderColor: "#f0dfdf", background: "var(--color-bg-surface)" }}>
+        <article className="flex flex-col rounded-[14.5px] border px-[20px] py-5" style={{ borderColor: "#f0dfdf", background: "var(--color-bg-surface)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#a4726f" }}>Overdue balances</p>
-              <div className="mt-[11px] flex items-baseline gap-2">
+              <div className="mt-[10px] flex items-baseline gap-2">
                 <p className="font-[var(--font-heading)] text-[29px] font-extrabold text-[var(--color-text-primary)]">{formatCurrency(commandCenter.revenueSnapshot.overdueBalances)}</p>
                 <p className="text-[11px] text-[#9fb8a7]">{commandCenter.revenueSnapshot.overdueSchoolCount} school{commandCenter.revenueSnapshot.overdueSchoolCount === 1 ? "" : "s"}</p>
               </div>
@@ -519,17 +519,17 @@ export default async function SuperAdminDashboardPage() {
               </div>
             ) : null}
           </div>
-          <div className="mt-4 flex flex-col gap-[9px]">
+          <div className="mt-4 flex flex-col gap-[8px]">
             {commandCenter.revenueSnapshot.overdueAging.map((band) => (
               <div key={band.band}>
-                <div className="mb-[5px] flex items-baseline justify-between gap-2 text-[10.5px]">
+                <div className="mb-[4.5px] flex items-baseline justify-between gap-2 text-[10.5px]">
                   <span className="text-[var(--color-text-muted)]">{band.band}</span>
                   <span className="flex items-baseline gap-1.5">
                     <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{formatCurrency(band.amount)}</span>
                     <span className="text-[9.5px] text-[var(--color-text-muted)]">{band.count} school{band.count === 1 ? "" : "s"}</span>
                   </span>
                 </div>
-                <div className="h-[5px] overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                <div className="h-[4.5px] overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                   <div
                     className="h-full rounded-full"
                     style={{ width: `${(band.amount / overdueAgingMax) * 100}%`, background: overdueBandTone[band.band] === "bad" ? "#B23B3B" : "#D9A22B" }}
@@ -545,9 +545,9 @@ export default async function SuperAdminDashboardPage() {
         {revenueTiles.map((tile) => {
           const color = tile.positive ? "#12796A" : "#B23B3B";
           return (
-            <article key={tile.label} className="rounded-[14px] border px-[18px] pb-[14px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
-              <p className="min-h-[31px] text-[10.5px] leading-[1.35] text-[#77857C]">{tile.label}</p>
-              <div className="mt-[9px] flex items-baseline gap-[7px]">
+            <article key={tile.label} className="rounded-[12.5px] border px-[16px] pb-[12.5px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
+              <p className="min-h-[28px] text-[10.5px] leading-[1.35] text-[#77857C]">{tile.label}</p>
+              <div className="mt-[8px] flex items-baseline gap-[6.5px]">
                 <p className="font-[var(--font-heading)] text-[21.5px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
                 <p className="min-w-0 truncate text-[10.5px] text-[#9FB8A7]">{tile.secondary}</p>
               </div>
@@ -574,8 +574,8 @@ export default async function SuperAdminDashboardPage() {
             {complianceWatchItems.map((item) => {
               const colors = toneColors[item.tone];
               return (
-                <div key={item.id} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] py-[9px] last:border-b-0">
-                  <span className="mt-1.5 h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: colors.fg }} />
+                <div key={item.id} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] py-[8px] last:border-b-0">
+                  <span className="mt-1.5 h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: colors.fg }} />
                   <div className="min-w-0 flex-1">
                     <p className="text-[11.5px] leading-5 text-[var(--color-text-primary)]">{item.label}</p>
                     <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{item.detail}</p>
@@ -585,14 +585,14 @@ export default async function SuperAdminDashboardPage() {
               );
             })}
             {complianceWatchItems.length === 0 ? (
-              <p className="rounded-[10px] px-4 py-6 text-center text-sm font-semibold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
+              <p className="rounded-[9px] px-4 py-6 text-center text-sm font-semibold" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                 No open compliance obligations.
               </p>
             ) : null}
           </div>
         </section>
 
-        <section className="rounded-[16px] border border-[#0d2315] bg-[#0d2315] p-5">
+        <section className="rounded-[14.5px] border border-[#0d2315] bg-[#0d2315] p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-[12.5px] font-semibold text-white">Channel &amp; commission</h3>
             <p className="text-[10.5px] text-white/50">Module 13</p>
@@ -625,11 +625,11 @@ export default async function SuperAdminDashboardPage() {
               </div>
               <div className="mt-0 grid gap-0">
                 {revenue.schoolsByPlan.map((item, index) => (
-                  <div key={item.plan} className="flex items-center gap-[9px] py-1.5">
-                    <span className="h-[9px] w-[9px] shrink-0 rounded-[3px]" style={{ background: tierColors[index % tierColors.length] }} />
+                  <div key={item.plan} className="flex items-center gap-[8px] py-1.5">
+                    <span className="h-[8px] w-[8px] shrink-0 rounded-[2.5px]" style={{ background: tierColors[index % tierColors.length] }} />
                     <span className="flex-1 text-[11.5px] text-[var(--color-text-secondary)]">{item.plan}</span>
                     <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.count}</span>
-                    <span className="w-[38px] text-right text-[10.5px] text-[#9fb8a7]">{Math.round((item.count / tierTotal) * 100)}%</span>
+                    <span className="w-[34px] text-right text-[10.5px] text-[#9fb8a7]">{Math.round((item.count / tierTotal) * 100)}%</span>
                   </div>
                 ))}
               </div>
@@ -639,7 +639,7 @@ export default async function SuperAdminDashboardPage() {
             {healthFlags.map((flag) => {
               const colors = toneColors[flag.tone];
               return (
-                <div key={flag.label} className="flex-1 rounded-[10px] px-3 py-[11px]" style={{ background: colors.bg }}>
+                <div key={flag.label} className="flex-1 rounded-[9px] px-3 py-[10px]" style={{ background: colors.bg }}>
                   <p className="font-[var(--font-heading)] text-[15.5px] font-bold leading-none" style={{ color: colors.fg }}>{flag.value}</p>
                   <p className="mt-0.5 text-[10px]" style={{ color: colors.fg }}>{flag.label}</p>
                 </div>
@@ -657,7 +657,7 @@ export default async function SuperAdminDashboardPage() {
                   <span className="text-[var(--color-text-secondary)]">{stage.label}</span>
                   <span className="font-[var(--font-heading)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{stage.value}</span>
                 </div>
-                <div className="h-[6px] overflow-hidden rounded-full bg-[var(--color-border-muted)]">
+                <div className="h-[5.5px] overflow-hidden rounded-full bg-[var(--color-border-muted)]">
                   <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(stage.value / pipelineMax) * 100}%` }} />
                 </div>
               </div>
@@ -670,35 +670,35 @@ export default async function SuperAdminDashboardPage() {
           <div className="mt-3.5 grid gap-0">
             <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] py-2.5">
               <div className="flex items-center gap-2.5">
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
+                <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-text-muted)" }} />
                 <span className="text-[11.5px] text-[var(--color-text-secondary)]">Open tickets</span>
               </div>
               <span className="font-[var(--font-heading)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{commandCenter.supportQueue.totalOpenTickets}</span>
             </div>
             <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] py-2.5">
               <div className="flex items-center gap-2.5">
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
+                <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
                 <span className="text-[11.5px] text-[var(--color-text-secondary)]">Critical open</span>
               </div>
               <span className="font-[var(--font-heading)] text-[13.5px] font-bold" style={{ color: commandCenter.supportQueue.criticalOpenTickets > 0 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{commandCenter.supportQueue.criticalOpenTickets}</span>
             </div>
             <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] py-2.5 last:border-b-0">
               <div className="flex items-center gap-2.5">
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
+                <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
                 <span className="text-[11.5px] text-[var(--color-text-secondary)]">Breaching target now</span>
               </div>
               <span className="font-[var(--font-heading)] text-[13.5px] font-bold" style={{ color: "var(--color-danger)" }}>{commandCenter.supportQueue.ticketsBreachingSla}</span>
             </div>
             <div className="flex items-center justify-between py-2.5 last:border-b-0">
               <div className="flex items-center gap-2.5">
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: "var(--color-success)" }} />
+                <span className="h-[6.5px] w-[6.5px] shrink-0 rounded-full" style={{ background: "var(--color-success)" }} />
                 <span className="text-[11.5px] text-[var(--color-text-secondary)]">Avg resolution this week</span>
               </div>
               <span className="font-[var(--font-heading)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{formatHours(commandCenter.supportQueue.averageResolutionHoursThisWeek)}</span>
             </div>
           </div>
           {commandCenter.supportQueue.ticketsBreachingSla > 0 ? (
-            <div className="mt-3.5 rounded-[10px] border px-3.5 py-2.5" style={{ borderColor: "#f6dede", background: "var(--color-danger-dim)" }}>
+            <div className="mt-3.5 rounded-[9px] border px-3.5 py-2.5" style={{ borderColor: "#f6dede", background: "var(--color-danger-dim)" }}>
               <p className="text-[11px] font-semibold" style={{ color: "var(--color-danger)" }}>
                 {commandCenter.supportQueue.ticketsBreachingSla} ticket{commandCenter.supportQueue.ticketsBreachingSla === 1 ? "" : "s"} breach target within the hour
               </p>
@@ -744,17 +744,17 @@ export default async function SuperAdminDashboardPage() {
         <section className="surface-card p-5">
           <div className="flex items-center justify-between">
             <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Activity feed</h3>
-            <span className="flex items-center gap-[5px] text-[10px] font-semibold" style={{ color: "var(--color-success)" }}>
+            <span className="flex items-center gap-[4.5px] text-[10px] font-semibold" style={{ color: "var(--color-success)" }}>
               <span className="h-1.5 w-1.5 rounded-full" style={{ background: "var(--color-success)" }} />
               Live
             </span>
           </div>
           <div className="mt-3.5 grid gap-0">
             {activityFeed.map((item, index) => (
-              <div key={`${item.timestamp}-${index}`} className="flex gap-[11px]">
+              <div key={`${item.timestamp}-${index}`} className="flex gap-[10px]">
                 <div className="flex shrink-0 flex-col items-center">
                   <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-accent-primary)" }} />
-                  {index < activityFeed.length - 1 ? <span className="mt-[3px] w-px flex-1 bg-[var(--color-border-muted)]" /> : null}
+                  {index < activityFeed.length - 1 ? <span className="mt-[2.5px] w-px flex-1 bg-[var(--color-border-muted)]" /> : null}
                 </div>
                 <div className="pb-2">
                   <p className="text-[11.5px] leading-5 text-[var(--color-text-primary)]">
@@ -805,7 +805,7 @@ export default async function SuperAdminDashboardPage() {
             return (
               <div key={item.state} className="grid grid-cols-[1.1fr_2.4fr_0.7fr_0.9fr] items-center gap-3 border-b border-[var(--color-border-muted)] py-2.5 last:border-b-0">
                 <span className="truncate text-[11.5px] text-[var(--color-text-secondary)]">{item.state}</span>
-                <div className="h-[7px] overflow-hidden rounded-full bg-[var(--color-border-muted)]">
+                <div className="h-[6.5px] overflow-hidden rounded-full bg-[var(--color-border-muted)]">
                   <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(item.schoolCount / geographyMax) * 100}%` }} />
                 </div>
                 <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.schoolCount}</span>

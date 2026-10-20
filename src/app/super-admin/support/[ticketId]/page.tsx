@@ -184,7 +184,7 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
           {ticket.messages.map((message) => (
             <div
               key={message.id}
-              className="rounded-[10px] px-4 py-3"
+              className="rounded-[9px] px-4 py-3"
               style={message.internalOnly ? { background: "var(--color-warning-dim)" } : { background: "var(--color-bg-subtle)" }}
             >
               <div className="flex items-center justify-between gap-3">
@@ -195,7 +195,7 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
             </div>
           ))}
           {ticket.messages.length === 0 ? (
-            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No messages yet.</p>
+            <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No messages yet.</p>
           ) : null}
         </div>
       </section>

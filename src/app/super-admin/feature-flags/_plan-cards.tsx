@@ -40,13 +40,13 @@ function PlanCard({ plan, others }: { plan: SuperAdminPlanRow; others: SuperAdmi
   const revenue = plan.monthlyPrice * plan.subscriberCount;
 
   return (
-    <article className="flex flex-col rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+    <article className="flex flex-col rounded-[12.5px] border border-[var(--color-border-default)] bg-white p-5">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <p className="truncate text-[14.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</p>
           <p className="mt-0.5 truncate text-[10.5px] text-[var(--color-text-muted)]">{planCode(plan)}</p>
         </div>
-        <span className="shrink-0 whitespace-nowrap rounded-full bg-[#F1F4F2] px-[9px] py-[3px] text-[10px] font-bold text-[#5C6A62]">
+        <span className="shrink-0 whitespace-nowrap rounded-full bg-[#F1F4F2] px-[8px] py-[2.5px] text-[10px] font-bold text-[#5C6A62]">
           {lifecycle.charAt(0) + lifecycle.slice(1).toLowerCase()}{plan.version && plan.version > 1 ? ` · v${plan.version}` : ""}
         </span>
       </div>
@@ -75,15 +75,15 @@ function PlanCard({ plan, others }: { plan: SuperAdminPlanRow; others: SuperAdmi
       {shownBullets.length > 0 ? (
         <div className="mt-1.5 grid gap-1.5">
           {shownBullets.map((line) => (
-            <div key={line} className="flex items-start gap-2 pt-[5px]">
-              <span className="mt-[6px] h-[5px] w-[5px] shrink-0 rounded-[2px] bg-[#9FC7B6]" />
+            <div key={line} className="flex items-start gap-2 pt-[4.5px]">
+              <span className="mt-[5.5px] h-[4.5px] w-[4.5px] shrink-0 rounded-[2px] bg-[#9FC7B6]" />
               <span className="text-[10.5px] leading-snug text-[#435048]">{line}</span>
             </div>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-3.5 flex flex-wrap gap-[7px] border-t border-[#EDF3EF] pt-[13px]">
+      <div className="mt-3.5 flex flex-wrap gap-[6.5px] border-t border-[#EDF3EF] pt-[11.5px]">
         <PlanEditDialog plan={plan} variant="cardPrimary" />
         <ResourceActionDialog
           triggerLabel="Price"
@@ -133,7 +133,7 @@ export function PlanCardGrid({ plans, actions }: { plans: SuperAdminPlanRow[]; a
         {actions}
       </div>
       {plans.length === 0 ? (
-        <p className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6 text-[11.5px] text-[var(--color-text-muted)]">
+        <p className="rounded-[12.5px] border border-[var(--color-border-default)] bg-white p-6 text-[11.5px] text-[var(--color-text-muted)]">
           No subscription plans configured yet — build one to get started.
         </p>
       ) : (

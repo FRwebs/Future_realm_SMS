@@ -157,7 +157,7 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
           />
 
           {suspended ? (
-            <div className="rounded-[12px] border p-4" style={{ background: "var(--color-danger-dim)", borderColor: "#F3E0E0" }}>
+            <div className="rounded-[11px] border p-4" style={{ background: "var(--color-danger-dim)", borderColor: "#F3E0E0" }}>
               <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-danger)]">Account suspended</p>
               <p className="text-[11px] leading-relaxed text-[var(--color-danger)]">
                 Shown here as a real status this system can hold — but nothing in this codebase sets or clears it for an internal account, so how it got here (and how to reverse it) isn&apos;t tracked.

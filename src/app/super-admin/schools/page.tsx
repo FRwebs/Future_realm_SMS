@@ -844,7 +844,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
       {activeTab === "directory" ? (
         <>
           {params.state ? (
-            <div className="flex items-center gap-2 rounded-[10px] bg-[var(--color-accent-primary-dim)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--color-text-accent)]">
+            <div className="flex items-center gap-2 rounded-[9px] bg-[var(--color-accent-primary-dim)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--color-text-accent)]">
               Filtered to schools in {params.state}
               <Link href="/super-admin/schools" className="ml-auto text-[10.5px] font-bold underline">
                 Clear
@@ -985,7 +985,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 { key: "detail", header: "Detail", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</span> }
               ]}
             />
-            <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+            <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
               <div className="border-b border-[#E6EEE9] px-5 py-4">
                 <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Controls on sample data</p>
               </div>
@@ -1021,7 +1021,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             ]}
           />
 
-          <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
               <h2 className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Schools still mid-setup</h2>
               <span className="rounded-full bg-[#F0F5F2] px-2.5 py-1 text-[10px] font-bold text-[#77857C]">
@@ -1041,10 +1041,10 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 </div>
               ) : (
                 provisioningSchools.map((school) => (
-                <article key={school.id} className="rounded-[12px] border border-[#E6EEE9] bg-[#FCFDFC] p-4">
+                <article key={school.id} className="rounded-[11px] border border-[#E6EEE9] bg-[#FCFDFC] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#F0F5F2] font-[var(--font-mono)] text-[12.5px] font-bold text-[#0D2315]">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-[#F0F5F2] font-[var(--font-mono)] text-[12.5px] font-bold text-[#0D2315]">
                         {initials(school.name)}
                       </span>
                       <div>
@@ -1060,19 +1060,19 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   </div>
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{[school.address, school.city, school.state].filter(Boolean).join(", ") || "No address on file"}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <Users className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{school.ownerName ?? "Owner not recorded"}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{school.ownerPhone ?? "No phone on file"}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{school.ownerEmail ?? "No email on file"}</span>
                     </div>
@@ -1104,13 +1104,13 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
           <WebAddressesTable schools={webAddressSchools} registryRecords={registryRecords} disputes={addressDisputes} />
 
-          <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
             <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Address dispute — a real school finds its name taken</h2>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               {disputeFlow.map((stage, index) => (
                 <div key={stage.label} className="flex items-center gap-2.5">
                   <div
-                    className="min-w-[9rem] rounded-[11px] border px-4 py-3"
+                    className="min-w-[9rem] rounded-[10px] border px-4 py-3"
                     style={
                       stage.emphasize
                         ? { background: "var(--color-text-primary)", borderColor: "var(--color-text-primary)", color: "var(--color-bg-surface)" }
@@ -1118,7 +1118,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     }
                   >
                     <p className="text-[11.5px] font-semibold">{stage.label}</p>
-                    <p className={`mt-[3px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
+                    <p className={`mt-[2.5px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
                   </div>
                   {index < disputeFlow.length - 1 ? (
                     <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
@@ -1128,7 +1128,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             </div>
           </section>
 
-          <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <h2 className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Address disputes</h2>
@@ -1162,7 +1162,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     header: "Claim",
                     render: (dispute) => (
                       <div>
-                        <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
+                        <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
                         <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
                       </div>
                     )
@@ -1238,7 +1238,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 ]}
               />
 
-              <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+              <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
                 <div className="border-b border-[#E6EEE9] px-5 py-4">
                   <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Accepted evidence</p>
                 </div>
@@ -1305,13 +1305,13 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             ]}
           />
 
-          <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
             <h2 className="text-[12.5px] font-semibold text-[#0D2315]">School account lifecycle — every fork condition labelled</h2>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               {lifecycleFlow.map((stage, index) => (
                 <div key={stage.label} className="flex items-center gap-2.5">
                   <div
-                    className="min-w-[9rem] rounded-[11px] border px-4 py-3"
+                    className="min-w-[9rem] rounded-[10px] border px-4 py-3"
                     style={
                       stage.emphasize
                         ? { background: "var(--color-text-primary)", borderColor: "var(--color-text-primary)", color: "var(--color-bg-surface)" }
@@ -1319,7 +1319,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     }
                   >
                     <p className="text-[11.5px] font-semibold">{stage.label}</p>
-                    <p className={`mt-[3px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
+                    <p className={`mt-[2.5px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
                   </div>
                   {index < lifecycleFlow.length - 1 ? (
                     <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
@@ -1329,12 +1329,12 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             </div>
           </section>
 
-          <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Account status reference</h2>
               <p className="text-[10.5px] text-[#8c9a92]">Status changes always require a logged reason</p>
             </div>
-            <div className="mt-4 overflow-hidden rounded-[12px] border border-[#DEE8E2]">
+            <div className="mt-4 overflow-hidden rounded-[11px] border border-[#DEE8E2]">
               {statusReference.map((row, index) => {
                 const tone = statusTone[row.status] ?? statusTone.ARCHIVED;
                 return (
