@@ -347,7 +347,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               </div>
               <div className="grid gap-4 p-5">
                 {schoolsWithRevenue.length === 0 ? (
-                  <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
+                  <p className="rounded-[11px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
                     No active paid subscriptions yet.
                   </p>
                 ) : (
@@ -575,7 +575,7 @@ async function InvoicesTab({
             name="invoiceSearch"
             defaultValue={params.invoiceSearch}
             placeholder="Search by invoice no. or school"
-            className="field-control h-10 w-72 rounded-[10px] text-[11.5px]"
+            className="field-control h-10 w-72 rounded-[9px] text-[11.5px]"
           />
           <button type="submit" className="btn-secondary h-10 text-[11.5px]">Search</button>
           {search ? (
@@ -875,7 +875,7 @@ function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdminBill
             </div>
             <p className="mt-3 text-[10px] text-[var(--color-text-muted)]">Set in Settings → Platform. Each step is written to the audit log.</p>
           </section>
-          <section className="rounded-[14px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
+          <section className="rounded-[12.5px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
             <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">Post-trial behaviour</p>
             <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
               When a trial ends the school moves to a <strong>read-only</strong> window of {trialPolicy.readOnlyDays} days: it can read and export, but every change is refused, and the way out — choosing a plan or paying — stays open. Paying switches editing straight back on. After the window the school is <strong>locked</strong> and cannot sign in until support reopens it. Nothing is ever deleted by this.
@@ -965,7 +965,7 @@ async function ChurnRiskTab() {
             </div>
             <div className="mt-3.5 grid gap-4">
               {flaggedSchools.length === 0 ? (
-                <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
+                <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
                   No schools currently below the risk threshold.
                 </p>
               ) : (
@@ -1018,7 +1018,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
 
       {lowBalanceWallets.length > 0 ? (
         <section
-          className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] px-5 py-4"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-[12.5px] px-5 py-4"
           style={{ background: "var(--color-danger-dim)", border: "1px solid var(--color-danger)" }}
         >
           <div>
@@ -1170,7 +1170,7 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-3">
           {activePlans.length === 0 ? (
-            <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
+            <p className="rounded-[11px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
               No active plans. Configure one in Feature &amp; Tier Management.
             </p>
           ) : (
@@ -1180,7 +1180,7 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
                 ? entitlements.features.slice(0, 3).join(", ")
                 : entitlements.modules.slice(0, 3).join(", ");
               return (
-              <article key={plan.id} className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
+              <article key={plan.id} className="rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
@@ -1364,7 +1364,7 @@ function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView;
               <div key={item.plan}>
                 <div className="flex items-center justify-between text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                   <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-[3px] bg-[var(--color-accent-primary)]" />
+                    <span className="h-2 w-2 rounded-[2.5px] bg-[var(--color-accent-primary)]" />
                     {item.plan}
                     <span className="text-[10px] font-medium text-[var(--color-text-muted)]">{subscriberCounts.get(item.plan) ?? 0} subs</span>
                   </span>

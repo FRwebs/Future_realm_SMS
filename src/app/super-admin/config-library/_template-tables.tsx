@@ -116,7 +116,7 @@ function RowReviewAction({
         <div className="grid gap-4">
           <DetailFacts title={factsTitle} rows={factsRows} />
           {extraNote ? (
-            <div className="rounded-[12px] border p-4" style={{
+            <div className="rounded-[11px] border p-4" style={{
               background: extraNote.tone === "warn" ? "var(--color-warning-dim)" : extraNote.tone === "bad" ? "var(--color-danger-dim)" : extraNote.tone === "good" ? "var(--color-success-dim)" : "var(--color-bg-subtle)",
               borderColor: extraNote.tone === "warn" ? "#F2E4C6" : extraNote.tone === "bad" ? "#F3E0E0" : extraNote.tone === "good" ? "#CFE4DB" : "var(--color-border-default)"
             }}>

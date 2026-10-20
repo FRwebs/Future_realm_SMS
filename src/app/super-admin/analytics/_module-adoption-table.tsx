@@ -54,7 +54,7 @@ export function ModuleAdoptionTable({ heatmapByTier, tierColumns, schoolsInScope
           {visibleTierIndexes.map((index) => (
             <div key={tierColumns[index].plan} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
               <div>{tierColumns[index].plan}</div>
-              <div className="mt-[3px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium normal-case tracking-normal text-[#B4C4BB]">
+              <div className="mt-[2.5px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium normal-case tracking-normal text-[#B4C4BB]">
                 {tierColumns[index].schoolCount} school{tierColumns[index].schoolCount === 1 ? "" : "s"}
               </div>
             </div>
@@ -66,7 +66,7 @@ export function ModuleAdoptionTable({ heatmapByTier, tierColumns, schoolsInScope
           <p className="py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No module usage recorded yet.</p>
         ) : (
           heatmapByTier.map((row) => (
-            <div key={row.module} className="grid items-center gap-1.5 py-[3px]" style={{ gridTemplateColumns: cols }}>
+            <div key={row.module} className="grid items-center gap-1.5 py-[2.5px]" style={{ gridTemplateColumns: cols }}>
               <div className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#0D2315]">{moduleLabel(row.module)}</div>
               {visibleTierIndexes.map((index) => (
                 <div key={index} className="flex justify-center">

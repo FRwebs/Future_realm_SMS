@@ -148,7 +148,7 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
           header: "School",
           render: (school) => (
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[11.5px] font-black text-[var(--color-text-primary)]">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[11px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[11.5px] font-black text-[var(--color-text-primary)]">
                 {initials(school.name)}
               </span>
               <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
@@ -162,7 +162,7 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
           header: "Address",
           render: (school) =>
             school.subdomain ? (
-              <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{school.subdomain}</span>
+              <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{school.subdomain}</span>
             ) : (
               <span className="text-[11px] font-semibold text-[var(--color-warning)]">Not assigned</span>
             )

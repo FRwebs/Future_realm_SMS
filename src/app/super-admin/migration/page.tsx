@@ -42,7 +42,7 @@ const migrationStatuses: Array<{ status: MigrationJobRow["status"]; label: strin
 
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: Tone }> }) {
   return (
-    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
       <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">{title}</p>
       {sub ? <p className="sr-only">{sub}</p> : null}
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
@@ -50,7 +50,7 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
           const tone = toneStyle[step.tone ?? "mute"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
+              <div className="min-w-[9.5rem] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
                 <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
                 <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
               </div>
@@ -70,7 +70,7 @@ function StatusBuckets({ jobs }: { jobs: MigrationJobRow[] }) {
         const style = toneStyle[item.tone];
         const count = jobs.filter((job) => job.status === item.status).length;
         return (
-          <article key={item.status} className="rounded-[14px] border border-[#DEE8E2] bg-white p-4">
+          <article key={item.status} className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-4">
             <div className="flex items-center justify-between gap-3">
               <span className="h-2 w-2 rounded-full" style={{ background: style.fg }} />
               <span className="rounded-full px-2 py-0.5 text-[9.5px] font-bold" style={{ background: style.bg, color: style.fg }}>
@@ -360,7 +360,7 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
           ]}
         />
 
-        <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <section className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="border-b border-[var(--color-border-muted)] px-5 py-4">
             <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Stalled schools — outreach queue</p>
             <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Incomplete setup after 5 days alerts the assigned Account Manager.</p>
@@ -376,7 +376,7 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
                   : { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" };
                 return (
                   <div key={item.schoolName} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] px-5 py-3.5 last:border-b-0">
-                    <span className="mt-[5px] h-2 w-2 shrink-0 rounded-[3px]" style={{ background: tone.fg }} />
+                    <span className="mt-[4.5px] h-2 w-2 shrink-0 rounded-[2.5px]" style={{ background: tone.fg }} />
                     <div className="min-w-0 flex-1">
                       <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.schoolName}</p>
                       <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">

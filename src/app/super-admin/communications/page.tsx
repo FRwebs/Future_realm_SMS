@@ -179,7 +179,7 @@ function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
           <p className="mt-3.5 text-[10px] leading-relaxed text-[var(--color-text-muted)]">Checked every minute. A scheduled campaign that has not been approved does not send.</p>
         </section>
 
-        <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
+        <section className="rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
           <p className="mb-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">Approval path</p>
           <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">
             Operational campaigns require a platform administrator to approve. Promotional campaigns need Super Admin or
@@ -318,7 +318,7 @@ function ReferenceList({ title, sub, items }: { title: string; sub?: string; ite
       {sub ? <p className="mt-1.5 max-w-2xl text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
       <div className="mt-4 grid gap-2">
         {items.map((item) => (
-          <div key={item.label} className="flex items-start justify-between gap-3 rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
+          <div key={item.label} className="flex items-start justify-between gap-3 rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
             <div>
               <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
               <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{item.detail}</p>
@@ -518,7 +518,7 @@ async function ConsentTab() {
   return (
     <div className="grid gap-5">
       <div className="grid gap-3.5 lg:grid-cols-[1fr_1.4fr]">
-        <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+        <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
           <p className="mb-4 text-[12.5px] font-semibold text-[#0D2315]">Promotional opt-in status</p>
           {consentStats.map((stat) => (
             <div key={stat.label} className="mb-4 last:mb-0">
@@ -540,12 +540,12 @@ async function ConsentTab() {
           </div>
         </section>
 
-        <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
+        <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
           <p className="text-[12.5px] font-semibold text-[#0D2315]">Consent rules enforced at system level</p>
           <p className="mt-1 mb-3.5 text-[10.5px] text-[#8C9A92]">Verified against the real consent and campaign-send code, not stated as intent.</p>
           {consentRules.map((rule) => (
             <div key={rule} className="flex gap-2.5 border-b border-[#F2F7F4] py-2.5 last:border-0">
-              <div className="mt-0.5 flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-[6px] bg-[var(--color-accent-primary)]">
+              <div className="mt-0.5 flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-[5.5px] bg-[var(--color-accent-primary)]">
                 <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
               </div>
               <p className="text-[11.5px] leading-relaxed text-[#435048]">{rule}</p>

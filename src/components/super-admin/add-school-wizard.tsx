@@ -67,7 +67,7 @@ function categoryFromLevels(levels: Record<string, boolean>): string {
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-[7px] flex items-center justify-between text-[10.5px] font-semibold text-[#435048]">
+      <span className="mb-[6.5px] flex items-center justify-between text-[10.5px] font-semibold text-[#435048]">
         {label}
         {hint ? <span className="font-medium text-[#9fb8a7]">{hint}</span> : null}
       </span>
@@ -76,14 +76,14 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
   );
 }
 
-const inputClass = "w-full rounded-[10px] border-[1.5px] border-[#dee8e2] px-[13px] py-[11px] text-[12px] text-[#0d2315] outline-none transition focus:border-[#12796a]";
+const inputClass = "w-full rounded-[9px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-none transition focus:border-[#12796a]";
 
 function Chip({ label, on, onToggle }: { label: string; on: boolean; onToggle: () => void }) {
   return (
     <button
       type="button"
       onClick={onToggle}
-      className="flex items-center gap-[9px] rounded-[10px] border-[1.5px] px-[14px] py-[9px] text-[11.5px] font-medium transition"
+      className="flex items-center gap-[8px] rounded-[9px] border-[1.5px] px-[12.5px] py-[8px] text-[11.5px] font-medium transition"
       style={{
         borderColor: on ? "#0d2315" : "#dee8e2",
         color: on ? "#0d2315" : "#77857c",
@@ -91,7 +91,7 @@ function Chip({ label, on, onToggle }: { label: string; on: boolean; onToggle: (
       }}
     >
       <span
-        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border-[1.5px]"
+        className="flex h-4 w-4 shrink-0 items-center justify-center rounded-[4.5px] border-[1.5px]"
         style={{ background: on ? "#0d2315" : "#ffffff", borderColor: on ? "#0d2315" : "#cfddd5" }}
       >
         {on ? <Check className="h-2.5 w-2.5 text-white" strokeWidth={4} /> : null}
@@ -293,8 +293,8 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
 
       {open && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto bg-ink/55 p-6 backdrop-blur-sm">
-          <div className="modal-surface my-4 w-full max-w-[820px] overflow-hidden rounded-[20px] bg-white shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
-            <div className="relative overflow-hidden px-[26px] py-[22px]" style={{ background: "#0d2315" }}>
+          <div className="modal-surface my-4 w-full max-w-[820px] overflow-hidden rounded-[18px] bg-white shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
+            <div className="relative overflow-hidden px-[23.5px] py-[20px]" style={{ background: "#0d2315" }}>
               <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
                 <circle cx="720" cy="20" r="130" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
               </svg>
@@ -304,7 +304,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     MODULE 02 · SUPER ADMIN CREATES THE SCHOOL ACCOUNT
                   </p>
                   <p className="font-[var(--font-heading)] text-[19px] font-bold tracking-[-0.01em] text-white">Onboard a school</p>
-                  <p className="mt-[5px] text-xs text-[rgba(255,255,255,0.6)]">
+                  <p className="mt-[4.5px] text-xs text-[rgba(255,255,255,0.6)]">
                     Used when the school has agreed to join. The risk check is skipped — the agreement is the verification.
                   </p>
                 </div>
@@ -312,7 +312,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   type="button"
                   onClick={closeWizard}
                   aria-label="Close"
-                  className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.18)] bg-[rgba(255,255,255,0.12)]"
+                  className="flex h-[27px] w-[27px] shrink-0 items-center justify-center rounded-[8px] border border-[rgba(255,255,255,0.18)] bg-[rgba(255,255,255,0.12)]"
                 >
                   <X className="h-3.5 w-3.5 text-white" />
                 </button>
@@ -325,7 +325,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   return (
                     <div
                       key={s.n}
-                      className="flex items-center gap-[9px] rounded-full px-[13px] py-2"
+                      className="flex items-center gap-[8px] rounded-full px-[11.5px] py-2"
                       style={{
                         color: current || stepDone ? "#ffffff" : "rgba(255,255,255,0.5)",
                         background: current ? "rgba(255,255,255,0.14)" : "transparent",
@@ -348,9 +348,9 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               </div>
             </div>
 
-            <div className="max-h-[62vh] overflow-y-auto px-[26px] py-6">
+            <div className="max-h-[62vh] overflow-y-auto px-[23.5px] py-6">
               {step === 1 ? (
-                <div className="grid grid-cols-2 gap-x-[18px] gap-y-[15px]">
+                <div className="grid grid-cols-2 gap-x-[16px] gap-y-[13.5px]">
                   <div className="col-span-2">
                     <Field label="School name">
                       <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} placeholder="Power House School" className={inputClass} />
@@ -358,7 +358,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   </div>
                   <div className="col-span-2">
                     <Field label="Short name — creates the permanent web address">
-                      <div className="flex items-center rounded-[10px] border-[1.5px] border-[#dee8e2] px-[13px] py-[11px] focus-within:border-[#12796a]">
+                      <div className="flex items-center rounded-[9px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] focus-within:border-[#12796a]">
                         <input
                           value={slug}
                           onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ""))}
@@ -367,14 +367,14 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                         />
                         <span className="text-[12px] text-[#8c9a92]">.futurerealm.sms</span>
                         <span
-                          className="ml-auto shrink-0 rounded-full px-[9px] py-[3px] text-[9.5px] font-bold uppercase tracking-[0.04em]"
+                          className="ml-auto shrink-0 rounded-full px-[8px] py-[2.5px] text-[9.5px] font-bold uppercase tracking-[0.04em]"
                           style={{ background: slColors.bg, color: slColors.fg }}
                         >
                           {sl.badge}
                         </span>
                       </div>
                     </Field>
-                    <p className="mt-[6px] text-[10px] text-[#8c9a92]">{sl.note}</p>
+                    <p className="mt-[5.5px] text-[10px] text-[#8c9a92]">{sl.note}</p>
                   </div>
                   <Field label="Country">
                     <select value={country} onChange={(e) => setCountry(e.target.value)} className={inputClass}>
@@ -421,8 +421,8 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     </select>
                   </Field>
                   <div className="col-span-2">
-                    <p className="mb-[9px] text-[10.5px] font-semibold text-[#435048]">Levels operated</p>
-                    <div className="flex flex-wrap gap-[9px]">
+                    <p className="mb-[8px] text-[10.5px] font-semibold text-[#435048]">Levels operated</p>
+                    <div className="flex flex-wrap gap-[8px]">
                       {["Nursery", "Primary", "JSS", "SSS"].map((name) => (
                         <Chip key={name} label={name} on={!!levels[name]} onToggle={() => setLevels((cur) => ({ ...cur, [name]: !cur[name] }))} />
                       ))}
@@ -438,8 +438,8 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               ) : null}
 
               {step === 2 ? (
-                <div className="grid grid-cols-2 gap-x-[18px] gap-y-[15px]">
-                  <div className="col-span-2 flex items-start gap-[11px] rounded-xl border border-[#e6eee9] bg-[#f7faf8] px-[15px] py-[13px]">
+                <div className="grid grid-cols-2 gap-x-[16px] gap-y-[13.5px]">
+                  <div className="col-span-2 flex items-start gap-[10px] rounded-xl border border-[#e6eee9] bg-[#f7faf8] px-[13.5px] py-[11.5px]">
                     <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#12796a" }} />
                     <p className="text-[10.5px] leading-[1.55] text-[#435048]">
                       You do not set this person&apos;s password. They receive an invitation link — single use, tied to them, valid <b>24 hours</b> — and set it themselves.
@@ -470,7 +470,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <Field label="Email address">
                       <input value={email} onChange={(e) => setEmail(e.target.value)} type="email" placeholder="admin@powerhouse.edu.ng" className={inputClass} />
                     </Field>
-                    <div className="mt-[7px] flex items-center gap-[7px]">
+                    <div className="mt-[6.5px] flex items-center gap-[6.5px]">
                       <Mail className="h-3 w-3 shrink-0" style={{ color: "#12796a" }} />
                       <p className="text-[10px] font-medium" style={{ color: "#17604f" }}>Used to sign in and receive the invitation link</p>
                     </div>
@@ -479,11 +479,11 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                     <Field label="Phone number">
                       <input value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="+234 803 442 1180" className={inputClass} />
                     </Field>
-                    <p className="mt-[7px] text-[10px] text-[#8c9a92]">WhatsApp and SMS notice sent alongside the email</p>
+                    <p className="mt-[6.5px] text-[10px] text-[#8c9a92]">WhatsApp and SMS notice sent alongside the email</p>
                   </div>
                   <div className="col-span-2">
-                    <p className="mb-[9px] text-[10.5px] font-semibold text-[#435048]">Send the invitation</p>
-                    <div className="flex flex-wrap gap-[9px]">
+                    <p className="mb-[8px] text-[10.5px] font-semibold text-[#435048]">Send the invitation</p>
+                    <div className="flex flex-wrap gap-[8px]">
                       {["Email", "WhatsApp", "SMS"].map((name) => (
                         <Chip key={name} label={name} on={!!sendChannels[name]} onToggle={() => setSendChannels((cur) => ({ ...cur, [name]: !cur[name] }))} />
                       ))}
@@ -493,7 +493,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               ) : null}
 
               {step === 3 ? (
-                <div className="grid grid-cols-2 gap-x-[18px] gap-y-[15px]">
+                <div className="grid grid-cols-2 gap-x-[16px] gap-y-[13.5px]">
                   <Field label="Subscription tier" hint="Live rate card">
                     <select value={tier} onChange={(e) => setTier(e.target.value)} className={inputClass}>
                       {plans.length === 0 ? (
@@ -533,7 +533,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                         <option>Referral</option>
                       </select>
                     </Field>
-                    <p className="mt-[7px] text-[10px] text-[#8c9a92]">Drives partner commission — recorded on the deal</p>
+                    <p className="mt-[6.5px] text-[10px] text-[#8c9a92]">Drives partner commission — recorded on the deal</p>
                   </div>
                   <Field label="Partner name">
                     <select value={partnerName} onChange={(e) => setPartnerName(e.target.value)} className={inputClass}>
@@ -553,12 +553,12 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                       <input value={internalNote} onChange={(e) => setInternalNote(e.target.value)} placeholder="Deal closed 12 Aug · 3-year agreement signed by the proprietor" className={inputClass} />
                     </Field>
                   </div>
-                  <div className="col-span-2 rounded-xl border border-[#e6eee9] bg-[#f7faf8] px-[18px] py-4">
-                    <p className="mb-[11px] text-[11.5px] font-semibold text-[#0d2315]">On submit, this creates automatically</p>
-                    <div className="grid grid-cols-2 gap-x-[18px] gap-y-[9px]">
+                  <div className="col-span-2 rounded-xl border border-[#e6eee9] bg-[#f7faf8] px-[16px] py-4">
+                    <p className="mb-[10px] text-[11.5px] font-semibold text-[#0d2315]">On submit, this creates automatically</p>
+                    <div className="grid grid-cols-2 gap-x-[16px] gap-y-[8px]">
                       {AUTO_ITEMS.map((item) => (
-                        <div key={item} className="flex items-start gap-[9px]">
-                          <Check className="mt-[3px] h-[13px] w-[13px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
+                        <div key={item} className="flex items-start gap-[8px]">
+                          <Check className="mt-[2.5px] h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
                           <p className="text-[10.5px] leading-[1.5] text-[#435048]">{item}</p>
                         </div>
                       ))}
@@ -568,17 +568,17 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               ) : null}
             </div>
 
-            <div className="flex items-center justify-between gap-4 border-t border-[#edf3ef] bg-[#fbfdfc] px-[26px] py-4">
+            <div className="flex items-center justify-between gap-4 border-t border-[#edf3ef] bg-[#fbfdfc] px-[23.5px] py-4">
               <p className="text-[10.5px] text-[#8c9a92]">{footNote}</p>
-              <div className="flex items-center gap-[9px]">
-                <button type="button" onClick={handleBack} className="rounded-[9px] border border-[#cfddd5] bg-white px-[17px] py-[10px] text-[11.5px] font-semibold text-[#435048]">
+              <div className="flex items-center gap-[8px]">
+                <button type="button" onClick={handleBack} className="rounded-[8px] border border-[#cfddd5] bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold text-[#435048]">
                   {backLabel}
                 </button>
                 <button
                   type="button"
                   onClick={handleNext}
                   disabled={submitting}
-                  className="btn-primary rounded-[9px] px-[19px] py-[11px] text-[11.5px] disabled:cursor-not-allowed disabled:opacity-60"
+                  className="btn-primary rounded-[8px] px-[17px] py-[10px] text-[11.5px] disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {nextLabel}
                 </button>
@@ -591,19 +591,19 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
 
       {done && result && typeof document !== "undefined" ? createPortal(
         <div className="fixed inset-0 z-[var(--z-modal)] flex items-center justify-center bg-ink/55 p-10 backdrop-blur-sm">
-          <div className="w-full max-w-[520px] rounded-[20px] bg-white px-[34px] pb-[30px] pt-9 text-center shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
+          <div className="w-full max-w-[520px] rounded-[18px] bg-white px-[30.5px] pb-[27px] pt-9 text-center shadow-[0_50px_100px_-40px_rgba(13,35,21,0.6)]">
             <div
-              className="mx-auto mb-[22px] flex h-16 w-16 items-center justify-center rounded-full border"
+              className="mx-auto mb-[20px] flex h-16 w-16 items-center justify-center rounded-full border"
               style={{ background: "var(--color-success-dim)", borderColor: "var(--color-success-dim)" }}
             >
-              <CheckCircle2 className="h-[30px] w-[30px]" style={{ color: "var(--color-success)" }} />
+              <CheckCircle2 className="h-[27px] w-[27px]" style={{ color: "var(--color-success)" }} />
             </div>
             <p className="mb-2 font-[var(--font-heading)] text-2xl font-bold tracking-[-0.015em] text-[#0d2315]">School created.</p>
             <p className="mx-auto mb-6 max-w-[400px] text-[12px] leading-[1.65] text-[#77857c]">
               {schoolName || "The school"} is live and the invitation has gone out. The administrator sets their own password from the link — we never send one.
             </p>
 
-            <div className="mb-[22px] rounded-2xl border border-[#e6eee9] bg-[#f7faf8] px-[18px] py-4 text-left">
+            <div className="mb-[20px] rounded-2xl border border-[#e6eee9] bg-[#f7faf8] px-[16px] py-4 text-left">
               {[
                 { k: "Web address", v: `${result.slug}` },
                 { k: "Invitation", v: `${Object.entries(sendChannels).filter(([, on]) => on).map(([name]) => name).join(" + ") || "Email"} · expires in 24 hours` },
@@ -613,17 +613,17 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                 },
                 { k: "Account manager", v: accountManager || "Unassigned" },
               ].map((row) => (
-                <div key={row.k} className="flex items-center justify-between gap-3.5 py-[7px]">
+                <div key={row.k} className="flex items-center justify-between gap-3.5 py-[6.5px]">
                   <span className="whitespace-nowrap text-[10.5px] text-[#8c9a92]">{row.k}</span>
                   <span className="min-w-0 text-right text-[11.5px] font-semibold text-[#0d2315]">{row.v}</span>
                 </div>
               ))}
             </div>
 
-            <div className="flex justify-center gap-[10px]">
+            <div className="flex justify-center gap-[9px]">
               <a
                 href={`/super-admin/schools/${result.id}`}
-                className="btn-primary rounded-[10px] px-[22px] py-3 text-[11.5px]"
+                className="btn-primary rounded-[9px] px-[20px] py-3 text-[11.5px]"
               >
                 Open school profile
               </a>
@@ -634,7 +634,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
                   setResult(null);
                   resetForm();
                 }}
-                className="rounded-[10px] border border-[#cfddd5] bg-white px-5 py-3 text-[11.5px] font-semibold text-[#435048]"
+                className="rounded-[9px] border border-[#cfddd5] bg-white px-5 py-3 text-[11.5px] font-semibold text-[#435048]"
               >
                 Onboard another
               </button>

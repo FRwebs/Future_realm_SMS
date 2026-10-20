@@ -296,7 +296,7 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
         emptyState="No users match the current filters."
       />
 
-      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
         <p className="text-[12.5px] font-semibold text-[#0D2315]">Multi-school memberships — not built</p>
         <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
           This system's account model gives every user exactly one <code className="rounded bg-[var(--color-bg-subtle)] px-1 py-0.5 text-[10px]">schoolId</code>, and email addresses are
@@ -593,9 +593,9 @@ async function ReviewsAndCasesTab({
         <StatCard label="Recoveries" value={recoveryRecords.length} detail={`${openRecoveryCount} still open`} icon={KeyRound} tone="success" />
       </section>
 
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-sm">
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-sm">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[13px] bg-[var(--color-bg-ink)] text-white">
+          <div className="flex h-10 w-10 items-center justify-center rounded-[11.5px] bg-[var(--color-bg-ink)] text-white">
             <ShieldCheck className="h-4 w-4" />
           </div>
           <div>
@@ -674,7 +674,7 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
         <p className="text-[12.5px] font-semibold text-[#0D2315]">Individual, non-customer teachers — not representable</p>
         <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
           Every account in this system belongs to exactly one onboarded school — there is no concept of a teacher
@@ -742,7 +742,7 @@ const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: str
 
 function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
   return (
-    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
       <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
       <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
@@ -750,7 +750,7 @@ function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: A
           const tone = flowToneStyle[step.tone ?? "plain"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
+              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
                 <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
                 <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>

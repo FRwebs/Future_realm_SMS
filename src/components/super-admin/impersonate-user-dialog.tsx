@@ -118,13 +118,13 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
           </label>
 
           {confirming ? (
-            <div className="rounded-[12px] border border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-warning)]">
+            <div className="rounded-[11px] border border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-warning)]">
               This creates a time-boxed, fully-logged view-as session.
             </div>
           ) : null}
 
           {error ? (
-            <div className="rounded-[12px] border border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-danger)]">
+            <div className="rounded-[11px] border border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-danger)]">
               {error}
             </div>
           ) : null}

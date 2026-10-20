@@ -137,13 +137,13 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               header: "Real state today",
               render: (row) => {
                 const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" } }[row.tone as "good" | "warn" | "bad"];
-                return <span className="inline-block rounded-[8px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
+                return <span className="inline-block rounded-[7px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
               }
             }
           ]}
         />
 
-        <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+        <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
           <div className="border-b border-[#E6EEE9] px-5 py-4">
             <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Three hard constraints on every other module</p>
             <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Each follows directly from the governing principle — checked against this codebase, not asserted.</p>
@@ -304,7 +304,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             ]}
           />
 
-          <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+          <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
             <div className="border-b border-[#E6EEE9] px-5 py-4">
               <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Nigerian curriculum structure — not populated in this codebase</p>
               <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">
@@ -423,7 +423,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 header: "Real state today",
                 render: (row) => {
                   const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" } }[row.tone as "good" | "warn" | "bad"];
-                  return <span className="inline-block rounded-[8px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
+                  return <span className="inline-block rounded-[7px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
                 }
               }
             ]}
@@ -447,7 +447,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 header: "Country",
                 render: (row) => (
                   <span className="inline-flex items-center gap-2 font-semibold text-[var(--color-text-primary)]">
-                    <Globe2 className="h-[15px] w-[15px] text-[var(--color-text-muted)]" />
+                    <Globe2 className="h-[13.5px] w-[13.5px] text-[var(--color-text-muted)]" />
                     {row.country}
                   </span>
                 )
@@ -486,7 +486,7 @@ function CurriculumLifecycleFlow() {
   ];
 
   return (
-    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
       <p className="text-[12.5px] font-semibold text-[#0D2315]">Curriculum template lifecycle — the aspiration, checked against real code</p>
       <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
         A mature library would move a template through these stages in one direction only. This codebase has exactly one boolean (isActive) — everything else here is not built.
@@ -496,7 +496,7 @@ function CurriculumLifecycleFlow() {
           const tone = flowToneStyle[step.tone ?? "plain"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
+              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
                 <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
                 <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>

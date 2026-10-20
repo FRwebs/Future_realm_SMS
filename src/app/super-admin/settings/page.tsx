@@ -381,7 +381,7 @@ async function DefaultsTab() {
             fields={[{ name: "defaultGradingScale", label: "Grading JSON", type: "textarea", parse: "json", defaultValue: JSON.stringify(settings.defaultGradingScale, null, 2) }]}
           />
         </div>
-        <pre className="mt-5 overflow-x-auto rounded-[12px] bg-[#0D2315] p-5 text-[11px] leading-6 text-[rgba(255,255,255,0.85)]">{JSON.stringify(settings.defaultGradingScale, null, 2)}</pre>
+        <pre className="mt-5 overflow-x-auto rounded-[11px] bg-[#0D2315] p-5 text-[11px] leading-6 text-[rgba(255,255,255,0.85)]">{JSON.stringify(settings.defaultGradingScale, null, 2)}</pre>
       </section>
     </section>
   );

@@ -57,7 +57,7 @@ function BarCell({ value }: { value: number | null }) {
   const tone: "good" | "warn" | "bad" = value >= 80 ? "good" : value >= 60 ? "warn" : "bad";
   const color = barToneColors[tone];
   return (
-    <div className="flex items-center gap-[9px]">
+    <div className="flex items-center gap-[8px]">
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EDF3EF]">
         <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
       </div>
@@ -162,7 +162,7 @@ async function GrowthTab() {
     <section className="grid gap-5">
       <section className="surface-card overflow-hidden">
         <SectionHeader title="Growth and conversion funnel" description="Each stage is a real school count computed from signup, trial, and billing records — not a sample." />
-        <div className="flex items-end gap-2.5 px-5 pb-[22px] pt-2.5">
+        <div className="flex items-end gap-2.5 px-5 pb-[20px] pt-2.5">
           {funnelStages.map((stage, index) => {
             const barPct = Math.max(stage.ofFirstPct ?? 100, 2);
             const isLast = index === funnelStages.length - 1;
@@ -170,13 +170,13 @@ async function GrowthTab() {
               <div key={stage.stage} className="min-w-0 flex-1">
                 <div className="flex h-[132px] items-end">
                   <div
-                    className="w-full rounded-t-[8px]"
+                    className="w-full rounded-t-[7px]"
                     style={{ height: `${barPct}%`, background: isLast ? "#0d2315" : `rgba(18,121,106,${0.28 + index * 0.1})` }}
                   />
                 </div>
-                <p className="mt-[11px] font-[var(--font-display)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
+                <p className="mt-[10px] font-[var(--font-display)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
                 <p className="mt-1 text-pretty text-[10px] leading-[1.35] text-[#77857C]">{stage.stage}</p>
-                <p className="mt-[5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
+                <p className="mt-[4.5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
                   {stage.changePct === null ? "—" : stage.changePct < 0 ? `−${Math.abs(stage.changePct)}% drop` : `+${stage.changePct}%`}
                 </p>
               </div>
@@ -359,7 +359,7 @@ async function RetentionTab() {
           <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Share of every school that has ever been on a tier which later churned.</p>
           <div className="mt-4 grid gap-3.5">
             {churn.byTier.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No tier churn data yet.</p>
+              <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No tier churn data yet.</p>
             ) : (
               churn.byTier.map((item) => (
                 <div key={item.plan}>
@@ -380,7 +380,7 @@ async function RetentionTab() {
           <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Share of all churn, by how long the school had been on the platform.</p>
           <div className="mt-4 grid gap-3.5">
             {churn.byTenure.every((item) => item.count === 0) ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No churn logged yet.</p>
+              <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No churn logged yet.</p>
             ) : (
               churn.byTenure.map((item) => (
                 <div key={item.bucket}>
@@ -432,7 +432,7 @@ async function RetentionTab() {
         <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
         <div className="mt-4 grid gap-3.5">
           {nps.byTierAndRegion.length === 0 ? (
-            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
+            <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
           ) : (
             nps.byTierAndRegion.map((item) => (
               <div key={`${item.kind}-${item.label}`}>

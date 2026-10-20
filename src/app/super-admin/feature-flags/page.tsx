@@ -195,7 +195,7 @@ async function PlansTab() {
 
       <PlanCardGrid plans={plans ?? []} actions={<PlanCreateDialog />} />
 
-      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+      <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
           <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">One currency, not five</p>
         </div>
@@ -359,7 +359,7 @@ const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: str
 
 function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
   return (
-    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
+    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
       <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
       <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
@@ -367,7 +367,7 @@ function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: A
           const tone = flowToneStyle[step.tone ?? "plain"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
+              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
                 <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
                 <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>
@@ -425,7 +425,7 @@ async function LifecycleSection() {
           { key: "when", header: "Changed", render: (item) => formatDate(item.changedAt) }
         ]}
       />
-      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+      <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
           <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">What happens to a school when its plan changes</p>
         </div>
@@ -480,7 +480,7 @@ async function ExceptionsTab() {
           review pattern used for Schools and Users.
         </p>
       </section>
-      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+      <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
           <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">What an exception is</p>
           <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">What&apos;s real about each of these today, not just the concept.</p>
