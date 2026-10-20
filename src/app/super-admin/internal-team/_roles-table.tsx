@@ -72,10 +72,10 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
           ) : null}
 
           <div className="rounded-[11px] border p-4" style={{ background: "var(--color-warning-dim)", borderColor: "#F2E4C6" }}>
-            <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules the mockup describes — checked against this codebase</p>
+            <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules the mockup describes — checked against the code</p>
             <p className="text-[11px] leading-relaxed text-[var(--color-warning)]">
-              &quot;A Department Lead can lower but never raise&quot; is not enforced here — there is no department-lead ceiling logic; any Super Admin can set any grid
-              cell to any level for anyone. What is real: nobody, including Super Admin, holds an action that lets them read a child&apos;s record — that function was
+              &quot;A Department Lead can lower but never raise&quot; is enforced: a lead can change access only for members of their own department, only up to the
+              ceiling the department carries, and never above what they hold themselves. A Super Admin is not limited by a ceiling. Also real: nobody, including Super Admin, holds an action that lets them read a child&apos;s record — that function was
               never built, so it cannot be granted here or anywhere.
             </p>
           </div>

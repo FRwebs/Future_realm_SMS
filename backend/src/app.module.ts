@@ -34,6 +34,10 @@ import { ParentsModule } from "./modules/parents/parents.module";
 import { OperationsModule } from "./modules/operations/operations.module";
 import { PartnersModule } from "./modules/partners/partners.module";
 import { ComplianceModule } from "./modules/security-compliance/compliance.module";
+import { SupportAccessModule } from "./modules/support-access/support-access.module";
+import { TeamAccessModule } from "./modules/team-access/team-access.module";
+import { AnalyticsModule } from "./modules/analytics-bi/analytics.module";
+import { TemplatesModule } from "./modules/config-library/templates.module";
 import { PlansFeaturesModule } from "./modules/plans-features/plans-features.module";
 import { ProfileModule } from "./modules/profile/profile.module";
 import { ReportsModule } from "./modules/reports/reports.module";
@@ -112,6 +116,10 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     PartnersModule,
     ComplianceModule,
     PlansFeaturesModule,
+    TemplatesModule,
+    AnalyticsModule,
+    TeamAccessModule,
+    SupportAccessModule,
     ParentPortalModule,
     ParentsModule,
     StudentPortalModule,

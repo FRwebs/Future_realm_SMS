@@ -1,4 +1,5 @@
 import { cookies, headers } from "next/headers";
+import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { resolveDirectApiGet } from "@/lib/api/direct";
@@ -57,6 +58,9 @@ const cachedApiEnvelopeRequest = cache(
   } catch {
     throw new Error(`Failed to parse JSON response from ${path} (status ${response.status})`);
   }
+
+  // A signed-out session (idle, revoked, switched off) sends the person to sign in rather than showing a failed page.
+  if (response.status === 401) redirect("/login");
 
   if (!response.ok || body.ok === false || body.data === undefined) {
     const message = body.error ?? `Failed to fetch ${path}`;

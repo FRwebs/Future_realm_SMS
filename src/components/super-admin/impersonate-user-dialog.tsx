@@ -31,6 +31,7 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
   const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
+  const [elevationId, setElevationId] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -52,7 +53,7 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
           "Content-Type": "application/json",
           "x-csrf-token": getCookie("fr_csrf") ?? "",
         },
-        body: JSON.stringify({ reason }),
+        body: JSON.stringify({ reason, elevationId: elevationId.trim() || undefined }),
       });
       const body = (await response.json()) as {
         ok?: boolean;
@@ -99,7 +100,7 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
           }
         }}
         title={`Impersonate ${userName}`}
-        subtitle="Generate a 30-minute audited support session and switch into this user's interface."
+        subtitle="A 30-minute audited support session. It is read-only unless the school's leadership has approved acting — enter that approval below."
         size="lg"
       >
         <div className="grid gap-5">
@@ -117,9 +118,14 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
             />
           </label>
 
+          <label className="grid gap-2">
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">School approval to act (optional)</span>
+            <input value={elevationId} onChange={(event) => { setElevationId(event.target.value); setConfirming(false); }} className="field-control" placeholder="Approval reference from Users → Support Access — leave empty for a read-only session" />
+          </label>
+
           {confirming ? (
             <div className="rounded-[11px] border border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-warning)]">
-              This creates a time-boxed, fully-logged view-as session.
+              This creates a time-boxed, fully-logged session — read-only unless you entered a school approval — and tells the school's leadership it has begun.
             </div>
           ) : null}
 

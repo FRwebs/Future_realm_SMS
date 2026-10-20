@@ -1,25 +1,20 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
 import { DetailFacts, DetailSheet } from "@/components/data-display/detail-sheet";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { useToast } from "@/components/ui/toast-provider";
 import type { SuperAdminInternalMember, SuperAdminPermissionGridMatrix } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
 
 const accessLevels = ["NONE", "VIEW", "EDIT", "FULL"].map((v) => ({ label: v, value: v }));
 
-function InertAction({ label, note }: { label: string; note: string }) {
-  const { showToast } = useToast();
-  return (
-    <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[11.5px]">
-      {label}
-    </button>
-  );
-}
+export type PersonProfile = { departmentId: string | null; department: string | null; level: string | null; scopeStates: string[]; managerId: string | null; manager: string | null; staffNumber: string | null; isExternal: boolean; mfaEnabled: boolean };
+type Option = { label: string; value: string };
+type DeviceRow = { device: string; first: string; last: string; count: number; ip: string | null };
+type Owns = { openTickets: number; schools: number; openFlags: number };
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -28,8 +23,26 @@ function initialsOf(name: string): string {
   return (parts[0][0] + parts[1][0]).toUpperCase();
 }
 
-function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; matrix: SuperAdminPermissionGridMatrix }) {
+function MemberReview({ member, matrix, profile, departmentOptions, memberOptions, moduleOptions }: { member: SuperAdminInternalMember; matrix: SuperAdminPermissionGridMatrix; profile?: PersonProfile; departmentOptions: Option[]; memberOptions: Option[]; moduleOptions: Option[] }) {
   const [open, setOpen] = useState(false);
+  const [devices, setDevices] = useState<DeviceRow[] | null>(null);
+  const [owns, setOwns] = useState<Owns | null>(null);
+
+  useEffect(() => {
+    if (!open || devices) return;
+    void (async () => {
+      try {
+        const [d, o] = await Promise.all([
+          fetch(`/api/super-admin/internal-team/devices/${member.id}`, { credentials: "include" }).then((r) => r.json()),
+          fetch(`/api/super-admin/internal-team/owns/${member.id}`, { credentials: "include" }).then((r) => r.json())
+        ]);
+        setDevices(d.data ?? []);
+        setOwns(o.data ?? null);
+      } catch {
+        setDevices([]);
+      }
+    })();
+  }, [open, devices, member.id]);
   const gridRow = matrix.members.find((m) => m.id === member.id);
   const modules = matrix.modules ?? [];
   const grantedCount = modules.filter((moduleId) => (gridRow?.access[moduleId] ?? "NONE") !== "NONE").length;
@@ -58,15 +71,32 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
             <ResourceActionDialog
               triggerLabel="Set module permission"
               title={`Set permission — ${member.name}`}
-              description="Set this member's access level for a specific admin-panel module (M1-M12)."
-              endpoint="/api/super-admin/internal-team/permission-grid"
+              description="Set what this person can do in one Back Office module. None hides it and blocks its API; View is read only; Edit can change; Full can also delete. A department lead can lower access within their department's ceiling."
+              endpoint="/api/super-admin/internal-team/module-access"
               method="POST"
               variant="secondary"
               submitLabel="Save permission"
               fields={[
                 { name: "userId", label: "User ID", defaultValue: member.id },
-                { name: "moduleId", label: "Module (e.g. M3, billing)", required: true },
+                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions },
                 { name: "accessLevel", label: "Access level", type: "select", options: accessLevels }
+              ]}
+            />
+            <ResourceActionDialog
+              triggerLabel="Edit profile"
+              title={`Profile — ${member.name}`}
+              description="Where this person sits, who they answer to, and which schools they may see. A data scope limits School Accounts to those states; blank means the whole platform."
+              endpoint={`/api/super-admin/internal-team/profiles/${member.id}`}
+              method="PATCH"
+              variant="secondary"
+              submitLabel="Save profile"
+              fields={[
+                { name: "departmentId", label: "Department", type: "select", defaultValue: profile?.departmentId ?? "", options: [{ label: "None", value: "" }, ...departmentOptions] },
+                { name: "managerId", label: "Reports to", type: "select", defaultValue: profile?.managerId ?? "", options: [{ label: "Nobody", value: "" }, ...memberOptions.filter((option) => option.value !== member.id)] },
+                { name: "level", label: "Level", defaultValue: profile?.level ?? "", placeholder: "e.g. Lead, Senior, Associate" },
+                { name: "staffNumber", label: "Staff identifier", defaultValue: profile?.staffNumber ?? "" },
+                { name: "scopeStates", label: "Data scope — states (comma-separated)", type: "textarea", defaultValue: profile?.scopeStates.join(", ") ?? "", placeholder: "Blank for every school" },
+                { name: "isExternal", label: "Person is external", type: "select", defaultValue: String(profile?.isExternal ?? false), options: [{ label: "No — an employee", value: "false" }, { label: "Yes — contractor or partner staff", value: "true" }] }
               ]}
             />
             <ResourceActionDialog
@@ -79,7 +109,7 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
               submitLabel="Grant access"
               fields={[
                 { name: "userId", label: "User ID", defaultValue: member.id },
-                { name: "moduleId", label: "Module", required: true },
+                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions },
                 { name: "functionId", label: "Function (optional)" },
                 { name: "expiresAt", label: "Expires on", type: "date", required: true }
               ]}
@@ -98,7 +128,6 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
                 fields={[]}
               />
             ) : null}
-            <InertAction label="Send the message" note="Not built — there is no internal messaging feature; reach a colleague outside this platform." />
             {!revoked ? (
               suspended ? (
                 <ResourceActionDialog
@@ -134,13 +163,15 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
             title="Who they are"
             rows={[
               { label: "Full name", value: member.name, bold: true },
-              { label: "Staff identifier", value: "Not tracked" },
+              { label: "Staff identifier", value: profile?.staffNumber ?? "Not set" },
               { label: "Email", value: member.email, bold: true },
               { label: "Phone", value: member.phone ?? "Not on file", bold: Boolean(member.phone) },
               { label: "Role", value: member.role.replaceAll("_", " ") },
-              { label: "Department", value: "Not tracked on the account — recorded only in the audit log entry created at hire time, if one was given" },
-              { label: "Access level", value: "Not tracked — no per-person seniority level exists beyond role" },
-              { label: "Data scope", value: "Not tracked — no per-person regional/portfolio scope field exists" },
+              { label: "Department", value: profile?.department ?? "Not set" },
+              { label: "Reports to", value: profile?.manager ?? "Nobody" },
+              { label: "Level", value: profile?.level ?? "Not set" },
+              { label: "Data scope", value: profile?.scopeStates.length ? `${profile.scopeStates.join(", ")} — School Accounts shows only these states` : "The whole platform" },
+              { label: "Employment", value: profile?.isExternal ? "External" : "Employee" },
               { label: "Joined Nooria", value: formatDate(member.createdAt) },
               { label: "Last sign-in", value: member.lastLoginAt ? formatDate(member.lastLoginAt) : "Never" }
             ]}
@@ -149,10 +180,11 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
           <DetailFacts
             title="Security and sessions"
             rows={[
-              { label: "Two-factor", value: "Not built — no verification step exists" },
+              { label: "Two-factor", value: profile?.mfaEnabled ? "Authenticator app on" : "Email code at every sign-in (app not set up)" },
               { label: "Sessions", value: "See the Security Settings tab for this account's active sessions" },
-              { label: "What they currently own", value: "Not tracked — nothing aggregates a person's assigned tickets, jobs or schools into one figure here" },
-              { label: "Password", value: "Set by them — nobody at Nooria can read or reset it", bold: true }
+              { label: "What they currently own", value: owns ? `${owns.openTickets} open ticket${owns.openTickets === 1 ? "" : "s"} · ${owns.schools} school${owns.schools === 1 ? "" : "s"} managed · ${owns.openFlags} open flag${owns.openFlags === 1 ? "" : "s"}` : "Loading…" },
+              { label: "Known devices", value: devices ? (devices.length ? devices.map((d) => `${d.device.slice(0, 60)} — ${d.count} sign-in${d.count === 1 ? "" : "s"}, last ${formatDate(d.last)}`).join(" · ") : "None on record") : "Loading…" },
+              { label: "Password", value: "Set by them — nobody at Nooria can read it", bold: true }
             ]}
           />
 
@@ -160,7 +192,7 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
             <div className="rounded-[11px] border p-4" style={{ background: "var(--color-danger-dim)", borderColor: "#F3E0E0" }}>
               <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-danger)]">Account suspended</p>
               <p className="text-[11px] leading-relaxed text-[var(--color-danger)]">
-                Shown here as a real status this system can hold — but nothing in this codebase sets or clears it for an internal account, so how it got here (and how to reverse it) isn&apos;t tracked.
+                Sign-in is blocked. Use “Reinstate the account” to restore it; offboarding is the permanent route.
               </p>
             </div>
           ) : null}
@@ -174,9 +206,9 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
             }))}
           />
           <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
-            Whole-module levels only (None/View/Edit/Full) — this system has no per-action grant within a module, unlike the mockup&apos;s per-action toggle list.
-            A module reading None is not enterable at all — it does not appear in their sidebar. Note this grid is recorded but not enforced (see &quot;How access is
-            actually enforced&quot; on the Roles &amp; Scopes tab).
+            Whole-module levels only (None/View/Edit/Full) — there is no per-action grant inside a module. These are enforced: a module reading None
+            is hidden from their sidebar and its API refuses them; View blocks every change; Delete needs Full. A module with nothing set falls back to
+            their role&apos;s template, then to what their role could always do.
           </p>
         </div>
       </DetailSheet>
@@ -187,6 +219,10 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
 export function PeopleTable({
   members,
   matrix,
+  profiles = {},
+  departmentOptions = [],
+  memberOptions = [],
+  moduleOptions = [],
   title,
   description,
   actions,
@@ -195,6 +231,10 @@ export function PeopleTable({
 }: {
   members: SuperAdminInternalMember[];
   matrix: SuperAdminPermissionGridMatrix;
+  profiles?: Record<string, PersonProfile>;
+  departmentOptions?: Option[];
+  memberOptions?: Option[];
+  moduleOptions?: Option[];
   title: string;
   description: string;
   actions: ReactNode;
@@ -221,16 +261,16 @@ export function PeopleTable({
           )
         },
         { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
-        { key: "department", header: "Department", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
-        { key: "level", header: "Level", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
-        { key: "scope", header: "Data scope", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
+        { key: "department", header: "Department", render: (item) => profiles[item.id]?.department ?? <span className="text-[var(--color-text-muted)]">None</span> },
+        { key: "level", header: "Level", render: (item) => profiles[item.id]?.level ?? <span className="text-[var(--color-text-muted)]">—</span> },
+        { key: "scope", header: "Data scope", render: (item) => (profiles[item.id]?.scopeStates.length ? profiles[item.id].scopeStates.join(", ") : <span className="text-[var(--color-text-muted)]">Whole platform</span>) },
         { key: "lastLogin", header: "Last sign-in", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
         { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={item.status === "ACTIVE" ? "success" : item.status === "REVOKED" ? "danger" : "warning"} /> },
         {
           key: "actions",
           header: "",
           sortable: false,
-          render: (item) => <MemberReview member={item} matrix={matrix} />
+          render: (item) => <MemberReview member={item} matrix={matrix} profile={profiles[item.id]} departmentOptions={departmentOptions} memberOptions={memberOptions} moduleOptions={moduleOptions} />
         }
       ]}
       emptyState={emptyState}

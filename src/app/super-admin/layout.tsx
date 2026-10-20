@@ -14,6 +14,13 @@ import type {
 } from "@/lib/domain/types";
 import { platformRoles } from "@/lib/navigation/registry";
 
+/** Back Office module id → the sidebar entries that belong to it. */
+const MODULE_NAV: Record<string, string[]> = {
+  schools: ["sa_schools", "sa_crm"], migration: ["sa_migration"], billing: ["sa_billing"], partners: ["sa_partners"], users: ["sa_users"],
+  communications: ["sa_communications"], support: ["sa_support"], curriculum: ["sa_config_library"], plans: ["sa_feature_flags"],
+  infrastructure: ["sa_system_health"], security: ["sa_security", "sa_audit_logs"], team: ["sa_internal_team"], analytics: ["sa_analytics"], settings: ["sa_settings"]
+};
+
 type SecurityOverview = { incidents?: { status: string }[] };
 type MyWorkOverview = { total?: number };
 type MigrationJobRow = { status: string };
@@ -39,6 +46,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     suspiciousEnvelope,
     duplicatesEnvelope,
     recoveryEnvelope,
+    myAccess,
   ] = await Promise.all([
     apiGet<SuperAdminAnalyticsOverview>("/api/super-admin/analytics/overview").catch(() => null),
     apiGet<MyWorkOverview>("/api/super-admin/my-work").catch(() => null),
@@ -49,7 +57,10 @@ export default async function SuperAdminLayout({ children }: { children: React.R
     apiGetEnvelope<SuperAdminSuspiciousActivityRow[]>("/api/super-admin/users/suspicious-activity").catch(() => null),
     apiGetEnvelope<SuperAdminDuplicateFlagRow[]>("/api/super-admin/users/duplicates").catch(() => null),
     apiGetEnvelope<SuperAdminAccountRecoveryRow[]>("/api/super-admin/users/recovery").catch(() => null),
+    apiGet<{ levels: Record<string, string> }>("/api/super-admin/internal-team/me/access").catch(() => null),
   ]);
+  // A module the person's access grid sets to None is not shown to them at all.
+  const hiddenNavIds = Object.entries(myAccess?.levels ?? {}).filter(([, level]) => level === "NONE").flatMap(([id]) => MODULE_NAV[id] ?? []);
 
   const migrationOpenCount = migrationJobs?.filter((job) => job.status !== "COMPLETED" && job.status !== "ROLLED_BACK").length;
   const openIncidentCount = security?.incidents?.filter((incident) => incident.status !== "RESOLVED").length;
@@ -67,6 +78,7 @@ export default async function SuperAdminLayout({ children }: { children: React.R
         totalSchools: overview?.schools.total,
         reviewQueueCount: overview?.commandCenter?.onboardingPipeline.pendingVerification,
       }}
+      hiddenNavIds={hiddenNavIds}
       navBadges={{
         sa_my_work: myWork?.total,
         sa_schools: overview?.commandCenter?.onboardingPipeline.pendingVerification,

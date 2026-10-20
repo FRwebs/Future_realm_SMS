@@ -8,6 +8,7 @@ export function SuperAdminShell({
   session,
   platformStats,
   navBadges,
+  hiddenNavIds,
   children,
 }: {
   session: SessionUser;
@@ -16,6 +17,7 @@ export function SuperAdminShell({
     reviewQueueCount?: number;
   };
   navBadges?: Record<string, number | undefined>;
+  hiddenNavIds?: string[];
   children: React.ReactNode;
 }) {
   return (
@@ -25,6 +27,7 @@ export function SuperAdminShell({
       portalType="super_admin"
       platformStats={platformStats}
       navBadges={navBadges}
+      hiddenNavIds={hiddenNavIds}
     >
       {children}
     </DashboardShell>

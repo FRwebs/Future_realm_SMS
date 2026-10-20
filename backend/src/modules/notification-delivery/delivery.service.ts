@@ -126,7 +126,8 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           result.held++;
           continue;
         }
-        const outcome = await carrier.send(to, row.title, row.body);
+        const publicApi = (process.env.PUBLIC_API_URL ?? "").trim().replace(/\/$/, "");
+        const outcome = await carrier.send(to, row.title, row.body, row.channel === "EMAIL" && publicApi ? { openPixelUrl: `${publicApi}/api/v1/track/open/${row.id}.gif` } : undefined);
         if (outcome.ok) {
           await this.mark(row.id, meta, "SENT", { to, provider: carrier.provider, ref: outcome.ref, deliveredAt: new Date().toISOString(), held: undefined });
           result.sent++;

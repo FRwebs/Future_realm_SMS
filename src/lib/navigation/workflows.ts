@@ -184,15 +184,18 @@ export function getVisibleWorkflowNavGroups(
   role: Role,
   permissions?: string[],
   portalType: "school" | "super_admin" = "school",
+  hiddenIds: string[] = [],
 ): WorkflowNavGroup[] {
   const rawGroups = buildNavigation(portalType, role, permissions);
 
-  const mappedGroups = rawGroups.map((group) => ({
-    title: group.title,
-    eyebrow: group.title,
-    description: `${group.title} navigation`,
-    items: dedupeItemsByHref(group.items.map(mapItem)),
-  }));
+  const mappedGroups = rawGroups
+    .map((group) => ({
+      title: group.title,
+      eyebrow: group.title,
+      description: `${group.title} navigation`,
+      items: dedupeItemsByHref(group.items.map(mapItem)).filter((item) => !hiddenIds.includes(item.id)),
+    }))
+    .filter((group) => group.items.length > 0 || hiddenIds.length === 0);
 
   return dedupeGroups(mappedGroups);
 }

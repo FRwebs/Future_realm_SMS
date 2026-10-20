@@ -6,6 +6,7 @@ import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
+import { TRIGGERS } from "@/lib/domain/message-triggers";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
@@ -226,6 +227,7 @@ async function TemplatesTab() {
             { name: "channel", label: "Channel", type: "select", defaultValue: "WHATSAPP", options: channelOptions },
             { name: "category", label: "Category", type: "select", defaultValue: "OPERATIONAL", options: templateCategoryOptions },
             { name: "body", label: "Body", type: "textarea", required: true },
+            { name: "triggerKey", label: "Attach to a platform trigger", type: "select", defaultValue: "", options: [{ label: "None — used by campaigns only", value: "" }, ...TRIGGERS.map((t) => ({ label: `${t.label} — {{${t.vars.join("}}, {{")}}}`, value: t.key }))], note: "Email only. Once approved, the platform's own notice for that moment is worded from this template instead of the built-in text." },
             { name: "metaTemplateId", label: "Meta template ID (WhatsApp)" }
           ]}
         />
@@ -236,6 +238,7 @@ async function TemplatesTab() {
         { key: "name", header: "Template", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
         { key: "channel", header: "Channel", render: (item) => item.channel },
         { key: "approval", header: "Status", render: (item) => <StatusBadge status={item.approvalStatus} tone={item.approvalStatus === "APPROVED" ? "success" : item.approvalStatus === "REJECTED" ? "danger" : "warning"} /> },
+        { key: "trigger", header: "Trigger", render: (item) => (item.triggerKey ? <span className="text-[11.5px]">{TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey}</span> : <span className="text-[var(--color-text-muted)]">—</span>) },
         { key: "version", header: "Version", render: (item) => `v${item.version ?? 1}` },
         { key: "uses", header: "Uses", render: (item) => `${item.uses ?? 0} campaign${(item.uses ?? 0) === 1 ? "" : "s"}` },
         { key: "edited", header: "Edited", render: (item) => formatDate(item.updatedAt) },
@@ -256,7 +259,8 @@ async function TemplatesTab() {
                 { name: "name", label: "Template name", defaultValue: item.name },
                 { name: "body", label: "Body", type: "textarea", defaultValue: item.body },
                 { name: "channel", label: "Channel", type: "select", defaultValue: item.channel, options: channelOptions },
-                { name: "category", label: "Category", type: "select", defaultValue: item.category, options: templateCategoryOptions }
+                { name: "category", label: "Category", type: "select", defaultValue: item.category, options: templateCategoryOptions },
+                { name: "triggerKey", label: "Attach to a platform trigger", type: "select", defaultValue: item.triggerKey ?? "", options: [{ label: "None — used by campaigns only", value: "" }, ...TRIGGERS.map((t) => ({ label: `${t.label} — {{${t.vars.join("}}, {{")}}}`, value: t.key }))] }
               ]}
             />
             <ResourceActionDialog
@@ -297,7 +301,7 @@ async function TemplatesTab() {
           { label: "Written and saved", detail: "A new template, or a new version, waits for review. It cannot be used by a campaign until it is approved.", tone: "good" },
           { label: "Meta approval, WhatsApp only", detail: "Reflected on the record via Set approval, once Meta's real decision comes back.", tone: "good" },
           { label: "Reviewed by a second person", detail: "Enforced — the person who wrote a template cannot approve it.", tone: "good" },
-          { label: "Attached to a trigger", detail: "Not applicable — none of this platform's automated triggers render from the template library; each hardcodes its own message text.", tone: "bad" }
+          { label: "Attached to a trigger", detail: "Real for the platform's own lifecycle notices — trial ending or ended, school locked, discount ending, inactivity, address released. An approved email template attached to one is used for that notice; with none attached the built-in text goes out. Other automated messages still use their own wording.", tone: "good" }
         ]}
       />
     </section>
@@ -414,6 +418,9 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
   const lines = current ? ((await apiGet<DeliveryLine[]>(`/api/super-admin/communications/campaigns/${current.id}/deliveries${status ? `?status=${status}` : ""}`).catch(() => [])) ?? []) : [];
   const totalRecipients = sent.reduce((sum, c) => sum + c.recipientCount, 0);
   const totalDelivered = sent.reduce((sum, c) => sum + c.deliveredCount, 0);
+  const emailsSent = sent.reduce((sum, c) => sum + (c.emailsSent ?? 0), 0);
+  const openedTotal = sent.reduce((sum, c) => sum + (c.openedCount ?? 0), 0);
+  const opensTracked = sent.some((c) => c.openedCount !== null);
   const totalFailed = sent.reduce((sum, c) => sum + c.failedCount, 0);
   const totalWaiting = sent.reduce((sum, c) => sum + (c.queuedCount ?? 0), 0);
   const settled = totalDelivered + totalFailed;
@@ -426,7 +433,7 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
         <StatCard label="Delivered" value={totalDelivered.toLocaleString()} detail={deliveryRate === null ? "Nothing has been settled yet" : `${deliveryRate}% of the messages that have settled`} icon={BadgeCheck} tone="success" />
         <StatCard label="Failed" value={totalFailed.toLocaleString()} detail="Counted from the messages themselves, with the reason on each" icon={FileWarning} tone={totalFailed ? "danger" : "neutral"} />
         <StatCard label="Waiting" value={totalWaiting.toLocaleString()} detail="Queued or held — quiet hours, a daily cap, or delivery switched off" icon={Clock3} tone="info" />
-        <StatCard label="Opened and read" value="Not tracked" detail="Opens are not tracked for email or SMS, so no rate is shown" icon={ShieldOff} tone="neutral" />
+        <StatCard label="Opened (email)" value={emailsSent > 0 && opensTracked ? `${openedTotal.toLocaleString()} of ${emailsSent.toLocaleString()}` : "Not measured"} detail={opensTracked ? "Emails whose one-pixel image was fetched — approximate, since some mail apps load images for the reader. SMS has no open." : "Set PUBLIC_API_URL so each email carries the one-pixel image that records an open. SMS has no open."} icon={ShieldOff} tone={opensTracked ? "info" : "neutral"} />
       </section>
 
       <div className="grid gap-3.5 xl:grid-cols-[1.3fr_1fr]">

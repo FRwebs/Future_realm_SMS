@@ -329,7 +329,7 @@ function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgress }) {
         <StatCard label="Setup complete" value={fullyComplete} detail={totalSchools > 0 ? `${Math.round((fullyComplete / totalSchools) * 100)}% of the cohort` : "No schools yet"} tone="success" icon={Check} />
         <StatCard label="Incomplete past 5 days" value={progress.stalled.length} detail="Account Manager alerted." tone={progress.stalled.length > 0 ? "danger" : "success"} icon={Clock} />
         <StatCard label="Most abandoned step" value={mostAbandoned?.label ?? "—"} detail="Highest drop-off." tone="warning" icon={TriangleAlert} />
-        <StatCard label="Median time to complete" value="N/A" detail="Not tracked — no per-step completion timestamp exists yet." icon={Clock} />
+        <StatCard label="Median time to complete" value={progress.medianHoursToComplete === null || progress.medianHoursToComplete === undefined ? "No finishers yet" : progress.medianHoursToComplete >= 48 ? `${Math.round((progress.medianHoursToComplete / 24) * 10) / 10} days` : `${progress.medianHoursToComplete} h`} detail={progress.schoolsFinished ? `Signup to the last step, across ${progress.schoolsFinished} school${progress.schoolsFinished === 1 ? "" : "s"} that finished all six` : "No school has finished all six steps yet"} icon={Clock} />
       </section>
 
       <section className="grid gap-3.5 xl:grid-cols-[1.2fr_1fr]">

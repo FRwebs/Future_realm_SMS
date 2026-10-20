@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import { AuditAction, type Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { renderTrigger, type TriggerKey } from "./triggers";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { PolicyService } from "./policy.service";
 import type { Policy } from "./policy.shared";
@@ -139,14 +140,14 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
         try {
           const school = { id: row.school.id, ownerEmail: row.school.ownerEmail };
           if (kind === "CONCESSION_DUE") {
-            await this.tell(school, "Your discount needs verifying again", `${row.school.name}'s ${row.kind === "NGO" ? "NGO" : "mission"} discount ends on ${(row.expiresAt as Date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}. Send your current registration evidence to your account manager before then, or the school moves to the Standard plan.`);
+            await this.tell(school, "Your discount needs verifying again", `${row.school.name}'s ${row.kind === "NGO" ? "NGO" : "mission"} discount ends on ${(row.expiresAt as Date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" })}. Send your current registration evidence to your account manager before then, or the school moves to the Standard plan.`, { key: "discount.reverify", vars: { school: row.school.name, kind: row.kind === "NGO" ? "NGO" : "mission", endDate: (row.expiresAt as Date).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) } });
             await this.note(row.school.id, kind, "Concession ending — owner told", { concessionId: row.id });
           } else {
             await prisma.$transaction([
               prisma.schoolConcession.update({ where: { id: row.id }, data: { status: "EXPIRED" } }),
               prisma.school.update({ where: { id: row.school.id }, data: { plan: row.priorPlan && row.priorPlan !== "CUSTOM" ? (row.priorPlan as never) : "STANDARD", lifecycleNote: "Concession expired", lifecycleAt: now } }),
             ]);
-            await this.tell(school, "Your discount has ended", `${row.school.name}'s ${row.kind === "NGO" ? "NGO" : "mission"} discount was not re-verified and has ended, so the school is now on the Standard plan. Send your evidence to your account manager to be considered again.`);
+            await this.tell(school, "Your discount has ended", `${row.school.name}'s ${row.kind === "NGO" ? "NGO" : "mission"} discount was not re-verified and has ended, so the school is now on the Standard plan. Send your evidence to your account manager to be considered again.`, { key: "discount.ended", vars: { school: row.school.name, kind: row.kind === "NGO" ? "NGO" : "mission" } });
             await this.note(row.school.id, kind, "Concession expired — school moved off the discounted plan", { concessionId: row.id });
           }
           await prisma.auditLog.create({ data: { schoolId: row.school.id, action: AuditAction.UPDATE, entityType: "Lifecycle", entityId: row.id, metadata: { kind, concessionId: row.id } as Prisma.InputJsonValue } });
@@ -161,7 +162,8 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
     return applied;
   }
 
-  private async tell(school: { id: string; ownerEmail: string | null }, subject: string, body: string) {
+  private async tell(school: { id: string; ownerEmail: string | null }, subjectIn: string, bodyIn: string, trigger?: { key: TriggerKey; vars: Record<string, string | number> }) {
+    const { subject, body } = trigger ? await renderTrigger(trigger.key, trigger.vars, { subject: subjectIn, body: bodyIn }) : { subject: subjectIn, body: bodyIn };
     const owners = await prisma.user.findMany({ where: { schoolId: school.id, isActive: true, deletedAt: null, role: { in: ["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL"] } }, select: { id: true } });
     if (owners.length) await prisma.notificationLog.createMany({ data: owners.map((owner) => ({ schoolId: school.id, userId: owner.id, channel: "IN_APP" as const, title: subject, body, status: "QUEUED", sentAt: new Date() })) });
     if (school.ownerEmail) await sendEmail({ to: school.ownerEmail, subject, text: body }).catch(() => undefined);
@@ -176,19 +178,19 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
     const day = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
     switch (kind) {
       case "TRIAL_ENDING": {
-        await this.tell(school, "Your free trial ends soon", `${school.name}'s trial ends on ${school.trialEndsAt ? day(school.trialEndsAt) : "its end date"}. Choose a plan in Subscription & Billing to carry on without a break.`);
+        await this.tell(school, "Your free trial ends soon", `${school.name}'s trial ends on ${school.trialEndsAt ? day(school.trialEndsAt) : "its end date"}. Choose a plan in Subscription & Billing to carry on without a break.`, { key: "trial.ending", vars: { school: school.name, endDate: school.trialEndsAt ? day(school.trialEndsAt) : "its end date" } });
         await this.note(school.id, kind, "Trial ending — owner reminded");
         break;
       }
       case "TRIAL_READ_ONLY": {
         const lockOn = new Date(now.getTime() + policy.trial.readOnlyDays * DAY);
         await prisma.school.update({ where: { id: school.id }, data: { status: "GRACE_PERIOD", statusReason: "Trial ended — read-only until a plan is chosen", statusChangedAt: now, lifecycleNote: "Trial ended: read-only", ...stamp } });
-        await this.tell(school, "Your free trial has ended", `${school.name} is now read-only: everything can be read and exported, but nothing can be changed. Choose a plan before ${day(lockOn)} to switch editing back on; after that the school is locked and only support can reopen it.`);
+        await this.tell(school, "Your free trial has ended", `${school.name} is now read-only: everything can be read and exported, but nothing can be changed. Choose a plan before ${day(lockOn)} to switch editing back on; after that the school is locked and only support can reopen it.`, { key: "trial.ended", vars: { school: school.name, lockDate: day(lockOn) } });
         await this.note(school.id, kind, "Trial ended — school made read-only", { lockOn: lockOn.toISOString() });
         break;
       }
       case "TRIAL_LOCK_DUE": {
-        await this.tell(school, "Your school will be locked soon", `${school.name} is read-only and will be locked in ${policy.trial.lockReminderDays} days unless a plan is chosen.`);
+        await this.tell(school, "Your school will be locked soon", `${school.name} is read-only and will be locked in ${policy.trial.lockReminderDays} days unless a plan is chosen.`, { key: "trial.lock_reminder", vars: { school: school.name, days: policy.trial.lockReminderDays } });
         await this.note(school.id, kind, "Lock reminder sent");
         break;
       }
@@ -197,7 +199,7 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
           prisma.school.update({ where: { id: school.id }, data: { status: "SUSPENDED", suspendedAt: now, suspendedReason: "Trial ended and no plan chosen", statusReason: "Trial ended and no plan chosen", statusChangedAt: now, lifecycleNote: "Trial ended: locked", ...stamp } }),
           prisma.platformSession.updateMany({ where: { schoolId: school.id, revokedAt: null }, data: { revokedAt: now } }),
         ]);
-        await this.tell(school, "Your school has been locked", `${school.name} was locked because the trial ended without a plan. Nothing has been deleted. Contact your account manager or support and they can reopen it once a plan is agreed.`);
+        await this.tell(school, "Your school has been locked", `${school.name} was locked because the trial ended without a plan. Nothing has been deleted. Contact your account manager or support and they can reopen it once a plan is agreed.`, { key: "trial.locked", vars: { school: school.name } });
         await this.note(school.id, kind, "School locked after the trial");
         break;
       }
@@ -210,7 +212,7 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
       case "DORMANT": {
         const due = new Date(now.getTime() + policy.dormancy.noticeDays * DAY);
         await prisma.school.update({ where: { id: school.id }, data: { dormantAt: now, dormancyNoticeAt: now, addressReleaseDueAt: due, lifecycleNote: "Dormant — owner told", ...stamp } });
-        await this.tell(school, "Your school has been inactive", `Nobody has signed in to ${school.name} for ${policy.dormancy.dormantDays} days. Its web address (${school.subdomain ?? school.slug}) will be released on ${day(due)} unless someone signs in before then. Nothing else is deleted.`);
+        await this.tell(school, "Your school has been inactive", `Nobody has signed in to ${school.name} for ${policy.dormancy.dormantDays} days. Its web address (${school.subdomain ?? school.slug}) will be released on ${day(due)} unless someone signs in before then. Nothing else is deleted.`, { key: "dormant.notice", vars: { school: school.name, days: policy.dormancy.dormantDays, address: school.subdomain ?? school.slug, releaseDate: day(due) } });
         await this.note(school.id, kind, "School judged dormant — owner told", { releaseDue: due.toISOString() });
         break;
       }
@@ -225,7 +227,7 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
           prisma.webAddressRecord.updateMany({ where: { OR: [{ schoolId: school.id }, { address }] }, data: { state: "RETIRED", schoolId: null, retiredAt: now, releaseEligibleAt: now, changeReason: "Released after dormancy" } }),
           prisma.school.update({ where: { id: school.id }, data: { subdomain: null, status: "ARCHIVED", archivedAt: now, statusReason: "Dormant — web address released", statusChangedAt: now, lifecycleNote: "Address released", ...stamp } }),
         ]);
-        await this.tell(school, "Your web address has been released", `${address} was released after ${policy.dormancy.dormantDays + policy.dormancy.noticeDays} days of inactivity. Your records are kept; contact support to reopen the school on a new address.`);
+        await this.tell(school, "Your web address has been released", `${address} was released after ${policy.dormancy.dormantDays + policy.dormancy.noticeDays} days of inactivity. Your records are kept; contact support to reopen the school on a new address.`, { key: "address.released", vars: { address, days: policy.dormancy.dormantDays + policy.dormancy.noticeDays } });
         await this.note(school.id, kind, "Web address released after dormancy", { address });
         break;
       }

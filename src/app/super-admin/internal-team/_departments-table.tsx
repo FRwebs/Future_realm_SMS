@@ -21,7 +21,7 @@ function hasCeiling(value: unknown): boolean {
   return true;
 }
 
-function DepartmentReview({ department }: { department: SuperAdminDepartmentRow }) {
+function DepartmentReview({ department, members }: { department: SuperAdminDepartmentRow; members?: string[] }) {
   const [open, setOpen] = useState(false);
   const ceilingSet = hasCeiling(department.permissionCeiling);
 
@@ -56,8 +56,8 @@ function DepartmentReview({ department }: { department: SuperAdminDepartmentRow 
                 type: "textarea",
                 parse: "json",
                 defaultValue: department.permissionCeiling ? JSON.stringify(department.permissionCeiling, null, 2) : "",
-                placeholder: '{\n  "M3": "VIEW"\n}',
-                note: "Stored, but nothing in this codebase reads it — a Department Lead can set any grid cell to any level for anyone, with no ceiling actually enforced.",
+                placeholder: '{\n  "support": "EDIT",\n  "users": "VIEW"\n}',
+                note: "Enforced — the lead can set access for members of this department up to these levels, and never raise it past them. Keys are module ids (schools, billing, support, users, …).",
                 section: "Ceiling"
               }
             ]}
@@ -71,7 +71,7 @@ function DepartmentReview({ department }: { department: SuperAdminDepartmentRow 
               { label: "Lead", value: department.lead, bold: true },
               { label: "Lead email", value: department.leadEmail ?? "Not set" },
               { label: "Created", value: formatDate(department.createdAt) },
-              { label: "Members assigned", value: "Not tracked — no internal account links back to a department record" }
+              { label: "Members assigned", value: members?.length ? members.join(", ") : "Nobody yet — assign from a person's Edit profile" }
             ]}
           />
 
@@ -83,8 +83,8 @@ function DepartmentReview({ department }: { department: SuperAdminDepartmentRow 
             ]}
           />
           <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
-            The schema reserves a permissionCeiling field on every department, meant to cap what its lead can grant within their team. It is stored and editable here, but
-            nothing in this codebase reads it back — no request is checked against it, and no permission-grid save is blocked by it today.
+            The ceiling caps what the department&apos;s lead can grant within their team. When the lead sets a member&apos;s module access it is checked against this: a module
+            with no ceiling cannot be granted by the lead, and no level above the ceiling can be given. A Super Admin is not limited by it.
           </p>
         </div>
       </DetailSheet>
@@ -92,11 +92,11 @@ function DepartmentReview({ department }: { department: SuperAdminDepartmentRow 
   );
 }
 
-export function DepartmentsTable({ items, actions }: { items: SuperAdminDepartmentRow[]; actions: ReactNode }) {
+export function DepartmentsTable({ items, actions, members = {} }: { items: SuperAdminDepartmentRow[]; actions: ReactNode; members?: Record<string, string[]> }) {
   return (
     <TableCard
       title="Departments"
-      description="Organise the team into departments, each with a lead — not shown in the mockup's own tab list, but a real, working part of this codebase. Members aren't linked to a department record; Department shown elsewhere in Team & Access is recorded only in the audit log at hire time."
+      description="Organise the team into departments, each with a lead. A person joins a department from their Edit profile; the lead can then set their module access within the department's ceiling."
       items={items}
       actions={actions}
       getRowKey={(item) => item.id}
@@ -115,8 +115,9 @@ export function DepartmentsTable({ items, actions }: { items: SuperAdminDepartme
             </span>
           )
         },
+        { key: "members", header: "Members", render: (item) => members[item.id]?.length ?? 0 },
         { key: "created", header: "Created", render: (item) => formatDate(item.createdAt) },
-        { key: "actions", header: "", sortable: false, render: (item) => <DepartmentReview department={item} /> }
+        { key: "actions", header: "", sortable: false, render: (item) => <DepartmentReview department={item} members={members[item.id]} /> }
       ]}
       emptyState="No departments created yet."
     />

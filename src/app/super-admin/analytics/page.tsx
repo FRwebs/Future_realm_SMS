@@ -14,6 +14,7 @@ import { RevenueStateTable } from "./_revenue-state-table";
 import { SavedReportsTable } from "./_saved-reports-table";
 import { StateAdoptionTable } from "./_state-adoption-table";
 import type {
+  SuperAdminInternalMember,
   SuperAdminBiOverview,
   SuperAdminChurnAnalysis,
   SuperAdminCustomReportRow,
@@ -107,25 +108,26 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
             triggerLabel="Build report"
             title="Build a report"
             description="Answer one question well, then save it for the people who ask it monthly."
-            endpoint="/api/super-admin/analytics/custom-reports"
+            endpoint="/api/super-admin/analytics-bi/reports"
             variant="heroWhite"
             submitLabel="Build report"
             size="report"
             fields={[
               { name: "name", label: "Subject", required: true, placeholder: "e.g. Retention by joining cohort", section: "The question" },
+              { name: "question", label: "What question it answers", placeholder: "One line shown under the name on the Reports tab", section: "The question" },
               { name: "metric", label: "Metric", type: "select", section: "The question", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
               { name: "dimension", label: "Segment by", type: "select", section: "The question", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] },
-              { name: "_period", label: "Period", type: "static", section: "The question", placeholder: "All available data", note: "Not built — a custom report always runs against everything on record; there's no period filter yet." },
-              { name: "_compareWith", label: "Compare with", type: "static", section: "The question", placeholder: "Not available", note: "Not built — nothing to compare a report against yet." },
-              { name: "_dropoff", label: "Show drop-off at every stage", type: "toggle", disabled: true, section: "Presentation", note: "Not built — no report here is clickable through to the schools sitting behind a number." },
-              { name: "_churnWeight", label: "Weight churned schools separately", type: "toggle", disabled: true, section: "Presentation", note: "Not built — this report engine has no concept of weighting by churn status." },
-              { name: "_suppress", label: "Suppress cohorts under 10", type: "toggle", disabled: true, section: "Presentation", note: "Not built — small groups aren't suppressed anywhere in this system; every real count is shown as-is." },
-              { name: "_schedule", label: "Schedule", type: "static", section: "Delivery", placeholder: "Not built", note: "Reports run on demand only — there's no scheduling system behind this page." },
-              { name: "_recipients", label: "Recipients", type: "static", section: "Delivery", placeholder: "Not built", note: "No delivery or recipient list exists for a saved report." },
-              { name: "_templateName", label: "Template name", type: "static", section: "Save as a template", placeholder: "Same as Subject, above", note: "Every report you build is saved automatically under the Subject you gave it — there's no separate save step." },
-              { name: "_groupUnder", label: "Group under", type: "static", section: "Save as a template", placeholder: "Not built", note: "Saved reports aren't organized into groups yet — they all appear together on the Reports tab." },
-              { name: "_visibleTo", label: "Visible to", type: "static", section: "Save as a template", placeholder: "Every Super Admin", note: "Not built — there's no per-audience visibility control; any Super Admin can see any saved report." },
-              { name: "_scope", label: "Scope applied when run", type: "static", section: "Save as a template", placeholder: "The full platform", note: "Not applicable — a Super Admin's view isn't scoped to a region or portfolio in this system." }
+              { name: "periodDays", label: "Period — schools that joined in the last (days)", type: "number", min: 1, max: 1825, section: "The question", note: "Blank means every school on record." },
+              { name: "compare", label: "Compare with", type: "select", defaultValue: "false", section: "The question", options: [{ label: "Nothing", value: "false" }, { label: "The period before (needs a period)", value: "true" }] },
+              { name: "suppressUnder", label: "Withhold groups with fewer schools than", type: "number", min: 2, max: 100, section: "Presentation", note: "A group smaller than this shows “under N” instead of a figure. Blank shows every count as it is." },
+              { name: "_dropoff", label: "Show drop-off at every stage", type: "toggle", disabled: true, section: "Presentation", note: "Not built — a number is not clickable through to the schools behind it." },
+              { name: "_churnWeight", label: "Weight churned schools separately", type: "toggle", disabled: true, section: "Presentation", note: "Not built — the engine has no weighting by churn status." },
+              { name: "frequency", label: "Schedule", type: "select", defaultValue: "", section: "Delivery", options: [{ label: "On demand only", value: "" }, { label: "Weekly", value: "WEEKLY" }, { label: "Monthly", value: "MONTHLY" }], note: "A scheduled report is emailed to its recipients as it falls due (checked hourly)." },
+              { name: "recipients", label: "Recipients (comma-separated emails)", type: "textarea", section: "Delivery" },
+              { name: "_owner", label: "Owner", type: "static", section: "Save as a template", placeholder: "You — recorded when saved", note: "The Super Admin who saved this template." },
+              { name: "groupName", label: "Group under", section: "Save as a template", placeholder: "e.g. Monthly board pack", note: "Templates are filed under this on the Reports tab." },
+              { name: "visibility", label: "Visible to", type: "select", defaultValue: "ALL", section: "Save as a template", options: [{ label: "Every Super Admin", value: "ALL" }, { label: "Only me", value: "OWNER" }] },
+              { name: "lockFilters", label: "Lock the filters", type: "select", defaultValue: "false", section: "Save as a template", options: [{ label: "No — readers can regroup it", value: "false" }, { label: "Yes — readers see it as saved", value: "true" }] }
             ]}
           />
         }
@@ -143,10 +145,13 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
 }
 
 async function GrowthTab() {
-  const [bi, displacement] = await Promise.all([
+  const [bi, displacement, owners, members] = await Promise.all([
     apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
-    apiGet<SuperAdminDisplacementAnalysis>("/api/super-admin/analytics/displacement")
+    apiGet<SuperAdminDisplacementAnalysis>("/api/super-admin/analytics/displacement"),
+    apiGet<Array<{ stage: string; ownerId: string; owner: string }>>("/api/super-admin/analytics-bi/owners").catch(() => []),
+    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[])
   ]);
+  const ownerOf = new Map(owners.map((row) => [row.stage, row]));
 
   const funnelStages = bi.funnel.map((stage, index) => {
     const previous = bi.funnel[index - 1];
@@ -205,7 +210,31 @@ async function GrowthTab() {
             ),
             sortValue: (item) => item.changePct
           },
-          { key: "owner", header: "Owner", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not tracked — no stage-ownership feature exists</span> }
+          {
+            key: "owner",
+            header: "Owner",
+            render: (item) => {
+              const current = ownerOf.get(item.stage);
+              return (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11.5px]">{current ? current.owner : <span className="text-[var(--color-text-muted)]">Nobody yet</span>}</span>
+                  <ResourceActionDialog
+                    triggerLabel={current ? "Change" : "Assign"}
+                    title={`Owner of “${item.stage}”`}
+                    description="The person accountable for moving this stage of the funnel."
+                    endpoint="/api/super-admin/analytics-bi/owners"
+                    method="POST"
+                    variant="textAction"
+                    submitLabel="Save owner"
+                    fields={[
+                      { name: "stage", label: "Stage", type: "select", defaultValue: item.stage, options: [{ label: item.stage, value: item.stage }] },
+                      { name: "ownerId", label: "Owner", type: "select", defaultValue: current?.ownerId ?? "", options: [{ label: "Nobody", value: "" }, ...members.map((m) => ({ label: `${m.name} · ${m.role.replaceAll("_", " ").toLowerCase()}`, value: m.id }))] }
+                    ]}
+                  />
+                </div>
+              );
+            }
+          }
         ]}
       />
 
@@ -269,15 +298,17 @@ async function GrowthTab() {
 }
 
 async function RetentionTab() {
-  const [bi, churn, nps, schoolsEnvelope] = await Promise.all([
+  const [bi, churn, nps, schoolsEnvelope, trends] = await Promise.all([
     apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
     apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
     apiGet<SuperAdminNpsAnalytics>("/api/super-admin/analytics/nps"),
-    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
+    apiGet<TrendsView>("/api/super-admin/analytics-bi/trends")
   ]);
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
 
   const cohorts = bi.cohorts;
+  const curveMonths = Array.from(new Set(trends.retention.flatMap((row) => row.readings.map((reading) => reading.month)))).sort();
 
   const npsScore = nps.npsScore;
   const npsPassives = Math.max(0, nps.total - nps.promoters - nps.detractors);
@@ -298,7 +329,7 @@ async function RetentionTab() {
       </div>
       <TableCard
         title="Cohorts"
-        description={'Retention measured as "still active today," not a term-by-term curve — this system has no historical snapshot of a school\'s status at a past point in time, so a real Term 1/2/3 retention curve can\'t be reconstructed honestly yet.'}
+        description="The share of each join-month cohort that is active today. The retention curve below is read from daily snapshots of every school's status, so it starts on the day snapshots began and fills in month by month."
         items={cohorts}
         pageSize={false}
         getRowKey={(item) => item.cohort}
@@ -317,6 +348,27 @@ async function RetentionTab() {
             },
             sortValue: (item) => item.retentionPct
           }
+        ]}
+      />
+      <TableCard
+        title="Retention curve"
+        description={trends.firstSnapshot ? `Share of each cohort active on the first snapshot day of each month. Snapshots began ${trends.firstSnapshot} (${trends.snapshotDays} day${trends.snapshotDays === 1 ? "" : "s"} so far) — earlier months cannot be reconstructed and are not shown.` : "No snapshot has been taken yet. One is taken daily; the first appears within the hour of the API starting."}
+        items={trends.retention.filter((row) => row.readings.length > 0)}
+        pageSize={false}
+        getRowKey={(item) => item.cohort}
+        emptyState="The curve fills in as snapshots accumulate."
+        columns={[
+          { key: "cohort", header: "Cohort", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.cohort}</span> },
+          { key: "joined", header: "Joined", render: (item) => item.joined },
+          ...curveMonths.map((month) => ({
+            key: month,
+            header: month,
+            render: (item: TrendsView["retention"][number]) => {
+              const reading = item.readings.find((r) => r.month === month);
+              if (!reading || reading.measured === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+              return <span className="font-[var(--font-mono)] font-bold">{Math.round((reading.active / reading.measured) * 100)}%</span>;
+            }
+          }))
         ]}
       />
       {/* Churn analysis */}
@@ -514,27 +566,42 @@ async function RevenueTab() {
   );
 }
 
+type TrendsView = {
+  weeks: string[];
+  series: Array<{ module: string; points: Array<number | null> }>;
+  retention: Array<{ cohort: string; joined: number; readings: Array<{ month: string; day: string; measured: number; active: number }> }>;
+  firstSnapshot: string | null;
+  snapshotDays: number;
+};
+
 function moduleLabel(module: string) {
   return module.charAt(0).toUpperCase() + module.slice(1);
 }
 
 async function ProductTab() {
-  const [adoption, bi] = await Promise.all([
+  const [adoption, bi, trends, unused, tickets] = await Promise.all([
     apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
-    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi")
+    apiGet<SuperAdminBiOverview>("/api/super-admin/analytics/bi"),
+    apiGet<TrendsView>("/api/super-admin/analytics-bi/trends"),
+    apiGet<{ measured: string[]; unused: Array<{ school: string; feature: string }> }>("/api/super-admin/analytics-bi/paid-unused"),
+    apiGet<Record<string, { tickets: number; schools: number; sample: string | null }>>("/api/super-admin/analytics-bi/tickets-about")
   ]);
+  // A module under the 40% floor in two or more tiers that have schools is worth a sprint review — the page's own rule.
+  const populated = adoption.tierColumns.map((tier, index) => ({ index, schools: tier.schoolCount })).filter((tier) => tier.schools > 0);
+  const sprintCandidates = adoption.heatmapByTier.filter((row) => populated.filter((tier) => (row.cells[tier.index] ?? 100) < 40).length >= Math.min(2, populated.length) && populated.length > 0);
 
   return (
     <section className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="dark" />
         <StatCard label="Platform adoption index" value={adoption.adoptionIndex} detail={`Weighted across ${adoption.modulesTracked} modules`} icon={Gauge} />
-        <StatCard label="Modules below the 40% floor" value={adoption.modulesBelowFloor} detail="Enabled by fewer than 4 in 10 schools" tone={adoption.modulesBelowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />
-        <StatCard label="Paid features never switched on" value="N/A" detail="Not applicable — no module is tier-gated in this product, so nothing is a paid feature going unused" icon={Banknote} />
-        <StatCard label="Sprint candidates flagged" value="N/A" detail="Not built — nothing auto-nominates a module for a sprint review" icon={CreditCard} />
+        <StatCard label="Modules below the 40% floor" value={adoption.modulesBelowFloor} detail="Used in the last 60 days by fewer than 4 in 10 schools" tone={adoption.modulesBelowFloor > 0 ? "danger" : "success"} icon={PackageOpen} />
+        <StatCard label="Paid features never used" value={unused.unused.length} detail={`Schools whose plan includes ${unused.measured.join(", ")} and have never applied it — the only gated feature the product can measure`} tone={unused.unused.length ? "warning" : "success"} icon={Banknote} />
+        <StatCard label="Sprint candidates flagged" value={sprintCandidates.length} detail={sprintCandidates.length ? sprintCandidates.map((row) => moduleLabel(row.module)).join(", ") : "No module is under the floor across two tiers"} tone={sprintCandidates.length ? "warning" : "success"} icon={CreditCard} />
       </section>
 
       <ModuleAdoptionTable
+        trends={trends.series}
         heatmapByTier={adoption.heatmapByTier}
         tierColumns={adoption.tierColumns}
         schoolsInScope={adoption.tierColumns.reduce((sum, tier) => sum + tier.schoolCount, 0)}
@@ -553,7 +620,16 @@ async function ProductTab() {
             { key: "adoption", header: "Adoption", render: (item) => <BarCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
             { key: "using", header: "Schools using", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
             { key: "notUsing", header: "Schools not using", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
-            { key: "diagnosis", header: "Diagnosis from support tickets", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not automatically correlated to tickets yet</span> }
+            {
+              key: "diagnosis",
+              header: "Diagnosis from support tickets",
+              render: (item) => {
+                const heard = tickets[item.module];
+                return heard && heard.tickets > 0
+                  ? <span className="text-[11px] text-[var(--color-text-secondary)]">{heard.tickets} ticket{heard.tickets === 1 ? "" : "s"} from {heard.schools} school{heard.schools === 1 ? "" : "s"} in 90 days mention it{heard.sample ? ` — “${heard.sample}”` : ""}</span>
+                  : <span className="text-[11px] text-[var(--color-text-muted)]">No ticket in 90 days mentions it — likely not a support problem</span>;
+              }
+            }
           ]}
         />
         <section className="surface-card overflow-hidden">
@@ -563,7 +639,7 @@ async function ProductTab() {
           </div>
           <div className="grid gap-3 p-5">
             {[
-              { title: "Compare down a column, or across a row — every school can toggle every module", detail: "There is no tier-based entitlement gate in this product, so a low cell is a genuine usage gap, not a locked feature." },
+              { title: "Compare down a column, or across a row — a school counts for a module when it did something in it in the last 60 days", detail: "Module switches are not what is counted; records are. Only custom branding is plan-gated today, so a low cell is a genuine usage gap, not a locked feature." },
               { title: "Trial columns are a conversion signal, not adoption", detail: "A trial school that never turns a module on hasn't seen its value yet — a real churn predictor, read differently from a paying school's cell." },
               { title: "Adoption is measured per school, not per user", detail: "One teacher using a module does not make a school an adopter of it." },
               { title: "Below 40% for two tiers running is worth a product conversation", detail: "The floor is a prompt to ask why, not an automatic verdict." }
@@ -589,7 +665,7 @@ async function ProductTab() {
 
 async function ReportsTab() {
   const [reports, session] = await Promise.all([
-    apiGet<SuperAdminCustomReportRow[]>("/api/super-admin/analytics/custom-reports"),
+    apiGet<SuperAdminCustomReportRow[]>("/api/super-admin/analytics-bi/reports"),
     getServerSession()
   ]);
   const ownerName = session?.name ? `You · ${session.name}` : "You";
@@ -603,21 +679,25 @@ async function ReportsTab() {
             triggerLabel="New template"
             title="Save as a report template"
             description="The report you just built, kept so the people who ask for it monthly can run it themselves."
-            endpoint="/api/super-admin/analytics/custom-reports"
+            endpoint="/api/super-admin/analytics-bi/reports"
             submitLabel="Save template"
             size="report"
             fields={[
-              { name: "name", label: "Template name", required: true, placeholder: "e.g. Retention by joining cohort", section: "Name it for the person who will run it" },
-              { name: "_question", label: "What question it answers", placeholder: "One line shown under the name on the Reports tab", section: "Name it for the person who will run it" },
-              { name: "_groupUnder", label: "Group under", type: "static", section: "Name it for the person who will run it", placeholder: "Not built", note: "Saved reports aren't organized into groups yet — they all appear together on the Reports tab." },
-              { name: "_owner", label: "Owner", type: "static", section: "Name it for the person who will run it", placeholder: ownerName, note: "The Super Admin who saved this template." },
-              { name: "metric", label: "Metric", type: "select", section: "Who can run it", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
-              { name: "dimension", label: "Group by", type: "select", section: "Who can run it", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] },
-              { name: "_visibleTo", label: "Visible to", type: "static", section: "Who can run it", placeholder: "Every Super Admin", note: "Not built — there's no per-audience visibility control; any Super Admin can see any saved report." },
-              { name: "_scope", label: "Scope applied when run", type: "static", section: "Who can run it", placeholder: "The full platform", note: "Not applicable — a Super Admin's view isn't scoped to a region or portfolio in this system." },
-              { name: "_pin", label: "Pin to the Reports tab", type: "toggle", section: "When saved", note: "Every saved template appears here immediately — this is always on." },
-              { name: "_schedule", label: "Keep the schedule attached", type: "toggle", disabled: true, section: "When saved", note: "Not built — there's no scheduling system behind this page." },
-              { name: "_lockFilters", label: "Lock the filters", type: "toggle", disabled: true, section: "When saved", note: "Not built — every reader who opens a saved report can change what it's grouped by." }
+              { name: "name", label: "Subject", required: true, placeholder: "e.g. Retention by joining cohort", section: "The question" },
+              { name: "question", label: "What question it answers", placeholder: "One line shown under the name on the Reports tab", section: "The question" },
+              { name: "metric", label: "Metric", type: "select", section: "The question", options: [{ label: "School count", value: "schoolCount" }, { label: "Student count", value: "studentCount" }, { label: "MRR", value: "mrr" }] },
+              { name: "dimension", label: "Segment by", type: "select", section: "The question", options: [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }] },
+              { name: "periodDays", label: "Period — schools that joined in the last (days)", type: "number", min: 1, max: 1825, section: "The question", note: "Blank means every school on record." },
+              { name: "compare", label: "Compare with", type: "select", defaultValue: "false", section: "The question", options: [{ label: "Nothing", value: "false" }, { label: "The period before (needs a period)", value: "true" }] },
+              { name: "suppressUnder", label: "Withhold groups with fewer schools than", type: "number", min: 2, max: 100, section: "Presentation", note: "A group smaller than this shows “under N” instead of a figure. Blank shows every count as it is." },
+              { name: "_dropoff", label: "Show drop-off at every stage", type: "toggle", disabled: true, section: "Presentation", note: "Not built — a number is not clickable through to the schools behind it." },
+              { name: "_churnWeight", label: "Weight churned schools separately", type: "toggle", disabled: true, section: "Presentation", note: "Not built — the engine has no weighting by churn status." },
+              { name: "frequency", label: "Schedule", type: "select", defaultValue: "", section: "Delivery", options: [{ label: "On demand only", value: "" }, { label: "Weekly", value: "WEEKLY" }, { label: "Monthly", value: "MONTHLY" }], note: "A scheduled report is emailed to its recipients as it falls due (checked hourly)." },
+              { name: "recipients", label: "Recipients (comma-separated emails)", type: "textarea", section: "Delivery" },
+              { name: "_owner", label: "Owner", type: "static", section: "Save as a template", placeholder: ownerName, note: "The Super Admin who saved this template." },
+              { name: "groupName", label: "Group under", section: "Save as a template", placeholder: "e.g. Monthly board pack", note: "Templates are filed under this on the Reports tab." },
+              { name: "visibility", label: "Visible to", type: "select", defaultValue: "ALL", section: "Save as a template", options: [{ label: "Every Super Admin", value: "ALL" }, { label: "Only me", value: "OWNER" }] },
+              { name: "lockFilters", label: "Lock the filters", type: "select", defaultValue: "false", section: "Save as a template", options: [{ label: "No — readers can regroup it", value: "false" }, { label: "Yes — readers see it as saved", value: "true" }] }
             ]}
           />
         }
@@ -625,15 +705,15 @@ async function ReportsTab() {
 
       <TableCard
         title="Reporting cadence"
-        description="Every figure on this page is computed live at request time — there is no scheduled rollup job or cached snapshot behind any of it."
+        description="Most figures are computed live when the page loads. Three things are also kept over time, so a trend or a retention curve can be drawn from what was true then."
         items={[
-          { type: "Adoption heatmap", frequency: "Computed live on page load" },
+          { type: "Adoption heatmap", frequency: "Computed live — schools that did something in the module in the last 60 days" },
+          { type: "Module adoption trend (12 weeks)", frequency: "A reading kept weekly, refreshed hourly through the week" },
+          { type: "Cohort retention curve", frequency: "Read from a daily snapshot of every school's status" },
           { type: "Funnel / conversion", frequency: "Computed live on page load" },
-          { type: "Cohort retention", frequency: "Computed live on page load" },
           { type: "Revenue (MRR / ARR)", frequency: "Computed live on page load" },
-          { type: "Churn analysis", frequency: "Computed live on page load" },
-          { type: "NPS", frequency: "Computed live on page load" },
-          { type: "Geographic performance", frequency: "Computed live on page load" }
+          { type: "Churn analysis and NPS", frequency: "Computed live on page load" },
+          { type: "Scheduled reports", frequency: "Emailed weekly or monthly as each falls due" }
         ]}
         pageSize={false}
         getRowKey={(item) => item.type}

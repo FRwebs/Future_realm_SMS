@@ -1,5 +1,12 @@
 import os from "os";
 import { CARRIERS } from "../notification-delivery/providers";
+import { TRIGGER_KEYS } from "../platform-policy/triggers";
+import { supportAccess } from "../support-access/support-access.service";
+import { contrastOnWhite } from "../plans-features/branding";
+import { forgetAccess } from "../team-access/access";
+import { scopeStatesFor, teamAccess } from "../team-access/team-access.service";
+import { analytics } from "../analytics-bi/analytics.service";
+import { templates } from "../config-library/templates.service";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { createHash } from "crypto";
 
@@ -16,7 +23,6 @@ import { hashPassword } from "../../../../src/lib/auth/password";
 import { createSessionToken, SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import type { Role } from "../../../../src/lib/domain/types";
-import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
 import { partnerEngine } from "../partners/partner-engine.service";
 import { BackupService } from "./backup.service";
@@ -168,7 +174,9 @@ const applyPromoCodeSchema = z.object({
 });
 
 const impersonateSchema = z.object({
-  reason: z.string().trim().min(3, "A reason is required before starting an impersonation session.")
+  reason: z.string().trim().min(3, "A reason is required before starting an impersonation session."),
+  /** An approval from the school's leadership to act, not only look. Without one the session is read-only. */
+  elevationId: z.string().trim().optional().transform((v) => v || undefined)
 });
 
 const resolveSuspiciousActivitySchema = z.object({
@@ -249,20 +257,6 @@ const rejectDataCorrectionSchema = z.object({
   reason: z.string().trim().min(2)
 });
 
-const featureFlagSchema = z.object({
-  key: z.string().trim().min(2).regex(/^[a-z0-9_.-]+$/),
-  name: z.string().min(2),
-  description: z.string().optional(),
-  enabledGlobally: z.coerce.boolean().default(false),
-  rolloutPercent: z.coerce.number().int().min(0).max(100).default(0)
-});
-
-const featureRolloutSchema = z.object({
-  rolloutStatus: z.enum(["OFF", "PILOT", "PARTIAL", "FULL"]),
-  rolloutPercent: z.coerce.number().int().min(0).max(100).optional(),
-  pilotSchoolIds: z.array(z.string()).optional()
-});
-
 const tierFeatureSchema = z.object({
   name: z.string().trim().min(2),
   module: z.string().trim().min(2),
@@ -300,16 +294,6 @@ const featureOverrideRequestSchema = z.object({
   reason: z.string().trim().min(3),
   expiryDate: z.coerce.date()
 });
-
-/** WCAG contrast of a hex colour against white — the ratio a printed report card can be read at. */
-export function contrastOnWhite(hex: string) {
-  const channel = (offset: number) => {
-    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
-    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
-  };
-  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
-  return Math.round((1.05 / (luminance + 0.05)) * 100) / 100;
-}
 
 const brandingAssetSchema = z
   .object({
@@ -365,7 +349,8 @@ const messageTemplateSchema = z.object({
   category: z.enum(["ONBOARDING", "SUBSCRIPTION", "OPERATIONAL", "COMMERCIAL"]),
   body: z.string().trim().min(3),
   placeholders: z.array(z.string()).default([]),
-  metaTemplateId: z.string().optional()
+  metaTemplateId: z.string().optional(),
+  triggerKey: z.preprocess((v) => (v === "" ? undefined : v), z.enum(TRIGGER_KEYS).optional())
 });
 
 const templateApprovalSchema = z.object({
@@ -377,7 +362,9 @@ const templateEditSchema = z.object({
   name: z.string().trim().min(2).optional(),
   body: z.string().trim().min(3).optional(),
   channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]).optional(),
-  category: z.enum(["ONBOARDING", "SUBSCRIPTION", "OPERATIONAL", "COMMERCIAL"]).optional()
+  category: z.enum(["ONBOARDING", "SUBSCRIPTION", "OPERATIONAL", "COMMERCIAL"]).optional(),
+  /** "" detaches the template from its trigger; omitted keeps it. */
+  triggerKey: z.union([z.literal(""), z.enum(TRIGGER_KEYS)]).optional()
 });
 
 const consentSchema = z.object({
@@ -401,27 +388,6 @@ const npsSchema = z.object({
   comment: z.string().trim().optional()
 });
 
-const customReportSchema = z.object({
-  name: z.string().trim().min(2),
-  dimension: z.enum(["tier", "state", "status"]),
-  metric: z.enum(["schoolCount", "studentCount", "mrr"])
-});
-
-const curriculumTemplateSchema = z.object({
-  name: z.string().trim().min(2),
-  country: z.string().trim().min(2),
-  subjects: z.array(z.string()).default([]),
-  calendarType: z.enum(["THREE_TERM", "TWO_SEMESTER"]).default("THREE_TERM"),
-  version: z.string().trim().default("1.0")
-});
-
-const gradingScaleTemplateSchema = z.object({
-  name: z.string().trim().min(2),
-  gradeBands: z.array(z.object({ grade: z.string(), min: z.coerce.number(), max: z.coerce.number(), remark: z.string().optional() })).min(1),
-  passMark: z.coerce.number().min(0).max(100).default(40),
-  applicableCurricula: z.array(z.string()).default([])
-});
-
 const reportCardTemplateSchema = z.object({
   name: z.string().trim().min(2),
   layout: z.string().trim().min(2),
@@ -436,7 +402,13 @@ const internalUserSchema = z.object({
   lastName: z.string().trim().min(1),
   email: z.string().trim().email(),
   role: z.enum(platformRoleValues),
-  department: z.string().trim().optional()
+  department: z.string().trim().optional(),
+  departmentId: z.string().trim().optional(),
+  managerId: z.string().trim().optional(),
+  level: z.string().trim().optional(),
+  scopeStates: z.string().trim().optional(),
+  staffNumber: z.string().trim().optional(),
+  isExternal: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false)
 });
 
 const internalDepartmentSchema = z.object({
@@ -448,12 +420,6 @@ const internalDepartmentSchema = z.object({
 const permissionTemplateSchema = z.object({
   roleName: z.enum(platformRoleValues),
   defaultGrid: z.record(z.enum(["NONE", "VIEW", "EDIT", "FULL"]))
-});
-
-const permissionGridSchema = z.object({
-  userId: z.string().min(1),
-  moduleId: z.string().trim().min(1),
-  accessLevel: z.enum(["NONE", "VIEW", "EDIT", "FULL"])
 });
 
 const accessGrantSchema = z.object({
@@ -758,8 +724,10 @@ export class SuperAdminService {
   async listSchools(session: SessionPayload, query: unknown) {
     assertSuperAdmin(session);
     const parsed = pageSchema.parse(query);
+    const scope = await scopeStatesFor(session);
     const where: Prisma.SchoolWhereInput = {
       deletedAt: null,
+      ...(scope ? { OR: scope.map((state) => ({ state: { equals: state, mode: "insensitive" as const } })) } : {}),
       ...(parsed.search ? { name: { contains: parsed.search, mode: "insensitive" } } : {}),
       ...(parsed.status ? { status: parsed.status.toUpperCase() as TenantStatus } : {}),
       ...(parsed.plan ? { plan: parsed.plan.toUpperCase() as SubscriptionPlan } : {}),
@@ -827,8 +795,9 @@ export class SuperAdminService {
 
   async getSchool(session: SessionPayload, schoolId: string) {
     assertSuperAdmin(session);
+    const scope = await scopeStatesFor(session);
     const school = await prisma.school.findFirst({
-      where: { id: schoolId, deletedAt: null },
+      where: { id: schoolId, deletedAt: null, ...(scope ? { OR: scope.map((state) => ({ state: { equals: state, mode: "insensitive" as const } })) } : {}) },
       include: {
         users: {
           where: { role: { in: schoolAdminRoles }, deletedAt: null },
@@ -2861,6 +2830,9 @@ export class SuperAdminService {
     const user = await prisma.user.findFirst({ where: { id: userId, deletedAt: null, isActive: true }, include: { school: true } });
     if (!user) throw new NotFoundException("User not found or inactive.");
     if (platformRoles.has(user.role)) throw new BadRequestException("Cannot impersonate another platform admin account.");
+    const blocked = await supportAccess.blockedReason(user.id);
+    if (blocked) throw new BadRequestException(blocked);
+    if (parsed.elevationId) await supportAccess.redeem(parsed.elevationId, user.id);
     const maxAgeSeconds = 30 * 60;
     const startedAt = new Date();
     const token = await createSessionToken({
@@ -2875,10 +2847,13 @@ export class SuperAdminService {
         impersonatorEmail: session.email,
         startedAt: startedAt.toISOString(),
         expiresAt: new Date(startedAt.getTime() + maxAgeSeconds * 1000).toISOString(),
-        reason: parsed.reason
+        reason: parsed.reason,
+        elevated: Boolean(parsed.elevationId),
+        elevationId: parsed.elevationId
       }
     }, { maxAgeSeconds });
-    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId, reason: parsed.reason, startedAt: startedAt.toISOString(), maxAgeSeconds }, user.schoolId);
+    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId, reason: parsed.reason, startedAt: startedAt.toISOString(), maxAgeSeconds, elevated: Boolean(parsed.elevationId), ...(parsed.elevationId ? { elevationId: parsed.elevationId } : {}) }, user.schoolId);
+    await supportAccess.tellSchool(user.schoolId, session.name ?? "A Future Realm agent", `${user.firstName} ${user.lastName}`, Boolean(parsed.elevationId), parsed.reason);
     return this.response({ token, expiresInSeconds: maxAgeSeconds, user: { id: user.id, email: user.email, role: user.role, schoolName: user.school.name } }, "Impersonation token generated");
   }
 
@@ -2899,7 +2874,8 @@ export class SuperAdminService {
         schoolName: event.school?.name ?? "Platform",
         reason: (metadata.reason as string) ?? null,
         startedAt: (metadata.startedAt as string) ?? event.createdAt.toISOString(),
-        maxAgeSeconds: (metadata.maxAgeSeconds as number) ?? null
+        maxAgeSeconds: (metadata.maxAgeSeconds as number) ?? null,
+        elevated: Boolean(metadata.elevated)
       };
     }));
   }
@@ -3849,11 +3825,11 @@ export class SuperAdminService {
     const campaigns = await prisma.campaign.findMany({ include: { createdBy: true, approvedBy: true }, orderBy: { createdAt: "desc" } });
     const rows = [];
     for (const c of campaigns) {
-      const counts = c.status === "SENT" ? await this.tally(c.id) : { sent: 0, failed: 0, queued: 0, held: 0 };
+      const counts = c.status === "SENT" ? await this.tally(c.id) : { sent: 0, failed: 0, queued: 0, held: 0, opened: 0, emailsSent: 0 };
       rows.push({
         id: c.id, name: c.name, type: c.type, channel: c.channel,
         status: c.status === "SENT" && (counts.queued > 0 || counts.held > 0) ? "SENDING" : c.status,
-        recipientCount: c.recipientCount, deliveredCount: counts.sent, failedCount: counts.failed, queuedCount: counts.queued + counts.held, openedCount: null,
+        recipientCount: c.recipientCount, deliveredCount: counts.sent, failedCount: counts.failed, queuedCount: counts.queued + counts.held, openedCount: counts.emailsSent > 0 && process.env.PUBLIC_API_URL ? counts.opened : null, emailsSent: counts.emailsSent,
         scheduledAt: c.scheduledAt?.toISOString(), sentAt: c.sentAt?.toISOString(), recurrence: c.recurrence,
         createdBy: c.createdBy ? `${c.createdBy.firstName} ${c.createdBy.lastName}` : "Unknown",
         approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null,
@@ -3980,7 +3956,10 @@ export class SuperAdminService {
   private async tally(campaignId: string) {
     const rows = await prisma.notificationLog.groupBy({ by: ["status"], where: { metadata: { path: ["campaignId"], equals: campaignId } }, _count: { _all: true } });
     const n = (status: string) => rows.filter((row) => row.status === status).reduce((sum, row) => sum + row._count._all, 0);
-    return { sent: n("SENT"), failed: n("FAILED"), queued: n("QUEUED"), held: n("HELD") };
+    // Opens: only an email sent while PUBLIC_API_URL was set carries the pixel, so this counts what could be counted.
+    const opened = await prisma.notificationLog.count({ where: { channel: "EMAIL", status: "SENT", AND: [{ metadata: { path: ["campaignId"], equals: campaignId } }, { metadata: { path: ["openedAt"], not: Prisma.DbNull } }] } });
+    const emailsSent = await prisma.notificationLog.count({ where: { channel: "EMAIL", status: "SENT", metadata: { path: ["campaignId"], equals: campaignId } } });
+    return { sent: n("SENT"), failed: n("FAILED"), queued: n("QUEUED"), held: n("HELD"), opened, emailsSent };
   }
 
   /** The delivery log: one line per recipient, with the carrier's reason when it failed. */
@@ -4019,8 +3998,9 @@ export class SuperAdminService {
       id: c.id, name: c.name, type: c.type, channel: c.channel, status: c.status === "SENT" && (counts.queued > 0 || counts.held > 0) ? "SENDING" : c.status,
       subject: c.subject, body: c.body, recipientCount: c.recipientCount,
       deliveredCount: counts.sent, failedCount: counts.failed, queuedCount: counts.queued, heldCount: counts.held,
-      // Opens are not tracked for email or SMS here, so there is no rate to report — and none is made up.
-      openedCount: null, openRate: null,
+      // Opens are known for email only, and only when the API has a public address to put the pixel on. SMS has no open.
+      openedCount: counts.emailsSent > 0 && process.env.PUBLIC_API_URL ? counts.opened : null,
+      openRate: counts.emailsSent > 0 && process.env.PUBLIC_API_URL ? Math.round((counts.opened / counts.emailsSent) * 1000) / 10 : null,
       deliveryRate: settled > 0 ? Math.round((counts.sent / settled) * 1000) / 10 : null,
       scheduledAt: c.scheduledAt?.toISOString(), sentAt: c.sentAt?.toISOString(), recurrence: c.recurrence,
       approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null
@@ -4035,7 +4015,7 @@ export class SuperAdminService {
     ]);
     const used = new Map(uses.map((row) => [row.templateId as string, row._count._all]));
     return this.response(templates.map((t) => ({
-      version: t.version, uses: used.get(t.id) ?? 0, createdById: t.createdById, reviewedById: t.reviewedById, reviewNote: t.reviewNote,
+      triggerKey: t.triggerKey, version: t.version, uses: used.get(t.id) ?? 0, createdById: t.createdById, reviewedById: t.reviewedById, reviewNote: t.reviewNote,
       id: t.id,
       name: t.name,
       channel: t.channel,
@@ -4051,12 +4031,21 @@ export class SuperAdminService {
   async createMessageTemplate(session: SessionPayload, payload: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can add message templates.");
     const parsed = messageTemplateSchema.parse(payload);
+    await this.checkTrigger(parsed.triggerKey, parsed.channel);
     // Nobody approves their own wording: a new template waits for a second person (and, on WhatsApp, for Meta).
     const template = await prisma.messageTemplate.create({
       data: { ...parsed, approvalStatus: parsed.channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW", createdById: session.userId }
     });
     await this.audit(session, "CREATE", "MessageTemplate", template.id, { name: parsed.name, channel: parsed.channel }, null);
     return this.response({ id: template.id }, "Message template created");
+  }
+
+  /** A trigger is worded from one template at a time, and only an email can stand in for the notice. */
+  private async checkTrigger(triggerKey: string | undefined, channel: string, exceptId?: string) {
+    if (!triggerKey) return;
+    if (channel !== "EMAIL") throw new BadRequestException("The platform's own notices go out as in-app messages and email, so only an email template can be attached to a trigger.");
+    const taken = await prisma.messageTemplate.findFirst({ where: { triggerKey, retiredAt: null, ...(exceptId ? { id: { not: exceptId } } : {}) }, select: { name: true } });
+    if (taken) throw new BadRequestException(`“${taken.name}” is already attached to that trigger. Retire or re-point it first.`);
   }
 
   async updateTemplateApproval(session: SessionPayload, templateId: string, payload: unknown) {
@@ -4077,9 +4066,11 @@ export class SuperAdminService {
     const current = await prisma.messageTemplate.findUnique({ where: { id: templateId } });
     if (!current || current.retiredAt) throw new NotFoundException("That template does not exist, or is already an older version.");
     const channel = parsed.channel ?? current.channel;
+    const triggerKey = parsed.triggerKey === undefined ? current.triggerKey : parsed.triggerKey || null;
+    await this.checkTrigger(triggerKey ?? undefined, channel, current.id);
     const [, created] = await prisma.$transaction([
       prisma.messageTemplate.update({ where: { id: templateId }, data: { retiredAt: new Date() } }),
-      prisma.messageTemplate.create({ data: { name: parsed.name ?? current.name, channel, category: parsed.category ?? current.category, body: parsed.body ?? current.body, placeholders: current.placeholders, version: current.version + 1, supersedesId: current.id, createdById: session.userId, approvalStatus: channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW" } })
+      prisma.messageTemplate.create({ data: { name: parsed.name ?? current.name, channel, category: parsed.category ?? current.category, body: parsed.body ?? current.body, placeholders: current.placeholders, triggerKey, version: current.version + 1, supersedesId: current.id, createdById: session.userId, approvalStatus: channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW" } })
     ]);
     await this.audit(session, "UPDATE", "MessageTemplate", created.id, { supersedes: current.id, version: created.version }, null);
     return this.response({ id: created.id, version: created.version }, "A new version was created and is waiting for review");
@@ -4424,12 +4415,14 @@ export class SuperAdminService {
   async productAdoption(session: SessionPayload) {
     assertSuperAdmin(session);
     const [schools, weeklyLogins] = await Promise.all([
-      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, featureFlags: true } }),
+      prisma.school.findMany({ where: { deletedAt: null }, select: { id: true, plan: true, state: true } }),
       prisma.auditLog.groupBy({ by: ["schoolId"], where: { action: "LOGIN", createdAt: { gte: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000) } }, _count: true })
     ]);
 
     const totalSchools = schools.length;
-    const isEnabled = (school: (typeof schools)[number], module: string) => Boolean((school.featureFlags as Record<string, boolean> | null)?.[module]);
+    // Used, not switched on: a school counts for a module when it did something in it in the last 60 days.
+    const used = await analytics.usage();
+    const isEnabled = (school: (typeof schools)[number], module: string) => Boolean(used.get(module as never)?.has(school.id));
 
     const overallAdoption = this.coreModules.map((module) => {
       const using = schools.filter((s) => isEnabled(s, module)).length;
@@ -4483,48 +4476,17 @@ export class SuperAdminService {
 
   async listCustomReports(session: SessionPayload) {
     assertSuperAdmin(session);
-    const reports = await prisma.customReport.findMany({ include: { createdBy: true }, orderBy: { createdAt: "desc" } });
-    return this.response(reports.map((r) => ({
-      id: r.id,
-      name: r.name,
-      dimension: r.dimension,
-      metric: r.metric,
-      generatedAt: r.generatedAt?.toISOString(),
-      createdBy: r.createdBy ? `${r.createdBy.firstName} ${r.createdBy.lastName}` : "Unknown",
-      createdAt: r.createdAt.toISOString()
-    })));
+    return this.response(await analytics.list(session));
   }
 
   async createCustomReport(session: SessionPayload, payload: unknown) {
     assertSuperAdmin(session);
-    const parsed = customReportSchema.parse(payload);
-    const report = await prisma.customReport.create({ data: { name: parsed.name, dimension: parsed.dimension, metric: parsed.metric, createdById: session.userId, generatedAt: new Date() } });
-    await this.audit(session, "CREATE", "CustomReport", report.id, parsed as Prisma.InputJsonValue, null);
-    return this.response({ id: report.id }, "Custom report saved");
+    return this.response(await analytics.save(session, payload), "Custom report saved");
   }
 
   async runCustomReport(session: SessionPayload, reportId: string) {
     assertSuperAdmin(session);
-    const report = await prisma.customReport.findUnique({ where: { id: reportId } });
-    if (!report) throw new NotFoundException("Report not found.");
-    const dimField = report.dimension === "tier" ? "plan" : report.dimension === "state" ? "state" : "status";
-    const [schools, priceMap] = await Promise.all([
-      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, _count: { select: { students: { where: REAL_STUDENTS } } } } }),
-      getPlanPriceMap()
-    ]);
-    const groups = new Map<string, number>();
-    for (const s of schools) {
-      const key = (dimField === "plan" ? s.plan : dimField === "state" ? (s.state?.trim() || "Unspecified") : s.status) as string;
-      const value = report.metric === "schoolCount" ? 1 : report.metric === "studentCount" ? s._count.students : (priceMap.get(s.plan) ?? 0);
-      groups.set(key, (groups.get(key) ?? 0) + value);
-    }
-    await prisma.customReport.update({ where: { id: reportId }, data: { generatedAt: new Date() } });
-    return this.response({
-      name: report.name,
-      dimension: report.dimension,
-      metric: report.metric,
-      rows: Array.from(groups.entries()).map(([label, value]) => ({ label, value })).sort((a, b) => b.value - a.value)
-    });
+    return this.response(await analytics.runReport(session, reportId));
   }
 
   async infrastructureMonitoring(session: SessionPayload) {
@@ -4702,40 +4664,17 @@ export class SuperAdminService {
 
   async listConfigLibrary(session: SessionPayload) {
     assertSuperAdmin(session);
-    const [curricula, gradingScales, reportCards] = await Promise.all([
-      prisma.curriculumTemplate.findMany({ orderBy: { country: "asc" } }),
-      prisma.gradingScaleTemplate.findMany({ orderBy: { name: "asc" } }),
-      prisma.reportCardTemplate.findMany({ orderBy: { name: "asc" } })
-    ]);
-    return this.response({
-      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjects: c.subjects, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive })),
-      gradingScales: gradingScales.map((g) => ({ id: g.id, name: g.name, gradeBands: g.gradeBands, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive })),
-      reportCards: reportCards.map((r) => ({ id: r.id, name: r.name, layout: (r.layoutConfig as { layout?: string } | null)?.layout ?? "", applicableCurricula: r.applicableCurricula, availableToTiers: r.availableToTiers, isActive: r.isActive }))
-    });
+    return this.response(await templates.overview());
   }
 
   async upsertCurriculumTemplate(session: SessionPayload, payload: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Editing the curriculum library is restricted to Product Lead and Super Admin.");
-    const parsed = curriculumTemplateSchema.parse(payload);
-    const template = await prisma.curriculumTemplate.upsert({
-      where: { name: parsed.name },
-      create: { name: parsed.name, country: parsed.country, subjects: parsed.subjects, calendarType: parsed.calendarType, version: parsed.version },
-      update: { country: parsed.country, subjects: parsed.subjects, calendarType: parsed.calendarType, version: parsed.version }
-    });
-    await this.audit(session, "UPDATE", "CurriculumTemplate", template.id, { name: parsed.name, country: parsed.country }, null);
-    return this.response({ id: template.id }, "Curriculum template saved");
+    return this.response(await templates.saveCurriculum(session, payload), "Curriculum template saved as a draft");
   }
 
   async upsertGradingScaleTemplate(session: SessionPayload, payload: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Editing the grading scale library is restricted to Product Lead and Super Admin.");
-    const parsed = gradingScaleTemplateSchema.parse(payload);
-    const template = await prisma.gradingScaleTemplate.upsert({
-      where: { name: parsed.name },
-      create: { name: parsed.name, gradeBands: parsed.gradeBands as Prisma.InputJsonValue, passMark: parsed.passMark, applicableCurricula: parsed.applicableCurricula },
-      update: { gradeBands: parsed.gradeBands as Prisma.InputJsonValue, passMark: parsed.passMark, applicableCurricula: parsed.applicableCurricula }
-    });
-    await this.audit(session, "UPDATE", "GradingScaleTemplate", template.id, { name: parsed.name }, null);
-    return this.response({ id: template.id }, "Grading scale template saved");
+    return this.response(await templates.saveGrading(session, payload), "Grading scale saved as a draft");
   }
 
   async upsertReportCardTemplate(session: SessionPayload, payload: unknown) {
@@ -4796,6 +4735,9 @@ export class SuperAdminService {
     const user = await prisma.user.create({
       data: { schoolId: actor.schoolId, email, firstName: parsed.firstName, lastName: parsed.lastName, role: parsed.role, passwordHash: hashPassword(tempPassword), passwordResetRequired: true }
     });
+    if (parsed.departmentId || parsed.managerId || parsed.level || parsed.scopeStates || parsed.staffNumber || parsed.isExternal) {
+      await teamAccess.saveProfile(session, user.id, { departmentId: parsed.departmentId, managerId: parsed.managerId, level: parsed.level, scopeStates: parsed.scopeStates, staffNumber: parsed.staffNumber, isExternal: parsed.isExternal });
+    }
     // Apply the role's default permission grid, if a template exists.
     const template = await prisma.internalPermissionTemplate.findUnique({ where: { roleName: parsed.role } });
     if (template && template.defaultGrid && typeof template.defaultGrid === "object") {
@@ -4874,6 +4816,7 @@ export class SuperAdminService {
       create: { roleName: parsed.roleName, defaultGrid: parsed.defaultGrid as Prisma.InputJsonValue },
       update: { defaultGrid: parsed.defaultGrid as Prisma.InputJsonValue }
     });
+    forgetAccess();
     await this.audit(session, "UPDATE", "InternalPermissionTemplate", template.id, { roleName: parsed.roleName }, null);
     return this.response({ id: template.id }, "Permission template saved");
   }
@@ -4900,39 +4843,12 @@ export class SuperAdminService {
   }
 
   async setPermissionGrid(session: SessionPayload, payload: unknown) {
-    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can set permissions directly.");
-    const parsed = permissionGridSchema.parse(payload);
-    const entry = await prisma.internalPermissionGrid.upsert({
-      where: { userId_moduleId: { userId: parsed.userId, moduleId: parsed.moduleId } },
-      create: { userId: parsed.userId, moduleId: parsed.moduleId, accessLevel: parsed.accessLevel },
-      update: { accessLevel: parsed.accessLevel }
-    });
-    await this.audit(session, "UPDATE", "InternalPermissionGrid", entry.id, { userId: parsed.userId, moduleId: parsed.moduleId, accessLevel: parsed.accessLevel }, null);
-    return this.response({ id: entry.id }, "Permission updated");
+    return this.response(await teamAccess.setGrid(session, payload), "Permission updated");
   }
 
   async listPermissionGridMatrix(session: SessionPayload) {
     assertSuperAdmin(session);
-    const [members, gridEntries] = await Promise.all([
-      prisma.user.findMany({ where: { role: { in: Array.from(platformRoles) }, deletedAt: null }, select: { id: true, firstName: true, lastName: true, role: true }, orderBy: { createdAt: "asc" } }),
-      prisma.internalPermissionGrid.findMany({ orderBy: { moduleId: "asc" } })
-    ]);
-    const moduleIds = Array.from(new Set(gridEntries.map((g) => g.moduleId))).sort();
-    const gridByUser = new Map<string, Record<string, string>>();
-    for (const g of gridEntries) {
-      const row = gridByUser.get(g.userId) ?? {};
-      row[g.moduleId] = g.accessLevel;
-      gridByUser.set(g.userId, row);
-    }
-    return this.response({
-      modules: moduleIds,
-      members: members.map((m) => ({
-        id: m.id,
-        name: `${m.firstName} ${m.lastName}`,
-        role: m.role,
-        access: gridByUser.get(m.id) ?? {}
-      }))
-    });
+    return this.response(await teamAccess.matrix());
   }
 
   async grantTimeBoundAccess(session: SessionPayload, payload: unknown) {
@@ -4942,6 +4858,7 @@ export class SuperAdminService {
     const grant = await prisma.internalAccessGrant.create({
       data: { userId: parsed.userId, grantedById: session.userId, moduleId: parsed.moduleId, functionId: parsed.functionId, expiresAt: parsed.expiresAt }
     });
+    forgetAccess(parsed.userId);
     await this.audit(session, "UPDATE", "InternalAccessGrant", grant.id, { userId: parsed.userId, moduleId: parsed.moduleId, expiresAt: parsed.expiresAt.toISOString() }, null);
     return this.response({ id: grant.id }, "Time-bound access granted");
   }
