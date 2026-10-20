@@ -10,7 +10,7 @@ import { ConfigStore } from "../staff-access/staff-access.shared";
  * each kind from here, how long it may wait, and what happens when it has waited too long.
  */
 
-export type RouteType = "SCORE_CORRECTION" | "SCORE_SHEET" | "RESULTS_PUBLICATION" | "ATTENDANCE_CORRECTION" | "FEE_WAIVER" | "RECORD_CHANGE" | "LEAVE" | "STAFF_ACCESS" | "MASS_COMMUNICATION" | "TIMETABLE_CHANGE" | "OTHER";
+export type RouteType = "SCORE_CORRECTION" | "SCORE_SHEET" | "RESULTS_PUBLICATION" | "ATTENDANCE_CORRECTION" | "FEE_WAIVER" | "RECORD_CHANGE" | "LEAVE" | "STAFF_ACCESS" | "MASS_COMMUNICATION" | "TIMETABLE_CHANGE" | "TEACHER_JOIN" | "OTHER";
 
 export type RouteDefault = { type: RouteType; name: string; module: string; moduleSlug: string; approver: string; second: string; escalateDays: number; why: string; blocks: string; bulk: boolean; evidence: boolean };
 
@@ -26,6 +26,7 @@ export const ROUTE_DEFAULTS: RouteDefault[] = [
   { type: "STAFF_ACCESS", name: "Access above the role template", module: "Staff & Access", moduleSlug: "staff-access", approver: "Proprietor", second: "", escalateDays: 3, why: "More reach than the role intends", blocks: "The staff member", bulk: false, evidence: false },
   { type: "MASS_COMMUNICATION", name: "Mass communication above threshold", module: "Communication", moduleSlug: "communication-center", approver: "Principal", second: "", escalateDays: 1, why: "A message to many families", blocks: "The send", bulk: false, evidence: false },
   { type: "TIMETABLE_CHANGE", name: "Timetable publication", module: "Classes & Timetable", moduleSlug: "class-timetable", approver: "Principal", second: "", escalateDays: 3, why: "Changes where every teacher stands", blocks: "The new week", bulk: false, evidence: false },
+  { type: "TEACHER_JOIN", name: "Teacher asking to join", module: "Staff & Access", moduleSlug: "staff-access", approver: "Principal", second: "", escalateDays: 7, why: "Links a teacher's own account to this school", blocks: "The teacher's place on the staff list", bulk: false, evidence: false },
   { type: "OTHER", name: "Anything else", module: "Approvals & Workflow", moduleSlug: "approvals-workflow", approver: "Principal", second: "", escalateDays: 5, why: "A decision with no module of its own", blocks: "Whatever it was raised for", bulk: false, evidence: false },
 ];
 
@@ -104,7 +105,7 @@ export const daysBetween = (from: Date, to: Date = new Date()) => Math.max(0, (t
 
 /* ───────────────────────── what a decision looks like, wherever it lives ───────────────────────── */
 
-export type Source = "SCORE_CORRECTION" | "SCORE_SHEET" | "ATTENDANCE_CORRECTION" | "FEE_WAIVER" | "RECORD_CHANGE" | "LEAVE" | "NATIVE";
+export type Source = "SCORE_CORRECTION" | "SCORE_SHEET" | "ATTENDANCE_CORRECTION" | "FEE_WAIVER" | "RECORD_CHANGE" | "LEAVE" | "JOIN_REQUEST" | "NATIVE";
 
 export type Person = { id: string; name: string; role: string } | null;
 

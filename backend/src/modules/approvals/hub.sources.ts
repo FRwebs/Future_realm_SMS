@@ -46,7 +46,7 @@ async function roomsOf(schoolId: string, ids: string[]) {
 /* ───────────────────────── what is waiting ───────────────────────── */
 
 export async function loadPending(schoolId: string): Promise<Item[]> {
-  const [corrections, sheets, registers, waivers, changes, leave, native] = await Promise.all([
+  const [corrections, sheets, registers, waivers, changes, leave, native, joins] = await Promise.all([
     prisma.scoreCorrection.findMany({ where: { schoolId, status: { in: ["AWAITING", "IN_REVIEW"] } }, orderBy: { createdAt: "asc" }, take: LIMIT }),
     prisma.scoreSheet.findMany({ where: { schoolId, status: "SUBMITTED" }, orderBy: { submittedAt: "asc" }, take: LIMIT }),
     prisma.attendanceCorrection.findMany({ where: { schoolId, status: "AWAITING" }, orderBy: { createdAt: "asc" }, take: LIMIT }),
@@ -54,6 +54,7 @@ export async function loadPending(schoolId: string): Promise<Item[]> {
     prisma.studentChangeRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT }),
     prisma.leaveRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT, include: { staff: { include: { user: { select: { id: true, firstName: true, lastName: true, preferredName: true, role: true } } } } } }),
     prisma.approvalRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT }),
+    prisma.schoolJoinRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT, include: { user: { select: { id: true, firstName: true, lastName: true, jobTitle: true, userCode: true } } } }),
   ]);
   const people = await peopleOf(schoolId, [...corrections.map((row) => row.requestedById), ...sheets.map((row) => row.submittedById), ...registers.map((row) => row.requestedById), ...waivers.map((row) => row.requestedById), ...changes.map((row) => row.requestedById), ...native.map((row) => row.requestedById)]);
   const students = await studentsOf(schoolId, [...corrections.map((row) => row.studentId), ...registers.map((row) => row.studentId), ...waivers.map((row) => row.studentId), ...changes.map((row) => row.studentId)]);
@@ -90,6 +91,9 @@ export async function loadPending(schoolId: string): Promise<Item[]> {
     const user = row.staff.user;
     add("LEAVE", row.id, { type: "LEAVE", title: `${who(user)} · ${/leave$/i.test(row.type) ? row.type.toLowerCase() : `${row.type.toLowerCase()} leave`}`, summary: row.reason, requester: { id: user.id, name: user.preferredName?.trim() || who(user), role: user.role }, raisedAt: row.createdAt, state: "Awaiting", step: 1, blocking: row.coverState === "Not arranged" ? "Cover has not been arranged" : null, evidence: null, href: "/staff-access/leave", ref: {} });
   }
+  for (const row of joins) {
+    add("JOIN_REQUEST", row.id, { type: "TEACHER_JOIN", title: `${who(row.user)} · asks to join`, summary: `${row.user.jobTitle ?? "Teacher"}${row.subjects.length ? ` · ${row.subjects.slice(0, 3).join(", ")}` : ""}`, requester: { id: row.user.id, name: who(row.user), role: "TEACHER" }, raisedAt: row.createdAt, state: "Awaiting", step: 1, blocking: null, evidence: null, href: "/approvals-workflow/queue", ref: {} });
+  }
   for (const row of native) {
     const type = (["SCORE_CORRECTION", "RESULTS_PUBLICATION", "FEE_WAIVER", "RECORD_CHANGE", "LEAVE", "STAFF_ACCESS", "MASS_COMMUNICATION", "TIMETABLE_CHANGE"].includes(row.kind) ? row.kind : "OTHER") as RouteType;
     add("NATIVE", row.id, { type, title: row.title, summary: row.summary, requester: person(row.requestedById), raisedAt: row.createdAt, state: "Awaiting", step: 1, blocking: row.blocking, evidence: null, href: "/approvals-workflow/queue", nativeAssigneeId: row.assigneeId, nativeAssigneeRole: row.assigneeRole, ref: {} });
@@ -100,7 +104,7 @@ export async function loadPending(schoolId: string): Promise<Item[]> {
 /* ───────────────────────── what has been decided ───────────────────────── */
 
 export async function loadDecided(schoolId: string, since: Date): Promise<Decided[]> {
-  const [corrections, sheets, registers, waivers, changes, leave, native] = await Promise.all([
+  const [corrections, sheets, registers, waivers, changes, leave, native, joins] = await Promise.all([
     prisma.scoreCorrection.findMany({ where: { schoolId, status: { in: ["APPROVED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500 }),
     prisma.scoreSheet.findMany({ where: { schoolId, status: { in: ["APPROVED", "RETURNED"] }, decidedAt: { gte: since }, submittedAt: { not: null } }, take: 500 }),
     prisma.attendanceCorrection.findMany({ where: { schoolId, status: { in: ["APPLIED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500 }),
@@ -108,6 +112,7 @@ export async function loadDecided(schoolId: string, since: Date): Promise<Decide
     prisma.studentChangeRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500 }),
     prisma.leaveRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "REJECTED"] }, reviewedAt: { gte: since } }, take: 500, include: { staff: { include: { user: { select: { id: true, firstName: true, lastName: true } } } } } }),
     prisma.approvalRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "REJECTED", "RETURNED"] }, decidedAt: { gte: since } }, take: 500 }),
+    prisma.schoolJoinRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500, include: { user: { select: { id: true, firstName: true, lastName: true } } } }),
   ]);
   const people = await peopleOf(schoolId, [...corrections.flatMap((row) => [row.requestedById, row.decidedById]), ...sheets.flatMap((row) => [row.submittedById, row.decidedById]), ...registers.flatMap((row) => [row.requestedById, row.decidedById]), ...waivers.flatMap((row) => [row.requestedById, row.approvedById]), ...changes.flatMap((row) => [row.requestedById, row.decidedById]), ...leave.map((row) => row.decidedById), ...native.flatMap((row) => [row.requestedById, row.decidedById])]);
   const name = (id: string | null | undefined) => (id ? people.get(id)?.name ?? null : null);
@@ -121,6 +126,7 @@ export async function loadDecided(schoolId: string, since: Date): Promise<Decide
   for (const row of waivers) add("FEE_WAIVER", row.id, "FEE_WAIVER", "Fee waiver", row.requestedById, name(row.requestedById), row.approvedById, row.createdAt, row.approvedAt, row.status === "APPROVED" ? "Approved" : "Declined", null);
   for (const row of changes) add("RECORD_CHANGE", row.id, "RECORD_CHANGE", `${row.field} change`, row.requestedById, name(row.requestedById), row.decidedById, row.createdAt, row.decidedAt, row.status === "APPROVED" ? "Approved" : "Declined", row.decisionNote);
   for (const row of leave) add("LEAVE", row.id, "LEAVE", `${row.type} leave`, row.staff.user.id, who(row.staff.user), row.decidedById, row.createdAt, row.reviewedAt, row.status === "APPROVED" ? "Approved" : "Declined", row.decisionNote);
+  for (const row of joins) add("JOIN_REQUEST", row.id, "TEACHER_JOIN", `${who(row.user)} · asks to join`, row.user.id, who(row.user), row.decidedById, row.createdAt, row.decidedAt, row.status === "APPROVED" ? "Approved" : "Declined", row.note);
   for (const row of native) {
     const type = (["SCORE_CORRECTION", "RESULTS_PUBLICATION", "FEE_WAIVER", "RECORD_CHANGE", "LEAVE", "STAFF_ACCESS", "MASS_COMMUNICATION", "TIMETABLE_CHANGE"].includes(row.kind) ? row.kind : "OTHER") as RouteType;
     add("NATIVE", row.id, type, row.title, row.requestedById, name(row.requestedById), row.decidedById, row.createdAt, row.decidedAt, row.status === "APPROVED" ? "Approved" : row.status === "RETURNED" ? "Returned" : "Declined", row.decisionNote);
@@ -233,6 +239,17 @@ export async function contextOf(schoolId: string, item: Item): Promise<Context> 
       request: [["Request", `${who(row.staff.user)} · ${/leave$/i.test(row.type) ? row.type.toLowerCase() : `${row.type.toLowerCase()} leave`}, ${shortDay(row.startDate)} to ${shortDay(row.endDate)}`], ["Days", String(row.days ?? "—")], ["Why", `“${row.reason}”`], ["Stage", text(row.stage, "First stage")]],
       context: [["Taken this year", `${taken._sum.days ?? 0} days`, "Approved leave since 1 January"], ["Cover", row.cover ?? "Not arranged", row.coverState]],
       downstream: [["If approved", "The leave is booked", "The timetable and registers are told who is away"], ["If declined", "No leave is booked", "The requester reads your reason"]],
+      evidence: [],
+    };
+  }
+
+  if (item.source === "JOIN_REQUEST") {
+    const row = await prisma.schoolJoinRequest.findFirst({ where: { id: item.id, schoolId }, include: { user: { select: { firstName: true, lastName: true, email: true, phone: true, jobTitle: true, userCode: true } } } });
+    if (!row) return empty;
+    return {
+      request: [["Request", `${who(row.user)} asks to be linked to this school`], ["Position", text(row.user.jobTitle)], ["Name they gave for the school", row.nameClaimed], ["User ID", text(row.user.userCode)]],
+      context: [["Teaches", row.subjects.length ? row.subjects.join(", ") : "Not stated"], ["Levels", row.levels.length ? row.levels.join(", ") : "Not stated"], ["Contact", `${row.user.email}${row.user.phone ? ` · ${row.user.phone}` : ""}`, "Verify they are who they say before you approve"]],
+      downstream: [["If approved", "They join the staff list", "Their own login and User ID carry over; their personal workspace is archived"], ["If declined", "Nothing changes", "They keep their own workspace and are told"]],
       evidence: [],
     };
   }

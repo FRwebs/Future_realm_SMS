@@ -1,3 +1,6 @@
+import os from "os";
+import { CARRIERS } from "../notification-delivery/providers";
+import { plansFeatures } from "../plans-features/plans-features.service";
 import { createHash } from "crypto";
 
 import {
@@ -15,6 +18,11 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import type { Role } from "../../../../src/lib/domain/types";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
+import { partnerEngine } from "../partners/partner-engine.service";
+import { BackupService } from "./backup.service";
+import { platformPolicy } from "../platform-policy/policy.service";
+import { roundAmount } from "../platform-policy/policy.shared";
+import { REAL_STUDENTS } from "./sample";
 
 const pageSchema = z.object({
   page: z.coerce.number().int().min(1).default(1),
@@ -106,7 +114,7 @@ const createInvoiceSchema = z.object({
   schoolId: z.string().min(1),
   amount: z.coerce.number().positive(),
   taxAmount: z.coerce.number().min(0).default(0),
-  dueAt: z.coerce.date(),
+  dueAt: z.coerce.date().optional(),
   note: z.string().optional()
 });
 
@@ -121,7 +129,7 @@ const invoiceRunSchema = z.object({
       return [];
     }
   }, z.array(z.string())),
-  dueAt: z.coerce.date(),
+  dueAt: z.coerce.date().optional(),
   excludeTrial: z.string().optional(),
   excludeGracePeriod: z.string().optional(),
   excludeUnverified: z.string().optional(),
@@ -293,12 +301,28 @@ const featureOverrideRequestSchema = z.object({
   expiryDate: z.coerce.date()
 });
 
-const brandingAssetSchema = z.object({
-  schoolId: z.string().min(1),
-  logoUrl: z.string().trim().optional(),
-  primaryColour: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #25593f"),
-  secondaryColour: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #c28c3d")
-});
+/** WCAG contrast of a hex colour against white — the ratio a printed report card can be read at. */
+export function contrastOnWhite(hex: string) {
+  const channel = (offset: number) => {
+    const value = parseInt(hex.slice(offset, offset + 2), 16) / 255;
+    return value <= 0.03928 ? value / 12.92 : ((value + 0.055) / 1.055) ** 2.4;
+  };
+  const luminance = 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
+  return Math.round((1.05 / (luminance + 0.05)) * 100) / 100;
+}
+
+const brandingAssetSchema = z
+  .object({
+    schoolId: z.string().min(1),
+    logoUrl: z.string().trim().optional(),
+    primaryColour: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #25593f"),
+    secondaryColour: z.string().trim().regex(/^#[0-9a-fA-F]{6}$/, "Use a hex colour like #c28c3d")
+  })
+  .superRefine((value, ctx) => {
+    if (value.logoUrl && !/^https:\/\/[^\s]+\.(png|jpe?g|svg|webp)(\?[^\s]*)?$/i.test(value.logoUrl)) ctx.addIssue({ code: "custom", path: ["logoUrl"], message: "The logo must be a secure (https) link to a PNG, JPG, SVG or WebP file." });
+    // The primary colour carries the headings on a printed report, so it has to be readable on white paper.
+    if (contrastOnWhite(value.primaryColour) < 3) ctx.addIssue({ code: "custom", path: ["primaryColour"], message: `${value.primaryColour} is too light to read on white paper (contrast ${contrastOnWhite(value.primaryColour)}:1; 3:1 is the minimum). Choose a darker primary colour.` });
+  });
 
 const announcementSchema = z.object({
   title: z.string().min(2),
@@ -326,6 +350,7 @@ const campaignSchema = z.object({
   body: z.string().trim().min(3),
   templateId: z.string().optional(),
   scheduledAt: z.coerce.date().optional(),
+  recurrence: z.enum(["", "WEEKLY", "MONTHLY"]).optional(),
   // Audience fields are accepted flat (matching the composer form) and assembled into audienceFilter.
   role: z.string().trim().optional(),
   plan: zOptionalPlan(),
@@ -344,11 +369,20 @@ const messageTemplateSchema = z.object({
 });
 
 const templateApprovalSchema = z.object({
-  approvalStatus: z.enum(["PENDING_META_APPROVAL", "APPROVED", "REJECTED"])
+  approvalStatus: z.enum(["PENDING_META_APPROVAL", "PENDING_REVIEW", "APPROVED", "REJECTED"]),
+  reviewNote: z.string().trim().optional()
+});
+
+const templateEditSchema = z.object({
+  name: z.string().trim().min(2).optional(),
+  body: z.string().trim().min(3).optional(),
+  channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]).optional(),
+  category: z.enum(["ONBOARDING", "SUBSCRIPTION", "OPERATIONAL", "COMMERCIAL"]).optional()
 });
 
 const consentSchema = z.object({
   userId: z.string().min(1),
+  source: z.string().trim().optional(),
   channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]),
   optedIn: zBool(true)
 });
@@ -476,7 +510,7 @@ const planConfigUpdateSchema = planConfigSchema.partial();
 const privacyRequestSchema = z.object({
   schoolId: zOptionalId(),
   userId: zOptionalId(),
-  type: z.enum(["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION"]),
+  type: z.enum(["ACCESS", "EXPORT", "ERASURE", "RECTIFICATION", "GRIEVANCE"]),
   subject: z.string().min(2),
   details: z.string().optional()
 });
@@ -641,6 +675,8 @@ function defaultSettingsData() {
 
 @Injectable()
 export class SuperAdminService {
+  constructor(private readonly backupService: BackupService) {}
+
   private response<T>(data: T, message = "Request completed", paginationData?: ReturnType<typeof pagination>) {
     return {
       ok: true,
@@ -674,6 +710,51 @@ export class SuperAdminService {
     return prisma.platformSetting.create({ data: defaultSettingsData() });
   }
 
+  /**
+   * What every recent signup was given, how long it took, and whether each step came out clean — read from the log the
+   * signup wrote, plus what exists now. A school the sample class was removed from is not a failure.
+   */
+  async provisioning(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const since = new Date(Date.now() - 7 * 86_400_000);
+    const schools = await prisma.school.findMany({ where: { deletedAt: null, isPersonalWorkspace: false }, orderBy: { createdAt: "desc" }, take: 20, select: { id: true, name: true, slug: true, status: true, createdAt: true, trialStartedAt: true, trialEndsAt: true, sampleDataLoadedAt: true, sampleDataClearedAt: true } });
+    const ids = schools.map((school) => school.id);
+    const [logs, realStudents, levels, subjects, schemes, wallets, manifests, last7] = await Promise.all([
+      prisma.auditLog.findMany({ where: { schoolId: { in: ids }, entityType: "Provisioning" }, select: { schoolId: true, metadata: true } }),
+      prisma.student.groupBy({ by: ["schoolId"], where: { schoolId: { in: ids }, ...REAL_STUDENTS }, _count: { _all: true } }),
+      prisma.classLevel.groupBy({ by: ["schoolId"], where: { schoolId: { in: ids }, name: { not: "Sample Class" } }, _count: { _all: true } }),
+      prisma.subject.groupBy({ by: ["schoolId"], where: { schoolId: { in: ids }, deletedAt: null }, _count: { _all: true } }),
+      prisma.gradingScheme.groupBy({ by: ["schoolId"], where: { schoolId: { in: ids }, isActive: true }, _count: { _all: true } }),
+      prisma.notificationWallet.findMany({ where: { schoolId: { in: ids } }, select: { schoolId: true, smsBalance: true, whatsappBalance: true } }),
+      prisma.configurationItem.findMany({ where: { schoolId: { in: ids }, resource: "sample-data", code: "manifest", deletedAt: null }, select: { schoolId: true, data: true } }),
+      prisma.auditLog.findMany({ where: { entityType: "Provisioning", createdAt: { gte: since } }, select: { metadata: true } }),
+    ]);
+    const by = <T extends { schoolId: string }>(rows: T[]) => new Map(rows.map((row) => [row.schoolId, row]));
+    const logOf = by(logs.map((row) => ({ schoolId: row.schoolId as string, metadata: (row.metadata ?? {}) as { elapsedMs?: number; steps?: Array<{ key: string; label: string; detail: string }>; clean?: boolean } })));
+    const studentsOf = new Map(realStudents.map((row) => [row.schoolId, row._count._all]));
+    const levelsOf = new Map(levels.map((row) => [row.schoolId, row._count._all]));
+    const subjectsOf = new Map(subjects.map((row) => [row.schoolId, row._count._all]));
+    const schemeOf = new Map(schemes.map((row) => [row.schoolId, row._count._all]));
+    const walletOf = by(wallets);
+    const manifestOf = new Map(manifests.map((row) => [row.schoolId, (row.data ?? {}) as { students?: number; days?: number; subjects?: number }]));
+    const runs = schools.map((school) => {
+      const log = logOf.get(school.id)?.metadata;
+      const manifest = manifestOf.get(school.id);
+      return {
+        id: school.id, name: school.name, slug: school.slug, status: school.status, createdAt: school.createdAt.toISOString(),
+        elapsedMs: log?.elapsedMs ?? null, clean: log?.clean ?? null, steps: log?.steps ?? [],
+        classes: levelsOf.get(school.id) ?? 0, subjects: subjectsOf.get(school.id) ?? 0, grading: (schemeOf.get(school.id) ?? 0) > 0,
+        smsCredits: walletOf.get(school.id)?.smsBalance ?? null, whatsappCredits: walletOf.get(school.id)?.whatsappBalance ?? null,
+        trialStartedAt: school.trialStartedAt?.toISOString() ?? null, trialEndsAt: school.trialEndsAt?.toISOString() ?? null,
+        sample: manifest ? "LOADED" : school.sampleDataClearedAt ? "REMOVED" : school.sampleDataLoadedAt ? "LOADED" : "NEVER",
+        sampleStudents: manifest?.students ?? 0, sampleDays: manifest?.days ?? 0,
+        realStudents: studentsOf.get(school.id) ?? 0,
+      };
+    });
+    const recent = last7.map((row) => (row.metadata ?? {}) as { clean?: boolean });
+    return this.response({ runs, last7: { signups: recent.length, clean: recent.filter((entry) => entry.clean !== false).length } });
+  }
+
   async listSchools(session: SessionPayload, query: unknown) {
     assertSuperAdmin(session);
     const parsed = pageSchema.parse(query);
@@ -691,7 +772,7 @@ export class SuperAdminService {
     const [schools, total, priceMap] = await Promise.all([
       prisma.school.findMany({
         where,
-        include: { _count: { select: { users: true, students: true, staffProfiles: true } } },
+        include: { _count: { select: { users: true, students: { where: REAL_STUDENTS }, staffProfiles: true } } },
         orderBy: { createdAt: "desc" },
         skip: (parsed.page - 1) * parsed.limit,
         take: parsed.limit
@@ -754,7 +835,7 @@ export class SuperAdminService {
           select: { id: true, firstName: true, lastName: true, email: true, role: true, isActive: true, createdAt: true }
         },
         schoolGroup: { select: { id: true, name: true } },
-        _count: { select: { users: true, students: true, staffProfiles: true, invoices: true, payments: true, guardians: true } }
+        _count: { select: { users: true, students: { where: REAL_STUDENTS }, staffProfiles: true, invoices: true, payments: true, guardians: true } }
       }
     });
     if (!school) throw new NotFoundException("School not found.");
@@ -774,7 +855,8 @@ export class SuperAdminService {
       notificationCount,
       supportTicketCount,
       loginCountLast30Days,
-      partnerDeal
+      partnerDeal,
+      wallet
     ] = await Promise.all([
       school.accountManagerId ? prisma.user.findUnique({ where: { id: school.accountManagerId }, select: { id: true, firstName: true, lastName: true, email: true } }) : null,
       prisma.schoolContact.findMany({ where: { schoolId }, orderBy: [{ isPrimary: "desc" }, { createdAt: "asc" }] }),
@@ -789,10 +871,13 @@ export class SuperAdminService {
       prisma.notificationLog.count({ where: { schoolId, sentAt: { gte: thirtyDaysAgo } } }),
       prisma.supportTicket.count({ where: { schoolId } }),
       prisma.auditLog.count({ where: { schoolId, action: "LOGIN", createdAt: { gte: thirtyDaysAgo } } }),
-      prisma.partnerDeal.findFirst({ where: { schoolId }, orderBy: { createdAt: "asc" }, include: { partner: { select: { name: true } } } })
+      prisma.partnerDeal.findFirst({ where: { schoolId }, orderBy: { createdAt: "asc" }, include: { partner: { select: { name: true } } } }),
+      prisma.notificationWallet.findUnique({ where: { schoolId } })
     ]);
 
     return this.response({
+      credits: wallet ? { sms: wallet.smsBalance, whatsapp: wallet.whatsappBalance, low: wallet.smsBalance <= wallet.lowBalanceThreshold, lastToppedUpAt: wallet.lastToppedUpAt?.toISOString() ?? null } : null,
+      trialStartedAt: school.trialStartedAt?.toISOString() ?? null,
       id: school.id,
       name: school.name,
       slug: school.slug,
@@ -1035,7 +1120,7 @@ export class SuperAdminService {
     const schools = await prisma.school.findMany({
       where: { deletedAt: null, verifiedAt: null, verificationRejectedAt: null, flaggedForReviewReason: { not: null } },
       orderBy: [{ riskScore: "asc" }, { createdAt: "asc" }],
-      include: { _count: { select: { students: true } } }
+      include: { _count: { select: { students: { where: REAL_STUDENTS } } } }
     });
     const now = Date.now();
     return this.response(
@@ -1190,7 +1275,7 @@ export class SuperAdminService {
       include: {
         schools: {
           where: { deletedAt: null },
-          include: { _count: { select: { students: true } } },
+          include: { _count: { select: { students: { where: REAL_STUDENTS } } } },
           orderBy: { createdAt: "asc" }
         }
       }
@@ -1754,8 +1839,9 @@ export class SuperAdminService {
   async updateBilling(session: SessionPayload, schoolId: string, payload: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>([...billingRoles, ...salesRoles]), "Plan changes are restricted to commercial and finance platform roles.");
     const parsed = billingUpdateSchema.parse(payload);
+    const before = await prisma.school.findUnique({ where: { id: schoolId }, select: { plan: true } });
     const school = await prisma.school.update({ where: { id: schoolId }, data: { plan: parsed.plan, billingStatus: "ACTIVE", status: "ACTIVE" } });
-    await this.audit(session, "BILLING_UPDATE", "School", school.id, { plan: parsed.plan }, school.id);
+    await this.audit(session, "BILLING_UPDATE", "School", school.id, { plan: parsed.plan, fromPlan: before?.plan ?? null }, school.id);
     return this.response({ schoolId: school.id, plan: school.plan }, "Subscription plan updated");
   }
 
@@ -1822,14 +1908,16 @@ export class SuperAdminService {
     const school = await prisma.school.findFirst({ where: { id: parsed.schoolId, deletedAt: null } });
     if (!school) throw new NotFoundException("School not found.");
     const invoiceNo = `INV-${Date.now().toString(36).toUpperCase()}`;
+    const terms = await platformPolicy.invoiceTerms(parsed.amount);
+    const rounding = (await platformPolicy.get()).invoice.rounding;
     const invoice = await prisma.platformInvoice.create({
       data: {
         schoolId: parsed.schoolId,
         invoiceNo,
-        amount: parsed.amount,
-        taxAmount: parsed.taxAmount,
+        amount: terms.amount,
+        taxAmount: roundAmount(parsed.taxAmount ?? 0, rounding),
         status: "DRAFT",
-        dueAt: parsed.dueAt,
+        dueAt: parsed.dueAt ?? terms.dueAt,
         metadata: parsed.note ? { note: parsed.note } : undefined
       }
     });
@@ -1882,10 +1970,10 @@ export class SuperAdminService {
         data: {
           schoolId: school.id,
           invoiceNo,
-          amount,
+          amount: (await platformPolicy.invoiceTerms(Number(amount))).amount,
           taxAmount: 0,
           status: "DRAFT",
-          dueAt: parsed.dueAt,
+          dueAt: parsed.dueAt ?? (await platformPolicy.invoiceTerms(0)).dueAt,
           metadata: { batchRun: true, ...(parsed.note ? { note: parsed.note } : {}) }
         }
       });
@@ -1896,7 +1984,7 @@ export class SuperAdminService {
     await this.audit(session, "CREATE", "PlatformInvoice", "batch-run", {
       schoolsTargeted: schools.length,
       invoicesCreated: created,
-      dueAt: parsed.dueAt.toISOString(),
+      dueAt: parsed.dueAt?.toISOString() ?? "policy terms",
       excludeTrial,
       excludeGracePeriod,
       excludeUnverified
@@ -2014,7 +2102,9 @@ export class SuperAdminService {
       data: { reconciledAt: new Date(), reconciledById: session.userId }
     });
     await this.audit(session, "UPDATE", "PlatformBillingTransaction", transaction.id, { reconciled: true, reference: transaction.reference }, transaction.schoolId);
-    return this.response({ id: updated.id, reconciledAt: updated.reconciledAt }, "Payment reconciled to bank");
+    // Reconciliation is the event that earns a partner commission — if the invoice is now fully settled and the school is attributed.
+    const commission = await partnerEngine.accrueForTransaction(updated.id).catch(() => null);
+    return this.response({ id: updated.id, reconciledAt: updated.reconciledAt, commission }, commission?.accrued ? "Payment reconciled to bank — partner commission accrued" : "Payment reconciled to bank");
   }
 
   async recalculateChurnRisk(session: SessionPayload) {
@@ -2286,7 +2376,7 @@ export class SuperAdminService {
     ] = await Promise.all([
       prisma.school.groupBy({ by: ["status"], where: { deletedAt: null }, _count: true }),
       prisma.user.groupBy({ by: ["role"], where: { deletedAt: null }, _count: true }),
-      prisma.student.count({ where: { school: { deletedAt: null } } }),
+      prisma.student.count({ where: { school: { deletedAt: null }, ...REAL_STUDENTS } }),
       prisma.school.count({ where: { createdAt: { gte: sevenDays }, deletedAt: null } }),
       prisma.school.count({ where: { createdAt: { gte: thirtyDays }, deletedAt: null } }),
       prisma.user.count({ where: { lastLoginAt: { gte: thirtyDays }, deletedAt: null } }),
@@ -3182,55 +3272,22 @@ export class SuperAdminService {
 
   async listFeatureFlags(session: SessionPayload) {
     assertAnyPlatformRole(session, technicalRoles, "Feature flags are restricted to platform owner, admin, and technical admin roles.");
-    const flags = await prisma.platformFeatureFlag.findMany({ include: { _count: { select: { overrides: true } } }, orderBy: { createdAt: "desc" } });
-    return this.response(flags.map((flag) => ({
-      id: flag.id,
-      key: flag.key,
-      name: flag.name,
-      description: flag.description,
-      enabledGlobally: flag.enabledGlobally,
-      rolloutStatus: flag.rolloutStatus,
-      rolloutPercent: flag.rolloutPercent,
-      pilotSchoolCount: flag.pilotSchoolIds.length,
-      overrides: flag._count.overrides,
-      createdAt: flag.createdAt.toISOString(),
-      stageEnteredAt: flag.updatedAt.toISOString()
-    })));
+    return this.response(await plansFeatures.listFlags());
   }
 
   async createFeatureFlag(session: SessionPayload, payload: unknown) {
     assertAnyPlatformRole(session, technicalRoles, "Feature flag changes are restricted to technical platform roles.");
-    const parsed = featureFlagSchema.parse(payload);
-    const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] } });
-    const flag = await prisma.platformFeatureFlag.create({ data: { ...parsed, createdById: actor?.id } });
-    await this.audit(session, "CREATE", "PlatformFeatureFlag", flag.id, parsed as Prisma.InputJsonValue, null);
-    return this.response(flag, "Feature flag created");
+    return this.response(await plansFeatures.createFlag(session, payload), "Feature flag created");
   }
 
   async updateFeatureFlagRollout(session: SessionPayload, flagId: string, payload: unknown) {
     assertAnyPlatformRole(session, technicalRoles, "Feature flag rollout changes are restricted to CTO, Product Lead, and Super Admin.");
-    const parsed = featureRolloutSchema.parse(payload);
-    const flag = await prisma.platformFeatureFlag.update({
-      where: { id: flagId },
-      data: {
-        rolloutStatus: parsed.rolloutStatus,
-        rolloutPercent: parsed.rolloutStatus === "FULL" ? 100 : parsed.rolloutStatus === "OFF" ? 0 : parsed.rolloutPercent,
-        pilotSchoolIds: parsed.pilotSchoolIds,
-        enabledGlobally: parsed.rolloutStatus === "FULL"
-      }
-    });
-    await this.audit(session, "UPDATE", "PlatformFeatureFlag", flag.id, { rolloutStatus: parsed.rolloutStatus, rolloutPercent: flag.rolloutPercent }, null);
-    return this.response({ id: flag.id, rolloutStatus: flag.rolloutStatus, rolloutPercent: flag.rolloutPercent }, "Rollout updated");
+    return this.response(await plansFeatures.advanceFlag(session, flagId, payload), "Rollout updated");
   }
 
   async rollbackFeatureFlag(session: SessionPayload, flagId: string) {
     assertAnyPlatformRole(session, technicalRoles, "Feature flag rollback is restricted to CTO, Product Lead, and Super Admin.");
-    const flag = await prisma.platformFeatureFlag.update({
-      where: { id: flagId },
-      data: { rolloutStatus: "OFF", rolloutPercent: 0, enabledGlobally: false, pilotSchoolIds: [] }
-    });
-    await this.audit(session, "UPDATE", "PlatformFeatureFlag", flag.id, { instantRollback: true }, null);
-    return this.response({ id: flag.id, rolloutStatus: flag.rolloutStatus }, "Feature disabled platform-wide (instant rollback)");
+    return this.response(await plansFeatures.rollbackFlag(session, flagId, { reason: "Instant rollback" }), "Feature disabled platform-wide (instant rollback)");
   }
 
   async listTierFeatures(session: SessionPayload) {
@@ -3329,6 +3386,7 @@ export class SuperAdminService {
     const parsed = brandingAssetSchema.parse(payload);
     const school = await prisma.school.findFirst({ where: { id: parsed.schoolId, deletedAt: null } });
     if (!school) throw new NotFoundException("School not found.");
+    await plansFeatures.require(school.id, "branding.custom");
     const asset = await prisma.brandingAsset.create({ data: { ...parsed, status: "PENDING" } });
     await this.audit(session, "CREATE", "BrandingAsset", asset.id, { schoolId: parsed.schoolId }, parsed.schoolId);
     return this.response({ id: asset.id }, "Branding asset submitted for review");
@@ -3348,6 +3406,7 @@ export class SuperAdminService {
     const asset = await prisma.brandingAsset.findUnique({ where: { id: assetId } });
     if (!asset) throw new NotFoundException("Branding asset not found.");
     if (asset.status !== "APPROVED") throw new BadRequestException("Branding must be reviewed and approved before it can be applied.");
+    await plansFeatures.require(asset.schoolId, "branding.custom");
     await prisma.$transaction([
       prisma.school.update({ where: { id: asset.schoolId }, data: { logoUrl: asset.logoUrl ?? undefined, primaryColor: asset.primaryColour, secondaryColor: asset.secondaryColour } }),
       prisma.brandingAsset.update({ where: { id: assetId }, data: { status: "APPLIED", appliedAt: new Date() } })
@@ -3470,6 +3529,8 @@ export class SuperAdminService {
         status: a.success ? "SUCCESS" : "FAILED",
         ipAddress: a.ipAddress,
         device: a.device,
+        location: a.location,
+        newDevice: a.newDevice,
         failureReason: a.reason,
         school: a.school ? { name: a.school.name } : null,
         createdAt: a.createdAt.toISOString()
@@ -3495,6 +3556,14 @@ export class SuperAdminService {
         detectedAt: i.detectedAt.toISOString(),
         resolvedAt: i.resolvedAt?.toISOString(),
         postIncidentNotes: i.postIncidentNotes,
+        containedAt: i.containedAt?.toISOString() ?? null,
+        containment: i.containment,
+        assessment: i.assessment,
+        affectedSchoolIds: i.affectedSchoolIds,
+        regulatorNotifiedAt: i.regulatorNotifiedAt?.toISOString() ?? null,
+        regulatorReference: i.regulatorReference,
+        schoolsNotifiedAt: i.schoolsNotifiedAt?.toISOString() ?? null,
+        schoolsNotifiedCount: i.schoolsNotifiedCount,
         reportedBy: i.reportedBy ? `${i.reportedBy.firstName} ${i.reportedBy.lastName}` : "System",
         resolvedBy: i.resolvedBy ? `${i.resolvedBy.firstName} ${i.resolvedBy.lastName}` : null
       }))
@@ -3590,6 +3659,14 @@ export class SuperAdminService {
       detectedAt: i.detectedAt.toISOString(),
       resolvedAt: i.resolvedAt?.toISOString(),
       postIncidentNotes: i.postIncidentNotes,
+      containedAt: i.containedAt?.toISOString() ?? null,
+      containment: i.containment,
+      assessment: i.assessment,
+      affectedSchoolIds: i.affectedSchoolIds,
+      regulatorNotifiedAt: i.regulatorNotifiedAt?.toISOString() ?? null,
+      regulatorReference: i.regulatorReference,
+      schoolsNotifiedAt: i.schoolsNotifiedAt?.toISOString() ?? null,
+      schoolsNotifiedCount: i.schoolsNotifiedCount,
       reportedBy: i.reportedBy ? `${i.reportedBy.firstName} ${i.reportedBy.lastName}` : "System",
       resolvedBy: i.resolvedBy ? `${i.resolvedBy.firstName} ${i.resolvedBy.lastName}` : null
     })));
@@ -3658,10 +3735,17 @@ export class SuperAdminService {
       if (duplicate) throw new BadRequestException("Plan slug is already in use.");
     }
 
+    const priceChanging = (parsed.monthlyPrice !== undefined && parsed.monthlyPrice !== Number(existing.monthlyPrice)) || (parsed.annualPrice !== undefined && parsed.annualPrice !== Number(existing.annualPrice));
+    if (priceChanging) {
+      const onPlan = await prisma.school.count({ where: { deletedAt: null, plan: existing.plan } });
+      if (onPlan > 0) throw new BadRequestException(`${onPlan} school${onPlan === 1 ? " is" : "s are"} on this plan, so its price cannot be edited in place. Use “Schedule a price change” — it tells them and waits out the 30 days' notice.`);
+    }
     const plan = await prisma.platformSubscriptionPlan.update({
       where: { id: planId },
       data: parsed as Prisma.PlatformSubscriptionPlanUpdateInput
     });
+    const changed = Object.keys(parsed).filter((key) => JSON.stringify((existing as Record<string, unknown>)[key]) !== JSON.stringify((plan as Record<string, unknown>)[key]));
+    if (changed.length) await plansFeatures.recordVersion(plan.id, `Edited ${changed.join(", ")}`, (await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } }))?.id ?? null);
     await this.audit(session, "SETTINGS_UPDATE", "PlatformSubscriptionPlan", plan.id, { slug: plan.slug, monthlyPrice: plan.monthlyPrice }, null);
     return this.response({ id: plan.id }, "Subscription plan updated");
   }
@@ -3671,6 +3755,10 @@ export class SuperAdminService {
     const existing = await prisma.platformSubscriptionPlan.findUnique({ where: { id: planId } });
     if (!existing) throw new NotFoundException("Subscription plan not found.");
     const activating = !existing.isActive;
+    if (!activating) {
+      const onPlan = await prisma.school.count({ where: { deletedAt: null, plan: existing.plan } });
+      if (onPlan > 0) throw new BadRequestException(`${onPlan} school${onPlan === 1 ? " is" : "s are"} on this plan. Close it to new schools as Legacy, or archive it by choosing a plan to move them to — both are under “Plan lifecycle”.`);
+    }
 
     const plan = await prisma.$transaction(async (tx) => {
       if (activating) {
@@ -3682,7 +3770,7 @@ export class SuperAdminService {
           data: { isActive: false }
         });
       }
-      return tx.platformSubscriptionPlan.update({ where: { id: planId }, data: { isActive: activating } });
+      return tx.platformSubscriptionPlan.update({ where: { id: planId }, data: { isActive: activating, lifecycle: activating ? "ACTIVE" : "ARCHIVED" } });
     });
 
     await this.audit(session, "SETTINGS_UPDATE", "PlatformSubscriptionPlan", plan.id, { isActive: plan.isActive }, null);
@@ -3759,28 +3847,32 @@ export class SuperAdminService {
   async listCampaigns(session: SessionPayload) {
     assertSuperAdmin(session);
     const campaigns = await prisma.campaign.findMany({ include: { createdBy: true, approvedBy: true }, orderBy: { createdAt: "desc" } });
-    return this.response(campaigns.map((c) => ({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      channel: c.channel,
-      status: c.status,
-      recipientCount: c.recipientCount,
-      deliveredCount: c.deliveredCount,
-      failedCount: c.failedCount,
-      openedCount: c.openedCount,
-      scheduledAt: c.scheduledAt?.toISOString(),
-      sentAt: c.sentAt?.toISOString(),
-      createdBy: c.createdBy ? `${c.createdBy.firstName} ${c.createdBy.lastName}` : "Unknown",
-      approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null,
-      createdAt: c.createdAt.toISOString()
-    })));
+    const rows = [];
+    for (const c of campaigns) {
+      const counts = c.status === "SENT" ? await this.tally(c.id) : { sent: 0, failed: 0, queued: 0, held: 0 };
+      rows.push({
+        id: c.id, name: c.name, type: c.type, channel: c.channel,
+        status: c.status === "SENT" && (counts.queued > 0 || counts.held > 0) ? "SENDING" : c.status,
+        recipientCount: c.recipientCount, deliveredCount: counts.sent, failedCount: counts.failed, queuedCount: counts.queued + counts.held, openedCount: null,
+        scheduledAt: c.scheduledAt?.toISOString(), sentAt: c.sentAt?.toISOString(), recurrence: c.recurrence,
+        createdBy: c.createdBy ? `${c.createdBy.firstName} ${c.createdBy.lastName}` : "Unknown",
+        approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null,
+        createdAt: c.createdAt.toISOString()
+      });
+    }
+    return this.response(rows);
   }
 
   async createCampaign(session: SessionPayload, payload: unknown) {
     assertSuperAdmin(session);
     const parsed = campaignSchema.parse(payload);
     if (parsed.channel === "SMS" && parsed.body.length > 160) throw new BadRequestException("SMS messages are limited to 160 characters.");
+    if (parsed.channel === "WHATSAPP") throw new BadRequestException("WhatsApp delivery is not connected on this platform, so a WhatsApp campaign cannot be sent. Use email or SMS.");
+    if (parsed.templateId) {
+      const template = await prisma.messageTemplate.findUnique({ where: { id: parsed.templateId } });
+      if (!template || template.retiredAt) throw new BadRequestException("That template does not exist or has been replaced by a newer version.");
+      if (template.approvalStatus !== "APPROVED") throw new BadRequestException("That template has not been approved, so it cannot be used. A second person must approve it first.");
+    }
     const audienceFilter = audienceFilterSchema.parse({
       role: parsed.role,
       plan: parsed.plan,
@@ -3799,6 +3891,7 @@ export class SuperAdminService {
         templateId: parsed.templateId,
         audienceFilter: audienceFilter as Prisma.InputJsonValue,
         scheduledAt: parsed.scheduledAt,
+        recurrence: parsed.recurrence || null,
         recipientCount,
         status: "DRAFT",
         createdById: session.userId
@@ -3817,76 +3910,132 @@ export class SuperAdminService {
     } else {
       assertSuperAdmin(session);
     }
-    const updated = await prisma.campaign.update({ where: { id: campaignId }, data: { status: "APPROVED", approvedById: session.userId } });
+    if (campaign.createdById && campaign.createdById === session.userId && campaign.type === "PROMOTIONAL") throw new BadRequestException("A promotional campaign needs a second person to approve it.");
+    const future = campaign.scheduledAt && campaign.scheduledAt.getTime() > Date.now();
+    const updated = await prisma.campaign.update({ where: { id: campaignId }, data: { status: future ? "SCHEDULED" : "APPROVED", approvedById: session.userId } });
     await this.audit(session, "APPROVE", "Campaign", updated.id, { type: campaign.type }, null);
     return this.response({ id: updated.id, status: updated.status }, "Campaign approved");
   }
 
   async sendCampaign(session: SessionPayload, campaignId: string) {
     assertSuperAdmin(session);
+    return this.response(await this.dispatchCampaign(campaignId, session.userId), "Campaign queued for delivery");
+  }
+
+  /**
+   * Queues one message per recipient — and nothing more. Whether each one was delivered is whatever the delivery worker
+   * and the carrier say afterwards, read back from the message rows; this never invents a rate. Promotional campaigns
+   * honour opt-outs and never go to students, who are minors.
+   */
+  async dispatchCampaign(campaignId: string, actorId: string | null) {
     const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
     if (!campaign) throw new NotFoundException("Campaign not found.");
-    if (campaign.status !== "APPROVED" && campaign.status !== "SCHEDULED") {
-      throw new BadRequestException("Only an approved campaign can be sent.");
-    }
+    if (campaign.status !== "APPROVED" && campaign.status !== "SCHEDULED") throw new BadRequestException("Only an approved campaign can be sent.");
+    if (campaign.channel !== "EMAIL" && campaign.channel !== "SMS") throw new BadRequestException("This channel cannot be delivered from this platform.");
 
     const filter = audienceFilterSchema.parse(campaign.audienceFilter ?? {});
-    const where = this.buildAudienceWhere(filter);
-    let recipients = await prisma.user.findMany({ where, select: { id: true } });
-
-    // Promotional campaigns must honour opt-outs; operational messages bypass opt-out.
+    let recipients = await prisma.user.findMany({ where: this.buildAudienceWhere(filter), select: { id: true, schoolId: true, email: true, phone: true, role: true } });
+    let withheld = 0;
     if (campaign.type === "PROMOTIONAL") {
-      const optedOut = await prisma.consentRecord.findMany({
-        where: { channel: campaign.channel, optedIn: false, userId: { in: recipients.map((r) => r.id) } },
-        select: { userId: true }
-      });
-      const optedOutIds = new Set(optedOut.map((o) => o.userId));
-      recipients = recipients.filter((r) => !optedOutIds.has(r.id));
+      const optedOut = await prisma.consentRecord.findMany({ where: { channel: campaign.channel, optedIn: false, userId: { in: recipients.map((r) => r.id) } }, select: { userId: true } });
+      const out = new Set(optedOut.map((o) => o.userId));
+      const before = recipients.length;
+      recipients = recipients.filter((r) => !out.has(r.id) && r.role !== "STUDENT");
+      withheld = before - recipients.length;
     }
 
-    // Mock delivery: assume 97% delivered.
-    const recipientCount = recipients.length;
-    const deliveredCount = Math.round(recipientCount * 0.97);
-    const failedCount = recipientCount - deliveredCount;
-
-    const updated = await prisma.campaign.update({
-      where: { id: campaignId },
-      data: { status: "SENT", sentAt: new Date(), recipientCount, deliveredCount, failedCount, openedCount: Math.round(deliveredCount * 0.4) }
+    const now = new Date();
+    const title = campaign.subject?.trim() || campaign.name;
+    const rows: Prisma.NotificationLogCreateManyInput[] = recipients.map((user) => {
+      const address = campaign.channel === "EMAIL" ? user.email : user.phone;
+      return { schoolId: user.schoolId, userId: user.id, channel: campaign.channel as "EMAIL" | "SMS", title, body: campaign.body, status: address ? "QUEUED" : "FAILED", sentAt: now, metadata: { campaignId, billing: "PLATFORM", ...(campaign.channel === "EMAIL" ? { email: user.email } : { phone: user.phone }), ...(address ? {} : { error: `No ${campaign.channel === "EMAIL" ? "email address" : "phone number"} on file` }) } as Prisma.InputJsonValue };
     });
-    await this.audit(session, "UPDATE", "Campaign", updated.id, { sent: true, recipientCount, deliveredCount }, null);
-    return this.response({ id: updated.id, status: updated.status, recipientCount, deliveredCount, failedCount }, "Campaign sent");
+    for (let at = 0; at < rows.length; at += 1000) await prisma.notificationLog.createMany({ data: rows.slice(at, at + 1000) });
+
+    await prisma.campaign.update({ where: { id: campaignId }, data: { status: "SENT", sentAt: now, lastRunAt: now, recipientCount: recipients.length, deliveredCount: 0, failedCount: rows.filter((row) => row.status === "FAILED").length, openedCount: 0 } });
+    if (campaign.recurrence) {
+      const next = new Date(now.getTime() + (campaign.recurrence === "WEEKLY" ? 7 : 30) * 86_400_000);
+      await prisma.campaign.create({ data: { name: campaign.name, type: campaign.type, channel: campaign.channel, subject: campaign.subject, body: campaign.body, templateId: campaign.templateId, audienceFilter: (campaign.audienceFilter ?? {}) as Prisma.InputJsonValue, scheduledAt: next, recurrence: campaign.recurrence, status: "SCHEDULED", recipientCount: 0, createdById: campaign.createdById, approvedById: campaign.approvedById } });
+    }
+    await prisma.auditLog.create({ data: { schoolId: null, actorId, action: "UPDATE", entityType: "Campaign", entityId: campaignId, metadata: { summary: `Campaign queued · ${recipients.length} messages`, withheld, recurring: campaign.recurrence ?? null } as Prisma.InputJsonValue } });
+    return { id: campaignId, status: "SENT", queued: rows.filter((row) => row.status === "QUEUED").length, withheld, recipientCount: recipients.length };
+  }
+
+  /** Scheduled campaigns that have come due, sent by the platform itself. */
+  async runDueCampaigns() {
+    const due = await prisma.campaign.findMany({ where: { status: "SCHEDULED", scheduledAt: { lte: new Date() }, approvedById: { not: null } } });
+    const sent: string[] = [];
+    for (const campaign of due) {
+      try {
+        await this.dispatchCampaign(campaign.id, null);
+        sent.push(campaign.name);
+      } catch {
+        await prisma.campaign.update({ where: { id: campaign.id }, data: { status: "DRAFT" } });
+      }
+    }
+    return sent;
+  }
+
+  /** What actually happened to a campaign's messages, counted from the messages themselves. */
+  private async tally(campaignId: string) {
+    const rows = await prisma.notificationLog.groupBy({ by: ["status"], where: { metadata: { path: ["campaignId"], equals: campaignId } }, _count: { _all: true } });
+    const n = (status: string) => rows.filter((row) => row.status === status).reduce((sum, row) => sum + row._count._all, 0);
+    return { sent: n("SENT"), failed: n("FAILED"), queued: n("QUEUED"), held: n("HELD") };
+  }
+
+  /** The delivery log: one line per recipient, with the carrier's reason when it failed. */
+  async campaignDeliveries(session: SessionPayload, campaignId: string, status?: string) {
+    assertSuperAdmin(session);
+    const rows = await prisma.notificationLog.findMany({ where: { metadata: { path: ["campaignId"], equals: campaignId }, ...(status ? { status } : {}) }, orderBy: { sentAt: "asc" }, take: 500, include: { school: { select: { name: true } } } });
+    const users = new Map((await prisma.user.findMany({ where: { id: { in: rows.map((row) => row.userId).filter((id): id is string => Boolean(id)) } }, select: { id: true, firstName: true, lastName: true } })).map((user) => [user.id, `${user.firstName} ${user.lastName}`.trim()]));
+    return this.response(rows.map((row) => { const meta = (row.metadata ?? {}) as { email?: string; phone?: string; error?: string; deliveredAt?: string; provider?: string; attempts?: number }; return { id: row.id, recipient: row.userId ? users.get(row.userId) ?? "Unknown" : "Unknown", school: row.school.name, address: meta.email ?? meta.phone ?? null, channel: row.channel, status: row.status, error: meta.error ?? null, deliveredAt: meta.deliveredAt ?? null, provider: meta.provider ?? null, attempts: meta.attempts ?? 0 }; }));
+  }
+
+  /** Why messages fail across the platform in the last 30 days — the carrier's own words, counted. */
+  async deliveryFailures(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const [failed, held, sent] = await Promise.all([
+      prisma.notificationLog.findMany({ where: { status: "FAILED", sentAt: { gte: since }, channel: { in: ["SMS", "EMAIL"] } }, select: { channel: true, metadata: true }, take: 5000 }),
+      prisma.notificationLog.groupBy({ by: ["channel"], where: { status: "HELD", sentAt: { gte: since } }, _count: { _all: true } }),
+      prisma.notificationLog.count({ where: { status: "SENT", sentAt: { gte: since } } })
+    ]);
+    const reasons = new Map<string, { channel: string; count: number }>();
+    for (const row of failed) {
+      const reason = String(((row.metadata ?? {}) as { error?: string }).error ?? "No reason recorded");
+      const key = `${row.channel}:${reason}`;
+      reasons.set(key, { channel: row.channel, count: (reasons.get(key)?.count ?? 0) + 1 });
+    }
+    return this.response({ sent, failed: failed.length, held: held.reduce((sum, row) => sum + row._count._all, 0), reasons: Array.from(reasons.entries()).map(([key, value]) => ({ reason: key.slice(key.indexOf(":") + 1), channel: value.channel, count: value.count })).sort((a, b) => b.count - a.count).slice(0, 12) });
   }
 
   async getCampaignReport(session: SessionPayload, campaignId: string) {
     assertSuperAdmin(session);
     const c = await prisma.campaign.findUnique({ where: { id: campaignId }, include: { createdBy: true, approvedBy: true } });
     if (!c) throw new NotFoundException("Campaign not found.");
-    const deliveryRate = c.recipientCount > 0 ? Math.round((c.deliveredCount / c.recipientCount) * 1000) / 10 : 0;
-    const openRate = c.deliveredCount > 0 ? Math.round((c.openedCount / c.deliveredCount) * 1000) / 10 : 0;
+    const counts = await this.tally(campaignId);
+    const settled = counts.sent + counts.failed;
     return this.response({
-      id: c.id,
-      name: c.name,
-      type: c.type,
-      channel: c.channel,
-      status: c.status,
-      subject: c.subject,
-      body: c.body,
-      recipientCount: c.recipientCount,
-      deliveredCount: c.deliveredCount,
-      failedCount: c.failedCount,
-      openedCount: c.openedCount,
-      deliveryRate,
-      openRate,
-      scheduledAt: c.scheduledAt?.toISOString(),
-      sentAt: c.sentAt?.toISOString(),
+      id: c.id, name: c.name, type: c.type, channel: c.channel, status: c.status === "SENT" && (counts.queued > 0 || counts.held > 0) ? "SENDING" : c.status,
+      subject: c.subject, body: c.body, recipientCount: c.recipientCount,
+      deliveredCount: counts.sent, failedCount: counts.failed, queuedCount: counts.queued, heldCount: counts.held,
+      // Opens are not tracked for email or SMS here, so there is no rate to report — and none is made up.
+      openedCount: null, openRate: null,
+      deliveryRate: settled > 0 ? Math.round((counts.sent / settled) * 1000) / 10 : null,
+      scheduledAt: c.scheduledAt?.toISOString(), sentAt: c.sentAt?.toISOString(), recurrence: c.recurrence,
       approvedBy: c.approvedBy ? `${c.approvedBy.firstName} ${c.approvedBy.lastName}` : null
     });
   }
 
   async listMessageTemplates(session: SessionPayload) {
     assertSuperAdmin(session);
-    const templates = await prisma.messageTemplate.findMany({ orderBy: [{ category: "asc" }, { name: "asc" }] });
+    const [templates, uses] = await Promise.all([
+      prisma.messageTemplate.findMany({ where: { retiredAt: null }, orderBy: [{ category: "asc" }, { name: "asc" }] }),
+      prisma.campaign.groupBy({ by: ["templateId"], where: { templateId: { not: null } }, _count: { _all: true } })
+    ]);
+    const used = new Map(uses.map((row) => [row.templateId as string, row._count._all]));
     return this.response(templates.map((t) => ({
+      version: t.version, uses: used.get(t.id) ?? 0, createdById: t.createdById, reviewedById: t.reviewedById, reviewNote: t.reviewNote,
       id: t.id,
       name: t.name,
       channel: t.channel,
@@ -3902,19 +4051,38 @@ export class SuperAdminService {
   async createMessageTemplate(session: SessionPayload, payload: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can add message templates.");
     const parsed = messageTemplateSchema.parse(payload);
+    // Nobody approves their own wording: a new template waits for a second person (and, on WhatsApp, for Meta).
     const template = await prisma.messageTemplate.create({
-      data: { ...parsed, approvalStatus: parsed.channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "APPROVED" }
+      data: { ...parsed, approvalStatus: parsed.channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW", createdById: session.userId }
     });
     await this.audit(session, "CREATE", "MessageTemplate", template.id, { name: parsed.name, channel: parsed.channel }, null);
     return this.response({ id: template.id }, "Message template created");
   }
 
   async updateTemplateApproval(session: SessionPayload, templateId: string, payload: unknown) {
-    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can change template approval.");
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPER_ADMIN"]), "Only a platform administrator can review a template.");
     const parsed = templateApprovalSchema.parse(payload);
-    const template = await prisma.messageTemplate.update({ where: { id: templateId }, data: { approvalStatus: parsed.approvalStatus } });
+    const current = await prisma.messageTemplate.findUnique({ where: { id: templateId } });
+    if (!current || current.retiredAt) throw new NotFoundException("That template does not exist, or has been replaced by a newer version.");
+    if (parsed.approvalStatus === "APPROVED" && current.channel !== "WHATSAPP" && current.createdById && current.createdById === session.userId) throw new BadRequestException("The person who wrote a template cannot approve it. Ask a second Super Admin.");
+    const template = await prisma.messageTemplate.update({ where: { id: templateId }, data: { approvalStatus: parsed.approvalStatus, reviewedById: session.userId, reviewNote: parsed.reviewNote ?? null } });
     await this.audit(session, "UPDATE", "MessageTemplate", template.id, { approvalStatus: parsed.approvalStatus }, null);
     return this.response({ id: template.id, approvalStatus: template.approvalStatus }, "Template approval updated");
+  }
+
+  /** Editing is a new version: the wording that went out under the old one stays exactly as it was, and the new one waits for review. */
+  async editMessageTemplate(session: SessionPayload, templateId: string, payload: unknown) {
+    assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can edit message templates.");
+    const parsed = templateEditSchema.parse(payload);
+    const current = await prisma.messageTemplate.findUnique({ where: { id: templateId } });
+    if (!current || current.retiredAt) throw new NotFoundException("That template does not exist, or is already an older version.");
+    const channel = parsed.channel ?? current.channel;
+    const [, created] = await prisma.$transaction([
+      prisma.messageTemplate.update({ where: { id: templateId }, data: { retiredAt: new Date() } }),
+      prisma.messageTemplate.create({ data: { name: parsed.name ?? current.name, channel, category: parsed.category ?? current.category, body: parsed.body ?? current.body, placeholders: current.placeholders, version: current.version + 1, supersedesId: current.id, createdById: session.userId, approvalStatus: channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW" } })
+    ]);
+    await this.audit(session, "UPDATE", "MessageTemplate", created.id, { supersedes: current.id, version: created.version }, null);
+    return this.response({ id: created.id, version: created.version }, "A new version was created and is waiting for review");
   }
 
   async setConsent(session: SessionPayload, payload: unknown) {
@@ -3922,8 +4090,8 @@ export class SuperAdminService {
     const parsed = consentSchema.parse(payload);
     const consent = await prisma.consentRecord.upsert({
       where: { userId_channel: { userId: parsed.userId, channel: parsed.channel } },
-      create: { userId: parsed.userId, channel: parsed.channel, optedIn: parsed.optedIn, optedOutAt: parsed.optedIn ? null : new Date() },
-      update: { optedIn: parsed.optedIn, optedOutAt: parsed.optedIn ? null : new Date() }
+      create: { userId: parsed.userId, channel: parsed.channel, optedIn: parsed.optedIn, optedOutAt: parsed.optedIn ? null : new Date(), schoolId: (await prisma.user.findUnique({ where: { id: parsed.userId }, select: { schoolId: true } }))?.schoolId ?? null, source: parsed.source ?? "Recorded by a platform admin" },
+      update: { optedIn: parsed.optedIn, optedOutAt: parsed.optedIn ? null : new Date(), source: parsed.source ?? "Recorded by a platform admin" }
     });
     await this.audit(session, "UPDATE", "ConsentRecord", consent.id, { userId: parsed.userId, channel: parsed.channel, optedIn: parsed.optedIn }, null);
     return this.response({ id: consent.id, optedIn: consent.optedIn }, "Consent updated");
@@ -3932,11 +4100,12 @@ export class SuperAdminService {
   async listConsentRecords(session: SessionPayload) {
     assertSuperAdmin(session);
     const records = await prisma.consentRecord.findMany({
-      include: { user: true },
+      include: { user: { include: { school: { select: { name: true } } } } },
       orderBy: { updatedAt: "desc" },
       take: 200
     });
     return this.response(records.map((r) => ({
+      school: r.user.school.name, source: r.source,
       id: r.id,
       userId: r.userId,
       userName: `${r.user.firstName} ${r.user.lastName}`,
@@ -4340,7 +4509,7 @@ export class SuperAdminService {
     if (!report) throw new NotFoundException("Report not found.");
     const dimField = report.dimension === "tier" ? "plan" : report.dimension === "state" ? "state" : "status";
     const [schools, priceMap] = await Promise.all([
-      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, _count: { select: { students: true } } } }),
+      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, _count: { select: { students: { where: REAL_STUDENTS } } } } }),
       getPlanPriceMap()
     ]);
     const groups = new Map<string, number>();
@@ -4372,11 +4541,33 @@ export class SuperAdminService {
       prisma.syncDraft.findFirst({ where: { syncedAt: null, school: { deletedAt: null } }, orderBy: { createdAt: "asc" }, include: { school: { select: { name: true } } } }),
       prisma.syncDraft.findMany({
         where: { syncedAt: null, school: { deletedAt: null } },
-        select: { schoolId: true, createdAt: true, school: { select: { name: true } } }
+        select: { schoolId: true, createdAt: true, state: true, school: { select: { name: true } } }
       }),
       prisma.notificationLog.findMany({ where: { sentAt: { gte: thirtyDaysAgo } }, select: { channel: true, status: true } }),
       prisma.backupRecord.findMany({ orderBy: { startedAt: "desc" }, take: 30, include: { school: { select: { name: true } } } })
     ]);
+
+    // What this server and its database are doing right now — measured, not estimated.
+    const dbStart = Date.now();
+    await prisma.$queryRaw`select 1`;
+    const dbPingMs = Date.now() - dbStart;
+    const fiveMinutesAgo = new Date(now.getTime() - 5 * 60 * 1000);
+    const [activeSessions, pageLoads] = await Promise.all([
+      prisma.platformSession.findMany({ where: { revokedAt: null, lastActivityAt: { gte: fiveMinutesAgo } }, select: { userId: true } }),
+      prisma.pageLoadSample.findMany({ where: { createdAt: { gte: thirtyDaysAgo } }, select: { loadMs: true, connection: true }, take: 20000 })
+    ]);
+    const p75 = (values: number[]) => (values.length ? values.slice().sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * 0.75))] : null);
+    const slow = pageLoads.filter((sample) => sample.connection === "3g" || sample.connection === "2g" || sample.connection === "slow-2g");
+    const cpus = os.cpus().length || 1;
+    const runtime = {
+      cpuPercent: Math.min(100, Math.round((os.loadavg()[0] / cpus) * 1000) / 10),
+      loadAverage: Math.round(os.loadavg()[0] * 100) / 100, cpuCores: cpus,
+      memoryMb: Math.round(process.memoryUsage().rss / 1_048_576), systemMemoryPercent: Math.round((1 - os.freemem() / os.totalmem()) * 100),
+      processUptimeMinutes: Math.round(process.uptime() / 60),
+      dbPingMs,
+      concurrentUsers: new Set(activeSessions.map((row) => row.userId)).size,
+      pageLoad: { samples: pageLoads.length, p75Ms: p75(pageLoads.map((sample) => sample.loadMs)), slowSamples: slow.length, slowP75Ms: p75(slow.map((sample) => sample.loadMs)) }
+    };
 
     // Uptime & performance.
     const successful = apiUsage.filter((a) => a.status < 500).length;
@@ -4391,16 +4582,15 @@ export class SuperAdminService {
     const avgQueueAgeHours = pendingDrafts.length
       ? Math.round((pendingDrafts.reduce((sum, draft) => sum + ageHoursOf(draft.createdAt), 0) / pendingDrafts.length) * 10) / 10
       : 0;
-    const bySchool = new Map<string, { schoolName: string; queued: number; oldestAgeHours: number }>();
+    const bySchool = new Map<string, { schoolName: string; queued: number; oldestAgeHours: number; refused: number; conflicts: number }>();
     for (const draft of pendingDrafts) {
-      const existing = bySchool.get(draft.schoolId);
       const ageHours = ageHoursOf(draft.createdAt);
-      if (existing) {
-        existing.queued += 1;
-        if (ageHours > existing.oldestAgeHours) existing.oldestAgeHours = ageHours;
-      } else {
-        bySchool.set(draft.schoolId, { schoolName: draft.school.name, queued: 1, oldestAgeHours: ageHours });
-      }
+      const row = bySchool.get(draft.schoolId) ?? { schoolName: draft.school.name, queued: 0, oldestAgeHours: 0, refused: 0, conflicts: 0 };
+      row.queued += 1;
+      if (draft.state === "REJECTED") row.refused += 1;
+      if (draft.state === "CONFLICT") row.conflicts += 1;
+      if (ageHours > row.oldestAgeHours) row.oldestAgeHours = ageHours;
+      bySchool.set(draft.schoolId, row);
     }
     const perSchoolSync = Array.from(bySchool.values())
       .sort((a, b) => b.oldestAgeHours - a.oldestAgeHours)
@@ -4408,18 +4598,25 @@ export class SuperAdminService {
       .map((row) => ({
         schoolName: row.schoolName,
         queued: row.queued,
+        refused: row.refused,
+        conflicts: row.conflicts,
         oldestAgeHours: Math.round(row.oldestAgeHours * 10) / 10,
-        status: row.oldestAgeHours > 6 ? "CRITICAL" : row.oldestAgeHours > 2 ? "WARNING" : "HEALTHY"
+        status: row.oldestAgeHours > 6 || row.refused >= 5 ? "CRITICAL" : row.oldestAgeHours > 2 || row.refused > 0 || row.conflicts > 0 ? "WARNING" : "HEALTHY"
       }));
 
     // Delivery health per channel.
     const channels = ["EMAIL", "SMS", "WHATSAPP"] as const;
     const deliveryHealth = channels.map((ch) => {
       const logs = notificationLogs.filter((l) => l.channel === ch);
-      const delivered = logs.filter((l) => ["SENT", "DELIVERED", "SUCCESS", "COMPLETED"].includes(l.status.toUpperCase())).length;
-      const failureRate = logs.length ? Math.round(((logs.length - delivered) / logs.length) * 1000) / 10 : 0;
-      const threshold = ch === "WHATSAPP" ? 15 : ch === "SMS" ? 10 : 10;
-      return { channel: ch, total: logs.length, failureRate, status: failureRate > threshold ? "CRITICAL" : failureRate > threshold / 2 ? "WARNING" : "HEALTHY" };
+      const count = (...statuses: string[]) => logs.filter((l) => statuses.includes(l.status.toUpperCase())).length;
+      const sent = count("SENT", "DELIVERED", "SUCCESS", "COMPLETED");
+      const failed = count("FAILED");
+      // Only messages that actually left (or tried to) count toward the rate. Queued rows have not been tried, and
+      // MOCK_SENT rows are from before delivery was real — neither is a delivery or a failure.
+      const attempted = sent + failed;
+      const failureRate = attempted ? Math.round((failed / attempted) * 1000) / 10 : 0;
+      const threshold = ch === "WHATSAPP" ? 15 : 10;
+      return { channel: ch, total: logs.length, sent, failed, queued: count("QUEUED", "HELD", "SENDING"), simulated: count("MOCK_SENT"), failureRate, status: failureRate > threshold ? "CRITICAL" : failureRate > threshold / 2 ? "WARNING" : "HEALTHY" };
     });
 
     // Integration status: real for the two payment gateways (env-key gated) and
@@ -4428,10 +4625,11 @@ export class SuperAdminService {
     // the same mock notifier, so their status reflects that honestly rather than
     // claiming a live channel.
     const lastSuccessfulBackup = backups.find((b) => ["SUCCESS", "COMPLETED", "COMPLETED_SUCCESSFULLY"].includes(b.status.toUpperCase()));
+    const deliveryOn = process.env.DELIVERY_ENABLED === "true";
     const integrations = [
-      { name: "Transactional email (SMTP)", checkFrequency: "Every 5 minutes", status: process.env.SMTP_HOST ? deliveryHealth.find((d) => d.channel === "EMAIL")!.status : "NOT_CONNECTED", onFailure: process.env.SMTP_HOST ? "Alert CTO" : "Falls back to a console log entry — nothing is actually sent" },
-      { name: "SMS", checkFrequency: "Not applicable", status: "MOCKED", onFailure: "No real provider wired in yet — every send is simulated" },
-      { name: "WhatsApp Business API", checkFrequency: "Not applicable", status: "MOCKED", onFailure: "No real provider wired in yet — every send is simulated" },
+      { name: "Transactional email (SMTP)", checkFrequency: "Every 5 minutes", status: process.env.SMTP_HOST ? deliveryHealth.find((d) => d.channel === "EMAIL")!.status : "NOT_CONNECTED", onFailure: process.env.SMTP_HOST ? "Row marked failed with the mail server's reason; sign-in codes and alerts fall back to a log line" : "Falls back to a console log entry — nothing is actually sent" },
+      { name: "SMS (Termii)", checkFrequency: "Every queued message", status: deliveryOn && CARRIERS.SMS.configured() ? deliveryHealth.find((d) => d.channel === "SMS")!.status : "NOT_CONNECTED", onFailure: deliveryOn && CARRIERS.SMS.configured() ? "The row is marked failed with the carrier's reason; retried up to the attempt limit" : "Messages stay queued — nothing is sent until DELIVERY_ENABLED is on and Termii keys are set" },
+      { name: "WhatsApp Business API", checkFrequency: "Not applicable", status: "NOT_CONNECTED", onFailure: "No WhatsApp provider is wired in — WhatsApp messages are never sent" },
       { name: "Paystack", checkFrequency: "Every 5 minutes", status: process.env.PAYSTACK_SECRET_KEY ? "HEALTHY" : "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" },
       { name: "Flutterwave", checkFrequency: "Every 5 minutes", status: process.env.FLUTTERWAVE_SECRET_KEY ? "HEALTHY" : "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" },
       { name: "Object storage (S3-compatible)", checkFrequency: "Not applicable", status: process.env.S3_BUCKET ? "PARTIAL" : "NOT_CONNECTED", onFailure: "Falls back to a local mock path — no upload actually occurs" }
@@ -4458,38 +4656,30 @@ export class SuperAdminService {
       },
       deliveryHealth,
       integrations,
+      runtime,
       backups: {
         lastSuccessfulAt: lastSuccessfulBackup?.endedAt?.toISOString() ?? lastSuccessfulBackup?.startedAt.toISOString() ?? null,
-        recent: backups.map((b) => ({ id: b.id, scope: b.scope, status: b.status, sizeMb: b.sizeMb, school: b.school?.name ?? "Platform", startedAt: b.startedAt.toISOString(), endedAt: b.endedAt?.toISOString() }))
+        lastVerifiedAt: backups.find((b) => b.verifiedAt)?.verifiedAt?.toISOString() ?? null,
+        lastRestoreTestAt: backups.find((b) => b.restoreTestedAt && b.status === "SUCCESS")?.restoreTestedAt?.toISOString() ?? null,
+        lastRestoreResult: backups.find((b) => b.restoreTestedAt && b.status === "SUCCESS")?.restoreResult ?? null,
+        region: process.env.BACKUP_REGION ?? "This server",
+        scheduled: process.env.BACKUP_SCHEDULER === "on",
+        retentionDays: Number(process.env.BACKUP_KEEP_DAYS ?? 14),
+        recent: backups.map((b) => ({ id: b.id, scope: b.scope, status: b.status, sizeMb: b.sizeMb, school: b.school?.name ?? "Platform", startedAt: b.startedAt.toISOString(), endedAt: b.endedAt?.toISOString(), verified: Boolean(b.verifiedAt), restoreTested: Boolean(b.restoreTestedAt), sha256: b.sha256, note: b.note, reason: b.reason, location: b.location }))
       },
       generatedAt: now.toISOString(),
       recentWindow: twoHoursAgo.toISOString()
     });
   }
 
-  async triggerBackup(session: SessionPayload) {
+  /** A real backup, made now: a pg_dump file that is hashed, read back, and — when asked — restored into an empty database. */
+  async triggerBackup(session: SessionPayload, payload?: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"]), "Manual backups are restricted to CTO and Super Admin.");
-    const startedAt = new Date();
-    const backup = await prisma.backupRecord.create({
-      data: { scope: "FULL_DATABASE", status: "SUCCESS", sizeMb: Math.round((500 + Math.random() * 1500) * 10) / 10, location: "offsite://futurerealm-backups", startedAt, endedAt: new Date(startedAt.getTime() + 45 * 1000) }
-    });
-    await this.audit(session, "SETTINGS_UPDATE", "BackupRecord", backup.id, { manual: true, scope: "FULL_DATABASE" }, null);
-
-    const infrastructureTeam = await prisma.user.findMany({
-      where: { role: { in: [...technicalRoles] }, isActive: true, deletedAt: null },
-      select: { email: true }
-    });
-    await Promise.all(
-      infrastructureTeam.map((member) =>
-        sendEmail({
-          to: member.email,
-          subject: "Manual backup completed",
-          text: `A manual full-database backup finished successfully.\n\nSize: ${backup.sizeMb} MB\nLocation: ${backup.location}\nStarted: ${backup.startedAt.toISOString()}\nFinished: ${backup.endedAt?.toISOString() ?? "unknown"}\n\nTriggered by user ID ${session.userId}.`
-        })
-      )
-    );
-
-    return this.response({ id: backup.id, status: backup.status }, "Manual backup completed");
+    const input = z.object({ verifyArchive: zBool(true), restoreTest: zBool(false), reason: z.string().trim().optional() }).parse(payload ?? {});
+    const record = await this.backupService.backup({ verify: Boolean(input.verifyArchive), restoreTest: Boolean(input.restoreTest), reason: input.reason, actorId: session.userId });
+    await this.audit(session, "SETTINGS_UPDATE", "BackupRecord", record.id, { manual: true, status: record.status, verified: Boolean(record.verifiedAt), restoreTested: Boolean(record.restoreTestedAt) }, null);
+    if (record.status !== "SUCCESS") throw new BadRequestException(record.note ?? "The backup failed.");
+    return this.response({ id: record.id, status: record.status, sizeMb: record.sizeMb, verified: Boolean(record.verifiedAt), restoreTested: Boolean(record.restoreTestedAt), note: record.note }, record.restoreTestedAt ? "Backup made, read back and restored successfully" : record.verifiedAt ? "Backup made and read back successfully" : "Backup made");
   }
 
   async listSyncFailures(session: SessionPayload) {

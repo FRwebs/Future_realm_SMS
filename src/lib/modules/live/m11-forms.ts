@@ -186,7 +186,7 @@ export function agreementDrawer(a: Account): DrawerSpec {
     commitDoneBody: "Your name, the version and the time are on the account's record.",
     reviewNote: "Only the Proprietor can accept it, and the acceptance is permanent.",
     fields: [
-      fixed("Version", "4.0", { hint: "The version Future Realm currently issues" }),
+      fixed("Version", a.agreement.current ?? "4.0", { hint: "The version Future Realm currently issues" }),
       fixed("Hosting", a.agreement.hosting ?? "As set out in the agreement", { hint: "Read it with your Account Manager before you accept" }),
       toggle("I have read the agreement", false, "Read and understood", "Not yet", { span: 2 }),
     ],

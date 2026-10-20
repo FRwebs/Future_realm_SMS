@@ -58,7 +58,7 @@ export type Credits = {
 
 export type Account = {
   school: { name: string; ownerName: string | null; ownerEmail: string | null; country: string | null };
-  agreement: { status: string; version: string | null; acceptedAt: string | null; by: string | null; hosting: string | null; retentionDays: number; retentionDefault: boolean; dpo: { name: string; email: string | null } | null };
+  agreement: { status: string; version: string | null; current?: string | null; acceptedAt: string | null; by: string | null; hosting: string | null; retentionDays: number; retentionDefault: boolean; dpo: { name: string; email: string | null } | null };
   contacts: { billing: string | null; billingEmail: string | null; school: string | null; manager: string | null; managerEmail: string | null; productOnly: boolean };
   address: { subdomain: string | null; issued: string };
   tier: TierKey;

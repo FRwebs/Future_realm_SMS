@@ -6,7 +6,8 @@ import { loadArm, studentResults, type Term } from "./arm";
  * sheet's own totals, so whenever a decision or a correction moves a score those totals are rewritten
  * from the approved sheets — and a class whose every sheet is approved is, at last, ready to publish.
  */
-export async function syncResultSheets(schoolId: string, term: Term, classId: string, actorId: string) {
+export async function syncResultSheets(schoolId: string, term: Term, classId: string, actorId: string, reason = "A sheet decision moved a score") {
+  const startedAt = Date.now();
   const arm = await loadArm(schoolId, term, classId);
   if (!arm) return { updated: 0, ready: false };
   const results = studentResults(arm, true);
@@ -30,6 +31,9 @@ export async function syncResultSheets(schoolId: string, term: Term, classId: st
     if (promote) await prisma.resultApproval.create({ data: { schoolId, resultSheetId: sheet.id, actorId, action: "APPROVE", fromStatus: sheet.status, toStatus: "APPROVED", note: "Every score sheet in the arm is approved." } });
     updated += 1;
   }
+  // Kept so Infrastructure can say how long computation takes, and for which schools it keeps re-running over published results.
+  const records = arm.subjects.reduce((sum, subject) => sum + subject.rows.reduce((inner, row) => inner + Object.values(row.cells).filter((cell) => typeof cell === "number").length, 0), 0);
+  await prisma.computationRun.create({ data: { schoolId, classId, termId: term.id, students: sheets.length, records, durationMs: Date.now() - startedAt, recompute: sheets.some((sheet) => sheet.status === "PUBLISHED"), reason } }).catch(() => undefined);
   return { updated, ready: everySheetApproved };
 }
 

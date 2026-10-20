@@ -17,6 +17,7 @@ const TRANSFER_STATE: Record<string, string> = { EVIDENCE_COLLECTED: "Evidence w
 
 export function accountTab(a: Account): TabContent {
   const signed = a.agreement.status === "SIGNED";
+  const outdated = signed && Boolean(a.agreement.current) && a.agreement.version !== a.agreement.current;
   const exportAction = { label: "Generate a full export", drawer: exportDrawer(a) };
 
   const dpa: PanelFact[] = [
@@ -47,11 +48,12 @@ export function accountTab(a: Account): TabContent {
     primary: { label: "Edit contacts and preferences", icon: "M5 12.5l4.5 4.5 9-10", drawer: preferencesDrawer(a) },
     launchers: [{ label: "Transfer ownership", drawer: transferDrawer(a) }],
     rows: [
+      ...(outdated ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: `Version ${a.agreement.current} of the data processing agreement is ready to accept`, body: `Your school accepted version ${a.agreement.version ?? "an earlier one"}. Future Realm has since published ${a.agreement.current}; accepting it keeps the record of what governs your data current.`, acts: a.canOwn ? [{ label: "Read and accept it", drawer: agreementDrawer(a) }] : [] }] }] : []),
       ...(!signed ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "The data processing agreement has not been accepted", body: "Future Realm holds a school's records on the basis of this agreement. Until the Proprietor accepts it, the school has no recorded basis for the data it holds here.", acts: a.canOwn ? [{ label: "Accept the agreement", drawer: agreementDrawer(a) }] : [] }] }] : []),
       {
         cols: "1.1fr 1fr",
         panels: [
-          { type: "facts", title: "Data processing agreement", tag: signed ? "Accepted" : "Pending", tagTone: signed ? "positive" : "negative", sub: "Version, acceptance record and what it commits Future Realm to.", acts: [{ label: "Read the record", drawer: agreementReadDrawer(a) }, ...(!signed && a.canOwn ? [{ label: "Accept it", primary: true, drawer: agreementDrawer(a) }] : [])], per: 2, facts: dpa },
+          { type: "facts", title: "Data processing agreement", tag: outdated ? "Newer version available" : signed ? "Accepted" : "Pending", tagTone: signed && !outdated ? "positive" : "negative", sub: "Version, acceptance record and what it commits Future Realm to.", acts: [{ label: "Read the record", drawer: agreementReadDrawer(a) }, ...((!signed || outdated) && a.canOwn ? [{ label: "Accept it", primary: true, drawer: agreementDrawer(a) }] : [])], per: 2, facts: dpa },
           { type: "facts", title: "Contacts and web address", sub: "Who Future Realm writes to, and where your school lives.", acts: [{ label: "Edit", primary: true, drawer: preferencesDrawer(a) }], per: 2, facts: contacts },
         ],
       },

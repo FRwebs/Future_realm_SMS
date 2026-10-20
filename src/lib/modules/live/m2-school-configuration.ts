@@ -1,3 +1,4 @@
+import { clearSampleDrawer, loadSample, type SampleStatus } from "@/lib/modules/live/m1-trial";
 import { apiGet } from "@/lib/api/server";
 import {
   POLICY_DEFINITIONS,
@@ -672,27 +673,7 @@ function agreementDrawer(school: SchoolRecord) {
   };
 }
 
-function sampleDataDrawer() {
-  return {
-    kicker: "Data processing",
-    title: "Sample data",
-    sub: "What can and cannot be said about demonstration records.",
-    readOnly: true,
-    facts: [
-      ["Sample records identifiable", "no", "Nothing marks a row as sample data"],
-      [
-        "What that means",
-        "Seeded and real records are indistinguishable once written, so clearing sample data could delete a real child's record.",
-      ],
-      [
-        "What would fix it",
-        "A flag written at seed time, or a separate demonstration school. Either is a decision rather than a button.",
-      ],
-    ] as PanelFact[],
-  };
-}
-
-function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabContent {
+function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: SampleStatus = { loaded: false }): TabContent {
   const place = [school.address, school.city, school.state].filter(Boolean).join(", ");
   const stages = stagesOf(school);
   const pattern = patternOf(school);
@@ -825,13 +806,20 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[]): TabConte
             acts: [{ label: "Read full text", drawer: agreementDrawer(school) }],
             facts: agreementFacts(school),
           },
-          {
-            type: "note",
-            tone: "attention",
-            title: "Sample data cannot be told apart from real records",
-            body: "Nothing marks a row as demonstration data, so a 'clear sample data' action could not distinguish a seeded record from a real child's. What would fix it is a flag written at seed time.",
-            acts: [{ label: "Review sample data", drawer: sampleDataDrawer() }],
-          },
+          sample.loaded
+            ? {
+                type: "note" as const,
+                tone: "neutral" as const,
+                title: "A sample class is loaded",
+                body: `${sample.students} sample students, with a term of attendance, scores and report cards. Everything it made is listed, so it can be removed whole without touching what you have added.`,
+                acts: [{ label: "Remove the sample class", drawer: clearSampleDrawer(sample) }],
+              }
+            : {
+                type: "note" as const,
+                tone: "positive" as const,
+                title: "No sample data in this school",
+                body: "Everything here is the school's own. If a sample class was loaded at signup, it has been removed.",
+              },
         ],
       },
     ],
@@ -3817,7 +3805,7 @@ export async function schoolConfigurationLiveTab(
     const branding = await apiGet<BrandingVersion[]>("/api/v1/configuration/branding-versions").catch(
       () => [] as BrandingVersion[],
     );
-    return profileTab(payload.record, branding ?? []);
+    return profileTab(payload.record, branding ?? [], await loadSample());
   }
 
   if (tabSlug === "calendar") {

@@ -83,6 +83,8 @@ export class PaymentsService {
     }
     if (meta.kind === "TERMLY") {
       await db.school.update({ where: { id: schoolId }, data: { billingStatus: "ACTIVE" } });
+      // A school made read-only when its trial ended is switched back on by paying.
+      await db.school.updateMany({ where: { id: schoolId, status: "GRACE_PERIOD", statusReason: { startsWith: "Trial ended" } }, data: { status: "ACTIVE", statusReason: null, lifecycleNote: "Paid — editing restored" } });
       return `${meta.termLabel ?? "The term"} is paid for`;
     }
     return null;

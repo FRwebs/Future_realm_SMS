@@ -1,3 +1,4 @@
+import { platformPolicy } from "../platform-policy/policy.service";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
 import { z } from "zod";
@@ -198,7 +199,7 @@ export class PlanService {
     const paid = await prisma.platformInvoice.findFirst({ where: { schoolId, status: "PAID", metadata: { path: ["termLabel"], equals: label } } });
     if (paid) throw new BadRequestException(`${label} is already paid for (${paid.invoiceNo}).`);
     const meta = { kind: "TERMLY", description, termLabel: label, units: input.students, rate: facts.rate, tier: facts.tierName, terms, discount, invoiceTo: input.invoiceTo ?? null, estimatedFrom: input.estimateFrom ?? null, starts: facts.next?.start ?? null };
-    const dueAt = facts.next ? new Date(new Date(facts.next.start).getTime() - 7 * 86_400_000) : new Date(Date.now() + 14 * 86_400_000);
+    const dueAt = facts.next ? new Date(new Date(facts.next.start).getTime() - 7 * 86_400_000) : (await platformPolicy.invoiceTerms(0)).dueAt;
     const invoice = open
       ? await prisma.platformInvoice.update({ where: { id: open.id }, data: { amount, taxAmount: tax, dueAt, metadata: json(meta) } })
       : await prisma.platformInvoice.create({ data: { schoolId, invoiceNo: await nextInvoiceNo(), amount, taxAmount: tax, currency: school.currency, status: "PENDING", dueAt, metadata: json(meta) } });

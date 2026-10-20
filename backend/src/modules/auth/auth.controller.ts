@@ -34,8 +34,22 @@ function clientIp(request: Request) {
   return request.ip ?? request.socket.remoteAddress ?? undefined;
 }
 
+/** Where a network edge says the request came from (Cloudflare, Vercel, CloudFront). Nothing is guessed from the address. */
+function clientLocation(request: Request) {
+  const header = (name: string) => {
+    const value = request.headers[name];
+    return typeof value === "string" && value.trim() ? decodeURIComponent(value.trim()) : null;
+  };
+  const country = header("cf-ipcountry") ?? header("x-vercel-ip-country") ?? header("cloudfront-viewer-country");
+  const city = header("cf-ipcity") ?? header("x-vercel-ip-city") ?? header("cloudfront-viewer-city");
+  const place = [city, country && country !== "XX" ? country : null].filter(Boolean).join(", ");
+  return place || undefined;
+}
+
 const loginSchema = z.object({
-  email: z.string().email(),
+  /** An email address or the permanent User ID. `email` is still accepted from older clients. */
+  identifier: z.string().trim().min(3).optional(),
+  email: z.string().trim().min(3).optional(),
   password: z.string().min(8),
   trustDevice: z.boolean().optional(),
   mfaCode: z.string().trim().min(1).optional()
@@ -67,17 +81,19 @@ export class AuthController {
 
     let user: Awaited<ReturnType<AuthService["authenticateUser"]>>;
     try {
-      user = await this.authService.authenticateUser(payload.email, payload.password, { ipAddress, device }, payload.mfaCode);
+      user = await this.authService.authenticateUser(payload.identifier ?? payload.email ?? "", payload.password, { ipAddress, device, location: clientLocation(request) }, payload.mfaCode);
     } catch (error) {
       if (error instanceof MfaRequiredError) {
         response.status(401);
-        return { ok: false, error: "Enter your authenticator code to continue.", code: "MFA_REQUIRED" };
+        return error.channel === "EMAIL"
+          ? { ok: false, error: `We sent a 6-digit code to ${error.sentTo}. Enter it to finish signing in.`, code: "MFA_REQUIRED", channel: "EMAIL", sentTo: error.sentTo }
+          : { ok: false, error: "Enter your authenticator code to continue.", code: "MFA_REQUIRED", channel: "APP" };
       }
       throw error;
     }
 
     if (!user) {
-      throw new UnauthorizedException("Invalid email or password");
+      throw new UnauthorizedException("Invalid email, User ID or password");
     }
 
     const maxAgeSeconds = payload.trustDevice ? TRUSTED_DEVICE_MAX_AGE : SESSION_MAX_AGE;

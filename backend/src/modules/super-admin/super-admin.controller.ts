@@ -16,6 +16,11 @@ import { SuperAdminService } from "./super-admin.service";
 export class SuperAdminController {
   constructor(private readonly superAdminService: SuperAdminService) {}
 
+  @Get("schools-provisioning")
+  provisioning(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.provisioning(session);
+  }
+
   @Get("schools")
   listSchools(@CurrentSession() session: SessionPayload, @Query() query: Record<string, unknown>) {
     return this.superAdminService.listSchools(session, query);
@@ -398,8 +403,8 @@ export class SuperAdminController {
   }
 
   @Post("system/backups")
-  triggerBackup(@CurrentSession() session: SessionPayload) {
-    return this.superAdminService.triggerBackup(session);
+  triggerBackup(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.triggerBackup(session, body);
   }
 
   @Get("system/sync-failures")
@@ -709,6 +714,21 @@ export class SuperAdminController {
   @Post("communications/campaigns")
   createCampaign(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
     return this.superAdminService.createCampaign(session, body);
+  }
+
+  @Get("communications/campaigns/:campaignId/deliveries")
+  campaignDeliveries(@CurrentSession() session: SessionPayload, @Param("campaignId") campaignId: string, @Query("status") status?: string) {
+    return this.superAdminService.campaignDeliveries(session, campaignId, status);
+  }
+
+  @Get("communications/delivery-failures")
+  deliveryFailures(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.deliveryFailures(session);
+  }
+
+  @Patch("communications/templates/:templateId")
+  editTemplate(@CurrentSession() session: SessionPayload, @Param("templateId") templateId: string, @Body() body: unknown) {
+    return this.superAdminService.editMessageTemplate(session, templateId, body);
   }
 
   @Get("communications/campaigns/:campaignId/report")

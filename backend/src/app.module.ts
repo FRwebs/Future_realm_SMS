@@ -33,11 +33,15 @@ import { ParentPortalModule } from "./modules/parent-portal/parent-portal.module
 import { ParentsModule } from "./modules/parents/parents.module";
 import { OperationsModule } from "./modules/operations/operations.module";
 import { PartnersModule } from "./modules/partners/partners.module";
+import { ComplianceModule } from "./modules/security-compliance/compliance.module";
+import { PlansFeaturesModule } from "./modules/plans-features/plans-features.module";
 import { ProfileModule } from "./modules/profile/profile.module";
 import { ReportsModule } from "./modules/reports/reports.module";
 import { AnalyticsReportsModule } from "./modules/analytics-reports/analytics-reports.module";
 import { ApprovalsModule } from "./modules/approvals/approvals.module";
 import { SupportModule } from "./modules/support/support.module";
+import { TelemetryModule } from "./modules/telemetry/telemetry.module";
+import { PlatformPolicyModule } from "./modules/platform-policy/platform-policy.module";
 import { NotificationDeliveryModule } from "./modules/notification-delivery/delivery.module";
 import { SyncModule } from "./modules/sync/sync.module";
 import { AuditModule } from "./modules/audit/audit.module";
@@ -96,6 +100,8 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     AuditModule,
     SyncModule,
     NotificationDeliveryModule,
+    PlatformPolicyModule,
+    TelemetryModule,
     SupportModule,
     RolesManagementModule,
     SchoolDirectoryExtrasModule,
@@ -104,6 +110,8 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     SchemeOfWorkModule,
     OperationsModule,
     PartnersModule,
+    ComplianceModule,
+    PlansFeaturesModule,
     ParentPortalModule,
     ParentsModule,
     StudentPortalModule,

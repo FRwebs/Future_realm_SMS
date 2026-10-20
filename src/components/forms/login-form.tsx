@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Eye, EyeOff, Lock, Mail, ShieldCheck } from "lucide-react";
+import { Eye, EyeOff, Lock, ShieldCheck, UserRound } from "lucide-react";
 
 import { useToast } from "@/components/ui/toast-provider";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
@@ -24,6 +24,8 @@ export function LoginForm() {
   const [password, setPassword] = useState("");
   const [mfaRequired, setMfaRequired] = useState(false);
   const [mfaCode, setMfaCode] = useState("");
+  /** Where the one-time code went, when it was emailed; null means the authenticator app. */
+  const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
 
   async function attemptLogin(code?: string) {
     setPending(true);
@@ -37,7 +39,7 @@ export function LoginForm() {
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          email,
+          identifier: email,
           password,
           trustDevice,
           ...(code ? { mfaCode: code } : {})
@@ -48,12 +50,16 @@ export function LoginForm() {
         ok?: boolean;
         error?: string;
         code?: string;
+        channel?: "EMAIL" | "APP";
+        sentTo?: string;
         data?: { user: { role: string } };
       };
 
       if (!response.ok || body.ok === false || !body.data) {
         if (body.code === "MFA_REQUIRED") {
           setMfaRequired(true);
+          setCodeSentTo(body.channel === "EMAIL" ? (body.sentTo ?? "your email") : null);
+          if (code) setError(body.error ?? null);
           setPending(false);
           return;
         }
@@ -108,11 +114,13 @@ export function LoginForm() {
         <div className="mb-5 flex items-start gap-[10px] rounded-[11px] border px-[14px] py-[13px]" style={{ borderColor: "var(--color-gold-dim)", background: "var(--color-gold-dim)" }}>
           <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#8a6410" }} strokeWidth={1.8} />
           <p className="text-[11.5px] leading-[1.5] text-[#435048]">
-            This account has two-factor authentication turned on. Enter the 6-digit code from your authenticator app, or one of your backup codes.
+            {codeSentTo
+              ? `We sent a 6-digit code to ${codeSentTo}. It is valid for 10 minutes and allows 3 attempts.`
+              : "This account has two-factor authentication turned on. Enter the 6-digit code from your authenticator app, or one of your backup codes."}
           </p>
         </div>
 
-        <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Authentication code</label>
+        <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">{codeSentTo ? "Code from your email" : "Authentication code"}</label>
         <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
           <input
             type="text"
@@ -136,11 +144,30 @@ export function LoginForm() {
 
         {error ? <p className="mt-4 text-[13px] text-[var(--color-danger)]">{error}</p> : null}
 
+        {codeSentTo ? (
+          <p className="mt-4 text-center text-[12px] text-[#435048]">
+            Didn&apos;t get it?{" "}
+            <button
+              type="button"
+              disabled={pending}
+              onClick={async () => {
+                setMfaCode("");
+                await attemptLogin();
+                showToast({ variant: "success", title: "Code sent", description: "Check your inbox for the new code." });
+              }}
+              className="font-semibold text-[#12796a] hover:underline"
+            >
+              Send me a new code
+            </button>
+          </p>
+        ) : null}
+
         <button
           type="button"
           onClick={() => {
             setMfaRequired(false);
             setMfaCode("");
+            setCodeSentTo(null);
             setError(null);
           }}
           className="mt-4 w-full text-center text-[12.5px] font-semibold text-[#435048] hover:underline"
@@ -153,17 +180,18 @@ export function LoginForm() {
 
   return (
     <form onSubmit={handleSubmit} method="post">
-      <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Work email</label>
+      <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Email address or User ID</label>
       <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
-        <Mail className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
+        <UserRound className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
         <input
-          type="email"
-          name="email"
+          type="text"
+          name="identifier"
+          autoComplete="username"
           required
           value={email}
           onChange={(event) => setEmail(event.target.value)}
           className="w-full bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
-          placeholder="principal@greenfieldcollege.ng"
+          placeholder="you@school.com or 482173"
         />
       </div>
 
@@ -182,7 +210,7 @@ export function LoginForm() {
           value={password}
           onChange={(event) => setPassword(event.target.value)}
           className="w-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
-          placeholder="FutureRealm123!"
+          placeholder="Your password"
         />
         <button
           type="button"
@@ -229,8 +257,8 @@ export function LoginForm() {
       >
         <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#8a6410" }} strokeWidth={1.8} />
         <p className="text-[11.5px] leading-[1.5] text-[#435048]">
-          Two-factor authentication is available on every account — turn it on from your profile.
-          If it&apos;s on for this account, you&apos;ll be asked for a code after this step.
+          Multi-factor authentication is required for Principal, Proprietor and Bursar accounts. You&apos;ll be
+          asked for a one-time code sent to your email after this step.
         </p>
       </div>
 
@@ -244,6 +272,11 @@ export function LoginForm() {
       </p>
       <p className="mt-[10px] text-center text-xs text-[#9fb8a7]">
         Parents and students receive their accounts from their school.
+      </p>
+      <p className="mt-[18px] text-center">
+        <Link href="/" className="text-[11px] font-semibold text-[#12796a] hover:underline">
+          ← Back to website
+        </Link>
       </p>
     </form>
   );

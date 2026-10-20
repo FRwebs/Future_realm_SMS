@@ -2,6 +2,8 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { platformPolicy } from "../platform-policy/policy.service";
+import { inQuietHours } from "../platform-policy/policy.shared";
 import { CARRIERS } from "./providers";
 
 /**
@@ -16,7 +18,6 @@ import { CARRIERS } from "./providers";
  *  - in-app rows are left alone: being in the table is how they are delivered.
  */
 
-const MAX_ATTEMPTS = 3;
 const BATCH = 50;
 
 type Meta = Record<string, unknown>;
@@ -95,6 +96,9 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
     this.running = true;
     const result = { sent: 0, failed: 0, held: 0 };
     try {
+      const policy = (await platformPolicy.get()).messaging;
+      // Quiet hours hold everything: the messages stay queued and go out when the hours end.
+      if (inQuietHours(policy)) return result;
       const rows = await prisma.notificationLog.findMany({
         where: { status: { in: ["QUEUED", "HELD"] }, channel: { in: ["SMS", "EMAIL"] }, sentAt: { gte: this.since }, ...(schoolId ? { schoolId } : {}) },
         orderBy: { sentAt: "asc" },
@@ -111,21 +115,27 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           result.failed++;
           continue;
         }
-        if (row.channel === "SMS" && !(await this.spend(row.schoolId, row.title))) {
+        if (policy.dailyCapPerRecipient > 0 && (await this.sentToday(to, row.channel)) >= policy.dailyCapPerRecipient) {
+          await this.mark(row.id, meta, "HELD", { held: `Daily cap of ${policy.dailyCapPerRecipient} reached for this recipient` });
+          result.held++;
+          continue;
+        }
+        const platformBilled = meta.billing === "PLATFORM";
+        if (row.channel === "SMS" && !platformBilled && !(await this.spend(row.schoolId, row.title))) {
           await this.mark(row.id, meta, "HELD", { held: "The school has no SMS credits left" });
           result.held++;
           continue;
         }
         const outcome = await carrier.send(to, row.title, row.body);
         if (outcome.ok) {
-          await this.mark(row.id, meta, "SENT", { provider: carrier.provider, ref: outcome.ref, deliveredAt: new Date().toISOString(), held: undefined });
+          await this.mark(row.id, meta, "SENT", { to, provider: carrier.provider, ref: outcome.ref, deliveredAt: new Date().toISOString(), held: undefined });
           result.sent++;
           continue;
         }
         // The credit was taken before the attempt; a refused message gives it back.
-        if (row.channel === "SMS") await this.refund(row.schoolId, row.title);
+        if (row.channel === "SMS" && !platformBilled) await this.refund(row.schoolId, row.title);
         const attempts = Number(meta.attempts ?? 0) + 1;
-        const final = !outcome.retry || attempts >= MAX_ATTEMPTS;
+        const final = !outcome.retry || attempts >= policy.maxAttempts;
         await this.mark(row.id, meta, final ? "FAILED" : "QUEUED", { attempts, error: outcome.error, provider: carrier.provider });
         if (final) result.failed++;
       }
@@ -135,6 +145,12 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
       this.lastRun = result;
     }
     return result;
+  }
+
+  /** Messages already delivered to this address in the last 24 hours. */
+  private async sentToday(to: string, channel: string) {
+    const since = new Date(Date.now() - 86_400_000);
+    return prisma.notificationLog.count({ where: { channel: channel as "SMS" | "EMAIL", status: "SENT", sentAt: { gte: since }, metadata: { path: ["to"], equals: to } } });
   }
 
   private async mark(id: string, meta: Meta, status: string, patch: Meta) {

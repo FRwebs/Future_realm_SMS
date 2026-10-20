@@ -1,3 +1,4 @@
+import { assertPasswordNotReused, rememberPassword } from "../../../../src/lib/auth/password-history";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, Gender, Prisma } from "@prisma/client";
 import QRCode from "qrcode";
@@ -424,9 +425,15 @@ export class ProfileService {
     if (!verifyPassword(parsed.currentPassword, user.passwordHash)) {
       throw new BadRequestException("Current password is incorrect.");
     }
+    try {
+      await assertPasswordNotReused(user.id, parsed.newPassword, user.passwordHash);
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : "Choose a different password.");
+    }
+    await rememberPassword(user.id, user.passwordHash);
     await prisma.user.update({
       where: { id: user.id },
-      data: { passwordHash: hashPassword(parsed.newPassword), passwordResetRequired: false },
+      data: { passwordHash: hashPassword(parsed.newPassword), passwordChangedAt: new Date(), passwordResetRequired: false },
     });
     await this.audit(session, "RESET_PASSWORD", "UserProfile", user.id, { selfService: true });
     return { id: user.id };

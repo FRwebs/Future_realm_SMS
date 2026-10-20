@@ -480,6 +480,8 @@ export interface SuperAdminSetupProgress {
 }
 
 export interface SuperAdminSchoolDetail {
+  credits?: { sms: number; whatsapp: number; low: boolean; lastToppedUpAt: string | null } | null;
+  trialStartedAt?: string | null;
   id: string;
   name: string;
   slug: string;
@@ -625,6 +627,8 @@ export interface SuperAdminUserCaseReviewContext {
     suspendedAt?: string | null;
     passwordResetRequired: boolean;
     lastLoginAt?: string | null;
+    mfa?: string;
+    contacted?: { at: string; by: string; how: string; note: string } | null;
     loginAttempts: Array<{ success: boolean; reason?: string | null; ipAddress?: string | null; device?: string | null; createdAt: string }>;
   }>;
   duplicates: Array<{
@@ -2486,9 +2490,18 @@ export interface SuperAdminFeatureFlagRow {
   rolloutStatus: string;
   rolloutPercent: number;
   pilotSchoolCount: number;
+  pilotSchoolIds?: string[];
   overrides: number;
   createdAt: string;
   stageEnteredAt: string;
+  area?: string | null;
+  owner?: string | null;
+  ownerId?: string | null;
+  exitCriteria?: string | null;
+  observationDays?: number;
+  daysInStage?: number;
+  windowOpensIn?: number;
+  history?: Array<{ from: string; to: string; percent: number; note: string | null; at: string }>;
 }
 
 export interface SuperAdminTierFeatureRow {
@@ -2546,6 +2559,8 @@ export interface SuperAdminPlanRow {
   customBranding: boolean;
   includedModules: unknown;
   isActive: boolean;
+  lifecycle?: string;
+  version?: number;
   subscriberCount: number;
   createdAt: string;
 }
@@ -2578,7 +2593,10 @@ export interface SuperAdminCampaignRow {
   recipientCount: number;
   deliveredCount: number;
   failedCount: number;
-  openedCount: number;
+  queuedCount?: number;
+  /** Opens are not tracked for email or SMS, so this is null — there is no rate to show. */
+  openedCount: number | null;
+  recurrence?: string | null;
   scheduledAt?: string;
   sentAt?: string;
   createdBy: string;
@@ -2595,6 +2613,11 @@ export interface SuperAdminMessageTemplateRow {
   placeholders: string[];
   approvalStatus: string;
   metaTemplateId?: string | null;
+  version?: number;
+  uses?: number;
+  createdById?: string | null;
+  reviewedById?: string | null;
+  reviewNote?: string | null;
   updatedAt: string;
 }
 
@@ -2604,6 +2627,8 @@ export interface SuperAdminConsentRow {
   userName: string;
   userEmail: string;
   userRole: string;
+  school?: string;
+  source?: string | null;
   channel: string;
   optedIn: boolean;
   optedOutAt?: string;
@@ -2684,15 +2709,17 @@ export interface SuperAdminInfraMonitoring {
     status: string;
     avgQueueAgeHours: number;
     schoolsWithPending: number;
-    perSchool: Array<{ schoolName: string; queued: number; oldestAgeHours: number; status: string }>;
+    perSchool: Array<{ schoolName: string; queued: number; refused?: number; conflicts?: number; oldestAgeHours: number; status: string }>;
   };
-  deliveryHealth: Array<{ channel: string; total: number; failureRate: number; status: string }>;
+  deliveryHealth: Array<{ channel: string; total: number; sent?: number; failed?: number; queued?: number; simulated?: number; failureRate: number; status: string }>;
   integrations: Array<{ name: string; checkFrequency: string; status: string; onFailure: string }>;
-  backups: { lastSuccessfulAt: string | null; recent: Array<{ id: string; scope: string; status: string; sizeMb?: number | null; school: string; startedAt: string; endedAt?: string }> };
+  runtime?: { cpuPercent: number; loadAverage: number; cpuCores: number; memoryMb: number; systemMemoryPercent: number; processUptimeMinutes: number; dbPingMs: number; concurrentUsers: number; pageLoad: { samples: number; p75Ms: number | null; slowSamples: number; slowP75Ms: number | null } };
+  backups: { lastSuccessfulAt: string | null; lastVerifiedAt?: string | null; lastRestoreTestAt?: string | null; lastRestoreResult?: string | null; region?: string; scheduled?: boolean; retentionDays?: number; recent: Array<{ id: string; scope: string; status: string; sizeMb?: number | null; school: string; startedAt: string; endedAt?: string; verified?: boolean; restoreTested?: boolean; sha256?: string | null; note?: string | null; reason?: string | null; location?: string | null }> };
   generatedAt: string;
 }
 
 export interface SuperAdminComputationMonitoring {
+  computation?: { runsToday: number; schoolsToday: number; medianMs: number | null; p95Ms: number | null; failingFrameworks: Array<{ school: string; section: string; total: number }>; bySchool: Array<{ school: string; runs: number; records: number; medianMs: number | null; recomputes: number; state: string }> };
   assessments: { pendingApproval: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string };
   broadsheets: { pending: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string; avgCompileHours: number | null };
   reportCards: { pending: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string };
@@ -2778,7 +2805,7 @@ export interface SuperAdminAccessGrant {
   expired: boolean;
 }
 
-export type PartnerDealStatus = "REGISTERED" | "CONVERTED" | "EXPIRED" | "COMMISSION_PAID";
+export type PartnerDealStatus = "REGISTERED" | "CONVERTED" | "EXPIRED" | "COMMISSION_PAID" | "REJECTED";
 
 export interface SuperAdminPartnerRow {
   id: string;
