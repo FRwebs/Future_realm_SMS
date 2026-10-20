@@ -1536,37 +1536,41 @@ model UserPermissionOverride {
 }
 
 model Guardian {
-  id                 String                @id @default(cuid())
-  schoolId           String
-  userId             String?               @unique
-  school             School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  user               User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
-  firstName          String
-  lastName           String
-  phone              String
-  email              String?
-  relationship       String
-  occupation         String?
-  address            String?
-  canReceiveSms      Boolean               @default(true)
-  canReceiveEmail    Boolean               @default(true)
-  secondContactName  String?
-  secondContactPhone String?
-  language           String                @default("English")
+  id                       String                @id @default(cuid())
+  schoolId                 String
+  userId                   String?               @unique
+  school                   School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  user                     User?                 @relation(fields: [userId], references: [id], onDelete: SetNull)
+  firstName                String
+  lastName                 String
+  phone                    String
+  email                    String?
+  relationship             String
+  occupation               String?
+  address                  String?
+  canReceiveSms            Boolean               @default(true)
+  canReceiveEmail          Boolean               @default(true)
+  secondContactName        String?
+  secondContactPhone       String?
+  language                 String                @default("English")
   /// Marked deliberately — never counted as a failed activation.
-  phoneOnly          Boolean               @default(false)
-  phoneOnlyReason    String?
-  phoneOnlyMode      String?
-  createdAt          DateTime              @default(now())
+  phoneOnly                Boolean               @default(false)
+  phoneOnlyReason          String?
+  phoneOnlyMode            String?
+  /// A safeguarding restriction: nobody from the platform may open this guardian's account while it stands.
+  safeguardingRestrictedAt DateTime?
+  safeguardingNote         String?
+  safeguardingById         String?
+  createdAt                DateTime              @default(now())
   /// A merged-away record points at the survivor and is closed, never deleted.
-  mergedIntoId       String?
-  mergedAt           DateTime?
-  students           StudentGuardian[]
-  parentMeetings     ParentMeeting[]
-  consents           FamilyConsent[]
-  submissions        GuardianSubmission[]
-  contacts           GuardianContact[]
-  collectors         AuthorisedCollector[]
+  mergedIntoId             String?
+  mergedAt                 DateTime?
+  students                 StudentGuardian[]
+  parentMeetings           ParentMeeting[]
+  consents                 FamilyConsent[]
+  submissions              GuardianSubmission[]
+  contacts                 GuardianContact[]
+  collectors               AuthorisedCollector[]
 
   @@index([schoolId, phone])
 }
@@ -3706,6 +3710,8 @@ model MessageTemplate {
   placeholders   String[]  @default([])
   approvalStatus String    @default("PENDING_META_APPROVAL")
   metaTemplateId String?
+  /// When set, the platform's own notice for that moment (a trial ending, an address released) is worded from this template once it is approved.
+  triggerKey     String?
   /// Editing a template makes a new version; the old one is retired, never changed.
   version        Int       @default(1)
   supersedesId   String?
@@ -4751,39 +4757,70 @@ model ChurnRecord {
 }
 
 model CustomReport {
-  id          String    @id @default(cuid())
-  name        String
-  dimension   String
-  metric      String
-  filters     Json?
-  createdById String?
-  generatedAt DateTime?
-  createdAt   DateTime  @default(now())
-  createdBy   User?     @relation("CustomReportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  id            String    @id @default(cuid())
+  name          String
+  dimension     String
+  metric        String
+  filters       Json?
+  createdById   String?
+  generatedAt   DateTime?
+  createdAt     DateTime  @default(now())
+  /// What the report answers, in a line; where it is filed; who may run it.
+  question      String?
+  groupName     String?
+  /// ALL Super Admins, or OWNER (only the person who saved it).
+  visibility    String    @default("ALL")
+  /// Only schools that joined in the last N days; compare sets that against the N days before.
+  periodDays    Int?
+  compare       Boolean   @default(false)
+  /// A group with fewer than this many schools is shown as "under N" rather than a figure.
+  suppressUnder Int?
+  lockFilters   Boolean   @default(false)
+  /// WEEKLY or MONTHLY: the report is emailed to the recipients as it falls due.
+  frequency     String?
+  recipients    String[]  @default([])
+  lastSentAt    DateTime?
+  createdBy     User?     @relation("CustomReportCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 }
 
 model CurriculumTemplate {
-  id             String   @id @default(cuid())
-  name           String   @unique
+  id             String    @id @default(cuid())
+  name           String
   country        String
-  subjects       String[] @default([])
+  subjects       String[]  @default([])
   classStructure Json?
-  calendarType   String   @default("THREE_TERM")
-  version        String   @default("1.0")
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  calendarType   String    @default("THREE_TERM")
+  version        String    @default("1.0")
+  isActive       Boolean   @default(true)
+  /// DRAFT → VALIDATED → ACTIVE → SUPERSEDED (or ARCHIVED). Only ACTIVE is offered to schools.
+  lifecycle      String    @default("ACTIVE")
+  owner          String?
+  effectiveFrom  DateTime?
+  language       String?
+  baseOnId       String?
+  validatedAt    DateTime?
+  supersededAt   DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  @@unique([name, version])
 }
 
 model GradingScaleTemplate {
-  id                  String   @id @default(cuid())
-  name                String   @unique
+  id                  String    @id @default(cuid())
+  name                String
   gradeBands          Json
-  passMark            Float    @default(40)
-  applicableCurricula String[] @default([])
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  passMark            Float     @default(40)
+  applicableCurricula String[]  @default([])
+  isActive            Boolean   @default(true)
+  version             String    @default("1.0")
+  lifecycle           String    @default("ACTIVE")
+  validatedAt         DateTime?
+  supersededAt        DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([name, version])
 }
 
 model ReportCardTemplate {
@@ -6499,4 +6536,112 @@ model AdminTrustedDevice {
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, revokedAt, expiresAt])
+}
+
+/// How a subject in one curriculum version became a subject in the next, so a child's history stays explainable.
+model TemplateSubjectMapping {
+  id             String   @id @default(cuid())
+  fromTemplateId String
+  toTemplateId   String
+  fromSubject    String
+  toSubject      String
+  /// RENAMED, MERGED (several old into one new), SPLIT (one old into several new), DROPPED has no toSubject so is not stored here.
+  relationship   String   @default("RENAMED")
+  createdById    String?
+  createdAt      DateTime @default(now())
+
+  @@unique([fromTemplateId, toTemplateId, fromSubject, toSubject])
+}
+
+/// What the platform knows about a country, held as data so a launch there is configuration, not code.
+model CountryProfile {
+  id                    String   @id @default(cuid())
+  country               String   @unique
+  currency              String   @default("NGN")
+  phonePattern          String?
+  phonePrefixes         String[] @default([])
+  educationAuthority    String?
+  registrationAuthority String?
+  defaultChannel        String?
+  consentAge            Int?
+  dataProtectionRegime  String?
+  verificationSources   String[] @default([])
+  isLive                Boolean  @default(false)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+}
+
+/// Which master template version a school's setup copied — the school then owns its copy.
+model TemplateAdoption {
+  id           String   @id @default(cuid())
+  schoolId     String
+  kind         String
+  templateId   String
+  templateName String
+  version      String
+  adoptedAt    DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([templateId])
+}
+
+/// A school's standing on one day — what makes a retention curve possible, because "active today" cannot say what it was last term.
+model SchoolSnapshot {
+  id        String   @id @default(cuid())
+  day       String
+  schoolId  String
+  status    String
+  plan      String
+  createdAt DateTime @default(now())
+
+  @@unique([day, schoolId])
+  @@index([day])
+}
+
+/// How many schools used a module in the 60 days to a given day, kept weekly so a trend can be drawn.
+model ModuleSnapshot {
+  id     String @id @default(cuid())
+  day    String
+  module String
+  using  Int
+  total  Int
+
+  @@unique([day, module])
+}
+
+/// Who is accountable for a growth-funnel stage.
+model FunnelStageOwner {
+  stage     String   @id
+  ownerId   String
+  updatedAt DateTime @updatedAt
+}
+
+/// What the team knows about a Back Office person beyond their role: where they sit, who they answer to, and what they may see.
+model InternalProfile {
+  userId       String   @id
+  departmentId String?
+  level        String?
+  /// Empty means the whole platform. Otherwise this person sees only schools in these states.
+  scopeStates  String[] @default([])
+  managerId    String?
+  staffNumber  String?
+  isExternal   Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+/// Something about a Back Office account's behaviour that a person should look at: out-of-hours access, an unfamiliar device, a large export, two places at once.
+model InternalAnomaly {
+  id           String    @id @default(cuid())
+  userId       String
+  kind         String
+  detail       String
+  detectedAt   DateTime  @default(now())
+  status       String    @default("OPEN")
+  reviewedById String?
+  reviewedAt   DateTime?
+  note         String?
+
+  @@index([status, detectedAt])
+  @@index([userId, kind, detectedAt])
 }

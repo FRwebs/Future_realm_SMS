@@ -9,6 +9,7 @@ import { looksLikeUserCode, normaliseUserCode } from "../../../../src/lib/auth/u
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { teamAccess } from "../team-access/team-access.service";
 import { SessionUser } from "../../../../src/lib/domain/types";
 
 export interface LoginContext {
@@ -194,6 +195,7 @@ export class AuthService {
       where: { id: user.id },
       data: { lastLoginAt: new Date() }
     });
+    if (isPlatformRole(user.role)) await teamAccess.onSignIn({ id: user.id, role: String(user.role), email: user.email }, { ipAddress: context.ipAddress, device: context.device, newDevice }).catch(() => undefined);
     await prisma.auditLog.create({
       data: {
         schoolId: user.schoolId,

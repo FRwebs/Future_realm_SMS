@@ -63,6 +63,9 @@ export interface SessionUser {
     startedAt: string;
     expiresAt: string;
     reason?: string | null;
+    /** True only when the school's leadership approved this session making changes. */
+    elevated?: boolean;
+    elevationId?: string;
   };
 }
 
@@ -475,8 +478,10 @@ export interface MigrationSourceAdapterRow {
 }
 
 export interface SuperAdminSetupProgress {
-  steps: Array<{ key: string; label: string; reached: number; completed: number; completionRatePct: number }>;
+  steps: Array<{ key: string; label: string; reached: number; completed: number; completionRatePct: number; medianHours?: number | null }>;
   stalled: Array<{ schoolName: string; daysSinceSignup: number; incompleteCount: number }>;
+  medianHoursToComplete?: number | null;
+  schoolsFinished?: number;
 }
 
 export interface SuperAdminSchoolDetail {
@@ -653,6 +658,7 @@ export interface SuperAdminImpersonationLogRow {
   reason?: string | null;
   startedAt: string;
   maxAgeSeconds?: number | null;
+  elevated?: boolean;
 }
 
 export interface SuperAdminBillingRow {
@@ -2596,6 +2602,7 @@ export interface SuperAdminCampaignRow {
   queuedCount?: number;
   /** Opens are not tracked for email or SMS, so this is null — there is no rate to show. */
   openedCount: number | null;
+  emailsSent?: number;
   recurrence?: string | null;
   scheduledAt?: string;
   sentAt?: string;
@@ -2613,6 +2620,7 @@ export interface SuperAdminMessageTemplateRow {
   placeholders: string[];
   approvalStatus: string;
   metaTemplateId?: string | null;
+  triggerKey?: string | null;
   version?: number;
   uses?: number;
   createdById?: string | null;
@@ -2727,9 +2735,13 @@ export interface SuperAdminComputationMonitoring {
 }
 
 export interface SuperAdminConfigLibrary {
-  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean }>;
-  gradingScales: Array<{ id: string; name: string; gradeBands: unknown; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean }>;
+  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean; lifecycle: string; owner: string | null; effectiveFrom: string | null; language: string | null; basedOn: string | null; validatedAt: string | null; schools: number }>;
+  gradingScales: Array<{ id: string; name: string; version: string; lifecycle: string; gradeBands: unknown; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean; schools: number; problems: string[] }>;
   reportCards: Array<{ id: string; name: string; layout: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean }>;
+  mappings: Array<{ id: string; template: string; fromVersion: string; toVersion: string; fromSubject: string; toSubject: string; relationship: string; at: string }>;
+  profiles: Array<{ id: string; country: string; currency: string; phonePattern: string | null; phonePrefixes: string[]; educationAuthority: string | null; registrationAuthority: string | null; defaultChannel: string | null; consentAge: number | null; dataProtectionRegime: string | null; verificationSources: string[]; isLive: boolean; schools: number; updatedAt: string }>;
+  adoptions: Array<{ id: string; school: string; kind: string; template: string; version: string; at: string }>;
+  unprofiled: Array<{ country: string; schools: number }>;
 }
 
 export interface SuperAdminInternalMember {

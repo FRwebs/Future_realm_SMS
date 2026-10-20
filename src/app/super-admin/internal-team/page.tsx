@@ -60,9 +60,16 @@ function tabHref(tab: string) {
   return tab === "accounts" ? "/super-admin/internal-team" : `/super-admin/internal-team?tab=${tab}`;
 }
 
+type Profiles = Record<string, import("./_people-table").PersonProfile>;
+type MatrixWithLabels = SuperAdminPermissionGridMatrix & { labels?: Record<string, string> };
+
 export default async function SuperAdminInternalTeamPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
   const params = searchParams ? await searchParams : {};
   const tab = params.tab ?? "accounts";
+  const [departments, rosterForInvite] = await Promise.all([
+    apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments").catch(() => [] as SuperAdminDepartmentRow[]),
+    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[])
+  ]);
   const tabs = [
     { label: "People", href: tabHref("accounts"), active: tab === "accounts" },
     { label: "Roles & Scopes", href: tabHref("roles"), active: tab === "roles" },
@@ -88,42 +95,16 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
               { name: "firstName", label: "First name", required: true, section: "Person" },
               { name: "lastName", label: "Last name", required: true, section: "Person" },
               { name: "email", label: "Work email", type: "email", required: true, section: "Person" },
-              { name: "department", label: "Department (optional)", section: "Person" },
-              {
-                name: "reportsTo",
-                label: "Reports to",
-                type: "static",
-                placeholder: "Not tracked",
-                note: "No manager/reports-to field exists on an internal account.",
-                section: "Person"
-              },
+              { name: "departmentId", label: "Department (optional)", type: "select", defaultValue: "", options: [{ label: "None", value: "" }, ...departments.map((d) => ({ label: d.name, value: d.id }))], section: "Person" },
+              { name: "managerId", label: "Reports to", type: "select", defaultValue: "", options: [{ label: "Nobody", value: "" }, ...rosterForInvite.filter((m) => m.status === "ACTIVE").map((m) => ({ label: m.name, value: m.id }))], section: "Person" },
+              { name: "level", label: "Level", placeholder: "e.g. Lead, Senior, Associate", section: "Person" },
+              { name: "staffNumber", label: "Staff identifier", section: "Person" },
+              { name: "isExternal", label: "Employment", type: "select", defaultValue: "false", options: [{ label: "Employee", value: "false" }, { label: "External — contractor or partner staff", value: "true" }], section: "Person" },
               { name: "role", label: "Role template", type: "select", options: roleOptions, section: "Access" },
-              {
-                name: "dataScope",
-                label: "Data scope",
-                type: "static",
-                placeholder: "Full access by default",
-                note: "Not set at creation — narrow it afterwards from this person's Manage menu (Set module permission / Grant time-bound access).",
-                section: "Access"
-              },
-              {
-                name: "mfa",
-                label: "Multi-factor authentication",
-                type: "static",
-                disabled: true,
-                placeholder: "Self-service after creation",
-                note: "Real, but not set here — the new hire turns on their own authenticator from Profile → Sessions & security after they sign in. It isn't mandatory.",
-                section: "Fixed for everyone"
-              },
-              {
-                name: "sessionTimeout",
-                label: "Session timeout",
-                type: "toggle",
-                disabled: true,
-                note: "Real, but not 30-minutes-idle — every login gets a fixed 8-hour session regardless of activity.",
-                section: "Fixed for everyone"
-              },
-              { name: "attribution", label: "Every action attributed", type: "toggle", disabled: true, note: "Real — there are no shared accounts.", section: "Fixed for everyone" }
+              { name: "scopeStates", label: "Data scope — states (comma-separated)", type: "textarea", placeholder: "Blank for every school", note: "Limits School Accounts to schools in these states. Module access is set afterwards from their Manage menu; their role template applies at once if one exists.", section: "Access" },
+              { name: "mfa", label: "Multi-factor authentication", type: "static", disabled: true, placeholder: "Email code at every sign-in", note: "An authenticator app is turned on by the new person from Profile → Sessions & security.", section: "Fixed for everyone" },
+              { name: "sessionTimeout", label: "Session timeout", type: "toggle", disabled: true, note: "Real — 8-hour session, and signed out after 30 minutes without a request.", section: "Fixed for everyone" },
+              { name: "attribution", label: "Every action attributed", type: "toggle", disabled: true, note: "Real — there are no shared accounts; every change is written to the audit log against the person.", section: "Fixed for everyone" }
             ]}
           />
         }
@@ -145,12 +126,16 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
   for (const key of ["search", "role", "status"]) {
     if (params[key]) query.set(key, params[key] as string);
   }
-  const [envelope, allMembers, grants, matrix] = await Promise.all([
+  const [envelope, allMembers, grants, matrix, profiles, departments, headlines] = await Promise.all([
     apiGetEnvelope<SuperAdminInternalMember[]>(`/api/super-admin/internal-team?${query.toString()}`),
     apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team"),
     apiGet<SuperAdminAccessGrant[]>("/api/super-admin/internal-team/access-grants"),
-    apiGet<SuperAdminPermissionGridMatrix>("/api/super-admin/internal-team/permission-grid")
+    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid"),
+    apiGet<Profiles>("/api/super-admin/internal-team/profiles"),
+    apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments"),
+    apiGet<{ external: number; privilegeChanges90d: number; openAnomalies: number }>("/api/super-admin/internal-team/headlines")
   ]);
+  const moduleOptions = (matrix.modules ?? []).map((id) => ({ label: matrix.labels?.[id] ?? id, value: id }));
   const members = envelope.data ?? [];
   const activeCount = members.filter((m) => m.status === "ACTIVE").length;
   const revokedCount = members.filter((m) => m.status === "REVOKED").length;
@@ -171,14 +156,18 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Internal accounts" value={all.length} detail={`${activeCount} active · ${revokedCount} revoked · ${suspendedCount} suspended`} icon={Users2} tone="dark" />
         <StatCard label="Hold Super Admin" value={superAdminCount} detail="Kept deliberately small" icon={Crown} tone="info" />
-        <StatCard label="External accounts" value="N/A" detail="Not tracked — no internal/external distinction exists on an account; every role is treated as an employee" icon={Timer} tone="neutral" />
-        <StatCard label="Privilege changes this term" value="N/A" detail="Not tracked as a term-scoped aggregate — each permission-grid or access-grant change is in the audit log individually" icon={AlertTriangle} tone="neutral" />
+        <StatCard label="External accounts" value={headlines.external} detail="Contractors and partner staff — marked on a person's profile" icon={Timer} tone={headlines.external ? "warning" : "neutral"} />
+        <StatCard label="Privilege changes (90 days)" value={headlines.privilegeChanges90d} detail="Access-grid, grant, template and profile changes — each one is in the audit log" icon={AlertTriangle} tone="neutral" />
         <StatCard label="Nobody can read a child's record" value={0} detail="No Super Admin endpoint returns individual student data — the only route in is impersonating a school user (see Users → Support Access)" icon={ShieldCheck} tone="success" />
       </section>
 
       <PeopleTable
         members={members}
         matrix={matrix}
+        profiles={profiles}
+        departmentOptions={departments.map((d) => ({ label: d.name, value: d.id }))}
+        memberOptions={all.filter((m) => m.status === "ACTIVE").map((m) => ({ label: m.name, value: m.id }))}
+        moduleOptions={moduleOptions}
         title="Internal accounts"
         description={`Open Manage on anyone to see their full record, every module they hold access to, and to act on their account. ${activeCount} active · ${revokedCount} revoked · ${suspendedCount} suspended. Only Super Admin can create an account; offboarding marks access and sessions revoked in the database immediately, though an already-issued session token can remain valid until it expires.`}
         filterBar={
@@ -295,7 +284,7 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
 async function RolesTab() {
   const [templates, matrix] = await Promise.all([
     apiGet<SuperAdminPermissionTemplateRow[]>("/api/super-admin/internal-team/permission-templates"),
-    apiGet<SuperAdminPermissionGridMatrix>("/api/super-admin/internal-team/permission-grid")
+    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid")
   ]);
   const modules = matrix.modules ?? [];
   const members = matrix.members ?? [];
@@ -321,9 +310,9 @@ async function RolesTab() {
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Roles defined" value={roleOptions.length} detail="Fixed platform roles, not ad-hoc bundles" icon={UserCog} tone="dark" />
-        <StatCard label="Actions that can be granted" value="N/A" detail="Not tracked — this system has no per-action grant within a module, only whole-module levels" icon={ShieldCheck} tone="neutral" />
-        <StatCard label="Actions Super Admin holds" value="All" detail="Enforced by role check, not by grid entries — Super Admin bypasses the permission grid entirely" icon={ShieldCheck} tone="info" />
-        <StatCard label="Actions the narrowest role holds" value="N/A" detail="Not tracked — no per-action model exists to measure this against" icon={ShieldCheck} tone="neutral" />
+        <StatCard label="Levels that can be granted" value={4} detail="None, View, Edit, Full — per module. There is no finer per-action grant inside a module" icon={ShieldCheck} tone="neutral" />
+        <StatCard label="What Super Admin holds" value="All" detail="Full in every module — the grid never restricts a Super Admin or Platform Owner, so nobody can lock themselves out" icon={ShieldCheck} tone="info" />
+        <StatCard label="Modules set to None for someone" value={modules.filter((id) => members.some((m) => m.access[id] === "NONE")).length} detail="Modules at least one person is blocked from entirely" icon={ShieldCheck} tone="neutral" />
         <StatCard label="Actions nobody holds: a child's record" value={0} detail="Not on the list at all — the function does not exist" icon={ShieldCheck} tone="success" />
       </section>
 
@@ -331,7 +320,7 @@ async function RolesTab() {
         <p className="section-eyebrow">Roles &amp; scopes</p>
         <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">What each role can do</h2>
         <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-          Role templates define the reusable default permission grid applied when a new account is created. The
+          Role templates define the default permission grid: applied when a new account is created, and used live for anyone with nothing set of their own for a module. The
           access matrix below shows the resulting per-person permissions, which can differ from the template once
           adjusted for an individual.
         </p>
@@ -345,7 +334,7 @@ async function RolesTab() {
         items={[
           { rule: "Nobody can read a child's record", detail: "Not Super Admin, not anyone. No Super Admin endpoint returns individual student data — the function does not exist, so it cannot be granted or escalated to." },
           { rule: "Every change here is logged with a diff", detail: "Permission-grid and access-grant changes are written to the immutable audit log — who changed what, when." },
-          { rule: "Role is the only privilege actually checked per request", detail: "The per-module grid above and time-bound grants are real, stored records, but no request guard reads them — only the broad role embedded in the session token is enforced. A role change, a permission-grid edit, or a revoke/offboard takes effect on that person's next login, not mid-session — their existing session token stays valid until it naturally expires." }
+          { rule: "Both the role and the module grid are checked on every request", detail: "The role on the session decides which endpoints exist for a person; the per-module grid and live time-bound grants then decide what they may do in each module. A grid edit, a revoke, a suspension or an offboard takes effect within seconds, on the person's next request — not at their next sign-in." }
         ]}
         getRowKey={(row) => row.rule}
         columns={[
@@ -359,9 +348,9 @@ async function RolesTab() {
         description="What this system checks, and where, for an internal team member."
         items={[
           { dimension: "Role", question: "Which of the seven platform roles is this person?", enforcedWhere: "Set on the account at creation; embedded in their session token and checked by every guarded endpoint on every request.", state: "Real" as const },
-          { dimension: "Module access", question: "Can this person open a given module at all?", enforcedWhere: "The per-module permission grid (People → Set module permission) is stored, but no endpoint guard reads it — only role is actually checked.", state: "Recorded only" as const },
-          { dimension: "Time-bound access", question: "Is a temporary grant still valid?", enforcedWhere: "Access grants with an expiry date (People → Grant time-bound access) are stored, but nothing checks them at request time — same gap as module access.", state: "Recorded only" as const },
-          { dimension: "Data scope (regional/school row-level)", question: "Of the records a function can touch, which ones belong to this person?", enforcedWhere: "Not built for internal team members — no per-region or per-portfolio row filter exists; a role either sees the full platform or is gated at the module level, nothing in between.", state: "Not built" as const }
+          { dimension: "Module access", question: "Can this person open a given module at all?", enforcedWhere: "Every Back Office request is checked against the person's grid row for the module it belongs to, else their role template: None is refused, View allows reading only, Edit allows changes, and deleting needs Full. The sidebar hides what is None. Nothing set means the role's own rules, as before.", state: "Real" as const },
+          { dimension: "Time-bound access", question: "Is a temporary grant still valid?", enforcedWhere: "A live grant raises the person to Edit in that module while it lasts; the same check ignores it the moment it expires or is revoked.", state: "Real" as const },
+          { dimension: "Data scope (regional/school row-level)", question: "Of the records a function can touch, which ones belong to this person?", enforcedWhere: "A person's data scope (a list of states, on their profile) limits School Accounts — the list and each school's page — to schools in those states. Other modules still show the whole platform, so scope is a limit on schools, not on every record.", state: "Recorded only" as const }
         ]}
         getRowKey={(row) => row.dimension}
         columns={[
@@ -392,12 +381,12 @@ async function RolesTab() {
           <ResourceActionDialog
             triggerLabel="Add / update template"
             title="Add or update a permission template"
-            description="Grid is a JSON map of module → access level, e.g. { &quot;M3&quot;: &quot;FULL&quot;, &quot;M6&quot;: &quot;VIEW&quot; }."
+            description="Grid is a JSON map of module id → access level, e.g. { &quot;support&quot;: &quot;FULL&quot;, &quot;billing&quot;: &quot;VIEW&quot; }. Module ids: schools, migration, billing, partners, users, communications, support, curriculum, plans, infrastructure, security, team, analytics, settings."
             endpoint="/api/super-admin/internal-team/permission-templates"
             submitLabel="Save template"
             fields={[
               { name: "roleName", label: "Role", type: "select", options: roleOptions },
-              { name: "defaultGrid", label: "Default grid (JSON)", type: "textarea", parse: "json", required: true, defaultValue: "{\n  \"M2\": \"VIEW\",\n  \"M6\": \"FULL\"\n}" }
+              { name: "defaultGrid", label: "Default grid (JSON)", type: "textarea", parse: "json", required: true, defaultValue: "{\n  \"support\": \"FULL\",\n  \"schools\": \"VIEW\"\n}" }
             ]}
           />
         }
@@ -411,7 +400,7 @@ async function RolesTab() {
 
       <TableCard
         title="Access matrix"
-        description="Every module a permission has been explicitly set for, across every internal team member. Set or change a cell from the &quot;Set module permission&quot; action on a member in People."
+        description="What each person holds in each Back Office module — their own setting, else their role's template. A dash means nothing is set, so the role's own rules apply. Change a cell from “Set module permission” on a person in People."
         items={members}
         getRowKey={(member) => member.id}
         primaryColumnKey="member"
@@ -431,7 +420,7 @@ async function RolesTab() {
           },
           ...modules.map((moduleId) => ({
             key: moduleId,
-            header: moduleId,
+            header: matrix.labels?.[moduleId] ?? moduleId,
             render: (member: SuperAdminPermissionGridMatrix["members"][number]) => {
               const level = member.access[moduleId];
               const tone = accessTone(level ?? "NONE");
@@ -515,10 +504,14 @@ async function ActivityTab() {
   );
 }
 
+type AnomalyRow = { id: string; person: string; kind: string; detail: string; detectedAt: string; status: string; reviewedBy: string | null; reviewedAt: string | null; note: string | null };
+const ANOMALY_LABEL: Record<string, string> = { OUT_OF_HOURS: "Outside working hours", NEW_DEVICE: "Unfamiliar device", LARGE_EXPORT: "Large export", TWO_PLACES: "Two places at once" };
+
 async function SecurityTab() {
-  const [sessions, ipRules] = await Promise.all([
+  const [sessions, ipRules, anomalies] = await Promise.all([
     apiGet<SuperAdminInternalSession[]>("/api/super-admin/internal-team/sessions"),
-    apiGet<SuperAdminIpAccessRule[]>("/api/super-admin/internal-team/ip-rules")
+    apiGet<SuperAdminIpAccessRule[]>("/api/super-admin/internal-team/ip-rules"),
+    apiGet<AnomalyRow[]>("/api/super-admin/internal-team/anomalies")
   ]);
 
   return (
@@ -536,13 +529,13 @@ async function SecurityTab() {
         title="Internal security requirements — what's actually enforced"
         description="Verified against the real account and session code, not stated as intent."
         items={[
-          { requirement: "Multi-factor authentication", spec: "Real TOTP-based MFA, but self-service and opt-in from Profile → Sessions & security — not mandatory, and an account that hasn't turned it on signs in with password alone.", state: "Partial" },
-          { requirement: "Session timeout", spec: "A fixed 8-hour session from login — not a 30-minute idle timeout; activity doesn't reset the clock.", state: "Partial" },
-          { requirement: "Panel address", spec: "Served from the same app and domain as every other portal — /super-admin routes, not a separate non-public address. Access is gated by role check on each request, not by the URL being secret.", state: "Partial" },
-          { requirement: "Address restriction (IP allow/deny list)", spec: "Enforced at sign-in for every internal account against the rules below — a Deny match blocks it, and any Allow rule existing switches to allow-list-only mode. It's checked once at login, not on every request, so an address added to Deny mid-session doesn't end an already-open session, and matching is exact-address only (no CIDR ranges).", state: "Partial" },
-          { requirement: "Password policy", spec: "8 characters minimum, enforced when a password is set or reset — no complexity or breach-list check, and no reuse history.", state: "Partial" },
-          { requirement: "Credential sharing / anomaly detection", spec: "No concurrent-session or unusual-location flagging for internal accounts.", state: "Not built" },
-          { requirement: "Device registration", spec: "No known-device list; nothing distinguishes a first-time device from a familiar one.", state: "Not built" }
+          { requirement: "Multi-factor authentication", spec: "A one-time code is emailed at every Back Office sign-in (when mail is configured), and an authenticator app can be turned on from Profile → Sessions & security. Not yet mandatory to set up the app.", state: "Enforced" },
+          { requirement: "Session timeout", spec: "An 8-hour session, and a Back Office session ends after 30 minutes without a request (PLATFORM_IDLE_MINUTES).", state: "Enforced" },
+          { requirement: "Panel address", spec: "Served from the same app and domain as every other portal — /super-admin routes, not a separate non-public address. Access is gated by role and by the module grid on each request, not by the URL being secret.", state: "Partial" },
+          { requirement: "Address restriction (IP allow/deny list)", spec: "Enforced at sign-in for every internal account against the rules below — a Deny match blocks it, and any Allow rule existing switches to allow-list-only mode. Exact address only.", state: "Enforced" },
+          { requirement: "Password policy", spec: "8 characters minimum, no reuse of the last three — enforced when a password is set or reset. No complexity or breach-list check.", state: "Partial" },
+          { requirement: "Credential sharing / anomaly detection", spec: "Real — a sign-in outside 06:00–22:00 Lagos time, from an unfamiliar device, or while the account is active from another address raises a flag at once; a scan every 15 minutes flags large exports. See Anomaly flags below.", state: "Enforced" },
+          { requirement: "Device registration", spec: "A known-device list is kept from each person's own sign-in record (open Manage on a person). A first-time device is flagged and the owner emailed; it is not blocked, because the emailed code already gates sign-in.", state: "Partial" }
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
@@ -553,9 +546,11 @@ async function SecurityTab() {
             header: "State",
             render: (row) => {
               const tone =
-                row.state === "Partial"
-                  ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
-                  : row.state === "Recorded only"
+                row.state === "Enforced"
+                  ? { bg: "var(--color-success-dim)", fg: "var(--color-success)" }
+                  : row.state === "Partial"
+                    ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
+                    : row.state === "Recorded only"
                     ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }
                     : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
               return <StatusPill bg={tone.bg} fg={tone.fg} label={row.state} />;
@@ -566,20 +561,30 @@ async function SecurityTab() {
 
       <TableCard
         title="Anomaly flags"
-        description="Raised automatically, reviewed weekly by Super Admin — in the mockup. No anomaly-detection system exists in this codebase: nothing about access outside working hours, an unusually large export, or an unrecognised device is ever flagged, so there is nothing real to show here."
-        items={[]}
+        description="Raised automatically when a Back Office account behaves unusually, and reviewed by a Super Admin. A flag the reviewer escalates becomes a security incident."
+        items={anomalies}
+        getRowKey={(row) => row.id}
+        emptyState="Nothing has been flagged."
+        actions={<ResourceActionDialog triggerLabel="Scan now" title="Scan for large exports" description="Looks back over the last 20 minutes of the audit trail. It runs by itself every 15 minutes." endpoint="/api/super-admin/internal-team/anomalies/scan" method="POST" variant="secondary" submitLabel="Scan" fields={[]} />}
         columns={[
-          { key: "person", header: "Person", render: () => null },
-          { key: "flag", header: "Flag", render: () => null },
-          { key: "when", header: "When", render: () => null },
-          { key: "outcome", header: "Outcome", render: () => null }
+          { key: "person", header: "Person", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.person}</span> },
+          { key: "flag", header: "Flag", render: (row) => <div><p className="font-semibold">{ANOMALY_LABEL[row.kind] ?? row.kind}</p><p className="text-[11.5px] text-[var(--color-text-secondary)]">{row.detail}</p></div> },
+          { key: "when", header: "When", render: (row) => formatDate(row.detectedAt) },
+          { key: "outcome", header: "Outcome", render: (row) => (row.status === "OPEN" ? <span className="text-[var(--color-warning)] font-semibold">Open</span> : <span className="text-[12px]">{row.status === "ESCALATED" ? "Escalated" : "Reviewed"} by {row.reviewedBy ?? "—"}{row.note ? ` — ${row.note}` : ""}</span>) },
+          {
+            key: "actions",
+            header: "",
+            render: (row) =>
+              row.status === "OPEN" ? (
+                <ResourceActionDialog triggerLabel="Review" title={`Review — ${ANOMALY_LABEL[row.kind] ?? row.kind}`} description={row.detail} endpoint={`/api/super-admin/internal-team/anomalies/${row.id}/review`} method="POST" variant="textAction" submitLabel="Record review" fields={[{ name: "outcome", label: "Outcome", type: "select", defaultValue: "BENIGN", options: [{ label: "Explained — nothing to do", value: "BENIGN" }, { label: "Escalate to a security incident", value: "ESCALATE" }] }, { name: "note", label: "What you found", type: "textarea", required: true }]} />
+              ) : null
+          }
         ]}
-        emptyState="No anomaly-detection record exists in this codebase — there is no model for it, so there is nothing real to show here."
       />
 
       <TableCard
         title="Active sessions"
-        description={`${sessions.length} active session${sessions.length === 1 ? "" : "s"} across the internal team. Revoking marks a session revoked in the database immediately; the device's own token can remain usable until it naturally expires.`}
+        description={`${sessions.length} active session${sessions.length === 1 ? "" : "s"} across the internal team. Revoking ends a session on the next request it makes.`}
         items={sessions}
         emptyState="No active internal-team sessions right now."
         columns={[
@@ -679,10 +684,14 @@ async function SecurityTab() {
 }
 
 async function DepartmentsTab() {
-  const departments = await apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments");
+  const [departments, departmentMembers] = await Promise.all([
+    apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments"),
+    apiGet<Record<string, string[]>>("/api/super-admin/internal-team/department-members")
+  ]);
 
   return (
     <DepartmentsTable
+      members={departmentMembers}
       items={departments ?? []}
       actions={
         <ResourceActionDialog
@@ -699,8 +708,8 @@ async function DepartmentsTab() {
               label: "Permission ceiling (JSON, optional)",
               type: "textarea",
               parse: "json",
-              placeholder: '{\n  "M3": "VIEW"\n}',
-              note: "Stored, but nothing in this codebase reads it back today.",
+              placeholder: '{\n  "support": "EDIT",\n  "users": "VIEW"\n}',
+              note: "Enforced — caps what the department's lead can grant to its members.",
               section: "Ceiling"
             }
           ]}

@@ -27,6 +27,7 @@ export function DashboardShell({
   currentTermName,
   platformStats,
   navBadges,
+  hiddenNavIds,
   children,
 }: {
   session: SessionUser;
@@ -41,6 +42,7 @@ export function DashboardShell({
     reviewQueueCount?: number;
   };
   navBadges?: Record<string, number | undefined>;
+  hiddenNavIds?: string[];
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -105,6 +107,7 @@ export function DashboardShell({
           portalType={portalType}
           theme={theme}
           navBadges={navBadges}
+          hiddenNavIds={hiddenNavIds}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

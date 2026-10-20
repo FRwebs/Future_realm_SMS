@@ -13,7 +13,7 @@ export type Carrier = {
   channel: "SMS" | "EMAIL";
   provider: string;
   configured: () => boolean;
-  send: (to: string, subject: string, body: string) => Promise<SendResult>;
+  send: (to: string, subject: string, body: string, options?: { openPixelUrl?: string }) => Promise<SendResult>;
 };
 
 const env = (key: string) => (process.env[key] ?? "").trim();
@@ -56,11 +56,14 @@ const smtp: Carrier = {
   channel: "EMAIL",
   provider: "SMTP",
   configured: () => Boolean(env("SMTP_HOST") && env("SMTP_USER") && env("SMTP_PASSWORD")),
-  async send(to, subject, body) {
+  async send(to, subject, body, options) {
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return { ok: false, error: `"${to}" is not an email address.`, retry: false };
     try {
       transport ??= nodemailer.createTransport({ host: env("SMTP_HOST"), port: Number(env("SMTP_PORT") || 587), secure: Number(env("SMTP_PORT") || 587) === 465, auth: { user: env("SMTP_USER"), pass: env("SMTP_PASSWORD") } });
-      const info = await transport.sendMail({ from: env("SMTP_FROM") || env("SMTP_USER"), to, subject, text: body });
+      const escaped = body.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+      // The text part always goes; with a public address configured an HTML part carries a one-pixel image whose fetch records the open.
+      const html = options?.openPixelUrl ? `<div style="white-space:pre-wrap;font-family:sans-serif;font-size:14px;line-height:1.5">${escaped}</div><img src="${options.openPixelUrl}" width="1" height="1" alt="" style="display:none" />` : undefined;
+      const info = await transport.sendMail({ from: env("SMTP_FROM") || env("SMTP_USER"), to, subject, text: body, ...(html ? { html } : {}) });
       return { ok: true, ref: info.messageId };
     } catch (error) {
       const message = error instanceof Error ? error.message : "The mail server could not be reached";

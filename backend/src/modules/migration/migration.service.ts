@@ -346,6 +346,19 @@ export class MigrationService {
       .map((s) => ({ schoolName: s.schoolName, daysSinceSignup: Math.floor((Date.now() - s.createdAt.getTime()) / (24 * 60 * 60 * 1000)), incompleteCount: s.incompleteKeys.length }))
       .sort((a, b) => b.daysSinceSignup - a.daysSinceSignup);
 
-    return { ok: true, data: { steps, stalled } };
+    // How long a school takes: from signup to the last step done, for schools that finished all of them; and per step, signup to that step.
+    const median = (values: number[]) => (values.length ? values.slice().sort((a, b) => a - b)[Math.floor(values.length / 2)] : null);
+    const perSchool = new Map<string, { createdAt: Date; done: Date[]; total: number }>();
+    for (const item of items) {
+      const entry = perSchool.get(item.schoolId) ?? { createdAt: item.school.createdAt, done: [], total: 0 };
+      entry.total += 1;
+      if (item.completedAt) entry.done.push(item.completedAt);
+      perSchool.set(item.schoolId, entry);
+    }
+    const hours = (from: Date, to: Date) => Math.max(0, Math.round(((to.getTime() - from.getTime()) / 3_600_000) * 10) / 10);
+    const finished = Array.from(perSchool.values()).filter((entry) => entry.total > 0 && entry.done.length === entry.total).map((entry) => hours(entry.createdAt, new Date(Math.max(...entry.done.map((d) => d.getTime())))));
+    const stepMedians = Object.fromEntries(Array.from(byKey.keys()).map((key) => [key, median(items.filter((item) => item.key === key && item.completedAt).map((item) => hours(item.school.createdAt, item.completedAt as Date)))]));
+
+    return { ok: true, data: { steps: steps.map((step) => ({ ...step, medianHours: stepMedians[step.key] ?? null })), stalled, medianHoursToComplete: median(finished), schoolsFinished: finished.length } };
   }
 }

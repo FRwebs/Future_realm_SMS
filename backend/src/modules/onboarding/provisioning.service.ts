@@ -10,6 +10,7 @@ import { loadArm } from "../score-results/arm";
 import { ensureColumns, liveFramework } from "../score-results/scores.shared";
 import { syncResultSheets } from "../score-results/sync";
 import { ConfigStore } from "../staff-access/staff-access.shared";
+import { templates, checkBands, type Band } from "../config-library/templates.service";
 import { CATEGORY_OF, COMPONENTS, calendarFor, gradingFor, ladderFor, offeredTo, sampleNames, schoolDays, seeded, subjectsFor, type Section } from "./school-template";
 
 /**
@@ -52,6 +53,15 @@ export class ProvisioningService {
     return { key: "roles", label: "Default staff role templates ready", detail: `${schoolRoleTemplates.length} templates, from Proprietor to front desk, ready to assign in Staff & Access` };
   }
 
+  /** The country's published scale from the library, when there is one that still checks out. */
+  private async libraryScale(country: string) {
+    const { curriculum, grading } = await templates.forCountry(country);
+    if (!grading) return null;
+    const bands = grading.gradeBands as unknown as Band[];
+    if (!Array.isArray(bands) || checkBands(bands, grading.passMark).length) return null;
+    return { grading, curriculum, scale: { name: `${grading.name} (v${grading.version})`, description: `Copied from the platform's ${grading.name} template, version ${grading.version}. The school can edit its own copy.`, passMark: grading.passMark, bands: bands.map((band) => ({ label: band.grade, min: band.min, max: band.max, remark: band.remark ?? "" })) } };
+  }
+
   private async gradingScale(country: string) {
     const fallback = gradingFor(country);
     const row = await prisma.platformSetting.findFirst({ orderBy: { createdAt: "asc" }, select: { defaultGradingScale: true } });
@@ -78,8 +88,10 @@ export class ProvisioningService {
     const current = terms.find((term) => term.isCurrent) ?? terms[0];
     await new ConfigStore(schoolId, "academic-context").put("CURRENT_ACADEMIC_CONTEXT", "Current Academic Context", { academicSessionId: session.id, academicSessionName: session.name, activeTermId: current.id, activeTermName: current.name, availableTerms: terms.map((term) => ({ id: term.id, name: term.name, order: term.order, isCurrent: term.id === current.id })) });
 
-    // The platform's own default scale (Settings → School defaults) wins when it is a usable scale; the country's template is the fallback.
-    const grading = await this.gradingScale(o.country);
+    // A scale published in the library for this country comes first; then the platform's own default (Settings → School defaults); then the code's fallback for the country.
+    const fromLibrary = await this.libraryScale(o.country);
+    const grading = fromLibrary?.scale ?? (await this.gradingScale(o.country));
+    if (fromLibrary) await templates.recordAdoption(schoolId, [{ kind: "GRADING", templateId: fromLibrary.grading.id, templateName: fromLibrary.grading.name, version: fromLibrary.grading.version }, ...(fromLibrary.curriculum ? [{ kind: "CURRICULUM" as const, templateId: fromLibrary.curriculum.id, templateName: fromLibrary.curriculum.name, version: fromLibrary.curriculum.version }] : [])]);
     await prisma.gradingScheme.create({ data: { schoolId, academicSessionId: session.id, name: grading.name, description: grading.description, isActive: true, passMark: grading.passMark, bands: { create: grading.bands.map((band, index) => ({ schoolId, label: band.label, minScore: band.min, maxScore: band.max, remark: band.remark, order: index + 1 })) } } });
 
     const ladder = ladderFor(o.levels);

@@ -23,6 +23,7 @@ type SidebarProps = {
   portalType?: PortalType;
   theme?: "default" | "finance-dark" | "finance-light";
   navBadges?: Record<string, number | undefined>;
+  hiddenNavIds?: string[];
 };
 
 function normalizePath(path: string) {
@@ -57,6 +58,7 @@ function SidebarContent({
   portalType = "school",
   isMobile = false,
   navBadges,
+  hiddenNavIds,
 }: {
   session: SessionUser;
   permissions?: string[];
@@ -67,6 +69,7 @@ function SidebarContent({
   portalType?: PortalType;
   isMobile?: boolean;
   navBadges?: Record<string, number | undefined>;
+  hiddenNavIds?: string[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -80,6 +83,7 @@ function SidebarContent({
     session.role,
     permissions,
     portalType,
+    hiddenNavIds,
   );
 
   const normalizedPath = normalizePath(pathname);
@@ -474,6 +478,7 @@ export function Sidebar({
   onCloseMobile,
   portalType = "school",
   navBadges,
+  hiddenNavIds,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -497,6 +502,7 @@ export function Sidebar({
           onCloseMobile={onCloseMobile}
           portalType={portalType}
           navBadges={navBadges}
+          hiddenNavIds={hiddenNavIds}
         />
       </aside>
 
@@ -511,6 +517,7 @@ export function Sidebar({
             onCloseMobile={onCloseMobile}
             portalType={portalType}
             navBadges={navBadges}
+            hiddenNavIds={hiddenNavIds}
             isMobile
           />
         </aside>

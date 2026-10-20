@@ -6,7 +6,9 @@ import { DetailFacts, DetailSheet, type DetailSheetChip } from "@/components/dat
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { TableFilterBar } from "@/components/data-display/table-filter-bar";
+import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { ResourceField, ResourceForm } from "@/components/forms/resource-form";
+import { ActionMenu } from "@/components/ui/action-menu";
 import { useToast } from "@/components/ui/toast-provider";
 import { Modal } from "@/components/ui/modal";
 import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
@@ -14,10 +16,11 @@ import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
 const calendarOptions = [{ label: "Three-term", value: "THREE_TERM" }, { label: "Two-semester", value: "TWO_SEMESTER" }];
 
 const notTracked = <span className="text-[var(--color-text-muted)]">Not tracked</span>;
-const disconnectedFootnote = (
+const LIFECYCLE_TONE: Record<string, "success" | "warning" | "neutral"> = { ACTIVE: "success", VALIDATED: "warning", DRAFT: "warning", SUPERSEDED: "neutral", ARCHIVED: "neutral" };
+const adoptionFootnote = (
   <>
-    Master templates are Super Admin content, not Nooria-owned copies a school customises — no school has ever read one. There is no real
-    &quot;schools using this template&quot; count to show; the column above reflects that honestly rather than a fabricated number.
+    Only a published (Active) template is offered. A new school&apos;s setup copies the Active grading scale for its country and records which version it took —
+    the school then owns its copy, so a later version never changes a school that already has one. “Schools” counts those copies.
   </>
 );
 
@@ -156,7 +159,7 @@ export function CurriculumTemplatesTable({ items }: { items: SuperAdminConfigLib
     return items.filter((item) => {
       const matchesSearch = !q || item.name.toLowerCase().includes(q) || item.country.toLowerCase().includes(q);
       const matchesMarket = market === "All markets" || item.country === market;
-      const matchesStatus = status === "All statuses" || (status === "Active" ? item.isActive : !item.isActive);
+      const matchesStatus = status === "All statuses" || item.lifecycle === status.toUpperCase();
       return matchesSearch && matchesMarket && matchesStatus;
     });
   }, [items, search, market, status]);
@@ -164,7 +167,7 @@ export function CurriculumTemplatesTable({ items }: { items: SuperAdminConfigLib
   return (
     <TableCard
       title="Curriculum template library"
-      description="A country/curriculum reference record — name, subject list, and calendar convention. Open Structure on any row to read it. Not linked to any school (see the footnote below)."
+      description="A country/curriculum record — name, subject list, calendar convention. A template moves Draft → Validated → Active; publishing a new version retires the one before it, and a version that has been published is never edited again."
       items={filtered}
       getRowKey={(item) => item.id}
       filterBar={
@@ -172,72 +175,77 @@ export function CurriculumTemplatesTable({ items }: { items: SuperAdminConfigLib
           search={{ value: search, onChange: setSearch, placeholder: "Search a template or market" }}
           filters={[
             { label: "Market", value: market, options: markets.map((value) => ({ label: value, value })), onChange: setMarket },
-            { label: "Status", value: status, options: ["All statuses", "Active", "Inactive"].map((value) => ({ label: value, value })), onChange: setStatus }
+            { label: "Lifecycle", value: status, options: ["All statuses", "Draft", "Validated", "Active", "Superseded", "Archived"].map((value) => ({ label: value, value })), onChange: setStatus }
           ]}
           note={`${filtered.length} of ${items.length} shown`}
         />
       }
       columns={[
-        { key: "name", header: "Template", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+        { key: "name", header: "Template", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name} <span className="font-normal text-[var(--color-text-muted)]">v{item.version}</span></p>{item.basedOn ? <p className="text-[11px] text-[var(--color-text-muted)]">Based on {item.basedOn}</p> : null}</div> },
         { key: "country", header: "Market", render: (item) => item.country },
         {
           key: "characteristics",
           header: "Key characteristics",
           render: (item) => (
             <span className="text-[var(--color-text-secondary)]">
-              {item.subjectCount > 0 ? `${item.subjectCount} subjects` : "No subjects recorded"} · {item.calendarType.replaceAll("_", " ")} · v{item.version}
+              {item.subjectCount > 0 ? `${item.subjectCount} subjects` : "No subjects recorded"} · {item.calendarType.replaceAll("_", " ")}{item.language ? ` · ${item.language}` : ""}
             </span>
           )
         },
-        { key: "schools", header: "Schools", render: () => notTracked },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} tone={item.isActive ? "success" : "neutral"} /> },
+        { key: "owner", header: "Owner", render: (item) => item.owner ?? <span className="text-[var(--color-text-muted)]">—</span> },
+        { key: "schools", header: "Schools", render: (item) => item.schools },
+        { key: "status", header: "Lifecycle", render: (item) => <StatusBadge status={item.lifecycle} tone={LIFECYCLE_TONE[item.lifecycle] ?? "neutral"} /> },
         {
           key: "actions",
           header: "",
           sortable: false,
           render: (item) => (
-            <RowReviewAction
-              triggerLabel="Structure"
-              avatarLabel={initialsOf(item.name)}
-              eyebrow="Master template"
-              title={item.name}
-              subtitle={`${item.country} · v${item.version}`}
-              chips={[
-                { label: item.isActive ? "Active" : "Inactive", tone: item.isActive ? "good" : "mute" },
-                { label: "No schools yet", tone: "mute" }
-              ]}
-              factsTitle="The six layers"
-              factsRows={[
-                { label: "Schools using it", value: "Not tracked" },
-                { label: "Layers authored", value: "Not yet authored", bold: true },
-                { label: "Portability tests", value: "Not gated" }
-              ]}
-              extraNote={{
-                tone: "warn",
-                title: "Not yet authored",
-                text: "This template is one flat record (name, country, subjects, calendar, version) — not six independently authorable layers. See the six-layer curriculum configuration model table below for what's real per layer, platform-wide, and the Portability tests table for what's actually verified."
-              }}
-              inertActions={[
-                { label: "Open the layer workspace", note: "Not built — there is no per-layer authoring workspace." },
-                { label: "View version history", note: "Not built — saving overwrites this record in place; no prior version is kept." }
-              ]}
-              editTitle="Edit this template"
-              editDescription="Re-saves this exact template. Changing the name creates a new template instead of updating this one — the name is the record's identity."
-              endpoint="/api/super-admin/config-library/curricula"
-              submitLabel="Save curriculum"
-              editFields={[
-                { name: "name", label: "Template name", required: true, defaultValue: item.name, section: "Identity" },
-                { name: "country", label: "Country", required: true, defaultValue: item.country, section: "Identity" },
-                { name: "calendarType", label: "Layer 1 · calendar", type: "select", options: calendarOptions, defaultValue: item.calendarType, section: "Configuration" },
-                { name: "version", label: "Version", defaultValue: item.version, section: "Configuration" },
-                { name: "subjects", label: "Subjects (comma-separated) — the real Layer 3 data", type: "textarea", parse: "csv", defaultValue: item.subjects.join(", "), section: "Configuration" }
-              ]}
-            />
+            <div className="flex items-center gap-2">
+              <RowReviewAction
+                triggerLabel="Structure"
+                avatarLabel={initialsOf(item.name)}
+                eyebrow="Master template"
+                title={item.name}
+                subtitle={`${item.country} · v${item.version}`}
+                chips={[{ label: item.lifecycle.charAt(0) + item.lifecycle.slice(1).toLowerCase(), tone: item.lifecycle === "ACTIVE" ? "good" : "mute" }, { label: `${item.schools} school${item.schools === 1 ? "" : "s"}`, tone: "mute" }]}
+                factsTitle="The template"
+                factsRows={[
+                  { label: "Owner", value: item.owner ?? "—" },
+                  { label: "Effective from", value: item.effectiveFrom ? item.effectiveFrom.slice(0, 10) : "On publishing" },
+                  { label: "Validated", value: item.validatedAt ? item.validatedAt.slice(0, 10) : "Not yet" },
+                  { label: "Language of instruction", value: item.language ?? "Not set" },
+                  { label: "Calendar", value: item.calendarType.replaceAll("_", " ") },
+                  { label: "Schools that copied it", value: String(item.schools), bold: true },
+                  { label: "Subjects", value: item.subjects.join(", ") || "None" }
+                ]}
+                extraNote={{ tone: item.lifecycle === "DRAFT" ? "warn" : "mute", title: item.lifecycle === "DRAFT" ? "A draft" : "Read only", text: item.lifecycle === "DRAFT" ? "Edit it until it is right, then validate and publish. Validation checks it has real subjects and that its country has a profile." : "A template that has been validated or published is not edited — start a new version from its row menu." }}
+                inertActions={[]}
+                editTitle={item.lifecycle === "DRAFT" ? "Edit this draft" : "View only"}
+                editDescription="Saves this exact name and version. Only a draft can be edited."
+                endpoint="/api/super-admin/config-library/curricula"
+                submitLabel="Save draft"
+                editFields={[
+                  { name: "name", label: "Template name", required: true, defaultValue: item.name, section: "Identity" },
+                  { name: "country", label: "Country", required: true, defaultValue: item.country, section: "Identity" },
+                  { name: "version", label: "Version", required: true, defaultValue: item.version, section: "Identity" },
+                  { name: "calendarType", label: "Layer 1 · calendar", type: "select", options: calendarOptions, defaultValue: item.calendarType, section: "Configuration" },
+                  { name: "language", label: "Language of instruction", defaultValue: item.language ?? "", section: "Configuration" },
+                  { name: "effectiveFrom", label: "Effective from", type: "date", defaultValue: item.effectiveFrom?.slice(0, 10), section: "Configuration" },
+                  { name: "subjects", label: "Subjects (comma-separated)", type: "textarea", parse: "csv", defaultValue: item.subjects.join(", "), section: "Configuration" }
+                ]}
+              />
+              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+                {item.lifecycle === "DRAFT" ? <ResourceActionDialog triggerLabel="Validate" title={`Validate ${item.name} v${item.version}`} description="Checks it has real subjects and that its country has a profile. A validated version can no longer be edited." endpoint={`/api/super-admin/config-library/curricula/${item.id}/validate`} method="POST" variant="menu" submitLabel="Validate" fields={[]} /> : null}
+                {item.lifecycle === "VALIDATED" ? <ResourceActionDialog triggerLabel="Publish" title={`Publish ${item.name} v${item.version}`} description="Makes this the version new schools are given for its country, and supersedes the Active version of the same template." endpoint={`/api/super-admin/config-library/curricula/${item.id}/publish`} method="POST" variant="menu" submitLabel="Publish" confirmLabel="Publish" confirmMessage="Schools already set up keep the copy they took — only new setups use this version." fields={[]} /> : null}
+                <ResourceActionDialog triggerLabel="New version" title={`New version of ${item.name}`} description="Copies this template as a draft you can change. Add the subject mappings from the old version to the new one once it is ready." endpoint={`/api/super-admin/config-library/curricula/${item.id}/version`} method="POST" variant="menu" submitLabel="Create draft" fields={[{ name: "version", label: "New version number", required: true, placeholder: "e.g. 2.0" }]} />
+                {item.lifecycle !== "ARCHIVED" ? <ResourceActionDialog triggerLabel="Archive" title={`Archive ${item.name} v${item.version}`} description="Takes it out of use. Schools that copied it keep their copy." endpoint={`/api/super-admin/config-library/curricula/${item.id}/archive`} method="POST" variant="menuDanger" submitLabel="Archive" confirmLabel="Confirm" fields={[]} /> : null}
+              </ActionMenu>
+            </div>
           )
         }
       ]}
       emptyState="No curriculum templates match this filter."
-      footnote={disconnectedFootnote}
+      footnote={adoptionFootnote}
     />
   );
 }
@@ -247,6 +255,15 @@ function formatBands(gradeBands: unknown): string {
   return (gradeBands as Array<{ grade?: string; min?: number; max?: number }>)
     .map((b) => `${b.grade ?? "?"} ${b.min ?? "?"}–${b.max ?? "?"}`)
     .join(" · ");
+}
+
+function bandRows(gradeBands: unknown) {
+  return Array.isArray(gradeBands) ? (gradeBands as Array<{ grade?: string; min?: number; max?: number; remark?: string }>) : [];
+}
+
+/** A handful of sample scores run through the scale, so a person sees what a child would be given before it is published. */
+function previewScore(bands: ReturnType<typeof bandRows>, score: number) {
+  return bands.find((band) => typeof band.min === "number" && typeof band.max === "number" && score >= band.min && score <= band.max)?.grade ?? "no band";
 }
 
 export function GradingScalesTable({ items, actions }: { items: SuperAdminConfigLibrary["gradingScales"]; actions: ReactNode }) {
@@ -260,66 +277,65 @@ export function GradingScalesTable({ items, actions }: { items: SuperAdminConfig
   return (
     <TableCard
       title="Grading scale template library"
-      description="What a school could in principle start from — bands, boundaries, and a pass mark. Open a scale to review and edit its bands. Edit: Platform Owner, Developer or Super Admin only."
+      description="Bands, boundaries and a pass mark. A scale must cover 0–100 with no gap or overlap before it can be validated; a published version is never edited again. Edit: Platform Owner, Developer or Super Admin only."
       items={filtered}
       actions={actions}
       getRowKey={(item) => item.id}
       filterBar={<TableFilterBar search={{ value: search, onChange: setSearch, placeholder: "Search a scale" }} note={`${filtered.length} of ${items.length} shown`} />}
       columns={[
-        { key: "name", header: "Scale", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+        { key: "name", header: "Scale", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name} <span className="font-normal text-[var(--color-text-muted)]">v{item.version}</span></span> },
         { key: "bands", header: "Bands", render: (item) => <span className="text-[var(--color-text-secondary)]">{formatBands(item.gradeBands)}</span> },
         { key: "pass", header: "Pass", render: (item) => item.passMark },
-        { key: "credit", header: "Credit threshold", render: () => notTracked },
-        { key: "schools", header: "Schools", render: () => notTracked },
-        { key: "status", header: "Status", render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} tone={item.isActive ? "success" : "neutral"} /> },
+        { key: "check", header: "Check", render: (item) => (item.problems.length ? <span className="text-[11.5px] text-[var(--color-danger)]" title={item.problems.join(" ")}>{item.problems.length} problem{item.problems.length === 1 ? "" : "s"}: {item.problems[0]}</span> : <span className="text-[11.5px] font-semibold text-[var(--color-success)]">Covers 0–100</span>) },
+        { key: "schools", header: "Schools", render: (item) => item.schools },
+        { key: "status", header: "Lifecycle", render: (item) => <StatusBadge status={item.lifecycle} tone={LIFECYCLE_TONE[item.lifecycle] ?? "neutral"} /> },
         {
           key: "actions",
           header: "",
           sortable: false,
-          render: (item) => (
-            <RowReviewAction
-              triggerLabel="Edit"
-              avatarLabel={initialsOf(item.name)}
-              eyebrow="Grading scale"
-              title={item.name}
-              subtitle="Not tracked — no school is linked to this scale"
-              chips={[
-                { label: "No default concept", tone: "mute" },
-                { label: `Pass at ${item.passMark}`, tone: "mute" }
-              ]}
-              factsTitle="The scale"
-              factsRows={[
-                { label: "Bands", value: formatBands(item.gradeBands) },
-                { label: "Pass mark", value: String(item.passMark), bold: true },
-                { label: "Credit threshold", value: "Not tracked" },
-                { label: "Schools using it", value: "Not tracked" },
-                { label: "Shown by default", value: "No — no default-scale concept exists" }
-              ]}
-              extraNote={{
-                tone: "warn",
-                title: "Why editing this is consequential",
-                text: "Band boundaries must stay contiguous — a gap between two bands leaves a score with no band. This system does not validate that today: a scale can be saved with a gap or an overlap and nothing will catch it before it reaches a report card."
-              }}
-              inertActions={[
-                { label: "Make this the default", note: "Not built — there is no default-scale concept to change." },
-                { label: "Duplicate as a custom scale", note: "Not built as a duplicate step — but New scale above creates one from scratch." }
-              ]}
-              editTitle="Edit this scale"
-              editDescription="Boundaries must stay contiguous — a gap between two bands leaves a score with no band. Changing the name creates a new scale instead of updating this one."
-              endpoint="/api/super-admin/config-library/grading-scales"
-              submitLabel="Save scale"
-              editFields={[
-                { name: "name", label: "Scale name", required: true, defaultValue: item.name, section: "Identity" },
-                { name: "passMark", label: "Pass mark", type: "number", defaultValue: item.passMark, min: 0, max: 100, section: "Identity" },
-                { name: "applicableCurricula", label: "Applicable curricula (comma-separated)", parse: "csv", defaultValue: item.applicableCurricula.join(", "), section: "Configuration" },
-                { name: "gradeBands", label: "Grade bands (JSON array)", type: "textarea", parse: "json", required: true, defaultValue: JSON.stringify(item.gradeBands, null, 2), section: "Configuration" }
-              ]}
-            />
-          )
+          render: (item) => {
+            const bands = bandRows(item.gradeBands);
+            const sample = [95, 78, 64, 52, 41, 35, 12];
+            return (
+              <div className="flex items-center gap-2">
+                <RowReviewAction
+                  triggerLabel="Preview"
+                  avatarLabel={initialsOf(item.name)}
+                  eyebrow="Grading scale"
+                  title={item.name}
+                  subtitle={`Version ${item.version} · pass at ${item.passMark}`}
+                  chips={[{ label: item.lifecycle.charAt(0) + item.lifecycle.slice(1).toLowerCase(), tone: item.lifecycle === "ACTIVE" ? "good" : "mute" }, { label: `${item.schools} school${item.schools === 1 ? "" : "s"}`, tone: "mute" }]}
+                  factsTitle="Sample scores through this scale"
+                  factsRows={[
+                    ...sample.map((score) => ({ label: `A child scoring ${score}`, value: `${previewScore(bands, score)}${score >= item.passMark ? " · pass" : " · below the pass mark"}`, bold: true })),
+                    { label: "Applies to", value: item.applicableCurricula.join(", ") || "No curriculum named — it will not be offered to any country" }
+                  ]}
+                  extraNote={{ tone: item.problems.length ? "bad" : "good", title: item.problems.length ? "This scale does not check out" : "This scale checks out", text: item.problems.length ? item.problems.join(" ") : "Every score from 0 to 100 lands in exactly one band." }}
+                  inertActions={[]}
+                  editTitle={item.lifecycle === "DRAFT" ? "Edit this draft" : "Save as a new version"}
+                  editDescription={item.lifecycle === "DRAFT" ? "Saves this exact name and version." : "Saving under a new version number creates a new draft; this version is left as it is."}
+                  endpoint="/api/super-admin/config-library/grading-scales"
+                  submitLabel="Save scale"
+                  editFields={[
+                    { name: "name", label: "Scale name", required: true, defaultValue: item.name, section: "Identity" },
+                    { name: "version", label: "Version", required: true, defaultValue: item.lifecycle === "DRAFT" ? item.version : "", placeholder: "e.g. 2.0", section: "Identity" },
+                    { name: "passMark", label: "Pass mark", type: "number", defaultValue: item.passMark, min: 0, max: 100, section: "Identity" },
+                    { name: "applicableCurricula", label: "Applicable curricula (comma-separated names)", parse: "csv", defaultValue: item.applicableCurricula.join(", "), section: "Configuration" },
+                    { name: "gradeBands", label: "Grade bands (JSON array)", type: "textarea", parse: "json", required: true, defaultValue: JSON.stringify(item.gradeBands, null, 2), section: "Configuration" }
+                  ]}
+                />
+                <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+                  {item.lifecycle === "DRAFT" ? <ResourceActionDialog triggerLabel="Validate" title={`Validate ${item.name} v${item.version}`} description="Checks the bands cover 0–100 with no gap or overlap and the pass mark sits inside a band." endpoint={`/api/super-admin/config-library/grading-scales/${item.id}/validate`} method="POST" variant="menu" submitLabel="Validate" fields={[]} /> : null}
+                  {item.lifecycle === "VALIDATED" ? <ResourceActionDialog triggerLabel="Publish" title={`Publish ${item.name} v${item.version}`} description="New schools in a country whose curriculum names this scale are given a copy. Schools already set up keep theirs." endpoint={`/api/super-admin/config-library/grading-scales/${item.id}/publish`} method="POST" variant="menu" submitLabel="Publish" confirmLabel="Publish" fields={[]} /> : null}
+                  {item.lifecycle !== "ARCHIVED" ? <ResourceActionDialog triggerLabel="Archive" title={`Archive ${item.name} v${item.version}`} description="Takes it out of use. Schools that copied it keep their copy." endpoint={`/api/super-admin/config-library/grading-scales/${item.id}/archive`} method="POST" variant="menuDanger" submitLabel="Archive" confirmLabel="Confirm" fields={[]} /> : null}
+                </ActionMenu>
+              </div>
+            );
+          }
         }
       ]}
       emptyState="No grading scale templates match this filter."
-      footnote="A school may create a custom scale where no template fits — but nothing here is offered during setup today, since setup doesn't read this table at all."
+      footnote={adoptionFootnote}
     />
   );
 }

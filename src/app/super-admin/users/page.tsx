@@ -791,20 +791,90 @@ function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: strin
   );
 }
 
+type Elevation = { id: string; school: string; target: string; summary: string | null; requestedBy: string; requestedAt: string; status: string; decidedBy: string | null; decidedAt: string | null; note: string | null; usable: boolean };
+type Restriction = { id: string; guardian: string; email: string; school: string; since: string; note: string | null };
+
 async function SupportAccessTab() {
-  const envelope = await apiGetEnvelope<SuperAdminImpersonationLogRow[]>("/api/super-admin/users/impersonation-log");
+  const [envelope, elevations, restrictions] = await Promise.all([
+    apiGetEnvelope<SuperAdminImpersonationLogRow[]>("/api/super-admin/users/impersonation-log"),
+    apiGet<Elevation[]>("/api/super-admin/users/support-access/elevations").catch(() => [] as Elevation[]),
+    apiGet<Restriction[]>("/api/super-admin/users/support-access/restrictions").catch(() => [] as Restriction[])
+  ]);
   const events = envelope.data ?? [];
 
   return (
     <div className="grid gap-5">
       <ControlSpecTable
         rows={[
-          { control: "Default mode", spec: "The mockup's design intent is read-only, no action on the user's behalf. This system issues a full session token as that user's real role — nothing currently blocks a write during an impersonated session.", state: "not-built" },
-          { control: "Elevation to act", spec: "A separate escalation step, with a school administrator's recorded confirmation before anything beyond read-only. No such escalation flow exists.", state: "not-built" },
+          { control: "Default mode", spec: "Read-only. A session opened without the school's approval can look at everything but every change is refused, whatever the person's role.", state: "enforced" },
+          { control: "Elevation to act", spec: "The agent requests approval below; it lands in the school's own Approvals queue and in-app. Once the school's leadership approves, the approval (valid 24 hours, usable once) can be entered when starting the session, which is then allowed to make changes.", state: "enforced" },
           { control: "Maximum duration", spec: "30 minutes, expiring automatically regardless of activity.", state: "enforced" },
           { control: "Reason", spec: "Recorded before the session starts — a session cannot begin without one.", state: "enforced" },
-          { control: "Session logging", spec: "Written to this platform's own audit log. There is no separate, mirrored entry in a school's own audit surface — one log, not two.", state: "partial" },
-          { control: "Blocked contexts", spec: "No access into a school with an unresolved dispute, and none into a guardian account under a safeguarding restriction. Neither concept is tracked, so neither gate exists.", state: "not-built" }
+          { control: "Session logging", spec: "Written to this platform's audit log and against the school, and the school's leadership is told in-app that a session has begun and whether it can change anything.", state: "enforced" },
+          { control: "Blocked contexts", spec: "No session can start into a school with an unresolved ownership dispute (objection raised or frozen) or an open web-address dispute, nor into a guardian account carrying a safeguarding restriction (below).", state: "enforced" }
+        ]}
+      />
+
+      <TableCard
+        title="Requests to act"
+        description="Every request a support agent has made to a school's leadership to make changes on a user's account, and what the school decided."
+        items={elevations}
+        getRowKey={(row) => row.id}
+        emptyState="No request to act has been made."
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Request approval to act"
+            title="Ask the school's leadership for approval to act"
+            description="The owner, proprietor and principal are told in-app, and the request appears in the school's Approvals queue. Until they approve, support can only look."
+            endpoint="/api/super-admin/users/support-access/elevations"
+            method="POST"
+            variant="secondary"
+            submitLabel="Send request"
+            fields={[
+              { name: "email", label: "School user's email", type: "email", required: true },
+              { name: "reason", label: "What needs doing, and why", type: "textarea", required: true, note: "The school reads this word for word." }
+            ]}
+          />
+        }
+        columns={[
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "target", header: "Account", render: (row) => row.target },
+          { key: "summary", header: "Asked", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.summary}</span> },
+          { key: "when", header: "Requested", render: (row) => formatDate(row.requestedAt) },
+          { key: "status", header: "School's answer", render: (row) => <div><StatusPill bg={row.usable ? "var(--color-success-dim)" : row.status === "PENDING" ? "var(--color-warning-dim)" : "var(--color-bg-subtle)"} fg={row.usable ? "var(--color-success)" : row.status === "PENDING" ? "var(--color-warning)" : "var(--color-text-muted)"} label={row.usable ? "Approved — usable" : row.status.charAt(0) + row.status.slice(1).toLowerCase()} />{row.decidedBy ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{row.decidedBy}{row.decidedAt ? ` · ${formatDate(row.decidedAt)}` : ""}{row.note ? ` — ${row.note}` : ""}</p> : null}</div> },
+          { key: "ref", header: "Approval reference", render: (row) => (row.usable ? <span className="select-all font-[var(--font-mono)] text-[11px]">{row.id}</span> : <span className="text-[var(--color-text-muted)]">—</span>) }
+        ]}
+      />
+
+      <TableCard
+        title="Safeguarding restrictions"
+        description="A guardian account under a restriction cannot be opened by anyone from the platform. Placing one needs a recorded basis; only a Super Admin can lift it."
+        items={restrictions}
+        getRowKey={(row) => row.id}
+        emptyState="No guardian account is restricted."
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Restrict a guardian account"
+            title="Restrict a guardian account"
+            description="Blocks every support session into this account until the restriction is lifted."
+            endpoint="/api/super-admin/users/support-access/restrictions"
+            method="POST"
+            variant="secondary"
+            submitLabel="Place restriction"
+            confirmLabel="Confirm"
+            confirmMessage="Nobody from the platform will be able to open this account."
+            fields={[
+              { name: "email", label: "Guardian's sign-in email", type: "email", required: true },
+              { name: "note", label: "Basis for the restriction", type: "textarea", required: true }
+            ]}
+          />
+        }
+        columns={[
+          { key: "g", header: "Guardian", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.guardian}</p><p className="text-[11px] text-[var(--color-text-muted)]">{row.email}</p></div> },
+          { key: "school", header: "School", render: (row) => row.school },
+          { key: "since", header: "Since", render: (row) => formatDate(row.since) },
+          { key: "note", header: "Basis", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.note}</span> },
+          { key: "lift", header: "", render: (row) => <ResourceActionDialog triggerLabel="Lift" title={`Lift the restriction — ${row.guardian}`} description="Support sessions into this account become possible again." endpoint={`/api/super-admin/users/support-access/restrictions/${row.id}/lift`} method="POST" variant="textActionDanger" submitLabel="Lift restriction" confirmLabel="Confirm" fields={[{ name: "note", label: "Why it is being lifted", type: "textarea", required: true }]} /> }
         ]}
       />
 
@@ -825,6 +895,7 @@ async function SupportAccessTab() {
             header: "Session length",
             render: (item) => (item.maxAgeSeconds ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label={`${Math.round(item.maxAgeSeconds / 60)} min max`} /> : "—")
           },
+          { key: "mode", header: "Mode", render: (item) => (item.elevated ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Could act (school approved)" /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Read-only" />) },
           { key: "started", header: "Started", render: (item) => formatDate(item.startedAt) }
         ]}
       />
