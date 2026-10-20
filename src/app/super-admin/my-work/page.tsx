@@ -80,17 +80,17 @@ function NowCard({ card }: { card: MyWorkNowCard }) {
         <div className={`flex h-[28px] w-[28px] shrink-0 items-center justify-center rounded-[9px] ${toneToBadge[card.tone]}`}>
           <Icon className="h-[15px] w-[15px]" />
         </div>
-        <span className={`whitespace-nowrap rounded-full px-[9px] py-[3px] text-[11px] font-bold ${toneToBadge[card.tone]}`}>{card.pill}</span>
+        <span className={`whitespace-nowrap rounded-full px-[9px] py-[3px] text-[10px] font-bold ${toneToBadge[card.tone]}`}>{card.pill}</span>
       </div>
       <div className="mt-[13px] flex items-baseline gap-[7px]">
-        <span className={`font-[var(--font-body)] text-[27px] font-extrabold leading-none tracking-[-0.03em] [font-variant-numeric:tabular-nums] ${toneToValueColor[card.tone]}`}>{card.value}</span>
-        <span className="whitespace-nowrap text-[11.5px] text-[#8c9a92]">{card.unit}</span>
+        <span className={`font-[var(--font-body)] text-[24.5px] font-extrabold leading-none tracking-[-0.03em] [font-variant-numeric:tabular-nums] ${toneToValueColor[card.tone]}`}>{card.value}</span>
+        <span className="whitespace-nowrap text-[10.5px] text-[#8c9a92]">{card.unit}</span>
       </div>
-      <p className="mt-[5px] text-[12.5px] font-semibold text-[var(--color-text-primary)]">{card.label}</p>
-      <p className="mt-1.5 text-[11.5px] leading-[1.5] text-[#77857c]">{card.note}</p>
+      <p className="mt-[5px] text-[11.5px] font-semibold text-[var(--color-text-primary)]">{card.label}</p>
+      <p className="mt-1.5 text-[10.5px] leading-[1.5] text-[#77857c]">{card.note}</p>
       <Link
         href={card.link as Route}
-        className="mt-[13px] rounded-[8px] border border-[#e1ebe5] bg-[#f2f7f4] py-2 text-center text-[11.5px] font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
+        className="mt-[13px] rounded-[8px] border border-[#e1ebe5] bg-[#f2f7f4] py-2 text-center text-[10.5px] font-semibold text-[var(--color-text-primary)] transition hover:border-[var(--color-accent-primary)] hover:text-[var(--color-text-accent)]"
       >
         {card.action}
       </Link>
@@ -116,11 +116,11 @@ export default async function MyWorkPage() {
 
       <div>
         <div className="mb-[11px] flex items-center gap-[11px]">
-          <h2 className="whitespace-nowrap font-[var(--font-heading)] text-[14.5px] font-extrabold tracking-[-0.01em] text-[var(--color-text-primary)]">
+          <h2 className="whitespace-nowrap font-[var(--font-heading)] text-[13px] font-extrabold tracking-[-0.01em] text-[var(--color-text-primary)]">
             Needs me now
           </h2>
           <div className="h-px flex-1 bg-[var(--color-border-default)]" />
-          <span className="whitespace-nowrap text-[11.5px] text-[var(--color-text-muted)]">Refreshed just now</span>
+          <span className="whitespace-nowrap text-[10.5px] text-[var(--color-text-muted)]">Refreshed just now</span>
         </div>
 
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
@@ -136,25 +136,25 @@ export default async function MyWorkPage() {
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
               <div className="min-w-0">
-                <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">My schools</p>
-                <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
+                <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">My schools</p>
+                <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">
                   {schools.portfolioTotal} {schools.source === "account_manager" ? "in your portfolio" : "with a case you own"} · {schools.signalTotal} carrying a signal
                 </p>
               </div>
-              <Link href={"/super-admin/schools" as Route} className="whitespace-nowrap text-[11.5px] font-semibold text-[var(--color-text-accent)]">
+              <Link href={"/super-admin/schools" as Route} className="whitespace-nowrap text-[10.5px] font-semibold text-[var(--color-text-accent)]">
                 Open directory
               </Link>
             </div>
 
             {schools.rows.length === 0 ? (
-              <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-text-muted)]">
+              <div className="px-[18px] py-6 text-[11.5px] text-[var(--color-text-muted)]">
                 {schools.portfolioTotal === 0
                   ? "No schools are assigned to you as account manager, and you have no open cases tied to a school yet."
                   : "None of your schools are currently carrying a signal."}
               </div>
             ) : (
               <div>
-                <div className="grid grid-cols-[2fr_1fr_1.5fr_0.8fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[9px] text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                <div className="grid grid-cols-[2fr_1fr_1.5fr_0.8fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[9px] text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
                   <div>School</div>
                   <div>State</div>
                   <div>Signal</div>
@@ -163,15 +163,15 @@ export default async function MyWorkPage() {
                 {schools.rows.map((row) => (
                   <div key={row.id} className="grid grid-cols-[2fr_1fr_1.5fr_0.8fr] items-center gap-3 border-b border-[var(--color-border-muted)] px-[18px] py-[11px] last:border-b-0">
                     <div className="min-w-0">
-                      <p className="truncate text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.name}</p>
-                      <p className="truncate text-[11px] text-[var(--color-text-muted)]">{row.meta}</p>
+                      <p className="truncate text-[11.5px] font-semibold text-[var(--color-text-primary)]">{row.name}</p>
+                      <p className="truncate text-[10px] text-[var(--color-text-muted)]">{row.meta}</p>
                     </div>
                     <div>
                       <StatusBadge status={row.status} tone={getWorkflowStatusTone(row.status)} />
                     </div>
-                    <div className="min-w-0 text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{row.signal}</div>
+                    <div className="min-w-0 text-[10.5px] leading-5 text-[var(--color-text-secondary)]">{row.signal}</div>
                     <div className="text-right">
-                      <Link href={row.link as Route} className="whitespace-nowrap text-[11.5px] font-semibold text-[var(--color-text-accent)]">
+                      <Link href={row.link as Route} className="whitespace-nowrap text-[10.5px] font-semibold text-[var(--color-text-accent)]">
                         {row.action}
                       </Link>
                     </div>
@@ -185,21 +185,21 @@ export default async function MyWorkPage() {
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
               <div className="min-w-0">
-                <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">My cases</p>
-                <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
+                <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">My cases</p>
+                <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">
                   Assigned to you across support, migration, data-correction, and privacy-request cases
                 </p>
               </div>
-              <Link href={"/super-admin/support" as Route} className="whitespace-nowrap text-[11.5px] font-semibold text-[var(--color-text-accent)]">
+              <Link href={"/super-admin/support" as Route} className="whitespace-nowrap text-[10.5px] font-semibold text-[var(--color-text-accent)]">
                 Open queue
               </Link>
             </div>
 
             {cases.length === 0 ? (
-              <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-text-muted)]">Nothing assigned to you across case-bearing modules right now.</div>
+              <div className="px-[18px] py-6 text-[11.5px] text-[var(--color-text-muted)]">Nothing assigned to you across case-bearing modules right now.</div>
             ) : (
               <>
-                <div className="grid grid-cols-[1.9fr_1.25fr_1fr_0.85fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[9px] text-[10px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                <div className="grid grid-cols-[1.9fr_1.25fr_1fr_0.85fr] gap-3 border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[9px] text-[9px] font-semibold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
                   <div>Subject</div>
                   <div>Type</div>
                   <div>Time left</div>
@@ -212,17 +212,17 @@ export default async function MyWorkPage() {
                     className="grid grid-cols-[1.9fr_1.25fr_1fr_0.85fr] items-center gap-3 border-b border-[var(--color-border-muted)] px-[18px] py-[11px] transition last:border-b-0 hover:bg-[var(--color-bg-subtle)]"
                   >
                     <div className="min-w-0">
-                      <p className="truncate text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.subject}</p>
-                      <p className="truncate text-[11px] text-[var(--color-text-muted)]">{row.module}</p>
+                      <p className="truncate text-[11.5px] font-semibold text-[var(--color-text-primary)]">{row.subject}</p>
+                      <p className="truncate text-[10px] text-[var(--color-text-muted)]">{row.module}</p>
                     </div>
                     <div>
                       <StatusBadge status={row.type} tone="neutral" />
                     </div>
-                    <div className={`text-[11.5px] font-semibold ${toneToText[row.slaTone]}`}>{row.sla}</div>
-                    <div className="text-right text-[11.5px] text-[var(--color-text-muted)]">{row.age}</div>
+                    <div className={`text-[10.5px] font-semibold ${toneToText[row.slaTone]}`}>{row.sla}</div>
+                    <div className="text-right text-[10.5px] text-[var(--color-text-muted)]">{row.age}</div>
                   </Link>
                 ))}
-                <div className="border-t border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[11px] text-[11px] text-[var(--color-text-muted)]">
+                <div className="border-t border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-[18px] py-[11px] text-[10px] text-[var(--color-text-muted)]">
                   Countdowns run in the school&rsquo;s own working hours and time zone.
                 </div>
               </>
@@ -234,12 +234,12 @@ export default async function MyWorkPage() {
           {/* Awaiting my approval */}
           <div id="approvals" className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] scroll-mt-6">
             <div className="border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
-              <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">Awaiting my approval</p>
-              <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">Only what your role can approve</p>
+              <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">Awaiting my approval</p>
+              <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">Only what your role can approve</p>
             </div>
 
             {approvals.length === 0 ? (
-              <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-text-muted)]">
+              <div className="px-[18px] py-6 text-[11.5px] text-[var(--color-text-muted)]">
                 Nothing is waiting on your approval right now — either the queue is empty or your role doesn&rsquo;t approve these items.
               </div>
             ) : (
@@ -248,15 +248,15 @@ export default async function MyWorkPage() {
                   <div key={item.id} className="border-b border-[var(--color-border-muted)] px-[18px] py-[13px] last:border-b-0">
                     <div className="flex items-start justify-between gap-2.5">
                       <div className="min-w-0">
-                        <p className="text-[12.5px] font-semibold leading-5 text-[var(--color-text-primary)]">{item.title}</p>
-                        <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{item.meta}</p>
+                        <p className="text-[11.5px] font-semibold leading-5 text-[var(--color-text-primary)]">{item.title}</p>
+                        <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{item.meta}</p>
                       </div>
-                      <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[10.5px] font-bold ${toneToBadge[item.tone]}`}>{item.pill}</span>
+                      <span className={`shrink-0 whitespace-nowrap rounded-full px-2 py-0.5 text-[9.5px] font-bold ${toneToBadge[item.tone]}`}>{item.pill}</span>
                     </div>
                     <MyWorkApprovalActions item={item} />
                   </div>
                 ))}
-                <div className="bg-[var(--color-bg-subtle)] px-[18px] py-[11px] text-[11px] text-[var(--color-text-muted)]">
+                <div className="bg-[var(--color-bg-subtle)] px-[18px] py-[11px] text-[10px] text-[var(--color-text-muted)]">
                   Approving asks for a reason where required and logs the decision to the audit trail.
                 </div>
               </>
@@ -266,19 +266,19 @@ export default async function MyWorkPage() {
           {/* My tickets */}
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
-              <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">My tickets</p>
-              <Link href={"/super-admin/support" as Route} className="text-[11.5px] font-semibold text-[var(--color-text-accent)]">
+              <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">My tickets</p>
+              <Link href={"/super-admin/support" as Route} className="text-[10.5px] font-semibold text-[var(--color-text-accent)]">
                 Open board
               </Link>
             </div>
             <div>
               {tickets.map((row) => (
                 <div key={row.priority} className="flex items-center gap-3 border-b border-[var(--color-border-muted)] px-[18px] py-[11px] last:border-b-0">
-                  <span className={`w-16 shrink-0 rounded-full px-2 py-0.5 text-center text-[10.5px] font-bold ${toneToBadge[row.tone]}`}>{row.priority}</span>
+                  <span className={`w-16 shrink-0 rounded-full px-2 py-0.5 text-center text-[9.5px] font-bold ${toneToBadge[row.tone]}`}>{row.priority}</span>
                   <div className="h-[5px] flex-1 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                     <div className={`h-full rounded-full ${toneToBar[row.tone]}`} style={{ width: `${row.percent}%` }} />
                   </div>
-                  <span className="min-w-[22px] text-right font-[var(--font-heading)] text-[13px] font-bold text-[var(--color-text-primary)]">{row.count}</span>
+                  <span className="min-w-[22px] text-right font-[var(--font-heading)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{row.count}</span>
                 </div>
               ))}
             </div>
@@ -287,10 +287,10 @@ export default async function MyWorkPage() {
           {/* Recently viewed */}
           <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="border-b border-[var(--color-border-muted)] px-[18px] pb-[13px] pt-[15px]">
-              <p className="font-[var(--font-heading)] text-[13.5px] font-extrabold text-[var(--color-text-primary)]">Recently viewed</p>
-              <p className="mt-0.5 text-[11.5px] text-[#8c9a92]">For resuming interrupted work</p>
+              <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">Recently viewed</p>
+              <p className="mt-0.5 text-[10.5px] text-[#8c9a92]">For resuming interrupted work</p>
             </div>
-            <div className="px-[18px] py-6 text-[12.5px] text-[var(--color-text-muted)]">
+            <div className="px-[18px] py-6 text-[11.5px] text-[var(--color-text-muted)]">
               Not tracked yet — this platform doesn&rsquo;t record a per-admin view history.
             </div>
           </div>

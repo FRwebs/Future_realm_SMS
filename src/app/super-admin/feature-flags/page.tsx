@@ -19,13 +19,13 @@ import type {
   SuperAdminFeatureFlagCaseHistory,
   SuperAdminFeatureFlagRow,
   SuperAdminFeatureOverrideRow,
+  SuperAdminInternalMember,
   SuperAdminPlanLifecycleRow,
   SuperAdminPlanRow,
   SuperAdminProductAdoption,
-  SuperAdminSchoolRow,
-  SuperAdminTierFeatureRow
+  SuperAdminSchoolRow
 } from "@/lib/domain/types";
-import { formatDate } from "@/lib/utils/formatters";
+import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
 function daysBetween(fromMs: number, toMs: number) {
   return Math.round((toMs - fromMs) / (1000 * 60 * 60 * 24));
@@ -44,6 +44,24 @@ function initialsFrom(name: string) {
   return `${parts[0][0]}${parts[1][0]}`.toUpperCase();
 }
 
+type PlansOverview = {
+  versions: Array<{ id: string; plan: string; version: number; summary: string; by: string; at: string }>;
+  prices: Array<{ id: string; plan: string; planId: string; oldMonthly: number; newMonthly: number; oldAnnual: number; newAnnual: number; announcedAt: string; effectiveAt: string; status: string; told: number; reason: string | null; by: string }>;
+  rates: Array<{ tier: string; upgrades: number; downgrades: number }>;
+  noticeDays: number;
+};
+
+type MatrixView = {
+  tiers: Array<{ tier: string; schools: number }>;
+  features: Array<{ id: string; name: string; module: string; featureKey: string | null; enforcedAt: string | null; version: number; access: Record<string, boolean>; updatedAt: string }>;
+  registry: Array<{ key: string; name: string; module: string; enforcedAt: string | null }>;
+  changes: Array<{ id: string; feature: string; kind: string; before: Record<string, boolean> | null; after: Record<string, boolean>; reason: string; migrationPlan: string | null; affectedSchools: number; by: string; at: string }>;
+};
+
+type StageRow = { id: string; flag: string; key: string; from: string; to: string; percent: number; note: string | null; by: string; at: string };
+
+const TIER_LABEL: Record<string, string> = { BASIC: "Basic", STANDARD: "Standard", PROFESSIONAL: "Professional", ENTERPRISE: "Enterprise", CUSTOM: "Custom" };
+
 const rolloutOptions = [
   { label: "Off", value: "OFF" },
   { label: "Pilot", value: "PILOT" },
@@ -54,7 +72,7 @@ const yesNo = [{ label: "Yes", value: "true" }, { label: "No", value: "false" }]
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -82,6 +100,8 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
   const activeBrandingCount = (brandingForBadge ?? []).filter((item) => item.status === "APPLIED").length;
   const exceptionsCount = activeOverrideCount + activeBrandingCount;
 
+  const members = await apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[]);
+
   const tabs = [
     { label: "Plans", href: tabHref("plans"), active: tab === "plans" },
     { label: "Feature Matrix", href: tabHref("matrix"), active: tab === "matrix" },
@@ -99,59 +119,19 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
           <ResourceActionDialog
             triggerLabel="New feature flag"
             title="New feature flag"
-            description="A capability ships in stages, with exit criteria and a way back."
-            endpoint="/api/super-admin/feature-flags"
+            description="A capability ships in stages, with exit criteria and a way back. Every flag starts Off."
+            endpoint="/api/super-admin/plans-features/flags"
             variant="heroWhite"
             submitLabel="Create flag"
             fields={[
               { name: "name", label: "Flag name", required: true, section: "The capability" },
               { name: "key", label: "Key", required: true, placeholder: "module.feature-name", section: "The capability" },
-              {
-                name: "area",
-                label: "Area",
-                type: "static",
-                placeholder: "Not tracked",
-                note: "No area/module field exists on a flag — group is read from its key prefix elsewhere in the UI.",
-                section: "The capability"
-              },
-              {
-                name: "owner",
-                label: "Owner",
-                type: "static",
-                placeholder: "Not tracked",
-                note: "Not stored — no owner field exists on a feature flag.",
-                section: "The capability"
-              },
-              {
-                name: "stage",
-                label: "Stage",
-                type: "static",
-                placeholder: "Off",
-                note: "Every new flag starts at Off. Move it to Pilot, Partial or Full from its row on the Rollout tab.",
-                section: "First stage"
-              },
-              {
-                name: "pilotSchools",
-                label: "Pilot schools",
-                type: "static",
-                placeholder: "None yet — named at the next stage",
-                note: "Pilot schools are chosen when the flag is advanced to Pilot, not at creation.",
-                section: "First stage"
-              },
-              {
-                name: "exitCriteria",
-                label: "Exit criteria",
-                type: "static",
-                placeholder: "Not stored",
-                note: "No exit-criteria field exists — stage advances are a manual judgment call today.",
-                section: "First stage"
-              },
-              { name: "tierStarter", label: "Starter", type: "toggle", disabled: true, note: "Tier availability isn't set at creation — see the Feature Matrix tab.", section: "Tier availability" },
-              { name: "tierStandard", label: "Standard", type: "toggle", disabled: true, section: "Tier availability" },
-              { name: "tierElite", label: "Elite", type: "toggle", disabled: true, section: "Tier availability" },
-              { name: "tierNgo", label: "NGO / Mission", type: "toggle", disabled: true, section: "Tier availability" },
-              { name: "tierTrial", label: "Trial", type: "toggle", disabled: true, note: "Every feature is unlocked in a trial, platform-wide — not configurable per flag.", section: "Tier availability" },
-              { name: "pilotSchoolsTold", label: "Pilot schools are told", type: "toggle", disabled: true, note: "Not built — pilot schools aren't notified when added.", section: "Tier availability" }
+              { name: "area", label: "Area", placeholder: "e.g. Report Cards, Fees, Communications", section: "The capability" },
+              { name: "ownerId", label: "Owner", type: "select", defaultValue: "", options: [{ label: "Nobody yet", value: "" }, ...members.filter((m) => m.status === "ACTIVE" || !m.status).map((m) => ({ label: `${m.name} · ${m.role.replaceAll("_", " ").toLowerCase()}`, value: m.id }))], note: "The person accountable for deciding when each stage is done.", section: "The capability" },
+              { name: "description", label: "What it does", type: "textarea", section: "The capability" },
+              { name: "exitCriteria", label: "Exit criteria", type: "textarea", placeholder: "In measurable terms — e.g. no new support tickets for 7 days and PDF generation under 4s", note: "Required before the flag can leave Off.", section: "First stage" },
+              { name: "observationDays", label: "Observation window (days per stage)", type: "number", defaultValue: 7, min: 0, max: 90, note: "How long a flag must sit in a stage before it can move up. A Super Admin can waive it with a reason.", section: "First stage" },
+              { name: "stage", label: "Stage", type: "static", placeholder: "Off", note: "Move it to Pilot, Partial or Full from its row on the Rollout tab. Pilot schools are named and told then.", section: "First stage" }
             ]}
           />
         }
@@ -168,12 +148,16 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
 }
 
 async function PlansTab() {
-  const [plans, migrations, churn, adoption] = await Promise.all([
+  const [plans, migrations, churn, adoption, overview] = await Promise.all([
     apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
     apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
     apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
-    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption")
+    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
+    apiGet<PlansOverview>("/api/super-admin/plans-features/plans")
   ]);
+  const legacyCount = (plans ?? []).filter((plan) => plan.lifecycle === "LEGACY").length;
+  const draftCount = (plans ?? []).filter((plan) => plan.lifecycle === "DRAFT").length;
+  const ratesByTier = new Map((overview?.rates ?? []).map((row) => [row.tier, row]));
   const activePlans = (plans ?? []).filter((plan) => plan.isActive);
   const archivedPlans = (plans ?? []).filter((plan) => !plan.isActive);
   const totalSchools = (plans ?? []).reduce((sum, plan) => sum + plan.subscriberCount, 0);
@@ -206,17 +190,17 @@ async function PlansTab() {
         <StatCard label="Archived plans" value={archivedPlans.length} detail="No longer selectable" icon={Archive} tone="neutral" />
         <StatCard label="Schools across all plans" value={totalSchools.toLocaleString()} detail="Sum of subscribers per plan" icon={School} tone="info" />
         <StatCard label="Plan migrations recorded" value={(migrations ?? []).length} detail="Schools that have changed tier" icon={Repeat2} tone="success" />
-        <StatCard label="Draft / legacy plan states" value="N/A" detail="Not tracked — a plan here is simply active or archived; there's no draft, legacy, or migration-window lifecycle." icon={Clock3} tone="neutral" />
+        <StatCard label="Draft / legacy plans" value={`${draftCount} / ${legacyCount}`} detail="Draft: not yet offered · Legacy: closed to new schools, kept for those on it" icon={Clock3} tone="neutral" />
       </section>
 
       <PlanCardGrid plans={plans ?? []} actions={<PlanCreateDialog />} />
 
       <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">One currency, not five</p>
+          <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">One currency, not five</p>
         </div>
         <div className="p-5">
-          <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">
             Every plan above is authored and billed in Naira only — there is no USD anchor price, no per-country exchange
             rate, and no multi-currency conversion layer anywhere in this system. A school outside Nigeria isn&apos;t
             possible today: onboarding hard-codes the country to Nigeria (see Curriculum &amp; Academics&apos;
@@ -236,76 +220,130 @@ async function PlansTab() {
           { key: "schools", header: "Schools", render: (row) => row.schools },
           { key: "adoption", header: "Adoption index", render: (row) => (row.adoptionIndex === null ? <span className="text-[var(--color-text-muted)]">Not enough data</span> : `${row.adoptionIndex}%`) },
           { key: "churn", header: "Churn rate", render: (row) => `${row.churnPct}%` },
-          { key: "upgrade", header: "Upgrade rate", render: () => <span className="text-[var(--color-text-muted)]">Not tracked — no record links a school's previous tier to its next one</span> },
-          { key: "verdict", header: "Verdict", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.verdict}</span> }
+          {
+            key: "upgrade",
+            header: "Moves (180 days)",
+            render: (row) => {
+              const moves = ratesByTier.get(row.tier);
+              if (!moves || (moves.upgrades === 0 && moves.downgrades === 0)) return <span className="text-[var(--color-text-muted)]">None recorded</span>;
+              return <span>{moves.upgrades} up · {moves.downgrades} down{row.schools ? ` (${Math.round((moves.upgrades / row.schools) * 100)}% upgrade rate)` : ""}</span>;
+            }
+          },
+          { key: "verdict", header: "Verdict", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.verdict}</span> }
         ]}
         emptyState="No tier has enough schools yet to compute adoption or churn."
+        footnote="Moves are counted from tier changes that recorded where the school came from — changes made before that was kept are not in the count."
+      />
+
+      <TableCard
+        title="Price changes"
+        description={`A plan that schools are on cannot be repriced in place. A change is announced to every school on it, waits out ${overview?.noticeDays ?? 30} days' notice, and is applied automatically on its date.`}
+        items={overview?.prices ?? []}
+        getRowKey={(row) => row.id}
+        columns={[
+          { key: "plan", header: "Plan", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.plan}</span> },
+          { key: "price", header: "Monthly price", render: (row) => `${formatCurrency(row.oldMonthly)} → ${formatCurrency(row.newMonthly)}` },
+          { key: "announced", header: "Announced", render: (row) => `${formatDate(row.announcedAt)} · ${row.told} school${row.told === 1 ? "" : "s"} told` },
+          { key: "effective", header: "Takes effect", render: (row) => formatDate(row.effectiveAt) },
+          { key: "by", header: "By", render: (row) => row.by },
+          { key: "status", header: "State", render: (row) => <StatusBadge status={row.status} tone={row.status === "APPLIED" ? "success" : row.status === "SCHEDULED" ? "warning" : "neutral"} /> },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (row) =>
+              row.status === "SCHEDULED" ? (
+                <ResourceActionDialog triggerLabel="Cancel" title={`Cancel the ${row.plan} price change`} description="The plan keeps its current price. Schools that were told are not sent a correction automatically." endpoint={`/api/super-admin/plans-features/price-changes/${row.id}/cancel`} method="POST" variant="textActionDanger" submitLabel="Cancel change" confirmLabel="Confirm" fields={[]} />
+              ) : (
+                <span className="text-[11px] text-[var(--color-text-muted)]">—</span>
+              )
+          }
+        ]}
+        emptyState="No price change has been scheduled. Use “Price” on a plan card to schedule one."
+      />
+
+      <TableCard
+        title="Plan version history"
+        description="Every change to a plan — price, limits, entitlements, lifecycle — with who made it and when it took effect."
+        items={overview?.versions ?? []}
+        getRowKey={(row) => row.id}
+        columns={[
+          { key: "plan", header: "Plan", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.plan}</span> },
+          { key: "version", header: "Version", render: (row) => `v${row.version}` },
+          { key: "summary", header: "What changed", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.summary}</span> },
+          { key: "by", header: "By", render: (row) => row.by },
+          { key: "at", header: "Effective", render: (row) => formatDate(row.at) }
+        ]}
+        emptyState="No plan has changed since versions began to be kept."
       />
     </div>
   );
 }
 
 async function TierMatrixTab() {
-  const features = await apiGet<SuperAdminTierFeatureRow[]>("/api/super-admin/feature-flags/tier-matrix");
+  const view = await apiGet<MatrixView>("/api/super-admin/plans-features/matrix");
+  const missing = view.registry.filter((row) => !view.features.some((feature) => feature.featureKey === row.key));
 
   return (
     <div className="grid gap-5">
-      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
-        <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">These three tiers aren&apos;t the same three tiers a school is actually billed on</p>
-        </div>
-        <div className="p-5">
-          <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
-            A real subscription plan&apos;s tier is one of five values — Basic, Standard, Professional, Enterprise, or
-            Custom (see the Plans tab). This matrix is a separate, hardcoded record with exactly three fixed columns —
-            Starter, Standard, Elite — and nothing in the code maps one system to the other. In practice that means two
-            of the five real billing tiers, Professional and Custom, have no feature-access row here at all: a school on
-            the &quot;Trial&quot; plan (Professional tier) or &quot;NGO / Mission&quot; plan (Custom tier) isn&apos;t
-            represented in this table by name or by tier, even though real schools are on those plans today.
-          </p>
-        </div>
-      </section>
       <FeatureMatrixTable
-        items={features ?? []}
+        view={view}
         actions={
+          missing.length === 0 ? null : (
           <ResourceActionDialog
-            triggerLabel="Add / update feature"
-            title="Add or update a matrix feature"
-            description="Define which tiers a feature is available on. Re-using an existing feature name updates its row."
-            endpoint="/api/super-admin/feature-flags/tier-matrix"
-            submitLabel="Save feature"
+            triggerLabel="Add a feature"
+            title="Add a registry feature to the matrix"
+            description="Choose a feature the product knows how to gate and set which of the five billing tiers have it. It is kept in the change log below."
+            endpoint="/api/super-admin/plans-features/matrix"
+            submitLabel="Save access"
             fields={[
-              { name: "name", label: "Feature name", required: true, placeholder: "e.g. WhatsApp notifications" },
-              { name: "module", label: "Module", required: true, placeholder: "e.g. Communications" },
-              { name: "starterAccess", label: "Starter tier", type: "select", defaultValue: "false", options: yesNo },
-              { name: "standardAccess", label: "Standard tier", type: "select", defaultValue: "false", options: yesNo },
-              { name: "eliteAccess", label: "Elite tier", type: "select", defaultValue: "true", options: yesNo }
+              { name: "featureKey", label: "Feature", type: "select", required: true, options: missing.map((row) => ({ label: `${row.name} — ${row.module}${row.enforcedAt ? "" : " (catalogue only)"}`, value: row.key })), note: "A feature has to be in the registry before it can have a row. Only features marked with a place the product enforces them change what a school can do.", section: "Feature" },
+              ...view.tiers.map((tier) => ({ name: tier.tier, label: `${TIER_LABEL[tier.tier] ?? tier.tier} (${tier.schools} school${tier.schools === 1 ? "" : "s"})`, type: "select" as const, defaultValue: "false", options: yesNo, section: "Access by tier" })),
+              { name: "reason", label: "Why this is changing", type: "textarea", required: true, section: "Reason" },
+              { name: "migrationPlan", label: "Migration plan (needed when taking access away from schools)", type: "textarea", placeholder: "What those schools are offered instead, and when they are told", note: "If any school is on a tier that loses the feature, this is required — and those schools are told in the app.", section: "Reason" }
             ]}
           />
+          )
         }
       />
       <TableCard
         title="Editing the matrix — what actually happens"
-        description="Verified against the real update code, not stated as intent."
+        description="Checked against the real save code."
         items={[
-          { requirement: "The change stages as a new version", spec: "Not built — saving a cell updates the TierFeature row in place immediately. There is no version history and no separate draft/published state to approve first.", state: "bad" },
-          { requirement: "Removing a feature in active use requires a migration plan", spec: "Not built — the system never checks which schools are actively using a feature before a save turns its access off.", state: "bad" },
-          { requirement: "Adding a feature applies at next renewal, or immediately with a logged reason", spec: "Partial — every save takes effect immediately for every school on that tier; there's no renewal-timing option, but the change is written to the audit log.", state: "warn" },
-          { requirement: "A new feature must exist in a registry first", spec: "Not applicable — there is no separate feature registry; typing a new feature name into the form and saving creates the row directly.", state: "mute" }
+          { requirement: "Every change is recorded as a new version", spec: "Real — each save bumps the feature's version and writes a change-log row with before, after, the reason, the schools affected and who made it (below).", state: "good" },
+          { requirement: "Removing a feature in active use requires a migration plan", spec: "Enforced — the save counts the schools on the tiers losing access and refuses without a written migration plan; those schools are then told in the app.", state: "good" },
+          { requirement: "Adding a feature needs a logged reason", spec: "Enforced — a reason is required on every change. Access takes effect immediately for every school on the tier; there is no renewal-timing option.", state: "warn" },
+          { requirement: "A new feature must exist in a registry first", spec: "Enforced — only registry features can be given a row. The registry is part of the product, so a feature is added to it when the product can honour it.", state: "good" },
+          { requirement: "The product reads the matrix", spec: "Partial — custom branding is checked against it when a school's branding is submitted or applied. The other registry features are catalogue only until the product has something to gate (marked below).", state: "warn" }
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
           { key: "requirement", header: "What the mockup describes", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
-              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "N/A" } }[row.state as "good" | "warn" | "bad" | "mute"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
+      />
+      <TableCard
+        title="Matrix change log"
+        description="Every change to who may use a feature, newest first."
+        items={view.changes}
+        getRowKey={(row) => row.id}
+        columns={[
+          { key: "at", header: "When", render: (row) => formatDate(row.at) },
+          { key: "feature", header: "Feature", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.feature}</span> },
+          { key: "kind", header: "Change", render: (row) => <StatusBadge status={row.kind} tone={row.kind === "ACCESS_REMOVED" ? "danger" : row.kind === "ADDED" ? "success" : "warning"} /> },
+          { key: "tiers", header: "On", render: (row) => <span className="text-[11px]">{Object.entries(row.after).filter(([tier, on]) => on !== Boolean(row.before?.[tier])).map(([tier, on]) => `${on ? "+" : "−"}${TIER_LABEL[tier] ?? tier}`).join(" ") || "Created"}</span> },
+          { key: "schools", header: "Schools affected", render: (row) => row.affectedSchools },
+          { key: "reason", header: "Reason", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.reason}{row.migrationPlan ? ` — Migration: ${row.migrationPlan}` : ""}</span> },
+          { key: "by", header: "By", render: (row) => row.by }
+        ]}
+        emptyState="No change has been made to the matrix since it began to be logged."
       />
     </div>
   );
@@ -322,16 +360,16 @@ const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: str
 function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
   return (
     <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[14px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
+      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
+      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
           const tone = flowToneStyle[step.tone ?? "plain"];
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>
@@ -347,15 +385,15 @@ async function RolloutTab() {
     <div className="grid gap-5">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Rollout</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Feature flag & plan rollout</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Feature flag & plan rollout</h2>
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           How changes reach schools over time: staged feature-flag rollouts with instant rollback, and the history of
           schools migrating between subscription tiers.
         </p>
       </section>
       <FlowSteps
         title="Feature flag rollout — the real stages"
-        sub="A flag moves through these states; the percentage in Partial is whatever a Super Admin sets, not a fixed step. There's no automatic 7-day monitoring window or written exit criterion — advancing a stage is a manual decision every time."
+        sub="A flag moves up one stage at a time. Each stage has an observation window (7 days by default) before it can move up — a Super Admin can waive it by saying why — and the person moving it names the exit criterion that was met. Moving down, or rolling back, is always allowed."
         steps={[
           { label: "Off", note: "Default for a new flag" },
           { label: "Pilot", note: "Named schools only", tone: "warn" },
@@ -389,58 +427,43 @@ async function LifecycleSection() {
       />
       <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">What happens to a school&apos;s data when its plan changes — nothing</p>
+          <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">What happens to a school when its plan changes</p>
         </div>
         <div className="p-5">
-          <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
-            Changing a school&apos;s plan updates that one field and writes an audit-log entry — that&apos;s the entire
-            operation. Nothing locks, hides, or marks read-only any record a school built while on a higher plan, and
-            nothing restores anything on upgrade, because nothing was ever touched on downgrade. A school can keep using
-            a feature its new plan doesn&apos;t include until something else (like the Feature Matrix or an override)
-            actually blocks it — there is no automatic entitlement enforcement tied to a plan change itself.
+          <p className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">
+            The school&apos;s plan field changes and the move is written to the audit log with where it came from and where it went. What the
+            school may use is worked out live from the feature matrix each time it is asked — so a feature that the new plan does not include
+            stops being available the next time the product checks (today that is custom branding). Nothing a school built is locked,
+            hidden or deleted on a downgrade, and nothing needs restoring on an upgrade.
           </p>
         </div>
       </section>
 
       <TableCard
-        title="Grandfathering rules — none of these are enforced by the system"
-        description="A mature plan-lifecycle would protect schools from surprise price or entitlement changes. Checked against the real update code, not the aspiration."
+        title="Grandfathering rules"
+        description="How schools are protected from surprise price or entitlement changes. Checked against the real code."
         items={[
-          { rule: "A price a school agreed to is honoured until renewal", spec: "Not built — editing a plan's price changes it for every subscriber immediately, including schools already on it. There's no per-school price lock.", state: "bad" },
-          { rule: "30 days' notice before any renewal price change", spec: "Not built — no notice mechanism exists for a price edit at all.", state: "bad" },
-          { rule: "Legacy plans stay open to their existing schools indefinitely", spec: "Partial — archiving a plan (isActive: false) only blocks new signups; schools already on it keep their subscription, but there's no formal 'legacy' state distinct from active/archived.", state: "warn" },
-          { rule: "An archive requires zero schools on the plan first", spec: "Not built — a plan with active subscribers can be archived directly; nothing blocks it or prompts a migration first.", state: "bad" },
-          { rule: "Entitlement removals need a migration plan", spec: "Not built — see the Feature Matrix tab's own disclosure: a feature can be switched off for a tier with no check for who's using it.", state: "bad" }
+          { rule: "A price a school agreed to is honoured until it has been told", spec: "Enforced — a plan with schools on it cannot be repriced in place. A change is scheduled, every school on the plan is told in the app, and the new price applies only on the date, which must be at least 30 days out.", state: "good" },
+          { rule: "30 days' notice before any price change", spec: "Enforced — the schedule refuses an earlier date for a plan that has schools on it; a plan with none can be repriced at once.", state: "good" },
+          { rule: "Legacy plans stay open to their existing schools indefinitely", spec: "Enforced — Legacy closes a plan to new schools and keeps it for those on it. Activating a replacement for a tier moves the old plan to Legacy automatically if schools are still on it.", state: "good" },
+          { rule: "An archive requires zero schools on the plan first", spec: "Enforced — a plan with schools on it can be archived only by choosing a plan to move them to; they are moved, recorded and told. The old Archive button is refused while schools are on the plan.", state: "good" },
+          { rule: "Entitlement removals need a migration plan", spec: "Enforced — see the Feature Matrix tab: removing access from a tier that has schools on it needs a written migration plan, and those schools are told.", state: "good" },
+          { rule: "A school keeps the price it agreed at signup until renewal", spec: "Not built — there is no per-school price lock. A scheduled change reaches every school on the plan on its date, after notice.", state: "warn" }
         ]}
         getRowKey={(row) => row.rule}
         columns={[
           { key: "rule", header: "Rule", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.rule}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
-              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "warn" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Not built" } }[row.state as "good" | "warn"];
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
       />
-
-      <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
-        <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Plan version history — not built</p>
-        </div>
-        <div className="p-5">
-          <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
-            A plan record has no version number, no effective-from/effective-to dates, and no change log of its own —
-            editing a plan&apos;s price or entitlements overwrites that row in place. The only record that a plan ever
-            changed is a generic audit-log entry (actor, timestamp, and the new values), not a queryable version history
-            with an approver or an effective date. &quot;Recent tier changes&quot; above tracks which school moved to
-            which plan — it does not track how the plans themselves have changed over time.
-          </p>
-        </div>
-      </section>
     </div>
   );
 }
@@ -450,8 +473,8 @@ async function ExceptionsTab() {
     <div className="grid gap-5">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Exceptions</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Per-school exceptions to the standard tier</h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Per-school exceptions to the standard tier</h2>
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Where a school departs from its plan&apos;s default rules — a feature flag granted or restricted outside the
           tier-feature matrix, or custom branding applied to the live account. One queue, one case anatomy — the same
           review pattern used for Schools and Users.
@@ -459,15 +482,15 @@ async function ExceptionsTab() {
       </section>
       <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">What an exception is</p>
-          <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">What&apos;s real about each of these today, not just the concept.</p>
+          <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">What an exception is</p>
+          <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">What&apos;s real about each of these today, not just the concept.</p>
         </div>
         <div className="grid gap-3 p-5 sm:grid-cols-2">
           {[
             { label: "Added — the school has something its plan does not include", detail: "Real. Recorded as a GRANTED override, reviewed and approved before it takes effect.", tone: "good" },
             { label: "Removed — the school has lost something its plan does include", detail: "Real as a RESTRICTED override, but there's no automatic non-payment trigger — a person creates the restriction by hand today.", tone: "warn" },
             { label: "Waiting — someone has asked and nobody has decided", detail: "Real. A PENDING override sits in the case queue above until approved or rejected.", tone: "warn" },
-            { label: "Every exception carries an end date", detail: "Enforced at creation — the form requires an expiry date. Nothing then acts on that date (see the table below).", tone: "good" },
+            { label: "Every exception carries an end date", detail: "Enforced — the form requires an expiry date, and an hourly job ends the exception on that date (see the table below).", tone: "good" },
             { label: "The plan itself never changes from an exception", detail: "True by construction — an override is its own record, separate from the TierFeature matrix and the plan row.", tone: "good" }
           ].map((item) => {
             const dot = { good: "var(--color-success)", warn: "var(--color-warning)" }[item.tone];
@@ -475,8 +498,8 @@ async function ExceptionsTab() {
               <div key={item.label} className="flex items-start gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 sm:last:border-b sm:odd:border-b">
                 <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
                 <div>
-                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-                  <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+                  <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+                  <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
                 </div>
               </div>
             );
@@ -485,48 +508,48 @@ async function ExceptionsTab() {
       </section>
       <ExceptionsCaseBoard />
       <TableCard
-        title="What happens when an override expires — not automated"
-        description="Every override has a required expiry date, but nothing in this system acts on it. There is no scheduled job anywhere in the backend at all, at any interval — an expiry date is only ever checked once, at creation, to confirm it's in the future."
+        title="What happens when an override expires"
+        description="Every override has a required expiry date, and an hourly job acts on it."
         items={[
-          { step: "Before expiry", what: "Nothing — no notice is sent to the account manager, the school, or anyone else at any day count.", state: "bad" },
-          { step: "On the expiry date", what: "Nothing — access doesn't stop. The override stays exactly as it was until a human opens this page and revokes it.", state: "bad" },
-          { step: "After expiry, before revoked", what: "The case shows as a live data-integrity problem: still marked Approved with an expiry date in the past, flagged in red on this page until someone acts on it.", state: "warn" },
-          { step: "On manual revoke", what: "A Super Admin or Product Lead revokes it by hand, with a required reason — the only real path back to a clean state.", state: "good" }
+          { step: "Before expiry", what: "The case board shows it under “Ending in the next 30 days”. No reminder is sent ahead of the date.", state: "warn" },
+          { step: "On the expiry date", what: "Within the hour the override is marked Expired, access it granted (or restricted) stops applying, an audit entry is written, and the school's leadership is told in the app.", state: "good" },
+          { step: "After expiry", what: "The case closes as Expired. Entitlement checks ignore it from that moment, so the school falls back to what its plan includes.", state: "good" },
+          { step: "On manual revoke", what: "A Super Admin or Product Lead can still revoke it early, with a required reason.", state: "good" }
         ]}
         getRowKey={(row) => row.step}
         columns={[
           { key: "step", header: "Step", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.step}</span> },
-          { key: "what", header: "What actually happens", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.what}</span> },
+          { key: "what", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.what}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
-              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "warn" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
       />
       <TableCard
         title="Branding review — what's actually checked"
-        description="Elite-tier custom branding, verified against the real submission and approval code, not the form's own copy."
+        description="Custom branding, verified against the real submission and approval code. The school's plan must include custom branding (or hold an approved exception) at both submit and apply."
         items={[
-          { requirement: "Logo format and minimum width", spec: "Not enforced — the field accepts any text, not even a URL format check. The submission form's own label (\"PNG, min 300px\") describes a rule the backend never checks.", state: "bad" },
+          { requirement: "Logo format", spec: "Enforced — the logo must be a secure (https) link to a PNG, JPG, SVG or WebP file. Minimum width is not checked: the file is not fetched.", state: "good" },
           { requirement: "Brand colours as hex codes", spec: "Enforced — both colour fields are validated against a hex-colour pattern before they can be saved.", state: "good" },
-          { requirement: "Contrast check", spec: "Not built — no code compares the two colours for print contrast.", state: "bad" },
+          { requirement: "Contrast check", spec: "Enforced — the primary colour must reach 3:1 contrast against white (WCAG) so headings can be read on printed paper; a lighter colour is refused with its ratio.", state: "good" },
           { requirement: "Quality / appropriateness review", spec: "Approval is a bare status change — clicking Approve sets the status field and records who approved it; no automated check of the logo or colours runs at any point.", state: "bad" },
           { requirement: "Preview with sample data before going live", spec: "Not built on this page — there's no rendered preview step between approval and applying branding to the school's live account.", state: "bad" }
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
           { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -580,7 +603,7 @@ function overrideDecisions(item: SuperAdminFeatureOverrideRow): ReactNode {
       />
     );
   }
-  return <p className="text-[12px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
+  return <p className="text-[11px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
 }
 
 function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
@@ -614,7 +637,7 @@ function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
       />
     );
   }
-  return <p className="text-[12px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
+  return <p className="text-[11px] text-[var(--color-text-muted)]">Closed — {item.status.toLowerCase()}, no further action.</p>;
 }
 
 async function ExceptionsCaseBoard() {
@@ -763,7 +786,7 @@ async function ExceptionsCaseBoard() {
     overridesByFlagThisYear.set(item.flagKey, (overridesByFlagThisYear.get(item.flagKey) ?? 0) + 1);
   }
   const repeatedFlagCount = Array.from(overridesByFlagThisYear.values()).filter((count) => count > 2).length;
-  const revokedCount = overrideRows.filter((item) => item.status === "REJECTED" || item.status === "REVOKED").length;
+  const revokedCount = overrideRows.filter((item) => item.status === "REJECTED" || item.status === "REVOKED" || item.status === "EXPIRED").length;
 
   return (
     <div className="grid gap-5">
@@ -772,7 +795,7 @@ async function ExceptionsCaseBoard() {
         <StatCard label="Waiting on a decision" value={waitingCount} detail="Pending overrides and branding" icon={Clock3} tone={waitingCount ? "warning" : "neutral"} />
         <StatCard label="Ending in the next 30 days" value={endingSoonCount} detail="Approved overrides nearing expiry" icon={ShieldAlert} tone={endingSoonCount ? "warning" : "neutral"} />
         <StatCard label="Granted more than twice this year" value={repeatedFlagCount} detail="A flag repeatedly overridden may belong on the plan" icon={Repeat2} tone={repeatedFlagCount ? "warning" : "neutral"} />
-        <StatCard label="Revoked or rejected" value={revokedCount} detail="Not tracked as non-payment specifically" icon={Undo2} tone="neutral" />
+        <StatCard label="Revoked, rejected or expired" value={revokedCount} detail="Closed without being used to the end" icon={Undo2} tone="neutral" />
       </section>
 
       <div className="flex flex-wrap items-center justify-end gap-2">
@@ -800,7 +823,7 @@ async function ExceptionsCaseBoard() {
           variant="secondary"
           fields={[
             { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-            { name: "logoUrl", label: "Logo URL (no format or size check is enforced)" },
+            { name: "logoUrl", label: "Logo URL (https link to a PNG, JPG, SVG or WebP)" },
             { name: "primaryColour", label: "Primary colour (hex)", required: true, placeholder: "#25593f" },
             { name: "secondaryColour", label: "Secondary colour (hex)", required: true, placeholder: "#c28c3d" }
           ]}
@@ -818,96 +841,150 @@ async function ExceptionsCaseBoard() {
 }
 
 async function FlagsSection() {
-  const flags = await apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags");
+  const [flags, history, members, schoolsEnvelope] = await Promise.all([
+    apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/plans-features/flags"),
+    apiGet<StageRow[]>("/api/super-admin/plans-features/stage-history"),
+    apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[]),
+    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
+  ]);
+  const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
+  const memberOptions = [{ label: "Nobody yet", value: "" }, ...members.map((m) => ({ label: `${m.name} · ${m.role.replaceAll("_", " ").toLowerCase()}`, value: m.id }))];
 
   return (
     <div className="grid gap-5">
-    <TableCard
-      title="Feature flags"
-      description="Staged rollout: Off → Pilot → Partial → Full, with an instant platform-wide rollback at any stage. “In stage” is a proxy, not a precise measurement — there's no field recording when a flag entered its current stage, so this reads the row's last-updated time instead, which also moves on an unrelated edit."
-      items={flags ?? []}
-      actions={
-        <ResourceActionDialog
-          triggerLabel="Create Flag"
-          title="Create feature flag"
-          description="Use a stable key such as results.new-broadsheet or fees.paystack-v2."
-          endpoint="/api/super-admin/feature-flags"
-          submitLabel="Create Flag"
-          fields={[
-            { name: "key", label: "Flag Key", required: true, placeholder: "module.feature-name" },
-            { name: "name", label: "Display Name", required: true },
-            { name: "description", label: "Description", type: "textarea" }
-          ]}
-        />
-      }
-      emptyState="No feature flags have been configured."
-      columns={[
-        { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-xs text-[var(--color-text-muted)]">{item.key}</p></div> },
-        { key: "rollout", header: "Rollout", render: (item) => <StatusBadge status={item.rolloutStatus} tone={item.rolloutStatus === "FULL" ? "success" : item.rolloutStatus === "OFF" ? "neutral" : "warning"} /> },
-        { key: "pct", header: "Percent", render: (item) => `${item.rolloutPercent}%` },
-        { key: "pilot", header: "Pilot schools", render: (item) => item.pilotSchoolCount },
-        { key: "inStage", header: "In stage", render: (item) => `${formatAge(item.stageEnteredAt)}${daysBetween(new Date(item.stageEnteredAt).getTime(), Date.now()) > 30 ? " · review overdue" : ""}` },
-        { key: "overrides", header: "Overrides", render: (item) => item.overrides },
-        {
-          key: "actions",
-          header: "Actions",
-          render: (item) => (
-            <ActionMenu triggerLabel={`Actions for ${item.name}`}>
-              <ResourceActionDialog
-                triggerLabel="Update rollout"
-                title={`Update rollout — ${item.name}`}
-                description="Advance the staged rollout. Full rollout enables the flag platform-wide."
-                endpoint={`/api/super-admin/feature-flags/${item.id}/rollout`}
-                method="PATCH"
-                variant="menu"
-                submitLabel="Update rollout"
-                fields={[
-                  { name: "rolloutStatus", label: "Rollout stage", type: "select", defaultValue: item.rolloutStatus, options: rolloutOptions },
-                  { name: "rolloutPercent", label: "Percent (for Partial)", type: "number", defaultValue: item.rolloutPercent, min: 0, max: 100 }
-                ]}
-              />
-              <ResourceActionDialog
-                triggerLabel="Instant rollback"
-                title={`Roll back ${item.name}`}
-                description="Immediately disables this feature platform-wide."
-                endpoint={`/api/super-admin/feature-flags/${item.id}/rollback`}
-                method="POST"
-                variant="menuDanger"
-                submitLabel="Roll back now"
-                confirmLabel="Confirm rollback"
-                confirmMessage="This disables the feature for every school immediately."
-                fields={[]}
-              />
-            </ActionMenu>
-          )
+      <TableCard
+        title="Feature flags"
+        description="Staged rollout: Off → Pilot → Partial → Full, with an instant platform-wide rollback at any stage. “In stage” is measured from the day the flag entered its current stage, against that flag's own observation window."
+        items={flags ?? []}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Create Flag"
+            title="Create feature flag"
+            description="Use a stable key such as results.new-broadsheet or fees.paystack-v2."
+            endpoint="/api/super-admin/plans-features/flags"
+            submitLabel="Create Flag"
+            fields={[
+              { name: "key", label: "Flag Key", required: true, placeholder: "module.feature-name" },
+              { name: "name", label: "Display Name", required: true },
+              { name: "area", label: "Area", placeholder: "e.g. Report Cards" },
+              { name: "ownerId", label: "Owner", type: "select", defaultValue: "", options: memberOptions },
+              { name: "description", label: "Description", type: "textarea" },
+              { name: "exitCriteria", label: "Exit criteria", type: "textarea", note: "Required before the flag can leave Off." },
+              { name: "observationDays", label: "Observation window (days)", type: "number", defaultValue: 7, min: 0, max: 90 }
+            ]}
+          />
         }
-      ]}
-    />
-    <TableCard
-      title="What every stage would record — mostly not built"
-      description="Checked against the real feature-flag schema and update code, not the aspiration."
-      items={[
-        { field: "The exit criterion, in measurable terms", spec: "Not built — a flag has no field for a written exit criterion anywhere in the schema.", state: "bad" },
-        { field: "The observation window (minimum 7 days per stage)", spec: "Not built — advancing a stage is a manual action with no minimum-duration check.", state: "bad" },
-        { field: "The owner accountable for the decision", spec: "Not built — a flag records who created it, not a named owner for the current stage.", state: "bad" },
-        { field: "The rollback trigger", spec: "Real, but manual — \"Instant rollback\" is a real one-click action available at every stage; there's no automatic trigger condition, a person decides to click it.", state: "warn" },
-        { field: "The date the stage began", spec: "Not built — see the table above: what's shown as \"In stage\" is the row's last-updated timestamp, not a true per-stage start date.", state: "bad" }
-      ]}
-      getRowKey={(row) => row.field}
-      columns={[
-        { key: "field", header: "What the mockup describes", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.field}</span> },
-        { key: "spec", header: "What actually happens", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
-        {
-          key: "state",
-          header: "State",
-          render: (row) => {
-            const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "warn" | "bad"];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+        emptyState="No feature flags have been configured."
+        columns={[
+          { key: "name", header: "Flag", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-xs text-[var(--color-text-muted)]">{item.key}{item.area ? ` · ${item.area}` : ""}</p></div> },
+          { key: "owner", header: "Owner", render: (item) => item.owner ?? <span className="text-[var(--color-text-muted)]">Nobody yet</span> },
+          { key: "rollout", header: "Rollout", render: (item) => <StatusBadge status={item.rolloutStatus} tone={item.rolloutStatus === "FULL" ? "success" : item.rolloutStatus === "OFF" ? "neutral" : "warning"} /> },
+          { key: "pct", header: "Percent", render: (item) => `${item.rolloutPercent}%` },
+          { key: "pilot", header: "Pilot schools", render: (item) => item.pilotSchoolCount },
+          {
+            key: "inStage",
+            header: "In stage",
+            render: (item) => (
+              <div>
+                <p>{item.daysInStage ?? 0}d of {item.observationDays ?? 7}d window</p>
+                <p className={(item.windowOpensIn ?? 0) > 0 || item.rolloutStatus === "FULL" ? "text-[10px] text-[var(--color-text-muted)]" : "text-[10px] font-semibold text-[var(--color-success)]"}>
+                  {item.rolloutStatus === "FULL" ? "At the last stage" : (item.windowOpensIn ?? 0) > 0 ? `Can move up in ${item.windowOpensIn}d` : "Ready to move up"}
+                </p>
+              </div>
+            )
+          },
+          { key: "overrides", header: "Overrides", render: (item) => item.overrides },
+          {
+            key: "actions",
+            header: "Actions",
+            render: (item) => (
+              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+                <ResourceActionDialog
+                  triggerLabel="Update rollout"
+                  title={`Update rollout — ${item.name}`}
+                  description={`Moving up needs the stage's ${item.observationDays ?? 7}-day window to have run and the exit criterion you met written below. Pilot schools are told in the app when they are added.`}
+                  endpoint={`/api/super-admin/plans-features/flags/${item.id}/advance`}
+                  method="POST"
+                  variant="menu"
+                  submitLabel="Update rollout"
+                  fields={[
+                    { name: "rolloutStatus", label: "Rollout stage", type: "select", defaultValue: item.rolloutStatus, options: rolloutOptions, section: "Stage" },
+                    { name: "rolloutPercent", label: "Percent (for Partial)", type: "number", defaultValue: item.rolloutPercent, min: 0, max: 100, section: "Stage" },
+                    { name: "pilotSchoolIds", label: "Pilot schools (for Pilot)", type: "multiselect", options: schoolOptions, defaultValue: item.pilotSchoolIds ?? [], note: "Hold Cmd/Ctrl to pick several.", section: "Stage" },
+                    { name: "note", label: "Exit criterion met", type: "textarea", placeholder: item.exitCriteria ?? "Required when moving up past Pilot", section: "Evidence" },
+                    { name: "skipWindowReason", label: "Waive the observation window (Super Admin only)", type: "textarea", placeholder: "Leave empty unless moving up early — say why", section: "Evidence" }
+                  ]}
+                />
+                <ResourceActionDialog
+                  triggerLabel="Edit flag"
+                  title={`Edit ${item.name}`}
+                  description="Who owns it, what it is part of, and what has to be true for each stage to be finished."
+                  endpoint={`/api/super-admin/plans-features/flags/${item.id}`}
+                  method="PATCH"
+                  variant="menu"
+                  submitLabel="Save"
+                  fields={[
+                    { name: "area", label: "Area", defaultValue: item.area ?? "" },
+                    { name: "ownerId", label: "Owner", type: "select", defaultValue: item.ownerId ?? "", options: memberOptions },
+                    { name: "exitCriteria", label: "Exit criteria", type: "textarea", defaultValue: item.exitCriteria ?? "" },
+                    { name: "observationDays", label: "Observation window (days)", type: "number", defaultValue: item.observationDays ?? 7, min: 0, max: 90 }
+                  ]}
+                />
+                <ResourceActionDialog
+                  triggerLabel="Instant rollback"
+                  title={`Roll back ${item.name}`}
+                  description="Immediately disables this feature platform-wide and clears its pilot schools. A reason is required and kept in the stage history."
+                  endpoint={`/api/super-admin/plans-features/flags/${item.id}/rollback`}
+                  method="POST"
+                  variant="menuDanger"
+                  submitLabel="Roll back now"
+                  confirmLabel="Confirm rollback"
+                  confirmMessage="This disables the feature for every school immediately."
+                  fields={[{ name: "reason", label: "Why it is being rolled back", type: "textarea", required: true }]}
+                />
+              </ActionMenu>
+            )
           }
-        }
-      ]}
-    />
+        ]}
+      />
+      <TableCard
+        title="What every stage records"
+        description="Checked against the real feature-flag schema and update code."
+        items={[
+          { field: "The exit criterion, in measurable terms", spec: "Real — written on the flag, required before it can leave Off, and shown in the update dialog.", state: "good" },
+          { field: "The observation window (minimum 7 days per stage)", spec: "Enforced — a flag cannot move up before its window has run; a Super Admin can waive it by writing why, and the waiver is recorded.", state: "good" },
+          { field: "The owner accountable for the decision", spec: "Real — a named team member on the flag.", state: "good" },
+          { field: "The rollback trigger", spec: "Real, but manual — “Instant rollback” is one click with a recorded reason; no condition fires it automatically, a person decides.", state: "warn" },
+          { field: "The date the stage began", spec: "Real — stamped when the flag changes stage (not when a percentage changes), and every stage is kept in the history below.", state: "good" }
+        ]}
+        getRowKey={(row) => row.field}
+        columns={[
+          { key: "field", header: "What the mockup describes", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.field}</span> },
+          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          {
+            key: "state",
+            header: "State",
+            render: (row) => {
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            }
+          }
+        ]}
+      />
+      <TableCard
+        title="Stage history"
+        description="Every stage change across every flag, newest first — who moved it, what they said was met."
+        items={history ?? []}
+        getRowKey={(row) => row.id}
+        columns={[
+          { key: "at", header: "When", render: (row) => formatDate(row.at) },
+          { key: "flag", header: "Flag", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.flag}</p><p className="text-[10px] text-[var(--color-text-muted)]">{row.key}</p></div> },
+          { key: "move", header: "Move", render: (row) => (row.from === row.to ? row.to : `${row.from} → ${row.to}${row.to === "PARTIAL" ? ` (${row.percent}%)` : ""}`) },
+          { key: "note", header: "Note", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.note ?? "—"}</span> },
+          { key: "by", header: "By", render: (row) => row.by }
+        ]}
+        emptyState="No flag has changed stage yet."
+      />
     </div>
   );
 }
-

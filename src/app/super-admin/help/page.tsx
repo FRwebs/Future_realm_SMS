@@ -15,14 +15,14 @@ function ReferenceList({ title, sub, items }: { title: string; sub?: string; ite
   return (
     <section className="surface-card overflow-hidden">
       <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {sub ? <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
+        {sub ? <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
       </div>
       <div className="grid gap-3 p-5">
         {items.map((item) => (
           <div key={item.label} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-            <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-            <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+            <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+            <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
           </div>
         ))}
       </div>
@@ -118,7 +118,7 @@ function GetHelpTab() {
         columns={[
           { key: "subject", header: "Subject", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.subject}</span> },
           { key: "where", header: "Where to go", render: (item) => <span className="font-semibold text-[var(--color-text-accent)]">{item.where}</span> },
-          { key: "detail", header: "What to do there", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.detail}</span> }
+          { key: "detail", header: "What to do there", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.detail}</span> }
         ]}
       />
 
@@ -174,7 +174,7 @@ async function PlatformStatusTab() {
             header: "Health",
             render: (item) => {
               const tone = item.status === "HEALTHY" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)" } : item.status === "WARNING" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
             }
           }
         ]}

@@ -148,7 +148,7 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
           header: "School",
           render: (school) => (
             <div className="flex items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-bg-subtle)] font-[var(--font-mono)] text-[11.5px] font-black text-[var(--color-text-primary)]">
                 {initials(school.name)}
               </span>
               <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
@@ -162,9 +162,9 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
           header: "Address",
           render: (school) =>
             school.subdomain ? (
-              <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--color-text-primary)]">{school.subdomain}</span>
+              <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{school.subdomain}</span>
             ) : (
-              <span className="text-[12px] font-semibold text-[var(--color-warning)]">Not assigned</span>
+              <span className="text-[11px] font-semibold text-[var(--color-warning)]">Not assigned</span>
             )
         },
         {
@@ -172,10 +172,10 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
           header: "State",
           render: (school) => {
             const record = recordBySchoolId.get(school.id);
-            if (!record) return <span className="text-[11.5px] text-[var(--color-text-muted)]">Not yet in registry</span>;
+            if (!record) return <span className="text-[10.5px] text-[var(--color-text-muted)]">Not yet in registry</span>;
             const tone = registryStateTone[record.state] ?? registryStateTone.LIVE;
             return (
-              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                 {tone.label}
               </span>
             );
@@ -195,14 +195,14 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
           render: (school) => {
             const record = recordBySchoolId.get(school.id);
             const note = record?.reservedReason ?? record?.changeReason;
-            return note ? <span className="text-[12px] text-[var(--color-text-secondary)]">{note}</span> : <span className="text-[var(--color-text-muted)]">—</span>;
+            return note ? <span className="text-[11px] text-[var(--color-text-secondary)]">{note}</span> : <span className="text-[var(--color-text-muted)]">—</span>;
           }
         },
         {
           key: "history",
           header: "",
           render: (school) => (
-            <Link href={`/super-admin/audit-logs?schoolId=${school.id}`} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] underline">
+            <Link href={`/super-admin/audit-logs?schoolId=${school.id}`} className="text-[10.5px] font-semibold text-[var(--color-text-accent)] underline">
               History
             </Link>
           )

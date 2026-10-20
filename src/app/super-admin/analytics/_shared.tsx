@@ -10,11 +10,11 @@ export function heatCellStyle(pct: number) {
 
 export function HeatCell({ value }: { value: number | null }) {
   if (value === null) {
-    return <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] border border-[#E9F0EC] bg-[#F2F7F4] px-1 py-[9px] font-[var(--font-heading)] text-[11.5px] font-semibold text-[#C2D2C8]">—</span>;
+    return <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] border border-[#E9F0EC] bg-[#F2F7F4] px-1 py-[9px] font-[var(--font-heading)] text-[10.5px] font-semibold text-[#C2D2C8]">—</span>;
   }
   const style = heatCellStyle(value);
   return (
-    <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] px-1 py-[9px] font-[var(--font-heading)] text-[11.5px] font-semibold" style={{ background: style.background, color: style.color }}>
+    <span className="inline-flex min-w-14 items-center justify-center rounded-[7px] px-1 py-[9px] font-[var(--font-heading)] text-[10.5px] font-semibold" style={{ background: style.background, color: style.color }}>
       {value}%
     </span>
   );

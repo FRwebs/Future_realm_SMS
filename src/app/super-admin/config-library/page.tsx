@@ -131,13 +131,13 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           columns={[
             { key: "layer", header: "Layer", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.layer}</span> },
             { key: "name", header: "Name", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.name}</span> },
-            { key: "governs", header: "What it would govern", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.governs}</span> },
+            { key: "governs", header: "What it would govern", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.governs}</span> },
             {
               key: "state",
               header: "Real state today",
               render: (row) => {
                 const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" } }[row.tone as "good" | "warn" | "bad"];
-                return <span className="inline-block rounded-[8px] px-2.5 py-2 text-[12px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
+                return <span className="inline-block rounded-[8px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
               }
             }
           ]}
@@ -145,8 +145,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
 
         <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
           <div className="border-b border-[#E6EEE9] px-5 py-4">
-            <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Three hard constraints on every other module</p>
-            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Each follows directly from the governing principle — checked against this codebase, not asserted.</p>
+            <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Three hard constraints on every other module</p>
+            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Each follows directly from the governing principle — checked against this codebase, not asserted.</p>
           </div>
           <div className="grid gap-3 p-5">
             {[
@@ -159,8 +159,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 <div key={item.label} className="flex items-start gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
                   <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
                   <div>
-                    <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-                    <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+                    <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+                    <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
                   </div>
                 </div>
               );
@@ -181,13 +181,13 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           getRowKey={(row) => row.requirement}
           columns={[
             { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-            { key: "spec", header: "What actually happens", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+            { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
             {
               key: "state",
               header: "State",
               render: (row) => {
                 const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "N/A" } }[row.state as "good" | "bad" | "mute"];
-                return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
               }
             }
           ]}
@@ -236,15 +236,15 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           getRowKey={(row) => row.test}
           columns={[
             { key: "test", header: "#", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.test}</span> },
-            { key: "question", header: "Test", render: (row) => <span className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.question}</span> },
-            { key: "failureLooksLike", header: "Failure looks like", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.failureLooksLike}</span> },
-            { key: "verdict", header: "What's actually true here", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.verdict}</span> },
+            { key: "question", header: "Test", render: (row) => <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{row.question}</span> },
+            { key: "failureLooksLike", header: "Failure looks like", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.failureLooksLike}</span> },
+            { key: "verdict", header: "What's actually true here", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.verdict}</span> },
             {
               key: "state",
               header: "State",
               render: (row) => {
                 const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Passing" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Fails" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not reviewed" } }[row.state as "good" | "warn" | "bad" | "mute"];
-                return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
               }
             }
           ]}
@@ -291,14 +291,14 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             getRowKey={(row) => row.field}
             columns={[
               { key: "field", header: "Field", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{row.field}</span> },
-              { key: "meaning", header: "Meaning", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.meaning}</span> },
-              { key: "constraint", header: "Constraint", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.constraint}</span> },
+              { key: "meaning", header: "Meaning", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.meaning}</span> },
+              { key: "constraint", header: "Constraint", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.constraint}</span> },
               {
                 key: "state",
                 header: "State",
                 render: (row) => {
                   const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "bad"];
-                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               }
             ]}
@@ -306,8 +306,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
 
           <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
             <div className="border-b border-[#E6EEE9] px-5 py-4">
-              <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Nigerian curriculum structure — not populated in this codebase</p>
-              <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">
+              <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Nigerian curriculum structure — not populated in this codebase</p>
+              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">
                 The mockup describes a detailed NERDC 2025 stage and subject taxonomy. None of it exists as real data here: no seed script or admin action has ever created a Nigerian curriculum
                 template, and every table below is honestly empty rather than filled with that fictional structure.
               </p>
@@ -417,13 +417,13 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             getRowKey={(row) => row.field}
             columns={[
               { key: "field", header: "Field", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{row.field}</span> },
-              { key: "purpose", header: "Purpose", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
+              { key: "purpose", header: "Purpose", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
               {
                 key: "state",
                 header: "Real state today",
                 render: (row) => {
                   const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" } }[row.tone as "good" | "warn" | "bad"];
-                  return <span className="inline-block rounded-[8px] px-2.5 py-2 text-[12px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
+                  return <span className="inline-block rounded-[8px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
                 }
               }
             ]}
@@ -487,8 +487,8 @@ function CurriculumLifecycleFlow() {
 
   return (
     <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[14px] font-semibold text-[#0D2315]">Curriculum template lifecycle — the aspiration, checked against real code</p>
-      <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
+      <p className="text-[12.5px] font-semibold text-[#0D2315]">Curriculum template lifecycle — the aspiration, checked against real code</p>
+      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
         A mature library would move a template through these stages in one direction only. This codebase has exactly one boolean (isActive) — everything else here is not built.
       </p>
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
@@ -497,8 +497,8 @@ function CurriculumLifecycleFlow() {
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>

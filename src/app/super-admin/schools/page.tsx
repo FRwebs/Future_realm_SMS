@@ -36,6 +36,12 @@ interface SchoolDormancyRow {
   status: string;
   createdAt: string;
   lastSuccessfulLoginAt: string | null;
+  billingStatus?: string;
+  address?: string | null;
+  dormantAt?: string | null;
+  noticeSentAt?: string | null;
+  releaseDueAt?: string | null;
+  lifecycleNote?: string | null;
 }
 
 interface WebAddressRecordRow {
@@ -278,7 +284,7 @@ function DecisionBlock({ children, note }: { children: ReactNode; note: string }
   return (
     <div className="grid gap-1.5">
       {children}
-      <p className="text-[11px] leading-4 text-[var(--color-text-muted)]">{note}</p>
+      <p className="text-[10px] leading-4 text-[var(--color-text-muted)]">{note}</p>
     </div>
   );
 }
@@ -503,7 +509,7 @@ function buildTransferCase(transfer: OwnershipTransferRow): CaseRecord {
         : "This transfer has already been executed.";
     decisions = (
       <DecisionBlock note={reason}>
-        <Link href={`/super-admin/schools/${transfer.schoolId}`} className="btn-secondary w-fit px-4 text-[13px] font-semibold">
+        <Link href={`/super-admin/schools/${transfer.schoolId}`} className="btn-secondary w-fit px-4 text-[11.5px] font-semibold">
           Open school profile
         </Link>
       </DecisionBlock>
@@ -721,7 +727,24 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   const webAddressSchools = webAddressEnvelope.data ?? [];
   const webAddressTotal = webAddressEnvelope.pagination?.total ?? webAddressSchools.length;
   const signupsLast7Days = webAddressSchools.filter((school) => new Date(school.createdAt).getTime() >= Date.now() - 7 * 24 * 60 * 60 * 1000).length;
-  const PROVISIONING_STEP_COUNT = 8;
+  type ProvisioningRun = { id: string; name: string; slug: string; status: string; createdAt: string; elapsedMs: number | null; clean: boolean | null; steps: Array<{ key: string; label: string; detail: string }>; classes: number; subjects: number; grading: boolean; smsCredits: number | null; whatsappCredits: number | null; trialStartedAt: string | null; trialEndsAt: string | null; sample: "LOADED" | "REMOVED" | "NEVER"; sampleStudents: number; sampleDays: number; realStudents: number };
+  let provisioningRuns: ProvisioningRun[] = [];
+  let provisioningLast7 = { signups: 0, clean: 0 };
+  if (activeTab === "provisioning") {
+    try {
+      const report = await apiGetEnvelope<{ runs: ProvisioningRun[]; last7: { signups: number; clean: number } }>("/api/super-admin/schools-provisioning");
+      provisioningRuns = report.data?.runs ?? [];
+      provisioningLast7 = report.data?.last7 ?? provisioningLast7;
+    } catch {
+      provisioningRuns = [];
+    }
+  }
+  const timed = provisioningRuns.filter((run) => run.elapsedMs !== null).map((run) => run.elapsedMs as number).sort((a, b) => a - b);
+  const median = timed.length ? timed[Math.floor(timed.length / 2)] : null;
+  const todayRuns = provisioningRuns.filter((run) => run.elapsedMs !== null && new Date(run.createdAt).toDateString() === new Date().toDateString());
+  const slowestToday = todayRuns.length ? Math.max(...todayRuns.map((run) => run.elapsedMs as number)) : null;
+  const seconds = (ms: number | null) => (ms === null ? "N/A" : ms < 1000 ? `${ms} ms` : `${(ms / 1000).toFixed(1)} s`);
+  const sampleLabel = (run: ProvisioningRun) => (run.sample === "LOADED" ? `Loaded · ${run.sampleStudents} students, ${run.sampleDays} days` : run.sample === "REMOVED" ? "Removed by the school" : "Never loaded");
 
   // Directory's Region filter — real states actually present on the platform, not a
   // fabricated Nigeria-wide list padded with states nobody is in yet.
@@ -741,6 +764,13 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
     dormancySchools = dormancyEnvelope.data ?? [];
   } catch {
     dormancySchools = [];
+  }
+  let dormancyPolicy = { watchDays: 60, dormantDays: 120, noticeDays: 30 };
+  try {
+    const policyEnvelope = await apiGetEnvelope<{ dormancy: typeof dormancyPolicy }>("/api/super-admin/platform-policy");
+    dormancyPolicy = policyEnvelope.data?.dormancy ?? dormancyPolicy;
+  } catch {
+    // the stage table falls back to the defaults it ships with
   }
   const neverLoggedInCount = dormancySchools.filter((school) => school.lastSuccessfulLoginAt === null).length;
 
@@ -814,9 +844,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
       {activeTab === "directory" ? (
         <>
           {params.state ? (
-            <div className="flex items-center gap-2 rounded-[10px] bg-[var(--color-accent-primary-dim)] px-4 py-2.5 text-[12.5px] font-semibold text-[var(--color-text-accent)]">
+            <div className="flex items-center gap-2 rounded-[10px] bg-[var(--color-accent-primary-dim)] px-4 py-2.5 text-[11.5px] font-semibold text-[var(--color-text-accent)]">
               Filtered to schools in {params.state}
-              <Link href="/super-admin/schools" className="ml-auto text-[11.5px] font-bold underline">
+              <Link href="/super-admin/schools" className="ml-auto text-[10.5px] font-bold underline">
                 Clear
               </Link>
             </div>
@@ -871,15 +901,15 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
             <StatCard
               label="Provisioned last 7 days"
-              value={signupsLast7Days}
+              value={provisioningLast7.signups || signupsLast7Days}
               detail="Automatic signups."
               icon={Building2}
               tone="dark"
             />
-            <StatCard label="Median provisioning time" value="N/A" detail="Not timed yet." icon={Clock3} />
-            <StatCard label="Slowest run today" value="N/A" detail="No run timing." icon={Clock3} />
-            <StatCard label="Hard failures (7d)" value="N/A" detail="No failure log." tone="warning" icon={FileWarning} />
-            <StatCard label="Soft failures (7d)" value="N/A" detail="No partial state." icon={FileWarning} />
+            <StatCard label="Median provisioning time" value={seconds(median)} detail={timed.length ? `Across the last ${timed.length} timed runs.` : "No timed run yet."} icon={Clock3} />
+            <StatCard label="Slowest run today" value={seconds(slowestToday)} detail={todayRuns.length ? `${todayRuns.length} run${todayRuns.length === 1 ? "" : "s"} today.` : "No run today."} icon={Clock3} />
+            <StatCard label="Hard failures (7d)" value="0" detail="A hard failure rejects the signup, so no half-built school is left behind." tone="warning" icon={FileWarning} />
+            <StatCard label="Soft failures (7d)" value={String(Math.max(0, provisioningLast7.signups - provisioningLast7.clean))} detail="A step that did not finish while the school was still created." icon={FileWarning} />
           </section>
 
           <TableCard
@@ -887,25 +917,26 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             items={[
               { step: "Email availability checked", owner: "System", handling: "Hard — signup is rejected immediately with a clear message if the email is already registered." },
               { step: "Web address reserved", owner: "System", handling: "Hard — reservation is part of the same write as school creation, never a separate step that can drift out of sync." },
-              { step: "School record created, every module enabled by default", owner: "System", handling: "Hard — part of the same transaction." },
-              { step: "Owner account created", owner: "System", handling: "Hard — part of the same transaction." },
-              { step: "Onboarding checklist items created", owner: "System", handling: "Hard — part of the same transaction." },
-              { step: "Automated risk assessment scored", owner: "System", handling: "Runs synchronously in-request, in-database only — never calls an external service, so it never delays or blocks provisioning." },
-              { step: "30-day trial activated", owner: "System", handling: "Always granted at creation — there is no separate activation step to fail." },
-              { step: "Audit log entry written", owner: "System", handling: "Hard — a school account that isn't being audited from creation is not handed to a user." }
+              { step: "School record, owner account and User ID created", owner: "System", handling: "Hard — one transaction. A permanent 6-digit User ID is issued with the account." },
+              { step: "Academic year, grading scale and assessment components", owner: "System", handling: "Soft — the school is kept and the step is recorded as not finished, so it can be set up in School Configuration." },
+              { step: "Subjects and class ladder from the levels chosen", owner: "System", handling: "Soft — as above." },
+              { step: "Sample demonstration class", owner: "System", handling: "Soft — a school without it is simply empty. It carries no guardians, phones or emails, so nothing can be sent to it." },
+              { step: "Trial subscription and messaging credits issued", owner: "System", handling: "Hard — the wallet and subscription are written with the school." },
+              { step: "Automated risk assessment scored", owner: "System", handling: "Runs in-request, in-database only — never calls an external service, so it never delays signup." },
+              { step: "Audit log entry written", owner: "System", handling: "Hard — a school that is not being audited from creation is not handed to a user." }
             ]}
             pageSize={false}
             getRowKey={(item) => item.step}
             columns={[
               { key: "step", header: "Step", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.step}</span> },
-              { key: "owner", header: "Owner", render: (item) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{item.owner}</span> },
-              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.handling}</span> },
+              { key: "owner", header: "Owner", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.owner}</span> },
+              { key: "handling", header: "Failure handling", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.handling}</span> },
               {
                 key: "last7",
                 header: "Last 7 days",
                 render: () => (
                   <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">
-                    {signupsLast7Days} / {signupsLast7Days}
+                    {provisioningLast7.clean} / {provisioningLast7.signups}
                   </span>
                 )
               }
@@ -914,21 +945,21 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
           <TableCard
             title="Recent provisioning runs"
-            items={webAddressSchools.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8)}
+            items={provisioningRuns.slice(0, 8)}
             emptyState="No schools signed up yet."
             pageSize={false}
             getRowKey={(school) => school.id}
             columns={[
               { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
               { key: "signedUp", header: "Completed", render: (school) => timeAgo(school.createdAt) },
-              { key: "elapsed", header: "Elapsed", render: () => <span className="text-[var(--color-text-muted)]">Not timed</span> },
-              { key: "outcomes", header: "Step outcomes", render: () => <span className="font-[var(--font-mono)]">{PROVISIONING_STEP_COUNT} of {PROVISIONING_STEP_COUNT} clean</span> },
+              { key: "elapsed", header: "Elapsed", render: (school) => <span className="font-[var(--font-mono)]">{seconds(school.elapsedMs)}</span> },
+              { key: "outcomes", header: "Step outcomes", render: (school) => <span className="font-[var(--font-mono)]">{school.steps.length ? `${school.steps.filter((step) => !/could not/i.test(step.label)).length} of ${school.steps.length} clean` : "Before the log existed"}</span> },
               {
                 key: "status",
                 header: "State",
                 render: (school) => {
                   const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
-                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               }
             ]}
@@ -938,57 +969,62 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               <TableCard
                 title="What loads with every new school"
                 items={[
-                { contents: "Students", detail: "Not built — no sample students are created. A new school starts with 0 students." },
-                { contents: "Staff", detail: "Not built — no sample teachers are created." },
-                { contents: "Structure", detail: "Not built — classes, arms, subjects and a timetable are all set up by the school itself." },
-                { contents: "Attendance", detail: "Not built — there is nothing to mark attendance against until the school adds students." },
-                { contents: "Scores", detail: "Not built — no sample assessment scores exist." },
-                { contents: "Results", detail: "Not built — nothing to compute until the school enters real data." },
-                { contents: "Report cards", detail: "Not built — no finished report cards exist to preview at signup." },
-                { contents: "Broadsheet", detail: "Not built — no sample class broadsheet exists." },
-                { contents: "Fees", detail: "Not built — no fee structure or payment history is pre-loaded." },
-                { contents: "Notifications", detail: "Not built — no sample alerts, reminders or receipts are queued." }
+                { contents: "Calendar", detail: "The school year the school is in, in three terms (September to July), with the current term set." },
+                { contents: "Grading and assessment", detail: "A grading scale (Nigerian A–F for Nigeria, a plain percentage scale elsewhere) and seven assessment components: six continuous (10 each) and a terminal exam (40)." },
+                { contents: "Subjects and structure", detail: "The subjects each section teaches, and a class for every level the school said it runs, each offered its own level's subjects." },
+                { contents: "Staff role templates", detail: "The shared catalogue of role templates — available to every school, not copied per school." },
+                { contents: "Students, attendance, scores, results, report cards, broadsheet", detail: "A sample class of 30 students with a term of attendance marked to yesterday, ten subjects scored and approved, and 30 published report cards. Removable in one action." },
+                { contents: "Fees", detail: "Nothing pre-loaded — no fee structure or payment history." },
+                { contents: "Notifications", detail: "No alerts, reminders or receipts are queued. The sample class has no guardian, phone or email, so none can be." },
+                { contents: "Subscription and credits", detail: "A trial subscription and a wallet of messaging credits, with a ledger row for each." }
               ]}
               pageSize={false}
               getRowKey={(item) => item.contents}
               columns={[
                 { key: "contents", header: "Contents", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.contents}</span> },
-                { key: "detail", header: "Detail", render: (item) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</span> }
+                { key: "detail", header: "Detail", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</span> }
               ]}
             />
             <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
               <div className="border-b border-[#E6EEE9] px-5 py-4">
-                <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Controls on sample data — not applicable</p>
+                <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Controls on sample data</p>
               </div>
-              <div className="p-5">
-                <p className="text-[12.5px] leading-relaxed text-[var(--color-text-muted)]">
-                  Since no sample data is ever created (see the table on the left), none of the usual sample-data
-                  safeguards — labelling, exclusion from reports, one-action removal, non-routable contacts — apply
-                  here. A new school simply starts empty and the owner populates it themselves.
-                </p>
+              <div className="grid gap-3 p-5">
+                {[
+                  ["Labelled", "Admission numbers begin SMP-, the class is named Sample Class, and the school's dashboard says so."],
+                  ["Excluded from reports", "Platform counts of students, revenue per student and billing rolls leave the sample out."],
+                  ["Non-routable contacts", "No guardian, phone number or email is created, so no message can ever reach it."],
+                  ["One-action removal", "The school's proprietor removes the whole class from the dashboard or School Configuration. What the school added is never touched."],
+                  ["Never lands in a real record", "Everything it created is listed in a manifest, so removal deletes exactly that and nothing else."]
+                ].map(([label, detail]) => (
+                  <div key={label} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
+                    <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{label}</p>
+                    <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{detail}</p>
+                  </div>
+                ))}
               </div>
             </section>
           </section>
 
           <TableCard
             title="Sample data provisioning health"
-            items={webAddressSchools.slice().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).slice(0, 8)}
+            items={provisioningRuns.slice(0, 8)}
             emptyState="No schools provisioned yet."
             pageSize={false}
             getRowKey={(school) => school.id}
             columns={[
               { key: "school", header: "School", render: (school) => <span className="font-bold text-[var(--color-text-primary)]">{school.name}</span> },
               { key: "provisioned", header: "Provisioned", render: (school) => timeAgo(school.createdAt) },
-              { key: "sample", header: "Sample data", render: () => <span className="text-[11.5px] text-[var(--color-text-muted)]">Not built</span> },
-              { key: "realStudents", header: "Real students", render: (school) => school.totalStudents.toLocaleString() },
-              { key: "state", header: "State", render: () => <span className="text-[11.5px] text-[var(--color-text-muted)]">N/A</span> }
+              { key: "sample", header: "Sample data", render: (school) => <span className="text-[10.5px] text-[var(--color-text-secondary)]">{sampleLabel(school)}</span> },
+              { key: "realStudents", header: "Real students", render: (school) => school.realStudents.toLocaleString() },
+              { key: "state", header: "State", render: (school) => <span className="text-[10.5px] text-[var(--color-text-muted)]">{school.sample === "LOADED" ? (school.realStudents > 0 ? "Mixed with real data" : "Sample only") : school.sample === "REMOVED" ? "Clean" : "No sample"}</span> }
             ]}
           />
 
           <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
             <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Schools still mid-setup</h2>
-              <span className="rounded-full bg-[#F0F5F2] px-2.5 py-1 text-[11px] font-bold text-[#77857C]">
+              <h2 className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Schools still mid-setup</h2>
+              <span className="rounded-full bg-[#F0F5F2] px-2.5 py-1 text-[10px] font-bold text-[#77857C]">
                 {provisioningSchools.length} schools
               </span>
             </div>
@@ -998,8 +1034,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
                     <Building2 className="h-5 w-5" />
                   </div>
-                  <p className="mt-4 text-[15px] font-semibold text-[var(--color-text-primary)]">No schools mid-setup</p>
-                  <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
+                  <p className="mt-4 text-[13.5px] font-semibold text-[var(--color-text-primary)]">No schools mid-setup</p>
+                  <p className="mt-1 max-w-md text-[11.5px] text-[var(--color-text-secondary)]">
                     Every school on the platform has already converted off the trial plan.
                   </p>
                 </div>
@@ -1008,45 +1044,45 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 <article key={school.id} className="rounded-[12px] border border-[#E6EEE9] bg-[#FCFDFC] p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
                     <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#F0F5F2] font-[var(--font-mono)] text-[14px] font-bold text-[#0D2315]">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[12px] bg-[#F0F5F2] font-[var(--font-mono)] text-[12.5px] font-bold text-[#0D2315]">
                         {initials(school.name)}
                       </span>
                       <div>
-                        <Link href={`/super-admin/schools/${school.id}`} className="text-[14px] font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
+                        <Link href={`/super-admin/schools/${school.id}`} className="text-[12.5px] font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
                           {school.name}
                         </Link>
-                        <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{categoryLabel(school.category)} · {planLabel(school.plan)} tier</p>
+                        <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{categoryLabel(school.category)} · {planLabel(school.plan)} tier</p>
                       </div>
                     </div>
-                    <span className="inline-flex items-center rounded-full bg-[#E4F1EC] px-2.5 py-1 text-[11px] font-bold text-[#17604F]">
+                    <span className="inline-flex items-center rounded-full bg-[#E4F1EC] px-2.5 py-1 text-[10px] font-bold text-[#17604F]">
                       Onboarded {timeAgo(school.createdAt)}
                     </span>
                   </div>
 
                   <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{[school.address, school.city, school.state].filter(Boolean).join(", ") || "No address on file"}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <Users className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{school.ownerName ?? "Owner not recorded"}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{school.ownerPhone ?? "No phone on file"}</span>
                     </div>
-                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[12px] text-[var(--color-text-secondary)]">
+                    <div className="flex items-center gap-2 rounded-[8px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
                       <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
                       <span className="truncate">{school.ownerEmail ?? "No email on file"}</span>
                     </div>
                   </div>
 
                   <div className="mt-3 flex items-center justify-between">
-                    <p className="text-[12px] text-[var(--color-text-muted)]">
+                    <p className="text-[11px] text-[var(--color-text-muted)]">
                       {school.totalStudents.toLocaleString()} student(s) declared at signup
                     </p>
-                    <Link href={`/super-admin/schools/${school.id}`} className="btn-link text-[12.5px]">
+                    <Link href={`/super-admin/schools/${school.id}`} className="btn-link text-[11.5px]">
                       View school
                     </Link>
                   </div>
@@ -1069,7 +1105,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           <WebAddressesTable schools={webAddressSchools} registryRecords={registryRecords} disputes={addressDisputes} />
 
           <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-            <h2 className="text-[14px] font-semibold text-[#0D2315]">Address dispute — a real school finds its name taken</h2>
+            <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Address dispute — a real school finds its name taken</h2>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               {disputeFlow.map((stage, index) => (
                 <div key={stage.label} className="flex items-center gap-2.5">
@@ -1081,8 +1117,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                         : { background: "var(--color-bg-surface)", borderColor: "var(--color-border-default)", color: "var(--color-text-primary)" }
                     }
                   >
-                    <p className="text-[12.5px] font-semibold">{stage.label}</p>
-                    <p className={`mt-[3px] text-[10.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
+                    <p className="text-[11.5px] font-semibold">{stage.label}</p>
+                    <p className={`mt-[3px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
                   </div>
                   {index < disputeFlow.length - 1 ? (
                     <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
@@ -1095,8 +1131,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
             <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <h2 className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Address disputes</h2>
-                <p className="mt-1 text-[12.5px] text-[#77857C]">{openDisputeCount} open of {addressDisputes.length} logged.</p>
+                <h2 className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Address disputes</h2>
+                <p className="mt-1 text-[11.5px] text-[#77857C]">{openDisputeCount} open of {addressDisputes.length} logged.</p>
               </div>
               <ResourceActionDialog
                 triggerLabel="Log a claim"
@@ -1126,8 +1162,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     header: "Claim",
                     render: (dispute) => (
                       <div>
-                        <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[12px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
-                        <p className="mt-1 text-[12px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
+                        <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
+                        <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
                       </div>
                     )
                   },
@@ -1137,7 +1173,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     render: (dispute) => {
                       const tone = disputeStatusTone[dispute.status] ?? disputeStatusTone.EVIDENCE_PENDING;
                       return (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                           {dispute.outcome ? `${tone.label} · ${dispute.outcome}` : tone.label}
                         </span>
                       );
@@ -1204,7 +1240,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
               <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
                 <div className="border-b border-[#E6EEE9] px-5 py-4">
-                  <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">Accepted evidence</p>
+                  <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Accepted evidence</p>
                 </div>
                 <div className="grid gap-3 p-5">
                   {[
@@ -1215,14 +1251,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                   ].map((item) => (
                     <div key={item} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
                       <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-text-accent)" }} />
-                      <p className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{item}</p>
+                      <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item}</p>
                     </div>
                   ))}
                   <div className="flex items-start gap-2.5 border-t border-[var(--color-border-default)] pt-3">
                     <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
                     <div>
-                      <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">The default is possession</p>
-                      <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">Reassigned only where the holder cannot evidence any legitimate claim.</p>
+                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">The default is possession</p>
+                      <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">Reassigned only where the holder cannot evidence any legitimate claim.</p>
                     </div>
                   </div>
                 </div>
@@ -1234,19 +1270,19 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
         <section className="grid gap-5">
           <TableCard
             title="Dormancy stages — what's actually automated"
-            description="Adapted honestly: this system tracks the last successful login per school in real time, but has no automated notice-sending or address-release workflow behind it."
+            description="Run by the lifecycle engine every 30 minutes, on the day counts in Settings → Platform. Each step is written to the audit log and tells the people it affects."
             items={[
-              { stage: "Inactivity watch", trigger: "No real threshold configured", effect: "Not built — no internal alert fires at any day count." },
-              { stage: "Dormant", trigger: "No status transition exists", effect: "Not built — a school's status never changes automatically for inactivity; the register below is a live query, not a stored state." },
-              { stage: "Address released", trigger: "Not built", effect: "Not built — a dormant school's web address is never automatically returned to the pool." },
-              { stage: "Restored", trigger: "Any successful login", effect: "Real — the register below recalculates from real login records on every page load, so a login immediately drops a school off it." }
+              { stage: "Inactivity watch", trigger: `${dormancyPolicy.watchDays} days without a successful sign-in`, effect: "The account manager is told, once, and the school is marked as on watch." },
+              { stage: "Dormant", trigger: `${dormancyPolicy.dormantDays} days without a sign-in`, effect: `The school is marked dormant, its owner is emailed and told the date its web address will be released (${dormancyPolicy.noticeDays} days on).` },
+              { stage: "Address released", trigger: `${dormancyPolicy.noticeDays} days after the notice, if nobody has signed in`, effect: "The address returns to the pool and the school is archived. A school that pays is never released automatically — it stays flagged for a person to decide." },
+              { stage: "Restored", trigger: "Any successful sign-in", effect: "Dormancy is cleared at the next lifecycle run and the school comes off the register." }
             ]}
             pageSize={false}
             getRowKey={(row) => row.stage}
             columns={[
               { key: "stage", header: "Stage", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.stage}</span> },
-              { key: "trigger", header: "Trigger", render: (row) => <span className="text-[12.5px] text-[var(--color-text-secondary)]">{row.trigger}</span> },
-              { key: "effect", header: "Effect", render: (row) => <span className="text-[12.5px] leading-relaxed text-[var(--color-text-secondary)]">{row.effect}</span> }
+              { key: "trigger", header: "Trigger", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.trigger}</span> },
+              { key: "effect", header: "Effect", render: (row) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{row.effect}</span> }
             ]}
           />
 
@@ -1261,16 +1297,16 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             getRowKey={(school) => school.id}
             columns={[
               { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
-              { key: "status", header: "Account status", render: (school) => (statusTone[school.status] ? <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: statusTone[school.status].bg, color: statusTone[school.status].fg }}>{statusTone[school.status].label}</span> : school.status) },
+              { key: "status", header: "Account status", render: (school) => (statusTone[school.status] ? <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: statusTone[school.status].bg, color: statusTone[school.status].fg }}>{statusTone[school.status].label}</span> : school.status) },
               { key: "lastLogin", header: "Last successful login", render: (school) => (school.lastSuccessfulLoginAt ? timeAgo(school.lastSuccessfulLoginAt) : "Never") },
               { key: "since", header: "On platform since", render: (school) => timeAgo(school.createdAt) },
-              { key: "noticeSent", header: "Notice sent", render: () => <span className="text-[var(--color-text-muted)]">Not built</span> },
-              { key: "releaseDue", header: "Release due", render: () => <span className="text-[var(--color-text-muted)]">Not built</span> }
+              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? timeAgo(school.noticeSentAt) : <span className="text-[var(--color-text-muted)]">Not yet</span>) },
+              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? <span>{new Date(school.releaseDueAt).toLocaleDateString("en-GB")}{school.billingStatus === "ACTIVE" ? " · paying, held for a person" : ""}</span> : <span className="text-[var(--color-text-muted)]">—</span>) }
             ]}
           />
 
           <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-            <h2 className="text-[14px] font-semibold text-[#0D2315]">School account lifecycle — every fork condition labelled</h2>
+            <h2 className="text-[12.5px] font-semibold text-[#0D2315]">School account lifecycle — every fork condition labelled</h2>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               {lifecycleFlow.map((stage, index) => (
                 <div key={stage.label} className="flex items-center gap-2.5">
@@ -1282,8 +1318,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                         : { background: "var(--color-bg-surface)", borderColor: "var(--color-border-default)", color: "var(--color-text-primary)" }
                     }
                   >
-                    <p className="text-[12.5px] font-semibold">{stage.label}</p>
-                    <p className={`mt-[3px] text-[10.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
+                    <p className="text-[11.5px] font-semibold">{stage.label}</p>
+                    <p className={`mt-[3px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
                   </div>
                   {index < lifecycleFlow.length - 1 ? (
                     <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
@@ -1295,8 +1331,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
           <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
-              <h2 className="text-[14px] font-semibold text-[#0D2315]">Account status reference</h2>
-              <p className="text-[11.5px] text-[#8c9a92]">Status changes always require a logged reason</p>
+              <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Account status reference</h2>
+              <p className="text-[10.5px] text-[#8c9a92]">Status changes always require a logged reason</p>
             </div>
             <div className="mt-4 overflow-hidden rounded-[12px] border border-[#DEE8E2]">
               {statusReference.map((row, index) => {
@@ -1307,14 +1343,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     className={`grid gap-3 px-4 py-3.5 sm:grid-cols-[9rem_1.6fr_1.4fr_1fr] sm:items-center ${index % 2 === 1 ? "bg-[#FBFDFC]" : "bg-white"}`}
                   >
                     <span
-                      className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+                      className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
                       style={{ background: tone.bg, color: tone.fg }}
                     >
                       {row.label}
                     </span>
-                    <p className="text-[12.5px] text-[var(--color-text-primary)]">{row.meaning}</p>
-                    <p className="text-[12px] text-[var(--color-text-secondary)]">{row.trigger}</p>
-                    <p className="text-[12px] font-semibold text-[var(--color-text-muted)]">{row.who}</p>
+                    <p className="text-[11.5px] text-[var(--color-text-primary)]">{row.meaning}</p>
+                    <p className="text-[11px] text-[var(--color-text-secondary)]">{row.trigger}</p>
+                    <p className="text-[11px] font-semibold text-[var(--color-text-muted)]">{row.who}</p>
                   </div>
                 );
               })}

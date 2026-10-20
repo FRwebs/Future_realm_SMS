@@ -124,7 +124,7 @@ function planEntitlements(value: unknown) {
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -140,16 +140,16 @@ function ReferenceListSimple({ title, sub, items }: { title: string; sub?: strin
   return (
     <section className="surface-card overflow-hidden">
       <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {sub ? <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
+        {sub ? <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
       </div>
       <div className="grid gap-3 p-5">
         {items.map((item) => (
           <div key={item.label} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
             <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: toneColor[item.tone] }} />
             <div>
-              <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-              <p className="mt-0.5 text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
+              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
+              <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
             </div>
           </div>
         ))}
@@ -174,6 +174,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
     apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices"),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
+  const trialPolicy = (await apiGet<{ trial: { days: number; readOnlyDays: number; lockReminderDays: number } }>("/api/super-admin/platform-policy").catch(() => null))?.trial ?? { days: TRIAL_DAYS, readOnlyDays: 7, lockReminderDays: 3 };
   const billing = billingEnvelope.data ?? [];
   const schoolsForRecommendations = schoolsEnvelope.data ?? [];
   const trialBilling = billing.filter((item) => item.tenantStatus === "TRIAL");
@@ -248,7 +249,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                   .filter((school) => school.status === "ACTIVE" || school.status === "GRACE_PERIOD" || school.status === "TRIAL")
                   .map((school) => ({ label: school.name, value: school.id }))
               },
-              { name: "dueAt", label: "Due date", type: "date", required: true, section: "Period and scope" },
+              { name: "dueAt", label: "Due date (blank = the platform terms)", type: "date", section: "Period and scope" },
               { name: "note", label: "Note (shown only on the invoice record)", type: "text", section: "Period and scope" },
               {
                 name: "excludeTrial",
@@ -342,11 +343,11 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
             <section className="surface-card overflow-hidden">
               <div className="border-b border-[var(--color-border-default)] px-5 py-4">
                 <p className="section-eyebrow">Revenue composition</p>
-                <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Semester revenue by active tier</h2>
+                <h2 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Semester revenue by active tier</h2>
               </div>
               <div className="grid gap-4 p-5">
                 {schoolsWithRevenue.length === 0 ? (
-                  <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">
+                  <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
                     No active paid subscriptions yet.
                   </p>
                 ) : (
@@ -357,12 +358,12 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                       <div key={item.plan} className="grid gap-2">
                         <div className="flex items-start justify-between gap-4">
                           <div>
-                            <p className="text-[13px] font-bold text-[var(--color-text-primary)]">{item.plan}</p>
-                            <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">
+                            <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{item.plan}</p>
+                            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
                               {item.count} subscription{item.count === 1 ? "" : "s"} at {formatCurrency(price)}
                             </p>
                           </div>
-                          <p className="font-[var(--font-mono)] text-[14px] font-bold text-[var(--color-text-primary)]">{formatCurrency(tierMrr)}</p>
+                          <p className="font-[var(--font-mono)] text-[12.5px] font-bold text-[var(--color-text-primary)]">{formatCurrency(tierMrr)}</p>
                         </div>
                         <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                           <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${Math.max(6, (tierMrr / maxTierMrr) * 100)}%` }} />
@@ -373,10 +374,10 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 )}
               </div>
               <div className="border-t border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
-                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Billing rules</p>
+                <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Billing rules</p>
                 <div className="mt-2 grid gap-2">
                   {billingRules.map((rule) => (
-                    <p key={rule} className="text-[12px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
+                    <p key={rule} className="text-[11px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
                   ))}
                 </div>
               </div>
@@ -386,34 +387,34 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
                 <div>
                   <p className="section-eyebrow">Collections</p>
-                  <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Receivables &amp; renewals</h2>
+                  <h2 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Receivables &amp; renewals</h2>
                 </div>
-                <Link href={tabHref("pricing") as Route} className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+                <Link href={tabHref("pricing") as Route} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
                   View rate card
                 </Link>
               </div>
               <div className="grid gap-4 p-5">
                 <div className="flex items-center justify-between gap-3">
-                  <p className="text-[12.5px] text-[var(--color-text-secondary)]">Outstanding receivables</p>
-                  <p className="font-[var(--font-mono)] text-[15px] font-bold" style={{ color: "var(--color-warning)" }}>
+                  <p className="text-[11.5px] text-[var(--color-text-secondary)]">Outstanding receivables</p>
+                  <p className="font-[var(--font-mono)] text-[13.5px] font-bold" style={{ color: "var(--color-warning)" }}>
                     {formatCurrency(report.outstandingReceivables)}
                   </p>
                 </div>
-                <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+                <p className="-mt-2 text-[10.5px] text-[var(--color-text-muted)]">
                   {report.unpaidSchoolCount} school{report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance.
                 </p>
                 <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-4">
-                  <p className="text-[12.5px] text-[var(--color-text-secondary)]">Renewal rate</p>
-                  <p className="font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{report.renewalRate}%</p>
+                  <p className="text-[11.5px] text-[var(--color-text-secondary)]">Renewal rate</p>
+                  <p className="font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{report.renewalRate}%</p>
                 </div>
-                <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+                <p className="-mt-2 text-[10.5px] text-[var(--color-text-muted)]">
                   {report.renewedRecently} of {report.activeSchoolCount} active schools renewed in the last 90 days.
                 </p>
                 <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-4">
-                  <p className="text-[12.5px] text-[var(--color-text-secondary)]">Notification credit revenue</p>
-                  <p className="font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{formatCompactCurrency(report.notificationCreditRevenue)}</p>
+                  <p className="text-[11.5px] text-[var(--color-text-secondary)]">Notification credit revenue</p>
+                  <p className="font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{formatCompactCurrency(report.notificationCreditRevenue)}</p>
                 </div>
-                <p className="-mt-2 text-[11.5px] text-[var(--color-text-muted)]">{report.creditRevenueSharePct}% of platform revenue, kept separate from subscriptions.</p>
+                <p className="-mt-2 text-[10.5px] text-[var(--color-text-muted)]">{report.creditRevenueSharePct}% of platform revenue, kept separate from subscriptions.</p>
               </div>
             </section>
           </section>
@@ -519,20 +520,20 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
 
           <div className="grid gap-1.5">
             <p className="section-eyebrow">Retention</p>
-            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Churn risk</h2>
+            <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Churn risk</h2>
           </div>
           <ChurnRiskTab />
 
           <div className="grid gap-1.5">
             <p className="section-eyebrow">Reporting</p>
-            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Revenue reporting</h2>
+            <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Revenue reporting</h2>
           </div>
           <RevenueReportTab revenue={revenue} report={report} />
         </>
       ) : null}
 
       {activeTab === "invoices" ? <InvoicesTab billing={billing} params={params} allInvoices={allInvoices} /> : null}
-      {activeTab === "trials" ? <TrialsTab trialBilling={trialBilling} /> : null}
+      {activeTab === "trials" ? <TrialsTab trialBilling={trialBilling} trialPolicy={trialPolicy} /> : null}
       {activeTab === "wallets" ? <WalletsTab billing={billing} /> : null}
       {activeTab === "pricing" ? <PricingPromotionsTab billing={billing} activePlans={activePlans} /> : null}
     </div>
@@ -549,6 +550,9 @@ async function InvoicesTab({
   allInvoices: SuperAdminInvoiceRow[];
 }) {
   const reconciliationQueue = (await apiGet<SuperAdminReconciliationTransaction[]>("/api/super-admin/billing/transactions/reconciliation-queue")) ?? [];
+  type ConcessionRow = { id: string; schoolId: string; school: string; state: string | null; plan: string; kind: string; status: string; evidence: string | null; evidenceRef: string | null; verifiedAt: string | null; verifiedBy: string | null; expiresAt: string | null; daysLeft: number | null };
+  const concessions = (await apiGet<ConcessionRow[]>("/api/super-admin/billing/concessions").catch(() => [] as ConcessionRow[])) ?? [];
+  const concessionSchools = ((await apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100").catch(() => ({ data: [] as SuperAdminSchoolRow[] }))).data ?? []).filter((school) => !concessions.some((entry) => entry.schoolId === school.id && (entry.status === "VERIFIED" || entry.status === "PENDING")));
   const unreconciledOverSevenDays = reconciliationQueue.filter((t) => t.ageDays > 7).length;
   const search = params.invoiceSearch?.trim().toLowerCase();
   const invoices = search
@@ -571,11 +575,11 @@ async function InvoicesTab({
             name="invoiceSearch"
             defaultValue={params.invoiceSearch}
             placeholder="Search by invoice no. or school"
-            className="field-control h-10 w-72 rounded-[10px] text-[13px]"
+            className="field-control h-10 w-72 rounded-[10px] text-[11.5px]"
           />
-          <button type="submit" className="btn-secondary h-10 text-[12.5px]">Search</button>
+          <button type="submit" className="btn-secondary h-10 text-[11.5px]">Search</button>
           {search ? (
-            <Link href="/super-admin/billing?tab=invoices" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+            <Link href="/super-admin/billing?tab=invoices" className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
               Clear
             </Link>
           ) : null}
@@ -593,7 +597,7 @@ async function InvoicesTab({
             { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
             { name: "amount", label: "Amount (NGN)", type: "number", required: true },
             { name: "taxAmount", label: "Tax amount (NGN)", type: "number", defaultValue: 0 },
-            { name: "dueAt", label: "Due date", type: "date", required: true },
+            { name: "dueAt", label: "Due date (blank = the platform terms)", type: "date" },
             { name: "note", label: "Internal note", type: "textarea" }
           ]}
         />
@@ -665,19 +669,19 @@ async function InvoicesTab({
 
       <div className="grid gap-3.5 self-start">
         <section className="surface-card p-5">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Invoice status meanings</p>
+          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Invoice status meanings</p>
           <div className="mt-3.5 grid gap-3">
             {invoiceStatusReference.map((row) => {
               const tone = invoiceStatusTone[row.status.toUpperCase().replace(/\s+/g, "_")] ?? invoiceStatusTone.DRAFT;
               return (
                 <div key={row.status} className="flex items-start gap-3">
                   <span
-                    className="mt-0.5 inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10.5px] font-bold"
+                    className="mt-0.5 inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[9.5px] font-bold"
                     style={{ background: tone.bg, color: tone.fg }}
                   >
                     {row.status}
                   </span>
-                  <p className="text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{row.meaning}</p>
+                  <p className="text-[10.5px] leading-5 text-[var(--color-text-secondary)]">{row.meaning}</p>
                 </div>
               );
             })}
@@ -706,7 +710,7 @@ async function InvoicesTab({
             { key: "invoice", header: "Invoice", render: (item) => item.invoiceNo ?? "—" },
             { key: "amount", header: "Amount", render: (item) => formatCurrency(item.amount) },
             { key: "recordedBy", header: "Recorded by", render: (item) => item.recordedBy },
-            { key: "reference", header: "Bank reference", render: (item) => <span className="font-[var(--font-mono)] text-[12px]">{item.reference}</span> },
+            { key: "reference", header: "Bank reference", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.reference}</span> },
             { key: "age", header: "Age", render: (item) => `${item.ageDays}d` },
             {
               key: "actions",
@@ -728,20 +732,53 @@ async function InvoicesTab({
           ]}
         />
 
-        <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-          <p className="text-[14px] font-semibold text-[#0D2315]">NGO / Mission verification — not tracked</p>
-          <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">
-            A school on the NGO / Mission tier keeps its discount indefinitely — there is no stored verification date,
-            expiry, or evidence record, and no annual re-verification workflow. Placing a school on this tier is a
-            one-time plan choice today, not a reviewed, time-boxed grant.
-          </p>
-        </section>
+        <TableCard
+          title="NGO / Mission concessions"
+          description="The discount is a grant with an end date. Each one records the evidence seen, who verified it and when it must be verified again. Thirty days before it ends the owner is told; if nobody re-verifies, the school moves to the Standard plan."
+          items={concessions}
+          pageSize={false}
+          getRowKey={(item) => item.id}
+          emptyState="No school is on an NGO or mission concession."
+          actions={
+            <ResourceActionDialog
+              triggerLabel="Grant a concession"
+              title="Grant an NGO / Mission concession"
+              description="Verify the evidence first. The school moves to the NGO / Mission tier now and the grant runs for the months you set."
+              endpoint="/api/super-admin/billing/concessions"
+              method="POST"
+              variant="secondary"
+              submitLabel="Grant concession"
+              fields={[
+                { name: "schoolId", label: "School", type: "select", required: true, options: concessionSchools.map((school) => ({ label: school.name, value: school.id })) },
+                { name: "kind", label: "Kind", type: "select", required: true, options: [{ label: "NGO", value: "NGO" }, { label: "Mission / faith-based", value: "MISSION" }] },
+                { name: "evidence", label: "Evidence seen", type: "textarea", required: true, placeholder: "e.g. CAC incorporated-trustees certificate IT/12345, seen 12 Oct 2026" },
+                { name: "evidenceRef", label: "Reference number", type: "text" },
+                { name: "months", label: "Valid for (months)", type: "number", defaultValue: 12, min: 1, max: 24 }
+              ]}
+            />
+          }
+          columns={[
+            { key: "school", header: "School", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.school}</p><p className="text-[10px] text-[var(--color-text-muted)]">{item.kind === "NGO" ? "NGO" : "Mission"}{item.state ? ` · ${item.state}` : ""}</p></div> },
+            { key: "evidence", header: "Evidence", render: (item) => <span className="text-[11px] leading-5 text-[var(--color-text-secondary)]">{item.evidence ?? "—"}{item.evidenceRef ? ` · ${item.evidenceRef}` : ""}</span> },
+            { key: "verified", header: "Verified", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{item.verifiedAt ? `${new Date(item.verifiedAt).toLocaleDateString("en-GB")} · ${item.verifiedBy ?? "—"}` : "—"}</span> },
+            { key: "expires", header: "Ends", render: (item) => item.expiresAt ? <span className="text-[11px]" style={{ color: item.status === "VERIFIED" && (item.daysLeft ?? 99) <= 30 ? "var(--color-warning)" : "var(--color-text-secondary)" }}>{new Date(item.expiresAt).toLocaleDateString("en-GB")}{item.status === "VERIFIED" && item.daysLeft !== null ? ` · ${item.daysLeft} days` : ""}</span> : "—" },
+            { key: "status", header: "State", render: (item) => <span className="text-[10px] font-bold" style={{ color: item.status === "VERIFIED" ? "var(--color-success)" : item.status === "EXPIRED" ? "var(--color-warning)" : "var(--color-text-muted)" }}>{item.status === "VERIFIED" ? "Verified" : item.status === "EXPIRED" ? "Expired — moved to Standard" : item.status === "REVOKED" ? "Revoked" : "Pending"}</span> },
+            {
+              key: "actions", header: "", render: (item) => item.status === "REVOKED" ? null : (
+                <ActionMenu>
+                  <ResourceActionDialog triggerLabel="Re-verify" title={`Re-verify ${item.school}`} description="Record the evidence seen this time and run the grant on for another term." endpoint={`/api/super-admin/billing/concessions/${item.id}/renew`} method="PATCH" variant="secondary" submitLabel="Re-verify" fields={[{ name: "evidence", label: "Evidence seen", type: "textarea", required: true }, { name: "months", label: "Valid for (months)", type: "number", defaultValue: 12, min: 1, max: 24 }]} />
+                  <ResourceActionDialog triggerLabel="Revoke" title={`Revoke ${item.school}'s concession`} description="The school moves off the discounted plan now." endpoint={`/api/super-admin/billing/concessions/${item.id}/revoke`} method="PATCH" variant="menuDanger" submitLabel="Revoke" confirmLabel="Confirm" confirmMessage="The school's price changes immediately." fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]} />
+                </ActionMenu>
+              )
+            }
+          ]}
+        />
       </div>
     </div>
   );
 }
 
-function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
+function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdminBillingRow[]; trialPolicy: { days: number; readOnlyDays: number; lockReminderDays: number } }) {
   const now = Date.now();
 
   const trials = trialBilling
@@ -749,8 +786,8 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
       const endsAt = item.trialEndsAt ? new Date(item.trialEndsAt).getTime() : null;
       const msRemaining = endsAt ? endsAt - now : null;
       const daysRemaining = msRemaining !== null ? Math.ceil(msRemaining / (1000 * 60 * 60 * 24)) : null;
-      const daysElapsed = daysRemaining !== null ? Math.min(TRIAL_DAYS, TRIAL_DAYS - daysRemaining) : null;
-      const pct = daysElapsed !== null ? Math.round((Math.max(0, daysElapsed) / TRIAL_DAYS) * 100) : 0;
+      const daysElapsed = daysRemaining !== null ? Math.min(trialPolicy.days, trialPolicy.days - daysRemaining) : null;
+      const pct = daysElapsed !== null ? Math.round((Math.max(0, daysElapsed) / trialPolicy.days) * 100) : 0;
       return { ...item, daysRemaining, pct };
     })
     .sort((a, b) => (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999));
@@ -759,11 +796,11 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
     <div className="grid gap-5">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Trial pipeline</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">
-          Schools on a {TRIAL_DAYS}-day trial
+        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">
+          Schools on a {trialPolicy.days}-day trial
         </h2>
-        <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
-          Every school starts on an automatic {TRIAL_DAYS}-day trial at signup. Sorted by soonest to expire.
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
+          Every school starts on an automatic {trialPolicy.days}-day trial at signup. Sorted by soonest to expire.
         </p>
       </section>
 
@@ -771,8 +808,8 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
         {trials.length === 0 ? (
           <section className="surface-card p-6">
             <div className="empty-state">
-              <p className="text-[15px] font-semibold text-[var(--color-text-primary)]">No schools currently on trial</p>
-              <p className="mt-1 max-w-md text-[13px] text-[var(--color-text-secondary)]">
+              <p className="text-[13.5px] font-semibold text-[var(--color-text-primary)]">No schools currently on trial</p>
+              <p className="mt-1 max-w-md text-[11.5px] text-[var(--color-text-secondary)]">
                 Trial schools will appear here as they self-onboard.
               </p>
             </div>
@@ -788,8 +825,8 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
                 <article key={trial.schoolId} className="surface-card p-4">
                   <div className="flex flex-wrap items-center justify-between gap-3">
                     <div>
-                      <p className="text-[14px] font-bold text-[var(--color-text-primary)]">{trial.schoolName}</p>
-                      <p className="mt-0.5 text-[12px] text-[var(--color-text-muted)]">{trial.plan} tier</p>
+                      <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{trial.schoolName}</p>
+                      <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{trial.plan} tier</p>
                     </div>
                     <div className="flex items-center gap-2">
                       {trial.daysRemaining !== null ? (
@@ -822,15 +859,26 @@ function TrialsTab({ trialBilling }: { trialBilling: SuperAdminBillingRow[] }) {
 
         <div className="grid gap-3.5 self-start">
           <section className="surface-card p-5">
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Automatic trial alerts</p>
-            <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">
-              Not built — there is no scheduled email or in-app nudge sequence tied to trial day count yet. The one real automatic signal is churn-risk scoring, which does weigh trial engagement (see the Churn risk section below).
-            </p>
+            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Automatic trial alerts</p>
+            <div className="mt-3 grid gap-2.5">
+              {[
+                [`${trialPolicy.lockReminderDays} days before the trial ends`, "The owner is told the trial is ending, by email and in-app."],
+                ["The day it ends", `The school becomes read-only for ${trialPolicy.readOnlyDays} days and the owner is told the date it will be locked.`],
+                [`${trialPolicy.lockReminderDays} days before the lock`, "The owner is reminded the school is about to be locked."],
+                [`${trialPolicy.readOnlyDays} days after the trial`, "The school is locked. Nothing is deleted; only support can reopen it."]
+              ].map(([when, what]) => (
+                <div key={when} className="border-b border-[var(--color-border-muted)] pb-2.5 last:border-b-0 last:pb-0">
+                  <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{when}</p>
+                  <p className="mt-0.5 text-[10.5px] leading-5 text-[var(--color-text-muted)]">{what}</p>
+                </div>
+              ))}
+            </div>
+            <p className="mt-3 text-[10px] text-[var(--color-text-muted)]">Set in Settings → Platform. Each step is written to the audit log.</p>
           </section>
           <section className="rounded-[14px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
-            <p className="text-[13px] font-bold text-[var(--color-text-primary)]">Post-trial behaviour</p>
-            <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
-              Nothing automatic happens when a trial ends — there is no <code>TRIAL_EXPIRED</code> status in this system. The school stays on <strong>Trial</strong>, access continues uninterrupted, and the countdown above turns into &ldquo;Overdue&rdquo;. A Super Admin has to act by hand: extend the trial, move it to Active, or suspend it.
+            <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">Post-trial behaviour</p>
+            <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
+              When a trial ends the school moves to a <strong>read-only</strong> window of {trialPolicy.readOnlyDays} days: it can read and export, but every change is refused, and the way out — choosing a plan or paying — stays open. Paying switches editing straight back on. After the window the school is <strong>locked</strong> and cannot sign in until support reopens it. Nothing is ever deleted by this.
             </p>
           </section>
         </div>
@@ -850,8 +898,8 @@ async function ChurnRiskTab() {
         <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="section-eyebrow">Churn risk scoring</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Retention risk</h2>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">
+            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Retention risk</h2>
+            <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
               Daily behavioural signal scoring (login recency, result/fee activity, trial engagement, support health). Schools with a score below 50 are flagged as high risk.
             </p>
           </div>
@@ -893,18 +941,18 @@ async function ChurnRiskTab() {
 
         <div className="grid gap-3.5 self-start">
           <section className="surface-card p-5">
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Churn risk signals</p>
-            <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Every school starts at 100. Each signal below subtracts its weight; a final score under 50 is flagged high risk.</p>
+            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Churn risk signals</p>
+            <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Every school starts at 100. Each signal below subtracts its weight; a final score under 50 is flagged high risk.</p>
             <div className="mt-3.5 grid gap-3">
               {churnSignalReference.map((row) => (
                 <div key={row.signal} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
                   <div className="flex items-start justify-between gap-3">
-                    <p className="text-[12px] font-semibold leading-5 text-[var(--color-text-primary)]">{row.signal}</p>
-                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[11px] font-bold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
+                    <p className="text-[11px] font-semibold leading-5 text-[var(--color-text-primary)]">{row.signal}</p>
+                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
                       {row.weight}
                     </span>
                   </div>
-                  <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{row.threshold}</p>
+                  <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">{row.threshold}</p>
                 </div>
               ))}
             </div>
@@ -912,27 +960,27 @@ async function ChurnRiskTab() {
 
           <section className="surface-card p-5">
             <div className="flex items-center justify-between">
-              <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Flagged schools</p>
-              <p className="text-[11px] text-[var(--color-text-muted)]">Weekly digest to Finance &amp; CS</p>
+              <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Flagged schools</p>
+              <p className="text-[10px] text-[var(--color-text-muted)]">Weekly digest to Finance &amp; CS</p>
             </div>
             <div className="mt-3.5 grid gap-4">
               {flaggedSchools.length === 0 ? (
-                <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">
+                <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
                   No schools currently below the risk threshold.
                 </p>
               ) : (
                 flaggedSchools.map((school) => (
                   <div key={school.schoolId}>
                     <div className="flex items-center justify-between gap-3">
-                      <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{school.schoolName}</p>
-                      <span className="font-[var(--font-mono)] text-[13px] font-bold" style={{ color: "var(--color-danger)" }}>
+                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{school.schoolName}</p>
+                      <span className="font-[var(--font-mono)] text-[11.5px] font-bold" style={{ color: "var(--color-danger)" }}>
                         {school.score}
                       </span>
                     </div>
                     <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                       <div className="h-full rounded-full" style={{ width: `${school.score}%`, background: "var(--color-danger)" }} />
                     </div>
-                    <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">
+                    <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">
                       {school.signals[0] ?? "No specific signal logged"}
                     </p>
                   </div>
@@ -974,10 +1022,10 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
           style={{ background: "var(--color-danger-dim)", border: "1px solid var(--color-danger)" }}
         >
           <div>
-            <p className="text-[13px] font-bold" style={{ color: "var(--color-danger)" }}>
+            <p className="text-[11.5px] font-bold" style={{ color: "var(--color-danger)" }}>
               {lowBalanceWallets.length} school{lowBalanceWallets.length === 1 ? "" : "s"} below the low-balance threshold
             </p>
-            <p className="mt-1 text-[12px] leading-5 text-[var(--color-text-secondary)]">
+            <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-secondary)]">
               {lowBalanceWallets.map((wallet) => wallet.schoolName).join(", ")} — SMS or WhatsApp sends will fail once a balance reaches zero.
             </p>
           </div>
@@ -1030,7 +1078,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
 
         <div className="grid gap-3.5 self-start">
           <section className="surface-card p-5">
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How credits work today</p>
+            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">How credits work today</p>
             <div className="mt-3.5 grid gap-3">
               {[
                 { title: "Bundles are purchased off-platform", detail: "A school pays for an SMS/WhatsApp bundle by transfer, then a Super Admin confirms and tops up here." },
@@ -1039,8 +1087,8 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
                 { title: "Revenue is tracked separately", detail: "Credit top-ups are notification revenue, kept apart from subscription revenue in Revenue Reporting." }
               ].map((rule) => (
                 <div key={rule.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{rule.title}</p>
-                  <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{rule.detail}</p>
+                  <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{rule.title}</p>
+                  <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">{rule.detail}</p>
                 </div>
               ))}
             </div>
@@ -1077,7 +1125,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
             { key: "channel", header: "Channel", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.channel}</span> },
             { key: "cost", header: "Cost to platform", render: () => <span className="text-[var(--color-text-muted)]">Not configured</span> },
             { key: "price", header: "Price to school", render: () => <span className="text-[var(--color-text-muted)]">Not configured</span> },
-            { key: "note", header: "Note", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.note}</span> }
+            { key: "note", header: "Note", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{item.note}</span> }
           ]}
         />
         <ReferenceListSimple
@@ -1114,15 +1162,15 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
         <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
           <div>
             <p className="section-eyebrow">Live rate card</p>
-            <h2 className="mt-1 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
+            <h2 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
           </div>
-          <Link href="/super-admin/feature-flags?tab=plans" className="text-[12.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+          <Link href="/super-admin/feature-flags?tab=plans" className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
             Open Tier Plans
           </Link>
         </div>
         <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-3">
           {activePlans.length === 0 ? (
-            <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
+            <p className="rounded-[12px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
               No active plans. Configure one in Feature &amp; Tier Management.
             </p>
           ) : (
@@ -1135,27 +1183,27 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
               <article key={plan.id} className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
-                    <h3 className="mt-1 truncate text-[15px] font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
-                    <p className="mt-1 text-[12px] text-[var(--color-text-muted)]">{plan.slug}</p>
+                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
+                    <h3 className="mt-1 truncate text-[13.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
+                    <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{plan.slug}</p>
                   </div>
                   <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Active" />
                 </div>
 
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
-                    <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
-                    <p className="text-[11.5px] text-[var(--color-text-muted)]">flat rate, per school</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
+                    <p className="mt-1 font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
+                    <p className="text-[10.5px] text-[var(--color-text-muted)]">flat rate, per school</p>
                   </div>
                   <div>
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
-                    <p className="mt-1 font-[var(--font-mono)] text-[15px] font-bold text-[var(--color-text-primary)]">{planUsd(plan)}</p>
-                    <p className="text-[11.5px] text-[var(--color-text-muted)]">{plan.subscriberCount} subscriber{plan.subscriberCount === 1 ? "" : "s"}</p>
+                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
+                    <p className="mt-1 font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{planUsd(plan)}</p>
+                    <p className="text-[10.5px] text-[var(--color-text-muted)]">{plan.subscriberCount} subscriber{plan.subscriberCount === 1 ? "" : "s"}</p>
                   </div>
                 </div>
 
-                <div className="mt-4 grid gap-2 border-t border-[var(--color-border-default)] pt-3 text-[12px] text-[var(--color-text-secondary)]">
+                <div className="mt-4 grid gap-2 border-t border-[var(--color-border-default)] pt-3 text-[11px] text-[var(--color-text-secondary)]">
                   <div className="flex justify-between gap-3">
                     <span>Students</span>
                     <span className="font-semibold text-[var(--color-text-primary)]">{studentRangeLabel(plan)}</span>
@@ -1310,15 +1358,15 @@ function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView;
       <section className="grid gap-5 lg:grid-cols-2">
         <section className="surface-card p-6">
           <p className="section-eyebrow">Tier split</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Revenue by tier</h3>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Revenue by tier</h3>
           <div className="mt-4 grid gap-3">
             {report.revenueByTier.map((item) => (
               <div key={item.plan}>
-                <div className="flex items-center justify-between text-[13px] font-semibold text-[var(--color-text-primary)]">
+                <div className="flex items-center justify-between text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                   <span className="flex items-center gap-2">
                     <span className="h-2 w-2 rounded-[3px] bg-[var(--color-accent-primary)]" />
                     {item.plan}
-                    <span className="text-[11px] font-medium text-[var(--color-text-muted)]">{subscriberCounts.get(item.plan) ?? 0} subs</span>
+                    <span className="text-[10px] font-medium text-[var(--color-text-muted)]">{subscriberCounts.get(item.plan) ?? 0} subs</span>
                   </span>
                   <span className="font-[var(--font-mono)]">{formatCurrency(item.revenue)}</span>
                 </div>

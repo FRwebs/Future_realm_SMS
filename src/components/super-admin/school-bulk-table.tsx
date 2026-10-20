@@ -260,10 +260,10 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               >
                 <X className="h-3 w-3 text-[#0d2315]" strokeWidth={3.4} />
               </button>
-              <p className="text-[12.5px] font-semibold text-white">
+              <p className="text-[11.5px] font-semibold text-white">
                 {selectedIds.length === 1 ? "1 school selected" : `${selectedIds.length} schools selected`}
               </p>
-              <button type="button" onClick={clearSelection} className="text-[11.5px] font-semibold text-[rgba(255,255,255,0.6)] hover:text-white">
+              <button type="button" onClick={clearSelection} className="text-[10.5px] font-semibold text-[rgba(255,255,255,0.6)] hover:text-white">
                 Clear
               </button>
             </div>
@@ -271,7 +271,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={() => setNotifyDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-[8px] bg-white px-3 py-1.5 text-[12px] font-semibold text-[#0d2315]"
+                className="inline-flex items-center gap-1.5 rounded-[8px] bg-white px-3 py-1.5 text-[11px] font-semibold text-[#0d2315]"
               >
                 <Send className="h-3.5 w-3.5" />
                 Send notification
@@ -279,7 +279,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={handleExport}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[12px] font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
               >
                 <Download className="h-3.5 w-3.5" />
                 Export data
@@ -287,7 +287,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={() => setStatusDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[12px] font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
               >
                 <Shuffle className="h-3.5 w-3.5" />
                 Batch status change
@@ -295,7 +295,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               <button
                 type="button"
                 onClick={() => setManagerDialogOpen(true)}
-                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[12px] font-semibold text-white"
+                className="inline-flex items-center gap-1.5 rounded-[8px] border border-[rgba(255,255,255,0.28)] px-3 py-1.5 text-[11px] font-semibold text-white"
               >
                 <User className="h-3.5 w-3.5" />
                 Assign account manager
@@ -309,8 +309,8 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
               <span className="text-lg font-bold">+</span>
             </div>
-            <p className="mt-4 text-[15px] font-semibold text-[#0D2315]">Nothing to display yet</p>
-            <p className="mt-1 max-w-md text-[13px] text-[#435048]">No schools match the current filters.</p>
+            <p className="mt-4 text-[13.5px] font-semibold text-[#0D2315]">Nothing to display yet</p>
+            <p className="mt-1 max-w-md text-[11.5px] text-[#435048]">No schools match the current filters.</p>
           </div>
         ) : (
           <>
@@ -339,35 +339,35 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                         {selected[school.id] ? <span className="block h-2 w-2 rounded-[2px] bg-white" /> : null}
                       </button>
                       <Link href={`/super-admin/schools/${school.id}`} className="min-w-0 flex-1">
-                        <p className="truncate text-[15px] font-semibold text-[#0D2315]">{school.name}</p>
-                        <p className="truncate text-[11px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</p>
+                        <p className="truncate text-[13.5px] font-semibold text-[#0D2315]">{school.name}</p>
+                        <p className="truncate text-[10px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</p>
                       </Link>
-                      <span className="shrink-0 rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                      <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                         {tone.label}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
+                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                         {verification.label}
                       </span>
-                      <span className="truncate text-[11px] text-[#9fb8a7]">{verification.note}</span>
+                      <span className="truncate text-[10px] text-[#9fb8a7]">{verification.note}</span>
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-3">
                       <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Tier</dt>
-                        <dd className="mt-1 text-[13px] text-[#435048]">{planLabel(school.plan)}</dd>
+                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Tier</dt>
+                        <dd className="mt-1 text-[11.5px] text-[#435048]">{planLabel(school.plan)}</dd>
                       </div>
                       <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Students</dt>
-                        <dd className="mt-1 text-[13px] text-[#435048]">{school.totalStudents.toLocaleString()}</dd>
+                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Students</dt>
+                        <dd className="mt-1 text-[11.5px] text-[#435048]">{school.totalStudents.toLocaleString()}</dd>
                       </div>
                       <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Last login</dt>
-                        <dd className="mt-1 text-[13px] text-[#435048]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
+                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Last login</dt>
+                        <dd className="mt-1 text-[11.5px] text-[#435048]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
                       </div>
                       <div className="rounded-[10px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[10px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Churn risk</dt>
-                        <dd className="mt-1 text-[13px] font-bold" style={{ color: riskColor(risk) }}>{risk}%</dd>
+                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#9FB8A7]">Churn risk</dt>
+                        <dd className="mt-1 text-[11.5px] font-bold" style={{ color: riskColor(risk) }}>{risk}%</dd>
                       </div>
                     </dl>
                   </article>
@@ -402,7 +402,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                         {["School", "Tier", "Status", "Risk assessment", "Students", "Last login", "Trial / renewal", "Churn risk", ""].map((header) => (
                           <th
                             key={header}
-                            className="border-b border-[#E6EEE9] px-[18px] py-3 text-left text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]"
+                            className="border-b border-[#E6EEE9] px-[18px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]"
                           >
                             {header}
                           </th>
@@ -418,7 +418,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                         return (
                           <tr
                             key={school.id}
-                            className="text-[12.5px] text-[#435048] transition hover:bg-[#F7FBF9]"
+                            className="text-[11.5px] text-[#435048] transition hover:bg-[#F7FBF9]"
                             style={{ background: selected[school.id] ? "#F7FBF9" : "#fff" }}
                           >
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
@@ -437,28 +437,28 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <Link href={`/super-admin/schools/${school.id}`} className="group flex items-center gap-3">
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-[var(--font-heading)] text-[12px] font-bold text-[#0D2315]">
+                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-[var(--font-heading)] text-[11px] font-bold text-[#0D2315]">
                                   {initials(school.name)}
                                 </span>
                                 <span className="min-w-0">
                                   <span className="block truncate font-semibold text-[#0D2315] group-hover:text-[#12796A]">
                                     {school.name}
                                   </span>
-                                  <span className="block truncate text-[11px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</span>
+                                  <span className="block truncate text-[10px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</span>
                                 </span>
                               </Link>
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">{planLabel(school.plan)}</td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                                 {tone.label}
                               </span>
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
+                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                                 {verification.label}
                               </span>
-                              <div className="mt-[3px] max-w-[160px] truncate text-[10.5px] text-[#9fb8a7]">{verification.note}</div>
+                              <div className="mt-[3px] max-w-[160px] truncate text-[9.5px] text-[#9fb8a7]">{verification.note}</div>
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top font-[var(--font-mono)]">{school.totalStudents.toLocaleString()}</td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
@@ -471,7 +471,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">{renewalText(school)}</td>
                             <td className="border-b border-[#F2F7F4] px-[18px] py-3 align-top">
                               <div className="w-16">
-                                <span className="text-[12.5px] font-bold font-[var(--font-mono)]" style={{ color: riskColor(risk) }}>
+                                <span className="text-[11.5px] font-bold font-[var(--font-mono)]" style={{ color: riskColor(risk) }}>
                                   {risk}%
                                 </span>
                                 <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EDF3EF]">
@@ -489,7 +489,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                     selectOnly(school.id);
                                     setNotifyDialogOpen(true);
                                   }}
-                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                                 >
                                   Send notification
                                 </button>
@@ -499,7 +499,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                                     selectOnly(school.id);
                                     setManagerDialogOpen(true);
                                   }}
-                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
+                                  className="flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
                                 >
                                   Assign account manager
                                 </button>
@@ -537,11 +537,11 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
       <Modal open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} title="Batch status change" subtitle={`Update ${selectedIds.length} school(s) at once. This is fully audited.`}>
         <div className="grid gap-4">
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-secondary)]">New status</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">New status</span>
             <select
               value={statusValue}
               onChange={(event) => setStatusValue(event.target.value)}
-              className="field-control h-10 w-full rounded-[10px] text-[13px]"
+              className="field-control h-10 w-full rounded-[10px] text-[11.5px]"
             >
               {statusChangeOptions.map((option) => (
                 <option key={option.value} value={option.value}>{option.label}</option>
@@ -549,12 +549,12 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-secondary)]">Reason</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Reason</span>
             <textarea
               value={statusReason}
               onChange={(event) => setStatusReason(event.target.value)}
               rows={3}
-              className="field-control w-full rounded-[10px] text-[13px]"
+              className="field-control w-full rounded-[10px] text-[11.5px]"
               placeholder="Why are these schools changing status?"
             />
           </label>
@@ -570,15 +570,15 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
       <Modal open={managerDialogOpen} onClose={() => setManagerDialogOpen(false)} title="Assign account manager" subtitle={`Applies to ${selectedIds.length} school(s).`}>
         <div className="grid gap-4">
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-secondary)]">Account manager email</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Account manager email</span>
             <input
               type="email"
               value={managerEmail}
               onChange={(event) => setManagerEmail(event.target.value)}
-              className="field-control h-10 w-full rounded-[10px] text-[13px]"
+              className="field-control h-10 w-full rounded-[10px] text-[11.5px]"
               placeholder="manager@futurerealm.sms"
             />
-            <span className="mt-1.5 block text-[11px] text-[var(--color-text-muted)]">Must be an active internal team member.</span>
+            <span className="mt-1.5 block text-[10px] text-[var(--color-text-muted)]">Must be an active internal team member.</span>
           </label>
         </div>
         <div className="sticky -bottom-[22px] -mx-[26px] -mb-[22px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]">
@@ -592,21 +592,21 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
       <Modal open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} title="Send notification" subtitle={`Creates a targeted announcement for ${selectedIds.length} school(s).`}>
         <div className="grid gap-4">
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-secondary)]">Title</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Title</span>
             <input
               value={notifyTitle}
               onChange={(event) => setNotifyTitle(event.target.value)}
-              className="field-control h-10 w-full rounded-[10px] text-[13px]"
+              className="field-control h-10 w-full rounded-[10px] text-[11.5px]"
               placeholder="e.g. Scheduled maintenance this weekend"
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[12px] font-semibold text-[var(--color-text-secondary)]">Message</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Message</span>
             <textarea
               value={notifyBody}
               onChange={(event) => setNotifyBody(event.target.value)}
               rows={4}
-              className="field-control w-full rounded-[10px] text-[13px]"
+              className="field-control w-full rounded-[10px] text-[11.5px]"
               placeholder="What do these schools need to know?"
             />
           </label>

@@ -69,7 +69,7 @@ const articleStatusOptions = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -87,8 +87,8 @@ function hoursUntil(value?: string) {
 function TicketMiniMetric({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="min-w-0 rounded-[10px] border border-[var(--color-border-subtle)] bg-white px-3 py-2">
-      <p className="truncate text-[10.5px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">{label}</p>
-      <p className="mt-1 truncate text-[13px] font-extrabold text-[var(--color-text-primary)] tabular-nums" title={String(value)}>
+      <p className="truncate text-[9.5px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">{label}</p>
+      <p className="mt-1 truncate text-[11.5px] font-extrabold text-[var(--color-text-primary)] tabular-nums" title={String(value)}>
         {value}
       </p>
     </div>
@@ -103,9 +103,9 @@ function TicketPreviewCard({ ticket }: { ticket: SuperAdminTicketRow }) {
     <Link href={`/super-admin/support/${ticket.id}`} className="surface-card grid gap-4 p-4 transition hover:border-[var(--color-accent-primary)] hover:shadow-md">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="font-[var(--font-mono)] text-[11px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</p>
-          <h3 className="mt-1 line-clamp-2 text-[15px] font-extrabold text-[var(--color-text-primary)]">{ticket.subject}</h3>
-          <p className="mt-1 truncate text-[12px] text-[var(--color-text-muted)]">{ticket.schoolName}</p>
+          <p className="font-[var(--font-mono)] text-[10px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</p>
+          <h3 className="mt-1 line-clamp-2 text-[13.5px] font-extrabold text-[var(--color-text-primary)]">{ticket.subject}</h3>
+          <p className="mt-1 truncate text-[11px] text-[var(--color-text-muted)]">{ticket.schoolName}</p>
         </div>
         <StatusPill bg={tone.bg} fg={tone.fg} label={priorityLabel[ticket.priority] ?? ticket.priority} />
       </div>
@@ -118,8 +118,8 @@ function TicketPreviewCard({ ticket }: { ticket: SuperAdminTicketRow }) {
 
       <div className="flex items-center justify-between gap-3 rounded-[10px] border border-[var(--color-border-subtle)] bg-[var(--color-bg-subtle)] p-3">
         <div>
-          <p className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">SLA</p>
-          <p className="mt-1 text-[12.5px] font-semibold text-[var(--color-text-primary)]">
+          <p className="text-[10px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">SLA</p>
+          <p className="mt-1 text-[11.5px] font-semibold text-[var(--color-text-primary)]">
             {ticket.slaDueAt ? (ticket.slaBreached ? "Breached" : `${dueHours ?? 0}h remaining`) : "Not set"}
           </p>
         </div>
@@ -143,7 +143,7 @@ const flowToneStyle: Record<string, { bg: string; fg: string }> = {
 function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: string }> }) {
   return (
     <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-5">
-      <p className="font-[var(--font-display)] text-[16px] font-bold text-[#0D2315]">{title}</p>
+      <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">{title}</p>
       {sub ? <p className="sr-only">{sub}</p> : null}
       <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
         {steps.map((step, index) => {
@@ -151,8 +151,8 @@ function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: 
           return (
             <div key={step.label} className="flex items-center gap-2.5">
               <div className="min-w-[9.5rem] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
+                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
+                <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
               </div>
               {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
             </div>
@@ -297,14 +297,14 @@ async function TicketBoardTab() {
           return (
             <section key={column.status} className="surface-card flex max-h-[70vh] flex-col p-3">
               <div className="flex items-center justify-between px-1 pb-2">
-                <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{column.label}</p>
-                <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-text-muted)]">
+                <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{column.label}</p>
+                <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-muted)]">
                   {columnTickets.length}
                 </span>
               </div>
               <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                 {columnTickets.length === 0 ? (
-                  <p className="rounded-[10px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[11px] text-[var(--color-text-muted)]">
+                  <p className="rounded-[10px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">
                     No tickets
                   </p>
                 ) : (
@@ -317,15 +317,15 @@ async function TicketBoardTab() {
                         className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3 transition hover:border-[var(--color-accent-primary)]"
                       >
                         <div className="flex items-center justify-between gap-2">
-                          <span className="font-[var(--font-mono)] text-[11px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</span>
+                          <span className="font-[var(--font-mono)] text-[10px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</span>
                           <StatusPill bg={tone.bg} fg={tone.fg} label={ticket.priority} />
                         </div>
-                        <p className="mt-2 line-clamp-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">{ticket.subject}</p>
-                        <p className="mt-2 text-[11px] text-[var(--color-text-muted)]">
+                        <p className="mt-2 line-clamp-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">{ticket.subject}</p>
+                        <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">
                           {ticket.schoolName} · {ticket.assignedTo || "Unassigned"}
                         </p>
                         {ticket.slaDueAt ? (
-                          <p className="mt-1 text-[11px] font-semibold" style={{ color: ticket.slaBreached ? "var(--color-danger)" : "var(--color-text-muted)" }}>
+                          <p className="mt-1 text-[10px] font-semibold" style={{ color: ticket.slaBreached ? "var(--color-danger)" : "var(--color-text-muted)" }}>
                             {ticket.slaBreached ? "SLA breached" : `Due ${formatDate(ticket.slaDueAt)}`}
                           </p>
                         ) : null}
@@ -424,27 +424,27 @@ async function TicketAnalyticsSection() {
       <section className="grid gap-5 lg:grid-cols-2">
         <section className="surface-card p-6">
           <p className="section-eyebrow">Response time</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Avg resolution time by priority</h3>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Avg resolution time by priority</h3>
           <div className="mt-4 grid gap-2">
             {Object.entries(analytics.avgResolutionByPriority).map(([priority, hours]) => (
               <div key={priority} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{priority}</span>
-                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{hours}h</span>
+                <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{priority}</span>
+                <span className="font-[var(--font-mono)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{hours}h</span>
               </div>
             ))}
           </div>
         </section>
         <section className="surface-card p-6">
           <p className="section-eyebrow">Issue mix</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Category breakdown (30d)</h3>
+          <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Category breakdown (30d)</h3>
           <div className="mt-4 grid gap-2">
             {analytics.categoryBreakdown.map((item) => (
               <div key={item.category} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{formatLabel(item.category)}</span>
-                <span className="font-[var(--font-mono)] text-[13px] font-bold text-[var(--color-text-primary)]">{item.count}</span>
+                <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{formatLabel(item.category)}</span>
+                <span className="font-[var(--font-mono)] text-[11.5px] font-bold text-[var(--color-text-primary)]">{item.count}</span>
               </div>
             ))}
-            {analytics.categoryBreakdown.length === 0 ? <p className="text-center text-[13px] text-[var(--color-text-muted)]">No tickets in the last 30 days.</p> : null}
+            {analytics.categoryBreakdown.length === 0 ? <p className="text-center text-[11.5px] text-[var(--color-text-muted)]">No tickets in the last 30 days.</p> : null}
           </div>
         </section>
       </section>
@@ -603,7 +603,7 @@ async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrecti
                   />
                 </div>
               ) : (
-                <span className="text-[12px] text-[var(--color-text-muted)]">{item.approvedBy ?? "—"}</span>
+                <span className="text-[11px] text-[var(--color-text-muted)]">{item.approvedBy ?? "—"}</span>
               )
           }
         ]}
@@ -674,7 +674,7 @@ async function KnowledgeTab() {
         columns={[
           { key: "category", header: "Category", render: (item) => item.category.replaceAll("_", " ") },
           { key: "title", header: "Title", render: (item) => item.title },
-          { key: "body", header: "Body", render: (item) => <span className="line-clamp-2 text-[13px] text-[var(--color-text-secondary)]">{item.body}</span> },
+          { key: "body", header: "Body", render: (item) => <span className="line-clamp-2 text-[11.5px] text-[var(--color-text-secondary)]">{item.body}</span> },
           { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) },
           {
             key: "actions",

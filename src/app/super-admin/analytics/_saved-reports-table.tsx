@@ -40,10 +40,10 @@ export function SavedReportsTable({ items, actions }: SavedReportsTableProps) {
       }
       columns={[
         { key: "name", header: "Template", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.name}</span>, sortValue: (item) => item.name },
-        { key: "filters", header: "Filters", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.metric} · grouped by {item.dimension}</span> },
-        { key: "format", header: "Format", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not built — no export pipeline exists yet</span> },
+        { key: "filters", header: "Filters", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{item.metric} · grouped by {item.dimension}</span> },
+        { key: "format", header: "Format", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not built — no export pipeline exists yet</span> },
         { key: "created", header: "Last generated", render: (item) => (item.generatedAt ? formatDate(item.generatedAt) : formatDate(item.createdAt)), sortValue: (item) => item.generatedAt ?? item.createdAt },
-        { key: "run", header: "", render: () => <span className="text-[11.5px] font-semibold text-[var(--color-text-muted)]">Runs live — no separate action</span> }
+        { key: "run", header: "", render: () => <span className="text-[10.5px] font-semibold text-[var(--color-text-muted)]">Runs live — no separate action</span> }
       ]}
     />
   );

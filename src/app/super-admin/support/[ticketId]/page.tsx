@@ -35,18 +35,18 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
           <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
         </svg>
         <div className="relative z-[1]">
-        <Link href="/super-admin/support" className="text-[13px] font-semibold text-[rgba(255,255,255,0.85)] underline">← Back to support</Link>
+        <Link href="/super-admin/support" className="text-[11.5px] font-semibold text-[rgba(255,255,255,0.85)] underline">← Back to support</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.14em] text-white/60">{ticket.ticketNo} · {ticket.schoolName}</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-bold text-white">{ticket.subject}</h1>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[rgba(255,255,255,0.74)]">{ticket.description}</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-white/60">{ticket.ticketNo} · {ticket.schoolName}</p>
+            <h1 className="mt-2 font-[var(--font-heading)] text-[23.5px] font-bold text-white">{ticket.subject}</h1>
+            <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[rgba(255,255,255,0.74)]">{ticket.description}</p>
           </div>
           <div className="flex flex-wrap items-start gap-2">
             <StatusBadge status={ticket.status} />
-            <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>{ticket.priority}</span>
+            <span className="rounded-full px-3 py-1 text-[10px] font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>{ticket.priority}</span>
             {ticket.slaBreached ? (
-              <span className="rounded-full px-3 py-1 text-[11px] font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>SLA BREACHED</span>
+              <span className="rounded-full px-3 py-1 text-[10px] font-bold" style={{ background: "rgba(255,255,255,0.15)", color: "#fff" }}>SLA BREACHED</span>
             ) : null}
           </div>
         </div>
@@ -55,20 +55,20 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
 
       <section className="grid gap-3 md:grid-cols-4">
         <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Category</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{ticket.category.replaceAll("_", " ")}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Category</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.category.replaceAll("_", " ")}</p>
         </article>
         <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Assigned to</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{ticket.assignedTo?.name ?? "Unassigned"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Assigned to</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.assignedTo?.name ?? "Unassigned"}</p>
         </article>
         <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">SLA deadline</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{ticket.slaDueAt ? formatDate(ticket.slaDueAt) : "Not set"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">SLA deadline</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.slaDueAt ? formatDate(ticket.slaDueAt) : "Not set"}</p>
         </article>
         <article className="surface-card p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">CSAT</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">{ticket.csat ? `${ticket.csat.score} / 5` : "Not yet rated"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">CSAT</p>
+          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.csat ? `${ticket.csat.score} / 5` : "Not yet rated"}</p>
         </article>
       </section>
 
@@ -164,8 +164,8 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="section-eyebrow">Thread</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Conversation</h2>
-            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Internal notes are only visible to the platform team.</p>
+            <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Conversation</h2>
+            <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Internal notes are only visible to the platform team.</p>
           </div>
           <ResourceActionDialog
             triggerLabel="Add message"
@@ -188,14 +188,14 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
               style={message.internalOnly ? { background: "var(--color-warning-dim)" } : { background: "var(--color-bg-subtle)" }}
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{message.author}{message.internalOnly ? " · Internal note" : ""}</span>
-                <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(message.createdAt)}</span>
+                <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{message.author}{message.internalOnly ? " · Internal note" : ""}</span>
+                <span className="text-[10px] text-[var(--color-text-muted)]">{formatDate(message.createdAt)}</span>
               </div>
-              <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">{message.body}</p>
+              <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">{message.body}</p>
             </div>
           ))}
           {ticket.messages.length === 0 ? (
-            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No messages yet.</p>
+            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No messages yet.</p>
           ) : null}
         </div>
       </section>

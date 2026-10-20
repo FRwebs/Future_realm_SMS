@@ -42,7 +42,7 @@ function churnSignal(reason: string) {
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -52,7 +52,7 @@ const barToneColors: Record<"good" | "warn" | "bad", string> = { good: "#22A06B"
 
 function BarCell({ value }: { value: number | null }) {
   if (value === null) {
-    return <span className="text-[12.5px] text-[var(--color-text-muted)]">—</span>;
+    return <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>;
   }
   const tone: "good" | "warn" | "bad" = value >= 80 ? "good" : value >= 60 ? "warn" : "bad";
   const color = barToneColors[tone];
@@ -61,7 +61,7 @@ function BarCell({ value }: { value: number | null }) {
       <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-[#EDF3EF]">
         <div className="h-full rounded-full" style={{ width: `${value}%`, background: color }} />
       </div>
-      <div className="whitespace-nowrap text-[12px] font-semibold" style={{ color }}>{value}%</div>
+      <div className="whitespace-nowrap text-[11px] font-semibold" style={{ color }}>{value}%</div>
     </div>
   );
 }
@@ -71,10 +71,10 @@ function SectionHeader({ eyebrow, title, description, aside }: { eyebrow?: strin
     <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
         {eyebrow ? <p className="section-eyebrow">{eyebrow}</p> : null}
-        <p className="mt-1 text-[16px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {description ? <p className="mt-1 max-w-4xl text-[12.5px] leading-5 text-[var(--color-text-secondary)]">{description}</p> : null}
+        <p className="mt-1 text-[14.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
+        {description ? <p className="mt-1 max-w-4xl text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{description}</p> : null}
       </div>
-      {aside ? <p className="text-[11.5px] font-bold text-[var(--color-text-muted)]">{aside}</p> : null}
+      {aside ? <p className="text-[10.5px] font-bold text-[var(--color-text-muted)]">{aside}</p> : null}
     </div>
   );
 }
@@ -174,9 +174,9 @@ async function GrowthTab() {
                     style={{ height: `${barPct}%`, background: isLast ? "#0d2315" : `rgba(18,121,106,${0.28 + index * 0.1})` }}
                   />
                 </div>
-                <p className="mt-[11px] font-[var(--font-display)] text-[15px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
-                <p className="mt-1 text-pretty text-[11px] leading-[1.35] text-[#77857C]">{stage.stage}</p>
-                <p className="mt-[5px] text-[11px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
+                <p className="mt-[11px] font-[var(--font-display)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
+                <p className="mt-1 text-pretty text-[10px] leading-[1.35] text-[#77857C]">{stage.stage}</p>
+                <p className="mt-[5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
                   {stage.changePct === null ? "—" : stage.changePct < 0 ? `−${Math.abs(stage.changePct)}% drop` : `+${stage.changePct}%`}
                 </p>
               </div>
@@ -205,14 +205,14 @@ async function GrowthTab() {
             ),
             sortValue: (item) => item.changePct
           },
-          { key: "owner", header: "Owner", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not tracked — no stage-ownership feature exists</span> }
+          { key: "owner", header: "Owner", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not tracked — no stage-ownership feature exists</span> }
         ]}
       />
 
       <div className="grid gap-1.5">
         <p className="section-eyebrow">Displacement</p>
-        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Where schools switched from</h2>
-        <p className="text-[12.5px] text-[var(--color-text-secondary)]">Computed from real migration records — which system a school moved from, and whether the move stuck.</p>
+        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Where schools switched from</h2>
+        <p className="text-[11.5px] text-[var(--color-text-secondary)]">Computed from real migration records — which system a school moved from, and whether the move stuck.</p>
       </div>
 
       <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
@@ -240,7 +240,7 @@ async function GrowthTab() {
             render: (item) => (item.migrationRatePct === null ? "—" : <BarCell value={item.migrationRatePct} />),
             sortValue: (item) => item.migrationRatePct ?? 0
           },
-          { key: "reason", header: "What they said made them move", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not captured — no field records this</span> },
+          { key: "reason", header: "What they said made them move", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not captured — no field records this</span> },
           {
             key: "adapter",
             header: "Adapter",
@@ -293,8 +293,8 @@ async function RetentionTab() {
       {/* Cohort retention */}
       <div className="grid gap-1.5">
         <p className="section-eyebrow">Cohort retention</p>
-        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Retention by signup cohort</h2>
-        <p className="text-[12.5px] text-[var(--color-text-secondary)]">Schools grouped by the month they joined, and the share still active today.</p>
+        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Retention by signup cohort</h2>
+        <p className="text-[11.5px] text-[var(--color-text-secondary)]">Schools grouped by the month they joined, and the share still active today.</p>
       </div>
       <TableCard
         title="Cohorts"
@@ -313,7 +313,7 @@ async function RetentionTab() {
             header: "Verdict",
             render: (item) => {
               const tone = item.joined < 3 ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Too early" } : item.retentionPct >= 80 ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Product working" } : item.retentionPct >= 60 ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Watch" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "At risk" };
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             },
             sortValue: (item) => item.retentionPct
           }
@@ -322,8 +322,8 @@ async function RetentionTab() {
       {/* Churn analysis */}
       <div className="mt-2 grid gap-1.5">
         <p className="section-eyebrow">Churn analysis</p>
-        <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Why schools leave</h2>
-        <p className="text-[12.5px] text-[var(--color-text-secondary)]">Logged churn records, grouped by reason and subscription tier.</p>
+        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Why schools leave</h2>
+        <p className="text-[11.5px] text-[var(--color-text-secondary)]">Logged churn records, grouped by reason and subscription tier.</p>
       </div>
       <TableCard
         title={`Churn reason breakdown · ${churn.total} school${churn.total === 1 ? "" : "s"}`}
@@ -349,23 +349,23 @@ async function RetentionTab() {
           { key: "reason", header: "Churn reason", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.reason.replaceAll("_", " ")}</span>, sortValue: (item) => item.reason },
           { key: "count", header: "Count", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.count}</span>, sortValue: (item) => item.count },
           { key: "share", header: "Share", render: (item) => <span className="font-bold" style={{ color: item.pct >= 25 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>, sortValue: (item) => item.pct },
-          { key: "signal", header: "What it signals", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{churnSignal(item.reason)}</span> }
+          { key: "signal", header: "What it signals", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{churnSignal(item.reason)}</span> }
         ]}
       />
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Churn rate by tier</p>
-          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Share of every school that has ever been on a tier which later churned.</p>
+          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Churn rate by tier</p>
+          <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Share of every school that has ever been on a tier which later churned.</p>
           <div className="mt-4 grid gap-3.5">
             {churn.byTier.length === 0 ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No tier churn data yet.</p>
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No tier churn data yet.</p>
             ) : (
               churn.byTier.map((item) => (
                 <div key={item.plan}>
-                  <div className="flex items-center justify-between text-[12.5px]">
+                  <div className="flex items-center justify-between text-[11.5px]">
                     <span className="text-[var(--color-text-secondary)]">{item.plan}</span>
-                    <span className="font-[var(--font-mono)] text-[13px] font-black" style={{ color: item.ratePct >= 5 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.ratePct}%</span>
+                    <span className="font-[var(--font-mono)] text-[11.5px] font-black" style={{ color: item.ratePct >= 5 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.ratePct}%</span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                     <div className="h-full rounded-full" style={{ width: `${(item.ratePct / maxTierChurn) * 100}%`, background: item.ratePct >= 5 ? "var(--color-danger)" : "var(--color-accent-primary)" }} />
@@ -376,17 +376,17 @@ async function RetentionTab() {
           </div>
         </section>
         <section className="surface-card p-6">
-          <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Churn rate by tenure</p>
-          <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Share of all churn, by how long the school had been on the platform.</p>
+          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Churn rate by tenure</p>
+          <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Share of all churn, by how long the school had been on the platform.</p>
           <div className="mt-4 grid gap-3.5">
             {churn.byTenure.every((item) => item.count === 0) ? (
-              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No churn logged yet.</p>
+              <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No churn logged yet.</p>
             ) : (
               churn.byTenure.map((item) => (
                 <div key={item.bucket}>
-                  <div className="flex items-center justify-between text-[12.5px]">
+                  <div className="flex items-center justify-between text-[11.5px]">
                     <span className="text-[var(--color-text-secondary)]">{item.bucket}</span>
-                    <span className="font-[var(--font-mono)] text-[13px] font-black" style={{ color: item.pct >= 40 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>
+                    <span className="font-[var(--font-mono)] text-[11.5px] font-black" style={{ color: item.pct >= 40 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                     <div className="h-full rounded-full" style={{ width: `${(item.pct / maxTenureChurn) * 100}%`, background: item.pct >= 40 ? "var(--color-danger)" : "var(--color-accent-primary)" }} />
@@ -402,8 +402,8 @@ async function RetentionTab() {
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1.5">
           <p className="section-eyebrow">NPS &amp; satisfaction</p>
-          <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Net promoter score</h2>
-          <p className="text-[12.5px] text-[var(--color-text-secondary)]">Recorded from school admin survey responses.</p>
+          <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Net promoter score</h2>
+          <p className="text-[11.5px] text-[var(--color-text-secondary)]">Recorded from school admin survey responses.</p>
         </div>
         <ResourceActionDialog
           triggerLabel="Record NPS"
@@ -428,17 +428,17 @@ async function RetentionTab() {
       </section>
 
       <section className="surface-card p-6">
-        <p className="text-[14px] font-bold text-[var(--color-text-primary)]">NPS by tier and region</p>
-        <p className="mt-1.5 text-[11.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
+        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">NPS by tier and region</p>
+        <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Broken down so outreach can be targeted where it moves the number.</p>
         <div className="mt-4 grid gap-3.5">
           {nps.byTierAndRegion.length === 0 ? (
-            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[12.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
+            <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No NPS responses yet.</p>
           ) : (
             nps.byTierAndRegion.map((item) => (
               <div key={`${item.kind}-${item.label}`}>
-                <div className="flex items-center justify-between text-[12.5px]">
+                <div className="flex items-center justify-between text-[11.5px]">
                   <span className="text-[var(--color-text-secondary)]">{item.label}</span>
-                  <span className="font-[var(--font-mono)] text-[13px] font-black text-[var(--color-text-primary)]">{item.npsScore >= 0 ? "+" : ""}{item.npsScore} · {item.responses} resp.</span>
+                  <span className="font-[var(--font-mono)] text-[11.5px] font-black text-[var(--color-text-primary)]">{item.npsScore >= 0 ? "+" : ""}{item.npsScore} · {item.responses} resp.</span>
                 </div>
                 <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
                   <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(Math.abs(item.npsScore) / maxTierRegionNps) * 100}%` }} />
@@ -553,13 +553,13 @@ async function ProductTab() {
             { key: "adoption", header: "Adoption", render: (item) => <BarCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
             { key: "using", header: "Schools using", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
             { key: "notUsing", header: "Schools not using", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
-            { key: "diagnosis", header: "Diagnosis from support tickets", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not automatically correlated to tickets yet</span> }
+            { key: "diagnosis", header: "Diagnosis from support tickets", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not automatically correlated to tickets yet</span> }
           ]}
         />
         <section className="surface-card overflow-hidden">
           <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-            <p className="text-[14px] font-bold text-[var(--color-text-primary)]">How this grid is read</p>
-            <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">Four rules keep the comparison honest</p>
+            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">How this grid is read</p>
+            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Four rules keep the comparison honest</p>
           </div>
           <div className="grid gap-3 p-5">
             {[
@@ -569,8 +569,8 @@ async function ProductTab() {
               { title: "Below 40% for two tiers running is worth a product conversation", detail: "The floor is a prompt to ask why, not an automatic verdict." }
             ].map((row) => (
               <div key={row.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{row.title}</p>
-                <p className="mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">{row.detail}</p>
+                <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{row.title}</p>
+                <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">{row.detail}</p>
               </div>
             ))}
           </div>
@@ -580,7 +580,7 @@ async function ProductTab() {
       <StateAdoptionTable heatmapByState={adoption.heatmapByState} stateHeatmapModules={adoption.stateHeatmapModules} />
 
       <FeatureRequestTable items={bi.featureRequests} />
-      <p className="-mt-2 flex items-center gap-2 text-[11.5px] text-[var(--color-text-muted)]">
+      <p className="-mt-2 flex items-center gap-2 text-[10.5px] text-[var(--color-text-muted)]">
         <Lightbulb className="h-3.5 w-3.5" /> Priority score weights mention count, distinct schools, and distinct tiers requesting. Every request here comes from support-ticket keyword matching — there's no separate manual-log path in this build yet.
       </p>
     </section>

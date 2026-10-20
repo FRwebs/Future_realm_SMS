@@ -40,8 +40,8 @@ export function FeatureRequestTable({ items }: FeatureRequestTableProps) {
         { key: "keyword", header: "Feature request", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.keyword}</span>, sortValue: (item) => item.keyword },
         { key: "schools", header: "Schools", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.schoolsRequesting}</span>, sortValue: (item) => item.schoolsRequesting },
         { key: "tiers", header: "Tier weight", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-secondary)]">{item.tiersRequesting} tier{item.tiersRequesting === 1 ? "" : "s"}</span>, sortValue: (item) => item.tiersRequesting },
-        { key: "severity", header: "Severity", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Not scored</span> },
-        { key: "source", header: "Source", render: () => <span className="text-[12px] text-[var(--color-text-muted)]">Support tickets</span> },
+        { key: "severity", header: "Severity", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not scored</span> },
+        { key: "source", header: "Source", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Support tickets</span> },
         { key: "priority", header: "Priority score", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.priorityScore}</span>, sortValue: (item) => item.priorityScore }
       ]}
     />

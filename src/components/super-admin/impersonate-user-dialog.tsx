@@ -84,7 +84,7 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-destructive inline-flex items-center justify-center gap-2 px-5 text-[13px] font-semibold">
+      <button type="button" onClick={() => setOpen(true)} className="btn-destructive inline-flex items-center justify-center gap-2 px-5 text-[11.5px] font-semibold">
         <AlertTriangle className="h-4 w-4" />
         Impersonate
       </button>
@@ -104,7 +104,7 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
       >
         <div className="grid gap-5">
           <label className="grid gap-2">
-            <span className="text-[12px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Reason for impersonation</span>
+            <span className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Reason for impersonation</span>
             <textarea
               required
               value={reason}
@@ -118,20 +118,20 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
           </label>
 
           {confirming ? (
-            <div className="rounded-[12px] border border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] px-4 py-3 text-[12.5px] font-semibold text-[var(--color-warning)]">
+            <div className="rounded-[12px] border border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-warning)]">
               This creates a time-boxed, fully-logged view-as session.
             </div>
           ) : null}
 
           {error ? (
-            <div className="rounded-[12px] border border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] px-4 py-3 text-[12.5px] font-semibold text-[var(--color-danger)]">
+            <div className="rounded-[12px] border border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] px-4 py-3 text-[11.5px] font-semibold text-[var(--color-danger)]">
               {error}
             </div>
           ) : null}
 
           <div className="flex flex-wrap justify-end gap-2">
-            <button type="button" className="btn-secondary h-10 px-4 text-[12.5px]" onClick={() => setOpen(false)} disabled={pending}>Cancel</button>
-            <button type="button" className="btn-destructive h-10 px-4 text-[12.5px]" onClick={submit} disabled={pending || reason.trim().length < 3}>
+            <button type="button" className="btn-secondary h-10 px-4 text-[11.5px]" onClick={() => setOpen(false)} disabled={pending}>Cancel</button>
+            <button type="button" className="btn-destructive h-10 px-4 text-[11.5px]" onClick={submit} disabled={pending || reason.trim().length < 3}>
               {pending ? "Starting..." : confirming ? "Confirm Impersonation" : "Generate token"}
             </button>
           </div>

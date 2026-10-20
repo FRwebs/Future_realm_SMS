@@ -15,7 +15,7 @@ const accessLevels = ["NONE", "VIEW", "EDIT", "FULL"].map((v) => ({ label: v, va
 function InertAction({ label, note }: { label: string; note: string }) {
   const { showToast } = useToast();
   return (
-    <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[12.5px]">
+    <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[11.5px]">
       {label}
     </button>
   );
@@ -38,7 +38,7 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
 
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} className="btn-secondary px-4 text-[12.5px]">
+      <button type="button" onClick={() => setOpen(true)} className="btn-secondary px-4 text-[11.5px]">
         Manage
       </button>
 
@@ -158,8 +158,8 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
 
           {suspended ? (
             <div className="rounded-[12px] border p-4" style={{ background: "var(--color-danger-dim)", borderColor: "#F3E0E0" }}>
-              <p className="mb-1.5 text-[12.5px] font-bold text-[var(--color-danger)]">Account suspended</p>
-              <p className="text-[12px] leading-relaxed text-[var(--color-danger)]">
+              <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-danger)]">Account suspended</p>
+              <p className="text-[11px] leading-relaxed text-[var(--color-danger)]">
                 Shown here as a real status this system can hold — but nothing in this codebase sets or clears it for an internal account, so how it got here (and how to reverse it) isn&apos;t tracked.
               </p>
             </div>
@@ -173,7 +173,7 @@ function MemberReview({ member, matrix }: { member: SuperAdminInternalMember; ma
               bold: (gridRow?.access[moduleId] ?? "NONE") !== "NONE"
             }))}
           />
-          <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
             Whole-module levels only (None/View/Edit/Full) — this system has no per-action grant within a module, unlike the mockup&apos;s per-action toggle list.
             A module reading None is not enterable at all — it does not appear in their sidebar. Note this grid is recorded but not enforced (see &quot;How access is
             actually enforced&quot; on the Roles &amp; Scopes tab).

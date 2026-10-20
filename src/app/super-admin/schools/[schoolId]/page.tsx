@@ -110,7 +110,7 @@ function reasonFromDetails(details: unknown): string | null {
 function DetailSection({ title, fields }: { title: string; fields: Array<{ label: string; value: ReactNode }> }) {
   return (
     <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-      <div className="border-b border-[var(--color-border-muted)] px-[18px] py-[13px] text-[13.5px] font-semibold text-[var(--color-text-primary)]">
+      <div className="border-b border-[var(--color-border-muted)] px-[18px] py-[13px] text-[12px] font-semibold text-[var(--color-text-primary)]">
         {title}
       </div>
       {fields.map((field, index) => (
@@ -118,8 +118,8 @@ function DetailSection({ title, fields }: { title: string; fields: Array<{ label
           key={field.label}
           className={`flex items-start justify-between gap-4 px-[18px] py-[10px] ${index < fields.length - 1 ? "border-b border-[var(--color-border-muted)]" : ""}`}
         >
-          <dt className="shrink-0 text-[12px] text-[var(--color-text-muted)]">{field.label}</dt>
-          <dd className="text-right text-[12px] font-semibold text-[var(--color-text-primary)]">{field.value}</dd>
+          <dt className="shrink-0 text-[11px] text-[var(--color-text-muted)]">{field.label}</dt>
+          <dd className="text-right text-[11px] font-semibold text-[var(--color-text-primary)]">{field.value}</dd>
         </div>
       ))}
     </div>
@@ -138,8 +138,8 @@ function FieldList({ fields }: { fields: Array<{ label: string; value: ReactNode
           key={field.label}
           className={`flex items-center justify-between gap-4 px-4 py-3 ${index % 2 === 1 ? "bg-[var(--color-bg-subtle)]" : "bg-[var(--color-bg-surface)]"}`}
         >
-          <dt className="text-[12.5px] font-medium text-[var(--color-text-secondary)]">{field.label}</dt>
-          <dd className="text-right text-[13px] font-semibold text-[var(--color-text-primary)]">{field.value}</dd>
+          <dt className="text-[11.5px] font-medium text-[var(--color-text-secondary)]">{field.label}</dt>
+          <dd className="text-right text-[11.5px] font-semibold text-[var(--color-text-primary)]">{field.value}</dd>
         </div>
       ))}
     </dl>
@@ -149,7 +149,7 @@ function FieldList({ fields }: { fields: Array<{ label: string; value: ReactNode
 function TogglePill({ enabled }: { enabled: boolean }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-bold"
+      className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
       style={{
         background: enabled ? "var(--color-success-dim)" : "var(--color-bg-subtle)",
         color: enabled ? "var(--color-success)" : "var(--color-text-muted)"
@@ -188,34 +188,34 @@ export default async function SuperAdminSchoolDetailPage({
   return (
     <div className="grid gap-5">
       <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-[22px]">
-        <Link href="/super-admin/schools" className="mb-4 inline-flex text-[12.5px] font-semibold text-[#12796A] underline">
+        <Link href="/super-admin/schools" className="mb-4 inline-flex text-[11.5px] font-semibold text-[#12796A] underline">
           ← Back to schools
         </Link>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-center gap-3.5">
-            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-[#0D2315] font-[var(--font-heading)] text-[17px] font-bold text-white">
+            <div className="flex h-[52px] w-[52px] shrink-0 items-center justify-center rounded-[14px] bg-[#0D2315] font-[var(--font-heading)] text-[15.5px] font-bold text-white">
               {initials(school.name)}
             </div>
             <div className="min-w-0">
               <div className="mb-[5px] flex flex-wrap items-center gap-2.5">
-                <h1 className="truncate font-[var(--font-heading)] text-[19px] font-bold text-[#0D2315]">{school.name}</h1>
+                <h1 className="truncate font-[var(--font-heading)] text-[17px] font-bold text-[#0D2315]">{school.name}</h1>
                 <StatusBadge status={school.status} />
-                <span className="inline-flex rounded-full bg-[#0D2315] px-[9px] py-[3px] text-[11px] font-bold text-white">
+                <span className="inline-flex rounded-full bg-[#0D2315] px-[9px] py-[3px] text-[10px] font-bold text-white">
                   {school.plan} tier
                 </span>
                 <StatusBadge status={verification.label} tone={verification.tone} />
               </div>
-              <p className="text-[12.5px] text-[#77857C]">
+              <p className="text-[11.5px] text-[#77857C]">
                 {[school.city, school.state].filter(Boolean).join(", ") || "Location not recorded"} · {school.subdomain ? school.subdomain : "No web address"} · Joined {formatDate(school.createdAt)}
               </p>
               {school.accountManager ? (
-                <p className="mt-1 text-[11.5px] text-[#8C9A92]">Account manager: {school.accountManager.name}</p>
+                <p className="mt-1 text-[10.5px] text-[#8C9A92]">Account manager: {school.accountManager.name}</p>
               ) : null}
-              {school.statusReason ? <p className="mt-1 text-[11.5px] text-[#8C9A92]">Last status reason: {school.statusReason}</p> : null}
+              {school.statusReason ? <p className="mt-1 text-[10.5px] text-[#8C9A92]">Last status reason: {school.statusReason}</p> : null}
             </div>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <Link href="/super-admin/users" className="btn-secondary px-4 py-2 text-[12.5px] font-semibold">
+            <Link href="/super-admin/users" className="btn-secondary px-4 py-2 text-[11.5px] font-semibold">
               Support access
             </Link>
             <ResourceActionDialog
@@ -244,8 +244,8 @@ export default async function SuperAdminSchoolDetailPage({
           <section className="grid gap-3 md:grid-cols-4">
             {Object.entries(school.counts).map(([label, value]) => (
               <article key={label} className="surface-card p-4">
-                <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
-                <p className="mt-2 font-[var(--font-heading)] text-[22px] font-bold text-[var(--color-text-primary)]">{value}</p>
+                <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">{label}</p>
+                <p className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">{value}</p>
               </article>
             ))}
           </section>
@@ -258,7 +258,7 @@ export default async function SuperAdminSchoolDetailPage({
                 {
                   label: "Web address",
                   value: school.subdomain ? (
-                    <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-1.5 py-0.5 font-[var(--font-mono)] text-[11px]">{school.subdomain}</span>
+                    <span className="rounded-[6px] bg-[var(--color-bg-subtle)] px-1.5 py-0.5 font-[var(--font-mono)] text-[10px]">{school.subdomain}</span>
                   ) : (
                     <span className="text-[var(--color-warning)]">Not assigned</span>
                   )
@@ -286,7 +286,8 @@ export default async function SuperAdminSchoolDetailPage({
                 { label: "Tier", value: `${school.plan} tier` },
                 { label: "Status", value: school.status.replaceAll("_", " ") },
                 { label: "Renewal", value: renewalText(school) },
-                { label: "Notification credits", value: "Not tracked — no credit system" },
+                { label: "Notification credits", value: school.credits ? `${school.credits.sms.toLocaleString()} SMS · ${school.credits.whatsapp.toLocaleString()} WhatsApp${school.credits.low ? " · low" : ""}` : "No wallet yet" },
+                { label: "Trial", value: school.billingStatus === "TRIAL" ? (school.trialStartedAt ? `Started ${formatDate(school.trialStartedAt)}` : "Not started — begins when the school starts it") : "Not on a trial" },
                 { label: "Churn risk", value: school.riskScore === null || school.riskScore === undefined ? "Not scored" : `${school.riskScore}%` }
               ]}
             />
@@ -305,14 +306,14 @@ export default async function SuperAdminSchoolDetailPage({
 
           <section className="grid gap-5 lg:grid-cols-2">
             <section className="surface-card p-6">
-              <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Contact & ownership</h2>
-              <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Account manager, school group and status actions for this tenant.</p>
+              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Contact & ownership</h2>
+              <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Account manager, school group and status actions for this tenant.</p>
 
               <div className="mt-5 rounded-[10px] bg-[var(--color-bg-subtle)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Account manager</p>
-                    <p className="mt-1 text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Account manager</p>
+                    <p className="mt-1 text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                       {school.accountManager ? `${school.accountManager.name} · ${school.accountManager.email}` : "Unassigned"}
                     </p>
                   </div>
@@ -332,8 +333,8 @@ export default async function SuperAdminSchoolDetailPage({
               <div className="mt-3 rounded-[10px] bg-[var(--color-bg-subtle)] p-4">
                 <div className="flex items-center justify-between gap-3">
                   <div>
-                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">School group</p>
-                    <p className="mt-1 text-[13px] font-semibold text-[var(--color-text-primary)]">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">School group</p>
+                    <p className="mt-1 text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                       {school.schoolGroup ? school.schoolGroup.name : "Not linked to a group"}
                     </p>
                   </div>
@@ -364,7 +365,7 @@ export default async function SuperAdminSchoolDetailPage({
                       ]}
                     />
                   ) : (
-                    <Link href="/super-admin/schools?tab=groups" className="btn-link text-[12.5px]">
+                    <Link href="/super-admin/schools?tab=groups" className="btn-link text-[11.5px]">
                       Create a group first
                     </Link>
                   )}
@@ -398,14 +399,14 @@ export default async function SuperAdminSchoolDetailPage({
                   ]}
                 />
               </div>
-              {!canClose ? <p className="mt-3 text-[12px] text-[var(--color-text-muted)]">A full data export is required before this school can be deactivated or closed.</p> : null}
+              {!canClose ? <p className="mt-3 text-[11px] text-[var(--color-text-muted)]">A full data export is required before this school can be deactivated or closed.</p> : null}
             </section>
 
             <section className="surface-card p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">School contacts</h2>
-                  <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Secondary contacts beyond the primary owner.</p>
+                  <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">School contacts</h2>
+                  <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Secondary contacts beyond the primary owner.</p>
                 </div>
                 <ResourceActionDialog
                   triggerLabel="Add contact"
@@ -426,20 +427,20 @@ export default async function SuperAdminSchoolDetailPage({
               </div>
               <div className="mt-4 grid gap-2">
                 {school.contacts.length === 0 ? (
-                  <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[13px] text-[var(--color-text-muted)]">No additional contacts recorded.</p>
+                  <p className="rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No additional contacts recorded.</p>
                 ) : null}
                 {school.contacts.map((contact) => (
                   <div key={contact.id} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
                     <div>
-                      <p className="flex items-center gap-2 text-[13px] font-semibold text-[var(--color-text-primary)]">
+                      <p className="flex items-center gap-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                         {contact.name}
                         {contact.isPrimary ? (
-                          <span className="rounded-full px-2 py-0.5 text-[10px] font-bold uppercase" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
+                          <span className="rounded-full px-2 py-0.5 text-[9px] font-bold uppercase" style={{ background: "var(--color-success-dim)", color: "var(--color-success)" }}>
                             Primary
                           </span>
                         ) : null}
                       </p>
-                      <p className="text-[12px] text-[var(--color-text-muted)]">{contact.role} · {contact.email ?? "no email"} · {contact.phone ?? "no phone"}</p>
+                      <p className="text-[11px] text-[var(--color-text-muted)]">{contact.role} · {contact.email ?? "no email"} · {contact.phone ?? "no phone"}</p>
                     </div>
                     <ResourceActionDialog
                       triggerLabel="Remove"
@@ -477,8 +478,8 @@ export default async function SuperAdminSchoolDetailPage({
       {tab === "configuration" ? (
         <section className="surface-card p-6">
           <p className="section-eyebrow">Read-only — owned by the school</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Academic configuration</h2>
-          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Configuration belongs to the school; Future Realm admins can view but not edit it here.</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Academic configuration</h2>
+          <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Configuration belongs to the school; Future Realm admins can view but not edit it here.</p>
           <div className="mt-5">
             <FieldList
               fields={[
@@ -498,8 +499,8 @@ export default async function SuperAdminSchoolDetailPage({
       {tab === "usage" ? (
         <section className="surface-card p-6">
           <p className="section-eyebrow">Usage — module adoption and activity</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Usage & engagement</h2>
-          <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Module adoption and recent activity for this tenant.</p>
+          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Usage & engagement</h2>
+          <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Module adoption and recent activity for this tenant.</p>
           <div className="mt-5">
             <FieldList
               fields={[
@@ -513,11 +514,11 @@ export default async function SuperAdminSchoolDetailPage({
             />
           </div>
 
-          <p className="mt-6 text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Feature modules</p>
+          <p className="mt-6 text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Feature modules</p>
           <div className="mt-3 grid gap-2">
             {Object.entries(school.featureFlags).map(([key, enabled]) => (
               <div key={key} className="flex items-center justify-between rounded-[10px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                <span className="text-[13px] font-semibold text-[var(--color-text-primary)]">{moduleLabels[key] ?? key}</span>
+                <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{moduleLabels[key] ?? key}</span>
                 <TogglePill enabled={enabled} />
               </div>
             ))}
@@ -531,7 +532,7 @@ export default async function SuperAdminSchoolDetailPage({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="section-eyebrow">Subscription & billing</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-[20px] font-bold text-[var(--color-text-primary)]">Plan and billing status</h2>
+                <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Plan and billing status</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <ResourceActionDialog
@@ -574,8 +575,8 @@ export default async function SuperAdminSchoolDetailPage({
           </section>
 
           <section className="surface-card p-6">
-            <h2 className="font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Data export & closure</h2>
-            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">
+            <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Data export & closure</h2>
+            <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">
               {school.dataExportedAt
                 ? `Full data export completed ${formatDate(school.dataExportedAt)}. This school can now be deactivated or closed.`
                 : "A full export of students, staff, and finance records is required before this school can be deactivated or closed."}
@@ -590,14 +591,14 @@ export default async function SuperAdminSchoolDetailPage({
       {tab === "activity" ? (
         <section className="overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="border-b border-[var(--color-border-muted)] px-[22px] py-[17px]">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">History</p>
-            <h2 className="mt-1 font-[var(--font-heading)] text-[17px] font-bold text-[var(--color-text-primary)]">{school.name}</h2>
-            <p className="mt-2 text-[11.5px] leading-[1.5] text-[var(--color-text-secondary)]">
+            <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">History</p>
+            <h2 className="mt-1 font-[var(--font-heading)] text-[15.5px] font-bold text-[var(--color-text-primary)]">{school.name}</h2>
+            <p className="mt-2 text-[10.5px] leading-[1.5] text-[var(--color-text-secondary)]">
               Every entry on this record: who, what, when and why. Immutable — no user at any level can alter them.
             </p>
           </div>
           {school.activityLog.length === 0 ? (
-            <p className="px-[22px] py-10 text-center text-[13px] text-[var(--color-text-muted)]">No audit activity recorded for this school yet.</p>
+            <p className="px-[22px] py-10 text-center text-[11.5px] text-[var(--color-text-muted)]">No audit activity recorded for this school yet.</p>
           ) : (
             school.activityLog.map((entry) => {
               const isSystem = entry.superAdmin === "System";
@@ -611,26 +612,26 @@ export default async function SuperAdminSchoolDetailPage({
                   />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-baseline justify-between gap-3">
-                      <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">
+                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">
                         {actionLabel(entry.action)} · {entry.target.split(":")[0]}
                       </p>
-                      <p className="whitespace-nowrap text-[11px] text-[var(--color-text-muted)]">{formatDate(entry.timestamp)}</p>
+                      <p className="whitespace-nowrap text-[10px] text-[var(--color-text-muted)]">{formatDate(entry.timestamp)}</p>
                     </div>
-                    {reason ? <p className="mt-1.5 text-[11.5px] leading-[1.5] text-[var(--color-text-secondary)]">{reason}</p> : null}
+                    {reason ? <p className="mt-1.5 text-[10.5px] leading-[1.5] text-[var(--color-text-secondary)]">{reason}</p> : null}
                     {!reason && detailLine ? (
-                      <span className="mt-1.5 inline-block rounded-[7px] border border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[11px] text-[var(--color-text-muted)]">
+                      <span className="mt-1.5 inline-block rounded-[7px] border border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] text-[var(--color-text-muted)]">
                         {detailLine}
                       </span>
                     ) : null}
-                    <p className="mt-1.5 text-[11px] text-[var(--color-text-muted)]">{entry.superAdmin}</p>
+                    <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">{entry.superAdmin}</p>
                   </div>
                 </div>
               );
             })
           )}
           <div className="flex items-center justify-between px-[22px] py-4">
-            <p className="text-[11.5px] text-[var(--color-text-muted)]">This trail is permanent — entries are never edited or deleted.</p>
-            <Link href={`/super-admin/audit-logs?schoolId=${school.id}`} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] underline">
+            <p className="text-[10.5px] text-[var(--color-text-muted)]">This trail is permanent — entries are never edited or deleted.</p>
+            <Link href={`/super-admin/audit-logs?schoolId=${school.id}`} className="text-[10.5px] font-semibold text-[var(--color-text-accent)] underline">
               View in the full audit log & export
             </Link>
           </div>

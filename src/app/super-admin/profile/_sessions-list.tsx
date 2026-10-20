@@ -13,7 +13,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
   const [page, setPage] = useState(1);
 
   if (!sessions.length) {
-    return <p className="px-5 py-4 text-[12px] text-[var(--color-text-secondary)]">No other active sessions.</p>;
+    return <p className="px-5 py-4 text-[11px] text-[var(--color-text-secondary)]">No other active sessions.</p>;
   }
 
   const totalPages = Math.max(1, Math.ceil(sessions.length / PAGE_SIZE));
@@ -29,8 +29,8 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
       {pageRows.map((item) => (
         <div key={item.id} className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
           <div className="min-w-0">
-            <p className="truncate text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.device ?? "Unknown device"}</p>
-            <p className="text-pretty mt-0.5 text-[11px] text-[#8C9A92]">
+            <p className="truncate text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.device ?? "Unknown device"}</p>
+            <p className="text-pretty mt-0.5 text-[10px] text-[#8C9A92]">
               {item.ipAddress ?? "Unknown IP"} · expires {formatDate(item.expiresAt)}
             </p>
           </div>
@@ -51,7 +51,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
 
       {totalPages > 1 ? (
         <div className="flex items-center justify-between gap-3 border-b border-[#F2F7F4] px-5 py-2.5">
-          <p className="text-[11px] text-[var(--color-text-muted)]">
+          <p className="text-[10px] text-[var(--color-text-muted)]">
             Showing {rangeStart}–{rangeEnd} of {sessions.length}
           </p>
           <div className="flex items-center gap-1.5">
@@ -64,7 +64,7 @@ export function SessionsList({ sessions }: { sessions: SuperAdminInternalSession
             >
               <ChevronLeft className="h-3.5 w-3.5" />
             </button>
-            <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">
+            <p className="text-[10px] font-semibold text-[var(--color-text-primary)]">
               Page {currentPage} of {totalPages}
             </p>
             <button
