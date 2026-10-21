@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { DetailFacts, DetailSheet } from "@/components/data-display/detail-sheet";
 import { TableCard } from "@/components/data-display/table-card";
+import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { useToast } from "@/components/ui/toast-provider";
 
 export interface RoleBreakdownRow {
@@ -18,12 +19,80 @@ export interface RoleBreakdownRow {
   holderNames: string[];
 }
 
+export interface CustomRoleRow {
+  id: string;
+  name: string;
+  description: string | null;
+  baseRole: string;
+  grid: Record<string, string>;
+  retired: boolean;
+  holders: string[];
+}
+
 function InertAction({ label, note }: { label: string; note: string }) {
   const { showToast } = useToast();
   return (
     <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[11.5px]">
       {label}
     </button>
+  );
+}
+
+/** Copying a built-in role is how a narrower version of it gets made: the new role starts from the same grid and is then trimmed. */
+function DuplicateRole({ copyFrom, label }: { copyFrom: string; label: string }) {
+  return (
+    <ResourceActionDialog
+      triggerLabel="Duplicate as a new role"
+      title={`Duplicate ${label}`}
+      description="The new role starts with the same module access and can then be trimmed. Nobody is moved onto it."
+      endpoint="/api/super-admin/team-access/roles"
+      variant="secondary"
+      submitLabel="Create the role"
+      fields={[
+        { name: "name", label: "Name", required: true, placeholder: `e.g. ${label} (read-only)`, section: "The new role" },
+        { name: "description", label: "What it is for", placeholder: "One line, shown beside the role", section: "The new role", full: true },
+        { name: "copyFrom", label: "Copied from", type: "static", placeholder: label, section: "The new role" },
+        { name: "baseRole", label: "Signs in as", type: "select", defaultValue: "PLATFORM_ADMIN", section: "The new role", options: [{ label: "Platform Admin", value: "PLATFORM_ADMIN" }, { label: "Developer", value: "DEVELOPER" }], note: "The platform role it authenticates as. Module access comes from the grid, not from this." }
+      ]}
+      impact={{
+        label: "Once created",
+        rows: [
+          ["Starts as a copy", `Every module ${label} can enter, at the same level. Trim it from the role's own row.`],
+          ["Nobody is on it yet", "Assign it to a person from their Manage panel on the People tab."],
+          ["Retirable later", "A role nobody holds can be retired; one with holders cannot, until they are moved."]
+        ]
+      }}
+      note="A duplicate is for narrowing a role, not widening one — a grid can never grant more than the person editing it holds."
+    />
+  );
+}
+
+function RetireRole({ id, name, holders }: { id: string; name: string; holders: string[] }) {
+  return (
+    <ResourceActionDialog
+      triggerLabel="Retire this role"
+      title={`Retire ${name}`}
+      description={holders.length ? "This role still has people on it, so it cannot be retired yet." : "The role stops being available to assign. Nothing already recorded against it changes."}
+      endpoint={`/api/super-admin/team-access/roles/${id}/retire`}
+      variant="danger"
+      submitLabel="Retire the role"
+      confirmLabel="Retire it"
+      confirmMessage="A retired role can no longer be assigned to anyone."
+      fields={[
+        { name: "_name", label: "Role", type: "static", placeholder: name, section: "What you are retiring" },
+        { name: "_holders", label: "People on it", type: "static", placeholder: holders.length ? holders.join(", ") : "Nobody", section: "What you are retiring", note: holders.length ? "Move them to another role first — the request is refused while anyone holds it." : undefined, full: true },
+        { name: "reason", label: "Why it is being retired", required: true, type: "textarea", placeholder: "Recorded in the audit log beside the role", section: "Reason" }
+      ]}
+      impact={{
+        label: "On retiring",
+        rows: [
+          ["Cannot be assigned again", "It disappears from the list of roles a person can be put on."],
+          ["Refused while anyone holds it", "Nobody is left on a role that no longer exists."],
+          ["Logged with your reason", "The role, who retired it and why."]
+        ]
+      }}
+      note="Retiring is not deleting: the role stays on record so past audit entries still name something real."
+    />
   );
 }
 
@@ -50,8 +119,7 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
         footer={
           <div className="flex flex-wrap gap-2">
             <InertAction label="Assign privileges to this role" note="Not a single action here — set access module by module from a person's Manage panel on the People tab, or edit the role's Role Template below." />
-            <InertAction label="Duplicate as a new role" note="Not built — roles are a fixed platform enum, not records that can be copied." />
-            <InertAction label="Retire this role" note="Not built — roles are a fixed platform enum; none can be removed or retired from this screen." />
+            <DuplicateRole copyFrom={row.roleValue} label={row.role} />
           </div>
         }
       >
@@ -112,6 +180,125 @@ export function PrivilegesByRoleTable({ items }: { items: RoleBreakdownRow[] }) 
         { key: "purpose", header: "What it is for", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
         { key: "actions", header: "", sortable: false, render: (row) => <RoleReview row={row} /> }
       ]}
+    />
+  );
+}
+
+/**
+ * Roles the team made, as opposed to the platform's built-in ones.
+ *
+ * A built-in role is an enum the code checks by name, so it cannot be copied or
+ * removed. A role made here is a record: a name, a base role to sign in as, and
+ * a grid of module access. That is what makes "duplicate" and "retire" possible
+ * at all, and why the two tables are separate rather than one list pretending
+ * both kinds behave the same.
+ */
+export function CustomRolesTable({ items, moduleLabels }: { items: CustomRoleRow[]; moduleLabels: Record<string, string> }) {
+  return (
+    <TableCard
+      title="Roles your team made"
+      description="A role here is a record, not a platform enum: it can be copied, edited and retired. Module access comes from its own grid; the base role only decides what it signs in as."
+      items={items}
+      pageSize={false}
+      getRowKey={(row) => row.id}
+      emptyState="No role has been made yet. Duplicate a built-in role from its row above to start one."
+      columns={[
+        { key: "name", header: "Role", render: (row) => (
+          <div className="min-w-0">
+            <p className="font-bold text-[var(--color-text-primary)]">{row.name}</p>
+            {row.description ? <p className="text-[10px] text-[var(--color-text-muted)]">{row.description}</p> : null}
+          </div>
+        ) },
+        { key: "base", header: "Signs in as", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.baseRole.replace(/_/g, " ").toLowerCase()}</span> },
+        {
+          key: "modules",
+          header: "Modules open",
+          render: (row) => {
+            const open = Object.values(row.grid).filter((level) => level && level !== "NONE").length;
+            return <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{open}</span>;
+          },
+          sortValue: (row) => Object.values(row.grid).filter((level) => level && level !== "NONE").length
+        },
+        {
+          key: "at-full",
+          header: "At full",
+          render: (row) => <span className="font-[var(--font-mono)] text-[var(--color-text-secondary)]">{Object.values(row.grid).filter((level) => level === "FULL").length}</span>
+        },
+        {
+          key: "holders",
+          header: "People on it",
+          render: (row) => (row.holders.length ? <span className="text-[11px] text-[var(--color-text-secondary)]">{row.holders.join(", ")}</span> : <span className="text-[11px] text-[var(--color-text-muted)]">Nobody yet</span>),
+          sortValue: (row) => row.holders.length
+        },
+        {
+          key: "state",
+          header: "State",
+          render: (row) => (
+            <span
+              className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
+              style={row.retired ? { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" } : { background: "var(--color-success-dim)", color: "var(--color-success)" }}
+            >
+              {row.retired ? "Retired" : "In use"}
+            </span>
+          )
+        },
+        {
+          key: "actions",
+          header: "",
+          sortable: false,
+          render: (row) =>
+            row.retired ? (
+              <span className="text-[11px] text-[var(--color-text-muted)]">—</span>
+            ) : (
+              <div className="flex flex-wrap items-center gap-2">
+                <EditRoleGrid row={row} moduleLabels={moduleLabels} />
+                <RetireRole id={row.id} name={row.name} holders={row.holders} />
+              </div>
+            )
+        }
+      ]}
+    />
+  );
+}
+
+const ACCESS_LEVELS = [
+  { label: "None — cannot enter the module", value: "NONE" },
+  { label: "View — read only", value: "VIEW" },
+  { label: "Edit — read and change", value: "EDIT" },
+  { label: "Full — everything the module offers", value: "FULL" }
+];
+
+/** Editing a role's grid is editing one record, so it reaches everybody on that role at once. */
+function EditRoleGrid({ row, moduleLabels }: { row: CustomRoleRow; moduleLabels: Record<string, string> }) {
+  const modules = Object.keys(moduleLabels).length ? Object.keys(moduleLabels) : Object.keys(row.grid);
+  return (
+    <ResourceActionDialog
+      triggerLabel="Edit access"
+      title={`Access for ${row.name}`}
+      description="What this role can enter, and what it may do inside. It applies to everyone on the role the moment it is saved."
+      endpoint={`/api/super-admin/team-access/roles/${row.id}/grid`}
+      variant="secondary"
+      submitLabel="Save access"
+      fields={[
+        { name: "description", label: "What it is for", defaultValue: row.description ?? "", placeholder: "One line, shown beside the role", section: "The role", full: true },
+        ...modules.map((moduleId) => ({
+          name: `grid.${moduleId}`,
+          label: moduleLabels[moduleId] ?? moduleId,
+          type: "select" as const,
+          defaultValue: row.grid[moduleId] ?? "NONE",
+          section: "Module access",
+          options: ACCESS_LEVELS
+        }))
+      ]}
+      impact={{
+        label: "On saving",
+        rows: [
+          ["Everyone on the role moves together", row.holders.length ? `${row.holders.length} ${row.holders.length === 1 ? "person" : "people"}: ${row.holders.join(", ")}.` : "Nobody holds it yet, so nothing changes today."],
+          ["Takes effect on their next request", "Open sessions are re-checked; nobody has to sign out."],
+          ["Never grants more than you hold", "A level above your own is refused when it is saved."]
+        ]
+      }}
+      note="This is module-level access. There is no separate per-action grant inside a module."
     />
   );
 }

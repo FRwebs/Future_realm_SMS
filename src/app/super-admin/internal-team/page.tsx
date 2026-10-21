@@ -1,10 +1,10 @@
+import { gridFields } from "./_grid-fields";
 import { AlertTriangle, Crown, ShieldCheck, Timer, UserCog, Users2 } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { FlowSteps } from "@/components/data-display/flow-steps";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
-import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -23,7 +23,7 @@ import type {
 import { formatDate } from "@/lib/utils/formatters";
 import { DepartmentsTable } from "./_departments-table";
 import { PeopleTable } from "./_people-table";
-import { PrivilegesByRoleTable, type RoleBreakdownRow } from "./_roles-table";
+import { CustomRolesTable, PrivilegesByRoleTable, type CustomRoleRow, type RoleBreakdownRow } from "./_roles-table";
 
 const rolePurpose: Record<string, string> = {
   PLATFORM_OWNER: "Highest-tier account — holds every restricted action this system checks for.",
@@ -35,6 +35,7 @@ const rolePurpose: Record<string, string> = {
   SUPER_ADMIN: "Full platform access — bypasses the permission grid, every module, every guarded action."
 };
 
+const roleChoices = (options: Array<{ label: string; value: string }>) => [{ label: "Choose a role", value: "" }, ...options];
 const roleOptions = ["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER", "DEVELOPER", "SUPER_ADMIN"].map((v) => ({ label: v.replaceAll("_", " "), value: v }));
 const ipRuleTypes = [{ label: "Allow", value: "ALLOW" }, { label: "Deny", value: "DENY" }];
 
@@ -87,12 +88,12 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
         action={
           <ResourceActionDialog
             triggerLabel="Invite a team member"
-            title="Team & Access"
-            description="Who inside FutureRealm can do what, over which records."
+            title="Invite a team member"
+            description="Module access, function rights and data scope are three separate decisions."
             endpoint="/api/super-admin/internal-team"
             variant="heroWhite"
             submitLabel="Send invitation"
-            fields={[
+            note="Nothing is granted until they accept; every sign-in asks for an email code." impact={{ label: "What happens on sending", rows: [["An invitation is emailed", "A single-use link — they set their own password, you never see it"], ["Access", "Their role template applies at once if one exists; module access is fine-tuned from Manage"], ["Attribution", "Every action they take is recorded under their own name — there are no shared accounts"]] }} fields={[
               { name: "firstName", label: "First name", required: true, section: "Person" },
               { name: "lastName", label: "Last name", required: true, section: "Person" },
               { name: "email", label: "Work email", type: "email", required: true, section: "Person" },
@@ -100,8 +101,8 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
               { name: "managerId", label: "Reports to", type: "select", defaultValue: "", options: [{ label: "Nobody", value: "" }, ...rosterForInvite.filter((m) => m.status === "ACTIVE").map((m) => ({ label: m.name, value: m.id }))], section: "Person" },
               { name: "level", label: "Level", placeholder: "e.g. Lead, Senior, Associate", section: "Person" },
               { name: "staffNumber", label: "Staff identifier", section: "Person" },
-              { name: "isExternal", label: "Employment", type: "select", defaultValue: "false", options: [{ label: "Employee", value: "false" }, { label: "External — contractor or partner staff", value: "true" }], section: "Person" },
-              { name: "role", label: "Role template", type: "select", options: roleOptions, section: "Access" },
+              { name: "isExternal", label: "External — contractor or partner staff", type: "switch", on: false, note: "Marked on their profile; access can be time-limited", section: "Person" },
+              { name: "role", label: "Role template", type: "select", required: true, options: roleChoices(roleOptions), section: "Access", note: "Sets module access and function rights — nothing is granted until you choose one" },
               { name: "scopeStates", label: "Data scope — states (comma-separated)", type: "textarea", placeholder: "Blank for every school", note: "Limits School Accounts to schools in these states. Module access is set afterwards from their Manage menu; their role template applies at once if one exists.", section: "Access" },
               { name: "mfa", label: "Multi-factor authentication", type: "static", disabled: true, placeholder: "Email code at every sign-in", note: "An authenticator app is turned on by the new person from Profile → Sessions & security.", section: "Fixed for everyone" },
               { name: "sessionTimeout", label: "Session timeout", type: "toggle", disabled: true, note: "Real — 8-hour session, and signed out after 30 minutes without a request.", section: "Fixed for everyone" },
@@ -141,16 +142,9 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
   const activeCount = members.filter((m) => m.status === "ACTIVE").length;
   const revokedCount = members.filter((m) => m.status === "REVOKED").length;
 
-  const thirtyDaysAgo = Date.now() - 30 * 24 * 60 * 60 * 1000;
   const all = allMembers ?? [];
   const superAdminCount = all.filter((m) => m.role === "SUPER_ADMIN").length;
   const suspendedCount = all.filter((m) => m.status === "SUSPENDED").length;
-  const onboarded = all
-    .filter((m) => m.status !== "REVOKED" && new Date(m.createdAt).getTime() >= thirtyDaysAgo)
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-  const offboarded = all
-    .filter((m) => m.status === "REVOKED")
-    .sort((a, b) => new Date(b.revokedAt ?? 0).getTime() - new Date(a.revokedAt ?? 0).getTime());
 
   return (
     <div className="grid gap-[14px]">
@@ -198,24 +192,13 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
               { name: "firstName", label: "First name", required: true },
               { name: "lastName", label: "Last name", required: true },
               { name: "email", label: "Email", type: "email", required: true },
-              { name: "role", label: "Role", type: "select", options: roleOptions },
+              { name: "role", label: "Role", type: "select", required: true, options: roleChoices(roleOptions) },
               { name: "department", label: "Department (optional)" }
             ]}
           />
         }
         emptyState="No internal team members match the current filters."
       />
-
-      <section className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="section-eyebrow">Lifecycle</p>
-          <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Onboarding &amp; offboarding</h2>
-          <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-            New hires from the last 30 days, and everyone whose access has been revoked. Start a new hire or offboard
-            a member from the roster above.
-          </p>
-        </div>
-      </section>
 
       <FlowSteps
         title="New hire onboarding"
@@ -237,33 +220,6 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
           { label: "All sessions terminated", note: "Immediately, everywhere", tone: "bad" },
           { label: "Status: Revoked", note: "Account retained, access gone", tone: "warn" },
           { label: "Logged to the audit trail", note: "Who, when, and why", tone: "ink" }
-        ]}
-      />
-
-      <TableCard
-        title="Recently onboarded (30 days)"
-        description="Newest first."
-        items={onboarded}
-        emptyState="No new hires in the last 30 days."
-        columns={[
-          { key: "name", header: "Name", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
-          { key: "email", header: "Email", render: (item) => item.email },
-          { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={item.status === "ACTIVE" ? "success" : "warning"} /> },
-          { key: "joined", header: "Joined", render: (item) => formatDate(item.createdAt) }
-        ]}
-      />
-
-      <TableCard
-        title="Offboarded"
-        description="Most recently offboarded first."
-        items={offboarded}
-        emptyState="No team members have been offboarded."
-        columns={[
-          { key: "name", header: "Name", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
-          { key: "email", header: "Email", render: (item) => item.email },
-          { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
-          { key: "offboarded", header: "Offboarded", render: (item) => (item.revokedAt ? formatDate(item.revokedAt) : "—") }
         ]}
       />
 
@@ -306,9 +262,10 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
 }
 
 async function RolesTab() {
-  const [templates, matrix] = await Promise.all([
+  const [templates, matrix, customRoles] = await Promise.all([
     apiGet<SuperAdminPermissionTemplateRow[]>("/api/super-admin/internal-team/permission-templates"),
-    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid")
+    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid"),
+    apiGet<CustomRoleRow[]>("/api/super-admin/team-access/roles").catch(() => [] as CustomRoleRow[])
   ]);
   const modules = matrix.modules ?? [];
   const members = matrix.members ?? [];
@@ -333,24 +290,16 @@ async function RolesTab() {
   return (
     <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Roles defined" value={roleOptions.length} detail="Fixed platform roles, not ad-hoc bundles" icon={UserCog} tone="dark" />
+        <StatCard label="Roles defined" value={roleOptions.length + customRoles.filter((role) => !role.retired).length} detail={customRoles.filter((role) => !role.retired).length ? `${roleOptions.length} built-in, ${customRoles.filter((role) => !role.retired).length} your team made` : "Built-in platform roles — duplicate one to make your own"} icon={UserCog} tone="dark" />
         <StatCard label="Actions that can be granted" value={modules.length * 6} detail={`View, export, create, edit, approve, delete — in each of ${modules.length} modules. A level is shorthand for a set; a person can also be given an exact set`} icon={ShieldCheck} tone="neutral" />
         <StatCard label="What Super Admin holds" value="All" detail="Full in every module — the grid never restricts a Super Admin or Platform Owner, so nobody can lock themselves out" icon={ShieldCheck} tone="info" />
         <StatCard label="Modules set to None for someone" value={modules.filter((id) => members.some((m) => m.access[id] === "NONE")).length} detail="Modules at least one person is blocked from entirely" icon={ShieldCheck} tone="neutral" />
         <StatCard label="Actions nobody holds: a child's record" value={0} detail="Not on the list at all — the function does not exist" icon={ShieldCheck} tone="success" />
       </section>
 
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Roles &amp; scopes</p>
-        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">What each role can do</h2>
-        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-          Role templates define the default permission grid: applied when a new account is created, and used live for anyone with nothing set of their own for a module. The
-          access matrix below shows the resulting per-person permissions, which can differ from the template once
-          adjusted for an individual.
-        </p>
-      </section>
-
       <PrivilegesByRoleTable items={roleBreakdown} />
+
+      <CustomRolesTable items={customRoles} moduleLabels={matrix.labels ?? {}} />
 
       <TableCard
         title="Three rules that sit above every cell above"
@@ -405,12 +354,12 @@ async function RolesTab() {
           <ResourceActionDialog
             triggerLabel="Add / update template"
             title="Add or update a permission template"
-            description="Grid is a JSON map of module id → access level, e.g. { &quot;support&quot;: &quot;FULL&quot;, &quot;billing&quot;: &quot;VIEW&quot; }. Module ids: schools, migration, billing, partners, users, communications, support, curriculum, plans, infrastructure, security, team, analytics, settings."
+            description="What a role starts with in each module. Everyone given the role begins here; their own privileges can then be fine-tuned from Manage."
             endpoint="/api/super-admin/internal-team/permission-templates"
             submitLabel="Save template"
             fields={[
-              { name: "roleName", label: "Role", type: "select", options: roleOptions },
-              { name: "defaultGrid", label: "Default grid (JSON)", type: "textarea", parse: "json", required: true, defaultValue: "{\n  \"support\": \"FULL\",\n  \"schools\": \"VIEW\"\n}" }
+              { name: "roleName", label: "Role", type: "select", required: true, options: roleChoices(roleOptions) },
+              ...gridFields(modules.map((id) => ({ label: matrix.labels?.[id] ?? id, value: id })), "defaultGrid", null, "Access by module", "Every person given this role starts with these levels. A module left Not set follows the endpoint’s own role check.")
             ]}
           />
         }
@@ -500,7 +449,7 @@ async function ActivityTab() {
         items={activity.members}
         columns={[
           { key: "name", header: "Team member", render: (item) => item.name },
-          { key: "department", header: "Department", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
+          { key: "department", header: "Department", render: (item) => item.department ?? <span className="text-[var(--color-text-muted)]">None set</span> },
           { key: "actions", header: "Actions", render: (item) => item.actionsTaken },
           { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
           {
@@ -547,15 +496,6 @@ async function SecurityTab() {
 
   return (
     <div className="grid gap-[14px]">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Security settings</p>
-        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Sessions &amp; network access</h2>
-        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-          Every currently active sign-in session for a Platform Admin account, and the IP allow/deny rules that gate
-          access to the platform admin panel.
-        </p>
-      </section>
-
       <TableCard
         title="Internal security requirements — what's actually enforced"
         description="Verified against the real account and session code, not stated as intent."
@@ -715,13 +655,16 @@ async function SecurityTab() {
 }
 
 async function DepartmentsTab() {
-  const [departments, departmentMembers] = await Promise.all([
+  const [departments, departmentMembers, deptMatrix] = await Promise.all([
     apiGet<SuperAdminDepartmentRow[]>("/api/super-admin/internal-team/departments"),
-    apiGet<Record<string, string[]>>("/api/super-admin/internal-team/department-members")
+    apiGet<Record<string, string[]>>("/api/super-admin/internal-team/department-members"),
+    apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid")
   ]);
+  const deptModules = (deptMatrix.modules ?? []).map((id) => ({ label: deptMatrix.labels?.[id] ?? id, value: id }));
 
   return (
     <DepartmentsTable
+      moduleOptions={deptModules}
       members={departmentMembers}
       items={departments ?? []}
       actions={
@@ -734,15 +677,7 @@ async function DepartmentsTab() {
           fields={[
             { name: "name", label: "Department name", required: true, placeholder: "e.g. Customer Success", section: "Identity" },
             { name: "leadEmail", label: "Lead email (optional)", type: "email", section: "Identity" },
-            {
-              name: "permissionCeiling",
-              label: "Permission ceiling (JSON, optional)",
-              type: "textarea",
-              parse: "json",
-              placeholder: '{\n  "support": "EDIT",\n  "users": "VIEW"\n}',
-              note: "Enforced — caps what the department's lead can grant to its members.",
-              section: "Ceiling"
-            }
+            ...gridFields(deptModules, "permissionCeiling", null, "Permission ceiling", "Enforced — caps what the department’s lead can grant to its members. A module left Not set cannot be granted by the lead at all.")
           ]}
         />
       }

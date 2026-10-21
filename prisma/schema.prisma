@@ -2289,6 +2289,12 @@ model GradingScheme {
   isActive          Boolean       @default(false)
   rankingEnabled    Boolean       @default(true)
   passMark          Float         @default(40)
+  /// How a session score is worked out from its terms: NONE (each term stands alone), MEAN, FINAL_TERM or WEIGHTED.
+  sessionAggregation String       @default("NONE")
+  /// For WEIGHTED: one weight per term in order, totalling 100.
+  termWeights        Int[]        @default([])
+  /// Whether a report card shows the running session average beside the term's own.
+  cumulativeDisplay  Boolean      @default(false)
   createdAt         DateTime      @default(now())
   updatedAt         DateTime      @updatedAt
   school            School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -4701,6 +4707,7 @@ model Partner {
   streamARatePercent      Decimal?           @db.Decimal(5, 2)
   accruals                PartnerAccrual[]
   statements              PartnerStatement[]
+  accounts                PartnerAccount[]
   createdAt               DateTime           @default(now())
   deals                   PartnerDeal[]
 
@@ -4785,6 +4792,10 @@ model CustomReport {
   /// A group with fewer than this many schools is shown as "under N" rather than a figure.
   suppressUnder Int?
   lockFilters   Boolean   @default(false)
+  /// Show each group's drop from the one before it, and let the reader open the schools behind a figure.
+  showDropoff   Boolean   @default(false)
+  /// Schools that have churned are counted in their own column instead of inside the main figure.
+  weightChurned Boolean   @default(false)
   /// WEEKLY or MONTHLY: the report is emailed to the recipients as it falls due.
   frequency     String?
   recipients    String[]  @default([])
@@ -4794,6 +4805,8 @@ model CustomReport {
 
 model CurriculumTemplate {
   id             String    @id @default(cuid())
+  /// Layers 2, 4 and 6 authored on the template: levels and classes, assessment components, and the report card layout it names.
+  layers         Json?
   name           String
   country        String
   subjects       String[]  @default([])
@@ -4930,6 +4943,8 @@ enum MigrationJobStatus {
 
 model MigrationJob {
   id                        String             @id @default(cuid())
+  /// What the school said made it move — captured when the job is set up or updated, read by the win analysis.
+  moveReason                String?
   schoolId                  String
   sourceSystem              String
   specialistId              String?
@@ -5736,6 +5751,10 @@ model GuardianContact {
 /// How this school is billed: its tier, what it expects to pay, and how it wants to be told. Rows are made when the school first changes something; until then the tier is read from the school's plan.
 model SchoolSubscription {
   id             String    @id @default(cuid())
+  /// A price this school keeps until the date, whatever the plan's price becomes meanwhile.
+  lockedMonthlyPrice Decimal? @db.Decimal(12, 2)
+  priceLockedUntil   DateTime?
+  priceLockReason    String?
   schoolId       String    @unique
   tier           String    @default("STANDARD")
   ratePerStudent Decimal?  @db.Decimal(12, 2)
@@ -6411,6 +6430,9 @@ model PageLoadSample {
 /// One run of the result computation for an arm: how many students and scores it read, how long it took, and whether it re-ran over results already published.
 model ComputationRun {
   id         String   @id @default(cuid())
+  /// How many results this run could trace back to recorded component scores, out of how many it checked.
+  traceChecked Int?
+  traceMatched Int?
   schoolId   String
   classId    String
   termId     String
@@ -6667,9 +6689,12 @@ model InternalProfile {
   isExternal       Boolean  @default(false)
   /// What this person answers for — DPO, Support Lead, Comms Lead … Alerts and "who to ask" go to whoever holds one.
   responsibilities String[] @default([])
+  /// A role defined in the Back Office rather than built in. Its grid is what this person starts from.
+  customRoleId     String?
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 }
+
 
 /// Something about a Back Office account's behaviour that a person should look at: out-of-hours access, an unfamiliar device, a large export, two places at once.
 model InternalAnomaly {
@@ -6790,4 +6815,138 @@ model SchoolMembership {
 
   @@unique([userId, schoolId])
   @@index([schoolId, status])
+}
+
+/// A feature request that arrived by call, visit or WhatsApp, logged by hand so it carries the same weight as a tagged ticket.
+/// A request merged into an earlier one points at it with mergedIntoId and adds its school's weight to that request.
+model FeatureRequestLog {
+  id            String   @id @default(cuid())
+  title         String
+  detail        String?
+  module        String?
+  schoolId      String
+  personName    String?
+  channel       String
+  severity      String   @default("MEDIUM")
+  blocksRenewal Boolean  @default(false)
+  raisedOn      DateTime
+  mergedIntoId  String?
+  tellSchool    Boolean  @default(true)
+  roadmapFlag   Boolean  @default(false)
+  ticketRef     String?
+  loggedById    String
+  createdAt     DateTime @default(now())
+
+  @@index([mergedIntoId])
+  @@index([schoolId])
+}
+
+/// A rule the platform follows without anyone pressing a button: when this happens, tell these people, on these channels, in these words.
+/// A new rule is created disabled and only starts sending once somebody deliberately enables it.
+model TriggerRule {
+  id          String    @id @default(cuid())
+  /// INVOICE_OVERDUE, INVOICE_DUE_SOON or SCHOOL_INACTIVE.
+  event       String
+  /// The condition's number of days.
+  days        Int
+  /// Limits the rule to one plan; null means every plan.
+  plan        String?
+  recipients  String[]  @default([])
+  channels    String[]  @default([])
+  templateId  String?
+  /// The hour of the day, in the platform's time zone, from which it may send.
+  sendHour    Int       @default(9)
+  groupName   String
+  enabled     Boolean   @default(false)
+  createdById String
+  createdAt   DateTime  @default(now())
+  enabledAt   DateTime?
+  lastFiredAt DateTime?
+  fires       TriggerRuleFire[]
+
+  @@index([enabled])
+}
+
+/// One firing of a rule at one invoice or school — also what stops it firing twice for the same thing.
+model TriggerRuleFire {
+  id        String      @id @default(cuid())
+  ruleId    String
+  rule      TriggerRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  entityId  String
+  schoolId  String
+  sent      Int         @default(0)
+  summary   String
+  firedAt   DateTime    @default(now())
+
+  @@unique([ruleId, entityId])
+  @@index([firedAt])
+}
+
+/// A person at a partner who signs in to the partner portal. Separate from school and platform accounts: it can only ever see the
+/// schools the partner brought, never student, staff or guardian data, and never what a school pays.
+model PartnerAccount {
+  id               String    @id @default(cuid())
+  partnerId        String
+  partner          Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  email            String    @unique
+  name             String
+  isPrimary        Boolean   @default(true)
+  passwordHash     String?
+  /// Only the hash of the single-use link is kept; the link itself goes by email and is valid for 48 hours.
+  inviteHash       String?
+  inviteExpiresAt  DateTime?
+  invitedAt        DateTime?
+  lastLoginAt      DateTime?
+  isActive         Boolean   @default(true)
+  createdAt        DateTime  @default(now())
+
+  @@index([partnerId])
+}
+
+/// A role made in the Back Office. It carries a grid of module levels; whoever holds it starts from that grid.
+model InternalRole {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  /// The built-in role the platform's own checks see this person as.
+  baseRole    String    @default("PLATFORM_ADMIN")
+  grid        Json
+  createdById String
+  retiredAt   DateTime?
+  createdAt   DateTime  @default(now())
+}
+
+/// Who answers for each outside service the platform depends on.
+model IntegrationOwner {
+  name      String   @id
+  ownerId   String
+  updatedAt DateTime @updatedAt
+}
+
+/// One run of the golden-dataset checks: fixed inputs with known answers, run through the real calculation code.
+model RegressionRun {
+  id       String   @id @default(cuid())
+  ranAt    DateTime @default(now())
+  passed   Int
+  total    Int
+  failures Json
+  trigger  String   @default("MANUAL")
+  ranById  String?
+
+  @@index([ranAt])
+}
+
+/// A class running a particular version of a curriculum template — JSS 1 on the 2025 structure while SSS 3 stays on 2024.
+model ClassTemplateAssignment {
+  id           String   @id @default(cuid())
+  schoolId     String
+  classId      String   @unique
+  templateId   String
+  templateName String
+  version      String
+  assignedById String
+  assignedAt   DateTime @default(now())
+
+  @@index([schoolId])
+  @@index([templateId])
 }
