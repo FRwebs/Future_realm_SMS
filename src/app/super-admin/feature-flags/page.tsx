@@ -147,19 +147,30 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
   );
 }
 
+type Currencies = {
+  term: string | null; anchor: "NGN" | "USD"; source: string; ratesFor: string; shockPercent: number; refreshConfigured: boolean;
+  rates: { usd: number; ghs: number; kes: number; gbp: number };
+  usdPrices: { STANDARD: number; PREMIUM: number; ELITE: number };
+  pending: { ratesFor: string; ngnPerUsd: number; ngnPerGhs: number; ngnPerKes: number; ngnPerGbp: number; moved: string; source: string; proposedBy: string; at: string } | null;
+  tiers: Array<{ key: string; name: string; ngn: number; usd: number | null; ghs: number | null; kes: number | null; gbp: number | null }>;
+};
+
 async function PlansTab() {
-  const [plans, migrations, churn, adoption, overview] = await Promise.all([
+  const [plans, migrations, churn, adoption, overview, currencies] = await Promise.all([
     apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
     apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
     apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
     apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
-    apiGet<PlansOverview>("/api/super-admin/plans-features/plans")
+    apiGet<PlansOverview>("/api/super-admin/plans-features/plans"),
+    apiGet<Currencies>("/api/super-admin/billing-extras/currencies")
   ]);
+  const termAgo = Date.now() - 120 * 86_400_000;
+  const changesThisTerm = (migrations ?? []).filter((row) => new Date(row.changedAt).getTime() >= termAgo).length;
+  const fx = (value: number | null, symbol: string) => (value === null ? <span className="text-[var(--color-text-muted)]">Set the rate</span> : `${symbol}${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`);
   const legacyCount = (plans ?? []).filter((plan) => plan.lifecycle === "LEGACY").length;
   const draftCount = (plans ?? []).filter((plan) => plan.lifecycle === "DRAFT").length;
   const ratesByTier = new Map((overview?.rates ?? []).map((row) => [row.tier, row]));
   const activePlans = (plans ?? []).filter((plan) => plan.isActive);
-  const archivedPlans = (plans ?? []).filter((plan) => !plan.isActive);
   const totalSchools = (plans ?? []).reduce((sum, plan) => sum + plan.subscriberCount, 0);
 
   const tierColumns = adoption?.tierColumns ?? [];
@@ -186,29 +197,79 @@ async function PlansTab() {
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Active plans" value={activePlans.length} detail="Selectable for new signups" icon={Layers} tone="dark" />
-        <StatCard label="Archived plans" value={archivedPlans.length} detail="No longer selectable" icon={Archive} tone="neutral" />
-        <StatCard label="Schools across all plans" value={totalSchools.toLocaleString()} detail="Sum of subscribers per plan" icon={School} tone="info" />
-        <StatCard label="Plan migrations recorded" value={(migrations ?? []).length} detail="Schools that have changed tier" icon={Repeat2} tone="success" />
-        <StatCard label="Draft / legacy plans" value={`${draftCount} / ${legacyCount}`} detail="Draft: not yet offered · Legacy: closed to new schools, kept for those on it" icon={Clock3} tone="neutral" />
+        <StatCard label="Published plans" value={activePlans.length} detail={activePlans.map((plan) => plan.name).join(", ") || "None"} icon={Layers} tone="dark" />
+        <StatCard label="Draft plans" value={draftCount} detail="Not yet offered to anyone" icon={Clock3} tone="neutral" />
+        <StatCard label="Legacy plans (closed to new sales)" value={legacyCount} detail="Kept for the schools already on them" icon={Archive} tone="neutral" />
+        <StatCard label="Schools on a plan" value={totalSchools.toLocaleString()} detail={`Across ${activePlans.length + legacyCount} live and legacy plans`} icon={School} tone="info" />
+        <StatCard label="Plan changes this term" value={changesThisTerm} detail="Schools that changed tier in the last 120 days" icon={Repeat2} tone="success" />
       </section>
 
       <PlanCardGrid plans={plans ?? []} actions={<PlanCreateDialog />} />
 
-      <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
-        <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">One currency, not five</p>
-        </div>
-        <div className="p-5">
-          <p className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">
-            Every plan above is authored and billed in Naira only — there is no USD anchor price, no per-country exchange
-            rate, and no multi-currency conversion layer anywhere in this system. A school outside Nigeria isn&apos;t
-            possible today: onboarding hard-codes the country to Nigeria (see Curriculum &amp; Academics&apos;
-            portability review), so the question of pricing a school in Ghanaian cedis or Kenyan shillings doesn&apos;t
-            yet arise in practice.
-          </p>
-        </div>
-      </section>
+      {currencies.pending ? (
+        <section className="rounded-[12.5px] px-5 py-4" style={{ background: "var(--color-warning-dim)", border: "1px solid var(--color-warning)" }}>
+          <p className="text-[11.5px] font-bold" style={{ color: "var(--color-warning)" }}>New rates for {currencies.pending.ratesFor} are held for Finance</p>
+          <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-secondary)]">{currencies.pending.proposedBy} proposed ₦{currencies.pending.ngnPerUsd.toLocaleString("en-NG")} per dollar ({currencies.pending.source}). It moved {currencies.pending.moved}, past the {currencies.shockPercent}% guard. Nothing changes until it is decided; the current rates stay in force.</p>
+          <div className="mt-3 flex gap-2">
+            <ResourceActionDialog triggerLabel="Approve the new rates" title="Approve the held rates" description="They take effect now for the whole term." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="secondary" submitLabel="Approve" fields={[{ name: "approve", label: "Decision", type: "select", defaultValue: "true", options: [{ label: "Approve", value: "true" }] }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
+            <ResourceActionDialog triggerLabel="Reject them" title="Reject the held rates" description="The current rates stay for the term." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="danger" submitLabel="Reject" fields={[{ name: "approve", label: "Decision", type: "select", defaultValue: "false", options: [{ label: "Reject", value: "false" }] }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
+          </div>
+        </section>
+      ) : null}
+
+      <TableCard
+        title="One price, five currencies"
+        description={`${currencies.anchor === "USD" ? "Each tier is authored once in US dollars; its naira price follows at the rate fixed for the term." : "Each tier is priced in naira per student per term; the other currencies are what that comes to at the rates fixed for the term."}${currencies.ratesFor ? ` Rates fixed for ${currencies.ratesFor}${currencies.source ? ` · ${currencies.source}` : ""}.` : ""} A school is always invoiced in its own currency.`}
+        items={currencies.tiers}
+        getRowKey={(row) => row.name}
+        pageSize={false}
+        actions={
+          <div className="flex flex-wrap gap-2">
+            {currencies.refreshConfigured ? <ResourceActionDialog triggerLabel="Fetch from the rate provider" title="Fetch the term's rates" description="Takes the rates from the provider set up for this deployment and fixes them for the current term. A move beyond the guard is held for Finance." endpoint="/api/super-admin/billing-extras/pricing/refresh" method="POST" variant="secondary" submitLabel="Fetch" fields={[]} /> : null}
+            <ResourceActionDialog
+              triggerLabel="Set the term's rates"
+              title="Rates fixed for the term"
+              description={`How many naira one unit of each currency is worth. Fixed when the term opens and never moved inside it. A move of more than ${currencies.shockPercent}% on any currency is held for Finance to decide.`}
+              endpoint="/api/super-admin/billing-extras/pricing/rates"
+              method="POST"
+              variant="secondary"
+              submitLabel="Save rates"
+              fields={[
+                { name: "ratesFor", label: "Term these rates are fixed for", defaultValue: currencies.term ?? "", placeholder: "e.g. Term 1 · 2026/27" },
+                { name: "ngnPerUsd", label: "₦ per US dollar", type: "number", defaultValue: currencies.rates.usd, min: 0, step: 0.01 },
+                { name: "ngnPerGhs", label: "₦ per Ghana cedi", type: "number", defaultValue: currencies.rates.ghs, min: 0, step: 0.01 },
+                { name: "ngnPerKes", label: "₦ per Kenya shilling", type: "number", defaultValue: currencies.rates.kes, min: 0, step: 0.01 },
+                { name: "ngnPerGbp", label: "₦ per pound sterling", type: "number", defaultValue: currencies.rates.gbp, min: 0, step: 0.01 }
+              ]}
+            />
+            <ResourceActionDialog
+              triggerLabel="Author prices in US dollars"
+              title="Price the tiers once, in US dollars"
+              description="Each tier's naira price becomes its dollar price at the term's rate, rounded to the nearest 50 kobo — so a rate change moves every tier together. Choose Naira to go back to the built-in naira prices."
+              endpoint="/api/super-admin/billing-extras/pricing/usd"
+              method="POST"
+              variant="secondary"
+              submitLabel="Save pricing"
+              fields={[
+                { name: "anchor", label: "Plans are priced in", type: "select", defaultValue: currencies.anchor, options: [{ label: "Naira (built-in prices)", value: "NGN" }, { label: "US dollars", value: "USD" }] },
+                { name: "STANDARD", label: "Standard — $ per student per term", type: "number", defaultValue: currencies.usdPrices.STANDARD, min: 0, step: 0.01 },
+                { name: "PREMIUM", label: "Premium — $ per student per term", type: "number", defaultValue: currencies.usdPrices.PREMIUM, min: 0, step: 0.01 },
+                { name: "ELITE", label: "Elite — $ per student per term", type: "number", defaultValue: currencies.usdPrices.ELITE, min: 0, step: 0.01 },
+                { name: "reason", label: "Reason", type: "textarea", required: true }
+              ]}
+            />
+          </div>
+        }
+        footnote="The rate is fixed when the term opens and never moves inside it — a live rate would mean two schools in the same country paying differently in the same week."
+        columns={[
+          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+          { key: "ngn", header: "Nigeria (₦)", render: (row) => `₦${row.ngn.toLocaleString("en-NG")}` },
+          { key: "usd", header: "USD", render: (row) => fx(row.usd, "$") },
+          { key: "ghs", header: "Ghana", render: (row) => fx(row.ghs, "GH₵") },
+          { key: "kes", header: "Kenya", render: (row) => fx(row.kes, "KSh ") },
+          { key: "gbp", header: "UK", render: (row) => fx(row.gbp, "£") }
+        ]}
+      />
 
       <TableCard
         title="Plan health — is each tier doing its job?"
@@ -392,14 +453,16 @@ async function RolloutTab() {
         </p>
       </section>
       <FlowSteps
-        title="Feature flag rollout — the real stages"
+        title="Feature flag rollout control"
         sub="A flag moves up one stage at a time. Each stage has an observation window (7 days by default) before it can move up — a Super Admin can waive it by saying why — and the person moving it names the exit criterion that was met. Moving down, or rolling back, is always allowed."
         steps={[
-          { label: "Off", note: "Default for a new flag" },
-          { label: "Pilot", note: "Named schools only", tone: "warn" },
-          { label: "Partial", note: "An arbitrary rollout percentage", tone: "warn" },
-          { label: "Full", note: "Enabled platform-wide", tone: "good" },
-          { label: "Instant rollback", note: "Any stage, back to Off immediately", tone: "bad" }
+          { label: "Flag created", note: "Off by default" },
+          { label: "Pilot group", note: "Named schools only", tone: "warn" },
+          { label: "Monitor", note: "Observation window, 7 days by default", tone: "warn" },
+          { label: "Partial rollout", note: "A percentage of schools", tone: "good" },
+          { label: "Monitor", note: "Second observation window", tone: "good" },
+          { label: "Full rollout", note: "Platform-wide", tone: "good" },
+          { label: "Instant rollback", note: "Any stage · back to Off at once", tone: "bad" }
         ]}
       />
       <FlagsSection />
@@ -413,9 +476,21 @@ async function LifecycleSection() {
 
   return (
     <div className="grid gap-5">
+      <FlowSteps
+        title="Plan lifecycle"
+        sub="Every plan moves through these states in one direction only — nothing skips a stage"
+        steps={[
+          { label: "Draft", note: "Editable freely · invisible to sales" },
+          { label: "Published", note: "Sellable · assignable", tone: "good" },
+          { label: "New version scheduled", note: "30 days’ notice · old version honoured until it takes effect", tone: "warn" },
+          { label: "Legacy", note: "Closed to new sales · existing schools kept", tone: "warn" },
+          { label: "Migration on archive", note: "Schools moved, recorded and told", tone: "warn" },
+          { label: "Archived", note: "Zero schools · read-only record", tone: "ink" }
+        ]}
+      />
       <TableCard
-        title="Recent tier changes"
-        description={`${(migrations ?? []).length} tier change(s) recorded, most recent first.`}
+        title="Scheduled plan migrations"
+        description={`Every school moving between plans, and when — no school is ever moved silently. ${(migrations ?? []).length} recorded, most recent first.`}
         items={migrations ?? []}
         emptyState="No tier migrations recorded yet. Change a school's plan from its profile to see it here."
         columns={[

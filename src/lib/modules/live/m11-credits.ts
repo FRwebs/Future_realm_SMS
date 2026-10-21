@@ -1,6 +1,6 @@
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, plural } from "@/lib/modules/live/m7-format";
-import { SB, creditSettingsDrawer, naira, rate2, receiptDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
+import { SB, creditSettingsDrawer, naira, rate2, receiptDrawer, removeCardDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
 import { invoiceDocDrawer } from "@/lib/modules/live/documents";
 import type { Credits } from "@/lib/modules/live/m11-types";
 import { pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
@@ -50,6 +50,7 @@ export function creditsTab(c: Credits): TabContent {
     rows: [
       ...(!c.configured ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "This school has no messaging wallet yet", body: "Nothing can be sent by SMS or WhatsApp until credits are bought. The first top-up creates the wallet. Email and in-app are free.", acts: [{ label: "Top up SMS", drawer: topUpDrawer(c, "SMS") }] }] }] : []),
       ...low.map((channel) => ({ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: `${channel.name} is down to ${channel.balance.toLocaleString("en-NG")} credits`, body: `Below the ${c.settings.warnAt.toLocaleString("en-NG")} the school asked to be warned at. Email and in-app are free and cost nothing to fall back on.`, acts: [{ label: `Top up ${channel.name}`, drawer: topUpDrawer(c, channel.name === "WhatsApp" ? "WhatsApp" : "SMS") }, { label: "Change the warning", drawer: creditSettingsDrawer(c) }] }] })),
+      ...((c.cards ?? []).length ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "positive" as PanelTone, title: `Card on file: ${(c.cards ?? [])[0].brand ?? "Card"} ending ${(c.cards ?? [])[0].last4}${(c.cards ?? [])[0].expires ? ` · expires ${(c.cards ?? [])[0].expires}` : ""}`, body: c.settings.auto ? "Charged automatically for the same quantity when the balance passes the threshold. Remove it any time." : "Kept for automatic top-ups. Switch automatic top-up on to use it, or remove it.", acts: [{ label: "Remove the card", drawer: removeCardDrawer((c.cards ?? [])[0]) }] }] }] : []),
       { cols: "1fr", panels: [{ type: "kpi", title: "The wallet", per: 4, cards }] },
       { cols: "1fr", panels: [{ type: "table", title: "Every channel", tag: `${naira(worth)} on the wallet`, tagTone: "neutral", sub: "Base credits come with the plan each term. Anything beyond them is topped up.", meta: `${c.term ?? "This term"} · base credits reset each term · topped-up credits never expire`, head: ["Channel", "Base this term", "Topped up", "Used", "Balance", "Rate", "Worth", ""], noun: "channel", nounPlural: "channels", noRowOpen: true, rows: channelRows, foot: "Email and in-app are free on every tier. SMS and WhatsApp are paid because the networks charge for them. “Used” counts sends this term; the balance is what the wallet holds." }] },
       {

@@ -34,12 +34,36 @@ export interface PaymentGatewayVerificationResult {
   gatewayTransactionId?: string;
   paidAt?: string;
   customerEmail?: string;
+  /** A card that cleared and may be charged again with the holder's consent. */
+  authorization?: SavedAuthorization;
   raw: unknown;
+}
+
+export interface SavedAuthorization {
+  code: string;
+  signature: string;
+  last4: string;
+  brand?: string;
+  bank?: string;
+  expMonth?: string;
+  expYear?: string;
+  reusable: boolean;
+}
+
+export interface ChargeAuthorizationInput {
+  authorizationCode: string;
+  email: string;
+  amount: number;
+  currency?: string;
+  reference: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface PaymentGatewayAdapter {
   initializePayment(input: PaymentGatewayInitializeInput): Promise<PaymentGatewayInitializeResult>;
   verifyPayment(reference: string): Promise<PaymentGatewayVerificationResult>;
+  /** Charge a card that has already been authorized — no checkout page. Only gateways that support it implement this. */
+  chargeAuthorization?(input: ChargeAuthorizationInput): Promise<PaymentGatewayVerificationResult>;
 }
 
 function toKobo(amount: number) {
@@ -91,12 +115,18 @@ class MockGatewayAdapter implements PaymentGatewayAdapter {
       amount: undefined,
       currency: "NGN",
       gatewayTransactionId: reference,
+      // Test mode has no real card, so it hands back a stand-in authorization — enough to exercise saving and charging a card.
+      authorization: { code: `AUTH_TEST_${reference}`, signature: "SIG_TEST_CARD", last4: "4081", brand: "visa", bank: "TEST BANK", expMonth: "12", expYear: "2030", reusable: true },
       raw: {
         reference,
         provider: this.provider,
         mode: "mock"
       }
     };
+  }
+
+  async chargeAuthorization(input: ChargeAuthorizationInput): Promise<PaymentGatewayVerificationResult> {
+    return { status: "SUCCESS", amount: input.amount, currency: input.currency ?? "NGN", gatewayTransactionId: input.reference, raw: { reference: input.reference, provider: this.provider, mode: "mock" } };
   }
 }
 
@@ -157,21 +187,39 @@ class PaystackGatewayAdapter implements PaymentGatewayAdapter {
         channel?: string;
         paid_at?: string;
         customer?: { email?: string };
+        authorization?: PaystackAuthorization;
       };
     }>(response, "Paystack");
-    const data = body.data ?? {};
-
-    return {
-      status: normalizePaystackStatus(data.status),
-      amount: fromKobo(data.amount),
-      currency: data.currency,
-      channel: data.channel,
-      gatewayTransactionId: data.id ? String(data.id) : undefined,
-      paidAt: data.paid_at,
-      customerEmail: data.customer?.email,
-      raw: body
-    };
+    return paystackResult(body);
   }
+
+  async chargeAuthorization(input: ChargeAuthorizationInput): Promise<PaymentGatewayVerificationResult> {
+    const response = await fetch("https://api.paystack.co/transaction/charge_authorization", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${this.secretKey}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ authorization_code: input.authorizationCode, email: input.email, amount: String(toKobo(input.amount)), currency: input.currency ?? "NGN", reference: input.reference, metadata: input.metadata ?? {} })
+    });
+    return paystackResult(await parseGatewayResponse<{ status: boolean; message: string; data?: PaystackData }>(response, "Paystack"));
+  }
+}
+
+type PaystackAuthorization = { authorization_code?: string; signature?: string; last4?: string; card_type?: string; brand?: string; bank?: string; exp_month?: string; exp_year?: string; reusable?: boolean };
+type PaystackData = { id?: number | string; status?: string; amount?: number; currency?: string; channel?: string; paid_at?: string; customer?: { email?: string }; authorization?: PaystackAuthorization; gateway_response?: string };
+
+function paystackResult(body: { status: boolean; message: string; data?: PaystackData }): PaymentGatewayVerificationResult {
+  const data = body.data ?? {};
+  const a = data.authorization;
+  return {
+    status: normalizePaystackStatus(data.status),
+    amount: fromKobo(data.amount),
+    currency: data.currency,
+    channel: data.channel,
+    gatewayTransactionId: data.id ? String(data.id) : undefined,
+    paidAt: data.paid_at,
+    customerEmail: data.customer?.email,
+    authorization: a?.authorization_code && a.last4 ? { code: a.authorization_code, signature: a.signature ?? a.authorization_code, last4: a.last4, brand: a.brand ?? a.card_type?.trim(), bank: a.bank, expMonth: a.exp_month, expYear: a.exp_year, reusable: Boolean(a.reusable) } : undefined,
+    raw: { ...body, message: data.gateway_response ?? body.message }
+  };
 }
 
 class FlutterwaveGatewayAdapter implements PaymentGatewayAdapter {
@@ -252,7 +300,7 @@ class FlutterwaveGatewayAdapter implements PaymentGatewayAdapter {
   }
 }
 
-export function getPaymentGateway(provider: GatewayProvider) {
+export function getPaymentGateway(provider: GatewayProvider): PaymentGatewayAdapter {
   if (provider === "PAYSTACK" && env.PAYSTACK_SECRET_KEY) {
     return new PaystackGatewayAdapter(env.PAYSTACK_SECRET_KEY);
   }

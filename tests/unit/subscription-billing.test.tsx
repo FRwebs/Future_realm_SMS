@@ -134,8 +134,8 @@ describe("M11 forms", () => {
     expect(spec.reviewNote).toContain("before VAT");
   });
 
-  it("is honest that an automatic top-up is a preference, not a purchase", () => {
-    expect(creditSettingsDrawer(credits()).commitDoneBody).toContain("warning is what protects you");
+  it("says what an automatic top-up does: charges the card on file, else invoices, and stops after three", () => {
+    expect(creditSettingsDrawer(credits()).commitDoneBody).toContain("After three unpaid attempts it stops");
   });
 
   it("asks for the password, and for a code only where the account has one", () => {

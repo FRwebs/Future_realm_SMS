@@ -3,6 +3,7 @@ import { Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
 import { env } from "../../../../src/lib/utils/env";
+import { tierNairaRate } from "../platform-policy/pricing-snapshot";
 import { currentTerm, num } from "../student-records/records.shared";
 
 export { currentTerm, num };
@@ -16,11 +17,21 @@ export const OWNERS = new Set(["SCHOOL_OWNER", "PROPRIETOR", "SUPER_ADMIN"]);
 
 export type TierKey = "STANDARD" | "PREMIUM" | "ELITE";
 
-export const TIERS: Record<TierKey, { name: string; rate: number; baseSms: number; baseWhatsapp: number; features: Record<string, boolean> }> = {
-  STANDARD: { name: "Standard", rate: 600, baseSms: 2000, baseWhatsapp: 500, features: { portal: false, reports: false, rich: false, manager: false } },
-  PREMIUM: { name: "Premium", rate: 900, baseSms: 3000, baseWhatsapp: 1000, features: { portal: true, reports: true, rich: false, manager: false } },
-  ELITE: { name: "Elite", rate: 1200, baseSms: 4000, baseWhatsapp: 1500, features: { portal: true, reports: true, rich: true, manager: true } }
+type TierSpec = { name: string; rate: number; baseSms: number; baseWhatsapp: number; features: Record<string, boolean> };
+const TIER_BASE: Record<TierKey, Omit<TierSpec, "rate"> & { builtInRate: number }> = {
+  STANDARD: { name: "Standard", builtInRate: 600, baseSms: 2000, baseWhatsapp: 500, features: { portal: false, reports: false, rich: false, manager: false } },
+  PREMIUM: { name: "Premium", builtInRate: 900, baseSms: 3000, baseWhatsapp: 1000, features: { portal: true, reports: true, rich: false, manager: false } },
+  ELITE: { name: "Elite", builtInRate: 1200, baseSms: 4000, baseWhatsapp: 1500, features: { portal: true, reports: true, rich: true, manager: true } }
 };
+
+/** Each tier's termly price per student. `rate` is read live: it follows the dollar price at the term's rate when a tier is authored in dollars. */
+export const TIERS = Object.fromEntries(
+  (Object.keys(TIER_BASE) as TierKey[]).map((key) => {
+    const { builtInRate, ...rest } = TIER_BASE[key];
+    return [key, Object.defineProperty({ ...rest }, "rate", { enumerable: true, get: () => tierNairaRate(key, builtInRate) })];
+  })
+) as Record<TierKey, TierSpec>;
+
 
 export const CAPABILITIES: Array<{ label: string; standard: boolean; premium: boolean; elite: boolean }> = [
   { label: "Attendance, scores, report cards", standard: true, premium: true, elite: true },

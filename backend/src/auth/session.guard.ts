@@ -14,6 +14,7 @@ import {
 } from "../../../src/lib/auth/session-core";
 import { isPlatformRole } from "../../../src/lib/auth/role-architecture";
 import { prisma } from "../../../src/lib/db/prisma";
+import { memberships } from "../modules/memberships/memberships.service";
 
 type AuthenticatedRequest = Request & {
   user?: Awaited<ReturnType<typeof verifySessionToken>>;
@@ -34,7 +35,7 @@ const STATE_TTL_MS = 10_000;
 const IDLE_MINUTES = Number(process.env.PLATFORM_IDLE_MINUTES ?? 30);
 const state = new Map<string, { at: number; ok: boolean; reason: string | null }>();
 
-async function accountStillMatches(userId: string, role: string, tokenHash: string): Promise<{ ok: boolean; reason: string | null }> {
+async function accountStillMatches(userId: string, role: string, tokenHash: string, schoolId: string): Promise<{ ok: boolean; reason: string | null }> {
   const key = `${userId}:${tokenHash}`;
   const hit = state.get(key);
   if (hit && Date.now() - hit.at < STATE_TTL_MS) return hit;
@@ -44,7 +45,7 @@ async function accountStillMatches(userId: string, role: string, tokenHash: stri
   ]);
   const result = !user || user.deletedAt || !user.isActive
     ? { ok: false, reason: "This account has been switched off." }
-    : String(user.role) !== role
+    : String(user.role) !== role && !(await memberships.holds(userId, schoolId, role))
       ? { ok: false, reason: "Your access has changed. Sign in again." }
       : platformSession?.revokedAt
         ? { ok: false, reason: "This session was signed out." }
@@ -71,7 +72,7 @@ export class SessionGuard implements CanActivate {
     }
 
     const tokenHash = createHash("sha256").update(token).digest("hex");
-    const standing = await accountStillMatches(session.userId, String(session.role), tokenHash);
+    const standing = await accountStillMatches(session.userId, String(session.role), tokenHash, session.schoolId);
     if (!standing.ok) throw new UnauthorizedException(standing.reason ?? "Unauthorized");
 
     request.user = session;

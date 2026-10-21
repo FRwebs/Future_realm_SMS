@@ -334,7 +334,7 @@ async function RolesTab() {
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Roles defined" value={roleOptions.length} detail="Fixed platform roles, not ad-hoc bundles" icon={UserCog} tone="dark" />
-        <StatCard label="Levels that can be granted" value={4} detail="None, View, Edit, Full — per module. There is no finer per-action grant inside a module" icon={ShieldCheck} tone="neutral" />
+        <StatCard label="Actions that can be granted" value={modules.length * 6} detail={`View, export, create, edit, approve, delete — in each of ${modules.length} modules. A level is shorthand for a set; a person can also be given an exact set`} icon={ShieldCheck} tone="neutral" />
         <StatCard label="What Super Admin holds" value="All" detail="Full in every module — the grid never restricts a Super Admin or Platform Owner, so nobody can lock themselves out" icon={ShieldCheck} tone="info" />
         <StatCard label="Modules set to None for someone" value={modules.filter((id) => members.some((m) => m.access[id] === "NONE")).length} detail="Modules at least one person is blocked from entirely" icon={ShieldCheck} tone="neutral" />
         <StatCard label="Actions nobody holds: a child's record" value={0} detail="Not on the list at all — the function does not exist" icon={ShieldCheck} tone="success" />

@@ -38,6 +38,35 @@ export const policySchema = z.object({
     providerCostSmsInternational: z.number().min(0).max(1000),
     providerCostWhatsapp: z.number().min(0).max(1000),
     providerCostEmail: z.number().min(0).max(1000),
+    /** Platform notices switched off by hand, by trigger key. The state change still happens; only the message is not sent. */
+    disabledTriggers: z.array(z.string()),
+  }),
+  /** What the platform calls itself and how a school reaches it. Used on every email the platform sends. */
+  identity: z.object({
+    platformName: z.string().trim().min(2).max(60),
+    supportEmail: z.union([z.literal(""), z.string().trim().email()]),
+    supportPhone: z.string().trim().max(40),
+    timeZone: z.string().trim().min(3).max(60),
+  }),
+  /**
+   * Pricing. Naira is the currency a school is invoiced in. A tier can be authored once in US dollars (anchor "USD"): its
+   * naira price is then the dollar price at the rate fixed for the term. With anchor "NGN" (or no dollar price set) the
+   * built-in naira price stands and the other currencies are only a reading aid.
+   */
+  pricing: z.object({
+    anchor: z.enum(["NGN", "USD"]),
+    usd: z.object({ STANDARD: z.number().min(0).max(10000), PREMIUM: z.number().min(0).max(10000), ELITE: z.number().min(0).max(10000) }),
+    ratesFor: z.string().max(60),
+    ngnPerUsd: z.number().min(0).max(100000),
+    ngnPerGhs: z.number().min(0).max(100000),
+    ngnPerKes: z.number().min(0).max(100000),
+    ngnPerGbp: z.number().min(0).max(100000),
+    /** A rate that moves by more than this share is held for Finance to decide instead of being applied. */
+    shockPercent: z.number().min(1).max(100),
+    /** Where the rates came from: entered by hand, or fetched from FX_RATES_URL. */
+    source: z.string().max(40),
+    /** Rates waiting for Finance because they moved too far. */
+    pending: z.object({ ratesFor: z.string(), ngnPerUsd: z.number(), ngnPerGhs: z.number(), ngnPerKes: z.number(), ngnPerGbp: z.number(), moved: z.string(), source: z.string(), proposedBy: z.string(), at: z.string() }).nullable(),
   }),
 });
 
@@ -47,7 +76,9 @@ export const DEFAULT_POLICY: Policy = {
   trial: { days: 30, readOnlyDays: 7, lockReminderDays: 3 },
   dormancy: { watchDays: 60, dormantDays: 120, noticeDays: 30 },
   invoice: { netDays: 14, rounding: "NONE" },
-  messaging: { quietFrom: "21:00", quietTo: "06:00", quietHoursOn: false, dailyCapPerRecipient: 0, maxAttempts: 3, providerCostSms: 0, providerCostSmsInternational: 0, providerCostWhatsapp: 0, providerCostEmail: 0 },
+  messaging: { quietFrom: "21:00", quietTo: "06:00", quietHoursOn: false, dailyCapPerRecipient: 0, maxAttempts: 3, providerCostSms: 0, providerCostSmsInternational: 0, providerCostWhatsapp: 0, providerCostEmail: 0, disabledTriggers: [] },
+  identity: { platformName: "FutureRealm SMS", supportEmail: "", supportPhone: "", timeZone: "Africa/Lagos" },
+  pricing: { anchor: "NGN", usd: { STANDARD: 0, PREMIUM: 0, ELITE: 0 }, ratesFor: "", ngnPerUsd: 0, ngnPerGhs: 0, ngnPerKes: 0, ngnPerGbp: 0, shockPercent: 15, source: "", pending: null },
 };
 
 export const policyPatchSchema = z.object({
@@ -55,6 +86,8 @@ export const policyPatchSchema = z.object({
   dormancy: policySchema.shape.dormancy.partial().optional(),
   invoice: policySchema.shape.invoice.partial().optional(),
   messaging: policySchema.shape.messaging.partial().optional(),
+  pricing: policySchema.shape.pricing.partial().optional(),
+  identity: policySchema.shape.identity.partial().optional(),
 });
 
 export function mergePolicy(stored: unknown, patch: z.infer<typeof policyPatchSchema> = {}): Policy {
@@ -64,6 +97,8 @@ export function mergePolicy(stored: unknown, patch: z.infer<typeof policyPatchSc
     dormancy: { ...DEFAULT_POLICY.dormancy, ...(base.dormancy ?? {}), ...(patch.dormancy ?? {}) },
     invoice: { ...DEFAULT_POLICY.invoice, ...(base.invoice ?? {}), ...(patch.invoice ?? {}) },
     messaging: { ...DEFAULT_POLICY.messaging, ...(base.messaging ?? {}), ...(patch.messaging ?? {}) },
+    pricing: { ...DEFAULT_POLICY.pricing, ...(base.pricing ?? {}), ...(patch.pricing ?? {}) },
+    identity: { ...DEFAULT_POLICY.identity, ...(base.identity ?? {}), ...(patch.identity ?? {}) },
   };
   const parsed = policySchema.parse(merged);
   if (parsed.dormancy.dormantDays <= parsed.dormancy.watchDays) throw new Error("A school is dormant later than it is put on watch: raise the dormant days above the watch days.");

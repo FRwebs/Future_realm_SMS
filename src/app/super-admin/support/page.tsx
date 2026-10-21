@@ -70,7 +70,7 @@ type ServiceLevels = {
   levels: Array<{ key: string; label: string; hours: number; definition: string; escalation: string; open: number }>;
   categories: Array<{ key: string; label: string; covers: string; volume: number; open: number }>;
   termVolume: number; newCategoryVolume: number;
-  countries: Array<{ country: string; hours: string | null; holidays: number | null; live: boolean }>;
+  countries: Array<{ country: string; hours: string | null; holidays: number | null; live: boolean; configured: boolean; timeZone: string | null; workStart: string | null; workEnd: string | null; holidayDates: string[] }>;
 };
 type Analytics = {
   kpis: { openedWeek: number; openedPrev: number; withinSla: number | null; resolvedWeek: number; criticalMinutes: number | null; criticalCount: number; repeatRate: number | null; sampled: number; csat: number | null; csatResponses: number };
@@ -132,7 +132,7 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
             <ResourceActionDialog
               triggerLabel="New ticket"
               title="New ticket"
-              description="Owned from the moment it is raised. The countdown runs in flat hours from now — not yet in the school’s own working hours."
+              description="Owned from the moment it is raised. The countdown runs in the school’s own working hours where its country has them, else in flat hours from now."
               endpoint="/api/super-admin/support/tickets"
               variant="heroWhite"
               fields={[
@@ -142,7 +142,7 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
                 { name: "subject", label: "Subject", required: true, section: "The problem" },
                 { name: "description", label: "Description", type: "textarea", required: true, section: "The problem" },
                 { name: "assignedToId", label: "Assign to", type: "select", defaultValue: "", options: agentOptions, section: "Ownership" },
-                { name: "target", label: "Target", type: "static", placeholder: "Set from priority · 1h Critical / 4h High / 8h Standard / 24h Low", note: "Service level countdowns run in flat hours from creation; a school’s own working hours are not applied yet.", section: "Ownership" }
+                { name: "target", label: "Target", type: "static", placeholder: "Set from priority · 1h Critical / 4h High / 8h Standard / 24h Low", note: "Countdowns run in the school’s own working hours and time zone where its country has them set.", section: "Ownership" }
               ]}
               submitLabel="Create ticket"
               confirmLabel="Confirm ticket"
@@ -222,11 +222,11 @@ async function TicketBoardTab({ board }: { board: Board }) {
 
       <TableCard
         title="Priority and service levels"
-        description="Targets are measured in the school’s own working hours in the school’s own time zone, not ours. Working hours and public holidays are a per-country configuration record."
+        description="Targets are measured in the school’s own working hours in the school’s own time zone, not ours. Working hours and public holidays are a per-country configuration record; a school whose country has none yet is measured in flat hours."
         items={levels.levels}
         getRowKey={(row) => row.key}
         pageSize={false}
-        footnote="A four-hour target that expires overnight in Nairobi while our office is closed is a promise we cannot keep and should not make. Until working hours are applied to the countdown, every target runs in flat hours from the moment a ticket is opened."
+        footnote="A four-hour target that expires overnight in Nairobi while our office is closed is a promise we cannot keep and should not make."
         columns={[
           { key: "priority", header: "Priority", render: (row) => { const tone = priorityTone[row.key] ?? priorityTone.LOW; return <StatusPill bg={tone.bg} fg={tone.fg} label={row.label} />; } },
           { key: "target", header: "Target", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.hours} hour{row.hours === 1 ? "" : "s"}</span> },
@@ -261,22 +261,25 @@ async function TicketBoardTab({ board }: { board: Board }) {
             <ResourceActionDialog
               triggerLabel="Add or edit hours"
               title="Working hours for a country"
-              description="Creates the country’s configuration record if it does not exist yet, so a launch there is a data change."
+              description="Service-level clocks for a school in this country stop outside these hours and on these dates. Creates the country’s configuration record if it does not exist yet."
               endpoint="/api/super-admin/support-desk/countries"
               method="POST"
               variant="secondary"
               submitLabel="Save hours"
               fields={[
                 { name: "country", label: "Country", required: true, placeholder: "e.g. Ghana" },
-                { name: "supportHours", label: "Working hours", required: true, placeholder: "08:00–17:00 GMT, Mon–Fri" },
-                { name: "publicHolidays", label: "Public holidays a year", type: "number", defaultValue: 0, min: 0, max: 60 }
+                { name: "timeZone", label: "Time zone (IANA name)", required: true, placeholder: "Africa/Lagos" },
+                { name: "workStart", label: "Desk opens", required: true, placeholder: "08:00" },
+                { name: "workEnd", label: "Desk closes", required: true, placeholder: "17:00" },
+                { name: "workDays", label: "Days open", type: "select", defaultValue: "MON_FRI", options: [{ label: "Monday to Friday", value: "MON_FRI" }, { label: "Monday to Saturday", value: "MON_SAT" }, { label: "Sunday to Thursday", value: "SUN_THU" }] },
+                { name: "holidayDates", label: "Public holidays (YYYY-MM-DD, comma-separated)", type: "textarea", placeholder: "2026-12-25, 2026-12-26" }
               ]}
             />
           }
           footnote={`${levels.countries.filter((c) => c.live).map((c) => c.country).join(", ") || "No country"} ${levels.countries.filter((c) => c.live).length === 1 ? "is" : "are"} live. The others exist as configuration records so that a launch is a data change.`}
           columns={[
             { key: "country", header: "Country", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.country}</span> },
-            { key: "hours", header: "Working hours", render: (row) => row.hours ?? <span className="text-[var(--color-text-muted)]">Not set</span> },
+            { key: "hours", header: "Working hours", render: (row) => (row.configured ? row.hours : <span className="text-[var(--color-text-muted)]">Not set — clocks run in flat hours</span>) },
             { key: "holidays", header: "Holidays", render: (row) => (row.holidays === null ? <span className="text-[var(--color-text-muted)]">Not set</span> : `${row.holidays} public`) }
           ]}
         />
@@ -406,7 +409,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
         />
         <BarList
           title="Resolution time by priority"
-          sub="Average across the last 30 days, measured in flat hours from when the ticket was opened"
+          sub="Average across the last 30 days, measured in the school’s working hours where its country has them, else elapsed hours"
           items={analytics.byPriority
             .filter((row) => row.hours !== null)
             .map((row) => {

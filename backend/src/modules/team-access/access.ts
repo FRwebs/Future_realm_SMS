@@ -18,6 +18,33 @@ export const BACK_OFFICE_MODULES = [
   { id: "settings", label: "Settings" }
 ] as const;
 
+/** The six things a person can do in a module. A level is a shorthand for a set of these; a person can also be given an exact set. */
+export const ACTIONS = [
+  { id: "view", label: "View" },
+  { id: "export", label: "Export" },
+  { id: "create", label: "Create" },
+  { id: "edit", label: "Edit" },
+  { id: "approve", label: "Approve or decide" },
+  { id: "delete", label: "Delete" }
+] as const;
+export type ActionId = (typeof ACTIONS)[number]["id"];
+/** What each level allows. Viewing and exporting what you can see go together; Full adds deleting. */
+export const LEVEL_ACTIONS: Record<string, readonly ActionId[]> = {
+  NONE: [],
+  VIEW: ["view", "export"],
+  EDIT: ["view", "export", "create", "edit", "approve"],
+  FULL: ["view", "export", "create", "edit", "approve", "delete"]
+};
+
+/** Which of the six a request is, from its method and path. */
+export function actionOfRequest(method: string, path: string): ActionId {
+  const m = method.toUpperCase();
+  if (m === "DELETE") return "delete";
+  if (["GET", "HEAD", "OPTIONS"].includes(m)) return /(export|download|csv)/i.test(path) ? "export" : "view";
+  if (/(approve|reject|decide|settle|validate|publish|sign-off|confirm|escalat|countersign|revoke|elevat|dismiss|suspend|reactivate)/i.test(path)) return "approve";
+  return m === "POST" ? "create" : "edit";
+}
+
 export type Level = "NONE" | "VIEW" | "EDIT" | "FULL";
 export const RANK: Record<Level, number> = { NONE: 0, VIEW: 1, EDIT: 2, FULL: 3 };
 const LEVELS = new Set<string>(["NONE", "VIEW", "EDIT", "FULL"]);
@@ -29,7 +56,7 @@ const SEGMENT_MODULE: Record<string, string> = {
   billing: "billing",
   partners: "partners",
   users: "users", "user-case-review-context": "users",
-  communications: "communications",
+  communications: "communications", whatsapp: "communications",
   support: "support", "support-desk": "support",
   "config-library": "curriculum",
   "feature-flags": "plans", "feature-flag-extras": "plans", plans: "plans", "plans-features": "plans",
@@ -47,7 +74,7 @@ export function moduleOfPath(path: string): string | null {
 
 const ALWAYS_FULL = new Set(["PLATFORM_OWNER", "SUPER_ADMIN"]);
 const TTL_MS = 10_000;
-const cache = new Map<string, { at: number; grid: Record<string, string>; template: Record<string, string>; grants: Set<string> }>();
+const cache = new Map<string, { at: number; grid: Record<string, string>; custom: Record<string, string[]>; template: Record<string, string>; grants: Set<string> }>();
 
 async function load(userId: string, role: string) {
   const hit = cache.get(userId);
@@ -59,7 +86,8 @@ async function load(userId: string, role: string) {
   ]);
   const entry = {
     at: Date.now(),
-    grid: Object.fromEntries(rows.map((row) => [row.moduleId, row.accessLevel])),
+    grid: Object.fromEntries(rows.filter((row) => row.accessLevel !== "INHERIT").map((row) => [row.moduleId, row.accessLevel])),
+    custom: Object.fromEntries(rows.filter((row) => row.customActions).map((row) => [row.moduleId, row.actions])),
     template: template && typeof template.defaultGrid === "object" && template.defaultGrid ? (template.defaultGrid as Record<string, string>) : {},
     grants: new Set(grants.map((g) => g.moduleId))
   };
@@ -88,4 +116,34 @@ export async function levelsFor(userId: string, role: string): Promise<Record<st
   const out: Record<string, Level | "UNSET"> = {};
   for (const module of BACK_OFFICE_MODULES) out[module.id] = await levelFor(userId, role, module.id);
   return out;
+}
+
+/**
+ * Whether a person may do this action in the module. Super Admin and the Platform Owner may do everything; a person given an
+ * exact set may do exactly that set; otherwise their level (or role template) decides. Where nothing is set the endpoint's own
+ * role check decides, as before.
+ */
+export async function actionAllowed(userId: string, role: string, moduleId: string, action: ActionId): Promise<boolean> {
+  if (ALWAYS_FULL.has(role)) return true;
+  const entry = await load(userId, role);
+  const exact = entry.custom[moduleId];
+  if (exact) return exact.includes(action);
+  const level = await levelFor(userId, role, moduleId);
+  if (level === "UNSET") return true;
+  return LEVEL_ACTIONS[level].includes(action);
+}
+
+export async function actionsFor(userId: string, role: string, moduleId: string): Promise<{ actions: ActionId[]; custom: boolean }> {
+  if (ALWAYS_FULL.has(role)) return { actions: ACTIONS.map((a) => a.id), custom: false };
+  const entry = await load(userId, role);
+  const exact = entry.custom[moduleId];
+  if (exact) return { actions: exact as ActionId[], custom: true };
+  const level = await levelFor(userId, role, moduleId);
+  return { actions: level === "UNSET" ? [] : [...LEVEL_ACTIONS[level]], custom: false };
+}
+
+/** The exact set of actions somebody was given in a module, or null when their level (or role) decides. */
+export async function customActionsFor(userId: string, role: string, moduleId: string): Promise<string[] | null> {
+  if (ALWAYS_FULL.has(role)) return null;
+  return (await load(userId, role)).custom[moduleId] ?? null;
 }

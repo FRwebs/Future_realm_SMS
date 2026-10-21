@@ -161,7 +161,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
   const channelRules = [
     { channel: "Email", rule: "Sent over SMTP when a mail server is set up; otherwise queued and shown as waiting. A subject and body are accepted as written." },
     { channel: "SMS", rule: "160 characters, enforced by the server — a longer message is rejected on save." },
-    { channel: "WhatsApp", rule: "Refused — WhatsApp delivery is not connected on this platform, and a template Meta has not approved cannot be used in any case." }
+    { channel: "WhatsApp", rule: "Sent from a template Meta has approved, to people who opted in to WhatsApp. Choose the approved template; its {{fields}} are filled in per person. Needs the WhatsApp keys set on this deployment." }
   ];
 
   return (

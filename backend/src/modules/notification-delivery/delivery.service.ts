@@ -100,7 +100,7 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
       // Quiet hours hold everything: the messages stay queued and go out when the hours end.
       if (inQuietHours(policy)) return result;
       const rows = await prisma.notificationLog.findMany({
-        where: { status: { in: ["QUEUED", "HELD"] }, channel: { in: ["SMS", "EMAIL"] }, sentAt: { gte: this.since }, ...(schoolId ? { schoolId } : {}) },
+        where: { status: { in: ["QUEUED", "HELD"] }, channel: { in: ["SMS", "EMAIL", "WHATSAPP"] }, sentAt: { gte: this.since }, ...(schoolId ? { schoolId } : {}) },
         orderBy: { sentAt: "asc" },
         take: BATCH,
       });
@@ -109,7 +109,7 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
         if (!carrier?.configured()) continue;
         const meta = (row.metadata ?? {}) as Meta;
         const user = row.userId ? await prisma.user.findUnique({ where: { id: row.userId }, select: { email: true, phone: true } }) : null;
-        const to = row.channel === "SMS" ? String(meta.phone ?? user?.phone ?? "") : String(meta.email ?? user?.email ?? "");
+        const to = row.channel === "EMAIL" ? String(meta.email ?? user?.email ?? "") : String(meta.phone ?? user?.phone ?? "");
         if (!to) {
           await this.mark(row.id, meta, "FAILED", { error: "No address to send to" });
           result.failed++;
@@ -121,20 +121,21 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           continue;
         }
         const platformBilled = meta.billing === "PLATFORM";
-        if (row.channel === "SMS" && !platformBilled && !(await this.spend(row.schoolId, row.title))) {
-          await this.mark(row.id, meta, "HELD", { held: "The school has no SMS credits left" });
+        const credited = row.channel === "SMS" || row.channel === "WHATSAPP";
+        if (credited && !platformBilled && !(await this.spend(row.schoolId, row.channel as "SMS" | "WHATSAPP", row.title))) {
+          await this.mark(row.id, meta, "HELD", { held: `The school has no ${row.channel === "SMS" ? "SMS" : "WhatsApp"} credits left` });
           result.held++;
           continue;
         }
         const publicApi = (process.env.PUBLIC_API_URL ?? "").trim().replace(/\/$/, "");
-        const outcome = await carrier.send(to, row.title, row.body, row.channel === "EMAIL" && publicApi ? { openPixelUrl: `${publicApi}/api/v1/track/open/${row.id}.gif` } : undefined);
+        const outcome = await carrier.send(to, row.title, row.body, row.channel === "EMAIL" && publicApi ? { openPixelUrl: `${publicApi}/api/v1/track/open/${row.id}.gif` } : row.channel === "WHATSAPP" ? { template: meta.template as { name: string; language?: string; params: string[] } | undefined } : undefined);
         if (outcome.ok) {
           await this.mark(row.id, meta, "SENT", { to, provider: carrier.provider, ref: outcome.ref, deliveredAt: new Date().toISOString(), held: undefined });
           result.sent++;
           continue;
         }
         // The credit was taken before the attempt; a refused message gives it back.
-        if (row.channel === "SMS" && !platformBilled) await this.refund(row.schoolId, row.title);
+        if (credited && !platformBilled) await this.refund(row.schoolId, row.channel as "SMS" | "WHATSAPP", row.title);
         const attempts = Number(meta.attempts ?? 0) + 1;
         const final = !outcome.retry || attempts >= policy.maxAttempts;
         await this.mark(row.id, meta, final ? "FAILED" : "QUEUED", { attempts, error: outcome.error, provider: carrier.provider });
@@ -160,16 +161,18 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
     await prisma.notificationLog.update({ where: { id }, data: { status, metadata: next as Prisma.InputJsonValue } });
   }
 
-  /** One SMS credit, taken atomically: the update only matches while a credit remains. */
-  private async spend(schoolId: string, title: string) {
-    const taken = await prisma.notificationWallet.updateMany({ where: { schoolId, smsBalance: { gt: 0 } }, data: { smsBalance: { decrement: 1 } } });
+  /** One credit on the channel, taken atomically: the update only matches while a credit remains. */
+  private async spend(schoolId: string, channel: "SMS" | "WHATSAPP", title: string) {
+    const field = channel === "SMS" ? "smsBalance" : "whatsappBalance";
+    const taken = await prisma.notificationWallet.updateMany({ where: { schoolId, [field]: { gt: 0 } }, data: { [field]: { decrement: 1 } } });
     if (!taken.count) return false;
-    await prisma.creditLedger.create({ data: { schoolId, channel: "SMS", kind: "USED", credits: -1, note: title.slice(0, 120) } });
+    await prisma.creditLedger.create({ data: { schoolId, channel, kind: "USED", credits: -1, note: title.slice(0, 120) } });
     return true;
   }
 
-  private async refund(schoolId: string, title: string) {
-    await prisma.notificationWallet.updateMany({ where: { schoolId }, data: { smsBalance: { increment: 1 } } });
-    await prisma.creditLedger.create({ data: { schoolId, channel: "SMS", kind: "REFUND", credits: 1, note: `Not accepted by the carrier · ${title.slice(0, 90)}` } });
+  private async refund(schoolId: string, channel: "SMS" | "WHATSAPP", title: string) {
+    const field = channel === "SMS" ? "smsBalance" : "whatsappBalance";
+    await prisma.notificationWallet.updateMany({ where: { schoolId }, data: { [field]: { increment: 1 } } });
+    await prisma.creditLedger.create({ data: { schoolId, channel, kind: "REFUND", credits: 1, note: `Not accepted by the carrier · ${title.slice(0, 90)}` } });
   }
 }

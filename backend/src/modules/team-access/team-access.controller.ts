@@ -67,6 +67,18 @@ export class TeamAccessController {
     return ok(this.team.setGrid(session, body), "Access updated");
   }
 
+  @Post("module-actions")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("PLATFORM_OWNER", "SUPER_ADMIN", "PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER", "DEVELOPER")
+  setActions(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.team.setActions(session, body), "Actions updated");
+  }
+
+  @Get("action-matrix")
+  actionMatrix() {
+    return ok(this.team.actionsMatrix());
+  }
+
   @Patch("profiles/:userId")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles(...adminRoles)

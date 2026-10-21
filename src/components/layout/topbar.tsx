@@ -461,6 +461,17 @@ function ProfileDropdown({
 }) {
   const router = useRouter();
   const isSuperAdmin = portalType === "super_admin";
+  const [schools, setSchools] = useState<Array<{ schoolId: string; schoolName: string; role: string; current: boolean }>>([]);
+  useEffect(() => {
+    if (isSuperAdmin) return;
+    void fetch("/api/v1/memberships/mine", { credentials: "include" }).then((response) => (response.ok ? response.json() : null)).then((body: { data?: typeof schools } | null) => setSchools(body?.data ?? [])).catch(() => undefined);
+  }, [isSuperAdmin]);
+
+  async function switchSchool(schoolId: string) {
+    const csrf = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1] ?? "";
+    const response = await fetch(`/api/v1/memberships/switch/${schoolId}`, { method: "POST", credentials: "include", headers: { "x-csrf-token": csrf } });
+    if (response.ok) window.location.assign("/");
+  }
 
   const items = useMemo(
     () =>
@@ -510,6 +521,17 @@ function ProfileDropdown({
         {session.impersonation ? (
           <div className="mx-[6px] mt-[6px] rounded-[9px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-[11px] py-[7px] text-[11px] font-semibold text-[var(--color-warning)]">
             Impersonating account
+          </div>
+        ) : null}
+        {schools.length > 1 ? (
+          <div className="border-b border-[#EDF3EF] p-[6px]">
+            <p className="px-[11px] pb-[3px] pt-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#8C9A92]">Switch school</p>
+            {schools.map((entry) => (
+              <button key={entry.schoolId} type="button" disabled={entry.current} onClick={() => void switchSchool(entry.schoolId)} className="flex w-full items-center justify-between gap-2 rounded-[9px] px-[11px] py-[7px] text-left text-[11.5px] font-medium text-[#2A3B31] transition hover:bg-[#F1F8F4] disabled:cursor-default disabled:bg-[#F7FAF8]">
+                <span className="min-w-0 truncate">{entry.schoolName}</span>
+                <span className="flex-none text-[9.5px] text-[#67766D]">{entry.current ? "Here now" : entry.role.replaceAll("_", " ").toLowerCase()}</span>
+              </button>
+            ))}
           </div>
         ) : null}
         <div className="p-[6px]">

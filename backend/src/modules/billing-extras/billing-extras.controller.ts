@@ -38,6 +38,39 @@ export class BillingExtrasController {
     return ok(this.extras.dismissTier(session, body), "Recommendation dismissed");
   }
 
+  @Get("currencies")
+  currencies() {
+    return ok(this.extras.currencies());
+  }
+
+  @Post("pricing/rates")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeRoles)
+  rates(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.extras.setRates(session, body), "Rates recorded");
+  }
+
+  @Post("pricing/refresh")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...financeRoles)
+  refresh(@CurrentSession() session: SessionPayload) {
+    return ok(this.extras.refreshRates(session), "Rates fetched");
+  }
+
+  @Post("pricing/decide")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("FINANCE_MANAGER", "SUPER_ADMIN", "PLATFORM_OWNER")
+  decide(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.extras.decideRates(session, body), "Decision recorded");
+  }
+
+  @Post("pricing/usd")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles("SUPER_ADMIN", "PLATFORM_OWNER")
+  usd(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.extras.setUsdPrices(session, body), "Pricing updated");
+  }
+
   @Get("wallets")
   wallets() {
     return ok(this.extras.wallets());

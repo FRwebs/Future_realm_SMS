@@ -30,6 +30,12 @@ export class PlatformPolicyController {
     return ok(this.policy.update(session, body), "Platform policy saved.");
   }
 
+  @Post("platform-policy/triggers")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  setTriggers(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.policy.setTriggers(session, body), "Notices updated.");
+  }
+
   /** Which carriers have keys on this deployment — what the Settings page says is sending, and what is not. */
   @Get("delivery-carriers")
   carriers() {

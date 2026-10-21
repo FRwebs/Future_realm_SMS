@@ -4,7 +4,7 @@ import type { Observable } from "rxjs";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
-import { BACK_OFFICE_MODULES, RANK, levelFor, moduleOfPath } from "./access";
+import { ACTIONS, BACK_OFFICE_MODULES, actionAllowed, actionOfRequest, customActionsFor, levelFor, moduleOfPath } from "./access";
 
 /**
  * The per-module access grid, read on every Back Office request. Reading needs View; changing needs Edit; deleting needs
@@ -20,13 +20,15 @@ export class AccessInterceptor implements NestInterceptor {
     const moduleId = moduleOfPath(request.originalUrl.split("?")[0]);
     if (!moduleId) return next.handle();
     const level = await levelFor(session.userId, String(session.role), moduleId);
-    if (level === "UNSET") return next.handle();
+    // Nothing set for this person and module, and no exact set of actions: the endpoint's own role check decides, as before.
+    if (level === "UNSET" && !(await customActionsFor(session.userId, String(session.role), moduleId))) return next.handle();
     const label = BACK_OFFICE_MODULES.find((m) => m.id === moduleId)?.label ?? moduleId;
-    const method = request.method.toUpperCase();
-    const reading = ["GET", "HEAD", "OPTIONS"].includes(method);
     if (level === "NONE") throw new ForbiddenException(`Your access to ${label} is switched off. Ask a Super Admin if you need it.`);
-    if (!reading && RANK[level] < RANK.EDIT) throw new ForbiddenException(`You can view ${label} but not change it.`);
-    if (method === "DELETE" && RANK[level] < RANK.FULL) throw new ForbiddenException(`Deleting in ${label} needs full access; you have edit access.`);
+    const action = actionOfRequest(request.method, request.originalUrl.split("?")[0]);
+    if (!(await actionAllowed(session.userId, String(session.role), moduleId, action))) {
+      const what = ACTIONS.find((a) => a.id === action)?.label.toLowerCase() ?? action;
+      throw new ForbiddenException(`You do not have permission to ${what} in ${label}. Ask a Super Admin if you need it.`);
+    }
     return next.handle();
   }
 }

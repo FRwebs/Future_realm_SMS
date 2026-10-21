@@ -4,7 +4,6 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { msisdn } from "../../../../src/lib/integrations/carriers";
 
 const DAY = 86_400_000;
 const OWNER_ROLES = new Set<string>(["SCHOOL_OWNER", "PROPRIETOR"]);
@@ -26,40 +25,36 @@ const routeSchema = z.object({ approachId: z.string().min(1), dealId: z.string()
 export class UserInsightsService {
   /* ───────────────────────── one person, several schools ───────────────────────── */
 
-  /** People who hold an account at more than one school, found by the phone number they share — each account keeps its own role and permissions. */
+  /** People who belong to more than one school: the one their account was made in, and every live membership they have been given. */
   async memberships() {
-    const users = await prisma.user.findMany({
-      where: { deletedAt: null, phone: { not: null }, school: { deletedAt: null, isPersonalWorkspace: false } },
-      select: { id: true, firstName: true, lastName: true, email: true, phone: true, role: true, lastLoginAt: true, isActive: true, school: { select: { id: true, name: true } } },
-      take: 30000
-    });
-    const people = new Map<string, typeof users>();
-    for (const user of users) {
-      const key = msisdn(user.phone ?? "") ?? "";
-      if (!key) continue;
-      people.set(key, [...(people.get(key) ?? []), user]);
-    }
-    const multi = Array.from(people.values()).filter((group) => new Set(group.map((u) => u.school.id)).size >= 2);
-    const accounts = users.length;
-    const rows = multi
-      .map((group) => {
-        const lead = group[0];
-        const last = group.map((u) => u.lastLoginAt?.getTime() ?? 0).sort((a, b) => b - a)[0];
-        return { id: lead.id, name: `${lead.firstName} ${lead.lastName}`, contact: lead.email, memberships: new Set(group.map((u) => u.school.id)).size, roles: group.map((u) => `${pretty(u.role)} — ${u.school.name}`), lastActive: last ? new Date(last).toISOString() : null };
-      })
-      .sort((a, b) => b.memberships - a.memberships)
-      .slice(0, 50);
-    const count = (predicate: (roles: string[]) => boolean) => multi.filter((group) => predicate(group.map((u) => u.role))).length;
-    const owners = multi.filter((group) => new Set(group.filter((u) => OWNER_ROLES.has(u.role)).map((u) => u.school.id)).size >= 2).length;
+    const live = await prisma.schoolMembership.findMany({ where: { status: "ACTIVE", OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, orderBy: { createdAt: "desc" }, take: 5000 });
+    const accounts = await prisma.user.count({ where: { deletedAt: null, school: { deletedAt: null, isPersonalWorkspace: false } } });
+    const ids = Array.from(new Set(live.map((m) => m.userId)));
+    const [users, schools] = await Promise.all([
+      prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true, email: true, role: true, lastLoginAt: true, school: { select: { id: true, name: true } } } }),
+      prisma.school.findMany({ where: { id: { in: live.map((m) => m.schoolId) } }, select: { id: true, name: true } })
+    ]);
+    const school = new Map(schools.map((row) => [row.id, row.name]));
+    const people = ids.map((id) => {
+      const home = users.find((u) => u.id === id);
+      const extra = live.filter((m) => m.userId === id);
+      return { id, home, extra, roles: [String(home?.role ?? ""), ...extra.map((m) => String(m.role))], schools: new Set([home?.school.id, ...extra.map((m) => m.schoolId)]) };
+    }).filter((p) => p.home);
+    const has = (set: Set<string>, roles: string[], school: Set<string | undefined>) => roles.filter((r) => set.has(r)).length >= 1 && school.size >= 2;
     return {
       kpis: {
-        multi: multi.length, multiPct: accounts ? Math.round((multi.length / accounts) * 1000) / 10 : 0,
-        guardians: count((roles) => roles.some((r) => GUARDIAN_ROLES.has(r))),
-        teachers: multi.filter((group) => new Set(group.filter((u) => TEACHER_ROLES.has(u.role)).map((u) => u.school.id)).size >= 2).length,
-        owners,
-        examiners: 0
+        multi: people.length, multiPct: accounts ? Math.round((people.length / accounts) * 1000) / 10 : 0,
+        guardians: people.filter((p) => has(GUARDIAN_ROLES, p.roles, p.schools)).length,
+        teachers: people.filter((p) => p.roles.filter((r) => TEACHER_ROLES.has(r)).length >= 2 || (has(TEACHER_ROLES, p.roles, p.schools))).length,
+        owners: people.filter((p) => p.roles.filter((r) => OWNER_ROLES.has(r)).length >= 2).length,
+        examiners: live.filter((m) => m.expiresAt).length
       },
-      rows
+      rows: people.map((p) => ({
+        id: p.id, name: `${p.home?.firstName} ${p.home?.lastName}`, contact: p.home?.email ?? "", memberships: p.schools.size,
+        roles: [`${pretty(String(p.home?.role))} · ${p.home?.school.name}`, ...p.extra.map((m) => `${pretty(String(m.role))} · ${school.get(m.schoolId) ?? "a school"}${m.expiresAt ? ` (until ${m.expiresAt.toLocaleDateString("en-GB")})` : ""}`)],
+        lastActive: p.home?.lastLoginAt?.toISOString() ?? null
+      })).sort((a, b) => b.memberships - a.memberships).slice(0, 100),
+      items: live.map((m) => ({ id: m.id, person: users.find((u) => u.id === m.userId) ? `${users.find((u) => u.id === m.userId)?.firstName} ${users.find((u) => u.id === m.userId)?.lastName}` : "", school: school.get(m.schoolId) ?? "", role: pretty(String(m.role)), expiresAt: m.expiresAt?.toISOString() ?? null })).slice(0, 200)
     };
   }
 

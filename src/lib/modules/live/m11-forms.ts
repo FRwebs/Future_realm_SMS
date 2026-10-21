@@ -90,10 +90,11 @@ export function payInvoiceDrawer(p: Plan, pre?: InvoiceRow): DrawerSpec {
       ? [
           select("Paying for", labels, { required: true, span: 2, value: chosen, hint: "The invoice is issued to the contact named on it." }),
           text("Email the receipt to", { value: p.preferences.receiptEmail ?? "", placeholder: "bursary@school.ng" }),
+          toggle("Keep this card on file", false, "Used for automatic top-ups, and removable any time", "Do not keep it", { span: 2 }),
           fixed("Next step", "The payment provider asks for your card, and your bank for a one-time code", { span: 2 }),
         ]
       : [fixed("Paying for", "Nothing — every invoice is paid", { span: 2 })],
-    ...(open.length ? { submit: { endpoint: `${SB}/invoices/__id__/pay`, method: "POST" as const, map: { "Email the receipt to": "email" }, body: { method: "Card" } } } : {}),
+    ...(open.length ? { submit: { endpoint: `${SB}/invoices/__id__/pay`, method: "POST" as const, map: { "Email the receipt to": "email", "Keep this card on file": "saveCard" }, body: { method: "Card" } } } : {}),
   };
 }
 
@@ -139,7 +140,7 @@ export function topUpDrawer(c: Credits, channel: "SMS" | "WhatsApp" = "SMS"): Dr
       text("Custom amount", { optional: true, unit: "credits", hint: "Only used if you chose to type a number." }),
       fixed("Rate", `${rate2(rate)} per recipient`, { hint: wa ? "Billed by the conversation" : "160 characters a message" }),
       choice("Pay by", ["Card · now", "Bank transfer · invoice issued"], { span: 2, value: "Card · now" }),
-      toggle("Top up automatically when low", c.settings.auto, "Preference noted — see the note below", "I will top up myself", { span: 2 }),
+      toggle("Top up automatically when low", c.settings.auto, "The card you pay with now is kept and charged when the balance runs low", "I will top up myself", { span: 2 }),
       select("Warn me at", ["1,000 credits", "2,000 credits", "5,000 credits"], { value: `${c.settings.warnAt.toLocaleString("en-NG")} credits` }),
       select("Who is warned", ["Me only", "The Bursar", "The Proprietor", "Everyone who can send messages"], { value: c.settings.warnWho }),
       text("Email the receipt to", { optional: true, placeholder: "bursary@school.ng" }),
@@ -156,8 +157,8 @@ export function creditSettingsDrawer(c: Credits): DrawerSpec {
     sub: "How the school wants to be warned, and what it would buy.",
     commitLabel: "Save the settings",
     commitDone: "Credit settings saved",
-    commitDoneBody: "The warning applies from now. An automatic purchase needs a card kept on file with the payment provider, which this deployment does not hold — so the warning is what protects you.",
-    reviewNote: "Nothing is charged by saving this.",
+    commitDoneBody: "The warning applies from now. When the balance passes the threshold the card on file is charged for the same quantity; with no card on file, an invoice is issued and you are told. After three unpaid attempts it stops and asks a person to step in.",
+    reviewNote: "Nothing is charged by saving this. Pay one top-up by card with \"Keep this card on file\" switched on to put a card on file.",
     fields: [
       toggle("Top up automatically when low", c.settings.auto, "Buys the same quantity when the balance passes the threshold", "I will top up myself", { span: 2 }),
       choice("Channel", ["SMS", "WhatsApp"], { span: 2, value: c.settings.autoChannel === "WHATSAPP" ? "WhatsApp" : "SMS" }),
@@ -282,3 +283,7 @@ export function closureDrawer(a: Account): DrawerSpec {
 }
 
 export const countText = (n: number) => plural(n, "row");
+
+export function removeCardDrawer(card: { id: string; brand: string | null; last4: string }): DrawerSpec {
+  return { mode: "commit", kicker: "Subscription · credits", title: "Remove the card on file", sub: `${card.brand ?? "Card"} ending ${card.last4}`, facts: [["Automatic top-up", "Stops charging this card", "An invoice is issued instead, and you are told"]], commitLabel: "Remove the card", commitDone: "Card removed", commitDoneBody: "It will not be charged again.", submit: { endpoint: `${SB}/card/${card.id}/remove`, method: "POST" } };
+}

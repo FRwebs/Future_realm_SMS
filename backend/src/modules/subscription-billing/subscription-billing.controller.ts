@@ -78,6 +78,21 @@ export class SubscriptionBillingController {
     return ok(this.payments.settle(session, String(body.reference ?? "")));
   }
 
+  /* the card on file */
+
+  @Get("card")
+  @RequirePermission("subscription-billing.credits.view")
+  cards(@CurrentSession() session: SessionPayload) {
+    return ok(this.payments.cards(session.schoolId));
+  }
+
+  @Post("card/:id/remove")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subscription-billing.credits.edit")
+  removeCard(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return ok(this.payments.removeCard(session, id), "Card removed.");
+  }
+
   /* credits */
 
   @Get("credits")

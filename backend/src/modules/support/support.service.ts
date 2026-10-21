@@ -4,6 +4,8 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { supportDesk } from "../support-desk/support-desk.service";
+import { platformIdentity } from "../../../../src/lib/platform-identity";
 
 /**
  * A school's own support tickets.
@@ -127,6 +129,7 @@ export class SupportService {
         subject: parsed.subject,
         description: parsed.description,
         priority: parsed.priority ?? PlatformTicketPriority.MEDIUM,
+        slaDueAt: await supportDesk.slaDueAt(session.schoolId, parsed.priority ?? PlatformTicketPriority.MEDIUM),
       },
       select: { id: true, ticketNo: true },
     });
@@ -176,6 +179,7 @@ export class SupportService {
       satisfaction: { average: csat._avg.score === null ? null : Math.round(csat._avg.score * 10) / 10, responses: csat._count._all },
       tickets,
       responseTarget: "4 working hours",
+      contact: { platformName: platformIdentity().platformName, email: platformIdentity().supportEmail, phone: platformIdentity().supportPhone },
     };
   }
 }

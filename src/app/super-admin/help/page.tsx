@@ -92,22 +92,27 @@ function GettingStartedTab() {
 }
 
 /** The person for each subject is whoever holds that role in Team & Access — never a name typed in here. */
-const routes: Array<{ subject: string; roles: string[]; fallback: string; reach: string; response: string; tone: keyof typeof tones }> = [
-  { subject: "A school cannot operate", roles: ["SUPPORT_AGENT"], fallback: "Support — see Team & Access", reach: "In-app, then phone", response: "Immediately", tone: "bad" },
-  { subject: "Money, invoices, refunds", roles: ["FINANCE_MANAGER"], fallback: "Finance — see Team & Access", reach: "In-app or email", response: "Same working day", tone: "good" },
-  { subject: "Anything about a child’s data", roles: [], fallback: "Data Protection Officer — not yet named; see Security & Compliance", reach: "Security & Compliance → Requests", response: "Within 24 hours", tone: "warn" },
-  { subject: "Pricing, plans, exceptions", roles: ["PLATFORM_ADMIN"], fallback: "Platform Admin — see Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
-  { subject: "Migrations and source files", roles: ["PLATFORM_ADMIN"], fallback: "Platform Admin — see Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
-  { subject: "Anything that is sent to anyone", roles: ["PLATFORM_ADMIN"], fallback: "Platform Admin — see Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
-  { subject: "Partners and commission", roles: ["SALES_MANAGER"], fallback: "Sales — see Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
-  { subject: "The platform itself is unwell", roles: ["DEVELOPER"], fallback: "Engineering — see Team & Access", reach: "Phone, any hour", response: "Immediately", tone: "bad" },
-  { subject: "Access and privileges", roles: ["SUPER_ADMIN", "PLATFORM_OWNER"], fallback: "Super Admin — see Team & Access", reach: "In-app", response: "Same working day", tone: "good" }
+const routes: Array<{ subject: string; responsibility: string | null; roles: string[]; fallback: string; reach: string; response: string; tone: keyof typeof tones }> = [
+  { subject: "A school cannot operate", responsibility: "SUPPORT_LEAD", roles: ["SUPPORT_AGENT"], fallback: "Nobody named — set a Support Lead in Team & Access", reach: "In-app, then phone", response: "Immediately", tone: "bad" },
+  { subject: "Money, invoices, refunds", responsibility: "FINANCE_LEAD", roles: ["FINANCE_MANAGER"], fallback: "Nobody named — set a Finance Lead in Team & Access", reach: "In-app or email", response: "Same working day", tone: "good" },
+  { subject: "Anything about a child’s data", responsibility: "DPO", roles: [], fallback: "Nobody named — set a Data Protection Officer in Team & Access", reach: "Security & Compliance → Requests", response: "Within 24 hours", tone: "warn" },
+  { subject: "Pricing, plans, exceptions", responsibility: "PRODUCT_LEAD", roles: ["PLATFORM_ADMIN"], fallback: "Nobody named — set a Product Lead in Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
+  { subject: "Migrations and source files", responsibility: "MIGRATION_SPECIALIST", roles: [], fallback: "Nobody named — set a Migration Specialist in Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
+  { subject: "Anything that is sent to anyone", responsibility: "COMMS_LEAD", roles: [], fallback: "Nobody named — set a Comms Lead in Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
+  { subject: "Partners and commission", responsibility: "SALES_LEAD", roles: ["SALES_MANAGER"], fallback: "Nobody named — set a Sales Lead in Team & Access", reach: "In-app", response: "Same working day", tone: "good" },
+  { subject: "The platform itself is unwell", responsibility: "CTO", roles: ["DEVELOPER"], fallback: "Nobody named — set who is on call in Team & Access", reach: "Phone, any hour", response: "Immediately", tone: "bad" },
+  { subject: "Access and privileges", responsibility: null, roles: ["SUPER_ADMIN", "PLATFORM_OWNER"], fallback: "Super Admin — see Team & Access", reach: "In-app", response: "Same working day", tone: "good" }
 ];
 
 async function GetHelpTab() {
-  const team = (await apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE")).data ?? [];
+  const [teamEnvelope, profiles] = await Promise.all([
+    apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE"),
+    apiGet<Record<string, { responsibilities?: string[] }>>("/api/super-admin/internal-team/profiles").catch(() => ({}) as Record<string, { responsibilities?: string[] }>)
+  ]);
+  const team = teamEnvelope.data ?? [];
   const rows = routes.map((route) => {
-    const person = team.find((member) => route.roles.includes(member.role));
+    // Whoever has been named for the subject comes first; otherwise the nearest role, so the table is never empty by accident.
+    const person = (route.responsibility ? team.find((member) => profiles[member.id]?.responsibilities?.includes(route.responsibility as string)) : undefined) ?? team.find((member) => route.roles.includes(member.role));
     return { ...route, person: person ? `${person.name} · ${titleCase(person.role)}` : route.fallback };
   });
 

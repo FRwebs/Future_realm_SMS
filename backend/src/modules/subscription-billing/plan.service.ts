@@ -1,3 +1,4 @@
+import { inSchoolCurrency } from "../platform-policy/pricing-snapshot";
 import { platformPolicy } from "../platform-policy/policy.service";
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
@@ -192,7 +193,7 @@ export class PlanService {
     const discount = input.renewFor.startsWith("A full") ? 0.05 : 0;
     const label = facts.next?.label ?? "Next term";
     const gross = round2(input.students * facts.rate * terms);
-    const amount = round2(gross * (1 - discount));
+    const amount = round2(inSchoolCurrency(gross * (1 - discount), school.currency));
     const tax = round2(amount * (await taxRate(school.country)));
     const description = `${label}${terms > 1 ? ` + ${terms - 1} more` : ""} · ${input.students.toLocaleString("en-NG")} students`;
     const open = await prisma.platformInvoice.findFirst({ where: { schoolId, status: { not: "PAID" }, metadata: { path: ["termLabel"], equals: label } } });

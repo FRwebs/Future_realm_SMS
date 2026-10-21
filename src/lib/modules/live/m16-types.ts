@@ -44,6 +44,7 @@ export type SupportOverview = {
   status: { ok: boolean; checkedAt: string; databaseMs: number; uptimeMinutes: number };
   articles: Article[];
   satisfaction: { average: number | null; responses: number };
+  contact?: { platformName: string; email: string; phone: string };
   tickets: { tickets: Ticket[]; open: number; waitingOnSchool: number; breached: number; resolved: number };
   responseTarget: string;
 };

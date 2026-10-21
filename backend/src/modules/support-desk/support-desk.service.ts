@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
+import { addWorkingHours, parseWorkingHours, workingHoursBetween, type WorkingHours } from "./working-time";
 
 const HOUR = 3_600_000;
 const DAY = 86_400_000;
@@ -38,16 +39,26 @@ export const CATEGORIES: Array<{ key: PlatformTicketCategory; label: string; cov
 
 const targetHours = (priority: string) => SERVICE_LEVELS.find((level) => level.key === priority)?.hours ?? 8;
 const hoursBetween = (from: Date, to: Date) => (to.getTime() - from.getTime()) / HOUR;
+/** How long a resolved ticket took: in the school's working hours where its country has them, else plain elapsed hours. */
+const spent = (hm: Map<string, WorkingHours | null>, t: { createdAt: Date; resolvedAt: Date | null; schoolId: string }) => {
+  const working = hm.get(t.schoolId);
+  return working ? workingHoursBetween(t.createdAt, t.resolvedAt as Date, working) : hoursBetween(t.createdAt, t.resolvedAt as Date);
+};
 const round1 = (value: number) => Math.round(value * 10) / 10;
 const avg = (values: number[]) => (values.length ? values.reduce((sum, v) => sum + v, 0) / values.length : null);
 
 const idsSchema = z.object({ ticketIds: z.array(z.string()).min(1, "Choose at least one ticket.") });
 const assignSchema = idsSchema.extend({ assignedToId: z.string().min(1, "Choose who the tickets go to.") });
 const prioritySchema = idsSchema.extend({ priority: z.nativeEnum(PlatformTicketPriority) });
+const clock = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, "Use 24-hour time, like 08:00.");
+const DAY_SETS: Record<string, { days: number[]; label: string }> = { MON_FRI: { days: [1, 2, 3, 4, 5], label: "Mon–Fri" }, MON_SAT: { days: [1, 2, 3, 4, 5, 6], label: "Mon–Sat" }, SUN_THU: { days: [7, 1, 2, 3, 4], label: "Sun–Thu" } };
 const countrySchema = z.object({
   country: z.string().trim().min(2, "Name the country."),
-  supportHours: z.string().trim().min(3, "Give the hours, e.g. 08:00–17:00 WAT, Mon–Fri."),
-  publicHolidays: z.coerce.number().int().min(0).max(60)
+  timeZone: z.string().trim().min(3, "Give the time zone, like Africa/Lagos."),
+  workStart: clock,
+  workEnd: clock,
+  workDays: z.enum(["MON_FRI", "MON_SAT", "SUN_THU"]).default("MON_FRI"),
+  holidayDates: z.string().optional().default("")
 });
 
 @Injectable()
@@ -75,6 +86,22 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
 
   /* ───────────────────────── the clocks ───────────────────────── */
 
+  /** Each school's working hours, taken from its country's record. A school whose country has none set falls back to flat hours. */
+  async hoursFor(schoolIds: string[]): Promise<Map<string, WorkingHours | null>> {
+    const schools = await prisma.school.findMany({ where: { id: { in: Array.from(new Set(schoolIds)) } }, select: { id: true, country: true } });
+    const profiles = await prisma.countryProfile.findMany({ where: { country: { in: Array.from(new Set(schools.map((s) => s.country ?? "Nigeria"))) } } });
+    const byCountry = new Map(profiles.map((p) => [p.country, parseWorkingHours(p)]));
+    return new Map(schools.map((school) => [school.id, byCountry.get(school.country ?? "Nigeria") ?? null]));
+  }
+
+  /** When a ticket of this priority, opened at `from`, falls due — in the school's own working hours where they are configured. */
+  async slaDueAt(schoolId: string, priority: string, from = new Date()): Promise<Date> {
+    const hours = targetHours(priority);
+    const working = (await this.hoursFor([schoolId])).get(schoolId);
+    return working ? addWorkingHours(from, hours, working) : new Date(from.getTime() + hours * HOUR);
+  }
+
+
   /**
    * Tell the support leads about a ticket that has reached its alert point. One alert per ticket per priority — changing a
    * ticket's priority starts its clock again. The clock is flat hours from the ticket being opened, not the school's working hours.
@@ -83,12 +110,17 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
     const tickets = await prisma.supportTicket.findMany({ where: { status: { in: [...OPEN] } }, include: { school: { select: { name: true } }, assignedTo: { select: { id: true, schoolId: true } } } });
     const alerted = await prisma.auditLog.findMany({ where: { entityType: "TicketSlaAlert", entityId: { in: tickets.map((t) => t.id) } }, select: { entityId: true, metadata: true } });
     const done = new Set(alerted.map((row) => `${row.entityId}:${(row.metadata as { priority?: string } | null)?.priority}`));
-    const leads = await prisma.user.findMany({ where: { role: { in: ["SUPER_ADMIN", "PLATFORM_ADMIN", "PLATFORM_OWNER"] }, isActive: true }, select: { id: true, schoolId: true } });
+    // The alert goes to whoever is named Support Lead; until somebody is, to every administrator.
+    const named = await prisma.internalProfile.findMany({ where: { responsibilities: { has: "SUPPORT_LEAD" } }, select: { userId: true } });
+    const leads = await prisma.user.findMany({ where: named.length ? { id: { in: named.map((n) => n.userId) }, isActive: true } : { role: { in: ["SUPER_ADMIN", "PLATFORM_ADMIN", "PLATFORM_OWNER"] }, isActive: true }, select: { id: true, schoolId: true } });
+    const hoursMap = await this.hoursFor(tickets.map((t) => t.schoolId));
     let sent = 0;
     for (const ticket of tickets) {
       const level = SERVICE_LEVELS.find((l) => l.key === ticket.priority);
       if (!level || done.has(`${ticket.id}:${ticket.priority}`)) continue;
-      if (Date.now() < ticket.createdAt.getTime() + level.alertAfter * HOUR) continue;
+      const working = hoursMap.get(ticket.schoolId);
+      const alertAt = working ? addWorkingHours(ticket.createdAt, level.alertAfter, working) : new Date(ticket.createdAt.getTime() + level.alertAfter * HOUR);
+      if (Date.now() < alertAt.getTime()) continue;
       const breached = Boolean(ticket.slaDueAt && ticket.slaDueAt < new Date());
       const title = breached ? `SLA breached: ${ticket.ticketNo}` : `SLA at risk: ${ticket.ticketNo}`;
       const body = `${ticket.school.name} — ${ticket.subject}. ${level.label} priority, target ${level.hours} hour${level.hours === 1 ? "" : "s"}${ticket.assignedToId ? "" : ", and nobody owns it yet"}.`;
@@ -115,11 +147,12 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
     const [open, resolvedToday, resolvedWeek, resolvedPrev, csat] = await Promise.all([
       prisma.supportTicket.findMany({ where: { status: { in: [...OPEN] } }, select: { priority: true, slaDueAt: true } }),
       prisma.supportTicket.findMany({ where: { resolvedAt: { gte: todayStart } }, select: { resolvedAt: true, slaDueAt: true } }),
-      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: weekAgo } }, select: { createdAt: true, resolvedAt: true } }),
-      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: twoWeeks, lt: weekAgo } }, select: { createdAt: true, resolvedAt: true } }),
+      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: weekAgo } }, select: { createdAt: true, resolvedAt: true, schoolId: true } }),
+      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: twoWeeks, lt: weekAgo } }, select: { createdAt: true, resolvedAt: true, schoolId: true } }),
       prisma.ticketCsatResponse.aggregate({ where: { submittedAt: { gte: weekAgo } }, _avg: { score: true }, _count: { _all: true } })
     ]);
-    const hours = (rows: Array<{ createdAt: Date; resolvedAt: Date | null }>) => avg(rows.filter((r) => r.resolvedAt).map((r) => hoursBetween(r.createdAt, r.resolvedAt as Date)));
+    const hm = await this.hoursFor([...resolvedWeek, ...resolvedPrev].map((t) => t.schoolId));
+    const hours = (rows: Array<{ createdAt: Date; resolvedAt: Date | null; schoolId: string }>) => avg(rows.filter((r) => r.resolvedAt).map((r) => spent(hm, r)));
     const thisWeek = hours(resolvedWeek);
     const lastWeek = hours(resolvedPrev);
     return {
@@ -152,18 +185,26 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
       categories,
       termVolume: categories.reduce((sum, c) => sum + c.volume, 0),
       newCategoryVolume: categories.filter((c) => ["DATA_MIGRATION", "ONBOARDING_SETUP"].includes(c.key)).reduce((sum, c) => sum + c.volume, 0),
-      countries: countries.map((c) => ({ country: c.country, hours: c.supportHours, holidays: c.publicHolidays, live: c.isLive }))
+      countries: countries.map((c) => ({ country: c.country, hours: c.supportHours, holidays: c.publicHolidays, live: c.isLive, configured: Boolean(c.workStart && c.workEnd && c.timeZone), timeZone: c.timeZone, workStart: c.workStart, workEnd: c.workEnd, holidayDates: c.holidayDates }))
     };
   }
 
   async saveCountryHours(session: SessionPayload, body: unknown) {
     const input = countrySchema.parse(body);
-    const row = await prisma.countryProfile.upsert({
-      where: { country: input.country },
-      create: { country: input.country, supportHours: input.supportHours, publicHolidays: input.publicHolidays },
-      update: { supportHours: input.supportHours, publicHolidays: input.publicHolidays }
-    });
-    await this.audit(session, "CountryProfile", row.id, { country: row.country, supportHours: input.supportHours, publicHolidays: input.publicHolidays });
+    try {
+      new Intl.DateTimeFormat("en-US", { timeZone: input.timeZone });
+    } catch {
+      throw new BadRequestException(`“${input.timeZone}” is not a time zone name. Use one like Africa/Lagos or Europe/London.`);
+    }
+    if (input.workEnd <= input.workStart) throw new BadRequestException("The desk must close after it opens.");
+    const holidays = input.holidayDates.split(/[\s,;]+/).filter(Boolean);
+    const bad = holidays.find((d) => !/^\d{4}-\d{2}-\d{2}$/.test(d) || Number.isNaN(Date.parse(d)));
+    if (bad) throw new BadRequestException(`“${bad}” is not a date. Write holidays as YYYY-MM-DD, separated by commas.`);
+    const set = DAY_SETS[input.workDays];
+    const short = input.timeZone.split("/").pop()?.replaceAll("_", " ");
+    const data = { timeZone: input.timeZone, workStart: input.workStart, workEnd: input.workEnd, workDays: set.days, holidayDates: Array.from(new Set(holidays)).sort(), supportHours: `${input.workStart}–${input.workEnd} ${short}, ${set.label}`, publicHolidays: new Set(holidays).size };
+    const row = await prisma.countryProfile.upsert({ where: { country: input.country }, create: { country: input.country, ...data }, update: data });
+    await this.audit(session, "CountryProfile", row.id, { country: row.country, ...data });
     return { country: row.country };
   }
 
@@ -178,14 +219,15 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
       prisma.supportTicket.count({ where: { createdAt: { gte: weekAgo } } }),
       prisma.supportTicket.count({ where: { createdAt: { gte: twoWeeks, lt: weekAgo } } }),
       prisma.supportTicket.findMany({ where: { resolvedAt: { gte: weekAgo } }, select: { createdAt: true, resolvedAt: true, slaDueAt: true, assignedToId: true } }),
-      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: month } }, select: { createdAt: true, resolvedAt: true, priority: true, slaDueAt: true } }),
+      prisma.supportTicket.findMany({ where: { resolvedAt: { gte: month } }, select: { createdAt: true, resolvedAt: true, priority: true, slaDueAt: true, schoolId: true } }),
       prisma.ticketCsatResponse.findMany({ where: { submittedAt: { gte: month } }, select: { score: true, ticket: { select: { assignedToId: true } } } }),
       prisma.supportTicket.findMany({ where: { createdAt: { gte: new Date(now - 60 * DAY) } }, select: { id: true, schoolId: true, category: true, createdAt: true, assignedToId: true } }),
       prisma.user.findMany({ where: { OR: [{ role: "SUPPORT_AGENT" }, { assignedSupportTickets: { some: { createdAt: { gte: month } } } }] }, select: { id: true, firstName: true, lastName: true, role: true } })
     ]);
     const within = (rows: Array<{ resolvedAt: Date | null; slaDueAt: Date | null }>) => (rows.length ? Math.round((rows.filter((r) => !r.slaDueAt || (r.resolvedAt as Date) <= r.slaDueAt).length / rows.length) * 100) : null);
+    const hm30 = await this.hoursFor(resolved30.map((t) => t.schoolId));
     const critical = resolved30.filter((r) => r.priority === "CRITICAL" && r.resolvedAt);
-    const criticalAvg = avg(critical.map((r) => hoursBetween(r.createdAt, r.resolvedAt as Date)));
+    const criticalAvg = avg(critical.map((r) => spent(hm30, r)));
     // A repeat is a ticket in the last 30 days whose school already had one in the same category in the 30 days before it.
     const lastMonth = recent.filter((t) => t.createdAt >= month);
     const repeats = lastMonth.filter((t) => recent.some((o) => o.id !== t.id && o.schoolId === t.schoolId && o.category === t.category && o.createdAt < t.createdAt && t.createdAt.getTime() - o.createdAt.getTime() <= 30 * DAY));
@@ -216,7 +258,7 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
       perAgent,
       byPriority: SERVICE_LEVELS.map((level) => {
         const rows = resolved30.filter((r) => r.priority === level.key && r.resolvedAt);
-        const mean = avg(rows.map((r) => hoursBetween(r.createdAt, r.resolvedAt as Date)));
+        const mean = avg(rows.map((r) => spent(hm30, r)));
         return { key: level.key, label: level.label, target: level.hours, hours: mean === null ? null : round1(mean), count: rows.length };
       })
     };
@@ -241,7 +283,7 @@ export class SupportDeskService implements OnApplicationBootstrap, OnModuleDestr
     const input = prioritySchema.parse(body);
     const tickets = await prisma.supportTicket.findMany({ where: { id: { in: input.ticketIds }, status: { notIn: FINISHED as never } } });
     for (const ticket of tickets) {
-      await prisma.supportTicket.update({ where: { id: ticket.id }, data: { priority: input.priority, slaDueAt: new Date(ticket.createdAt.getTime() + targetHours(input.priority) * HOUR) } });
+      await prisma.supportTicket.update({ where: { id: ticket.id }, data: { priority: input.priority, slaDueAt: await this.slaDueAt(ticket.schoolId, input.priority, ticket.createdAt) } });
       await this.audit(session, "SupportTicket", ticket.id, { priority: input.priority, was: ticket.priority, bulk: true }, ticket.schoolId);
     }
     return { changed: tickets.length, skipped: input.ticketIds.length - tickets.length };
