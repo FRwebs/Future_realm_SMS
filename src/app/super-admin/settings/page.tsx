@@ -99,46 +99,13 @@ async function PlatformTab() {
         ]}
       />
 
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Platform-wide</p>
-        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Maintenance and announcement</h2>
-        <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">Maintenance blocks non-Super Admin logins. The announcement is shown to school admins after login.</p>
-        <div className="mt-5 flex flex-wrap items-center gap-3">
-          <span
-            className="inline-flex items-center rounded-full px-3 py-1.5 text-[11px] font-bold"
-            style={
-              settings.maintenanceMode
-                ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" }
-                : { background: "var(--color-success-dim)", color: "var(--color-success)" }
-            }
-          >
-            Maintenance {settings.maintenanceMode ? "On" : "Off"}
-          </span>
-          <ResourceActionDialog
-            triggerLabel="Update platform message"
-            title="Platform announcement"
-            description="Publish a message for school administrators and control maintenance mode."
-            endpoint="/api/super-admin/settings"
-            method="PATCH"
-            variant="secondary"
-            submitLabel="Publish settings"
-            confirmLabel="Confirm Settings"
-            fields={[
-              { name: "maintenanceMode", label: "Maintenance Mode", type: "select", defaultValue: String(settings.maintenanceMode), options: [
-                { label: "Off", value: "false" },
-                { label: "On", value: "true" }
-              ] },
-              { name: "platformAnnouncement", label: "Platform Announcement", type: "textarea", defaultValue: settings.platformAnnouncement ?? "" }
-            ]}
-          />
-        </div>
-      </section>
-
       <TableCard
         title="Platform identity"
         description="The things that appear in front of a school or a parent and should almost never change. The name and contact are on every email the platform sends."
         items={[
           { setting: "Platform name", value: policy.identity.platformName, by: "Super Admin" },
+          { setting: "Maintenance mode", value: settings.maintenanceMode ? "On — non-Super Admin sign-ins are blocked" : "Off", by: "Super Admin" },
+          { setting: "Platform announcement", value: settings.platformAnnouncement || "None — shown to school admins after sign-in when set", by: "Super Admin" },
           { setting: "School web address", value: "Chosen at signup, lower-case letters and numbers, permanent from the minute it is created", by: "Fixed" },
           { setting: "Back-office address", value: "Wherever this console is deployed — set at deployment, not here", by: "Fixed" },
           { setting: "Support email shown to schools", value: policy.identity.supportEmail || "Not set — emails carry the platform name only", by: "Super Admin" },
@@ -147,7 +114,8 @@ async function PlatformTab() {
           { setting: "Countries open for signup", value: openCountries.length ? openCountries.join(", ") : "None live — open a country in Curriculum & Academics → Country Settings", by: "Country Settings" }
         ]}
         actions={
-          <ResourceActionDialog
+          <div className="flex items-center gap-2">
+            <ResourceActionDialog
             triggerLabel="Edit"
             title="Platform identity"
             description="Changing these never moves a school that already exists. The change is written to the audit log."
@@ -162,6 +130,21 @@ async function PlatformTab() {
               { name: "identity_timeZone", label: "Platform time zone (IANA name)", defaultValue: policy.identity.timeZone, placeholder: "Africa/Lagos" }
             ]}
           />
+            <ResourceActionDialog
+              triggerLabel="Update platform message"
+              title="Platform announcement"
+              description="Publish a message for school administrators and control maintenance mode."
+              endpoint="/api/super-admin/settings"
+              method="PATCH"
+              variant="secondary"
+              submitLabel="Publish settings"
+              confirmLabel="Confirm Settings"
+              fields={[
+                { name: "maintenanceMode", label: "Maintenance mode", type: "switch", on: Boolean(settings.maintenanceMode), note: "Schools see the maintenance page and can only read until it is switched off", section: "State" },
+                { name: "platformAnnouncement", label: "Platform announcement", type: "textarea", defaultValue: settings.platformAnnouncement ?? "", section: "Message to school administrators" }
+              ]}
+          />
+          </div>
         }
         footnote="A school’s web address is permanent from the minute it is created. Opening a country in Country Settings is what lets a school there sign up."
         pageSize={false}
@@ -271,16 +254,53 @@ async function PlatformTab() {
 }
 
 async function DefaultsTab() {
-  const settings = await apiGet<SuperAdminSettingsView>("/api/super-admin/settings");
+  const rawSettings = await apiGet<SuperAdminSettingsView>("/api/super-admin/settings");
+  type Band = { grade: string; min: number; max: number; remark?: string };
+  const settings = { ...rawSettings, defaultGradingScale: (Array.isArray(rawSettings.defaultGradingScale) ? rawSettings.defaultGradingScale : []) as Band[] };
 
   return (
     <section className="grid gap-[14px]">
       <TableCard
         title="What a new school starts with"
-        description="What is configured for a school automatically at signup, and who can change it afterwards. Each row is what the signup actually writes."
+        description="The configuration a school receives at setup. Each one is a starting point the school can change for itself — except where the row says otherwise."
+        actions={
+          <div className="flex items-center gap-2">
+            <ResourceActionDialog
+              triggerLabel="Edit grading scale"
+              title="Edit a platform default"
+              description="A default is what a new school starts with. Changing one never moves a school that has already decided for itself."
+              endpoint="/api/super-admin/settings"
+              method="PATCH"
+              variant="secondary"
+              submitLabel="Save default"
+              note="Every change here is written to the audit log with the new value."
+              impact={{ label: "On saving", rows: [["New schools only", "Nothing that exists today moves"], ["Reversible", "A default is a starting point, not a migration — change it back and new schools follow again"], ["Logged", "The new value, your name and the time"]] }}
+              fields={[
+                { name: "setting", label: "Setting", type: "static", placeholder: "Default grading scale", section: "What you are changing" },
+                { name: "current", label: "Current value", type: "static", placeholder: `${settings.defaultGradingScale.length} bands · ${settings.defaultGradingScale.map((band) => band.grade).join(" · ")}`, section: "What you are changing" },
+                { name: "defaultGradingScale", label: "New value — one band per line", type: "textarea", parse: "bands", required: true, defaultValue: settings.defaultGradingScale.map((band) => `${band.grade} | ${band.min}-${band.max} | ${band.remark ?? ""}`).join("\n"), note: "Write each band as: grade | from-to | remark. The bands must cover 0 to 100 with no gap or overlap, or the country’s own scale is used instead.", section: "What you are changing" },
+                { name: "newSchools", label: "New schools", type: "static", placeholder: "Every school created after you save", section: "Who it touches" },
+                { name: "existing", label: "Existing schools", type: "static", placeholder: "None — each keeps the scale it is on", section: "Who it touches" }
+              ]}
+            />
+            <ResourceActionDialog
+              triggerLabel="Edit modules"
+              title="Edit a platform default"
+              description="Which modules are available platform-wide, on top of each school’s own plan and configuration."
+              endpoint="/api/super-admin/settings"
+              method="PATCH"
+              variant="secondary"
+              submitLabel="Save default"
+              note="Switching a module off removes it for every school at once. Nothing a school recorded in it is deleted."
+              impact={{ label: "On saving", rows: [["Takes effect for every school", "A module switched off disappears from each school’s navigation"], ["Data is kept", "Everything already recorded stays, and returns when the module is switched back on"], ["Logged", "The new set, your name and the time"]] }}
+              fields={Object.entries(settings.globalModuleAvailability).map(([module, enabled]) => ({ name: module, object: "globalModuleAvailability", label: module.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase()), type: "switch" as const, on: Boolean(enabled), section: "Which modules are available" }))}
+            />
+          </div>
+        }
         items={[
           { setting: "Curriculum template", value: "The country's own: the Nigerian subject catalogue for Nigeria, a plain international set for every other country — loaded for each section the school runs, with each class offered its own level's subjects", canChange: "Yes", where: "Curriculum & Academics, then the school's own School Configuration" },
-          { setting: "Grading scale", value: "The scale below, applied to every new school. If it is not a usable scale (it must cover 0 to 100), the country's own scale is used instead.", canChange: "Yes", where: "This page — Default grading scale" },
+          { setting: "Grading scale", value: `${settings.defaultGradingScale.length} bands, ${settings.defaultGradingScale.map((band) => band.grade).join(" · ")} — applied to every new school. If it is not a usable scale (it must cover 0 to 100), the country's own scale is used instead.`, canChange: "Yes", where: "This page — Default grading scale" },
+          { setting: "Module availability", value: `${Object.values(settings.globalModuleAvailability).filter(Boolean).length} of ${Object.keys(settings.globalModuleAvailability).length} modules on platform-wide — on top of each school’s own plan`, canChange: "No", where: "This page — Edit modules" },
           { setting: "Report card layout", value: "One platform layout. No per-school template model exists, so nothing is linked at signup.", canChange: "No", where: "Fixed" },
           { setting: "Assessment weights (CA/exam)", value: "Seven components: assignment, classwork, two tests, project and practical at 10 each, and a terminal exam at 40", canChange: "Yes", where: "The school's Score Entry framework" },
           { setting: "Academic calendar", value: "The school year the school is in, September to July in three terms, with the current term set. A sample class marks attendance up to yesterday.", canChange: "Yes", where: "School Configuration → Calendar" },
@@ -315,65 +335,6 @@ async function DefaultsTab() {
         ]}
         footnote="The last two cannot be switched off by anyone, at any tier, for any reason. A school must always be able to see what was done in its workspace and to take its data with it."
       />
-
-      <TableCard
-        title="Global modules"
-        description="Availability toggles applied platform-wide, on top of a school's own plan and configuration."
-        items={Object.entries(settings.globalModuleAvailability).map(([module, enabled]) => ({ module, enabled }))}
-        pageSize={false}
-        getRowKey={(item) => item.module}
-        columns={[
-          { key: "module", header: "Module", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.module.replaceAll("_", " ")}</span> },
-          {
-            key: "status",
-            header: "Status",
-            render: (item) => (
-              <span
-                className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
-                style={item.enabled ? { background: "var(--color-success-dim)", color: "var(--color-success)" } : { background: "var(--color-bg-elevated)", color: "var(--color-text-muted)" }}
-              >
-                {item.enabled ? "Enabled" : "Disabled"}
-              </span>
-            )
-          }
-        ]}
-        actions={
-          <ResourceActionDialog
-            triggerLabel="Update modules"
-            title="Global module availability"
-            description="Paste a JSON object of module flags."
-            endpoint="/api/super-admin/settings"
-            method="PATCH"
-            variant="secondary"
-            submitLabel="Save modules"
-            fields={[{ name: "globalModuleAvailability", label: "Module JSON", type: "textarea", parse: "json", defaultValue: JSON.stringify(settings.globalModuleAvailability, null, 2) }]}
-          />
-        }
-      />
-
-      <section className="surface-card p-6">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-          <div>
-            <p className="section-eyebrow">Academic defaults</p>
-            <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Default grading scale</h2>
-            <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-              Used as the platform-level default for newly created school tenants — each school can then edit its own copy. Curriculum
-              templates, assessment frameworks, and report card layouts are managed in Curriculum &amp; Academics, not duplicated here.
-            </p>
-          </div>
-          <ResourceActionDialog
-            triggerLabel="Edit grading scale"
-            title="Default grading scale"
-            description="Paste the JSON grading bands used for newly created schools."
-            endpoint="/api/super-admin/settings"
-            method="PATCH"
-            variant="secondary"
-            submitLabel="Save grading"
-            fields={[{ name: "defaultGradingScale", label: "Grading JSON", type: "textarea", parse: "json", defaultValue: JSON.stringify(settings.defaultGradingScale, null, 2) }]}
-          />
-        </div>
-        <pre className="mt-5 overflow-x-auto rounded-[11px] bg-[#0D2315] p-5 text-[11px] leading-6 text-[rgba(255,255,255,0.85)]">{JSON.stringify(settings.defaultGradingScale, null, 2)}</pre>
-      </section>
     </section>
   );
 }
@@ -397,7 +358,7 @@ async function NotificationsTab() {
             variant="secondary"
             submitLabel="Save rules"
             fields={[
-              { name: "messaging_quietHoursOn", label: "Quiet hours", type: "select", defaultValue: String(m.quietHoursOn), options: [{ label: "Off — messages can send at any time", value: "false" }, { label: "On — hold messages during the quiet window", value: "true" }] },
+              { name: "messaging_quietHoursOn", label: "Quiet hours", type: "switch", on: (String(m.quietHoursOn)) === "true", note: "Hold messages during the quiet window" },
               { name: "messaging_quietFrom", label: "Quiet from (Lagos time)", type: "text", defaultValue: m.quietFrom, placeholder: "21:00" },
               { name: "messaging_quietTo", label: "Quiet until", type: "text", defaultValue: m.quietTo, placeholder: "06:00" },
               { name: "messaging_dailyCapPerRecipient", label: "Daily cap per recipient (0 = none)", type: "number", defaultValue: m.dailyCapPerRecipient, min: 0, max: 100 },
@@ -460,7 +421,7 @@ async function SecurityTab() {
         { requirement: "Session lifetime", spec: "8 hours by default, 30 days if “Trust this device” is checked at login — no idle timeout", state: "warn" },
         { requirement: "Privilege change effect", spec: "A role change, an offboard or a switched-off account ends the session on its next request (checked every few seconds). A fine-grained permission-grid edit is read from the database on each protected request.", state: "bad" },
         { requirement: "Support access to a school", spec: "A 30-minute logged impersonation with a required reason — not read-only, the acting admin can take any action the account holder could", state: "warn" },
-        { requirement: "Acting on a school's behalf beyond support access", spec: "Not built — there's no separate escalation tier that additionally requires the school's own recorded confirmation before proceeding", state: "bad" },
+        { requirement: "Acting on a school's behalf beyond support access", spec: "Enforced — a support session is read-only by default and every write is refused. To act rather than look, support raises a request into the school's own approvals queue with a reason; a Proprietor, Principal or Owner decides it. The approval is good for one session, expires after 24 hours and cannot be used twice. Safeguarding-restricted, ownership-disputed and address-disputed accounts are refused outright.", state: "good" },
         { requirement: "Reading a student's academic record directly", spec: "Not possible outside the logged impersonation flow above — no platform-level endpoint exposes it", state: "good" },
         { requirement: "Out-of-hours privilege change flagging", spec: "Detected when a Super Admin runs the suspicious-activity scan — not continuous or automatic yet", state: "warn" },
         { requirement: "Audit log", spec: "Append-only in practice — no code path in this system updates or deletes an entry", state: "good" }
@@ -506,12 +467,16 @@ function purposeOf(name: string) {
 }
 
 async function IntegrationsTab() {
-  const monitoring = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
+  const [monitoring, team] = await Promise.all([
+    apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring"),
+    apiGet<Array<{ id: string; name: string; role: string; status?: string }>>("/api/super-admin/internal-team").catch(() => [] as Array<{ id: string; name: string; role: string; status?: string }>)
+  ]);
+  const people = (team ?? []).filter((member) => !member.status || member.status === "ACTIVE").map((member) => ({ label: `${member.name} · ${member.role.replaceAll("_", " ").toLowerCase()}`, value: member.id }));
 
   return (
     <TableCard
       title="Connected services"
-      description="What the platform actually depends on outside itself right now, read live from the same health check Infrastructure uses. The owning team is not recorded against an integration yet."
+      description="What the platform actually depends on outside itself right now, read live from the same health check Infrastructure uses. Each service has a named owner — the person who is told first and answers for it."
       items={monitoring.integrations}
       pageSize={false}
       getRowKey={(item) => item.name}
@@ -519,7 +484,28 @@ async function IntegrationsTab() {
         { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10px] text-[var(--color-text-muted)]">Checked {item.checkFrequency.toLowerCase()}</p></div> },
         { key: "purpose", header: "Purpose", render: (item) => purposeOf(item.name) },
         { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
-        { key: "owner", header: "Owner", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
+        {
+          key: "owner",
+          header: "Owner",
+          render: (item) => (
+            <div className="flex items-center gap-3">
+              <span className={item.owner ? "font-semibold text-[var(--color-text-primary)]" : "text-[var(--color-text-muted)]"}>{item.owner ?? "Nobody yet"}</span>
+              <ResourceActionDialog
+                triggerLabel={item.owner ? "Change" : "Assign"}
+                title={`Owner of ${item.name}`}
+                description="The person accountable when this service fails — the one the failure answer in this table is addressed to."
+                endpoint="/api/super-admin/infra-extras/integration-owners"
+                method="POST"
+                variant="textAction"
+                submitLabel="Save owner"
+                fields={[
+                  { name: "name", label: "Service", type: "select", defaultValue: item.name, options: [{ label: item.name, value: item.name }], section: "Which service" },
+                  { name: "ownerId", label: "Owner", type: "select", defaultValue: item.ownerId ?? "", options: [{ label: "Nobody", value: "" }, ...people], section: "Who answers for it" }
+                ]}
+              />
+            </div>
+          )
+        },
         { key: "status", header: "State", render: (item) => <StatusBadge status={item.status} tone={integrationStatusTone(item.status)} /> }
       ]}
       emptyState="No integrations recorded."

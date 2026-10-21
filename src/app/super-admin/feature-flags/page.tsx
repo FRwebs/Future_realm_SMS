@@ -10,6 +10,7 @@ import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { BrandingPreview } from "./_branding-preview";
 import { PlanCreateDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
@@ -619,7 +620,7 @@ async function ExceptionsTab() {
           { requirement: "Brand colours as hex codes", spec: "Enforced — both colour fields are validated against a hex-colour pattern before they can be saved.", state: "good" },
           { requirement: "Contrast check", spec: "Enforced — the primary colour must reach 3:1 contrast against white (WCAG) so headings can be read on printed paper; a lighter colour is refused with its ratio.", state: "good" },
           { requirement: "Quality / appropriateness review", spec: "Approval is a bare status change — clicking Approve sets the status field and records who approved it; no automated check of the logo or colours runs at any point.", state: "bad" },
-          { requirement: "Preview with sample data before going live", spec: "Not built on this page — there's no rendered preview step between approval and applying branding to the school's live account.", state: "bad" }
+          { requirement: "Preview with sample data before going live", spec: "Enforced — every row in the queue opens a preview that draws the two surfaces branding actually reaches, a report card header and the parent portal header, against fixed sample content. The primary colour's contrast against white is shown with the preview, and a logo that fails to load shows as blank there exactly as it would for a parent.", state: "good" }
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
@@ -886,6 +887,7 @@ async function ExceptionsCaseBoard() {
           { key: "colours", header: "Brand colours", render: (row) => <span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[4px] border border-[#DEE8E2]" style={{ background: row.primaryColour }} />{row.primaryColour}<span className="h-3.5 w-3.5 rounded-[4px] border border-[#DEE8E2]" style={{ background: row.secondaryColour }} />{row.secondaryColour}</span> },
           { key: "applied", header: "Applied to", render: (row) => row.appliedTo },
           { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+          { key: "preview", header: "", sortable: false, render: (row) => <BrandingPreview branding={{ schoolName: row.schoolName, logoUrl: row.logoUrl, primaryColour: row.primaryColour, secondaryColour: row.secondaryColour, status: row.status }} /> },
           { key: "decision", header: "", sortable: false, render: (row) => (row.status === "PENDING" || row.status === "APPROVED" ? brandingDecisions(row) : null) }
         ]}
       />
