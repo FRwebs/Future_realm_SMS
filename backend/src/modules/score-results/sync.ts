@@ -32,8 +32,15 @@ export async function syncResultSheets(schoolId: string, term: Term, classId: st
     updated += 1;
   }
   // Kept so Infrastructure can say how long computation takes, and for which schools it keeps re-running over published results.
+  // A result can be traced when what was just written is what the recorded component scores add up to.
+  const written = await prisma.resultSheet.findMany({ where: { id: { in: sheets.map((sheet) => sheet.id) } }, select: { studentId: true, totalScore: true } });
+  const traceChecked = written.length;
+  const traceMatched = written.filter((row) => {
+    const result = byStudent.get(row.studentId);
+    return result !== undefined && Math.abs(Number(row.totalScore ?? 0) - Number(result.total ?? 0)) < 0.01;
+  }).length;
   const records = arm.subjects.reduce((sum, subject) => sum + subject.rows.reduce((inner, row) => inner + Object.values(row.cells).filter((cell) => typeof cell === "number").length, 0), 0);
-  await prisma.computationRun.create({ data: { schoolId, classId, termId: term.id, students: sheets.length, records, durationMs: Date.now() - startedAt, recompute: sheets.some((sheet) => sheet.status === "PUBLISHED"), reason } }).catch(() => undefined);
+  await prisma.computationRun.create({ data: { schoolId, classId, termId: term.id, students: sheets.length, records, durationMs: Date.now() - startedAt, traceChecked, traceMatched, recompute: sheets.some((sheet) => sheet.status === "PUBLISHED"), reason } }).catch(() => undefined);
   return { updated, ready: everySheetApproved };
 }
 

@@ -1,29 +1,33 @@
-const toneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: string; fg: string; bd: string }> = {
-  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", bd: "#CFE4DB" },
-  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", bd: "#F2E4C6" },
-  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", bd: "#F3E0E0" },
+const node: Record<string, { bg: string; fg: string; bd: string }> = {
   ink: { bg: "#0D2315", fg: "#fff", bd: "#0D2315" },
-  plain: { bg: "#fff", fg: "var(--color-text-primary)", bd: "var(--color-border-default)" }
+  bad: { bg: "#FDF3F3", fg: "#B23B3B", bd: "#F3E0E0" },
+  warn: { bg: "#FDF6E7", fg: "#8A6410", bd: "#F2E4C6" },
+  good: { bg: "#EAF6F0", fg: "#17714F", bd: "#CFE4DB" },
+  plain: { bg: "#fff", fg: "#0D2315", bd: "#DEE8E2" }
 };
 
 export type FlowStep = { label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" };
 
-/** The mockup's process strip: a title, one line of context, and a row of connected steps. */
+/** The mockup's process panel: a title and a line of context, then connected steps. */
 export function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: FlowStep[] }) {
   return (
-    <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[14px] font-semibold text-[#0D2315]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-3xl text-[12px] leading-5 text-[var(--color-text-muted)]">{sub}</p> : null}
-      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
+    <section className="surface-card min-w-0 overflow-hidden">
+      <div className="px-5 pb-[14px] pt-4">
+        <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
+        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-[1.5] text-[#8C9A92]">{sub}</p> : null}
+      </div>
+      <div className="flex flex-wrap items-stretch gap-[9px] px-5 pb-5 pt-1">
         {steps.map((step, index) => {
-          const tone = toneStyle[step.tone ?? "plain"];
+          const tone = node[step.tone ?? "plain"];
           return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[11px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[12px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
+            <div key={`${step.label}-${index}`} className="flex items-center gap-[9px]">
+              <div className="min-w-[126px] max-w-[190px] rounded-[11px] border px-[14px] py-[11px]" style={{ background: tone.bg, color: tone.fg, borderColor: tone.bd }}>
+                <p className="text-[12.5px] font-semibold leading-[1.3]">{step.label}</p>
+                <p className="mt-1 text-[10.5px] leading-[1.4] opacity-[0.72]">{step.note}</p>
               </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
+              {index < steps.length - 1 ? (
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 12h14M13 7l5 5-5 5" /></svg>
+              ) : null}
             </div>
           );
         })}

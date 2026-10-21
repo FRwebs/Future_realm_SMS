@@ -86,6 +86,32 @@ export class TeamAccessController {
     return ok(this.team.saveProfile(session, userId, body), "Profile saved");
   }
 
+  @Get("roles")
+  roles() {
+    return ok(this.team.roles());
+  }
+
+  @Post("roles")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...adminRoles)
+  createRole(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.team.createRole(session, body), "Role created");
+  }
+
+  @Post("roles/:id/grid")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...adminRoles)
+  setRoleGrid(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.team.setRoleGrid(session, id, body), "Privileges saved");
+  }
+
+  @Post("roles/:id/retire")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...adminRoles)
+  retireRole(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.team.retireRole(session, id, body), "Role retired");
+  }
+
   @Post("anomalies/:id/review")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles(...adminRoles)

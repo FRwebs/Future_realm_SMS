@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { canAssignRole, canManageRole, isOwnerRole, isPlatformRole, isSchoolStaffRole } from "../../../../src/lib/auth/role-architecture";
+import { withoutSwitchedOff } from "../platform-sync/availability";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { roleTemplateFor, schoolPermissionsForRole } from "../../../../src/lib/modules/school-access";
 import { allGrantablePermissionKeys, allPermissionKeys, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
@@ -130,7 +131,17 @@ export class RolesManagementService {
     }
   }
 
+  /**
+   * What a person may do — minus every module the platform has switched off for this school. Done here, after the cache, so the
+   * sidebar, the pages and each permission-guarded route lose the module together and the moment the switch is thrown.
+   */
   async resolveUserPermissions(userId: string, schoolId: string, session?: SessionPayload): Promise<string[]> {
+    const permissions = await this.resolveGrantedPermissions(userId, schoolId, session);
+    if (session && isPlatformRole(session.role)) return permissions;
+    return withoutSwitchedOff(schoolId, permissions);
+  }
+
+  private async resolveGrantedPermissions(userId: string, schoolId: string, session?: SessionPayload): Promise<string[]> {
     const sessionUser = await this.sessionUser(session);
     const realUserId = sessionUser?.id ?? userId;
     const cacheKey = `${schoolId}:${realUserId}:${session?.role ?? ""}`;

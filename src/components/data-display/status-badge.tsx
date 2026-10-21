@@ -37,14 +37,8 @@ export function StatusBadge({ status, tone }: { status: string; tone?: StatusTon
   const resolvedTone = tone ?? getWorkflowStatusTone(status);
 
   return (
-    <span
-      className={cn(
-        "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-semibold",
-        toneStyles[resolvedTone].shell
-      )}
-    >
-      <span className={cn("h-1.5 w-1.5 rounded-full", toneStyles[resolvedTone].dot)} />
-      {status.replaceAll("_", " ")}
+    <span className={cn("inline-block rounded-full px-[9px] py-[3px] text-[11px] font-bold", toneStyles[resolvedTone].shell.replace(/border-\[[^\]]+\]\s?/g, ""))}>
+      {status.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase())}
     </span>
   );
 }

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { Fragment, useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
 
@@ -13,7 +13,9 @@ type RunResult = {
   periodDays: number | null;
   compare: boolean;
   suppressUnder: number | null;
-  rows: Array<{ label: string; value: number | null; suppressed: boolean; schools: number | null; previous: number | null }>;
+  showDropoff: boolean;
+  weightChurned: boolean;
+  rows: Array<{ label: string; value: number | null; suppressed: boolean; schools: number | null; previous: number | null; churned: number | null; churnedSchools: number | null; schoolNames: string[]; dropoff: number | null }>;
 };
 
 const DIMENSIONS = [{ label: "Tier", value: "tier" }, { label: "State", value: "state" }, { label: "Status", value: "status" }];
@@ -26,6 +28,7 @@ export function ReportRun({ id, name }: { id: string; name: string }) {
   const [error, setError] = useState<string | null>(null);
   const [dimension, setDimension] = useState("");
   const [metric, setMetric] = useState("");
+  const [openRow, setOpenRow] = useState<string | null>(null);
 
   async function run(nextDimension = dimension, nextMetric = metric) {
     setError(null);
@@ -66,16 +69,25 @@ export function ReportRun({ id, name }: { id: string; name: string }) {
               {result.periodDays ? <span className="text-[var(--color-text-muted)]">Schools that joined in the last {result.periodDays} days{result.compare ? ", against the period before" : ""}.</span> : <span className="text-[var(--color-text-muted)]">All schools on record.</span>}
             </div>
             <table className="w-full text-left text-[12.5px]">
-              <thead><tr className="border-b border-[var(--color-border-default)] text-[11px] uppercase text-[var(--color-text-muted)]"><th className="py-2">{result.dimension}</th><th>{result.metric}</th>{result.compare ? <th>Previous period</th> : null}</tr></thead>
+              <thead><tr className="border-b border-[var(--color-border-default)] text-[11px] uppercase text-[var(--color-text-muted)]"><th className="py-2">{result.dimension}</th><th>{result.metric}</th>{result.compare ? <th>Previous period</th> : null}{result.showDropoff ? <th>Drop-off</th> : null}{result.weightChurned ? <th>Churned (separate)</th> : null}</tr></thead>
               <tbody>
                 {result.rows.map((row) => (
-                  <tr key={row.label} className="border-b border-[var(--color-border-muted)]">
-                    <td className="py-2 font-semibold">{row.label}</td>
-                    <td>{row.suppressed ? <span className="text-[var(--color-text-muted)]">under {result.suppressUnder} schools — withheld</span> : row.value?.toLocaleString()}</td>
-                    {result.compare ? <td>{row.previous === null ? "—" : row.previous.toLocaleString()}</td> : null}
-                  </tr>
+                  <Fragment key={row.label}>
+                    <tr className="border-b border-[var(--color-border-muted)]">
+                      <td className="py-2 font-semibold">
+                        {result.showDropoff && row.schoolNames.length > 0 ? <button type="button" onClick={() => setOpenRow(openRow === row.label ? null : row.label)} className="text-left font-semibold text-[var(--color-text-accent)] hover:underline">{row.label}</button> : row.label}
+                      </td>
+                      <td>{row.suppressed ? <span className="text-[var(--color-text-muted)]">under {result.suppressUnder} schools — withheld</span> : row.value?.toLocaleString()}</td>
+                      {result.compare ? <td>{row.previous === null ? "—" : row.previous.toLocaleString()}</td> : null}
+                      {result.showDropoff ? <td>{row.dropoff === null ? "—" : `−${row.dropoff}%`}</td> : null}
+                      {result.weightChurned ? <td>{row.churned === null ? "—" : `${row.churned.toLocaleString()}${row.churnedSchools ? ` · ${row.churnedSchools} school${row.churnedSchools === 1 ? "" : "s"}` : ""}`}</td> : null}
+                    </tr>
+                    {openRow === row.label ? (
+                      <tr className="border-b border-[var(--color-border-muted)] bg-[var(--color-bg-subtle)]"><td colSpan={5} className="px-2 py-2 text-[11.5px] text-[var(--color-text-secondary)]">{row.schoolNames.join(" · ")}</td></tr>
+                    ) : null}
+                  </Fragment>
                 ))}
-                {result.rows.length === 0 ? <tr><td className="py-4 text-[var(--color-text-muted)]" colSpan={3}>Nothing matches.</td></tr> : null}
+                {result.rows.length === 0 ? <tr><td className="py-4 text-[var(--color-text-muted)]" colSpan={5}>Nothing matches.</td></tr> : null}
               </tbody>
             </table>
             <a href={`/api/super-admin/analytics-bi/reports/${id}/export`} className="text-[12px] font-semibold text-[var(--color-text-accent)] underline">Download as CSV</a>

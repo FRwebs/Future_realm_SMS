@@ -125,12 +125,24 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
         title="Users"
         description="One account, many schools — the identity model made visible."
         action={
-          <a
-            href={`/api/super-admin/users/export?${exportQuery.toString()}`}
-            className="whitespace-nowrap rounded-full bg-white px-5 py-3 text-[11.5px] font-semibold text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] transition hover:bg-[#eaf3ee]"
-          >
-            Export registry
-          </a>
+          <ResourceActionDialog
+            triggerLabel="Export registry"
+            title="Export the user registry"
+            description="A file leaves the platform. That is a consequential act, so it is treated as one."
+            endpoint="/api/super-admin/users/export"
+            downloadHref={`/api/super-admin/users/export?${exportQuery.toString()}`}
+            variant="heroWhite"
+            submitLabel="Export"
+            note="This export is itself written to the audit log, with your reason attached."
+            fields={[
+              { name: "scope", label: "Scope", type: "static", placeholder: exportQuery.toString() ? "The accounts matching the current filters" : "Every account on the platform", section: "What leaves" },
+              { name: "format", label: "Format", type: "static", placeholder: "CSV", section: "What leaves" },
+              { name: "columns", label: "Columns", type: "static", placeholder: "Name, email, role, school, school status, account status, last login, created", section: "What leaves", full: true },
+              { name: "records", label: "Student records and results", type: "locked", note: "Never included — this lists accounts, not records", section: "Withheld by policy" },
+              { name: "secrets", label: "Passwords and device data", type: "locked", note: "The function does not exist, so it cannot be granted", section: "Withheld by policy" },
+              { name: "reason", label: "Why this export is needed", type: "textarea", required: true, placeholder: "Name the purpose, and who asked for it", section: "Reason (required)" }
+            ]}
+          />
         }
       />
 
@@ -540,7 +552,7 @@ async function ReviewsAndCasesTab({
                 submitLabel="Merge"
                 fields={[
                   { name: "action", label: "Action", type: "select", defaultValue: "MERGE", options: [{ label: "Merge", value: "MERGE" }] },
-                  { name: "keepUserId", label: "Keep user ID", defaultValue: flag.userA.id }
+                  { name: "keepUserId", label: "Account kept", type: "hidden", defaultValue: flag.userA.id }
                 ]}
               />
             }
@@ -558,7 +570,7 @@ async function ReviewsAndCasesTab({
                 submitLabel="Merge"
                 fields={[
                   { name: "action", label: "Action", type: "select", defaultValue: "MERGE", options: [{ label: "Merge", value: "MERGE" }] },
-                  { name: "keepUserId", label: "Keep user ID", defaultValue: flag.userB.id }
+                  { name: "keepUserId", label: "Account kept", type: "hidden", defaultValue: flag.userB.id }
                 ]}
               />
             }
@@ -764,9 +776,9 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
   const q = (params.search ?? "").toLowerCase();
   const teachers = view.teachers.filter((t) => !q || `${t.name} ${t.school ?? ""} ${t.city ?? ""} ${t.subjects.join(" ")}`.toLowerCase().includes(q));
   const messageFields = [
-    { name: "subject", label: "Subject", required: true },
-    { name: "channel", label: "Channel", type: "select" as const, defaultValue: "EMAIL", options: [{ label: "Email", value: "EMAIL" }, { label: "SMS", value: "SMS" }], note: "WhatsApp is not connected, so a teacher's WhatsApp opt-in is recorded but nothing is sent on it." },
-    { name: "body", label: "Message", type: "textarea" as const, required: true, placeholder: "End with a question, not a booking.", note: "Write to the teacher personally — never to their school." }
+    { name: "channel", label: "Send by", type: "select" as const, defaultValue: "EMAIL", options: [{ label: "Email", value: "EMAIL" }, { label: "SMS", value: "SMS" }], note: "Email is free; SMS is paid from the platform’s own wallet. WhatsApp is not connected, so a teacher’s opt-in is recorded but nothing is sent on it.", section: "Send by" },
+    { name: "subject", label: "Subject line", required: true, section: "The message" },
+    { name: "body", label: "Message", type: "textarea" as const, required: true, placeholder: "End with a question, not a booking.", note: "Write to the teacher personally — never to their school.", section: "The message" }
   ];
 
   return (
@@ -806,7 +818,7 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
         getRowKey={(row) => row.id}
         pageSize={8}
         emptyState="No teacher has signed up on their own yet."
-        actions={<ResourceActionDialog triggerLabel="Bulk message" title="Message individual teachers" description="Goes to every teacher on this list you have not unticked — by email or SMS, personally, from the platform." endpoint="/api/super-admin/users/insights/teachers/message" method="POST" variant="primary" submitLabel="Queue messages" fields={[{ name: "teacherIds", label: "Teachers", type: "multiselect", required: true, defaultValue: view.teachers.map((t) => t.id), options: view.teachers.map((t) => ({ label: `${t.name}${t.school ? ` — ${t.school}` : ""}`, value: t.id })) }, ...messageFields]} />}
+        actions={<ResourceActionDialog triggerLabel="Bulk message" title="Message individual teachers" description="One message, many teachers — written once, sent under the platform’s name to each teacher personally." endpoint="/api/super-admin/users/insights/teachers/message" method="POST" variant="primary" submitLabel="Queue messages" note="These are private accounts. Nothing you send from here reaches a school office, and no school is told which of its teachers use the platform." impact={{ label: "What this will do", rows: [["Each teacher hears from a person", "One message per teacher, on the channel you choose — a teacher with no address on that channel is skipped and counted"], ["Nothing reaches the school", "No principal, proprietor or school office is contacted or told"], ["It is on record", "The send, its channel and how many were reached are written to the audit log"]] }} fields={[{ name: "teacherIds", label: "Teachers", section: "Choose the group", note: "Everyone is chosen to begin with — untick or search to narrow it", type: "multiselect", required: true, defaultValue: view.teachers.map((t) => t.id), options: view.teachers.map((t) => ({ label: `${t.name}${t.school ? ` — ${t.school}` : ""}`, value: t.id })) }, ...messageFields]} />}
         filterBar={<FilterToolbar action="/super-admin/users?tab=teachers" resultCount={teachers.length} controls={[{ name: "search", label: "Search a teacher, school, city or subject", type: "search", placeholder: "Search a teacher, school, city or subject", defaultValue: params.search }]} />}
         selection={{
           noun: "teacher",

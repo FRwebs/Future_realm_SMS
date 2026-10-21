@@ -71,15 +71,17 @@ export function FeatureMatrixTable({ view, actions }: { view: View; actions: Rea
             item.featureKey ? (
               <ResourceActionDialog
                 triggerLabel="Edit access"
-                title={`Who can use ${item.name}`}
-                description="Set which tiers have this feature. Taking it away from a tier that has schools on it needs a written migration plan, and those schools are told."
+                title={`Manage features · ${item.name}`}
+                description="Which tiers have this feature. Taking it away from a tier that has schools on it needs a written migration plan, and those schools are told."
+                note="Access changes apply at once to every school on the tier. Nothing a school built is deleted."
+                impact={{ label: "On saving", rows: [["A new version is recorded", "With the before and after, your reason, and the schools affected"], ["Schools losing access", "Told in the app, with the migration plan you write"], ["Schools gaining access", "Have it the next time the product checks"]] }}
                 endpoint="/api/super-admin/plans-features/matrix"
                 method="POST"
                 variant="textAction"
                 submitLabel="Save access"
                 fields={[
                   { name: "featureKey", label: "Feature", type: "select" as const, defaultValue: item.featureKey, options: [{ label: item.name, value: item.featureKey }], section: "Feature" },
-                  ...view.tiers.map((tier) => ({ name: tier.tier, label: `${LABEL[tier.tier] ?? tier.tier} (${tier.schools} school${tier.schools === 1 ? "" : "s"})`, type: "select" as const, defaultValue: String(Boolean(item.access[tier.tier])), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }], section: "Access by tier" })),
+                  ...view.tiers.map((tier) => ({ name: tier.tier, label: LABEL[tier.tier] ?? tier.tier, type: "switch" as const, on: Boolean(item.access[tier.tier]), note: `${tier.schools} school${tier.schools === 1 ? "" : "s"} on this tier`, section: "Which tiers have it" })),
                   { name: "reason", label: "Why this is changing", type: "textarea" as const, required: true, section: "Reason" },
                   { name: "migrationPlan", label: "Migration plan (needed when taking access away from schools)", type: "textarea" as const, section: "Reason" }
                 ]}

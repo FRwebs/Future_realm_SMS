@@ -31,7 +31,20 @@ export function NavigationNoticeListener() {
       });
     }
 
+    if (notice === "module-off") {
+      const name = searchParams.get("module") ?? "That module";
+      showToast({
+        variant: "warning",
+        title: `${name} is switched off`,
+        description: searchParams.get("scope") === "platform"
+          ? "FutureRealm has switched this module off for every school for now. You were returned to a workspace you can use."
+          : "FutureRealm has switched this module off for your school. Contact support if you need it back.",
+      });
+    }
+
     const next = new URLSearchParams(searchParams.toString());
+    next.delete("module");
+    next.delete("scope");
     next.delete("notice");
     next.delete("from");
     const query = next.toString();

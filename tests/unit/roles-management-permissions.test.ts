@@ -12,6 +12,9 @@ vi.mock("@/lib/db/prisma", () => ({
     configurationItem: { findFirst: vi.fn().mockResolvedValue(null) },
     userRoleAssignment: { findMany: vi.fn().mockResolvedValue([]) },
     userPermissionOverride: { findMany: vi.fn().mockResolvedValue([]) },
+    // Nothing switched off by the platform, for the platform or for this school.
+    platformSetting: { findFirst: vi.fn().mockResolvedValue(null) },
+    school: { findUnique: vi.fn().mockResolvedValue({ featureFlags: null }) },
   },
 }));
 

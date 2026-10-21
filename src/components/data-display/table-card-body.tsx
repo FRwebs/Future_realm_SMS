@@ -4,7 +4,10 @@ import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
 
+import { usePortalType } from "@/components/layout/portal-context";
 import { useToast } from "@/components/ui/toast-provider";
+
+import { BackOfficeTable } from "./back-office-table";
 
 export interface PreparedColumn {
   key: string;
@@ -75,7 +78,7 @@ function columnStorageKey(title: string) {
   return `sms:table-columns:${title}`;
 }
 
-export function TableCardBody({
+function StandardTableCardBody({
   title,
   description,
   emptyState,
@@ -459,4 +462,13 @@ export function TableCardBody({
       {footnote ? <div className="border-t border-[#EDF3EF] bg-[#F7FAF8] px-5 py-3 text-[11.5px] text-[#8C9A92]">{footnote}</div> : null}
     </section>
   );
+}
+
+/** The Back Office draws its tables the mockup's way; every other portal keeps the standard one. */
+export function TableCardBody(props: TableCardBodyProps) {
+  const portal = usePortalType();
+  if (portal === "super_admin") {
+    return <BackOfficeTable title={props.title} description={props.description} emptyState={props.emptyState} actions={props.actions} filterBar={props.filterBar} footnote={props.footnote} columns={props.columns} rows={props.rows} pageSize={props.pageSize} selection={props.selection} />;
+  }
+  return <StandardTableCardBody {...props} />;
 }

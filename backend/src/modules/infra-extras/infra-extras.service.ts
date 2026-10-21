@@ -1,6 +1,11 @@
-import { Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
+import { AuditAction } from "@prisma/client";
+import { z } from "zod";
+
+import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { runGolden } from "./golden";
 import type { SuperAdminComputationMonitoring } from "../../../../src/lib/domain/types";
 
 /**
@@ -27,7 +32,50 @@ function hoursBetween(from: Date, to: Date): number {
 }
 
 @Injectable()
-export class InfraExtrasService {
+export class InfraExtrasService implements OnModuleInit, OnModuleDestroy {
+  private readonly log = new Logger("Regression");
+  private timer: NodeJS.Timeout | null = null;
+
+  onModuleInit() {
+    if (process.env.REGRESSION_SCHEDULER === "off") return;
+    setTimeout(() => void this.runRegression("STARTUP", null).catch((error) => this.log.error(error)), 20_000).unref();
+    this.timer = setInterval(() => void this.runRegression("DAILY", null).catch((error) => this.log.error(error)), 24 * 3_600_000);
+    this.timer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  /** The golden-dataset checks, run through the real calculation code and kept so the page can say when they last passed. */
+  async runRegression(trigger: "MANUAL" | "STARTUP" | "DAILY", userId: string | null) {
+    const result = runGolden();
+    const row = await prisma.regressionRun.create({ data: { passed: result.passed, total: result.total, failures: result.failures as never, trigger, ranById: userId } });
+    if (result.failures.length) await prisma.securityIncident.create({ data: { type: "Calculation regression", severity: "HIGH", description: `${result.failures.length} golden case${result.failures.length === 1 ? "" : "s"} no longer give the known answer: ${result.failures.map((failure) => failure.name).join("; ")}` } }).catch(() => undefined);
+    return { id: row.id, ...result };
+  }
+
+  async runRegressionAs(session: SessionPayload) {
+    const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } });
+    const result = await this.runRegression("MANUAL", actor?.id ?? null);
+    await prisma.auditLog.create({ data: { actorId: actor?.id ?? null, action: AuditAction.UPDATE, entityType: "RegressionRun", entityId: result.id, metadata: { passed: result.passed, total: result.total } } });
+    return result;
+  }
+
+  /** Who answers for an outside service the platform depends on. */
+  async setIntegrationOwner(session: SessionPayload, body: unknown) {
+    const input = z.object({ name: z.string().trim().min(2), ownerId: z.string().trim().optional().transform((v) => v || undefined) }).parse(body);
+    if (!input.ownerId) {
+      await prisma.integrationOwner.deleteMany({ where: { name: input.name } });
+      return { name: input.name, ownerId: null };
+    }
+    const person = await prisma.user.findFirst({ where: { id: input.ownerId, deletedAt: null, isActive: true } });
+    if (!person) throw new BadRequestException("That person is not on the team.");
+    await prisma.integrationOwner.upsert({ where: { name: input.name }, create: { name: input.name, ownerId: input.ownerId }, update: { ownerId: input.ownerId } });
+    await prisma.auditLog.create({ data: { actorId: person.id === session.userId ? person.id : (await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } }))?.id ?? null, action: AuditAction.SETTINGS_UPDATE, entityType: "IntegrationOwner", entityId: input.name, metadata: { ownerId: input.ownerId } } });
+    return { name: input.name, ownerId: input.ownerId };
+  }
+
   async computationMonitoring(): Promise<{ data: SuperAdminComputationMonitoring }> {
     const now = new Date();
     const ninetyDaysAgo = new Date(now.getTime() - 90 * 24 * 60 * 60 * 1000);
@@ -79,7 +127,7 @@ export class InfraExtrasService {
     /* what the computation has actually done: runs, how long they took, who keeps re-running them, and frameworks that cannot compute */
     const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const [runs, components] = await Promise.all([
-      prisma.computationRun.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } }, select: { schoolId: true, durationMs: true, records: true, recompute: true, createdAt: true } }),
+      prisma.computationRun.findMany({ where: { createdAt: { gte: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000) } }, select: { schoolId: true, durationMs: true, records: true, recompute: true, reason: true, traceChecked: true, traceMatched: true, createdAt: true } }),
       prisma.sectionAssessmentComponent.findMany({ where: { isActive: true, school: { deletedAt: null } }, select: { schoolId: true, section: true, weight: true, school: { select: { name: true } } } })
     ]);
     const percentile = (values: number[], q: number) => (values.length ? values.slice().sort((a, b) => a - b)[Math.min(values.length - 1, Math.floor(values.length * q))] : null);
@@ -101,7 +149,14 @@ export class InfraExtrasService {
       frameworkTotals.set(key, row);
     }
     const failingFrameworks = Array.from(frameworkTotals.values()).filter((row) => Math.abs(row.total - 100) > 0.01);
+    const traced = runs.filter((run) => run.traceChecked !== null);
+    const traceChecked = traced.reduce((sum, run) => sum + (run.traceChecked ?? 0), 0);
+    const traceMatched = traced.reduce((sum, run) => sum + (run.traceMatched ?? 0), 0);
+    const latestRegression = await prisma.regressionRun.findFirst({ orderBy: { ranAt: "desc" } });
     const computation = {
+      trace: { checked: traceChecked, matched: traceMatched, pct: traceChecked ? Math.round((traceMatched / traceChecked) * 1000) / 10 : null },
+      regression: latestRegression ? { ranAt: latestRegression.ranAt.toISOString(), passed: latestRegression.passed, total: latestRegression.total, trigger: latestRegression.trigger, failures: latestRegression.failures as Array<{ name: string }> } : null,
+      recomputes: runs.filter((run) => run.recompute).sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, 10).map((run) => ({ school: schoolNames.get(run.schoolId) ?? "A school", reason: run.reason ?? "No reason recorded", at: run.createdAt.toISOString() })),
       runsToday: today.length,
       schoolsToday: new Set(today.map((run) => run.schoolId)).size,
       medianMs: percentile(runs.map((run) => run.durationMs), 0.5),

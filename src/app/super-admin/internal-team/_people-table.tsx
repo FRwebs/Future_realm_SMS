@@ -70,36 +70,40 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
           <div className="flex flex-wrap gap-2">
             <ResourceActionDialog
               triggerLabel="Fine-tune actions"
-              title={`Exact actions — ${member.name}`}
-              description="Give this person exactly these actions in one module, instead of everything their level allows — for example Full without Delete. Choose none and tick Go back to the level to clear it. A lead cannot give an action they do not hold."
+              title={`Edit privileges · ${member.name}`}
+              description="What they may do inside one module — exactly these actions, instead of everything their level allows. For example Full without Delete."
+              note="Changes apply on their next request, not their next login. A lead cannot give an action they do not hold."
+              impact={{ label: "On saving", rows: [["Exactly these actions", "Everything not chosen is refused, not hidden"], ["Takes effect at once", "A privilege withdrawn is withdrawn mid-session"], ["On record", "Each change is written to the audit log with your name"]] }}
               endpoint="/api/super-admin/internal-team/module-actions"
               method="POST"
               variant="secondary"
               submitLabel="Save actions"
               fields={[
-                { name: "userId", label: "User ID", defaultValue: member.id },
-                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions },
-                { name: "actions", label: "Actions", type: "multiselect", options: [{ label: "View", value: "view" }, { label: "Export", value: "export" }, { label: "Create", value: "create" }, { label: "Edit", value: "edit" }, { label: "Approve or decide", value: "approve" }, { label: "Delete", value: "delete" }] },
-                { name: "reset", label: "Go back to what the level allows", type: "select", defaultValue: "false", options: [{ label: "No — use the actions above", value: "false" }, { label: "Yes — clear the exact set", value: "true" }] }
+                { name: "userId", label: "Person", type: "hidden", defaultValue: member.id },
+                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions, section: "Which module" },
+                { name: "actions", label: "Actions granted", type: "multiselect", section: "Which actions", options: [{ label: "View", value: "view" }, { label: "Export", value: "export" }, { label: "Create", value: "create" }, { label: "Edit", value: "edit" }, { label: "Approve or decide", value: "approve" }, { label: "Delete", value: "delete" }] },
+                { name: "reset", label: "Go back to what the level allows", type: "switch", on: false, note: "Clears the exact set and ignores the actions chosen above", section: "Which actions" }
               ]}
             />
             <ResourceActionDialog
               triggerLabel="Set module permission"
-              title={`Set permission — ${member.name}`}
-              description="Set what this person can do in one Back Office module. None hides it and blocks its API; View is read only; Edit can change; Full can also delete. A department lead can lower access within their department's ceiling."
+              title={`Edit privileges · ${member.name}`}
+              description="Which modules they can enter. None hides the module from their navigation and blocks its API; View reads; Edit changes; Full can also delete."
+              note="A department lead can lower access within their department’s ceiling, never raise it."
               endpoint="/api/super-admin/internal-team/module-access"
               method="POST"
               variant="secondary"
               submitLabel="Save permission"
               fields={[
-                { name: "userId", label: "User ID", defaultValue: member.id },
-                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions },
-                { name: "accessLevel", label: "Access level", type: "select", options: accessLevels }
+                { name: "userId", label: "Person", type: "hidden", defaultValue: member.id },
+                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions, section: "Which module" },
+                { name: "accessLevel", label: "Access level", type: "select", options: accessLevels, section: "What they may do in it", note: "A module set to None disappears from their navigation entirely — it cannot be reached by guessing a URL either" }
               ]}
             />
             <ResourceActionDialog
               triggerLabel="Edit profile"
-              title={`Profile — ${member.name}`}
+              title={`Profile · ${member.name}`}
+              note="Data scope is enforced inside the query itself, not in the interface — a narrowed account cannot see a wider figure by guessing a URL."
               description="Where this person sits, who they answer to, and which schools they may see. A data scope limits School Accounts to those states; blank means the whole platform."
               endpoint={`/api/super-admin/internal-team/profiles/${member.id}`}
               method="PATCH"
@@ -112,22 +116,23 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
                 { name: "staffNumber", label: "Staff identifier", defaultValue: profile?.staffNumber ?? "" },
                 { name: "scopeStates", label: "Data scope — states (comma-separated)", type: "textarea", defaultValue: profile?.scopeStates.join(", ") ?? "", placeholder: "Blank for every school" },
                 { name: "responsibilities", label: "Answers for", type: "multiselect", defaultValue: profile?.responsibilities ?? [], options: [{ label: "Support Lead", value: "SUPPORT_LEAD" }, { label: "Data Protection Officer", value: "DPO" }, { label: "Finance Lead", value: "FINANCE_LEAD" }, { label: "Product Lead", value: "PRODUCT_LEAD" }, { label: "Comms Lead", value: "COMMS_LEAD" }, { label: "Sales Lead", value: "SALES_LEAD" }, { label: "Migration Specialist", value: "MIGRATION_SPECIALIST" }, { label: "CTO / Engineering on call", value: "CTO" }] },
-                { name: "isExternal", label: "Person is external", type: "select", defaultValue: String(profile?.isExternal ?? false), options: [{ label: "No — an employee", value: "false" }, { label: "Yes — contractor or partner staff", value: "true" }] }
+                { name: "isExternal", label: "External — contractor or partner staff", type: "switch", on: Boolean(profile?.isExternal), note: "Marked on their profile; access can be time-limited" }
               ]}
             />
             <ResourceActionDialog
               triggerLabel="Grant time-bound access"
-              title={`Grant temporary access — ${member.name}`}
-              description="Grant access to a module that auto-revokes on the expiry date."
+              title={`Time-bound access · ${member.name}`}
+              description="For contractors, advisors and temporary team members — the system revokes it on the date you set."
+              note="An expired grant stops applying on its own; nobody has to remember to take it back."
               endpoint="/api/super-admin/internal-team/access-grants"
               method="POST"
               variant="secondary"
               submitLabel="Grant access"
               fields={[
-                { name: "userId", label: "User ID", defaultValue: member.id },
-                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions },
-                { name: "functionId", label: "Function (optional)" },
-                { name: "expiresAt", label: "Expires on", type: "date", required: true }
+                { name: "userId", label: "Person", type: "hidden", defaultValue: member.id },
+                { name: "moduleId", label: "Access granted", type: "select", required: true, options: moduleOptions, section: "What is being granted" },
+                { name: "functionId", label: "Function (optional)", section: "What is being granted" },
+                { name: "expiresAt", label: "Expires on", type: "date", required: true, section: "When it ends", note: "Required — the system will not save a grant without an end date" }
               ]}
             />
             {!revoked ? (

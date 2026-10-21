@@ -131,11 +131,11 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
           showCreateTicket ? (
             <ResourceActionDialog
               triggerLabel="New ticket"
-              title="Support"
-              description="No school’s problem unseen, unowned or unmeasured."
+              title="New ticket"
+              description="Owned from the moment it is raised. The countdown runs in the school’s own working hours where its country has them, else in flat hours from now."
               endpoint="/api/super-admin/support/tickets"
               variant="heroWhite"
-              fields={[
+              note="Countdowns run in the school’s own working hours and time zone, and say so." fields={[
                 { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions, section: "Who and what" },
                 { name: "category", label: "Category", type: "select", defaultValue: "OTHER", options: categoryOptions, section: "Who and what" },
                 { name: "priority", label: "Priority", type: "select", defaultValue: "MEDIUM", options: priorityOptions, section: "Who and what" },

@@ -1,7 +1,7 @@
 "use client";
 
 import { type ReactNode, useState } from "react";
-import { Search, X } from "lucide-react";
+import { Download, Search, X } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -90,6 +90,8 @@ export function CaseReviewBoard({
   emptyState,
   footerNote,
   searchPlaceholder,
+  title,
+  toolbar,
   variant = "rich",
 }: {
   types: CaseTypeFilter[];
@@ -98,6 +100,10 @@ export function CaseReviewBoard({
   footerNote?: string;
   /** Shows a search box above the queue, filtering by subject/meta/type/assignee, when given. */
   searchPlaceholder?: string;
+  /** The queue panel's own heading, as in the mockup. */
+  title?: string;
+  /** Extra actions to the left of Export — e.g. logging a new case by hand. */
+  toolbar?: ReactNode;
   /**
    * "lean" matches the mockup's simpler Schools case layout (header + a 4-fact
    * strip + signals + checks/decisions split — no facts grid, evidence or inline
@@ -119,6 +125,17 @@ export function CaseReviewBoard({
     setActiveType(value);
     const next = (value === "all" ? cases : cases.filter((item) => item.type === value))[0]?.id ?? null;
     setSelectedId(next);
+  }
+
+  function exportCsv() {
+    const cell = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const rows = [["Subject", "Detail", "Type", "Signals", "Time left", "Assignee", "Age"], ...filtered.map((item) => [item.subject, item.meta, item.type, String(item.signals.length), item.sla ?? "", item.assignee, item.age])];
+    const blob = new Blob([rows.map((row) => row.map(cell).join(",")).join("\n")], { type: "text/csv" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = "cases.csv";
+    link.click();
+    URL.revokeObjectURL(link.href);
   }
 
   if (cases.length === 0) {
@@ -151,32 +168,39 @@ export function CaseReviewBoard({
             </span>
           </button>
         ))}
-        {searchPlaceholder ? (
-          <div className="ml-auto flex min-w-[280px] items-center gap-[9px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px]">
-            <Search className="h-[15px] w-[15px] shrink-0 text-[#9FB8A7]" />
-            <input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              placeholder={searchPlaceholder}
-              className="min-w-0 flex-1 border-none bg-transparent text-[13px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
-            />
-            {query ? (
-              <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]" aria-label="Clear search">
-                <X className="h-3.5 w-3.5" />
-              </button>
-            ) : null}
-          </div>
-        ) : null}
+        {toolbar ? <div className="ml-auto flex items-center gap-2">{toolbar}</div> : null}
+        <button type="button" onClick={exportCsv} className={cn("inline-flex items-center gap-[7px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-2 text-[12.5px] font-semibold text-[#435048] hover:border-[#0D2315]", toolbar ? "" : "ml-auto")}>
+          <Download className="h-[14px] w-[14px]" />
+          Export
+        </button>
       </div>
 
-      {searchPlaceholder ? (
-        <p className="-mt-2 text-[11.5px] text-[#8C9A92]">
-          {filtered.length} case{filtered.length === 1 ? "" : "s"}
-          {q ? ` matching "${query}"` : ""} · {types.find((t) => t.value === activeType)?.label.toLowerCase()}
-        </p>
-      ) : null}
-
       <div className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-[18px] pb-3 pt-4">
+          <div>
+            <h3 className="text-[14px] font-semibold text-[#0D2315]">{title ?? "Open cases"}</h3>
+            <p className="mt-1 text-[11.5px] text-[#8C9A92]">
+              {filtered.length} case{filtered.length === 1 ? "" : "s"}
+              {q ? ` matching "${query}"` : ""} · {types.find((t) => t.value === activeType)?.label.toLowerCase()}
+            </p>
+          </div>
+          {searchPlaceholder ? (
+            <div className="flex min-w-[262px] items-center gap-[9px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[8px]">
+              <Search className="h-[14px] w-[14px] shrink-0 text-[#9FB8A7]" />
+              <input
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                placeholder={searchPlaceholder}
+                className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
+              />
+              {query ? (
+                <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]" aria-label="Clear search">
+                  <X className="h-3.5 w-3.5" />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
         <div className="grid grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] gap-3 border-b border-[#E6EEE9] bg-[#F7FAF8] px-[18px] py-3 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">
           <div>Subject</div>
           <div>Type</div>

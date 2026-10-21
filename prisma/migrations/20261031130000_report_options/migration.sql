@@ -1,0 +1,2 @@
+ALTER TABLE "CustomReport" ADD COLUMN "showDropoff" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "CustomReport" ADD COLUMN "weightChurned" BOOLEAN NOT NULL DEFAULT false;

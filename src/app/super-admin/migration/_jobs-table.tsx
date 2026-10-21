@@ -190,21 +190,22 @@ export function JobsTable({ jobs, openCount }: JobsTableProps) {
               <ResourceActionDialog
                 triggerLabel="Update scope"
                 title={`Update migration scope — ${job.schoolName}`}
-                description="Adjust expected record counts and included data areas."
+                description="Adjust what the move is expected to carry and which data areas it includes."
+                note="Source files are children’s data — deleted 90 days after sign-off, with the clock visible on the job."
                 endpoint={`/api/super-admin/migration/jobs/${job.id}`}
                 method="PATCH"
                 variant="menu"
                 submitLabel="Save scope"
                 fields={[
-                  { name: "studentsExpected", label: "Students expected", type: "number", defaultValue: job.studentsExpected ?? "", min: 0 },
-                  { name: "resultsExpected", label: "Result records expected", type: "number", defaultValue: job.resultsExpected ?? "", min: 0 },
-                  { name: "includeStudentsGuardians", label: "Students & guardians", type: "select", defaultValue: String(job.includeStudentsGuardians), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
-                  { name: "includeStaffAccounts", label: "Staff accounts", type: "select", defaultValue: String(job.includeStaffAccounts), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
-                  { name: "includeHistoricalResults", label: "Historical results", type: "select", defaultValue: String(job.includeHistoricalResults), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
-                  { name: "includeFeesBalances", label: "Fees & balances", type: "select", defaultValue: String(job.includeFeesBalances), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
-                  { name: "includeAttendanceHistory", label: "Attendance history", type: "select", defaultValue: String(job.includeAttendanceHistory), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
-                  { name: "includeBehaviouralRecords", label: "Behavioural records", type: "select", defaultValue: String(job.includeBehaviouralRecords), options: [{ label: "Yes", value: "true" }, { label: "No", value: "false" }] },
-                  { name: "notes", label: "Notes", type: "textarea", defaultValue: job.notes ?? "" }
+                  { name: "studentsExpected", label: "Students expected", type: "number", defaultValue: job.studentsExpected ?? "", min: 0, section: "Records expected" },
+                  { name: "resultsExpected", label: "Result records expected", type: "number", defaultValue: job.resultsExpected ?? "", min: 0, section: "Records expected" },
+                  { name: "includeStudentsGuardians", label: "Students and guardians", type: "switch", on: Boolean(job.includeStudentsGuardians), note: "Names, classes, contacts", section: "Scope of the move" },
+                  { name: "includeStaffAccounts", label: "Staff accounts", type: "switch", on: Boolean(job.includeStaffAccounts), note: "Roles preserved", section: "Scope of the move" },
+                  { name: "includeHistoricalResults", label: "Historical results", type: "switch", on: Boolean(job.includeHistoricalResults), note: "Per term, per session", section: "Scope of the move" },
+                  { name: "includeFeesBalances", label: "Fees and balances", type: "switch", on: Boolean(job.includeFeesBalances), note: "Opening balances only", section: "Scope of the move" },
+                  { name: "includeAttendanceHistory", label: "Attendance history", type: "switch", on: Boolean(job.includeAttendanceHistory), note: "Often incomplete at source", section: "Scope of the move" },
+                  { name: "includeBehaviouralRecords", label: "Behavioural records", type: "switch", on: Boolean(job.includeBehaviouralRecords), note: "Rarely exported cleanly", section: "Scope of the move" },
+                  { name: "notes", label: "Notes", type: "textarea", defaultValue: job.notes ?? "", section: "Notes" }
                 ]}
               />
               {job.status !== "ROLLED_BACK" && job.status !== "COMPLETED" ? (

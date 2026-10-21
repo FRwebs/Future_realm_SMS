@@ -40,7 +40,8 @@ const byHandSchema = z.object({
   schoolId: z.string().min(1, "Choose a school."),
   channel: z.enum(["SMS", "WHATSAPP"]),
   credits: z.coerce.number().int().min(1, "Add at least one credit.").max(500_000),
-  reason: z.string().trim().min(5, "Say why the credit is being added by hand.")
+  reason: z.string().trim().min(5, "Say why the credit is being added by hand."),
+  tellSchool: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false)
 });
 const dismissSchema = z.object({ schoolId: z.string().min(1), plan: z.string().min(1), reason: z.string().trim().min(5, "Say why the recommendation is being dismissed.") });
 const idsSchema = z.object({ invoiceIds: z.array(z.string()).min(1, "Choose at least one invoice.") });
@@ -316,7 +317,7 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
   /** Credit added by a person, with the reason that goes in the register. A stopgap — it does not touch the school's payment method. */
   async addByHand(session: SessionPayload, body: unknown) {
     const input = byHandSchema.parse(body);
-    const school = await prisma.school.findFirst({ where: { id: input.schoolId, deletedAt: null }, select: { id: true, name: true } });
+    const school = await prisma.school.findFirst({ where: { id: input.schoolId, deletedAt: null }, select: { id: true, name: true, ownerEmail: true } });
     if (!school) throw new NotFoundException("That school does not exist.");
     const field = input.channel === "SMS" ? "smsBalance" : "whatsappBalance";
     const wallet = await prisma.notificationWallet.upsert({
@@ -327,6 +328,12 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
     const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } });
     await prisma.creditLedger.create({ data: { schoolId: school.id, channel: input.channel, kind: "TOPUP", credits: input.credits, amount: 0, method: "BY_HAND", note: `Added by hand · ${input.reason}`, createdById: actor?.id ?? null } });
     await this.audit(session, AuditAction.UPDATE, "NotificationWallet", wallet.id, { smsCredits: input.channel === "SMS" ? input.credits : 0, whatsappCredits: input.channel === "WHATSAPP" ? input.credits : 0, reason: input.reason }, school.id);
+    if (input.tellSchool) {
+      const what = `${input.credits.toLocaleString("en-NG")} ${input.channel === "SMS" ? "SMS" : "WhatsApp"} credits`;
+      const owners = await prisma.user.findMany({ where: { schoolId: school.id, role: { in: [...OWNER_ROLES] }, isActive: true }, select: { id: true } });
+      if (owners.length) await prisma.notificationLog.createMany({ data: owners.map((owner) => ({ schoolId: school.id, userId: owner.id, channel: "IN_APP" as const, title: "Message credit added", body: `${what} were added to your wallet. ${input.reason}`, status: "QUEUED", sentAt: new Date() })) });
+      if (school.ownerEmail) await sendNotification({ channel: "EMAIL", recipient: school.ownerEmail, title: "Message credit added", body: `${what} were added to ${school.name}'s wallet. Reason: ${input.reason}` }).catch(() => undefined);
+    }
     return { schoolId: school.id, smsBalance: wallet.smsBalance, whatsappBalance: wallet.whatsappBalance };
   }
 

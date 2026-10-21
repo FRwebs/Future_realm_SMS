@@ -1,31 +1,37 @@
-const toneStyle: Record<string, { bg: string; fg: string }> = {
-  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
-  teal: { bg: "var(--color-accent-primary-dim)", fg: "var(--color-text-accent)" },
-  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
-  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" },
-  mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
+const dot: Record<string, string> = { good: "#22A06B", teal: "#12796A", warn: "#D9A22C", bad: "#DB5555", mute: "#9FB8A7", info: "#2B5F8F", ink: "#0D2315" };
+const pillTone: Record<string, { bg: string; fg: string }> = {
+  good: { bg: "#EAF6F0", fg: "#17714F" },
+  teal: { bg: "#E4F1EC", fg: "#17604F" },
+  warn: { bg: "#FDF6E7", fg: "#8A6410" },
+  bad: { bg: "#FDF3F3", fg: "#B23B3B" },
+  mute: { bg: "#F1F4F2", fg: "#5C6A62" },
+  info: { bg: "#E7F1FB", fg: "#2B5F8F" }
 };
 
-export type ReferenceItem = { label: string; detail: string; pill?: string; tone: "good" | "teal" | "warn" | "bad" | "mute" };
+export type ReferenceItem = { label: string; detail?: string; pill?: string; value?: string; action?: React.ReactNode; tone?: "good" | "teal" | "warn" | "bad" | "mute" | "info" };
 
-/** The mockup's list card: a title, a line of context, and rows of label + detail with an optional coloured pill. */
-export function ReferenceList({ title, sub, items }: { title: string; sub?: string; items: ReferenceItem[] }) {
+/** The mockup's list panel: a title and a line of context, then rows of a coloured dot, a label, what it means, and an optional pill. */
+export function ReferenceList({ title, sub, items, emptyText }: { title: string; sub?: string; items: ReferenceItem[]; emptyText?: string }) {
   return (
-    <section className="surface-card p-6">
-      <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-2xl text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
-      <div className="mt-4 grid gap-2">
+    <section className="surface-card min-w-0 overflow-hidden">
+      <div className="px-5 pb-[14px] pt-4">
+        <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
+        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-[1.5] text-[#8C9A92]">{sub}</p> : null}
+      </div>
+      <div className="px-5 pb-[14px] pt-[2px]">
+        {items.length === 0 ? <p className="py-[11px] text-[12.5px] text-[#8C9A92]">{emptyText ?? "Nothing to show yet."}</p> : null}
         {items.map((item) => (
-          <div key={item.label} className="flex items-start justify-between gap-3 rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
-            <div>
-              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-              <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{item.detail}</p>
+          <div key={item.label} className="flex items-start gap-[11px] border-b border-[#F2F7F4] py-[11px]">
+            <span className="mt-[5px] h-2 w-2 flex-none rounded-[3px]" style={{ background: dot[item.tone ?? "teal"] }} />
+            <div className="min-w-0 flex-1">
+              <p className="text-[12.5px] font-semibold leading-[1.4] text-[var(--color-text-primary)]">{item.label}</p>
+              {item.detail ? <p className="mt-[3px] text-pretty text-[11.5px] leading-[1.5] text-[#8C9A92]">{item.detail}</p> : null}
             </div>
             {item.pill ? (
-              <span className="shrink-0 rounded-full px-2.5 py-1 text-[9.5px] font-bold" style={{ background: toneStyle[item.tone].bg, color: toneStyle[item.tone].fg }}>{item.pill}</span>
-            ) : (
-              <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: toneStyle[item.tone].fg }} />
-            )}
+              <span className="inline-block flex-none rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: (pillTone[item.tone ?? "mute"]).bg, color: (pillTone[item.tone ?? "mute"]).fg }}>{item.pill}</span>
+            ) : null}
+            {item.action ? <div className="flex-none">{item.action}</div> : null}
+            {item.value ? <p className="flex-none text-[12.5px] font-semibold text-[var(--color-text-primary)]">{item.value}</p> : null}
           </div>
         ))}
       </div>

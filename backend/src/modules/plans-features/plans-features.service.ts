@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { alignTierToPlan } from "../platform-sync/plan-sync";
 
 const DAY = 86_400_000;
 const OWNER_ROLES = ["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL"] as const;
@@ -353,6 +354,7 @@ export class PlansFeaturesService implements OnModuleInit, OnModuleDestroy {
       if (target.lifecycle === "ARCHIVED" || target.lifecycle === "DRAFT") throw new BadRequestException("Schools can only be moved to a plan that is on offer.");
       const schools = await prisma.school.findMany({ where: { deletedAt: null, plan: plan.plan }, select: { id: true } });
       await prisma.school.updateMany({ where: { id: { in: schools.map((s) => s.id) } }, data: { plan: target.plan } });
+      for (const school of schools) await alignTierToPlan(school.id, target.plan);
       await prisma.auditLog.createMany({ data: schools.map((school) => ({ schoolId: school.id, actorId: null, action: AuditAction.BILLING_UPDATE, entityType: "School", entityId: school.id, metadata: { plan: target.plan, fromPlan: plan.plan, reason: `Plan “${plan.name}” was archived`, byPlanChange: true } as Prisma.InputJsonValue })) });
       await this.tellOwners(schools.map((s) => s.id), `Your plan has changed to ${target.name}`, `The ${plan.name} plan has been retired and your school has been moved to ${target.name}. Open Subscription & Billing to see what changed.`);
       migrated = schools.length;

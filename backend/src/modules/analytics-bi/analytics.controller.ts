@@ -55,6 +55,17 @@ export class AnalyticsController {
     return ok(this.analytics.tick(), "Snapshot taken");
   }
 
+  @Get("feature-requests")
+  featureRequests() {
+    return ok(this.analytics.featureRequests());
+  }
+
+  @Post("feature-requests")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  logFeatureRequest(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.analytics.logFeatureRequest(session, body), "Request logged");
+  }
+
   @Get("reports")
   reports(@CurrentSession() session: SessionPayload) {
     return ok(this.analytics.list(session));

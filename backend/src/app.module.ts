@@ -35,6 +35,8 @@ import { OperationsModule } from "./modules/operations/operations.module";
 import { PartnersModule } from "./modules/partners/partners.module";
 import { ComplianceModule } from "./modules/security-compliance/compliance.module";
 import { BillingExtrasModule } from "./modules/billing-extras/billing-extras.module";
+import { PartnerPortalModule } from "./modules/partner-portal/partner-portal.module";
+import { TriggerRulesModule } from "./modules/trigger-rules/trigger-rules.module";
 import { SupportDeskModule } from "./modules/support-desk/support-desk.module";
 import { MembershipsModule } from "./modules/memberships/memberships.module";
 import { WhatsAppModule } from "./modules/whatsapp/whatsapp.module";
@@ -53,6 +55,7 @@ import { ApprovalsModule } from "./modules/approvals/approvals.module";
 import { SupportModule } from "./modules/support/support.module";
 import { TelemetryModule } from "./modules/telemetry/telemetry.module";
 import { PlatformPolicyModule } from "./modules/platform-policy/platform-policy.module";
+import { PlatformSyncModule } from "./modules/platform-sync/platform-sync.module";
 import { NotificationDeliveryModule } from "./modules/notification-delivery/delivery.module";
 import { SyncModule } from "./modules/sync/sync.module";
 import { AuditModule } from "./modules/audit/audit.module";
@@ -112,6 +115,7 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     SyncModule,
     NotificationDeliveryModule,
     PlatformPolicyModule,
+    PlatformSyncModule,
     TelemetryModule,
     SupportModule,
     RolesManagementModule,
@@ -129,6 +133,8 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     SupportAccessModule,
     UserInsightsModule,
     BillingExtrasModule,
+    TriggerRulesModule,
+    PartnerPortalModule,
     SupportDeskModule,
     InvitationOpsModule,
     AdminViewsModule,

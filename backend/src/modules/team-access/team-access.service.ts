@@ -31,8 +31,18 @@ const profileSchema = z.object({
   scopeStates: z.preprocess((v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(/[,\n]/).map((x) => x.trim()).filter(Boolean) : []), z.array(z.string())).default([]),
   managerId: z.string().trim().optional().transform((v) => v || null),
   staffNumber: z.string().trim().optional().transform((v) => v || null),
-  isExternal: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false)
+  isExternal: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
+  customRoleId: z.string().trim().optional().transform((v) => v || null)
 });
+const LEVEL_SET = new Set(["NONE", "VIEW", "EDIT", "FULL"]);
+const roleSchema = z.object({
+  name: z.string().trim().min(3, "Give the role a name of at least three letters.").max(60),
+  description: z.string().trim().max(300).optional().transform((v) => v || undefined),
+  baseRole: z.enum(["PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER", "DEVELOPER"]).default("PLATFORM_ADMIN"),
+  copyFrom: z.string().trim().optional().transform((v) => v || undefined),
+  grid: z.record(z.string(), z.string()).default({})
+});
+const cleanGrid = (grid: Record<string, string>) => Object.fromEntries(Object.entries(grid).filter(([module, level]) => BACK_OFFICE_MODULES.some((m) => m.id === module) && LEVEL_SET.has(level)));
 const reviewSchema = z.object({ note: z.string().trim().min(3, "Say what you found.").max(1000), outcome: z.enum(["BENIGN", "ESCALATE"]).default("BENIGN") });
 const gridSchema = z.object({ userId: z.string().min(1), moduleId: z.string().trim().min(1), accessLevel: z.enum(["NONE", "VIEW", "EDIT", "FULL"]) });
 
@@ -156,18 +166,22 @@ export class TeamAccessService implements OnModuleInit, OnModuleDestroy {
 
   /** The matrix every Back Office person against every module, with what is set, and what is merely inherited from the role. */
   async matrix() {
-    const [members, rows, templates] = await Promise.all([
+    const [members, rows, templates, customRoles, customHolders] = await Promise.all([
       prisma.user.findMany({ where: { role: { in: PLATFORM_ROLES }, deletedAt: null }, select: { id: true, firstName: true, lastName: true, role: true }, orderBy: { createdAt: "asc" } }),
       prisma.internalPermissionGrid.findMany(),
-      prisma.internalPermissionTemplate.findMany()
+      prisma.internalPermissionTemplate.findMany(),
+      prisma.internalRole.findMany({ where: { retiredAt: null } }),
+      prisma.internalProfile.findMany({ where: { customRoleId: { not: null } }, select: { userId: true, customRoleId: true } })
     ]);
+    const customGrid = new Map(customRoles.map((role) => [role.id, (role.grid ?? {}) as Record<string, string>]));
+    const holderRole = new Map(customHolders.map((row) => [row.userId, row.customRoleId as string]));
     const byUser = new Map<string, Record<string, string>>();
     for (const row of rows.filter((r) => r.accessLevel !== "INHERIT")) byUser.set(row.userId, { ...(byUser.get(row.userId) ?? {}), [row.moduleId]: row.accessLevel });
     const template = new Map(templates.map((t) => [t.roleName, (t.defaultGrid ?? {}) as Record<string, string>]));
     return {
       modules: BACK_OFFICE_MODULES.map((m) => m.id),
       labels: Object.fromEntries(BACK_OFFICE_MODULES.map((m) => [m.id, m.label])),
-      members: members.map((m) => ({ id: m.id, name: `${m.firstName} ${m.lastName}`, role: m.role, access: { ...(template.get(m.role) ?? {}), ...(byUser.get(m.id) ?? {}) }, explicit: Object.keys(byUser.get(m.id) ?? {}) }))
+      members: members.map((m) => ({ id: m.id, name: `${m.firstName} ${m.lastName}`, role: m.role, access: { ...(holderRole.has(m.id) && customGrid.has(holderRole.get(m.id) as string) ? customGrid.get(holderRole.get(m.id) as string)! : (template.get(m.role) ?? {})), ...(byUser.get(m.id) ?? {}) }, explicit: Object.keys(byUser.get(m.id) ?? {}) }))
     };
   }
 
@@ -180,10 +194,60 @@ export class TeamAccessService implements OnModuleInit, OnModuleDestroy {
     if (input.managerId && input.managerId === userId) throw new BadRequestException("Nobody reports to themselves.");
     if (input.managerId && !(await prisma.user.findFirst({ where: { id: input.managerId, role: { in: PLATFORM_ROLES }, deletedAt: null } }))) throw new BadRequestException("The manager is not on the platform team.");
     if (input.departmentId && !(await prisma.internalDepartment.findUnique({ where: { id: input.departmentId } }))) throw new BadRequestException("That department does not exist.");
+    if (input.customRoleId && !(await prisma.internalRole.findFirst({ where: { id: input.customRoleId, retiredAt: null } }))) throw new BadRequestException("That role does not exist or has been retired.");
     const row = await prisma.internalProfile.upsert({ where: { userId }, create: { userId, ...input }, update: input });
     forgetScope(userId);
     await this.audit(session, AuditAction.UPDATE, "InternalProfile", userId, { departmentId: row.departmentId, level: row.level, scopeStates: row.scopeStates, managerId: row.managerId, isExternal: row.isExternal });
     return { userId };
+  }
+
+  /* ───────────────────────── roles made in the Back Office ───────────────────────── */
+
+  async roles() {
+    const [roles, holders] = await Promise.all([prisma.internalRole.findMany({ orderBy: { createdAt: "asc" } }), prisma.internalProfile.findMany({ where: { customRoleId: { not: null } }, select: { userId: true, customRoleId: true } })]);
+    const people = await prisma.user.findMany({ where: { id: { in: holders.map((row) => row.userId) }, deletedAt: null }, select: { id: true, firstName: true, lastName: true } });
+    const name = new Map(people.map((person) => [person.id, `${person.firstName} ${person.lastName}`]));
+    return roles.map((role) => ({ id: role.id, name: role.name, description: role.description, baseRole: role.baseRole, grid: role.grid as Record<string, string>, retired: Boolean(role.retiredAt), holders: holders.filter((row) => row.customRoleId === role.id && name.has(row.userId)).map((row) => name.get(row.userId) as string) }));
+  }
+
+  /** A new role starts from nothing, or from a copy of a built-in role's template or another role's grid. */
+  async createRole(session: SessionPayload, body: unknown) {
+    const input = roleSchema.parse(body);
+    if (await prisma.internalRole.findUnique({ where: { name: input.name } })) throw new BadRequestException("A role with that name already exists.");
+    let grid = cleanGrid(input.grid);
+    if (input.copyFrom && Object.keys(grid).length === 0) {
+      const custom = await prisma.internalRole.findUnique({ where: { id: input.copyFrom } });
+      const built = custom ? null : await prisma.internalPermissionTemplate.findUnique({ where: { roleName: input.copyFrom } });
+      grid = cleanGrid(((custom?.grid ?? built?.defaultGrid ?? {}) as Record<string, string>));
+    }
+    const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } });
+    const role = await prisma.internalRole.create({ data: { name: input.name, description: input.description, baseRole: input.baseRole, grid, createdById: actor?.id ?? session.userId } });
+    await this.audit(session, AuditAction.CREATE, "InternalRole", role.id, { name: role.name, baseRole: role.baseRole, modules: Object.keys(grid).length });
+    return { id: role.id };
+  }
+
+  async setRoleGrid(session: SessionPayload, id: string, body: unknown) {
+    const input = z.object({ grid: z.record(z.string(), z.string()), description: z.string().trim().max(300).optional().transform((v) => v || undefined) }).parse(body);
+    const role = await prisma.internalRole.findFirst({ where: { id, retiredAt: null } });
+    if (!role) throw new NotFoundException("That role does not exist or has been retired.");
+    const grid = cleanGrid(input.grid);
+    await prisma.internalRole.update({ where: { id }, data: { grid, ...(input.description !== undefined ? { description: input.description } : {}) } });
+    const holders = await prisma.internalProfile.findMany({ where: { customRoleId: id }, select: { userId: true } });
+    for (const holder of holders) forgetAccess(holder.userId);
+    await this.audit(session, AuditAction.UPDATE, "InternalRole", id, { name: role.name, modules: Object.keys(grid).length, holders: holders.length });
+    return { id, holders: holders.length };
+  }
+
+  /** A role somebody still holds cannot be retired — they are moved first, so nobody is left on a role that no longer exists. */
+  async retireRole(session: SessionPayload, id: string, body: unknown) {
+    const { reason } = z.object({ reason: z.string().trim().min(5, "Say why the role is being retired.") }).parse(body);
+    const role = await prisma.internalRole.findFirst({ where: { id, retiredAt: null } });
+    if (!role) throw new NotFoundException("That role does not exist or has been retired.");
+    const holders = await prisma.internalProfile.count({ where: { customRoleId: id } });
+    if (holders > 0) throw new BadRequestException(`${holders} ${holders === 1 ? "person holds" : "people hold"} this role. Move ${holders === 1 ? "them" : "everyone"} to another role first.`);
+    await prisma.internalRole.update({ where: { id }, data: { retiredAt: new Date() } });
+    await this.audit(session, AuditAction.DELETE, "InternalRole", id, { name: role.name, reason });
+    return { id };
   }
 
   async profiles() {
