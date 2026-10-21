@@ -646,6 +646,16 @@ function defaultSettingsData() {
   };
 }
 
+/** The words a WhatsApp template can be filled with. */
+function fillName(key: string, who: { first: string; last: string; school: string } | undefined): string {
+  if (!who) return "";
+  const k = key.toLowerCase();
+  if (k === "first_name" || k === "name" || k === "firstname") return who.first;
+  if (k === "last_name" || k === "lastname") return who.last;
+  if (k === "school" || k === "school_name") return who.school;
+  return "";
+}
+
 @Injectable()
 export class SuperAdminService {
   constructor(private readonly backupService: BackupService) {}
@@ -3017,7 +3027,7 @@ export class SuperAdminService {
         category: parsed.category,
         priority: parsed.priority,
         status: parsed.assignedToId ? "TRIAGED" : "OPEN",
-        slaDueAt: new Date(Date.now() + this.ticketSlaHours(parsed.priority) * 60 * 60 * 1000),
+        slaDueAt: await supportDesk.slaDueAt(parsed.schoolId, parsed.priority),
         messages: { create: { authorId: actor?.id, body: parsed.description, internalOnly: false } }
       }
     });
@@ -3901,11 +3911,12 @@ export class SuperAdminService {
     assertSuperAdmin(session);
     const parsed = campaignSchema.parse(payload);
     if (parsed.channel === "SMS" && parsed.body.length > 160) throw new BadRequestException("SMS messages are limited to 160 characters.");
-    if (parsed.channel === "WHATSAPP") throw new BadRequestException("WhatsApp delivery is not connected on this platform, so a WhatsApp campaign cannot be sent. Use email or SMS.");
+    if (parsed.channel === "WHATSAPP" && !parsed.templateId) throw new BadRequestException("A WhatsApp campaign is sent from a template Meta has approved. Choose one.");
     if (parsed.templateId) {
       const template = await prisma.messageTemplate.findUnique({ where: { id: parsed.templateId } });
       if (!template || template.retiredAt) throw new BadRequestException("That template does not exist or has been replaced by a newer version.");
       if (template.approvalStatus !== "APPROVED") throw new BadRequestException("That template has not been approved, so it cannot be used. A second person must approve it first.");
+      if (parsed.channel === "WHATSAPP" && (template.channel !== "WHATSAPP" || !template.metaTemplateId)) throw new BadRequestException("That is not a WhatsApp template Meta has approved. Submit one to Meta from Templates first.");
     }
     const audienceFilter = audienceFilterSchema.parse({
       role: parsed.role,
@@ -3965,7 +3976,7 @@ export class SuperAdminService {
     const campaign = await prisma.campaign.findUnique({ where: { id: campaignId } });
     if (!campaign) throw new NotFoundException("Campaign not found.");
     if (campaign.status !== "APPROVED" && campaign.status !== "SCHEDULED") throw new BadRequestException("Only an approved campaign can be sent.");
-    if (campaign.channel !== "EMAIL" && campaign.channel !== "SMS") throw new BadRequestException("This channel cannot be delivered from this platform.");
+    if (campaign.channel !== "EMAIL" && campaign.channel !== "SMS" && campaign.channel !== "WHATSAPP") throw new BadRequestException("This channel cannot be delivered from this platform.");
 
     const filter = audienceFilterSchema.parse(campaign.audienceFilter ?? {});
     let recipients = await prisma.user.findMany({ where: this.buildAudienceWhere(filter), select: { id: true, schoolId: true, email: true, phone: true, role: true } });
@@ -3977,12 +3988,27 @@ export class SuperAdminService {
       recipients = recipients.filter((r) => !out.has(r.id) && r.role !== "STUDENT");
       withheld = before - recipients.length;
     }
+    // WhatsApp only reaches people who said yes to it, whatever the campaign is for.
+    let whatsappTemplate: { name: string; language: string; placeholders: string[]; body: string } | null = null;
+    const names = new Map<string, { first: string; last: string; school: string }>();
+    if (campaign.channel === "WHATSAPP") {
+      const template = campaign.templateId ? await prisma.messageTemplate.findUnique({ where: { id: campaign.templateId } }) : null;
+      if (!template?.metaTemplateId || template.approvalStatus !== "APPROVED") throw new BadRequestException("The WhatsApp template behind this campaign is not approved by Meta.");
+      whatsappTemplate = { name: template.metaTemplateId, language: process.env.WHATSAPP_LANGUAGE || "en", placeholders: Array.from(template.body.matchAll(/{{\s*(\w+)\s*}}/g)).map((m) => m[1]), body: template.body };
+      const yes = await prisma.consentRecord.findMany({ where: { channel: "WHATSAPP", optedIn: true, userId: { in: recipients.map((r) => r.id) } }, select: { userId: true } });
+      const optedIn = new Set(yes.map((o) => o.userId));
+      const before = recipients.length;
+      recipients = recipients.filter((r) => optedIn.has(r.id) && r.role !== "STUDENT");
+      withheld += before - recipients.length;
+      const people = await prisma.user.findMany({ where: { id: { in: recipients.map((r) => r.id) } }, select: { id: true, firstName: true, lastName: true, school: { select: { name: true } } } });
+      for (const person of people) names.set(person.id, { first: person.firstName, last: person.lastName, school: person.school.name });
+    }
 
     const now = new Date();
     const title = campaign.subject?.trim() || campaign.name;
     const rows: Prisma.NotificationLogCreateManyInput[] = recipients.map((user) => {
       const address = campaign.channel === "EMAIL" ? user.email : user.phone;
-      return { schoolId: user.schoolId, userId: user.id, channel: campaign.channel as "EMAIL" | "SMS", title, body: campaign.body, status: address ? "QUEUED" : "FAILED", sentAt: now, metadata: { campaignId, billing: "PLATFORM", ...(campaign.channel === "EMAIL" ? { email: user.email } : { phone: user.phone }), ...(address ? {} : { error: `No ${campaign.channel === "EMAIL" ? "email address" : "phone number"} on file` }) } as Prisma.InputJsonValue };
+      return { schoolId: user.schoolId, userId: user.id, channel: campaign.channel as "EMAIL" | "SMS" | "WHATSAPP", title, body: whatsappTemplate ? whatsappTemplate.body.replace(/{{\s*(\w+)\s*}}/g, (_m, key: string) => fillName(key, names.get(user.id))) : campaign.body, status: address ? "QUEUED" : "FAILED", sentAt: now, metadata: { campaignId, billing: "PLATFORM", ...(whatsappTemplate ? { template: { name: whatsappTemplate.name, language: whatsappTemplate.language, params: whatsappTemplate.placeholders.map((key) => fillName(key, names.get(user.id))) } } : {}), ...(campaign.channel === "EMAIL" ? { email: user.email } : { phone: user.phone }), ...(address ? {} : { error: `No ${campaign.channel === "EMAIL" ? "email address" : "phone number"} on file` }) } as Prisma.InputJsonValue };
     });
     for (let at = 0; at < rows.length; at += 1000) await prisma.notificationLog.createMany({ data: rows.slice(at, at + 1000) });
 
@@ -4892,7 +4918,7 @@ export class SuperAdminService {
   async getInternalUserPermissions(session: SessionPayload, userId: string) {
     assertSuperAdmin(session);
     const [grid, grants] = await Promise.all([
-      prisma.internalPermissionGrid.findMany({ where: { userId }, orderBy: { moduleId: "asc" } }),
+      prisma.internalPermissionGrid.findMany({ where: { userId, accessLevel: { not: "INHERIT" } }, orderBy: { moduleId: "asc" } }),
       prisma.internalAccessGrant.findMany({ where: { userId }, include: { grantedBy: true }, orderBy: { createdAt: "desc" } })
     ]);
     return this.response({

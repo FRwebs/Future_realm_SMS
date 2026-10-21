@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { BACK_OFFICE_MODULES, RANK, forgetAccess, levelFor, levelsFor, type Level } from "./access";
+import { ACTIONS, type ActionId, actionAllowed, actionsFor, BACK_OFFICE_MODULES, RANK, forgetAccess, levelFor, levelsFor, type Level } from "./access";
 
 const DAY = 86_400_000;
 const PLATFORM_ROLES: UserRole[] = ["PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "FINANCE_MANAGER", "DEVELOPER", "SUPER_ADMIN"];
@@ -13,7 +13,19 @@ const WORKDAY_FROM = 6;
 const WORKDAY_TO = 22;
 const LARGE_EXPORT_ROWS = 1000;
 
+export const RESPONSIBILITIES = [
+  { value: "SUPPORT_LEAD", label: "Support Lead" },
+  { value: "DPO", label: "Data Protection Officer" },
+  { value: "FINANCE_LEAD", label: "Finance Lead" },
+  { value: "PRODUCT_LEAD", label: "Product Lead" },
+  { value: "COMMS_LEAD", label: "Comms Lead" },
+  { value: "SALES_LEAD", label: "Sales Lead" },
+  { value: "MIGRATION_SPECIALIST", label: "Migration Specialist" },
+  { value: "CTO", label: "CTO / Engineering on call" }
+] as const;
+
 const profileSchema = z.object({
+  responsibilities: z.preprocess((v) => (Array.isArray(v) ? v : typeof v === "string" && v.startsWith("[") ? JSON.parse(v) : typeof v === "string" && v ? v.split(",").map((x) => x.trim()).filter(Boolean) : []), z.array(z.enum(RESPONSIBILITIES.map((r) => r.value) as [string, ...string[]]))).default([]),
   departmentId: z.string().trim().optional().transform((v) => v || null),
   level: z.string().trim().optional().transform((v) => v || null),
   scopeStates: z.preprocess((v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(/[,\n]/).map((x) => x.trim()).filter(Boolean) : []), z.array(z.string())).default([]),
@@ -96,6 +108,52 @@ export class TeamAccessService implements OnModuleInit, OnModuleDestroy {
     return { id: row.id };
   }
 
+  /**
+   * Give somebody an exact set of actions in a module (view, export, create, edit, approve, delete) — or clear it to go back to
+   * what their level allows. A department lead can narrow but never go beyond their own ceiling or what they hold themselves.
+   */
+  async setActions(session: SessionPayload, body: unknown) {
+    const input = z.object({
+      userId: z.string().min(1),
+      moduleId: z.string().trim().min(1),
+      actions: z.preprocess((v) => (Array.isArray(v) ? v : typeof v === "string" && v.startsWith("[") ? JSON.parse(v) : []), z.array(z.enum(ACTIONS.map((a) => a.id) as [ActionId, ...ActionId[]]))),
+      reset: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false)
+    }).parse(body);
+    if (!BACK_OFFICE_MODULES.some((m) => m.id === input.moduleId)) throw new BadRequestException(`${input.moduleId} is not a Back Office module.`);
+    const target = await prisma.user.findFirst({ where: { id: input.userId, role: { in: PLATFORM_ROLES }, deletedAt: null } });
+    if (!target) throw new NotFoundException("That person is not on the platform team.");
+    if (["PLATFORM_OWNER", "SUPER_ADMIN"].includes(String(target.role))) throw new BadRequestException("A Super Admin always holds every action; there is nothing to narrow.");
+    const isAdmin = ["PLATFORM_OWNER", "SUPER_ADMIN"].includes(String(session.role));
+    if (!isAdmin) {
+      for (const action of input.actions) if (!(await actionAllowed(session.userId, String(session.role), input.moduleId, action))) throw new BadRequestException("You cannot give someone an action you do not hold yourself.");
+    }
+    const key = { userId_moduleId: { userId: input.userId, moduleId: input.moduleId } };
+    const before = await prisma.internalPermissionGrid.findUnique({ where: key });
+    if (input.reset || !input.actions.length) {
+      if (before?.accessLevel === "INHERIT") await prisma.internalPermissionGrid.delete({ where: key });
+      else if (before) await prisma.internalPermissionGrid.update({ where: key, data: { customActions: false, actions: [] } });
+      forgetAccess(input.userId);
+      await this.audit(session, AuditAction.UPDATE, "InternalPermissionGrid", before?.id ?? input.userId, { userId: input.userId, moduleId: input.moduleId, from: before?.customActions ? before.actions : "level", to: "level" });
+      return { custom: false };
+    }
+    const level = input.actions.includes("delete") ? "FULL" : input.actions.some((a) => ["create", "edit", "approve"].includes(a)) ? "EDIT" : "VIEW";
+    const row = await prisma.internalPermissionGrid.upsert({ where: key, create: { userId: input.userId, moduleId: input.moduleId, accessLevel: "INHERIT", customActions: true, actions: input.actions }, update: { customActions: true, actions: input.actions, ...(before && before.accessLevel === "NONE" ? { accessLevel: level } : {}) } });
+    forgetAccess(input.userId);
+    await this.audit(session, AuditAction.UPDATE, "InternalPermissionGrid", row.id, { userId: input.userId, moduleId: input.moduleId, from: before?.customActions ? before.actions : "level", to: input.actions });
+    return { custom: true, actions: input.actions };
+  }
+
+  /** What each person may do in each module: the exact set, or what their level allows. */
+  async actionsMatrix() {
+    const members = await prisma.user.findMany({ where: { role: { in: PLATFORM_ROLES }, deletedAt: null }, select: { id: true, firstName: true, lastName: true, role: true } });
+    const out: Record<string, Record<string, { actions: ActionId[]; custom: boolean }>> = {};
+    for (const member of members) {
+      out[member.id] = {};
+      for (const module of BACK_OFFICE_MODULES) out[member.id][module.id] = await actionsFor(member.id, String(member.role), module.id);
+    }
+    return { actions: ACTIONS, modules: BACK_OFFICE_MODULES, people: out };
+  }
+
   /** The matrix every Back Office person against every module, with what is set, and what is merely inherited from the role. */
   async matrix() {
     const [members, rows, templates] = await Promise.all([
@@ -104,7 +162,7 @@ export class TeamAccessService implements OnModuleInit, OnModuleDestroy {
       prisma.internalPermissionTemplate.findMany()
     ]);
     const byUser = new Map<string, Record<string, string>>();
-    for (const row of rows) byUser.set(row.userId, { ...(byUser.get(row.userId) ?? {}), [row.moduleId]: row.accessLevel });
+    for (const row of rows.filter((r) => r.accessLevel !== "INHERIT")) byUser.set(row.userId, { ...(byUser.get(row.userId) ?? {}), [row.moduleId]: row.accessLevel });
     const template = new Map(templates.map((t) => [t.roleName, (t.defaultGrid ?? {}) as Record<string, string>]));
     return {
       modules: BACK_OFFICE_MODULES.map((m) => m.id),
@@ -138,7 +196,7 @@ export class TeamAccessService implements OnModuleInit, OnModuleDestroy {
     const name = new Map(users.map((u) => [u.id, `${u.firstName} ${u.lastName}`]));
     return Object.fromEntries(users.map((user) => {
       const p = rows.find((row) => row.userId === user.id);
-      return [user.id, { departmentId: p?.departmentId ?? null, department: p?.departmentId ? (dept.get(p.departmentId) ?? null) : null, level: p?.level ?? null, scopeStates: p?.scopeStates ?? [], managerId: p?.managerId ?? null, manager: p?.managerId ? (name.get(p.managerId) ?? null) : null, staffNumber: p?.staffNumber ?? null, isExternal: p?.isExternal ?? false, mfaEnabled: user.mfaEnabled }];
+      return [user.id, { departmentId: p?.departmentId ?? null, department: p?.departmentId ? (dept.get(p.departmentId) ?? null) : null, level: p?.level ?? null, scopeStates: p?.scopeStates ?? [], managerId: p?.managerId ?? null, manager: p?.managerId ? (name.get(p.managerId) ?? null) : null, staffNumber: p?.staffNumber ?? null, isExternal: p?.isExternal ?? false, responsibilities: p?.responsibilities ?? [], mfaEnabled: user.mfaEnabled }];
     }));
   }
 

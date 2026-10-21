@@ -10,6 +10,7 @@ type Policy = {
   trial: { days: number; readOnlyDays: number; lockReminderDays: number };
   dormancy: { watchDays: number; dormantDays: number; noticeDays: number };
   invoice: { netDays: number; rounding: "NONE" | "NEAREST_NAIRA" | "NEAREST_FIVE" | "NEAREST_TEN" };
+  identity: { platformName: string; supportEmail: string; supportPhone: string; timeZone: string };
   messaging: { quietFrom: string; quietTo: string; quietHoursOn: boolean; dailyCapPerRecipient: number; maxAttempts: number; providerCostSms: number; providerCostSmsInternational: number; providerCostWhatsapp: number; providerCostEmail: number };
 };
 type LifecycleItem = { schoolId: string; school: string; kind: string; status: string; lastLoginAt: string | null };
@@ -106,12 +107,15 @@ export default async function SuperAdminSettingsPage({ searchParams }: { searchP
 }
 
 async function PlatformTab() {
-  const [settings, policy, lifecycle, carriers] = await Promise.all([
+  const [settings, policy, lifecycle, carriers, library, fx] = await Promise.all([
     apiGet<SuperAdminSettingsView>("/api/super-admin/settings"),
     loadPolicy(),
     apiGet<LifecycleItem[]>("/api/super-admin/lifecycle/preview").catch(() => [] as LifecycleItem[]),
-    apiGet<CarrierStatus>("/api/super-admin/delivery-carriers")
+    apiGet<CarrierStatus>("/api/super-admin/delivery-carriers"),
+    apiGet<{ profiles: Array<{ country: string; isLive: boolean }> }>("/api/super-admin/config-library").catch(() => ({ profiles: [] })),
+    apiGet<{ anchor: "NGN" | "USD"; source: string; ratesFor: string; shockPercent: number; refreshConfigured: boolean; rates: { usd: number }; pending: { moved: string } | null }>("/api/super-admin/billing-extras/currencies").catch(() => null)
   ]);
+  const openCountries = library.profiles.filter((profile) => profile.isLive).map((profile) => profile.country);
 
   return (
     <section className="grid gap-5">
@@ -162,39 +166,54 @@ async function PlatformTab() {
 
       <TableCard
         title="Platform identity"
-        description="The things that appear in front of a school or a parent and should almost never change."
+        description="The things that appear in front of a school or a parent and should almost never change. The name and contact are on every email the platform sends."
         items={[
-          { setting: "Platform name", value: "FutureRealm SMS" },
-          { setting: "School web address", value: "A custom slug chosen at signup, or a slugified school name with a generated suffix if none is chosen" },
-          { setting: "Back-office address", value: "Wherever this console is deployed — not a separate configurable domain" },
-          { setting: "Support contact", value: "Handled by the assigned account manager per school, not a single fixed address or number" },
-          { setting: "Platform default time zone", value: "Africa/Lagos — the default every new school starts on and can change" },
-          { setting: "Countries open for signup", value: "Nigeria only — onboarding hard-codes the country at signup" }
+          { setting: "Platform name", value: policy.identity.platformName, by: "Super Admin" },
+          { setting: "School web address", value: "Chosen at signup, lower-case letters and numbers, permanent from the minute it is created", by: "Fixed" },
+          { setting: "Back-office address", value: "Wherever this console is deployed — set at deployment, not here", by: "Fixed" },
+          { setting: "Support email shown to schools", value: policy.identity.supportEmail || "Not set — emails carry the platform name only", by: "Super Admin" },
+          { setting: "Support phone shown to schools", value: policy.identity.supportPhone || "Not set", by: "Super Admin" },
+          { setting: "Platform time zone", value: `${policy.identity.timeZone} — for the platform’s own clocks only`, by: "Super Admin" },
+          { setting: "Countries open for signup", value: openCountries.length ? openCountries.join(", ") : "None live — open a country in Curriculum & Academics → Country Settings", by: "Country Settings" }
         ]}
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Edit"
+            title="Platform identity"
+            description="Changing these never moves a school that already exists. The change is written to the audit log."
+            endpoint="/api/super-admin/platform-policy"
+            method="PUT"
+            variant="secondary"
+            submitLabel="Save"
+            fields={[
+              { name: "identity_platformName", label: "Platform name", defaultValue: policy.identity.platformName },
+              { name: "identity_supportEmail", label: "Support email", type: "email", defaultValue: policy.identity.supportEmail },
+              { name: "identity_supportPhone", label: "Support phone", defaultValue: policy.identity.supportPhone },
+              { name: "identity_timeZone", label: "Platform time zone (IANA name)", defaultValue: policy.identity.timeZone, placeholder: "Africa/Lagos" }
+            ]}
+          />
+        }
+        footnote="A school’s web address is permanent from the minute it is created. Opening a country in Country Settings is what lets a school there sign up."
         pageSize={false}
         getRowKey={(item) => item.setting}
         columns={[
           { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
           { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
-          {
-            key: "changeableBy",
-            header: "Changeable by",
-            render: () => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>Nobody — hardcoded</span>
-          }
+          { key: "by", header: "Changeable by", render: (item) => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>{item.by}</span> }
         ]}
       />
 
       <section className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
         <TableCard
           title="Pricing and currency"
-          description="Not a dual-currency system — plans are priced and billed directly in Naira, with no conversion layer."
+          description={fx?.anchor === "USD" ? "Plans are priced in US dollars; every naira figure is derived from the rate fixed for the term. Manage it on Plans & Features → Plans." : "Plans are priced in naira. Author them in US dollars on Plans & Features → Plans to have every local figure follow one rate."}
           items={[
-            { setting: "Pricing currency", value: "NGN — every plan is authored directly in Naira", state: "Fixed" },
-            { setting: "Rate source", value: "Not applicable — there's no foreign-exchange rate to source", state: "N/A" },
-            { setting: "Rate refresh", value: "Not applicable — nothing to refresh", state: "N/A" },
-            { setting: "Rounding", value: ROUNDING_LABEL[policy.invoice.rounding], state: "Enforced" },
-            { setting: "Currency shock guard", value: "Not applicable — no exchange-rate exposure to guard against", state: "N/A" },
-            { setting: "Invoicing currency", value: "Naira, always — every school's invoice", state: "Enforced" }
+            { setting: "Pricing currency", value: fx?.anchor === "USD" ? "USD — authored once per plan" : "NGN — authored directly in naira", state: "Set by Super Admin" },
+            { setting: "Rate source", value: fx?.source ? fx.source : fx?.refreshConfigured ? "A rate provider is set up; fetched at term start" : "Entered by hand — set FX_RATES_URL to fetch automatically", state: fx?.refreshConfigured ? "Automatic" : "Manual" },
+            { setting: "Rate refresh", value: fx?.ratesFor ? `Fixed for ${fx.ratesFor}; refreshed at term rollover only, never mid-term` : "No rates fixed yet", state: "Enforced" },
+            { setting: "Rounding", value: "Naira prices from dollars are rounded to the nearest 50 kobo; invoices round as set below", state: "Enforced" },
+            { setting: "Currency shock guard", value: `A move above ${fx?.shockPercent ?? 15}% on any currency is held for Finance to decide${fx?.pending ? ` — ${fx.pending.moved} waiting now` : ""}`, state: "Enforced" },
+            { setting: "Invoicing currency", value: "The school’s own, always", state: "Enforced" }
           ]}
           pageSize={false}
           getRowKey={(item) => item.setting}
@@ -294,7 +313,7 @@ async function DefaultsTab() {
           { setting: "Report card layout", value: "One platform layout. No per-school template model exists, so nothing is linked at signup.", canChange: "No", where: "Fixed" },
           { setting: "Assessment weights (CA/exam)", value: "Seven components: assignment, classwork, two tests, project and practical at 10 each, and a terminal exam at 40", canChange: "Yes", where: "The school's Score Entry framework" },
           { setting: "Academic calendar", value: "The school year the school is in, September to July in three terms, with the current term set. A sample class marks attendance up to yesterday.", canChange: "Yes", where: "School Configuration → Calendar" },
-          { setting: "Notification channels", value: "SMS, email and in-app. WhatsApp has wallets and a ledger but no channel to send on yet.", canChange: "Yes", where: "Communication Center" },
+          { setting: "Notification channels", value: "SMS, email, in-app and WhatsApp (from templates Meta has approved, to people who opted in).", canChange: "Yes", where: "Communication Center" },
           { setting: "Quiet hours", value: "Platform-wide, in the Notifications tab", canChange: "No", where: "This page — Notifications" },
           { setting: "Fee balance on report cards", value: "Not on the card. The report card carries scores, position, attendance, remarks and traits.", canChange: "No", where: "Fixed" },
           { setting: "Class position on report cards", value: "Shown — competition ranking within the arm, from the approved sheets", canChange: "No", where: "Fixed" },
@@ -445,7 +464,7 @@ async function NotificationsTab() {
         items={[
           { label: "Email", detail: carrier("EMAIL")?.configured ? "Sent over SMTP: signup and sign-in codes, invoices, notices, and the school's own queued mail." : "No mail server is set up on this deployment, so mail is logged, not sent. Set SMTP_HOST, SMTP_USER and SMTP_PASSWORD.", tone: carrier("EMAIL")?.configured ? "good" : "bad" },
           { label: "SMS", detail: carrier("SMS")?.configured ? `Sent through ${carrier("SMS")?.provider}. ${carriers.enabled ? "The delivery worker is on." : "The delivery worker is off — queued messages wait. Set DELIVERY_ENABLED=true."}` : "No SMS carrier has keys on this deployment (TERMII_API_KEY, TERMII_SENDER_ID). SMS is queued and recorded, not sent.", tone: carrier("SMS")?.configured && carriers.enabled ? "good" : "bad" },
-          { label: "WhatsApp Business", detail: "Credit wallets and a ledger exist, but no WhatsApp channel or provider does, so nothing is sent on it.", tone: "bad" },
+          { label: "WhatsApp Business", detail: carrier("WHATSAPP")?.configured ? `Sent through ${carrier("WHATSAPP")?.provider} as approved templates; delivery and read receipts come back through the webhook at /api/v1/webhooks/whatsapp.` : "Not connected. Set WHATSAPP_TOKEN and WHATSAPP_PHONE_ID (and WHATSAPP_BUSINESS_ID to submit templates, WHATSAPP_VERIFY_TOKEN and WHATSAPP_APP_SECRET for the webhook). Until then nothing is sent on it.", tone: carrier("WHATSAPP")?.configured ? "good" : "bad" },
           { label: "In-app", detail: "Real — its own delivery channel, written to the notification log and read back in the parent, teacher, and student portals' own notification inboxes.", tone: "good" }
         ]}
       />

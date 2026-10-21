@@ -306,10 +306,15 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
 type MembershipView = {
   kpis: { multi: number; multiPct: number; guardians: number; teachers: number; owners: number; examiners: number };
   rows: Array<{ id: string; name: string; contact: string; memberships: number; roles: string[]; lastActive: string | null }>;
+  items: Array<{ id: string; person: string; school: string; role: string; expiresAt: string | null }>;
 };
 
 async function MembershipsSection() {
-  const view = await apiGet<MembershipView>("/api/super-admin/users/insights/memberships").catch(() => null);
+  const [view, schoolsEnvelope] = await Promise.all([
+    apiGet<MembershipView>("/api/super-admin/users/insights/memberships").catch(() => null),
+    apiGetEnvelope<Array<{ id: string; name: string }>>("/api/super-admin/schools?limit=100").catch(() => ({ data: [] as Array<{ id: string; name: string }> }))
+  ]);
+  const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
   const k = view?.kpis;
   return (
     <>
@@ -318,12 +323,21 @@ async function MembershipsSection() {
         <StatCard label="Guardians across schools" value={k?.guardians ?? 0} detail="Children at different schools" icon={UserCheck} tone="neutral" />
         <StatCard label="Teachers at two schools" value={k?.teachers ?? 0} detail="Independent role and permissions at each" icon={GraduationCap} tone="neutral" />
         <StatCard label="Proprietors of several schools" value={k?.owners ?? 0} detail="Owner at more than one account" icon={ShieldCheck} tone="neutral" />
-        <StatCard label="External examiners" value={k?.examiners ?? 0} detail="Time-boxed memberships — none are issued yet" icon={KeyRound} tone="neutral" />
+        <StatCard label="External examiners" value={k?.examiners ?? 0} detail="Memberships that end on a date" icon={KeyRound} tone="neutral" />
       </section>
 
       <TableCard
         title="Multi-school memberships"
-        description="One person, many school memberships. People are matched by the phone number their accounts share; each account keeps its own role, permissions and record access, independently."
+        description="One person, many school memberships. A person keeps the school their account was made in and can be given a role in others; they switch between them from the profile menu without signing in again. Each membership has its own role, permissions and record access."
+        actions={
+          <ResourceActionDialog triggerLabel="Add a membership" title="Add a person to a school" description="Gives an existing account a role at another school. They switch to it from the menu under their name, and are told by email." endpoint="/api/v1/memberships" method="POST" variant="secondary" submitLabel="Add" fields={[
+            { name: "email", label: "Their account email", type: "email", required: true },
+            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
+            { name: "role", label: "Role at that school", type: "select", required: true, options: ["SUBJECT_TEACHER", "CLASS_TEACHER", "HEAD_OF_DEPARTMENT", "EXAMINATION_OFFICER", "BURSAR", "ADMINISTRATOR", "PRINCIPAL", "PARENT"].map((value) => ({ label: value.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), value })) },
+            { name: "expiresAt", label: "Ends on (blank = no end)", type: "date" },
+            { name: "note", label: "Note", type: "textarea" }
+          ]} />
+        }
         items={view?.rows ?? []}
         getRowKey={(row) => row.id}
         pageSize={8}
@@ -336,6 +350,22 @@ async function MembershipsSection() {
           { key: "open", header: "", render: (row) => <ActionMenuLink href={`/super-admin/users/${row.id}`}>Open</ActionMenuLink> }
         ]}
         footnote="Leaving one school does not affect any other membership. Audit entries always record which school's account an action occurred under."
+      />
+
+      <TableCard
+        title="Memberships given"
+        description="Every school a person was added to, beyond the one their account was made in."
+        items={view?.items ?? []}
+        getRowKey={(row) => row.id}
+        pageSize={8}
+        emptyState="No membership has been given yet."
+        columns={[
+          { key: "person", header: "Person", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.person}</span> },
+          { key: "school", header: "School", render: (row) => row.school },
+          { key: "role", header: "Role", render: (row) => row.role },
+          { key: "ends", header: "Ends", render: (row) => (row.expiresAt ? formatDate(row.expiresAt) : "No end date") },
+          { key: "remove", header: "", sortable: false, render: (row) => <ResourceActionDialog triggerLabel="Remove" title={`Remove ${row.person} from ${row.school}`} description="They are signed out of that school at once. Their other schools are not affected." endpoint={`/api/v1/memberships/${row.id}/remove`} method="POST" variant="textActionDanger" submitLabel="Remove" confirmLabel="Confirm" fields={[]} /> }
+        ]}
       />
 
       <ReferenceList

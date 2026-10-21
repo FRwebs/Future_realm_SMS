@@ -150,6 +150,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
     apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices"),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
+  const termLabel = (await apiGet<{ term: string | null }>("/api/super-admin/billing-extras/currencies").catch(() => ({ term: null }))).term;
   const trialPolicy = (await apiGet<{ trial: { days: number; readOnlyDays: number; lockReminderDays: number } }>("/api/super-admin/platform-policy").catch(() => null))?.trial ?? { days: TRIAL_DAYS, readOnlyDays: 7, lockReminderDays: 3 };
   const billing = billingEnvelope.data ?? [];
   const schoolsForRecommendations = schoolsEnvelope.data ?? [];
@@ -397,9 +398,9 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
           </section>
 
           <TableCard
-            title={`Tier recommendations — ${tierRecommendations.length} school${tierRecommendations.length === 1 ? "" : "s"} · accept or dismiss per school`}
+            title={`Tier recommendations — ${termLabel ?? "this term"} rollover`}
             description="Student counts are the confirmed headcount on each school’s roll. The system recommends; it never applies a tier change by itself."
-            footnote="Dismissing asks for a reason and keeps the school on its current tier until someone decides otherwise. Nothing here changes a price by itself."
+            footnote={`${tierRecommendations.length} recommendation${tierRecommendations.length === 1 ? "" : "s"} · accept or dismiss per school. Dismissing asks for a reason and keeps the school on its current tier until someone decides otherwise. Nothing here changes a price by itself.`}
             items={tierRecommendations}
             emptyState="No school's real headcount currently mismatches its tier."
             getRowKey={(row) => row.school.id}

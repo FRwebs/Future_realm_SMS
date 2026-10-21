@@ -1,6 +1,8 @@
 import nodemailer, { type Transporter } from "nodemailer";
 import type SMTPTransport from "nodemailer/lib/smtp-transport";
 
+import { identityFooter, platformIdentity } from "@/lib/platform-identity";
+
 export interface SendEmailInput {
   to: string;
   subject: string;
@@ -39,7 +41,9 @@ function getTransporter(): Transporter | null {
 
 export async function sendEmail(input: SendEmailInput) {
   const transporter = getTransporter();
-  const from = process.env.SMTP_FROM || "FutureRealm SMS <noreply@futurerealm.local>";
+  const address = (process.env.SMTP_FROM ?? "").match(/<([^>]+)>/)?.[1] ?? (process.env.SMTP_FROM || "noreply@futurerealm.local");
+  const from = `${platformIdentity().platformName} <${address}>`;
+  const text = `${input.text}${identityFooter()}`;
 
   if (!transporter) {
     console.warn(
@@ -53,7 +57,7 @@ export async function sendEmail(input: SendEmailInput) {
     from,
     to: input.to,
     subject: input.subject,
-    text: input.text,
+    text,
     html: input.html
   });
 

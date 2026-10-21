@@ -16,7 +16,7 @@ import {
 import { SearchCombo } from "@/components/forms/search-combo";
 import { useToast } from "@/components/ui/toast-provider";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
-import { COUNTRY_NAMES, PHONE_PLACEHOLDER, geoFor } from "@/lib/onboarding/geo";
+import { PHONE_PLACEHOLDER, geoFor } from "@/lib/onboarding/geo";
 
 type SignupRole = "admin" | "teacher";
 type View = "fork" | "wiz" | "done" | "verify";
@@ -194,6 +194,15 @@ export function OnboardingWizard() {
   const [email, setEmail] = useState("");
   const [position, setPosition] = useState("");
   const [country, setCountry] = useState("Nigeria");
+  const [openCountries, setOpenCountries] = useState<string[]>(["Nigeria"]);
+  useEffect(() => {
+    void fetch("/api/v1/onboarding/countries").then((response) => response.json()).then((body: { data?: string[] }) => {
+      if (body.data?.length) {
+        setOpenCountries(body.data);
+        setCountry((current) => (body.data?.includes(current) ? current : (body.data as string[])[0]));
+      }
+    }).catch(() => undefined);
+  }, []);
 
   const [schoolName, setSchoolName] = useState("");
   const [slug, setSlug] = useState("");
@@ -883,7 +892,7 @@ export function OnboardingWizard() {
                     {!admin ? (
                       <label>
                         {fieldLabel("Country", false, true)}
-                        <SearchCombo value={country} onChange={setCountry} options={COUNTRY_NAMES} placeholder="Search countries…" />
+                        <SearchCombo value={country} onChange={setCountry} options={openCountries} placeholder="Search countries…" />
                       </label>
                     ) : null}
                   </div>
@@ -934,7 +943,7 @@ export function OnboardingWizard() {
                     </label>
                     <label>
                       {fieldLabel("Country", false, true)}
-                      <SearchCombo value={country} onChange={onCountryChange} options={COUNTRY_NAMES} placeholder="Search countries…" />
+                      <SearchCombo value={country} onChange={onCountryChange} options={openCountries} placeholder="Search countries…" />
                     </label>
                     <label>
                       {fieldLabel(geo.level1Label, false, true)}

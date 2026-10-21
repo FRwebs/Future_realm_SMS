@@ -478,6 +478,7 @@ enum NotificationChannel {
   EMAIL
   PUSH
   IN_APP
+  WHATSAPP
 }
 
 enum SyncDraftType {
@@ -4861,13 +4862,16 @@ model InternalPermissionTemplate {
 }
 
 model InternalPermissionGrid {
-  id          String   @id @default(cuid())
-  userId      String
-  moduleId    String
-  accessLevel String   @default("NONE")
-  updatedAt   DateTime @updatedAt
-  createdAt   DateTime @default(now())
-  user        User     @relation("InternalPermissionGridUser", fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  userId        String
+  moduleId      String
+  accessLevel   String   @default("NONE")
+  /// When true, `actions` is exactly what this person may do in the module, whatever the level would have allowed.
+  customActions Boolean  @default(false)
+  actions       String[] @default([])
+  updatedAt     DateTime @updatedAt
+  createdAt     DateTime @default(now())
+  user          User     @relation("InternalPermissionGridUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, moduleId])
 }
@@ -6594,6 +6598,14 @@ model CountryProfile {
   /// When the support desk is staffed there, e.g. "08:00–17:00 WAT, Mon–Fri". Service-level clocks pause outside it.
   supportHours          String?
   publicHolidays        Int?
+  /// IANA name, e.g. Africa/Lagos. Service-level clocks for a school in this country run in this zone.
+  timeZone              String?
+  workStart             String?
+  workEnd               String?
+  /// ISO weekdays the desk is staffed, 1 = Monday … 7 = Sunday.
+  workDays              Int[]    @default([1, 2, 3, 4, 5])
+  /// Dates the desk is closed, as YYYY-MM-DD.
+  holidayDates          String[] @default([])
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -6645,16 +6657,18 @@ model FunnelStageOwner {
 
 /// What the team knows about a Back Office person beyond their role: where they sit, who they answer to, and what they may see.
 model InternalProfile {
-  userId       String   @id
-  departmentId String?
-  level        String?
+  userId           String   @id
+  departmentId     String?
+  level            String?
   /// Empty means the whole platform. Otherwise this person sees only schools in these states.
-  scopeStates  String[] @default([])
-  managerId    String?
-  staffNumber  String?
-  isExternal   Boolean  @default(false)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  scopeStates      String[] @default([])
+  managerId        String?
+  staffNumber      String?
+  isExternal       Boolean  @default(false)
+  /// What this person answers for — DPO, Support Lead, Comms Lead … Alerts and "who to ask" go to whoever holds one.
+  responsibilities String[] @default([])
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
 }
 
 /// Something about a Back Office account's behaviour that a person should look at: out-of-hours access, an unfamiliar device, a large export, two places at once.
@@ -6712,6 +6726,10 @@ model AutoTopupAttempt {
   amount    Decimal  @default(0) @db.Decimal(12, 2)
   trigger   String
   invoiceId String?
+  /// Set when the card on file was charged; the gateway's own reference, and why a charge failed.
+  reference String?
+  failure   String?
+  charged   Boolean  @default(false)
   /// ISSUED (an invoice was raised and the owner told), STOPPED (three unpaid in a row — a person now owns it).
   outcome   String
   attempt   Int      @default(1)
@@ -6732,4 +6750,44 @@ model AdminView {
 
   @@unique([userId, kind, entityId])
   @@index([userId, viewedAt])
+}
+
+/// A card a school has agreed to be charged automatically. Only the gateway's reusable authorization is kept — never a card number.
+model SavedCard {
+  id            String    @id @default(cuid())
+  schoolId      String
+  provider      String
+  authorization String
+  signature     String
+  last4         String
+  brand         String?
+  bank          String?
+  expMonth      String?
+  expYear       String?
+  email         String
+  createdById   String?
+  createdAt     DateTime  @default(now())
+  lastUsedAt    DateTime?
+  removedAt     DateTime?
+
+  @@unique([schoolId, signature])
+  @@index([schoolId, removedAt])
+}
+
+/// A person who belongs to a school other than the one their account was created in, with the role they hold there.
+/// One account, many schools: they switch between them without a second login. `expiresAt` makes it time-boxed (an external examiner).
+model SchoolMembership {
+  id          String    @id @default(cuid())
+  userId      String
+  schoolId    String
+  role        UserRole
+  status      String    @default("ACTIVE")
+  expiresAt   DateTime?
+  invitedById String?
+  note        String?
+  createdAt   DateTime  @default(now())
+  removedAt   DateTime?
+
+  @@unique([userId, schoolId])
+  @@index([schoolId, status])
 }

@@ -1132,3 +1132,25 @@ export function revealDrawer(person: { id: string; name: string }): DrawerSpec {
     submit: { endpoint: `${API}/staff/${person.id}/reveal`, method: "POST", reasonKey: "reason", reasonRequired: true, reasonLabel: "Why you are opening them" },
   };
 }
+
+/** Someone who already has an account — a teacher at two schools, an external examiner — is added with a role here instead of a second account. */
+export function addExistingAccountDrawer(): DrawerSpec {
+  const roles: Array<[string, string]> = [["Subject teacher", "SUBJECT_TEACHER"], ["Class teacher", "CLASS_TEACHER"], ["Head of department", "HEAD_OF_DEPARTMENT"], ["Examination officer", "EXAMINATION_OFFICER"], ["Bursar", "BURSAR"], ["Administrator", "ADMINISTRATOR"]];
+  return {
+    mode: "form",
+    kicker: "Staff · access",
+    title: "Add someone who already has an account",
+    sub: "They keep one login and switch between schools from the menu under their name. Their role here is separate from any other.",
+    commitLabel: "Add them",
+    commitDone: "Added",
+    commitDoneBody: "They are told by email and can switch to this school straight away. Remove them from the Directory whenever you need to.",
+    reviewNote: "Nothing about their other schools is shown to you, or yours to them.",
+    fields: [
+      text("Their account email", { required: true, span: 2, placeholder: "name@example.com" }),
+      select("Role here", roles.map(([label]) => label), { span: 2 }),
+      text("Ends on", { optional: true, placeholder: "YYYY-MM-DD — leave blank for no end date", hint: "Use an end date for an external examiner." }),
+      text("Note", { optional: true, span: 2 }),
+    ],
+    submit: { endpoint: "/api/v1/memberships", method: "POST", map: { "Their account email": "email", "Role here": "role", "Ends on": "expiresAt", Note: "note" }, encode: { "Role here": Object.fromEntries(roles) } },
+  };
+}

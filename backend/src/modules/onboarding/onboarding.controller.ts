@@ -51,6 +51,11 @@ export class OnboardingController {
     return { ok: true, data: results };
   }
 
+  @Get("countries")
+  async openCountries() {
+    return { ok: true, data: await this.onboardingService.openCountryNames() };
+  }
+
   @Get("plans")
   async listPlans() {
     const plans = await this.onboardingService.listPublicPlans();

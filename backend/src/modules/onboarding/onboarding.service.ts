@@ -161,8 +161,31 @@ const FREE_EMAIL_DOMAINS = new Set(["gmail.com", "yahoo.com", "outlook.com", "ho
 // and a lookup by school.country, not an edit to the validators below.
 const NIGERIA_PHONE_PATTERN = /^(\+?234|0)[7-9][0-1]\d{8}$/;
 
-function isValidNigerianPhone(phone: string) {
-  return NIGERIA_PHONE_PATTERN.test(phone.replace(/[\s-]/g, ""));
+/**
+ * A school can only sign up in a country somebody has opened in Curriculum & Academics → Country Settings. The profile
+ * supplies the currency, and its phone pattern is what the owner's number is checked against. With no profiles at all
+ * (a fresh install) Nigeria stays open, so signup never dead-ends before anyone has configured anything.
+ */
+async function openCountry(country: string | undefined) {
+  const name = country || "Nigeria";
+  const profiles = await prisma.countryProfile.count();
+  const profile = await prisma.countryProfile.findUnique({ where: { country: name } });
+  if (!profile) {
+    if (profiles === 0 && name === "Nigeria") return { country: name, currency: "NGN", phonePattern: NIGERIA_PHONE_PATTERN.source };
+    throw new BadRequestException(`We are not open in ${name} yet.`);
+  }
+  if (!profile.isLive) throw new BadRequestException(`We are not open in ${name} yet.`);
+  return { country: name, currency: profile.currency, phonePattern: profile.phonePattern };
+}
+
+function phoneMatches(pattern: string | null | undefined, phone: string | undefined) {
+  if (!phone) return false;
+  if (!pattern) return true;
+  try {
+    return new RegExp(pattern).test(phone.replace(/[\s-]/g, ""));
+  } catch {
+    return true; // a pattern that does not compile must not lock every signup out
+  }
 }
 
 function normalizeSchoolName(name: string) {
@@ -201,6 +224,7 @@ async function computeRiskAssessment(input: {
   ownerEmail: string;
   ownerPhone?: string;
   signupIp?: string;
+  phonePattern?: string | null;
 }): Promise<RiskAssessment> {
   const emailDomain = input.ownerEmail.split("@")[1]?.toLowerCase();
   const hasRegistration = Boolean(input.cacNumber || input.ministryApprovalNumber);
@@ -209,8 +233,7 @@ async function computeRiskAssessment(input: {
   // The phone-format check is Nigeria-specific (see isValidNigerianPhone above) — outside
   // Nigeria there's no pattern to check against yet, so a school there never gets flagged
   // on this signal purely for having a phone number this validator doesn't recognise.
-  const isNigeria = !input.country || input.country === "Nigeria";
-  const phoneMissingOrInvalid = isNigeria && (!input.ownerPhone || !isValidNigerianPhone(input.ownerPhone));
+  const phoneMissingOrInvalid = !input.ownerPhone || !phoneMatches(input.phonePattern ?? NIGERIA_PHONE_PATTERN.source, input.ownerPhone);
 
   const duplicateOwner = await prisma.school.findFirst({
     where: {
@@ -241,7 +264,7 @@ async function computeRiskAssessment(input: {
     { label: "No CAC or Ministry of Education approval number provided", weight: -25, triggered: !hasRegistration },
     { label: "No physical address on file", weight: -15, triggered: !hasAddress },
     { label: "Owner registered with a personal webmail address and no CAC number", weight: -20, triggered: isFreeEmail && !hasRegistration },
-    { label: "Phone number missing or not a recognised Nigerian format", weight: -10, triggered: phoneMissingOrInvalid },
+    { label: "Phone number missing or not a recognised format for the country", weight: -10, triggered: phoneMissingOrInvalid },
     { label: "Same person (email or phone) already registered another school", weight: -30, triggered: Boolean(duplicateOwner) },
     { label: "School name closely matches an existing school in the same state", weight: -20, triggered: duplicateName },
     { label: "Several signups from the same connection within 24 hours", weight: -15, triggered: repeatedSignupsFromConnection }
@@ -361,10 +384,18 @@ export class OnboardingService {
     });
   }
 
+  /** The countries a school can sign up in right now: the ones opened in Country Settings. */
+  async openCountryNames() {
+    const live = await prisma.countryProfile.findMany({ where: { isLive: true }, orderBy: { country: "asc" }, select: { country: true } });
+    if (live.length) return live.map((row) => row.country);
+    return (await prisma.countryProfile.count()) === 0 ? ["Nigeria"] : [];
+  }
+
   async registerSchool(payload: unknown, signupIp?: string) {
     const startedAt = Date.now();
     const parsed = registerSchoolSchema.parse(payload);
     const ownerEmail = parsed.ownerEmail.toLowerCase();
+    const open = await openCountry(parsed.country);
 
     const existingUser = await prisma.user.findUnique({ where: { email: ownerEmail } });
     if (existingUser) {
@@ -400,7 +431,8 @@ export class OnboardingService {
       city: parsed.city,
       ownerEmail,
       ownerPhone: parsed.ownerPhone,
-      signupIp
+      signupIp,
+      phonePattern: open.phonePattern
     });
 
     const school = await prisma.school.create({
@@ -427,7 +459,8 @@ export class OnboardingService {
         riskScore: riskAssessment.score,
         riskSignals: riskAssessment.signals as unknown as Prisma.InputJsonValue,
         signupIp: signupIp ?? null,
-        country: parsed.country,
+        country: open.country,
+        currency: open.currency,
         plan: "BASIC",
         status: "TRIAL",
         billingStatus: "TRIAL",

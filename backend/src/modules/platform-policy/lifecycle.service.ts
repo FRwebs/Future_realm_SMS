@@ -164,6 +164,7 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async tell(school: { id: string; ownerEmail: string | null }, subjectIn: string, bodyIn: string, trigger?: { key: TriggerKey; vars: Record<string, string | number> }) {
+    if (trigger && (await this.policy.get()).messaging.disabledTriggers.includes(trigger.key)) return; // switched off by hand in Communications → Triggers
     const { subject, body } = trigger ? await renderTrigger(trigger.key, trigger.vars, { subject: subjectIn, body: bodyIn }) : { subject: subjectIn, body: bodyIn };
     const owners = await prisma.user.findMany({ where: { schoolId: school.id, isActive: true, deletedAt: null, role: { in: ["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL"] } }, select: { id: true } });
     if (owners.length) await prisma.notificationLog.createMany({ data: owners.map((owner) => ({ schoolId: school.id, userId: owner.id, channel: "IN_APP" as const, title: subject, body, status: "QUEUED", sentAt: new Date() })) });

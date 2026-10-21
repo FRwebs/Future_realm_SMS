@@ -1,5 +1,6 @@
 import { apiGet } from "@/lib/api/server";
 import {
+  addExistingAccountDrawer,
   addStaffDrawer,
   API,
   delegationDrawer,
@@ -215,7 +216,7 @@ export function directoryTab(directory: Directory): TabContent {
     title: "Directory",
     desc: "Everyone who works here, what state their account is in, and what they are holding.",
     primary: { label: "Add staff", href: "/staff-access/directory/new" },
-    launchers: [{ label: "Offboard someone", href: "/staff-access/directory/offboard" }],
+    launchers: [{ label: "Offboard someone", href: "/staff-access/directory/offboard" }, { label: "Add an existing account", drawer: addExistingAccountDrawer() }],
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Staff and activation", sub: "Account states are read from sign-ins, never typed", per: 5, cards }] },
       ...(never.length

@@ -36,6 +36,8 @@ import { PartnersModule } from "./modules/partners/partners.module";
 import { ComplianceModule } from "./modules/security-compliance/compliance.module";
 import { BillingExtrasModule } from "./modules/billing-extras/billing-extras.module";
 import { SupportDeskModule } from "./modules/support-desk/support-desk.module";
+import { MembershipsModule } from "./modules/memberships/memberships.module";
+import { WhatsAppModule } from "./modules/whatsapp/whatsapp.module";
 import { AdminViewsModule } from "./modules/admin-views/admin-views.module";
 import { InvitationOpsModule } from "./modules/invitation-ops/invitation-ops.module";
 import { UserInsightsModule } from "./modules/user-insights/user-insights.module";
@@ -130,6 +132,8 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     SupportDeskModule,
     InvitationOpsModule,
     AdminViewsModule,
+    WhatsAppModule,
+    MembershipsModule,
     ParentPortalModule,
     ParentsModule,
     StudentPortalModule,

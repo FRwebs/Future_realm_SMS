@@ -54,6 +54,7 @@ export type Credits = {
   pricing: { sms: number; smsInternational: number; whatsapp: number; baseSms: number; baseWhatsapp: number };
   settings: { auto: boolean; autoChannel: string; autoQuantity: number; warnAt: number; warnWho: string };
   gateway: "test" | "live";
+  cards?: Array<{ id: string; brand: string | null; last4: string; bank: string | null; expires: string | null; since: string; lastUsedAt: string | null }>;
 };
 
 export type Account = {

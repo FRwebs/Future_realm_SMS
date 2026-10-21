@@ -1,3 +1,4 @@
+import { inSchoolCurrency } from "../platform-policy/pricing-snapshot";
 import { platformPolicy } from "../platform-policy/policy.service";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import { AuditAction } from "@prisma/client";
@@ -68,7 +69,8 @@ export class CreditsService {
       topUps: ledger.filter((row) => row.kind === "TOPUP").map((row) => ({ id: row.id, at: row.createdAt.toISOString(), channel: row.channel === "SMS" ? "SMS" : "WhatsApp", credits: row.credits, amount: num(row.amount), method: row.method === "CARD" ? "Card" : row.method ?? "—", invoice: row.invoiceId ? invoiceNo.get(row.invoiceId) ?? null : null, invoiceId: row.invoiceId })),
       pricing: { sms: CHANNEL_RATES.SMS, smsInternational: CHANNEL_RATES.SMS_INTERNATIONAL, whatsapp: CHANNEL_RATES.WHATSAPP, tiers: { discount10k: 0.03, discount25k: 0.06 }, baseSms: base.SMS, baseWhatsapp: base.WHATSAPP },
       settings: { auto: Boolean(auto?.on), autoChannel: auto?.channel ?? "SMS", autoQuantity: auto?.quantity ?? 10_000, warnAt: sub?.warnAt ?? 2000, warnWho: sub?.warnWho ?? "The Bursar" },
-      gateway: gatewayMode()
+      gateway: gatewayMode(),
+      cards: await this.payments.cards(schoolId)
     };
   }
 
@@ -85,7 +87,9 @@ export class CreditsService {
     const credits = input.quantity.startsWith("A number") ? number(input.custom) : number(input.quantity);
     if (credits < 100) throw new BadRequestException("The smallest top-up is 100 credits.");
     if (credits > 500_000) throw new BadRequestException("The largest single top-up is 500,000 credits. Speak to your Account Manager about more.");
-    const { key, rate, subtotal, discount } = this.price(input.channel, credits);
+    const priced = this.price(input.channel, credits);
+    const { key, rate, discount } = priced;
+    const subtotal = inSchoolCurrency(Number(priced.subtotal), school.currency);
     const tax = round2(subtotal * (await taxRate(school.country)));
     const invoice = await prisma.platformInvoice.create({
       data: { schoolId, invoiceNo: await nextInvoiceNo(), amount: (await platformPolicy.invoiceTerms(Number(subtotal))).amount, taxAmount: tax, currency: school.currency, status: "PENDING", dueAt: (await platformPolicy.invoiceTerms(0)).dueAt, metadata: json({ kind: "TOPUP", description: `Credit top-up · ${credits.toLocaleString("en-NG")} ${key === "SMS" ? "SMS" : "WhatsApp"}`, channel: key, credits, rate, discount }) }

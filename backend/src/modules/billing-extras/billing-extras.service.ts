@@ -5,6 +5,8 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
+import { inSchoolCurrency } from "../platform-policy/pricing-snapshot";
+import { PaymentsService } from "../subscription-billing/payments.service";
 import { platformPolicy } from "../platform-policy/policy.service";
 import { renderTrigger, type TriggerKey } from "../platform-policy/triggers";
 import { CHANNEL_RATES, TIERS, gatewayMode, json, nextInvoiceNo, quote, round2, schoolOf, taxRate, tierOf } from "../subscription-billing/billing.shared";
@@ -43,6 +45,24 @@ const byHandSchema = z.object({
 const dismissSchema = z.object({ schoolId: z.string().min(1), plan: z.string().min(1), reason: z.string().trim().min(5, "Say why the recommendation is being dismissed.") });
 const idsSchema = z.object({ invoiceIds: z.array(z.string()).min(1, "Choose at least one invoice.") });
 
+/** The naira value of one unit of each currency, as the rate card reads. */
+type Rates = { ngnPerUsd: number; ngnPerGhs: number; ngnPerKes: number; ngnPerGbp: number };
+const RATE_KEYS = ["ngnPerUsd", "ngnPerGhs", "ngnPerKes", "ngnPerGbp"] as const;
+const ratesSchema = z.object({
+  ratesFor: z.string().trim().max(60).optional(),
+  ngnPerUsd: z.coerce.number().min(0).max(100000),
+  ngnPerGhs: z.coerce.number().min(0).max(100000).default(0),
+  ngnPerKes: z.coerce.number().min(0).max(100000).default(0),
+  ngnPerGbp: z.coerce.number().min(0).max(100000).default(0)
+});
+const usdSchema = z.object({
+  anchor: z.enum(["NGN", "USD"]),
+  STANDARD: z.coerce.number().min(0).max(10000).default(0),
+  PREMIUM: z.coerce.number().min(0).max(10000).default(0),
+  ELITE: z.coerce.number().min(0).max(10000).default(0),
+  reason: z.string().trim().min(5, "Say why the price is changing — it goes in the audit log.")
+});
+
 @Injectable()
 export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnApplicationBootstrap {
   private readonly log = new Logger("TrialJourney");
@@ -57,7 +77,10 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
   private topupTimer: NodeJS.Timeout | null = null;
   onApplicationBootstrap() {
     if (process.env.AUTO_TOPUP_SCANNER === "off") return;
-    this.topupTimer = setInterval(() => void this.scanWallets().catch((error) => this.log.error(error)), 1_800_000);
+    this.topupTimer = setInterval(() => {
+      void this.scanWallets().catch((error) => this.log.error(error));
+      void this.autoRefreshRates().catch((error) => this.log.error(error));
+    }, 1_800_000);
     this.topupTimer.unref();
   }
 
@@ -177,7 +200,7 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
         const due = step.day(policy.trial.days, policy.trial.readOnlyDays);
         if (due > day) continue;
         // A step that came due long before the engine could run is not sent late — it would read as nonsense.
-        const reason = due < day - 2 ? "Came due before this school was reached" : step.own.skip?.(ctx) ?? null;
+        const reason = policy.messaging.disabledTriggers.includes(step.own.trigger) ? "This notice is switched off in Communications → Triggers" : due < day - 2 ? "Came due before this school was reached" : step.own.skip?.(ctx) ?? null;
         if (reason) {
           await prisma.trialMessage.create({ data: { schoolId: school.id, step: step.key, status: "SUPPRESSED", reason } });
           suppressed += 1;
@@ -242,14 +265,29 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
       }
       const credits = Math.max(100, auto.quantity ?? 10_000);
       const school = await schoolOf(wallet.schoolId);
-      const { rate, subtotal, discount } = quote(channel, credits);
+      const quoted = quote(channel, credits);
+      const { rate, discount } = quoted;
+      const subtotal = inSchoolCurrency(quoted.subtotal, school.currency);
       const tax = round2(subtotal * (await taxRate(school.country)));
       const terms = await platformPolicy.invoiceTerms(Number(subtotal));
       const invoice = await prisma.platformInvoice.create({
         data: { schoolId: wallet.schoolId, invoiceNo: await nextInvoiceNo(), amount: terms.amount, taxAmount: tax, currency: school.currency, status: "PENDING", dueAt: (await platformPolicy.invoiceTerms(0)).dueAt, metadata: json({ kind: "TOPUP", description: `Automatic credit top-up · ${credits.toLocaleString("en-NG")} ${channel === "SMS" ? "SMS" : "WhatsApp"}`, channel, credits, rate, discount, automatic: true }) }
       });
-      await prisma.autoTopupAttempt.create({ data: { schoolId: wallet.schoolId, channel, credits, amount: round2(Number(terms.amount) + tax), trigger: `Balance under ${floor.toLocaleString("en-NG")}`, invoiceId: invoice.id, outcome: "ISSUED", attempt: chain.length + 1 } });
-      if (school.ownerEmail) await sendNotification({ channel: "EMAIL", recipient: school.ownerEmail, title: `Automatic top-up: invoice ${invoice.invoiceNo}`, body: `${school.name}'s ${channel === "SMS" ? "SMS" : "WhatsApp"} balance fell under ${floor.toLocaleString("en-NG")}. We have invoiced ${credits.toLocaleString("en-NG")} credits (attempt ${chain.length + 1} of 3). Pay it in Subscription & Billing and the credits land at once.` }).catch(() => undefined);
+      const attempt = await prisma.autoTopupAttempt.create({ data: { schoolId: wallet.schoolId, channel, credits, amount: round2(Number(terms.amount) + tax), trigger: `Balance under ${floor.toLocaleString("en-NG")}`, invoiceId: invoice.id, outcome: "ISSUED", attempt: chain.length + 1 } });
+      // A school that has agreed to be charged automatically has its saved card charged; otherwise (or if the card is refused) the invoice stands and the owner is told.
+      const charge = await new PaymentsService().chargeSavedCard(wallet.schoolId, invoice.id, null).catch((error) => ({ charged: false, reference: null as string | null, failure: error instanceof Error ? error.message : "The charge failed." }));
+      const hasCard = (await prisma.savedCard.count({ where: { schoolId: wallet.schoolId, removedAt: null } })) > 0;
+      await prisma.autoTopupAttempt.update({ where: { id: attempt.id }, data: { charged: charge.charged, reference: charge.reference, failure: hasCard ? charge.failure : null, outcome: charge.charged ? "CHARGED" : "ISSUED" } });
+      const what = `${credits.toLocaleString("en-NG")} ${channel === "SMS" ? "SMS" : "WhatsApp"} credits`;
+      if (school.ownerEmail) {
+        await sendNotification({
+          channel: "EMAIL", recipient: school.ownerEmail,
+          title: charge.charged ? `Credits added: ${what}` : `Automatic top-up: invoice ${invoice.invoiceNo}`,
+          body: charge.charged
+            ? `${school.name}'s ${channel === "SMS" ? "SMS" : "WhatsApp"} balance fell under ${floor.toLocaleString("en-NG")}, so we charged the card on file and added ${what}. Invoice ${invoice.invoiceNo} is paid.`
+            : `${school.name}'s ${channel === "SMS" ? "SMS" : "WhatsApp"} balance fell under ${floor.toLocaleString("en-NG")}. We have invoiced ${what} (attempt ${chain.length + 1} of 3).${hasCard ? ` The card on file was not charged: ${charge.failure}.` : ""} Pay it in Subscription & Billing and the credits land at once.`
+        }).catch(() => undefined);
+      }
       issued += 1;
     }
     return { schools: wallets.length, alerted, issued, stopped };
@@ -290,6 +328,113 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
     await prisma.creditLedger.create({ data: { schoolId: school.id, channel: input.channel, kind: "TOPUP", credits: input.credits, amount: 0, method: "BY_HAND", note: `Added by hand · ${input.reason}`, createdById: actor?.id ?? null } });
     await this.audit(session, AuditAction.UPDATE, "NotificationWallet", wallet.id, { smsCredits: input.channel === "SMS" ? input.credits : 0, whatsappCredits: input.channel === "WHATSAPP" ? input.credits : 0, reason: input.reason }, school.id);
     return { schoolId: school.id, smsBalance: wallet.smsBalance, whatsappBalance: wallet.whatsappBalance };
+  }
+
+  private async termName(): Promise<string | null> {
+    const current = await prisma.term.findFirst({ where: { isCurrent: true, school: { deletedAt: null } }, orderBy: { startDate: "desc" }, select: { name: true, academicSession: { select: { name: true } } } });
+    return current ? `${current.name} · ${current.academicSession?.name ?? ""}`.replace(/ · $/, "") : null;
+  }
+
+  /** The per-student termly price of each tier, in naira as invoiced, and what it comes to in the other currencies at the term's rates. */
+  async currencies() {
+    const policy = await platformPolicy.get();
+    const p = policy.pricing;
+    const money = (naira: number, per: number) => (per > 0 ? Math.round((naira / per) * 100) / 100 : null);
+    return {
+      term: await this.termName(),
+      anchor: p.anchor,
+      source: p.source,
+      ratesFor: p.ratesFor,
+      shockPercent: p.shockPercent,
+      rates: { usd: p.ngnPerUsd, ghs: p.ngnPerGhs, kes: p.ngnPerKes, gbp: p.ngnPerGbp },
+      pending: p.pending,
+      refreshConfigured: Boolean(process.env.FX_RATES_URL),
+      usdPrices: p.usd,
+      tiers: (Object.keys(TIERS) as Array<keyof typeof TIERS>).map((key) => {
+        const tier = TIERS[key];
+        return { key, name: tier.name, ngn: tier.rate, usd: p.anchor === "USD" && p.usd[key] > 0 ? p.usd[key] : money(tier.rate, p.ngnPerUsd), ghs: money(tier.rate, p.ngnPerGhs), kes: money(tier.rate, p.ngnPerKes), gbp: money(tier.rate, p.ngnPerGbp) };
+      })
+    };
+  }
+
+  /**
+   * Fix the term's rates. Rates are set when a term opens and never moved inside it. A rate that moves by more than the
+   * shock guard allows is held for Finance instead of being applied.
+   */
+  private async applyRates(session: SessionPayload | null, rates: Rates, ratesFor: string, source: string) {
+    const policy = await platformPolicy.get();
+    const p = policy.pricing;
+    if (p.pending) throw new BadRequestException("Finance already has rates waiting for a decision. Decide those first.");
+    const had = RATE_KEYS.some((key) => p[key] > 0);
+    if (had && p.ratesFor === ratesFor) throw new BadRequestException(`Rates for ${ratesFor} are already fixed. They are never moved inside a term.`);
+    const labels: Record<(typeof RATE_KEYS)[number], string> = { ngnPerUsd: "USD", ngnPerGhs: "GHS", ngnPerKes: "KES", ngnPerGbp: "GBP" };
+    const moves = RATE_KEYS.flatMap((key) => (p[key] > 0 && rates[key] > 0 ? [{ label: labels[key], pct: Math.abs(rates[key] - p[key]) / p[key] * 100 }] : [])).filter((m) => m.pct > p.shockPercent);
+    const stamp = { ngnPerUsd: rates.ngnPerUsd, ngnPerGhs: rates.ngnPerGhs, ngnPerKes: rates.ngnPerKes, ngnPerGbp: rates.ngnPerGbp };
+    if (moves.length) {
+      const who = session ? (await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { firstName: true, lastName: true } })) : null;
+      const moved = moves.map((m) => `${m.label} ${m.pct.toFixed(1)}%`).join(", ");
+      await platformPolicy.setPricing(session, { pending: { ratesFor, ...stamp, moved, source, proposedBy: who ? `${who.firstName} ${who.lastName}` : "The platform", at: new Date().toISOString() } }, `New term rates held for Finance — ${moved} over the ${p.shockPercent}% guard`, { ratesFor });
+      return { applied: false, held: moved };
+    }
+    await platformPolicy.setPricing(session, { ratesFor, ...stamp, source }, `Rates fixed for ${ratesFor}`, { ...stamp, source });
+    return { applied: true, held: null };
+  }
+
+  async setRates(session: SessionPayload, body: unknown) {
+    const input = ratesSchema.parse(body);
+    const ratesFor = input.ratesFor || (await this.termName());
+    if (!ratesFor) throw new BadRequestException("Say which term these rates are fixed for.");
+    return this.applyRates(session, { ngnPerUsd: input.ngnPerUsd, ngnPerGhs: input.ngnPerGhs, ngnPerKes: input.ngnPerKes, ngnPerGbp: input.ngnPerGbp }, ratesFor, "Entered by hand");
+  }
+
+  /** Fetch the rates from the provider named in FX_RATES_URL: JSON with `rates` holding units of each currency per US dollar. */
+  async fetchRates(): Promise<Rates> {
+    const url = process.env.FX_RATES_URL;
+    if (!url) throw new BadRequestException("No rate provider is set up. Set FX_RATES_URL to a service that returns {\"rates\": {\"NGN\": …, \"GHS\": …}} against the US dollar.");
+    const response = await fetch(url, { headers: process.env.FX_RATES_AUTH ? { Authorization: process.env.FX_RATES_AUTH } : undefined, signal: AbortSignal.timeout(10_000) });
+    if (!response.ok) throw new BadRequestException(`The rate provider answered ${response.status}.`);
+    const body = (await response.json()) as { rates?: Record<string, number> };
+    const r = body.rates ?? {};
+    if (!r.NGN) throw new BadRequestException("The rate provider did not return a naira rate.");
+    const per = (code: string) => (r[code] ? Math.round((r.NGN / r[code]) * 100) / 100 : 0);
+    return { ngnPerUsd: Math.round(r.NGN * 100) / 100, ngnPerGhs: per("GHS"), ngnPerKes: per("KES"), ngnPerGbp: per("GBP") };
+  }
+
+  async refreshRates(session: SessionPayload | null) {
+    const ratesFor = await this.termName();
+    if (!ratesFor) throw new BadRequestException("No school has a current term yet, so there is nothing to fix rates for.");
+    return this.applyRates(session, await this.fetchRates(), ratesFor, "Rate provider");
+  }
+
+  /** On the first day of a new term, fetch the rates by itself — only when a provider is set up and the term's rates are not yet fixed. */
+  async autoRefreshRates() {
+    if (!process.env.FX_RATES_URL) return { skipped: "No rate provider set up" };
+    const term = await this.termName();
+    const p = (await platformPolicy.get()).pricing;
+    if (!term || p.ratesFor === term || p.pending) return { skipped: "Nothing to do" };
+    return this.refreshRates(null);
+  }
+
+  async decideRates(session: SessionPayload, body: unknown) {
+    const input = z.object({ approve: z.coerce.boolean(), reason: z.string().trim().min(5, "Say why — it goes in the audit log.") }).parse(body);
+    const p = (await platformPolicy.get()).pricing;
+    if (!p.pending) throw new BadRequestException("Nothing is waiting for a decision.");
+    const me = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { firstName: true, lastName: true } });
+    if (me && p.pending.proposedBy === `${me.firstName} ${me.lastName}`) throw new BadRequestException("The person who proposed these rates cannot decide them.");
+    const pending = p.pending;
+    if (input.approve) await platformPolicy.setPricing(session, { ratesFor: pending.ratesFor, ngnPerUsd: pending.ngnPerUsd, ngnPerGhs: pending.ngnPerGhs, ngnPerKes: pending.ngnPerKes, ngnPerGbp: pending.ngnPerGbp, source: pending.source, pending: null }, `Finance approved rates for ${pending.ratesFor}`, { reason: input.reason, moved: pending.moved });
+    else await platformPolicy.setPricing(session, { pending: null }, `Finance rejected the proposed rates for ${pending.ratesFor}`, { reason: input.reason, moved: pending.moved });
+    return { approved: input.approve };
+  }
+
+  /** Author the tiers once in US dollars (or go back to naira). The naira price follows at the term's rate. */
+  async setUsdPrices(session: SessionPayload, body: unknown) {
+    const input = usdSchema.parse(body);
+    const p = (await platformPolicy.get()).pricing;
+    if (input.anchor === "USD" && !p.ngnPerUsd) throw new BadRequestException("Fix the term's dollar rate first — without it there is no naira price to charge.");
+    if (input.anchor === "USD" && !(input.STANDARD && input.PREMIUM && input.ELITE)) throw new BadRequestException("Give every tier a dollar price, or keep pricing in naira.");
+    await platformPolicy.setPricing(session, { anchor: input.anchor, usd: { STANDARD: input.STANDARD, PREMIUM: input.PREMIUM, ELITE: input.ELITE } }, input.anchor === "USD" ? "Plans now authored in US dollars" : "Plans priced in naira", { reason: input.reason, usd: { STANDARD: input.STANDARD, PREMIUM: input.PREMIUM, ELITE: input.ELITE } });
+    return { anchor: input.anchor };
   }
 
   /** Everything the Wallets tab shows: the five numbers, a row per school, the register, and the rate card with its margin. */
@@ -336,15 +481,17 @@ export class BillingExtrasService implements OnModuleInit, OnModuleDestroy, OnAp
       };
     });
     const heldValue = rows.reduce((sum, row) => sum + row.sms * CHANNEL_RATES.SMS + row.whatsapp * CHANNEL_RATES.WHATSAPP, 0);
-    const monthAttempts = attempts.filter((a) => a.outcome === "ISSUED" && a.createdAt >= monthStart);
+    const monthAttempts = attempts.filter((a) => (a.outcome === "ISSUED" || a.outcome === "CHARGED") && a.createdAt >= monthStart);
     const monthPaid = monthAttempts.filter((a) => a.invoiceId && invoice.get(a.invoiceId)?.status === "PAID");
     const monthStopped = attempts.filter((a) => a.outcome === "STOPPED" && a.createdAt >= monthStart);
     const byHand = ledger.filter((row) => row.kind === "TOPUP" && row.method === "BY_HAND" && row.createdAt >= termStart);
     const history = [
       ...attempts.map((a) => {
         const inv = a.invoiceId ? invoice.get(a.invoiceId) : null;
-        const outcome = a.outcome === "STOPPED" ? "Stopped after 3 unpaid" : inv?.status === "PAID" ? "Paid · credits landed" : "Invoice issued · awaiting payment";
-        return { id: a.id, at: a.createdAt.toISOString(), school: name.get(a.schoolId) ?? "Unknown school", channel: label(a.channel), amount: a.outcome === "STOPPED" ? "—" : naira(Number(a.amount)), trigger: a.trigger, gateway: a.outcome === "STOPPED" ? "None — stopped" : `Invoice · ${gatewayMode() === "live" ? "Paystack" : "test mode"}`, reference: inv?.invoiceNo ?? "—", outcome, tone: a.outcome === "STOPPED" ? "bad" : inv?.status === "PAID" ? "good" : "warn" };
+        const paid = a.charged || inv?.status === "PAID";
+        const outcome = a.outcome === "STOPPED" ? "Stopped after 3 unpaid" : a.charged ? "Charged · credits landed" : inv?.status === "PAID" ? "Paid · credits landed" : a.failure ? `Card refused — ${a.failure}` : "Invoice issued · awaiting payment";
+        const gateway = a.outcome === "STOPPED" ? "None — stopped" : a.reference ? `Card on file · ${gatewayMode() === "live" ? "Paystack" : "test mode"}` : `Invoice · ${gatewayMode() === "live" ? "Paystack" : "test mode"}`;
+        return { id: a.id, at: a.createdAt.toISOString(), school: name.get(a.schoolId) ?? "Unknown school", channel: label(a.channel), amount: a.outcome === "STOPPED" ? "—" : naira(Number(a.amount)), trigger: a.trigger, gateway, reference: a.reference ?? inv?.invoiceNo ?? "—", outcome, tone: a.outcome === "STOPPED" ? "bad" : paid ? "good" : "warn" };
       }),
       ...ledger.filter((row) => row.kind === "TOPUP" && row.method === "BY_HAND").map((row) => ({ id: row.id, at: row.createdAt.toISOString(), school: name.get(row.schoolId) ?? "Unknown school", channel: label(row.channel), amount: `${row.credits.toLocaleString("en-NG")} credits`, trigger: row.note ?? "Added by hand", gateway: "None — credited directly", reference: "—", outcome: "Added by hand", tone: "info" })),
       ...legacy.filter((row) => !((row.metadata ?? {}) as { reason?: unknown }).reason && !ledger.some((l) => l.method === "BY_HAND" && Math.abs(l.createdAt.getTime() - row.createdAt.getTime()) < 2000)).map((row) => {

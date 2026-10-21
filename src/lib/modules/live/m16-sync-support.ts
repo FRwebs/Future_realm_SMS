@@ -119,7 +119,7 @@ export function supportTab(o: SupportOverview): TabContent {
     cols: "1.1fr 1fr",
     panels: [
       {
-        type: "table", title: "Your tickets", meta: `Response target ${o.responseTarget} · ${t.open} open · ${t.resolved} resolved${o.satisfaction.average === null ? "" : ` · rated ${o.satisfaction.average} of 5`}`,
+        type: "table", title: "Your tickets", meta: `Response target ${o.responseTarget} · ${t.open} open · ${t.resolved} resolved${o.satisfaction.average === null ? "" : ` · rated ${o.satisfaction.average} of 5`}${o.contact && (o.contact.email || o.contact.phone) ? ` · reach ${o.contact.platformName}: ${[o.contact.email, o.contact.phone].filter(Boolean).join(" · ")}` : ""}`,
         search: "Find a ticket",
         acts: [{ label: "Raise a ticket", primary: true, drawer: raiseTicketDrawer() }],
         head: ["Ticket", "Subject", "Priority", "Raised", "State", ""], noun: "ticket", nounPlural: "tickets", per: 6, noRowOpen: true,

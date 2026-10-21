@@ -11,7 +11,7 @@ import { formatDate } from "@/lib/utils/formatters";
 
 const accessLevels = ["NONE", "VIEW", "EDIT", "FULL"].map((v) => ({ label: v, value: v }));
 
-export type PersonProfile = { departmentId: string | null; department: string | null; level: string | null; scopeStates: string[]; managerId: string | null; manager: string | null; staffNumber: string | null; isExternal: boolean; mfaEnabled: boolean };
+export type PersonProfile = { departmentId: string | null; department: string | null; level: string | null; scopeStates: string[]; managerId: string | null; manager: string | null; staffNumber: string | null; isExternal: boolean; responsibilities?: string[]; mfaEnabled: boolean };
 type Option = { label: string; value: string };
 type DeviceRow = { device: string; first: string; last: string; count: number; ip: string | null };
 type Owns = { openTickets: number; schools: number; openFlags: number };
@@ -69,6 +69,21 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
         footer={
           <div className="flex flex-wrap gap-2">
             <ResourceActionDialog
+              triggerLabel="Fine-tune actions"
+              title={`Exact actions — ${member.name}`}
+              description="Give this person exactly these actions in one module, instead of everything their level allows — for example Full without Delete. Choose none and tick Go back to the level to clear it. A lead cannot give an action they do not hold."
+              endpoint="/api/super-admin/internal-team/module-actions"
+              method="POST"
+              variant="secondary"
+              submitLabel="Save actions"
+              fields={[
+                { name: "userId", label: "User ID", defaultValue: member.id },
+                { name: "moduleId", label: "Module", type: "select", required: true, options: moduleOptions },
+                { name: "actions", label: "Actions", type: "multiselect", options: [{ label: "View", value: "view" }, { label: "Export", value: "export" }, { label: "Create", value: "create" }, { label: "Edit", value: "edit" }, { label: "Approve or decide", value: "approve" }, { label: "Delete", value: "delete" }] },
+                { name: "reset", label: "Go back to what the level allows", type: "select", defaultValue: "false", options: [{ label: "No — use the actions above", value: "false" }, { label: "Yes — clear the exact set", value: "true" }] }
+              ]}
+            />
+            <ResourceActionDialog
               triggerLabel="Set module permission"
               title={`Set permission — ${member.name}`}
               description="Set what this person can do in one Back Office module. None hides it and blocks its API; View is read only; Edit can change; Full can also delete. A department lead can lower access within their department's ceiling."
@@ -96,6 +111,7 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
                 { name: "level", label: "Level", defaultValue: profile?.level ?? "", placeholder: "e.g. Lead, Senior, Associate" },
                 { name: "staffNumber", label: "Staff identifier", defaultValue: profile?.staffNumber ?? "" },
                 { name: "scopeStates", label: "Data scope — states (comma-separated)", type: "textarea", defaultValue: profile?.scopeStates.join(", ") ?? "", placeholder: "Blank for every school" },
+                { name: "responsibilities", label: "Answers for", type: "multiselect", defaultValue: profile?.responsibilities ?? [], options: [{ label: "Support Lead", value: "SUPPORT_LEAD" }, { label: "Data Protection Officer", value: "DPO" }, { label: "Finance Lead", value: "FINANCE_LEAD" }, { label: "Product Lead", value: "PRODUCT_LEAD" }, { label: "Comms Lead", value: "COMMS_LEAD" }, { label: "Sales Lead", value: "SALES_LEAD" }, { label: "Migration Specialist", value: "MIGRATION_SPECIALIST" }, { label: "CTO / Engineering on call", value: "CTO" }] },
                 { name: "isExternal", label: "Person is external", type: "select", defaultValue: String(profile?.isExternal ?? false), options: [{ label: "No — an employee", value: "false" }, { label: "Yes — contractor or partner staff", value: "true" }] }
               ]}
             />
