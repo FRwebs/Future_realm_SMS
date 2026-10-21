@@ -422,30 +422,37 @@ async function RolesTab() {
         emptyState="No role templates yet."
       />
 
+      {/*
+        Modules down the left, people across the top — the mockup's orientation,
+        and the one that fits. Members-as-rows meant a column per module: with
+        fourteen of them the table was 2,183px inside a 1,095px card, so it
+        overflowed sideways and the module names were the part scrolled off.
+        Turning it round costs nothing — it is the same cells — and the column
+        count now grows with the team rather than with the product.
+      */}
       <TableCard
         title="Module access at a glance"
         description="What each person holds in each Back Office module — their own setting, else their role's template. A dash means nothing is set, so the role's own rules apply. Change a cell from “Set module permission” on a person in People."
-        items={members}
-        getRowKey={(member) => member.id}
-        primaryColumnKey="member"
+        items={modules}
+        getRowKey={(moduleId) => moduleId}
+        primaryColumnKey="module"
         emptyState="No module permissions have been set yet."
         columns={[
           {
-            key: "member",
-            header: "Member",
+            key: "module",
+            header: "Module",
             headerClassName: "sticky left-0 z-[1] bg-[color-mix(in_srgb,var(--color-bg-subtle)_92%,transparent)]",
             cellClassName: "sticky left-0 bg-[var(--color-bg-surface)]",
-            render: (member) => (
-              <>
-                <span className="font-semibold text-[var(--color-text-primary)]">{member.name}</span>
-                <p className="text-[10px] font-normal text-[var(--color-text-muted)]">{member.role.replaceAll("_", " ")}</p>
-              </>
+            render: (moduleId: string) => (
+              <span className="font-semibold text-[var(--color-text-primary)]">
+                {matrix.labels?.[moduleId] ?? moduleId}
+              </span>
             )
           },
-          ...modules.map((moduleId) => ({
-            key: moduleId,
-            header: matrix.labels?.[moduleId] ?? moduleId,
-            render: (member: SuperAdminPermissionGridMatrix["members"][number]) => {
+          ...members.map((member) => ({
+            key: member.id,
+            header: member.name,
+            render: (moduleId: string) => {
               const level = member.access[moduleId];
               const tone = accessTone(level ?? "NONE");
               return <StatusPill bg={tone.bg} fg={tone.fg} label={level ?? "—"} />;
