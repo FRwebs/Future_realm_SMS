@@ -37,7 +37,8 @@ export function RevenueStateTable({ items }: RevenueStateTableProps) {
   return (
     <TableCard
       title="Revenue by state and city"
-      description="Where the platform's schools and revenue are concentrated, and where growth is coming from. A state figure that cannot be traced to named schools is not a figure anyone should act on — open any row to see them."
+      description="Where word-of-mouth density has formed, and where outreach is still needed. Open a state to see every school in it and what each one has generated."
+      footnote="Every row opens the schools sitting behind it — a state figure that cannot be traced to named schools is not a figure anyone should act on."
       items={filtered}
       pageSize={false}
       emptyState="No state matches this filter."

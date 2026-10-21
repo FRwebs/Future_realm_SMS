@@ -152,6 +152,10 @@ async function GrowthTab() {
     apiGet<SuperAdminInternalMember[]>("/api/super-admin/internal-team").catch(() => [] as SuperAdminInternalMember[])
   ]);
   const ownerOf = new Map(owners.map((row) => [row.stage, row]));
+  // A loss we caused by not being able to read the school's previous system is a
+  // migration defect, not a product one — and the two route to different teams.
+  const unreadableSources = new Set(displacement.bySourceSystem.filter((item) => !item.adapterAvailable).map((item) => item.sourceSystem));
+  const migrationFailureLosses = displacement.lossAnalysis.filter((item) => unreadableSources.has(item.sourceSystem)).length;
 
   const funnelStages = bi.funnel.map((stage, index) => {
     const previous = bi.funnel[index - 1];
@@ -167,20 +171,20 @@ async function GrowthTab() {
     <section className="grid gap-[14px]">
       <section className="surface-card overflow-hidden">
         <SectionHeader title="Growth and conversion funnel" description="Each stage is a real school count computed from signup, trial, and billing records — not a sample." />
-        <div className="flex items-end gap-2.5 px-5 pb-[20px] pt-2.5">
+        <div className="flex items-end gap-[9px] px-[18px] pb-[20px] pt-[9px]">
           {funnelStages.map((stage, index) => {
             const barPct = Math.max(stage.ofFirstPct ?? 100, 2);
             const isLast = index === funnelStages.length - 1;
             return (
               <div key={stage.stage} className="min-w-0 flex-1">
-                <div className="flex h-[132px] items-end">
+                <div className="flex h-[119px] items-end">
                   <div
-                    className="w-full rounded-t-[7px]"
+                    className="w-full rounded-[8px_7px_0_0]"
                     style={{ height: `${barPct}%`, background: isLast ? "#0d2315" : `rgba(18,121,106,${0.28 + index * 0.1})` }}
                   />
                 </div>
                 <p className="mt-[10px] font-[var(--font-display)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
-                <p className="mt-1 text-pretty text-[10px] leading-[1.35] text-[#77857C]">{stage.stage}</p>
+                <p className="mt-[3.5px] text-pretty text-[10px] leading-[1.35] text-[#77857C]">{stage.stage}</p>
                 <p className="mt-[4.5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
                   {stage.changePct === null ? "—" : stage.changePct < 0 ? `−${Math.abs(stage.changePct)}% drop` : `+${stage.changePct}%`}
                 </p>
@@ -278,6 +282,7 @@ async function GrowthTab() {
             )
           }
         ]}
+        footnote="Migration completion rate by source tells us where our import tooling is weak, and therefore which competitor we are effectively unable to displace — whatever our product does."
       />
 
       <TableCard
@@ -292,6 +297,11 @@ async function GrowthTab() {
           { key: "returnedTo", header: "Returned to", render: (item) => item.sourceSystem },
           { key: "reason", header: "Reason given", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.reason}</span> }
         ]}
+        footnote={
+          displacement.lossAnalysis.length === 0
+            ? undefined
+            : `${migrationFailureLosses} of ${displacement.lossAnalysis.length} loss${displacement.lossAnalysis.length === 1 ? "" : "es"} ${migrationFailureLosses === 1 ? "is a migration failure" : "are migration failures"} rather than product failures — we could not read the system the school was leaving. That is a migration defect, and it routes to Module 14 as one.`
+        }
       />
     </section>
   );
@@ -349,6 +359,7 @@ async function RetentionTab() {
             sortValue: (item) => item.retentionPct
           }
         ]}
+        footnote="Read each cohort against others of the same age, not against today — a cohort that joined last month has simply had less time to churn, and the verdict column holds back a judgement until a cohort is large enough to carry one."
       />
       <TableCard
         title="Retention curve"
@@ -561,6 +572,7 @@ async function RevenueTab() {
             { key: "ltv", header: "Projected LTV", render: (item) => formatCurrency(item.ltv) }
           ]}
           emptyState="No active subscriptions yet."
+          footnote="Average duration is what turns a termly price into a lifetime value, which is why the tier a school stays on usually matters more than the tier it arrives on — an argument for upgrade paths rather than pure acquisition."
         />
       </section>
     </section>
@@ -619,11 +631,12 @@ async function ProductTab() {
           columns={[
             { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
             { key: "adoption", header: "Adoption", render: (item) => <BarCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
-            { key: "using", header: "Schools using", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
-            { key: "notUsing", header: "Schools not using", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
+            { key: "using", header: "Schools using", headerClassName: "!whitespace-normal", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
+            { key: "notUsing", header: "Schools not using", headerClassName: "!whitespace-normal", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
             {
               key: "diagnosis",
               header: "Diagnosis from support tickets",
+              headerClassName: "!whitespace-normal",
               render: (item) => {
                 const heard = tickets[item.module];
                 return heard && heard.tickets > 0

@@ -31,6 +31,7 @@ export function SavedReportsTable({ items, actions }: SavedReportsTableProps) {
       pageSize={false}
       getRowKey={(item) => item.id}
       emptyState="No saved reports yet. Build one to start tracking a metric over time."
+      footnote="Templates are built from the Build report dialog — fill in “Save as a template” on the way through and the report lands here."
       actions={actions}
       filterBar={
         <TableFilterBar
