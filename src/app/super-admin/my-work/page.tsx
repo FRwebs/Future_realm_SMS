@@ -83,7 +83,7 @@ function NowCard({ card }: { card: MyWorkNowCard }) {
   const Icon = nowIcons[card.icon];
 
   return (
-    <div className={`flex flex-col rounded-[12.5px] border bg-[var(--color-bg-surface)] px-[15.5px] pb-[15.5px] pt-4 ${toneToCardBorder[card.tone]}`}>
+    <div className={`flex flex-col rounded-[14px] border bg-[var(--color-bg-surface)] px-[15.5px] pb-[15.5px] pt-4 ${toneToCardBorder[card.tone]}`}>
       <div className="flex items-center justify-between gap-2.5">
         <div className={`flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[8px] ${toneToBadge[card.tone]}`}>
           <Icon className="h-[13.5px] w-[13.5px]" />
@@ -116,16 +116,16 @@ export default async function MyWorkPage() {
   const tickets = summary?.tickets ?? [];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Overview"
+        eyebrow="OVERVIEW"
         title="My Work"
         description="What is mine today — assembled for you, not by you."
       />
 
       <div>
         <div className="mb-[10px] flex items-center gap-[10px]">
-          <h2 className="whitespace-nowrap font-[var(--font-heading)] text-[13px] font-extrabold tracking-[-0.01em] text-[var(--color-text-primary)]">
+          <h2 className="whitespace-nowrap text-[12.5px] font-semibold tracking-[-0.01em] text-[var(--color-text-primary)]">
             Needs me now
           </h2>
           <div className="h-px flex-1 bg-[var(--color-border-default)]" />
@@ -142,7 +142,7 @@ export default async function MyWorkPage() {
       <div className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr] lg:items-start">
         <div className="grid gap-3.5">
           {/* My schools */}
-          <div className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[16px] pb-[11.5px] pt-[13.5px]">
               <div className="min-w-0">
                 <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">My schools</p>
@@ -191,7 +191,7 @@ export default async function MyWorkPage() {
           </div>
 
           {/* My cases */}
-          <div className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[16px] pb-[11.5px] pt-[13.5px]">
               <div className="min-w-0">
                 <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">My cases</p>
@@ -241,7 +241,7 @@ export default async function MyWorkPage() {
 
         <div className="grid gap-3.5">
           {/* Awaiting my approval */}
-          <div id="approvals" className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] scroll-mt-6">
+          <div id="approvals" className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] scroll-mt-6">
             <div className="border-b border-[var(--color-border-muted)] px-[16px] pb-[11.5px] pt-[13.5px]">
               <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">Awaiting my approval</p>
               <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">Only what your role can approve</p>
@@ -273,7 +273,7 @@ export default async function MyWorkPage() {
           </div>
 
           {/* My tickets */}
-          <div className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[16px] pb-[11.5px] pt-[13.5px]">
               <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">My tickets</p>
               <Link href={"/super-admin/support" as Route} className="text-[10.5px] font-semibold text-[var(--color-text-accent)]">
@@ -294,7 +294,7 @@ export default async function MyWorkPage() {
           </div>
 
           {/* Recently viewed */}
-          <div className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+          <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
             <div className="border-b border-[var(--color-border-muted)] px-[16px] pb-[11.5px] pt-[13.5px]">
               <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">Recently viewed</p>
               <p className="mt-0.5 text-[10.5px] text-[#8c9a92]">For resuming interrupted work</p>

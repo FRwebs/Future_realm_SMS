@@ -1,3 +1,5 @@
+import { FlowSteps } from "@/components/data-display/flow-steps";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { TableCard } from "@/components/data-display/table-card";
@@ -16,55 +18,6 @@ const toneStyle = {
 } as const;
 type Tone = keyof typeof toneStyle;
 
-function ReferenceList({ title, sub, items }: { title: string; sub?: string; items: Array<{ label: string; detail: string; pill?: string; tone?: Tone }> }) {
-  return (
-    <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {sub ? <p className="mt-1 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
-      </div>
-      <div className="grid gap-3 p-5">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-start justify-between gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-            <div className="min-w-0">
-              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-              <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
-            </div>
-            {item.pill ? (
-              <span className="shrink-0 rounded-full px-2.5 py-1 text-[9.5px] font-bold" style={{ background: toneStyle[item.tone ?? "mute"].bg, color: toneStyle[item.tone ?? "mute"].fg }}>
-                {item.pill}
-              </span>
-            ) : null}
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
-
-function FlowSteps({ title, sub, steps }: { title: string; sub?: string; steps: Array<{ label: string; note: string; tone?: Tone }> }) {
-  return (
-    <section className="surface-card p-6">
-      <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-2xl text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
-      <div className="mt-5 flex flex-wrap items-stretch gap-2.5">
-        {steps.map((step, index) => {
-          const tone = toneStyle[step.tone ?? "mute"];
-          return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bg }}>
-                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[9.5px] leading-snug text-[var(--color-text-secondary)]">{step.note}</p>
-              </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 export default async function SuperAdminStandardsPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab: rawTab } = searchParams ? await searchParams : {};
   const validTabs = new Set(["workflows", "principles", "access", "sequence", "changelog", "nonfunctional", "issues"]);
@@ -81,11 +34,11 @@ export default async function SuperAdminStandardsPage({ searchParams }: { search
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Reference"
+        eyebrow="DOCS"
         title="Standards"
-        description="The governing specification this platform is built against — key workflows, the principles that constrain every design decision, access control, build order, and what remains open."
+        description="The workflows and rules worth knowing by heart, written down once."
       />
 
       <DetailTabs tabs={tabs} />
@@ -103,7 +56,7 @@ export default async function SuperAdminStandardsPage({ searchParams }: { search
 
 function WorkflowsTab() {
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <ReferenceList
         title="What this page is for"
         sub="Seven flows account for nearly everything that happens in this console. Each is written as steps, in order, with the gate that stops it going wrong."
@@ -191,7 +144,7 @@ function WorkflowsTab() {
         ]}
       />
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid items-start gap-[14px] lg:grid-cols-2">
         <ReferenceList
           title="Things this platform will not do"
           sub="Not “not yet”. These were decided against, and the absence is deliberate. You can say all of this to a school."
@@ -269,7 +222,7 @@ function AccessTab() {
           header: "Status",
           render: (item) => {
             const tone = toneStyle[item.tone as Tone];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
+            return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
           }
         },
         { key: "authority", header: "Authority", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item.authority}</span> }
@@ -300,7 +253,7 @@ function SequenceTab() {
 
 function ChangelogTab() {
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <TableCard
         title="A · Contradictions resolved against the Onboarding Specification"
         description="Every change is a correction to a defect, a contradiction, or a gap. Nothing here is cosmetic."
@@ -321,7 +274,7 @@ function ChangelogTab() {
         ]}
       />
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid items-start gap-[14px] lg:grid-cols-2">
         <TableCard
           title="B · Added because nothing owned them"
           description="Capabilities promised elsewhere with no owning module."
@@ -386,7 +339,7 @@ function ChangelogTab() {
 
 function NonFunctionalTab() {
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <TableCard
         title="Non-functional requirements"
         description="Measured at scale, not merely at current usage."
@@ -454,7 +407,7 @@ function IssuesTab() {
           header: "Status",
           render: (item) => {
             const tone = toneStyle[item.tone as Tone];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
+            return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.status}</span>;
           }
         },
         { key: "blocks", header: "Blocks", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.blocks}</span> }

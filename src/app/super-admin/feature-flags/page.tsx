@@ -1,3 +1,5 @@
+import { FlowSteps } from "@/components/data-display/flow-steps";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import type { ReactNode } from "react";
 import { Archive, Clock3, Layers, Repeat2, School, ShieldAlert, ShieldCheck, Undo2 } from "lucide-react";
 
@@ -15,14 +17,12 @@ import { FeatureMatrixTable } from "./_feature-matrix-table";
 import { PlanCardGrid } from "./_plan-cards";
 import type {
   SuperAdminBrandingAssetRow,
-  SuperAdminChurnAnalysis,
   SuperAdminFeatureFlagCaseHistory,
   SuperAdminFeatureFlagRow,
   SuperAdminFeatureOverrideRow,
   SuperAdminInternalMember,
   SuperAdminPlanLifecycleRow,
   SuperAdminPlanRow,
-  SuperAdminProductAdoption,
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
@@ -72,7 +72,7 @@ const yesNo = [{ label: "Yes", value: "true" }, { label: "No", value: "false" }]
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -110,16 +110,16 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Platform"
+        eyebrow="MODULE 08"
         title="Plans & Features"
-        description="Central control over what each subscription tier can access — pricing, the tier-feature matrix, per-school exceptions such as overrides and Elite custom branding, and staged feature-flag / plan rollouts. None of it requires a code deployment."
+        description="Commercial packaging held apart from product capability."
         action={
           <ResourceActionDialog
             triggerLabel="New feature flag"
-            title="New feature flag"
-            description="A capability ships in stages, with exit criteria and a way back. Every flag starts Off."
+            title="Plans & Features"
+            description="Commercial packaging held apart from product capability."
             endpoint="/api/super-admin/plans-features/flags"
             variant="heroWhite"
             submitLabel="Create flag"
@@ -156,12 +156,9 @@ type Currencies = {
 };
 
 async function PlansTab() {
-  const [plans, migrations, churn, adoption, overview, currencies] = await Promise.all([
+  const [plans, migrations, currencies] = await Promise.all([
     apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
     apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
-    apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
-    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
-    apiGet<PlansOverview>("/api/super-admin/plans-features/plans"),
     apiGet<Currencies>("/api/super-admin/billing-extras/currencies")
   ]);
   const termAgo = Date.now() - 120 * 86_400_000;
@@ -169,33 +166,11 @@ async function PlansTab() {
   const fx = (value: number | null, symbol: string) => (value === null ? <span className="text-[var(--color-text-muted)]">Set the rate</span> : `${symbol}${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`);
   const legacyCount = (plans ?? []).filter((plan) => plan.lifecycle === "LEGACY").length;
   const draftCount = (plans ?? []).filter((plan) => plan.lifecycle === "DRAFT").length;
-  const ratesByTier = new Map((overview?.rates ?? []).map((row) => [row.tier, row]));
   const activePlans = (plans ?? []).filter((plan) => plan.isActive);
   const totalSchools = (plans ?? []).reduce((sum, plan) => sum + plan.subscriberCount, 0);
 
-  const tierColumns = adoption?.tierColumns ?? [];
-  const heatmapByTier = adoption?.heatmapByTier ?? [];
-  const churnByTier = new Map((churn?.byTier ?? []).map((row) => [row.plan, row]));
-  const planHealth = tierColumns
-    .filter((tier) => tier.schoolCount > 0)
-    .map((tier, tierIndex) => {
-      const adoptionValues = heatmapByTier.map((row) => row.cells[tierIndex]).filter((value): value is number => value !== null);
-      const adoptionIndex = adoptionValues.length > 0 ? Math.round(adoptionValues.reduce((sum, value) => sum + value, 0) / adoptionValues.length) : null;
-      const churnRow = churnByTier.get(tier.plan);
-      const churnPct = churnRow?.ratePct ?? 0;
-      const verdict =
-        churnPct >= 8
-          ? "High churn for this tier — worth reviewing pricing or entitlements"
-          : adoptionIndex === null
-            ? "Not enough module-adoption data to call this yet"
-            : adoptionIndex < 40
-              ? "Low module adoption relative to other tiers"
-              : "No churn or adoption concern flagged";
-      return { tier: tier.plan, schools: tier.schoolCount, adoptionIndex, churnPct, verdict };
-    });
-
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Published plans" value={activePlans.length} detail={activePlans.map((plan) => plan.name).join(", ") || "None"} icon={Layers} tone="dark" />
         <StatCard label="Draft plans" value={draftCount} detail="Not yet offered to anyone" icon={Clock3} tone="neutral" />
@@ -207,7 +182,7 @@ async function PlansTab() {
       <PlanCardGrid plans={plans ?? []} actions={<PlanCreateDialog />} />
 
       {currencies.pending ? (
-        <section className="rounded-[12.5px] px-5 py-4" style={{ background: "var(--color-warning-dim)", border: "1px solid var(--color-warning)" }}>
+        <section className="rounded-[14px] px-5 py-4" style={{ background: "var(--color-warning-dim)", border: "1px solid var(--color-warning)" }}>
           <p className="text-[11.5px] font-bold" style={{ color: "var(--color-warning)" }}>New rates for {currencies.pending.ratesFor} are held for Finance</p>
           <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-secondary)]">{currencies.pending.proposedBy} proposed ₦{currencies.pending.ngnPerUsd.toLocaleString("en-NG")} per dollar ({currencies.pending.source}). It moved {currencies.pending.moved}, past the {currencies.shockPercent}% guard. Nothing changes until it is decided; the current rates stay in force.</p>
           <div className="mt-3 flex gap-2">
@@ -271,31 +246,117 @@ async function PlansTab() {
         ]}
       />
 
-      <TableCard
-        title="Plan health — is each tier doing its job?"
-        description="Grouped by the platform's five billing tiers (Basic/Standard/Professional/Enterprise/Custom), not by the individual named plans above — churn and adoption are tracked at the tier level, not per plan row. Schools with too few data points to matter are omitted."
-        items={planHealth}
-        getRowKey={(row) => row.tier}
-        columns={[
-          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.tier}</span> },
-          { key: "schools", header: "Schools", render: (row) => row.schools },
-          { key: "adoption", header: "Adoption index", render: (row) => (row.adoptionIndex === null ? <span className="text-[var(--color-text-muted)]">Not enough data</span> : `${row.adoptionIndex}%`) },
-          { key: "churn", header: "Churn rate", render: (row) => `${row.churnPct}%` },
-          {
-            key: "upgrade",
-            header: "Moves (180 days)",
-            render: (row) => {
-              const moves = ratesByTier.get(row.tier);
-              if (!moves || (moves.upgrades === 0 && moves.downgrades === 0)) return <span className="text-[var(--color-text-muted)]">None recorded</span>;
-              return <span>{moves.upgrades} up · {moves.downgrades} down{row.schools ? ` (${Math.round((moves.upgrades / row.schools) * 100)}% upgrade rate)` : ""}</span>;
-            }
-          },
-          { key: "verdict", header: "Verdict", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.verdict}</span> }
+      <ReferenceList
+        title="Why the dollar is the anchor"
+        sub="A single local-currency figure quietly prices other countries in or out"
+        items={[
+          { label: "The price is authored once", detail: "Change the dollar price and every local figure follows, in one act, with one approval", tone: "teal" },
+          { label: "No country inherits another’s currency", detail: "A Ghanaian school is never priced by whatever the naira happens to be worth that month", tone: "teal" },
+          { label: "Margin is legible in one place", detail: "Cost and price sit in the same unit, so a thin tier is visible before it is a problem", tone: "teal" },
+          { label: "Bursars still read their own currency", detail: "A school is invoiced in its own currency, at the rate fixed when the term opened", tone: "good" }
         ]}
-        emptyState="No tier has enough schools yet to compute adoption or churn."
-        footnote="Moves are counted from tier changes that recorded where the school came from — changes made before that was kept are not in the count."
       />
+    </div>
+  );
+}
 
+async function TierMatrixTab() {
+  const view = await apiGet<MatrixView>("/api/super-admin/plans-features/matrix");
+  const missing = view.registry.filter((row) => !view.features.some((feature) => feature.featureKey === row.key));
+
+  return (
+    <div className="grid gap-[14px]">
+      <FeatureMatrixTable
+        view={view}
+        actions={
+          missing.length === 0 ? null : (
+          <ResourceActionDialog
+            triggerLabel="Add a feature"
+            title="Add a registry feature to the matrix"
+            description="Choose a feature the product knows how to gate and set which of the five billing tiers have it. It is kept in the change log below."
+            endpoint="/api/super-admin/plans-features/matrix"
+            submitLabel="Save access"
+            fields={[
+              { name: "featureKey", label: "Feature", type: "select", required: true, options: missing.map((row) => ({ label: `${row.name} — ${row.module}${row.enforcedAt ? "" : " (catalogue only)"}`, value: row.key })), note: "A feature has to be in the registry before it can have a row. Only features marked with a place the product enforces them change what a school can do.", section: "Feature" },
+              ...view.tiers.map((tier) => ({ name: tier.tier, label: `${TIER_LABEL[tier.tier] ?? tier.tier} (${tier.schools} school${tier.schools === 1 ? "" : "s"})`, type: "select" as const, defaultValue: "false", options: yesNo, section: "Access by tier" })),
+              { name: "reason", label: "Why this is changing", type: "textarea", required: true, section: "Reason" },
+              { name: "migrationPlan", label: "Migration plan (needed when taking access away from schools)", type: "textarea", placeholder: "What those schools are offered instead, and when they are told", note: "If any school is on a tier that loses the feature, this is required — and those schools are told in the app.", section: "Reason" }
+            ]}
+          />
+          )
+        }
+      />
+      <TableCard
+        title="Editing the matrix — what actually happens"
+        description="Checked against the real save code."
+        items={[
+          { requirement: "Every change is recorded as a new version", spec: "Real — each save bumps the feature's version and writes a change-log row with before, after, the reason, the schools affected and who made it (below).", state: "good" },
+          { requirement: "Removing a feature in active use requires a migration plan", spec: "Enforced — the save counts the schools on the tiers losing access and refuses without a written migration plan; those schools are then told in the app.", state: "good" },
+          { requirement: "Adding a feature needs a logged reason", spec: "Enforced — a reason is required on every change. Access takes effect immediately for every school on the tier; there is no renewal-timing option.", state: "warn" },
+          { requirement: "A new feature must exist in a registry first", spec: "Enforced — only registry features can be given a row. The registry is part of the product, so a feature is added to it when the product can honour it.", state: "good" },
+          { requirement: "The product reads the matrix", spec: "Partial — custom branding is checked against it when a school's branding is submitted or applied. The other registry features are catalogue only until the product has something to gate (marked below).", state: "warn" }
+        ]}
+        getRowKey={(row) => row.requirement}
+        columns={[
+          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          {
+            key: "state",
+            header: "State",
+            render: (row) => {
+              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            }
+          }
+        ]}
+      />
+      <TableCard
+        title="Matrix change log"
+        description="Every change to who may use a feature, newest first."
+        items={view.changes}
+        getRowKey={(row) => row.id}
+        columns={[
+          { key: "at", header: "When", render: (row) => formatDate(row.at) },
+          { key: "feature", header: "Feature", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.feature}</span> },
+          { key: "kind", header: "Change", render: (row) => <StatusBadge status={row.kind} tone={row.kind === "ACCESS_REMOVED" ? "danger" : row.kind === "ADDED" ? "success" : "warning"} /> },
+          { key: "tiers", header: "On", render: (row) => <span className="text-[11px]">{Object.entries(row.after).filter(([tier, on]) => on !== Boolean(row.before?.[tier])).map(([tier, on]) => `${on ? "+" : "−"}${TIER_LABEL[tier] ?? tier}`).join(" ") || "Created"}</span> },
+          { key: "schools", header: "Schools affected", render: (row) => row.affectedSchools },
+          { key: "reason", header: "Reason", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.reason}{row.migrationPlan ? ` — Migration: ${row.migrationPlan}` : ""}</span> },
+          { key: "by", header: "By", render: (row) => row.by }
+        ]}
+        emptyState="No change has been made to the matrix since it began to be logged."
+      />
+    </div>
+  );
+}
+
+async function RolloutTab() {
+  return (
+    <div className="grid gap-[14px]">
+      <FlowSteps
+        title="Feature flag rollout control"
+        sub="A flag moves up one stage at a time. Each stage has an observation window (7 days by default) before it can move up — a Super Admin can waive it by saying why — and the person moving it names the exit criterion that was met. Moving down, or rolling back, is always allowed."
+        steps={[
+          { label: "Flag created", note: "Off by default" },
+          { label: "Pilot group", note: "Named schools only", tone: "warn" },
+          { label: "Monitor", note: "Observation window, 7 days by default", tone: "warn" },
+          { label: "Partial rollout", note: "A percentage of schools", tone: "good" },
+          { label: "Monitor", note: "Second observation window", tone: "good" },
+          { label: "Full rollout", note: "Platform-wide", tone: "good" },
+          { label: "Instant rollback", note: "Any stage · back to Off at once", tone: "bad" }
+        ]}
+      />
+      <FlagsSection />
+      <LifecycleSection />
+      <PlanChangesSection />
+    </div>
+  );
+}
+
+async function PlanChangesSection() {
+  const overview = await apiGet<PlansOverview>("/api/super-admin/plans-features/plans");
+  return (
+    <div className="grid gap-[14px]">
       <TableCard
         title="Price changes"
         description={`A plan that schools are on cannot be repriced in place. A change is announced to every school on it, waits out ${overview?.noticeDays ?? 30} days' notice, and is applied automatically on its date.`}
@@ -340,142 +401,11 @@ async function PlansTab() {
   );
 }
 
-async function TierMatrixTab() {
-  const view = await apiGet<MatrixView>("/api/super-admin/plans-features/matrix");
-  const missing = view.registry.filter((row) => !view.features.some((feature) => feature.featureKey === row.key));
-
-  return (
-    <div className="grid gap-5">
-      <FeatureMatrixTable
-        view={view}
-        actions={
-          missing.length === 0 ? null : (
-          <ResourceActionDialog
-            triggerLabel="Add a feature"
-            title="Add a registry feature to the matrix"
-            description="Choose a feature the product knows how to gate and set which of the five billing tiers have it. It is kept in the change log below."
-            endpoint="/api/super-admin/plans-features/matrix"
-            submitLabel="Save access"
-            fields={[
-              { name: "featureKey", label: "Feature", type: "select", required: true, options: missing.map((row) => ({ label: `${row.name} — ${row.module}${row.enforcedAt ? "" : " (catalogue only)"}`, value: row.key })), note: "A feature has to be in the registry before it can have a row. Only features marked with a place the product enforces them change what a school can do.", section: "Feature" },
-              ...view.tiers.map((tier) => ({ name: tier.tier, label: `${TIER_LABEL[tier.tier] ?? tier.tier} (${tier.schools} school${tier.schools === 1 ? "" : "s"})`, type: "select" as const, defaultValue: "false", options: yesNo, section: "Access by tier" })),
-              { name: "reason", label: "Why this is changing", type: "textarea", required: true, section: "Reason" },
-              { name: "migrationPlan", label: "Migration plan (needed when taking access away from schools)", type: "textarea", placeholder: "What those schools are offered instead, and when they are told", note: "If any school is on a tier that loses the feature, this is required — and those schools are told in the app.", section: "Reason" }
-            ]}
-          />
-          )
-        }
-      />
-      <TableCard
-        title="Editing the matrix — what actually happens"
-        description="Checked against the real save code."
-        items={[
-          { requirement: "Every change is recorded as a new version", spec: "Real — each save bumps the feature's version and writes a change-log row with before, after, the reason, the schools affected and who made it (below).", state: "good" },
-          { requirement: "Removing a feature in active use requires a migration plan", spec: "Enforced — the save counts the schools on the tiers losing access and refuses without a written migration plan; those schools are then told in the app.", state: "good" },
-          { requirement: "Adding a feature needs a logged reason", spec: "Enforced — a reason is required on every change. Access takes effect immediately for every school on the tier; there is no renewal-timing option.", state: "warn" },
-          { requirement: "A new feature must exist in a registry first", spec: "Enforced — only registry features can be given a row. The registry is part of the product, so a feature is added to it when the product can honour it.", state: "good" },
-          { requirement: "The product reads the matrix", spec: "Partial — custom branding is checked against it when a school's branding is submitted or applied. The other registry features are catalogue only until the product has something to gate (marked below).", state: "warn" }
-        ]}
-        getRowKey={(row) => row.requirement}
-        columns={[
-          { key: "requirement", header: "What the mockup describes", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
-          {
-            key: "state",
-            header: "State",
-            render: (row) => {
-              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
-            }
-          }
-        ]}
-      />
-      <TableCard
-        title="Matrix change log"
-        description="Every change to who may use a feature, newest first."
-        items={view.changes}
-        getRowKey={(row) => row.id}
-        columns={[
-          { key: "at", header: "When", render: (row) => formatDate(row.at) },
-          { key: "feature", header: "Feature", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.feature}</span> },
-          { key: "kind", header: "Change", render: (row) => <StatusBadge status={row.kind} tone={row.kind === "ACCESS_REMOVED" ? "danger" : row.kind === "ADDED" ? "success" : "warning"} /> },
-          { key: "tiers", header: "On", render: (row) => <span className="text-[11px]">{Object.entries(row.after).filter(([tier, on]) => on !== Boolean(row.before?.[tier])).map(([tier, on]) => `${on ? "+" : "−"}${TIER_LABEL[tier] ?? tier}`).join(" ") || "Created"}</span> },
-          { key: "schools", header: "Schools affected", render: (row) => row.affectedSchools },
-          { key: "reason", header: "Reason", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.reason}{row.migrationPlan ? ` — Migration: ${row.migrationPlan}` : ""}</span> },
-          { key: "by", header: "By", render: (row) => row.by }
-        ]}
-        emptyState="No change has been made to the matrix since it began to be logged."
-      />
-    </div>
-  );
-}
-
-const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: string; fg: string; bd: string }> = {
-  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", bd: "#CFE4DB" },
-  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", bd: "#F2E4C6" },
-  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", bd: "#F3E0E0" },
-  ink: { bg: "#0D2315", fg: "#fff", bd: "#0D2315" },
-  plain: { bg: "#fff", fg: "var(--color-text-primary)", bd: "var(--color-border-default)" }
-};
-
-function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
-  return (
-    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
-      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
-        {steps.map((step, index) => {
-          const tone = flowToneStyle[step.tone ?? "plain"];
-          return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
-              </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
-async function RolloutTab() {
-  return (
-    <div className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Rollout</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Feature flag & plan rollout</h2>
-        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-          How changes reach schools over time: staged feature-flag rollouts with instant rollback, and the history of
-          schools migrating between subscription tiers.
-        </p>
-      </section>
-      <FlowSteps
-        title="Feature flag rollout control"
-        sub="A flag moves up one stage at a time. Each stage has an observation window (7 days by default) before it can move up — a Super Admin can waive it by saying why — and the person moving it names the exit criterion that was met. Moving down, or rolling back, is always allowed."
-        steps={[
-          { label: "Flag created", note: "Off by default" },
-          { label: "Pilot group", note: "Named schools only", tone: "warn" },
-          { label: "Monitor", note: "Observation window, 7 days by default", tone: "warn" },
-          { label: "Partial rollout", note: "A percentage of schools", tone: "good" },
-          { label: "Monitor", note: "Second observation window", tone: "good" },
-          { label: "Full rollout", note: "Platform-wide", tone: "good" },
-          { label: "Instant rollback", note: "Any stage · back to Off at once", tone: "bad" }
-        ]}
-      />
-      <FlagsSection />
-      <LifecycleSection />
-    </div>
-  );
-}
-
 async function LifecycleSection() {
   const migrations = await apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle");
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <FlowSteps
         title="Plan lifecycle"
         sub="Every plan moves through these states in one direction only — nothing skips a stage"
@@ -500,9 +430,9 @@ async function LifecycleSection() {
           { key: "when", header: "Changed", render: (item) => formatDate(item.changedAt) }
         ]}
       />
-      <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
+      <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white">
         <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">What happens to a school when its plan changes</p>
+          <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">What happens to a school when its plan changes</p>
         </div>
         <div className="p-5">
           <p className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">
@@ -528,13 +458,13 @@ async function LifecycleSection() {
         getRowKey={(row) => row.rule}
         columns={[
           { key: "rule", header: "Rule", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.rule}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Not built" } }[row.state as "good" | "warn"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -545,47 +475,18 @@ async function LifecycleSection() {
 
 async function ExceptionsTab() {
   return (
-    <div className="grid gap-5">
-      <section className="surface-card p-6">
-        <p className="section-eyebrow">Exceptions</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Per-school exceptions to the standard tier</h2>
-        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-          Where a school departs from its plan&apos;s default rules — a feature flag granted or restricted outside the
-          tier-feature matrix, or custom branding applied to the live account. One queue, one case anatomy — the same
-          review pattern used for Schools and Users.
-        </p>
-      </section>
-      <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
-        <div className="border-b border-[#E6EEE9] px-5 py-4">
-          <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">What an exception is</p>
-          <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">What&apos;s real about each of these today, not just the concept.</p>
-        </div>
-        <div className="grid gap-3 p-5 sm:grid-cols-2">
-          {[
-            { label: "Added — the school has something its plan does not include", detail: "Real. Recorded as a GRANTED override, reviewed and approved before it takes effect.", tone: "good" },
-            { label: "Removed — the school has lost something its plan does include", detail: "Real as a RESTRICTED override, but there's no automatic non-payment trigger — a person creates the restriction by hand today.", tone: "warn" },
-            { label: "Waiting — someone has asked and nobody has decided", detail: "Real. A PENDING override sits in the case queue above until approved or rejected.", tone: "warn" },
-            { label: "Every exception carries an end date", detail: "Enforced — the form requires an expiry date, and an hourly job ends the exception on that date (see the table below).", tone: "good" },
-            { label: "The plan itself never changes from an exception", detail: "True by construction — an override is its own record, separate from the TierFeature matrix and the plan row.", tone: "good" }
-          ].map((item) => {
-            const dot = { good: "var(--color-success)", warn: "var(--color-warning)" }[item.tone];
-            return (
-              <div key={item.label} className="flex items-start gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 sm:last:border-b sm:odd:border-b">
-                <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-                <div>
-                  <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-                  <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </section>
-      <div className="grid gap-1.5">
-        <p className="section-eyebrow">Case queue</p>
-        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Exceptions by school</h2>
-        <p className="text-[11.5px] text-[var(--color-text-secondary)]">One row per departure from a school’s plan. Open a case to see who asked, who decided, and what happens when it ends.</p>
-      </div>
+    <div className="grid gap-[14px]">
+      <ReferenceList
+        title="What an exception is"
+        sub="A school’s plan decides what it can reach. An exception is a deliberate, recorded departure from that — in either direction."
+        items={[
+          { label: "Added — the school has something its plan does not include", detail: "Recorded as a granted override, reviewed and approved before it takes effect", pill: "Added", tone: "good" },
+          { label: "Removed — the school has lost something its plan does include", detail: "Recorded as a restriction. A person creates it by hand; nothing removes a feature automatically", pill: "Removed", tone: "bad" },
+          { label: "Waiting — someone has asked and nobody has decided", detail: "A pending override sits in the case queue until it is approved or rejected", pill: "Waiting", tone: "warn" },
+          { label: "Every exception carries an end date", detail: "The form requires one, and an hourly job ends the exception on that date", pill: "Always", tone: "teal" },
+          { label: "The plan itself never changes", detail: "An override is its own record, separate from the plan and the feature matrix", pill: "Rule", tone: "mute" }
+        ]}
+      />
       <ExceptionsCaseBoard />
       <TableCard
         title="What happens when an exception ends"
@@ -599,13 +500,13 @@ async function ExceptionsTab() {
         getRowKey={(row) => row.step}
         columns={[
           { key: "step", header: "Step", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.step}</span> },
-          { key: "what", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.what}</span> },
+          { key: "what", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.what}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -623,13 +524,13 @@ async function ExceptionsTab() {
         getRowKey={(row) => row.requirement}
         columns={[
           { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -869,7 +770,7 @@ async function ExceptionsCaseBoard() {
   const revokedCount = overrideRows.filter((item) => item.status === "REJECTED" || item.status === "REVOKED" || item.status === "EXPIRED").length;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Exceptions in force" value={activeOverrideCount + activeBrandingCount} detail={`${activeOverrideCount} override(s) · ${activeBrandingCount} branding`} icon={ShieldCheck} tone="dark" />
         <StatCard label="Waiting on a decision" value={waitingCount} detail="Pending overrides and branding" icon={Clock3} tone={waitingCount ? "warning" : "neutral"} />
@@ -878,7 +779,10 @@ async function ExceptionsCaseBoard() {
         <StatCard label="Revoked, rejected or expired" value={revokedCount} detail="Closed without being used to the end" icon={Undo2} tone="neutral" />
       </section>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <CaseReviewBoard
+        title="Exceptions by school"
+        toolbar={
+          <>
         <ResourceActionDialog
           triggerLabel="Request override"
           title="Request a per-school feature override"
@@ -908,8 +812,8 @@ async function ExceptionsCaseBoard() {
             { name: "secondaryColour", label: "Secondary colour (hex)", required: true, placeholder: "#c28c3d" }
           ]}
         />
-      </div>
-      <CaseReviewBoard
+          </>
+        }
         types={types}
         cases={[...overrideCases, ...brandingCases]}
         emptyState="No feature overrides or branding exceptions on record."
@@ -931,7 +835,7 @@ async function FlagsSection() {
   const memberOptions = [{ label: "Nobody yet", value: "" }, ...members.map((m) => ({ label: `${m.name} · ${m.role.replaceAll("_", " ").toLowerCase()}`, value: m.id }))];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="Active feature flags"
         description="Staged rollout: Off → Pilot → Partial → Full, with an instant platform-wide rollback at any stage. “In stage” is measured from the day the flag entered its current stage, against that flag's own observation window."
@@ -1039,14 +943,14 @@ async function FlagsSection() {
         ]}
         getRowKey={(row) => row.field}
         columns={[
-          { key: "field", header: "What the mockup describes", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.field}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "field", header: "Field", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.field}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
           {
             key: "state",
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.state as "good" | "warn"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}

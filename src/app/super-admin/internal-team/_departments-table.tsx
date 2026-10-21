@@ -108,7 +108,7 @@ export function DepartmentsTable({ items, actions, members = {} }: { items: Supe
           header: "Permission ceiling",
           render: (item) => (
             <span
-              className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
+              className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
               style={hasCeiling(item.permissionCeiling) ? { background: "#E4F1EC", color: "#12796A" } : { background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}
             >
               {hasCeiling(item.permissionCeiling) ? "Set" : "Not set"}

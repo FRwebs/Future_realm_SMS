@@ -1,3 +1,5 @@
+import { CaseReviewBoard, type CaseRecord } from "@/components/data-display/case-review-board";
+import { FlowSteps } from "@/components/data-display/flow-steps";
 import { BadgeCheck, Clock3, Handshake, Landmark, Link2, PiggyBank, Undo2 } from "lucide-react";
 import Link from "next/link";
 
@@ -13,7 +15,7 @@ import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminPartnerDealRow, SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 
-import { compactCurrency, dealStatusTone, daysUntil, flowToneStyle, formatPercent } from "./_shared";
+import { compactCurrency, dealStatusTone, daysUntil, formatPercent } from "./_shared";
 
 /* ───────────────────────── shapes the endpoints answer with ───────────────────────── */
 
@@ -52,32 +54,9 @@ const STATUS_TONE: Record<string, { bg: string; fg: string }> = {
 };
 const pill = (label: string, tone: keyof typeof STATUS_TONE | string) => {
   const colours = STATUS_TONE[tone] ?? STATUS_TONE.NONE;
-  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: colours.bg, color: colours.fg }}>{label}</span>;
+  return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: colours.bg, color: colours.fg }}>{label}</span>;
 };
 const dash = <span className="text-[var(--color-text-muted)]">—</span>;
-
-function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
-  return (
-    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
-      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
-        {steps.map((step, index) => {
-          const tone = flowToneStyle[step.tone ?? "plain"];
-          return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
-              </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
 
 const tabHref = (tab: string) => (tab === "partners" ? "/super-admin/partners" : `/super-admin/partners?tab=${tab}`);
 
@@ -138,14 +117,14 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Schools & Revenue"
+        eyebrow="MODULE 13"
         title="Partners & Commission"
         description="Attribution before introductions, commission on money received."
         action={
           activeTab === "registrations" ? (
-            <ResourceActionDialog triggerLabel="Register a school" title="Register a school for a partner" description="Log an introduction. It is valid for 90 days; the school must sign up inside the window for the attribution to hold." endpoint="/api/super-admin/partners/deals" submitLabel="Register" variant="heroWhite" fields={dealFields(partnerOptions)} />
+            <ResourceActionDialog triggerLabel="Register a school" title="Partners & Commission" description="Attribution before introductions, commission on money received." endpoint="/api/super-admin/partners/deals" submitLabel="Register" variant="heroWhite" fields={dealFields(partnerOptions)} />
           ) : activeTab === "statements" ? (
             <ResourceActionDialog
               triggerLabel="Issue statements"
@@ -189,7 +168,7 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
   const focused = registry.partners.find((partner) => partner.id === focus);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Partners on the registry" value={k.partners} detail={`${k.active} active · ${k.dormant} dormant · ${k.suspended} suspended`} icon={Handshake} tone="dark" />
         <StatCard label="Attributed schools" value={k.attributedSchools} detail={k.attributedShare === null ? "No schools yet" : `${k.attributedShare}% of the schools on the platform`} icon={Link2} tone="info" />
@@ -277,7 +256,7 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
         footnote={`Direct-sourced schools, for comparison: ${performance.direct.schools} schools · ${performance.direct.retention === null ? "retention not yet measurable" : `${performance.direct.retention}% retained`} · ${performance.direct.ticketsPer100 ?? "—"} tickets per 100 schools in the last 90 days. Second-term retention counts schools older than 240 days that are still trading.`}
       />
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid items-start gap-[14px] lg:grid-cols-2">
         <TableCard
           title="Two streams, never interchangeable"
           description="A completed website costs nothing after delivery. A live school costs infrastructure, storage, support, messaging and compliance every day it remains."
@@ -325,8 +304,58 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
   const schoolOptions = (schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }));
   const open = deals.filter((deal) => deal.status === "REGISTERED");
 
+  const openCases = disputes.filter((dispute) => dispute.status === "OPEN");
+  const cases: CaseRecord[] = disputes.map((dispute) => ({
+    id: dispute.id,
+    subject: `${dispute.raisedBy} — ${dispute.school}`,
+    meta: `Against ${dispute.counterparty} · raised ${formatDate(dispute.createdAt)}`,
+    type: "Attribution dispute",
+    initials: dispute.raisedBy.slice(0, 2).toUpperCase(),
+    assignee: "Super Admin",
+    age: `${Math.max(0, Math.floor((Date.now() - new Date(dispute.createdAt).getTime()) / 86_400_000))}d`,
+    sla: dispute.status === "OPEN" ? "Open" : dispute.status === "UPHELD" ? "Upheld" : "Rejected",
+    slaTone: dispute.status === "OPEN" ? "warn" : "good",
+    facts: [
+      { label: "School", value: dispute.school },
+      { label: "Raised by", value: dispute.raisedBy },
+      { label: "Counterparty", value: dispute.counterparty },
+      { label: "Status", value: dispute.outcome ? `${dispute.status} — ${dispute.outcome}` : dispute.status === "OPEN" ? "Under review" : dispute.status }
+    ],
+    signals: [{ text: dispute.grounds, tone: "warn" }],
+    evidence: (dispute.evidence ?? "").split("\n").map((line) => line.trim()).filter(Boolean).map((name) => ({ name, who: "Logged with the dispute" })),
+    checks: [],
+    history: [{ what: "Dispute logged", when: formatDate(dispute.createdAt) }, ...(dispute.decidedAt ? [{ what: `Decided — ${dispute.status === "UPHELD" ? "upheld" : "rejected"}`, when: formatDate(dispute.decidedAt) }] : [])],
+    decisions: dispute.status === "OPEN" ? (
+      <ResourceActionDialog triggerLabel="Decide" title={`Decide · ${dispute.school}`} description="Super Admin only. Where it is upheld, commission is recalculated from the point of attribution, and the correction appears on the next statement." endpoint={`/api/super-admin/partners/disputes/${dispute.id}/decide`} method="PATCH" variant="secondary" submitLabel="Record decision" fields={[
+        { name: "outcome", label: "Outcome", type: "select", required: true, options: [{ label: "Upheld — the school moves", value: "UPHELD" }, { label: "Rejected — attribution stands", value: "REJECTED" }] },
+        { name: "reattributeToPartnerId", label: "If upheld: the school belongs to", type: "select", options: [{ label: "—", value: "" }, ...partnerOptions] },
+        { name: "notes", label: "Reasons", type: "textarea", required: true, note: "Kept permanently against the school and the partner." }
+      ]} />
+    ) : (
+      <p className="text-[12px] text-[var(--color-text-muted)]">Decided. The record is kept permanently against the school and the partner.</p>
+    )
+  }));
+
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
+      <CaseReviewBoard
+        title="Case queue"
+        types={[{ label: "All open", value: "all", count: openCases.length }, { label: "Attribution dispute", value: "Attribution dispute", count: openCases.length }]}
+        cases={cases}
+        emptyState="No attribution dispute has been raised. Two parties claiming one school will appear here as a case."
+        footerNote="Where a dispute is upheld, what was accrued to the old partner is voided (or clawed back if it was already settled) and the same reconciled invoices accrue to the new one."
+        searchPlaceholder="Search a school, partner or assignee"
+        toolbar={
+          <ResourceActionDialog triggerLabel="Log a dispute" title="Log an attribution dispute" description="Two parties claiming one school. It is decided against the registration record by a Super Admin." endpoint="/api/super-admin/partners/disputes" method="POST" variant="secondary" submitLabel="Log dispute" fields={[
+          { name: "schoolId", label: "School in dispute", type: "select", required: true, options: schoolOptions },
+          { name: "raisedBy", label: "Raised by", required: true, placeholder: "Partner or Nooria direct" },
+          { name: "counterparty", label: "Counterparty", required: true },
+          { name: "grounds", label: "Grounds as stated", type: "textarea", required: true },
+          { name: "evidence", label: "Evidence references", type: "textarea" }
+        ]} />
+        }
+      />
+
       <FlowSteps
         title="Deal registration — attribution is established before the introduction"
         sub="Never argued about afterwards. This prevents the most damaging partner dispute: two parties claiming the same school."
@@ -354,7 +383,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
           { key: "registered", header: "Registered", render: (deal) => (deal.status === "REJECTED" ? dash : formatDate(deal.registeredAt)) },
           { key: "expires", header: "Expires", render: (deal) => (deal.status === "REGISTERED" ? <span style={{ color: daysUntil(deal.validUntil) <= 14 ? "var(--color-warning)" : undefined }}>{formatDate(deal.validUntil)} · {Math.max(0, daysUntil(deal.validUntil))}d</span> : dash) },
           { key: "size", header: "Expected size", render: (deal) => (deal.expectedStudents ? `~${deal.expectedStudents.toLocaleString()} students` : dash) },
-          { key: "status", header: "Status", render: (deal) => deal.status === "REJECTED" ? pill(`Rejected — ${deal.rejectedReason ?? "refused"}`, "BREACHED") : <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: (dealStatusTone[deal.status] ?? dealStatusTone.EXPIRED).bg, color: (dealStatusTone[deal.status] ?? dealStatusTone.EXPIRED).fg }}>{(dealStatusTone[deal.status] ?? dealStatusTone.EXPIRED).label}</span> },
+          { key: "status", header: "Status", render: (deal) => deal.status === "REJECTED" ? pill(`Rejected — ${deal.rejectedReason ?? "refused"}`, "BREACHED") : <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: (dealStatusTone[deal.status] ?? dealStatusTone.EXPIRED).bg, color: (dealStatusTone[deal.status] ?? dealStatusTone.EXPIRED).fg }}>{(dealStatusTone[deal.status] ?? dealStatusTone.EXPIRED).label}</span> },
           {
             key: "actions", header: "", render: (deal) => deal.status === "REGISTERED" ? (
               <ActionMenu>
@@ -367,39 +396,6 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
         footnote={`${open.length} open registration${open.length === 1 ? "" : "s"}. A school arriving through self-signup with no registration and no partner code is unattributed, and remains so. A partner cannot claim a school retrospectively.`}
       />
 
-      <TableCard
-        title="Attribution disputes"
-        description="Resolved against the registration record, which is timestamped and immutable — this is why registration exists."
-        items={disputes}
-        emptyState="No attribution dispute has been raised."
-        getRowKey={(dispute) => dispute.id}
-        actions={
-          <ResourceActionDialog triggerLabel="Log a dispute" title="Log an attribution dispute" description="Two parties claiming one school. It is decided against the registration record by a Super Admin." endpoint="/api/super-admin/partners/disputes" method="POST" variant="secondary" submitLabel="Log dispute" fields={[
-            { name: "schoolId", label: "School in dispute", type: "select", required: true, options: schoolOptions },
-            { name: "raisedBy", label: "Raised by", required: true, placeholder: "Partner or Nooria direct" },
-            { name: "counterparty", label: "Counterparty", required: true },
-            { name: "grounds", label: "Grounds as stated", type: "textarea", required: true },
-            { name: "evidence", label: "Evidence references", type: "textarea" }
-          ]} />
-        }
-        columns={[
-          { key: "school", header: "School", render: (dispute) => <span className="font-bold text-[var(--color-text-primary)]">{dispute.school}</span> },
-          { key: "raised", header: "Raised by", render: (dispute) => dispute.raisedBy },
-          { key: "counter", header: "Counterparty", render: (dispute) => dispute.counterparty },
-          { key: "grounds", header: "Grounds", render: (dispute) => <span className="text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{dispute.grounds}</span> },
-          { key: "status", header: "Status", render: (dispute) => <div>{pill(dispute.status === "OPEN" ? "Under review" : dispute.status === "UPHELD" ? "Upheld — reattributed" : "Rejected", dispute.status)}{dispute.outcome ? <p className="mt-1 max-w-[18rem] text-[9.5px] text-[var(--color-text-muted)]">{dispute.outcome}</p> : null}</div> },
-          {
-            key: "actions", header: "", render: (dispute) => dispute.status === "OPEN" ? (
-              <ResourceActionDialog triggerLabel="Decide" title={`Decide · ${dispute.school}`} description="Super Admin only. Where it is upheld, commission is recalculated from the point of attribution, and the correction appears on the next statement." endpoint={`/api/super-admin/partners/disputes/${dispute.id}/decide`} method="PATCH" variant="secondary" submitLabel="Record decision" fields={[
-                { name: "outcome", label: "Outcome", type: "select", required: true, options: [{ label: "Upheld — the school moves", value: "UPHELD" }, { label: "Rejected — attribution stands", value: "REJECTED" }] },
-                { name: "reattributeToPartnerId", label: "If upheld: the school belongs to", type: "select", options: [{ label: "—", value: "" }, ...partnerOptions] },
-                { name: "notes", label: "Reasons", type: "textarea", required: true, note: "Kept permanently against the school and the partner." }
-              ]} />
-            ) : null
-          }
-        ]}
-        footnote="Where a dispute is upheld, what was accrued to the old partner is voided (or clawed back if it was already settled) and the same reconciled invoices accrue to the new one."
-      />
     </div>
   );
 }
@@ -409,7 +405,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
 async function CommissionTab() {
   const commission = await apiGet<Commission>("/api/super-admin/partners/commission");
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <FlowSteps
         title="Commission accrual — reconciliation is the only trigger"
         sub="The design exists to make reconciliation, not invoicing, the event that means something."
@@ -471,7 +467,7 @@ async function StatementsTab({ focus }: { focus?: string }) {
     focus ? apiGet<StatementDetail>(`/api/super-admin/partners/statements/${focus}`).catch(() => null) : Promise.resolve(null)
   ]);
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="Statements of account"
         description="Issued whether or not the amount is positive, so that a zero period is a statement rather than a silence. The person who issues a statement cannot be the person who pays it."
@@ -526,7 +522,7 @@ async function StatementsTab({ focus }: { focus?: string }) {
         />
       ) : null}
 
-      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
+      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6">
         <p className="flex items-center gap-2 text-[12.5px] font-semibold text-[#0D2315]"><Landmark className="h-4 w-4" /> How a statement is paid</p>
         <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">Finance issues the statement; a Super Admin settles it with the bank reference. The amount is held as a liability until then. The payment run exports every awaiting statement with its partner&apos;s bank details.</p>
       </section>

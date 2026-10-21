@@ -27,7 +27,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
   const user = await apiGet<SuperAdminUserProfile>(`/api/super-admin/users/${userId}`);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
         <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
           <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
@@ -95,10 +95,10 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
         <StatCard label="Joined" value={formatDate(user.createdAt)} detail="Account creation date." icon={CalendarPlus} tone="neutral" />
       </section>
 
-      <section className="grid gap-5 lg:grid-cols-2">
+      <section className="grid items-start gap-[14px] lg:grid-cols-2">
         <section className="surface-card p-6">
           <p className="section-eyebrow">Activity</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Role-specific activity (last 90 days)</h2>
+          <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Role-specific activity (last 90 days)</h2>
           <div className="mt-4 grid gap-2.5">
             {activitySummaryItems(user.activitySummary).map((item) => (
               <div key={item.label} className="flex items-center justify-between rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
@@ -111,7 +111,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
 
         <section className="surface-card p-6">
           <p className="section-eyebrow">Guardians</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Linked accounts</h2>
+          <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Linked accounts</h2>
           <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Student records linked to this parent/guardian account.</p>
           <div className="mt-4 grid gap-2.5">
             {user.linkedAccounts.length === 0 ? (

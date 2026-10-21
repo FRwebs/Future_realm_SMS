@@ -246,7 +246,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
   }
 
   return (
-    <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
+    <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
       {filterBar}
       <div className="p-0">
         {selectedIds.length > 0 ? (
@@ -323,7 +323,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                 return (
                   <article
                     key={school.id}
-                    className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-4"
+                    className="rounded-[14px] border border-[#DEE8E2] bg-white p-4"
                   >
                     <div className="flex items-start gap-3">
                       <button
@@ -342,12 +342,12 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                         <p className="truncate text-[13.5px] font-semibold text-[#0D2315]">{school.name}</p>
                         <p className="truncate text-[10px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</p>
                       </Link>
-                      <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                      <span className="shrink-0 rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                         {tone.label}
                       </span>
                     </div>
                     <div className="mt-3 flex items-center gap-2">
-                      <span className="rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
+                      <span className="rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                         {verification.label}
                       </span>
                       <span className="truncate text-[10px] text-[#9fb8a7]">{verification.note}</span>
@@ -450,12 +450,12 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">{planLabel(school.plan)}</td>
                             <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                              <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                                 {tone.label}
                               </span>
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
-                              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
+                              <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                                 {verification.label}
                               </span>
                               <div className="mt-[2.5px] max-w-[160px] truncate text-[9.5px] text-[#9fb8a7]">{verification.note}</div>

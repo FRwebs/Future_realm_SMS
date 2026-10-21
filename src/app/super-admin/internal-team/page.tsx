@@ -40,7 +40,7 @@ const ipRuleTypes = [{ label: "Allow", value: "ALLOW" }, { label: "Deny", value:
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -79,16 +79,16 @@ export default async function SuperAdminInternalTeamPage({ searchParams }: { sea
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Trust & Control"
+        eyebrow="MODULE 11"
         title="Team & Access"
-        description="Exactly who on the FutureRealm team can access Platform Admin, and precisely what each person can see and do. New hires are onboarded here, departing members offboarded here."
+        description="Who inside FutureRealm can do what, over which records."
         action={
           <ResourceActionDialog
             triggerLabel="Invite a team member"
-            title="Invite a team member"
-            description="Module access, function rights and data scope are three separate decisions."
+            title="Team & Access"
+            description="Who inside FutureRealm can do what, over which records."
             endpoint="/api/super-admin/internal-team"
             variant="heroWhite"
             submitLabel="Send invitation"
@@ -153,7 +153,7 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
     .sort((a, b) => new Date(b.revokedAt ?? 0).getTime() - new Date(a.revokedAt ?? 0).getTime());
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Internal accounts" value={all.length} detail={`${activeCount} active · ${revokedCount} revoked · ${suspendedCount} suspended`} icon={Users2} tone="dark" />
         <StatCard label="Hold Super Admin" value={superAdminCount} detail="Kept deliberately small" icon={Crown} tone="info" />
@@ -209,7 +209,7 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
       <section className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
         <div>
           <p className="section-eyebrow">Lifecycle</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Onboarding &amp; offboarding</h2>
+          <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Onboarding &amp; offboarding</h2>
           <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
             New hires from the last 30 days, and everyone whose access has been revoked. Start a new hire or offboard
             a member from the roster above.
@@ -331,7 +331,7 @@ async function RolesTab() {
   });
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Roles defined" value={roleOptions.length} detail="Fixed platform roles, not ad-hoc bundles" icon={UserCog} tone="dark" />
         <StatCard label="Actions that can be granted" value={modules.length * 6} detail={`View, export, create, edit, approve, delete — in each of ${modules.length} modules. A level is shorthand for a set; a person can also be given an exact set`} icon={ShieldCheck} tone="neutral" />
@@ -342,7 +342,7 @@ async function RolesTab() {
 
       <section className="surface-card p-6">
         <p className="section-eyebrow">Roles &amp; scopes</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">What each role can do</h2>
+        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">What each role can do</h2>
         <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Role templates define the default permission grid: applied when a new account is created, and used live for anyone with nothing set of their own for a module. The
           access matrix below shows the resulting per-person permissions, which can differ from the template once
@@ -472,7 +472,7 @@ async function ActivityTab() {
   const activeCount = activity.members.length - idleMembers.length;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Tickets resolved (30d)" value={totalTickets} detail="Across the whole team — not a week window, but the real one this system aggregates" icon={ShieldCheck} tone="dark" />
         <StatCard label="Schools onboarded (30d)" value={activity.schoolsOnboardedThisMonth} detail="Onboarding team" icon={Users2} tone="info" />
@@ -513,7 +513,7 @@ async function ActivityTab() {
               const idle = !item.lastLoginAt || new Date(item.lastLoginAt).getTime() < sevenDaysAgo;
               return (
                 <span
-                  className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
+                  className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
                   style={idle ? { background: "var(--color-warning-dim)", color: "var(--color-warning)" } : { background: "var(--color-success-dim)", color: "var(--color-success)" }}
                 >
                   {idle ? "Idle" : "Active"}
@@ -539,10 +539,10 @@ async function SecurityTab() {
   ]);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Security settings</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Sessions &amp; network access</h2>
+        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Sessions &amp; network access</h2>
         <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Every currently active sign-in session for a Platform Admin account, and the IP allow/deny rules that gate
           access to the platform admin panel.

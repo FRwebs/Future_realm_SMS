@@ -78,7 +78,7 @@ const boardColumns = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -128,7 +128,7 @@ export default async function SuperAdminCrmPage({ searchParams }: { searchParams
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
         <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
           <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
@@ -320,10 +320,10 @@ function InteractionsTab({ interactions }: { interactions: CrmInteraction[] }) {
 
 function FeedbackTab({ nps }: { nps: Nps[] }) {
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="surface-card p-6">
         <p className="section-eyebrow">Sentiment</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Recent NPS responses</h2>
+        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Recent NPS responses</h2>
         <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Read-only view of the most recent Net Promoter Score responses across all schools. Full NPS trends and
           survey management live in{" "}

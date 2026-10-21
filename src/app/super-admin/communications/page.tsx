@@ -3,6 +3,8 @@ import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { FilterToolbar } from "@/components/filters/filter-toolbar";
+import { BarList } from "@/components/data-display/bar-list";
 import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -46,7 +48,7 @@ const yesNo = [{ label: "Yes", value: "true" }, { label: "No", value: "false" }]
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -56,12 +58,11 @@ function tabHref(tab: string) {
   return tab === "campaigns" ? "/super-admin/communications" : `/super-admin/communications?tab=${tab}`;
 }
 
-export default async function SuperAdminCommunicationsPage({ searchParams }: { searchParams?: Promise<{ tab?: string; compose?: string; campaign?: string; status?: string }> }) {
-  const { tab = "campaigns", compose, campaign: campaignFocus, status: statusFilter } = searchParams ? await searchParams : {};
+export default async function SuperAdminCommunicationsPage({ searchParams }: { searchParams?: Promise<{ tab?: string; compose?: string; campaign?: string; status?: string; tgroup?: string; tchannel?: string; tstatus?: string }> }) {
+  const { tab = "campaigns", compose, campaign: campaignFocus, status: statusFilter, tgroup, tchannel, tstatus } = searchParams ? await searchParams : {};
 
   const campaigns = (await apiGet<SuperAdminCampaignRow[]>("/api/super-admin/communications/campaigns")) ?? [];
   const sentCampaigns = campaigns.filter((c) => c.status === "SENT" || c.status === "SENDING");
-  const scheduledCampaigns = campaigns.filter((c) => Boolean(c.scheduledAt));
   const recentDeliveryFailures = sentCampaigns.reduce((sum, c) => sum + c.failedCount, 0);
   const templates = (await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? [];
   const templateOptions = [
@@ -80,11 +81,11 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Operations"
+        eyebrow="MODULE 04"
         title="Communications"
-        description="FutureRealm's own broadcast channel into every school, teacher, parent, and student — targeted campaigns with an approval workflow, a message template library, delivery and consent tracking."
+        description="Reach every school reliably, and never contact someone who said no."
         action={
           <Link href="/super-admin/communications?tab=campaigns&compose=1" className="whitespace-nowrap rounded-full bg-white px-5 py-3 text-[11.5px] font-semibold text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] transition hover:bg-[#eaf3ee]">
             New campaign
@@ -101,8 +102,8 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
           <CampaignsTab campaigns={campaigns} />
         )
       ) : null}
-      {tab === "templates" ? <TemplatesTab /> : null}
-      {tab === "triggers" ? <TriggersTab scheduled={scheduledCampaigns} totalCampaigns={campaigns.length} templates={(await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? []} /> : null}
+      {tab === "templates" ? <TemplatesTab group={tgroup} channel={tchannel} status={tstatus} /> : null}
+      {tab === "triggers" ? <TriggersTab templates={templates} /> : null}
       {tab === "delivery" ? <DeliveryTab sent={sentCampaigns} focus={campaignFocus} status={statusFilter} /> : null}
       {tab === "consent" ? <ConsentTab /> : null}
       {tab === "notices" ? <NoticesTab announcementTypes={announcementTypes} /> : null}
@@ -112,20 +113,20 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
 
 
 function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
+  const recurring = campaigns.filter((c) => c.recurrence && c.recurrence !== "NONE" && c.status !== "DRAFT");
   return (
-    <div className="grid gap-3.5 xl:grid-cols-[1.8fr_1fr]">
+    <div className="grid gap-[14px]">
       <TableCard
-        title="Campaign queue"
-        description="Draft → approve (operational: dept lead; promotional: Super Admin/Marketing) → send. Promotional sends honour opt-outs automatically."
+        title="Campaigns"
+        description="Draft → approve → send. Promotional sends honour opt-outs automatically."
         items={campaigns}
         emptyState="No campaigns yet — use New campaign above to draft one."
         columns={[
-          { key: "name", header: "Campaign", render: (item) => item.name },
+          { key: "name", header: "Campaign", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11.5px] text-[#8C9A92]">{item.scheduledAt ? `${item.status === "SENT" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.status === "DRAFT" ? "Draft" : formatDate(item.createdAt)}</p></div> },
           { key: "type", header: "Type", render: (item) => item.type },
           { key: "channel", header: "Channel", render: (item) => item.channel },
+          { key: "audience", header: "Audience", render: (item) => item.recipientCount.toLocaleString() },
           { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "recipients", header: "Recipients", render: (item) => item.recipientCount },
-          { key: "delivered", header: "Delivered", render: (item) => (item.status === "SENT" || item.status === "SENDING" ? <span className="text-[11px]">{item.deliveredCount} delivered · {item.failedCount} failed{item.queuedCount ? ` · ${item.queuedCount} waiting` : ""}</span> : "-") },
           {
             key: "actions",
             header: "Actions",
@@ -163,47 +164,37 @@ function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
         ]}
       />
 
-      <div className="flex flex-col gap-3.5">
-        <section className="surface-card p-5">
-          <p className="mb-3.5 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Recurring and scheduled</p>
-          <div className="grid gap-2.5">
-            {campaigns.filter((c) => c.status === "SCHEDULED").length === 0 ? (
-              <p className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">Nothing is scheduled. In New campaign, set Schedule for and, to make it recur, Repeat. Once approved, the platform sends it at that time by itself, and a recurring one lines up its next run.</p>
-            ) : (
-              campaigns.filter((c) => c.status === "SCHEDULED").map((c) => (
-                <div key={c.id} className="border-b border-[var(--color-border-muted)] pb-2.5 last:border-b-0 last:pb-0">
-                  <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{c.name}</p>
-                  <p className="text-[10.5px] text-[var(--color-text-muted)]">{c.scheduledAt ? formatDate(c.scheduledAt) : "—"} · {c.recurrence === "WEEKLY" ? "every week" : c.recurrence === "MONTHLY" ? "every month" : "once"}{c.approvedBy ? ` · approved by ${c.approvedBy}` : " · waiting for approval"}</p>
-                </div>
-              ))
-            )}
-          </div>
-          <p className="mt-3.5 text-[10px] leading-relaxed text-[var(--color-text-muted)]">Checked every minute. A scheduled campaign that has not been approved does not send.</p>
-        </section>
+      <ReferenceList
+        title="Recurring rules"
+        sub="Checked every minute. A scheduled campaign that has not been approved does not send."
+        emptyText="Nothing recurs. In New campaign, set Schedule for and Repeat to make a campaign recur; once approved, the platform sends it by itself and lines up the next run."
+        items={recurring.map((c) => ({
+          label: c.name,
+          detail: `${c.scheduledAt ? `Next ${formatDate(c.scheduledAt)}` : "No date set"} · ${c.recurrence === "WEEKLY" ? "every week" : "every month"}${c.approvedBy ? ` · approved by ${c.approvedBy}` : " · waiting for approval"}`,
+          tone: "teal" as const
+        }))}
+      />
 
-        <section className="rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
-          <p className="mb-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">Approval path</p>
-          <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">
-            Operational campaigns require a platform administrator to approve. Promotional campaigns need Super Admin or
-            Marketing Lead sign-off, from someone other than the person who wrote them, and are never sent to students
-            or to anyone who opted out. There is no third-party commercial campaign type in this build — a send to
-            parents on behalf of another organisation isn&apos;t possible in any form.
-          </p>
-        </section>
-      </div>
+      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
+        <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Approval path</h3>
+        <p className="mt-1 text-pretty text-[12.5px] leading-[1.6] text-[#435048]">
+          Operational campaigns require a platform administrator to approve. Promotional campaigns need Super Admin or Marketing Lead sign-off, from someone other than the person who wrote them, and are never sent to students or to anyone who opted out. There is no third-party commercial campaign type in this build — a send to parents on behalf of another organisation isn&apos;t possible in any form.
+        </p>
+      </section>
     </div>
   );
 }
 
-async function TemplatesTab() {
+async function TemplatesTab({ group, channel, status }: { group?: string; channel?: string; status?: string }) {
   const templates = (await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? [];
+  const shown = templates.filter((t) => (!group || t.category === group) && (!channel || t.channel === channel) && (!status || (status === "attention" ? t.approvalStatus === "REJECTED" || t.approvalStatus === "PENDING_META_APPROVAL" || t.approvalStatus === "PENDING_REVIEW" : t.approvalStatus === status)));
   const approved = templates.filter((t) => t.approvalStatus === "APPROVED").length;
   const awaitingMeta = templates.filter((t) => t.approvalStatus === "PENDING_META_APPROVAL").length;
   const rejected = templates.filter((t) => t.approvalStatus === "REJECTED").length;
   const awaitingReview = templates.filter((t) => t.approvalStatus === "PENDING_REVIEW").length;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Templates in the library" value={templates.length} detail="Across every channel and category" icon={MessageSquare} tone="dark" />
         <StatCard label="Approved and in use" value={approved} detail="Cleared to send" icon={BadgeCheck} tone="success" />
@@ -213,9 +204,22 @@ async function TemplatesTab() {
       </section>
 
       <TableCard
-      title="Message templates"
-      description="Reusable message bodies for Email, SMS, and WhatsApp. WhatsApp templates additionally require Meta approval before use. Only Super Admin can add or retire templates."
-      items={templates ?? []}
+      title="Template library"
+      description="Every automatic message on the platform is a template here, not text buried in code — so it can be rewritten without a deployment. Open one to read it, edit it, or see which triggers use it."
+      items={shown}
+      filterBar={
+        <FilterToolbar
+          action="/super-admin/communications"
+          hidden={{ tab: "templates" }}
+          resultCount={shown.length}
+          controls={[
+            { name: "tgroup", label: "Group", type: "select", defaultValue: group ?? "", options: [{ label: "All groups", value: "" }, ...templateCategoryOptions] },
+            { name: "tchannel", label: "Channel", type: "select", defaultValue: channel ?? "", options: [{ label: "Any channel", value: "" }, ...channelOptions] },
+            { name: "tstatus", label: "Status", type: "select", defaultValue: status ?? "", options: [{ label: "All statuses", value: "" }, { label: "Approved", value: "APPROVED" }, { label: "Needs attention", value: "attention" }] }
+          ]}
+        />
+      }
+      footnote="WhatsApp templates must be pre-approved by Meta before use. A rejected template carries Meta’s own reason, so the revision is not guesswork."
       actions={
         <ResourceActionDialog
           triggerLabel="New template"
@@ -235,13 +239,11 @@ async function TemplatesTab() {
       }
       emptyState="No message templates yet."
       columns={[
+        { key: "name", header: "Template", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11.5px] text-[#8C9A92]">{item.triggerKey ? `${TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey} · ` : ""}v{item.version ?? 1}</p></div> },
         { key: "category", header: "Group", render: (item) => item.category },
-        { key: "name", header: "Template", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
-        { key: "channel", header: "Channel", render: (item) => item.channel },
+        { key: "channel", header: "Channels", render: (item) => item.channel },
         { key: "approval", header: "Status", render: (item) => <StatusBadge status={item.approvalStatus} tone={item.approvalStatus === "APPROVED" ? "success" : item.approvalStatus === "REJECTED" ? "danger" : "warning"} /> },
-        { key: "trigger", header: "Trigger", render: (item) => (item.triggerKey ? <span className="text-[11.5px]">{TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey}</span> : <span className="text-[var(--color-text-muted)]">—</span>) },
-        { key: "version", header: "Version", render: (item) => `v${item.version ?? 1}` },
-        { key: "uses", header: "Uses", render: (item) => `${item.uses ?? 0} campaign${(item.uses ?? 0) === 1 ? "" : "s"}` },
+        { key: "uses", header: "Uses", render: (item) => item.uses ?? 0 },
         { key: "edited", header: "Edited", render: (item) => formatDate(item.updatedAt) },
         {
           key: "actions",
@@ -286,7 +288,7 @@ async function TemplatesTab() {
       ]}
     />
 
-    <section className="grid gap-5 lg:grid-cols-2">
+    <section className="grid items-start gap-[14px] lg:grid-cols-2">
       <ReferenceList
         title="What editing a template can and cannot do"
         sub="The library is deliberately narrow. It changes words, never who receives them."
@@ -342,76 +344,90 @@ const schoolRules: TriggerRule[] = [
   { event: "Welcome email at signup", recipient: "New account owner", channel: "Email", tier: "All tiers", template: null, when: "Once, at signup", enabled: true }
 ];
 
-async function TriggersTab({ scheduled, totalCampaigns, templates }: { scheduled: SuperAdminCampaignRow[]; totalCampaigns: number; templates: SuperAdminMessageTemplateRow[] }) {
+const GROUP_OF_PREFIX: Array<[RegExp, string]> = [
+  [/^trial\./, "Trial & conversion"],
+  [/^discount\./, "Billing & commission"],
+  [/^(dormant|address)\./, "Lifecycle & compliance"]
+];
+const GROUP_OF_SCHOOL_EVENT: Array<[RegExp, string]> = [
+  [/^(Invoice|Payment)/, "Billing & commission"],
+  [/^(Student|Admissions)/, "Academics & operations"],
+  [/^Welcome/, "Onboarding & provisioning"]
+];
+const GROUP_ORDER = ["Onboarding & provisioning", "Trial & conversion", "Billing & commission", "Academics & operations", "Lifecycle & compliance"];
+const GROUP_SUB = "Event → recipient → channel → tier → template → when. A notice with an approved template attached is worded from it; with none it uses the built-in wording.";
+
+async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplateRow[] }) {
   const policy = await apiGet<{ messaging: { disabledTriggers: string[] } }>("/api/super-admin/platform-policy");
   const disabled = new Set(policy.messaging.disabledTriggers ?? []);
-  const manualCount = totalCampaigns - scheduled.length;
   const attached = new Map(templates.filter((t) => t.triggerKey && t.approvalStatus === "APPROVED").map((t) => [t.triggerKey as string, t.name]));
-  const platformRules: TriggerRule[] = TRIGGERS.map((trigger) => ({ key: trigger.key, event: trigger.label, recipient: "School owner", channel: "Email + in-app", tier: "All tiers", template: attached.get(trigger.key) ?? null, when: triggerTiming[trigger.key] ?? "—", enabled: !disabled.has(trigger.key) }));
-  const groups = [
-    { editable: true, title: "Platform notices to schools", sub: "Event → recipient → channel → tier → template → when. A notice with an approved template attached is worded from it; with none it uses the built-in wording.", rules: platformRules },
-    { editable: false, title: "Messages the school sends its families", sub: "Fired by the school's own staff actions. Their wording is built in; they are not yet drawn from the template library.", rules: schoolRules }
-  ];
-  const all = groups.flatMap((g) => g.rules);
+  const platformRules = TRIGGERS.map((trigger) => ({
+    group: GROUP_OF_PREFIX.find(([re]) => re.test(trigger.key))?.[1] ?? "Lifecycle & compliance",
+    rule: { key: trigger.key, event: trigger.label, recipient: "School owner", channel: "Email + in-app", tier: "All tiers", template: attached.get(trigger.key) ?? null, when: triggerTiming[trigger.key] ?? "—", enabled: !disabled.has(trigger.key) } satisfies TriggerRule
+  }));
+  const familyRules = schoolRules.map((rule) => ({ group: GROUP_OF_SCHOOL_EVENT.find(([re]) => re.test(rule.event))?.[1] ?? "Academics & operations", rule }));
+  const grouped = GROUP_ORDER.map((title) => ({ title, rules: [...platformRules, ...familyRules].filter((entry) => entry.group === title).map((entry) => entry.rule) })).filter((group) => group.rules.length > 0);
+  const all = grouped.flatMap((g) => g.rules);
   const channels = new Set(all.flatMap((r) => r.channel.split(/,| \+ /).map((c) => c.trim()))).size;
   const recipients = new Set(all.map((r) => r.recipient)).size;
   const behind = new Set(all.filter((r) => r.template).map((r) => r.template)).size;
+  const withheld: TriggerRule[] = [{ event: "Third-party commercial offer to parents", recipient: "Parents", channel: "—", tier: "—", template: null, when: "Not permitted in version 1.0 in any form", enabled: false }];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Trigger rules defined" value={all.length} detail={`${groups.length} groups`} icon={Radio} tone="dark" />
-        <StatCard label="Enabled" value={all.filter((r) => r.enabled).length} detail={`${all.filter((r) => !r.enabled).length} switched off by hand`} icon={MessageSquare} tone="success" />
+        <StatCard label="Trigger rules defined" value={all.length} detail={`Across ${grouped.length} groups`} icon={Radio} tone="dark" />
+        <StatCard label="Enabled" value={all.filter((r) => r.enabled).length} detail={`${all.filter((r) => !r.enabled).length} disabled by hand · 1 withheld by policy`} icon={MessageSquare} tone="success" />
         <StatCard label="Channels in use" value={channels} detail="Email · SMS · In-app" icon={Users2} tone="info" />
         <StatCard label="Recipient roles" value={recipients} detail="Never a role that did not consent" icon={Clock3} tone="neutral" />
         <StatCard label="Templates behind them" value={behind} detail="Versioned · a sent message renders as sent" icon={ShieldOff} tone={behind ? "success" : "warning"} />
       </section>
 
-      {groups.map((group) => (
-        <TableCard
-          key={group.title}
-          title={group.title}
-          description={`${group.sub} · ${group.rules.length} rule${group.rules.length === 1 ? "" : "s"} · ${group.rules.filter((r) => r.enabled).length} enabled`}
-          items={group.rules}
-          getRowKey={(row) => row.event}
-          pageSize={false}
-          actions={
-            group.editable ? (
-              <div className="flex gap-2">
-                <ResourceActionDialog triggerLabel="Disable this group" title="Disable platform notices" description="Every notice in this group stops being sent to schools until it is switched back on. The school's state still changes — a trial still ends — only the message is held back. Say why." endpoint="/api/super-admin/platform-policy/triggers" method="POST" variant="secondary" submitLabel="Disable" confirmLabel="Confirm" confirmMessage="Schools will no longer be told about these events." fields={[
-                  { name: "keys", label: "Notices", type: "multiselect", options: group.rules.map((rule) => ({ label: rule.event, value: rule.key as string })) },
+      {grouped.map((group) => {
+        const editable = group.rules.filter((rule) => rule.key);
+        return (
+          <TableCard
+            key={group.title}
+            title={group.title}
+            description={`${GROUP_SUB} · ${group.rules.length} rule${group.rules.length === 1 ? "" : "s"} · ${group.rules.filter((r) => r.enabled).length} enabled`}
+            items={group.rules}
+            getRowKey={(row) => row.event}
+            pageSize={false}
+            actions={
+              editable.length ? (
+                <ResourceActionDialog triggerLabel="Disable this group" title={`Switch notices — ${group.title}`} description="Every notice picked here stops being sent to schools until it is switched back on. The school's state still changes — a trial still ends — only the message is held back. Say why." endpoint="/api/super-admin/platform-policy/triggers" method="POST" variant="secondary" submitLabel="Save" confirmLabel="Confirm" confirmMessage="Schools will no longer be told about these events." fields={[
+                  { name: "keys", label: "Notices", type: "multiselect", options: editable.map((rule) => ({ label: rule.event, value: rule.key as string })) },
                   { name: "enabled", label: "Switch", type: "select", defaultValue: "false", options: [{ label: "Off", value: "false" }, { label: "On", value: "true" }] },
                   { name: "reason", label: "Reason", type: "textarea", required: true }
                 ]} />
-              </div>
-            ) : (
-              <span className="text-[11px] text-[var(--color-text-muted)]">No controls — fired by the school’s own staff actions</span>
-            )
-          }
-          columns={[
-            { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
-            { key: "recipient", header: "Recipient", render: (row) => row.recipient },
-            { key: "channel", header: "Channel", render: (row) => row.channel },
-            { key: "tier", header: "Tier", render: (row) => row.tier },
-            { key: "template", header: "Template", render: (row) => (row.template ? <span className="font-[var(--font-mono)] text-[11px]">{row.template}</span> : <span className="text-[var(--color-text-muted)]">Built-in wording</span>) },
-            { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> },
-            { key: "state", header: "", sortable: false, render: (row) => <StatusPill bg={row.enabled ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.enabled ? "var(--color-success)" : "var(--color-warning)"} label={row.enabled ? "Enabled" : "Disabled"} /> }
-          ]}
-        />
-      ))}
+              ) : undefined
+            }
+            columns={[
+              { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
+              { key: "recipient", header: "Recipient", render: (row) => row.recipient },
+              { key: "channel", header: "Channel", render: (row) => row.channel },
+              { key: "tier", header: "Tier", render: (row) => row.tier },
+              { key: "template", header: "Template", render: (row) => (row.template ? <span className="text-[11.5px]">{row.template}</span> : <span className="text-[var(--color-text-muted)]">Built-in wording</span>) },
+              { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> },
+              { key: "state", header: "", sortable: false, render: (row) => <StatusPill bg={row.enabled ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.enabled ? "var(--color-success)" : "var(--color-warning)"} label={row.enabled ? "Enabled" : "Disabled"} /> }
+            ]}
+          />
+        );
+      })}
 
       <TableCard
-        title="Scheduled sends"
-        description={`Campaigns composed with a Schedule for time, instead of being sent manually. ${scheduled.length} of ${totalCampaigns} campaign(s) are scheduled (${manualCount} sent manually); ${scheduled.filter((c) => Boolean(c.sentAt)).length} already dispatched. Scheduling sets the campaign's intended send time — approval and dispatch (Send now, in Campaigns) still trigger the actual delivery once that time is reached.`}
-        items={scheduled}
-        emptyState="No campaign has a schedule time set. Add one from New campaign → Schedule for (optional) to see it here."
+        title="Withheld by policy"
+        description="One rule, shown so that the decision not to build it stays visible and auditable."
+        items={withheld}
+        getRowKey={(row) => row.event}
+        pageSize={false}
+        actions={<span className="text-[11.5px] text-[#8C9A92]">No controls — withheld by policy</span>}
         columns={[
-          { key: "name", header: "Campaign", render: (item) => item.name },
-          { key: "type", header: "Type", render: (item) => item.type },
-          { key: "channel", header: "Channel", render: (item) => item.channel },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "scheduledAt", header: "Scheduled for", render: (item) => (item.scheduledAt ? formatDate(item.scheduledAt) : "—") },
-          { key: "sentAt", header: "Dispatched", render: (item) => (item.sentAt ? formatDate(item.sentAt) : "Not yet sent") }
+          { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
+          { key: "recipient", header: "Recipient", render: (row) => row.recipient },
+          { key: "channel", header: "Channel", render: (row) => row.channel },
+          { key: "tier", header: "Tier", render: (row) => row.tier },
+          { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> }
         ]}
       />
     </div>
@@ -423,7 +439,7 @@ type Failures = { sent: number; failed: number; held: number; reasons: Array<{ r
 
 async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRow[]; focus?: string; status?: string }) {
   const failures = await apiGet<Failures>("/api/super-admin/communications/delivery-failures");
-  const current = sent.find((c) => c.id === focus) ?? sent[0];
+  const current = focus ? sent.find((c) => c.id === focus) : undefined;
   const lines = current ? ((await apiGet<DeliveryLine[]>(`/api/super-admin/communications/campaigns/${current.id}/deliveries${status ? `?status=${status}` : ""}`).catch(() => [])) ?? []) : [];
   const totalRecipients = sent.reduce((sum, c) => sum + c.recipientCount, 0);
   const totalDelivered = sent.reduce((sum, c) => sum + c.deliveredCount, 0);
@@ -436,7 +452,7 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
   const deliveryRate = settled > 0 ? Math.round((totalDelivered / settled) * 1000) / 10 : null;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Recipients targeted" value={totalRecipients.toLocaleString()} detail={`Across ${sent.length} sent campaign(s)`} icon={Radio} tone="dark" />
         <StatCard label="Delivered" value={totalDelivered.toLocaleString()} detail={deliveryRate === null ? "Nothing has been settled yet" : `${deliveryRate}% of the messages that have settled`} icon={BadgeCheck} tone="success" />
@@ -461,23 +477,17 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
           ]}
         />
 
-        <TableCard
+        <BarList
           title="Failure reasons"
-          description={`The carrier's own words, counted, across every message in the last 30 days. ${failures.sent.toLocaleString()} delivered · ${failures.failed.toLocaleString()} failed · ${failures.held.toLocaleString()} held.`}
-          items={failures.reasons}
-          emptyState="Nothing has failed in the last 30 days."
-          pageSize={false}
-          getRowKey={(row) => `${row.channel}:${row.reason}`}
-          columns={[
-            { key: "reason", header: "Reason", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.reason}</span> },
-            { key: "channel", header: "Channel", render: (row) => row.channel },
-            { key: "count", header: "Messages", render: (row) => <span className="font-bold">{row.count.toLocaleString()}</span> }
-          ]}
+          sub={`Invalid contact records can be fixed proactively — before a critical renewal or result period. ${failures.sent.toLocaleString()} delivered · ${failures.failed.toLocaleString()} failed · ${failures.held.toLocaleString()} held in the last 30 days.`}
+          empty="Nothing has failed in the last 30 days."
+          items={failures.reasons.map((row) => ({ label: `${row.reason} · ${row.channel}`, value: row.count.toLocaleString(), pct: (row.count / Math.max(1, ...failures.reasons.map((r) => r.count))) * 100, tone: "bad" as const }))}
         />
       </div>
 
+      {current ? (
       <TableCard
-        title={current ? `Delivery log · ${current.name}` : "Delivery log"}
+        title={`Delivery log · ${current.name}`}
         description="One line per recipient: where it went, what happened, and the carrier's reason when it did not arrive. Showing the first 500."
         items={lines}
         emptyState={current ? "No messages match." : "No campaign has been sent yet."}
@@ -492,11 +502,12 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
         columns={[
           { key: "recipient", header: "Recipient", render: (line) => <div><p className="font-semibold text-[var(--color-text-primary)]">{line.recipient}</p><p className="text-[10px] text-[var(--color-text-muted)]">{line.school}</p></div> },
           { key: "address", header: "Sent to", render: (line) => <span className="font-[var(--font-mono)] text-[11px]">{line.address ?? "—"}</span> },
-          { key: "status", header: "State", render: (line) => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={line.status === "SENT" ? { background: "var(--color-success-dim)", color: "var(--color-success)" } : line.status === "FAILED" ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" } : { background: "var(--color-warning-dim)", color: "var(--color-warning)" }}>{line.status === "SENT" ? "Delivered" : line.status === "FAILED" ? "Failed" : line.status === "HELD" ? "Held" : "Waiting"}</span> },
+          { key: "status", header: "State", render: (line) => <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={line.status === "SENT" ? { background: "var(--color-success-dim)", color: "var(--color-success)" } : line.status === "FAILED" ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" } : { background: "var(--color-warning-dim)", color: "var(--color-warning)" }}>{line.status === "SENT" ? "Delivered" : line.status === "FAILED" ? "Failed" : line.status === "HELD" ? "Held" : "Waiting"}</span> },
           { key: "detail", header: "Detail", render: (line) => <span className="text-[11px] text-[var(--color-text-muted)]">{line.error ?? (line.deliveredAt ? `${line.provider ?? "Carrier"} · ${new Date(line.deliveredAt).toLocaleString("en-GB")}` : line.attempts ? `${line.attempts} attempt${line.attempts === 1 ? "" : "s"} so far` : "—")}</span> }
         ]}
         footnote="A message waits when delivery is switched off, when quiet hours or a daily cap apply, or after a carrier outage; it fails when the carrier refuses it or after the allowed number of attempts."
       />
+      ) : null}
     </div>
   );
 }
@@ -532,71 +543,35 @@ async function ConsentTab() {
   ];
 
   return (
-    <div className="grid gap-5">
-      <div className="grid gap-3.5 lg:grid-cols-[1fr_1.4fr]">
-        <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
-          <p className="mb-4 text-[12.5px] font-semibold text-[#0D2315]">Promotional opt-in status</p>
-          {consentStats.map((stat) => (
-            <div key={stat.label} className="mb-4 last:mb-0">
-              <div className="mb-1.5 flex items-center justify-between">
-                <p className="text-[11.5px] text-[#435048]">{stat.label}</p>
-                <p className="font-[var(--font-display)] text-[11.5px] font-bold">{stat.value}</p>
-              </div>
-              <div className="h-2 overflow-hidden rounded-full bg-[#EDF3EF]">
-                <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${stat.pct}%` }} />
-              </div>
-              <p className="mt-1 text-[9.5px] text-[#8C9A92]">{stat.recordCount} recorded decision(s) for this role</p>
-            </div>
-          ))}
-          <div className="mt-4 border-t border-[#F2F7F4] pt-4">
-            <div className="mb-1.5 flex items-center justify-between">
-              <p className="text-[11.5px] text-[#435048]">Opted out (all-time)</p>
-              <p className="font-[var(--font-display)] text-[11.5px] font-bold">{optedOut}</p>
-            </div>
-          </div>
-        </section>
-
-        <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
-          <p className="text-[12.5px] font-semibold text-[#0D2315]">Consent rules enforced at system level</p>
-          <p className="mt-1 mb-3.5 text-[10.5px] text-[#8C9A92]">Verified against the real consent and campaign-send code, not stated as intent.</p>
-          {consentRules.map((rule) => (
-            <div key={rule} className="flex gap-2.5 border-b border-[#F2F7F4] py-2.5 last:border-0">
-              <div className="mt-0.5 flex h-[16px] w-[16px] shrink-0 items-center justify-center rounded-[5.5px] bg-[var(--color-accent-primary)]">
-                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12 5 5 9-10" /></svg>
-              </div>
-              <p className="text-[11.5px] leading-relaxed text-[#435048]">{rule}</p>
-            </div>
-          ))}
-        </section>
-      </div>
-
-      <section className="surface-card flex flex-col gap-4 p-6 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="section-eyebrow">Compliance</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Consent & opt-out registry</h2>
-          <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-            {(records ?? []).length} consent record(s) tracked · {optedOut} opted out. Promotional campaigns automatically
-            exclude opted-out recipients — this registry is also where a manually received opt-out (phone, email) is
-            recorded.
-          </p>
-        </div>
-        <ResourceActionDialog
-          triggerLabel="Record consent"
-          title="Record a consent decision"
-          description="Manually record an opt-in or opt-out for a user and channel — for example, a phone or email opt-out request."
-          endpoint="/api/super-admin/communications/consent"
-          submitLabel="Save"
-          fields={[
-            { name: "userId", label: "User", type: "select", required: true, options: userOptions },
-            { name: "channel", label: "Channel", type: "select", defaultValue: "EMAIL", options: channelOptions },
-            { name: "optedIn", label: "Opted in", type: "select", defaultValue: "false", options: yesNo }
+    <div className="grid gap-[14px]">
+      <div className="grid items-start gap-[14px] lg:grid-cols-[1fr_1.4fr]">
+        <BarList
+          title="Promotional opt-in status"
+          items={[
+            ...consentStats.map((stat) => ({ label: stat.label, value: stat.value, pct: stat.pct, tone: "teal" as const, note: `${stat.recordCount} recorded decision(s) for this role` })),
+            { label: "Opted out (all-time)", value: String(optedOut), pct: Math.min(100, optedOut), tone: "bad" as const }
           ]}
         />
-      </section>
+        <ReferenceList title="Consent rules enforced at system level" sub="Verified against the real consent and campaign-send code, not stated as intent." items={consentRules.map((rule) => ({ label: rule, tone: "good" as const }))} />
+      </div>
 
       <TableCard
         title="Consent records"
-        description="Most recently updated first."
+        description={`${(records ?? []).length} record(s) tracked · ${optedOut} opted out. Most recently updated first. A manually received opt-out (phone, email) is recorded here.`}
+        actions={
+          <ResourceActionDialog
+                    triggerLabel="Record consent"
+                    title="Record a consent decision"
+                    description="Manually record an opt-in or opt-out for a user and channel — for example, a phone or email opt-out request."
+                    endpoint="/api/super-admin/communications/consent"
+                    submitLabel="Save"
+                    fields={[
+                      { name: "userId", label: "User", type: "select", required: true, options: userOptions },
+                      { name: "channel", label: "Channel", type: "select", defaultValue: "EMAIL", options: channelOptions },
+                      { name: "optedIn", label: "Opted in", type: "select", defaultValue: "false", options: yesNo }
+                    ]}
+                  />
+        }
         items={records ?? []}
         emptyState="No consent records yet."
         columns={[
@@ -666,10 +641,10 @@ async function NoticesTab({ announcementTypes }: { announcementTypes: Array<{ la
   const data = await apiGet<CommunicationsView>("/api/super-admin/communications");
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="surface-card p-6">
         <p className="section-eyebrow">In-app notices</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Platform announcements & maintenance</h2>
+        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Platform announcements & maintenance</h2>
         <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
           Lightweight in-app notices shown inside every school portal — separate from full campaigns. Use these for
           platform-wide notices and scheduled maintenance windows.

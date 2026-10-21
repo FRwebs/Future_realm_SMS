@@ -17,7 +17,7 @@ const tones: Record<string, { bg: string; fg: string }> = {
   warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
   bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
 };
-const pill = (label: string, tone: keyof typeof tones) => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tones[tone].bg, color: tones[tone].fg }}>{label}</span>;
+const pill = (label: string, tone: keyof typeof tones) => <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tones[tone].bg, color: tones[tone].fg }}>{label}</span>;
 const titleCase = (value: string) => value.replaceAll("_", " ").toLowerCase().replace(/(^|\s)\S/g, (c) => c.toUpperCase());
 
 export default async function SuperAdminHelpPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
@@ -32,8 +32,8 @@ export default async function SuperAdminHelpPage({ searchParams }: { searchParam
   ];
 
   return (
-    <div className="grid gap-5">
-      <ModuleHero eyebrow="Overview" title="Help" description="Orientation for this console, where to route a question by subject, and the platform’s own health — read in plain words." />
+    <div className="grid gap-[14px]">
+      <ModuleHero eyebrow="HELP" title="Help" description="How to get unstuck, and who to ask when the answer is not written down." />
       <DetailTabs tabs={tabs} />
       {tab === "start" ? <GettingStartedTab /> : null}
       {tab === "ask" ? <GetHelpTab /> : null}
@@ -52,7 +52,7 @@ function GettingStartedTab() {
     { question: "Who can see a child’s record?", answer: "Nobody here. No Back Office endpoint returns individual student data." }
   ];
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <ReferenceList
         title="If you are new here"
         sub="Five things, in order. Read them once and most of this console explains itself."
@@ -65,7 +65,7 @@ function GettingStartedTab() {
         ]}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.2fr_1fr]">
         <TableCard
           title="The things people ask in their first week"
           description="Short answers. Docs has the long ones."
@@ -117,7 +117,7 @@ async function GetHelpTab() {
   });
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <TableCard
         title="Who to ask"
         description="By subject, so nobody has to guess. Every one of these people is on the team page with their full record."
@@ -133,7 +133,7 @@ async function GetHelpTab() {
         ]}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-[14px] lg:grid-cols-2">
         <ReferenceList
           title="Report a problem with this console"
           sub="Not a school’s problem — ours."
@@ -185,7 +185,7 @@ async function PlatformStatusTab() {
   ];
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Uptime, last 30 days" value={`${monitoring.uptime.apiUptime}%`} detail={`${monitoring.uptime.requestsLast24h.toLocaleString()} requests in the last 24 hours · target 99.5%`} tone="dark" icon={CheckCircle2} />
         <StatCard label="Open incidents" value={open} detail={lastResolved ? `Last resolved ${new Date(lastResolved).toLocaleDateString()}` : "None resolved yet"} icon={ShieldAlert} tone={open ? "danger" : "success"} />
@@ -194,7 +194,7 @@ async function PlatformStatusTab() {
         <StatCard label="Schools reporting a problem" value={schoolsWithProblem.size} detail={openTickets.length ? (unowned ? `${unowned} ticket${unowned === 1 ? "" : "s"} still unowned` : "All have an owned ticket") : "No open tickets"} icon={LifeBuoy} tone={unowned ? "warning" : "neutral"} />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.2fr_1fr]">
         <TableCard
           title="What is happening right now"
           description="The same figures Infrastructure reads, in plain words."

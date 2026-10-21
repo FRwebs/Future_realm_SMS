@@ -72,7 +72,7 @@ function RoleReview({ row }: { row: RoleBreakdownRow }) {
           ) : null}
 
           <div className="rounded-[11px] border p-4" style={{ background: "var(--color-warning-dim)", borderColor: "#F2E4C6" }}>
-            <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules the mockup describes — checked against the code</p>
+            <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-warning)]">Two rules this module enforces</p>
             <p className="text-[11px] leading-relaxed text-[var(--color-warning)]">
               &quot;A Department Lead can lower but never raise&quot; is enforced: a lead can change access only for members of their own department, only up to the
               ceiling the department carries, and never above what they hold themselves. A Super Admin is not limited by a ceiling. Also real: nobody, including Super Admin, holds an action that lets them read a child&apos;s record — that function was
@@ -99,7 +99,7 @@ export function PrivilegesByRoleTable({ items }: { items: RoleBreakdownRow[] }) 
           header: "Breadth",
           render: (row) => (
             <span
-              className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
+              className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
               style={row.breadth === "Full" ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" } : { background: "var(--color-success-dim)", color: "var(--color-success)" }}
             >
               {row.breadth}

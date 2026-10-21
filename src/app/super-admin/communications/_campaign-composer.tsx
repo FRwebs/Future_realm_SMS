@@ -166,7 +166,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
 
   return (
     <div className="grid gap-3.5 xl:grid-cols-[1fr_1.25fr_0.85fr]">
-      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
+      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
         <p className="mb-3.5 text-[12.5px] font-semibold text-[#0D2315]">Audience builder</p>
         <div className="mb-4 flex gap-1.5 rounded-[9px] bg-[#F2F7F4] p-1">
           {(["OPERATIONAL", "PROMOTIONAL"] as const).map((t) => (
@@ -200,7 +200,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
         </div>
       </section>
 
-      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
+      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
         <div className="mb-3.5 flex items-center justify-between">
           <p className="text-[12.5px] font-semibold text-[#0D2315]">Message composer</p>
           <p className="text-[10.5px] text-[#8C9A92]">Campaign name is internal — recipients never see it</p>
@@ -277,9 +277,9 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
       </section>
 
       <div className="flex flex-col gap-3.5">
-        <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
+        <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
           <p className="mb-3.5 text-[12.5px] font-semibold text-[#0D2315]">Live preview</p>
-          <div className="rounded-[12.5px] bg-[#F2F7F4] p-3.5">
+          <div className="rounded-[14px] bg-[#F2F7F4] p-3.5">
             <div className="mb-2.5 flex items-center gap-2">
               <div className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-[7px] bg-[#0D2315] font-[var(--font-display)] text-[9px] font-bold text-white">N</div>
               <div>
@@ -294,12 +294,12 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
           </div>
         </section>
 
-        <div className="rounded-[12.5px] p-4" style={approvalNote.style}>
+        <div className="rounded-[14px] p-4" style={approvalNote.style}>
           <p className="mb-1.5 text-[11.5px] font-semibold">{approvalNote.title}</p>
           <p className="text-[10.5px] leading-relaxed">{approvalNote.body}</p>
         </div>
 
-        <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
+        <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
           <p className="mb-2.5 text-[11.5px] font-semibold text-[#0D2315]">Channel rules</p>
           {channelRules.map((cr) => (
             <div key={cr.channel} className="border-b border-[#F2F7F4] py-2 last:border-0">

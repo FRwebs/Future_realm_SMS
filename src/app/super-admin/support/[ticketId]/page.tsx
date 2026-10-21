@@ -30,7 +30,7 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
   const agentOptions = (agentsEnvelope.data ?? []).map((agent) => ({ label: `${agent.name} (${agent.role.replaceAll("_", " ")})`, value: agent.id }));
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ViewTracker kind="TICKET" entityId={ticketId} label={`${ticket.ticketNo} · ${ticket.subject}`} href={`/super-admin/support/${ticketId}`} />
       <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
         <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
@@ -158,7 +158,7 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="section-eyebrow">Thread</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Conversation</h2>
+            <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Conversation</h2>
             <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Internal notes are only visible to the platform team.</p>
           </div>
           <ResourceActionDialog

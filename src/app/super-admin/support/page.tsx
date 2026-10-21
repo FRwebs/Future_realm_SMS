@@ -84,7 +84,7 @@ type Knowledge = {
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -122,17 +122,17 @@ export default async function SupportTicketsPage({ searchParams }: { searchParam
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Operations"
+        eyebrow="MODULE 06"
         title="Support"
         description="No school’s problem unseen, unowned or unmeasured."
         action={
           showCreateTicket ? (
             <ResourceActionDialog
               triggerLabel="New ticket"
-              title="New ticket"
-              description="Owned from the moment it is raised. The countdown runs in the school’s own working hours where its country has them, else in flat hours from now."
+              title="Support"
+              description="No school’s problem unseen, unowned or unmeasured."
               endpoint="/api/super-admin/support/tickets"
               variant="heroWhite"
               fields={[
@@ -171,7 +171,7 @@ async function TicketBoardTab({ board }: { board: Board }) {
     board.avgResolutionWeek !== null && board.avgResolutionLastWeek !== null ? `vs ${duration(board.avgResolutionLastWeek)} last week` : board.avgResolutionWeek === null ? "Nothing resolved this week yet" : "No resolutions the week before";
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="Open tickets" value={board.open} detail="Across all channels" icon={Inbox} tone="dark" />
         <StatCard label="Critical open" value={board.critical} detail="1 hour resolution target" icon={Activity} tone={board.critical ? "warning" : "neutral"} />
@@ -236,7 +236,7 @@ async function TicketBoardTab({ board }: { board: Board }) {
         ]}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1.15fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.15fr_1fr]">
         <TableCard
           title="Issue categories"
           description="Every ticket is categorised at triage — category and priority are both mandatory before a ticket can leave New."
@@ -305,7 +305,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
   const opened = k.openedPrev ? Math.round(((k.openedWeek - k.openedPrev) / k.openedPrev) * 100) : null;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="Ticket registry"
         description={`Default view: open tickets sorted by priority, then SLA deadline · ${board.open} open · ${levels.termVolume} in the last 120 days`}
@@ -356,7 +356,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
         ]}
       />
 
-      <div className="grid gap-5 xl:grid-cols-2">
+      <div className="grid items-start gap-[14px] xl:grid-cols-2">
         <BarList
           title="Issue categories this term"
           sub="Top recurring issues drive the knowledge base and the product roadmap"
@@ -389,7 +389,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
         <StatCard label="CSAT average" value={k.csat === null ? "—" : `${k.csat} / 5`} detail={k.csatResponses ? `From ${k.csatResponses} response${k.csatResponses === 1 ? "" : "s"} (30 days)` : "No responses in 30 days"} icon={MessageSquareText} tone="info" />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.2fr_1fr]">
         <TableCard
           title="Per-agent performance"
           description="Volume and CSAT visible to Support Lead and above · this week (CSAT over 30 days)"
@@ -428,7 +428,7 @@ async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrecti
   const open = records.filter((r) => r.status === "PENDING").length;
   const thisTerm = records.filter((r) => Date.now() - new Date(r.createdAt).getTime() < 120 * 86_400_000).length;
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <FlowSteps
         title="Data correction request workflow"
         sub="No correction is ever made without Super Admin approval and a logged audit entry — this process cannot be bypassed"
@@ -491,7 +491,7 @@ async function KnowledgeTab() {
   const lead = (value: string) => value.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase());
 
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
+    <div className="grid items-start gap-[14px] xl:grid-cols-2">
       <ReferenceList
         title="Canned responses"
         sub="Selected, personalised and sent — cutting response time on routine queries. Use {{school}} and {{ticket_no}} in the text and they are filled in when sent."
