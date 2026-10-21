@@ -12,6 +12,7 @@ import { ok } from "../student-records/records.shared";
 import { ScoreCorrectionsService } from "./corrections.service";
 import { ResultsService } from "./results.service";
 import { ReviewService } from "./review.service";
+import { SESSION_RULES, sessionRuleFor, sessionStandings } from "./session";
 import { SheetsService } from "./sheets.service";
 
 /**
@@ -29,6 +30,25 @@ export class ScoreResultsController {
     private readonly corrections: ScoreCorrectionsService,
     private readonly outputs: OutputsService
   ) {}
+
+  /* session standings */
+
+  @Get("session/:academicSessionId/:classId")
+  @RequirePermission("score-entry-results.review.view")
+  sessionStandings(
+    @CurrentSession() session: SessionPayload,
+    @Param("academicSessionId") academicSessionId: string,
+    @Param("classId") classId: string
+  ) {
+    return ok(sessionStandings(session.schoolId, academicSessionId, classId));
+  }
+
+  @Get("session-rule")
+  @RequirePermission("score-entry-results.review.view")
+  async sessionRule(@CurrentSession() session: SessionPayload) {
+    const current = await sessionRuleFor(session.schoolId);
+    return ok(Promise.resolve({ ...current, options: SESSION_RULES }));
+  }
 
   /* review */
 
