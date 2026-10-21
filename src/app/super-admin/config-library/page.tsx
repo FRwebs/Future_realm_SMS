@@ -317,7 +317,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           />
           <TableCard
             title="Version assignment in a transitioning school"
-            description="The copy each new school's setup took from the library. Per-class assignment is not built — the unit is the school."
+            description="The copy each new school's setup took from the library. This is the school's own adoption; a class that needs a different version is pinned to one above, and its pin outranks this."
             items={data.adoptions}
             getRowKey={(row) => row.id}
             columns={[
