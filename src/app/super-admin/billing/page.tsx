@@ -207,61 +207,40 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
         action={
           <ResourceActionDialog
             triggerLabel="Create invoice run"
-            title="Subscriptions & Billing"
-            description="The commercial relationship, and the line between invoiced and received."
+            title="Create invoice run"
+            description="Raises drafts for a term. Nothing is sent until each invoice is issued."
             endpoint="/api/super-admin/billing/invoices/run"
             method="POST"
             variant="heroWhite"
-            submitLabel="Create invoice run"
+            submitLabel="Create draft run"
             confirmLabel="Confirm"
             confirmMessage="This drafts a real invoice for every matching school. Nothing is sent to a school yet — drafts still need to be reviewed and sent individually."
+            note="Each draft is priced from the school’s own current plan, in the school’s own currency."
+            impact={{
+              label: "This run will produce",
+              rows: [
+                ["One draft per school", "Every active school in scope, priced from its own plan — a school with no active price is skipped and named in the result"],
+                ["Nothing is sent", "Each draft is reviewed and issued one at a time from the Invoices tab"],
+                ["Commission liability", "Accrues only as payments reconcile, never on issue"]
+              ]
+            }}
             fields={[
+              { name: "term", label: "Term", type: "static", placeholder: termLabel ?? "The current term", section: "Period and scope" },
               {
                 name: "schoolIds",
                 label: "Scope",
                 type: "multiselect",
                 section: "Period and scope",
-                note: "Leave nothing selected to target every eligible active school.",
+                note: "Leave nothing chosen to target every eligible active school.",
                 options: schoolsForRecommendations
                   .filter((school) => school.status === "ACTIVE" || school.status === "GRACE_PERIOD" || school.status === "TRIAL")
                   .map((school) => ({ label: school.name, value: school.id }))
               },
-              { name: "dueAt", label: "Due date (blank = the platform terms)", type: "date", section: "Period and scope" },
+              { name: "dueAt", label: "Payment due date", type: "date", section: "Period and scope", note: "Blank uses the platform’s invoice terms" },
               { name: "note", label: "Note (shown only on the invoice record)", type: "text", section: "Period and scope" },
-              {
-                name: "excludeTrial",
-                label: "Schools in a trial",
-                type: "select",
-                section: "Exclusions",
-                defaultValue: "false",
-                options: [
-                  { label: "Include", value: "false" },
-                  { label: "Exclude", value: "true" }
-                ]
-              },
-              {
-                name: "excludeGracePeriod",
-                label: "Schools in grace period",
-                type: "select",
-                section: "Exclusions",
-                defaultValue: "false",
-                options: [
-                  { label: "Include", value: "false" },
-                  { label: "Exclude", value: "true" }
-                ]
-              },
-              {
-                name: "excludeUnverified",
-                label: "Unverified schools",
-                type: "select",
-                section: "Exclusions",
-                defaultValue: "false",
-                note: "Excludes any school whose registration has not been verified yet.",
-                options: [
-                  { label: "Include", value: "false" },
-                  { label: "Exclude", value: "true" }
-                ]
-              }
+              { name: "excludeTrial", label: "Schools in a trial", type: "switch", on: true, note: "No invoice until conversion", section: "Exclusions" },
+              { name: "excludeGracePeriod", label: "Schools in grace period", type: "switch", on: true, note: "Chased on the existing invoice instead", section: "Exclusions" },
+              { name: "excludeUnverified", label: "Schools not yet verified", type: "switch", on: false, note: "Their registration has not been checked in Reviews & Cases", section: "Exclusions" }
             ]}
           />
         }
@@ -469,16 +448,18 @@ async function InvoicesTab({
         <ResourceActionDialog
           triggerLabel="Draft invoice"
           title="Draft a new invoice"
-          description="Create a draft invoice for a school. It will not be sent until you review and send it."
+          description="Create a draft invoice for a school. It is not visible to the school until it is reviewed and sent."
           endpoint="/api/super-admin/billing/invoices"
           method="POST"
           submitLabel="Create draft"
+          note="A draft can be edited or cancelled freely; once sent, it can only be cancelled with a reason."
+          impact={{ label: "On saving", rows: [["A draft invoice", "Numbered, in the school’s own currency, and not yet sent to anyone"], ["The school sees nothing", "Until you send it from the Invoices list"]] }}
           fields={[
-            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-            { name: "amount", label: "Amount (NGN)", type: "number", required: true },
-            { name: "taxAmount", label: "Tax amount (NGN)", type: "number", defaultValue: 0 },
-            { name: "dueAt", label: "Due date (blank = the platform terms)", type: "date" },
-            { name: "note", label: "Internal note", type: "textarea" }
+            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions, section: "Who is being billed" },
+            { name: "amount", label: "Amount (₦)", type: "number", required: true, section: "The amount" },
+            { name: "taxAmount", label: "Tax (₦)", type: "number", defaultValue: 0, section: "The amount" },
+            { name: "dueAt", label: "Due date", type: "date", section: "The amount", note: "Blank uses the platform’s invoice terms" },
+            { name: "note", label: "Internal note", type: "textarea", section: "Note", note: "Shown only on the invoice record, never to the school" }
           ]}
         />
       }
@@ -497,31 +478,70 @@ async function InvoicesTab({
               {item.status === "DRAFT" ? (
                 <ResourceActionDialog
                   triggerLabel="Send to school"
-                  title={`Send invoice ${item.invoiceNo}`}
-                  description="Deliver this invoice to the school's owner email."
+                  title="Send this invoice to the school"
+                  description="The invoice already exists. This is the act of putting it in front of the people who pay it."
                   endpoint={`/api/super-admin/billing/invoices/${item.id}/send`}
                   method="PATCH"
                   variant="menu"
                   submitLabel="Send invoice"
-                  confirmLabel="Confirm"
-                  confirmMessage="This delivers the invoice to the school."
-                  fields={[]}
+                  note="A draft becomes issued the moment it is sent — this cannot be undone."
+                  fields={[
+                    { name: "invoice", label: "Invoice", type: "static", placeholder: `${item.invoiceNo} · ${item.schoolName}`, section: "What is being sent" },
+                    { name: "amount", label: "Amount", type: "static", placeholder: formatCurrency(item.totalAmount), section: "What is being sent" },
+                    { name: "due", label: "Due", type: "static", placeholder: formatDate(item.dueAt), section: "What is being sent" },
+                    { name: "channel", label: "Goes to", type: "static", placeholder: "The school owner’s email", section: "Who receives it" }
+                  ]}
+                />
+              ) : null}
+              {item.status !== "VOID" && item.status !== "PAID" && item.status !== "DRAFT" ? (
+                <ResourceActionDialog
+                  triggerLabel="Send a reminder"
+                  title="Send a payment reminder"
+                  description="A reminder outside the automatic sequence, because someone decided this school needs it now."
+                  endpoint="/api/super-admin/billing-extras/invoices/remind"
+                  method="POST"
+                  variant="menu"
+                  submitLabel="Send reminder"
+                  note="Reminders are administrative, not commercial, so they go out regardless of marketing consent."
+                  impact={{ label: "What happens", rows: [["The school is reminded", "By email to the owner and in-app to its owner and bursar"], ["The chase is on record", "The invoice’s history says who sent it, so nobody chases twice"]] }}
+                  fields={[
+                    { name: "invoiceIds", label: "Invoice", type: "select", parse: "csv", defaultValue: item.id, options: [{ label: `${item.invoiceNo} · ${item.schoolName}`, value: item.id }], section: "Which invoice" },
+                    { name: "outstanding", label: "Outstanding", type: "static", placeholder: formatCurrency(item.totalAmount - item.amountPaid), section: "Which invoice" },
+                    { name: "dueDate", label: "Due", type: "static", placeholder: formatDate(item.dueAt), section: "Which invoice" }
+                  ]}
                 />
               ) : null}
               {item.status !== "VOID" && item.status !== "PAID" ? (
                 <ResourceActionDialog
                   triggerLabel="Record payment"
-                  title={`Record payment for ${item.invoiceNo}`}
-                  description="Manually record a payment received via transfer, POS, or cash."
+                  title="Record a payment"
+                  description="A transfer has landed. This is the act of tying it to an invoice, a school and a person."
                   endpoint={`/api/super-admin/billing/invoices/${item.id}/payments`}
                   method="POST"
                   variant="menu"
                   submitLabel="Record payment"
+                  note="You record it. Someone else reconciles it against the bank statement — the same person cannot do both."
+                  impact={{
+                    label: "What this produces",
+                    rows: [
+                      ["A payment awaiting reconciliation", "A second person matches it to the bank statement before it reads Reconciled"],
+                      ["Invoice status", "Moves to Paid when the amounts recorded cover the total, otherwise to Partially Paid"],
+                      ["The account", "A school that was suspended or in grace period is reactivated once the invoice is paid in full"]
+                    ]
+                  }}
                   fields={[
-                    { name: "amount", label: "Amount received (NGN)", type: "number", required: true },
-                    { name: "method", label: "Method", type: "select", options: [{ label: "Bank Transfer", value: "BANK_TRANSFER" }, { label: "POS", value: "POS" }, { label: "Cash", value: "CASH" }] },
-                    { name: "reference", label: "Bank reference / receipt no.", required: true },
-                    { name: "paidOn", label: "Payment date", type: "date" }
+                    { name: "school", label: "School", type: "static", placeholder: item.schoolName, section: "Which school, which invoice" },
+                    { name: "invoice", label: "Invoice", type: "static", placeholder: `${item.invoiceNo} · ${formatCurrency(item.totalAmount)}`, section: "Which school, which invoice" },
+                    { name: "total", label: "Invoice total", type: "static", placeholder: formatCurrency(item.totalAmount), section: "Which school, which invoice" },
+                    { name: "paid", label: "Already paid", type: "static", placeholder: formatCurrency(item.amountPaid), section: "Which school, which invoice" },
+                    { name: "payerName", label: "Name of the person who paid", required: true, placeholder: "e.g. Mrs. Ifeoma Nwachukwu", section: "Who paid it" },
+                    { name: "payerRole", label: "Their role at the school", placeholder: "e.g. Bursar", section: "Who paid it" },
+                    { name: "onBehalfOf", label: "Paying on behalf of", placeholder: "Leave blank if the school itself", section: "Who paid it", note: "An NGO or partner sometimes pays for a school — say so here" },
+                    { name: "receiptEmail", label: "Contact for the receipt", type: "email", section: "Who paid it" },
+                    { name: "amount", label: "Amount received (₦)", type: "number", required: true, defaultValue: Math.max(0, item.totalAmount - item.amountPaid), section: "The money" },
+                    { name: "paidOn", label: "Date received", type: "date", section: "The money" },
+                    { name: "method", label: "Method", type: "select", options: [{ label: "Bank transfer", value: "BANK_TRANSFER" }, { label: "POS", value: "POS" }, { label: "Cash", value: "CASH" }], section: "The money" },
+                    { name: "reference", label: "Bank reference / receipt no.", required: true, section: "The money", note: "Required — it is what ties the money to this invoice" }
                   ]}
                 />
               ) : null}
@@ -529,14 +549,15 @@ async function InvoicesTab({
                 <ResourceActionDialog
                   triggerLabel="Cancel invoice"
                   title={`Cancel invoice ${item.invoiceNo}`}
-                  description="Void this invoice with a logged reason."
+                  description="Void this invoice. The reason is kept with it permanently."
+                  note="A cancelled invoice can no longer be paid or chased."
                   endpoint={`/api/super-admin/billing/invoices/${item.id}/cancel`}
                   method="PATCH"
                   variant="menuDanger"
                   submitLabel="Cancel invoice"
                   confirmLabel="Confirm"
                   confirmMessage="This voids the invoice permanently."
-                  fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
+                  fields={[{ name: "reason", label: "Why it is being cancelled", type: "textarea", required: true, section: "Reason" }]}
                 />
               ) : null}
             </ActionMenu>
@@ -849,14 +870,23 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   const k = view.kpis;
   const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
   const pill = (text: string, tone: string) => <StatusPill bg={(walletTone[tone] ?? walletTone.mute).bg} fg={(walletTone[tone] ?? walletTone.mute).fg} label={text} />;
-  const byHandFields = (schoolId?: string) => [
-    schoolId
-      ? { name: "schoolId", label: "School", type: "select" as const, defaultValue: schoolId, options: schoolOptions.filter((option) => option.value === schoolId) }
-      : { name: "schoolId", label: "School", type: "select" as const, options: schoolOptions },
-    { name: "channel", label: "Channel", type: "select" as const, defaultValue: "SMS", options: [{ label: "SMS", value: "SMS" }, { label: "WhatsApp", value: "WHATSAPP" }] },
-    { name: "credits", label: "Credits to add", type: "number" as const, defaultValue: 1000, min: 1, max: 500000 },
-    { name: "reason", label: "Reason (goes in the register)", type: "textarea" as const, placeholder: "e.g. Automatic top-up failed three times; the school has confirmed payment by transfer" }
+  const byHandFields = (row?: WalletsView["rows"][number]) => [
+    row
+      ? { name: "schoolId", label: "School", type: "select" as const, defaultValue: row.schoolId, options: schoolOptions.filter((option) => option.value === row.schoolId), section: "Which school, and which channel" }
+      : { name: "schoolId", label: "School", type: "select" as const, options: schoolOptions, section: "Which school, and which channel" },
+    { name: "channel", label: "Channel", type: "select" as const, defaultValue: "SMS", options: [{ label: "SMS credits", value: "SMS" }, { label: "WhatsApp credits", value: "WHATSAPP" }], section: "Which school, and which channel" },
+    ...(row
+      ? [
+          { name: "balance", label: "Balance now", type: "static" as const, placeholder: `${row.sms.toLocaleString("en-NG")} SMS · ${row.whatsapp.toLocaleString("en-NG")} WhatsApp`, section: "Which school, and which channel" },
+          { name: "burn", label: "Spend, last 30 days", type: "static" as const, placeholder: `${row.burn30.toLocaleString("en-NG")} SMS credits · floor ${row.floor.toLocaleString("en-NG")}`, section: "Which school, and which channel" }
+        ]
+      : []),
+    { name: "credits", label: "Credits to add", type: "number" as const, defaultValue: 1000, min: 1, max: 500000, section: "How much", note: "Matching what the failed automatic charge would have bought is the usual choice" },
+    { name: "reason", label: "Why it is being added", type: "textarea" as const, required: true, placeholder: "e.g. Automatic charge failed three times; the school has confirmed payment by transfer", section: "Why it is being added", note: "Goes in the register beside your name" },
+    { name: "tellSchool", label: "Tell the school the credit was added", type: "switch" as const, on: true, note: "In-app to its owner and by email, with the amount and the reason", section: "Alongside the credit" }
   ];
+  const byHandNote = "A credit added by hand is a stopgap. It keeps messages flowing today; it does not fix the payment method that failed.";
+  const byHandImpact = { label: "On saving", rows: [["Credit is available immediately", "Anything held for this school sends at the next delivery run"], ["Written to the wallet register", "Shown as “Added by hand” against your name, with your reason"]] as Array<[string, string]> };
 
   return (
     <div className="grid gap-[14px]">
@@ -877,12 +907,14 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
         actions={
           <ResourceActionDialog
             triggerLabel="Add balance by hand"
-            title="Add balance by hand"
-            description="Credit a school's wallet directly. Every one is written to the register with who added it and why."
+            title="Add wallet balance by hand"
+            description="For a school whose automatic charge failed. Credit goes on now; the payment method is fixed separately."
+            note={byHandNote}
+            impact={byHandImpact}
             endpoint="/api/super-admin/billing-extras/wallets/top-up"
             method="POST"
             variant="primary"
-            submitLabel="Add credit"
+            submitLabel="Add the credit"
             fields={byHandFields()}
           />
         }
@@ -902,13 +934,15 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
               <div className="flex items-center gap-3">
                 <ResourceActionDialog
                   triggerLabel="Add balance"
-                  title={`Add balance by hand — ${item.school}`}
-                  description={`${item.school} spent ${item.burn30.toLocaleString("en-NG")} SMS credits in the last 30 days. Its floor is ${item.floor.toLocaleString("en-NG")}.`}
+                  title="Add wallet balance by hand"
+                  description={`${item.school}: for when the automatic charge failed. Credit goes on now; the payment method is fixed separately.`}
+                  note={byHandNote}
+                  impact={byHandImpact}
                   endpoint="/api/super-admin/billing-extras/wallets/top-up"
                   method="POST"
                   variant="textAction"
-                  submitLabel="Add credit"
-                  fields={byHandFields(item.schoolId)}
+                  submitLabel="Add the credit"
+                  fields={byHandFields(item)}
                 />
                 <Link href={`/super-admin/schools/${item.schoolId}` as Route} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Open</Link>
               </div>

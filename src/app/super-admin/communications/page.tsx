@@ -223,17 +223,21 @@ async function TemplatesTab({ group, channel, status }: { group?: string; channe
       actions={
         <ResourceActionDialog
           triggerLabel="New template"
-          title="Create a message template"
-          description="Use {{placeholders}} for variable fields like school name or amount due."
+          title="New message template"
+          description="Words the platform will send on our behalf, thousands of times, without anyone reading them again."
           endpoint="/api/super-admin/communications/templates"
-          submitLabel="Create template"
+          submitLabel="Save as draft"
+          note="A draft cannot be attached to a trigger until a second person has approved it and — for WhatsApp — Meta has cleared it."
+          impact={{ label: "On saving", rows: [["Saved as a draft", "Not sendable, not attached, and not visible to any school"], ["Sent for review", "A platform administrator other than you approves or rejects the wording"], ["Once approved", "It is available to triggers and campaigns, and the version counter starts at v1"]] }}
           fields={[
-            { name: "name", label: "Template name", required: true },
-            { name: "channel", label: "Channel", type: "select", defaultValue: "WHATSAPP", options: channelOptions },
-            { name: "category", label: "Category", type: "select", defaultValue: "OPERATIONAL", options: templateCategoryOptions },
-            { name: "body", label: "Body", type: "textarea", required: true },
-            { name: "triggerKey", label: "Attach to a platform trigger", type: "select", defaultValue: "", options: [{ label: "None — used by campaigns only", value: "" }, ...TRIGGERS.map((t) => ({ label: `${t.label} — {{${t.vars.join("}}, {{")}}}`, value: t.key }))], note: "Email only. Once approved, the platform's own notice for that moment is worded from this template instead of the built-in text." },
-            { name: "metaTemplateId", label: "Meta template ID (WhatsApp)" }
+            { name: "name", label: "Template name", required: true, section: "Name and group" },
+            { name: "category", label: "Group", type: "select", defaultValue: "OPERATIONAL", options: templateCategoryOptions, section: "Name and group" },
+            { name: "channel", label: "Send on", type: "select", defaultValue: "EMAIL", options: channelOptions, note: "Email has no length limit and needs no pre-approval; WhatsApp needs Meta’s approval first", section: "Send on" },
+            { name: "wa", label: "A WhatsApp template cannot be sent until Meta approves it", type: "locked", note: "Submitted from the template’s menu; the state comes back on the record", section: "Constraints the channels impose" },
+            { name: "consent", label: "Marketing consent is checked per recipient at send time", type: "locked", note: "A promotional template simply does not go to anyone who opted out", section: "Constraints the channels impose" },
+            { name: "body", label: "Body", type: "textarea", required: true, note: "Use {{placeholders}} for fields such as school name or amount due", section: "The message" },
+            { name: "triggerKey", label: "Attach to a platform trigger", type: "select", defaultValue: "", options: [{ label: "None — used by campaigns only", value: "" }, ...TRIGGERS.map((t) => ({ label: `${t.label} — {{${t.vars.join("}}, {{")}}}`, value: t.key }))], note: "Email only. Once approved, the platform’s own notice for that moment is worded from this template instead of the built-in text", section: "Route it" },
+            { name: "metaTemplateId", label: "Meta template ID", note: "WhatsApp only — once Meta has issued one", section: "Route it" }
           ]}
         />
       }
@@ -252,18 +256,22 @@ async function TemplatesTab({ group, channel, status }: { group?: string; channe
             <ActionMenu triggerLabel={`Actions for ${item.name}`}>
             <ResourceActionDialog
               triggerLabel="Edit (makes a new version)"
-              title={`Edit — ${item.name}`}
-              description="The wording that already went out stays exactly as it was. Saving creates version ${(item.version ?? 1) + 1}, which waits for a second person to approve it before it can be used."
+              title="Edit template"
+              description="Rewriting the words. It changes what every future recipient reads — not who receives it."
+              note="The previous version is kept and remains readable. A message already sent is never retrospectively altered."
+              impact={{ label: "On saving", rows: [[`Becomes v${(item.version ?? 1) + 1}`, `v${item.version ?? 1} stays readable, and any message already sent under it is unchanged`], ["Waits for a second person", "The new version cannot be used until somebody other than you approves it"], ["Takes effect", "On the next send — nothing already queued is rewritten"]] }}
               endpoint={`/api/super-admin/communications/templates/${item.id}`}
               method="PATCH"
               variant="secondary"
               submitLabel="Save as a new version"
               fields={[
-                { name: "name", label: "Template name", defaultValue: item.name },
-                { name: "body", label: "Body", type: "textarea", defaultValue: item.body },
-                { name: "channel", label: "Channel", type: "select", defaultValue: item.channel, options: channelOptions },
-                { name: "category", label: "Category", type: "select", defaultValue: item.category, options: templateCategoryOptions },
-                { name: "triggerKey", label: "Attach to a platform trigger", type: "select", defaultValue: item.triggerKey ?? "", options: [{ label: "None — used by campaigns only", value: "" }, ...TRIGGERS.map((t) => ({ label: `${t.label} — {{${t.vars.join("}}, {{")}}}`, value: t.key }))] }
+                { name: "current", label: "Current version", type: "static", placeholder: `v${item.version ?? 1} · last edited ${formatDate(item.updatedAt)}`, section: "What you are editing" },
+                { name: "uses", label: "Used by", type: "static", placeholder: `${item.uses ?? 0} campaign${(item.uses ?? 0) === 1 ? "" : "s"}${item.triggerKey ? ` · attached to ${TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey}` : ""}`, section: "What you are editing" },
+                { name: "name", label: "Template name", defaultValue: item.name, section: "The words" },
+                { name: "body", label: "Body", type: "textarea", defaultValue: item.body, section: "The words" },
+                { name: "channel", label: "Send on", type: "select", defaultValue: item.channel, options: channelOptions, section: "Channels and routing" },
+                { name: "category", label: "Group", type: "select", defaultValue: item.category, options: templateCategoryOptions, section: "Channels and routing" },
+                { name: "triggerKey", label: "Attach to a platform trigger", type: "select", defaultValue: item.triggerKey ?? "", options: [{ label: "None — used by campaigns only", value: "" }, ...TRIGGERS.map((t) => ({ label: `${t.label} — {{${t.vars.join("}}, {{")}}}`, value: t.key }))], section: "Channels and routing" }
               ]}
             />
             {item.channel === "WHATSAPP" && item.approvalStatus !== "APPROVED" ? (
@@ -317,7 +325,8 @@ async function TemplatesTab({ group, channel, status }: { group?: string; channe
   );
 }
 
-type TriggerRule = { key?: string; event: string; recipient: string; channel: string; tier: string; template: string | null; when: string; enabled: boolean };
+type CustomRule = { id: string; group: string; event: string; condition: string; plan: string | null; recipients: string[]; channels: string[]; template: string | null; sendHour: number; enabled: boolean; fires: number; lastFiredAt: string | null };
+type TriggerRule = { key?: string; ruleId?: string; event: string; recipient: string; channel: string; tier: string; template: string | null; when: string; enabled: boolean };
 
 const triggerTiming: Record<string, string> = {
   "trial.ending": "Days before the trial ends, as set in Settings",
@@ -361,12 +370,46 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
   const policy = await apiGet<{ messaging: { disabledTriggers: string[] } }>("/api/super-admin/platform-policy");
   const disabled = new Set(policy.messaging.disabledTriggers ?? []);
   const attached = new Map(templates.filter((t) => t.triggerKey && t.approvalStatus === "APPROVED").map((t) => [t.triggerKey as string, t.name]));
-  const platformRules = TRIGGERS.map((trigger) => ({
+  const platformRules: Array<{ group: string; rule: TriggerRule }> = TRIGGERS.map((trigger) => ({
     group: GROUP_OF_PREFIX.find(([re]) => re.test(trigger.key))?.[1] ?? "Lifecycle & compliance",
     rule: { key: trigger.key, event: trigger.label, recipient: "School owner", channel: "Email + in-app", tier: "All tiers", template: attached.get(trigger.key) ?? null, when: triggerTiming[trigger.key] ?? "—", enabled: !disabled.has(trigger.key) } satisfies TriggerRule
   }));
-  const familyRules = schoolRules.map((rule) => ({ group: GROUP_OF_SCHOOL_EVENT.find(([re]) => re.test(rule.event))?.[1] ?? "Academics & operations", rule }));
-  const grouped = GROUP_ORDER.map((title) => ({ title, rules: [...platformRules, ...familyRules].filter((entry) => entry.group === title).map((entry) => entry.rule) })).filter((group) => group.rules.length > 0);
+  const familyRules: Array<{ group: string; rule: TriggerRule }> = schoolRules.map((rule) => ({ group: GROUP_OF_SCHOOL_EVENT.find(([re]) => re.test(rule.event))?.[1] ?? "Academics & operations", rule }));
+  const custom = (await apiGet<CustomRule[]>("/api/super-admin/communications/trigger-rules").catch(() => [] as CustomRule[])) ?? [];
+  const customEntries: Array<{ group: string; rule: TriggerRule }> = custom.map((rule) => ({
+    group: rule.group,
+    rule: { ruleId: rule.id, event: `${rule.event} · ${rule.condition}`, recipient: rule.recipients.map((value) => (value === "OWNER" ? "School owner" : value === "BURSAR" ? "Bursar" : "Account manager")).join(" + "), channel: rule.channels.map((value) => (value === "EMAIL" ? "Email" : "In-app")).join(" + "), tier: rule.plan ? rule.plan.charAt(0) + rule.plan.slice(1).toLowerCase() : "All tiers", template: rule.template, when: `From ${String(rule.sendHour).padStart(2, "0")}:00 · once per ${rule.event.toLowerCase().includes("invoice") ? "invoice" : "school"}${rule.fires ? ` · fired ${rule.fires}×` : ""}`, enabled: rule.enabled } satisfies TriggerRule
+  }));
+  const templateChoices = [{ label: "Built-in wording", value: "" }, ...templates.filter((template) => template.channel === "EMAIL" && template.approvalStatus === "APPROVED").map((template) => ({ label: template.name, value: template.id }))];
+  const addRule = (
+    <ResourceActionDialog
+      triggerLabel="Add a rule"
+      title="Add a trigger rule"
+      description="An event, a recipient, a channel, a template and a time. Five things — no more, and none optional."
+      endpoint="/api/super-admin/communications/trigger-rules"
+      method="POST"
+      variant="secondary"
+      submitLabel="Create rule"
+      note="A rule is created disabled. Nothing goes out until someone deliberately enables it."
+      impact={{ label: "What happens next", rows: [["The rule is created, disabled", "Visible in its group with a disabled state"], ["Test fire", "Shows the exact message, recipient and school for what it would act on today, without sending anything"], ["Enabling it", "Is its own act, written to the audit log; from then on it fires once per invoice or school"]] }}
+      fields={[
+        { name: "event", label: "Event", type: "select", defaultValue: "INVOICE_OVERDUE", options: [{ label: "Invoice became overdue", value: "INVOICE_OVERDUE" }, { label: "Invoice is about to fall due", value: "INVOICE_DUE_SOON" }, { label: "School has gone quiet (nobody signed in)", value: "SCHOOL_INACTIVE" }], section: "The event" },
+        { name: "days", label: "Condition — number of days", type: "number", required: true, defaultValue: 7, min: 0, max: 730, note: "Days past due, days before due, or days without a sign-in, depending on the event", section: "The event" },
+        { name: "plan", label: "Tier", type: "select", defaultValue: "", options: [{ label: "All tiers", value: "" }, { label: "Starter", value: "BASIC" }, { label: "Standard", value: "STANDARD" }, { label: "Premium", value: "PROFESSIONAL" }, { label: "Elite", value: "ENTERPRISE" }, { label: "NGO / Mission", value: "CUSTOM" }], section: "The event" },
+        { name: "ownerRecipient", label: "School owner", type: "switch", on: true, note: "The proprietor, owner or principal", section: "Who hears about it" },
+        { name: "bursarRecipient", label: "Bursar", type: "switch", on: false, note: "Every active bursar at the school", section: "Who hears about it" },
+        { name: "managerRecipient", label: "Account manager", type: "switch", on: false, note: "The platform person who owns the school — by email", section: "Who hears about it" },
+        { name: "never", label: "Never sent to guardians or students", type: "locked", note: "A school’s billing and sign-ins are not their business", section: "Who hears about it" },
+        { name: "templateId", label: "Template", type: "select", defaultValue: "", options: templateChoices, note: "Only approved email templates are offered. Fields available: {{school}}, {{invoice_no}}, {{amount}}, {{due_date}}, {{days}}", section: "What is sent, and when" },
+        { name: "emailChannel", label: "Email", type: "switch", on: true, section: "What is sent, and when" },
+        { name: "inAppChannel", label: "In-app", type: "switch", on: false, note: "Shown in the school’s own workspace to its owner and bursar", section: "What is sent, and when" },
+        { name: "sendHour", label: "Send from (hour)", type: "number", defaultValue: 9, min: 0, max: 23, note: "In the platform’s time zone. It never sends before this hour", section: "What is sent, and when" },
+        { name: "disabled", label: "Create the rule disabled", type: "locked", note: "Mandatory. A new rule never starts sending on its own", section: "On creating" },
+        { name: "logged", label: "Every fire is logged", type: "locked", note: "Which school, which invoice, how many people, and when", section: "On creating" }
+      ]}
+    />
+  );
+  const grouped = GROUP_ORDER.map((title) => ({ title, rules: [...platformRules, ...familyRules, ...customEntries].filter((entry) => entry.group === title).map((entry) => entry.rule) })).filter((group) => group.rules.length > 0);
   const all = grouped.flatMap((g) => g.rules);
   const channels = new Set(all.flatMap((r) => r.channel.split(/,| \+ /).map((c) => c.trim()))).size;
   const recipients = new Set(all.map((r) => r.recipient)).size;
@@ -394,13 +437,16 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
             getRowKey={(row) => row.event}
             pageSize={false}
             actions={
-              editable.length ? (
+              <div className="flex items-center gap-2">
+              {addRule}
+              {editable.length ? (
                 <ResourceActionDialog triggerLabel="Disable this group" title={`Switch notices — ${group.title}`} description="Every notice picked here stops being sent to schools until it is switched back on. The school's state still changes — a trial still ends — only the message is held back. Say why." endpoint="/api/super-admin/platform-policy/triggers" method="POST" variant="secondary" submitLabel="Save" confirmLabel="Confirm" confirmMessage="Schools will no longer be told about these events." fields={[
                   { name: "keys", label: "Notices", type: "multiselect", options: editable.map((rule) => ({ label: rule.event, value: rule.key as string })) },
-                  { name: "enabled", label: "Switch", type: "select", defaultValue: "false", options: [{ label: "Off", value: "false" }, { label: "On", value: "true" }] },
+                  { name: "enabled", label: "Switch", type: "switch", on: false },
                   { name: "reason", label: "Reason", type: "textarea", required: true }
                 ]} />
-              ) : undefined
+              ) : null}
+              </div>
             }
             columns={[
               { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
@@ -409,7 +455,50 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
               { key: "tier", header: "Tier", render: (row) => row.tier },
               { key: "template", header: "Template", render: (row) => (row.template ? <span className="text-[11.5px]">{row.template}</span> : <span className="text-[var(--color-text-muted)]">Built-in wording</span>) },
               { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> },
-              { key: "state", header: "", sortable: false, render: (row) => <StatusPill bg={row.enabled ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.enabled ? "var(--color-success)" : "var(--color-warning)"} label={row.enabled ? "Enabled" : "Disabled"} /> }
+              { key: "state", header: "", sortable: false, render: (row) => <StatusPill bg={row.enabled ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.enabled ? "var(--color-success)" : "var(--color-warning)"} label={row.enabled ? "Enabled" : "Disabled"} /> },
+              {
+                key: "controls",
+                header: "",
+                sortable: false,
+                render: (row) =>
+                  row.ruleId ? (
+                    <div className="flex items-center gap-3">
+                      <ResourceActionDialog
+                        triggerLabel={row.enabled ? "Disable" : "Enable"}
+                        title={row.enabled ? "Disable trigger" : "Enable trigger"}
+                        description={row.enabled ? "The rule stops firing. What it already sent stays on record, and nothing is queued for later." : "From now on the rule fires once for every invoice or school that meets its condition, from its send hour."}
+                        endpoint={`/api/super-admin/communications/trigger-rules/${row.ruleId}/enabled`}
+                        method="POST"
+                        variant="textAction"
+                        submitLabel={row.enabled ? "Disable rule" : "Enable rule"}
+                        recorded={{ line: `You · ${row.enabled ? "Disable" : "Enable"} trigger · ${row.event}`, before: row.enabled ? "Enabled" : "Disabled", after: row.enabled ? "Disabled" : "Enabled" }}
+                        fields={[{ name: "enabled", label: "Switch", type: "hidden", defaultValue: row.enabled ? "false" : "true" }, { name: "reason", label: "Why", type: "textarea", required: true }]}
+                      />
+                      <ResourceActionDialog
+                        triggerLabel="Test fire"
+                        title="Test fire"
+                        description="Runs the rule against today’s records and shows what it would send, to whom — without sending anything. The result appears in the notice after you run it."
+                        endpoint={`/api/super-admin/communications/trigger-rules/${row.ruleId}/test`}
+                        method="POST"
+                        variant="textAction"
+                        submitLabel="Run the test"
+                        keepOpen
+                        fields={[]}
+                      />
+                      <ResourceActionDialog
+                        triggerLabel="Remove"
+                        title="Remove trigger rule"
+                        description="The rule is deleted. Its history stays in the audit log, but the wiring is gone and would have to be rebuilt."
+                        endpoint={`/api/super-admin/communications/trigger-rules/${row.ruleId}/delete`}
+                        method="POST"
+                        variant="textActionDanger"
+                        submitLabel="Remove rule"
+                        recorded={{ line: `You · Remove trigger rule · ${row.event}`, before: row.enabled ? "Enabled" : "Disabled", after: "Removed" }}
+                        fields={[{ name: "reason", label: "Why", type: "textarea", required: true }]}
+                      />
+                    </div>
+                  ) : null
+              }
             ]}
           />
         );
@@ -653,13 +742,13 @@ async function NoticesTab({ announcementTypes }: { announcementTypes: Array<{ la
           <ResourceActionDialog
             triggerLabel="New Announcement"
             title="Create platform announcement"
-            description="Target all schools or a filtered audience using JSON targeting rules."
+            description="A message the administrators of every school see at the top of their app until it expires or they dismiss it."
             endpoint="/api/super-admin/communications/announcements"
             fields={[
               { name: "title", label: "Title", required: true },
               { name: "body", label: "Message", type: "textarea", required: true },
               { name: "type", label: "Type", type: "select", options: announcementTypes, defaultValue: "INFO" },
-              { name: "target", label: "Target JSON", type: "textarea", defaultValue: "{ \"audience\": \"ALL_SCHOOLS\" }", parse: "json" },
+              { name: "audience", label: "Who sees it", type: "static", placeholder: "Every school", section: "Audience" },
               { name: "scheduledAt", label: "Schedule Date", type: "date" },
               { name: "expiresAt", label: "Expiry Date", type: "date" }
             ]}

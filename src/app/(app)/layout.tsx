@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { apiGet } from "@/lib/api/server";
+import { getPlatformSync } from "@/lib/api/platform-sync";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
 import type { SchoolContextView } from "@/lib/domain/types";
@@ -33,9 +34,10 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [permissions, schoolContext] = await Promise.all([
+  const [permissions, schoolContext, platformSync] = await Promise.all([
     getServerPermissions(session).catch(() => getDefaultPermissionsForRole(session.role)),
     getCachedSchoolContext(session.schoolId),
+    getPlatformSync(session.schoolId),
   ]);
 
   return (
@@ -46,6 +48,7 @@ export default async function AppLayout({
       schoolSlug={schoolContext?.schoolSlug}
       currentSessionName={schoolContext?.currentSession}
       currentTermName={schoolContext?.currentTerm}
+      platformSync={platformSync}
     >
       {children}
     </DashboardShell>

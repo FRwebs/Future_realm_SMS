@@ -3,7 +3,8 @@
 import { useState } from "react";
 import { AlertTriangle, Pencil, Plus } from "lucide-react";
 
-import { ResourceField, ResourceForm } from "@/components/forms/resource-form";
+import { usePortalType } from "@/components/layout/portal-context";
+import { ResourceField, ResourceForm, type ResourceImpact } from "@/components/forms/resource-form";
 import { Modal } from "@/components/ui/modal";
 import { MODAL_MAX_WIDTH } from "@/lib/ui/interaction";
 import { cn } from "@/lib/utils/cn";
@@ -22,6 +23,20 @@ interface ResourceActionDialogProps {
   variant?: "primary" | "secondary" | "danger" | "menu" | "menuDanger" | "heroWhite" | "textAction" | "textActionDanger" | "cardPrimary" | "cardCompact";
   presentation?: "modal" | "drawer";
   size?: keyof typeof MODAL_MAX_WIDTH;
+  /** What saving this does — the mockup's summary panel under the fields. */
+  impact?: ResourceImpact;
+  /** The standing caveat for this form, shown on the left of the footer. */
+  note?: string;
+  /** What the record will say for a decision dialog: the change as before and after. */
+  recorded?: { line?: string; before?: string; after?: string };
+  /** A stepped form: each step has a name and a line of its own; fields name the step they belong to. */
+  steps?: Array<{ name: string; sub?: string }>;
+  /** Stay open after a successful run, showing the server's answer — a test that reports what it would do. */
+  keepOpen?: boolean;
+  /** Reshapes the values just before they are sent. */
+  transform?: (payload: Record<string, unknown>) => Record<string, unknown>;
+  /** An export: the values are sent as query parameters to this address, which answers with a file. */
+  downloadHref?: string;
 }
 
 const triggerStyles = {
@@ -65,14 +80,56 @@ export function ResourceActionDialog({
   offlineKey,
   variant = "primary",
   size = "report",
+  impact,
+  note,
+  recorded,
+  downloadHref,
+  steps,
+  transform,
+  keepOpen,
 }: ResourceActionDialogProps) {
   const [open, setOpen] = useState(false);
-  const TriggerIcon = triggerIcons[variant];
+  const [stepIndex, setStepIndex] = useState(0);
+  const backOffice = usePortalType() === "super_admin";
+  // In the Back Office a primary action is a small ink button with a plus; every other action is a plain bordered one with no icon.
+  const TriggerIcon = backOffice ? (variant === "primary" || variant === "heroWhite" ? Plus : undefined) : triggerIcons[variant];
+  const backOfficeStyle: Partial<Record<keyof typeof triggerStyles, string>> = {
+    primary: "gap-[6px] whitespace-nowrap rounded-[9px] bg-[#0D2315] px-[13px] py-2 text-[12px] font-semibold text-white hover:bg-[#17402A]",
+    secondary: "gap-[6px] whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-[7px] text-[12px] font-semibold text-[#435048] hover:bg-[#F7FAF8]",
+    danger: "gap-[6px] whitespace-nowrap rounded-[9px] border border-[#F3E0E0] bg-white px-3 py-[7px] text-[12px] font-semibold text-[#B23B3B] hover:bg-[#FDF3F3]"
+  };
+  // A dialog that asks for nothing but a reason (or only a yes) is the mockup's decision modal: small, with the consequence first.
+  const reasonLayout = backOffice && !impact && !note && fields.filter((field) => field.type !== "hidden").length <= 1 && fields.filter((field) => field.type !== "hidden").every((field) => field.type === "textarea");
+  const danger = variant === "danger" || variant === "menuDanger" || variant === "textActionDanger" || /^(cancel|suspend|roll back|revoke|reject|close|delete|remove|expire|dismiss|force|end |archive|lift)/i.test(submitLabel);
   const formId = `${endpoint.replace(/[^a-z0-9]/gi, "-")}-${title.replace(/[^a-z0-9]/gi, "-").toLowerCase()}`;
 
   function openDialog() {
+    setStepIndex(0);
     setOpen(true);
   }
+
+  const stepper = steps ? (
+    <div className="flex flex-wrap items-center gap-[7px]">
+      {steps.map((item, index) => (
+        <button
+          key={item.name}
+          type="button"
+          onClick={() => setStepIndex(index)}
+          className="flex items-center gap-2 whitespace-nowrap rounded-full py-[7px] pl-2 pr-[11px]"
+          style={{ background: index === stepIndex ? "#fff" : index < stepIndex ? "rgba(95,214,180,0.14)" : "rgba(255,255,255,0.07)" }}
+        >
+          <span
+            className="flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full font-[var(--font-heading)] text-[10.5px] font-bold"
+            style={{ background: index === stepIndex ? "#0D2315" : index < stepIndex ? "#2FA98F" : "rgba(255,255,255,0.16)", color: index <= stepIndex ? "#fff" : "rgba(255,255,255,0.65)" }}
+          >
+            {index + 1}
+          </span>
+          <span className="text-[11.5px] font-semibold" style={{ color: index === stepIndex ? "#0D2315" : index < stepIndex ? "#8FE0C6" : "rgba(255,255,255,0.62)" }}>{item.name}</span>
+        </button>
+      ))}
+      <span className="ml-auto whitespace-nowrap text-[11px] font-semibold text-white/50">Step {stepIndex + 1} of {steps.length}</span>
+    </div>
+  ) : undefined;
 
   return (
     <>
@@ -82,25 +139,27 @@ export function ResourceActionDialog({
         data-popover-close={variant === "menu" || variant === "menuDanger" ? "true" : undefined}
         className={cn(
           "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
-          variant === "textAction" || variant === "textActionDanger" || variant === "cardPrimary" || variant === "cardCompact" ? "" : "text-[13px] font-semibold",
-          triggerStyles[variant]
+          backOffice && backOfficeStyle[variant] ? "" : variant === "textAction" || variant === "textActionDanger" || variant === "cardPrimary" || variant === "cardCompact" ? "" : "text-[13px] font-semibold",
+          backOffice && backOfficeStyle[variant] ? backOfficeStyle[variant] : triggerStyles[variant]
         )}
       >
-        {TriggerIcon ? <TriggerIcon className="h-4 w-4" /> : null}
+        {TriggerIcon ? <TriggerIcon className={backOffice && variant === "primary" ? "h-[13px] w-[13px] text-[#5FD6B4]" : backOffice ? "h-[15px] w-[15px]" : "h-4 w-4"} strokeWidth={backOffice ? 2.4 : undefined} /> : null}
         <span>{triggerLabel}</span>
       </button>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
-        title={title}
-        subtitle={description}
-        size={size}
+        title={reasonLayout ? undefined : title}
+        subtitle={reasonLayout ? undefined : steps?.[stepIndex]?.sub ?? description}
+        headerExtra={stepper}
+        showCloseButton={!reasonLayout}
+        size={reasonLayout ? "reason" : size}
       >
         <ResourceForm
           formId={formId}
           title={title}
-          description={description}
+          description={reasonLayout && confirmMessage ? `${description} ${confirmMessage}` : description}
           endpoint={endpoint}
           method={method}
           fields={fields}
@@ -112,6 +171,17 @@ export function ResourceActionDialog({
           showHeader={false}
           onSuccess={() => setOpen(false)}
           onCancel={() => setOpen(false)}
+          impact={impact}
+          note={note}
+          layout={reasonLayout ? "reason" : "form"}
+          danger={danger}
+          recorded={recorded}
+          downloadHref={downloadHref}
+          steps={steps}
+          stepIndex={stepIndex}
+          onStepChange={setStepIndex}
+          transform={transform}
+          keepOpen={keepOpen}
         />
       </Modal>
     </>

@@ -1,5 +1,7 @@
 "use client";
 
+import { PortalProvider } from "@/components/layout/portal-context";
+import { cn } from "@/lib/utils/cn";
 import { OutboxSync } from "@/components/layout/outbox-sync";
 import { PageLoadBeacon } from "@/components/layout/page-load-beacon";
 import { useEffect, useState } from "react";
@@ -7,9 +9,10 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
+import { PlatformNotices } from "@/components/layout/platform-notices";
 import { NavigationNoticeListener } from "@/components/layout/navigation-notice-listener";
 import { useTheme } from "@/components/theme/theme-provider";
-import { SessionUser } from "@/lib/domain/types";
+import type { PlatformSyncView, SessionUser } from "@/lib/domain/types";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import type { PortalType } from "@/lib/navigation/registry";
 import { canAccessPathWithPermissions } from "@/lib/navigation/registry";
@@ -28,6 +31,7 @@ export function DashboardShell({
   platformStats,
   navBadges,
   hiddenNavIds,
+  platformSync,
   children,
 }: {
   session: SessionUser;
@@ -43,6 +47,8 @@ export function DashboardShell({
   };
   navBadges?: Record<string, number | undefined>;
   hiddenNavIds?: string[];
+  /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
+  platformSync?: PlatformSyncView | null;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -53,11 +59,15 @@ export function DashboardShell({
   const canOpenRoute = canAccessPathWithPermissions(session.role, pathname, permissions);
   const theme = activeTheme === "light" ? "finance-light" : "finance-dark";
 
+  // A module the Back Office has switched off is gone for everyone, so say that, rather than "not authorised".
+  const switchedOff = platformSync?.switchedOff.find((module) => pathname === `/${module.slug}` || pathname.startsWith(`/${module.slug}/`));
+
   useEffect(() => {
     if (!canOpenRoute && portalType === "school") {
-      router.replace(`${getDefaultPathForRole(session.role)}?notice=not-authorized&from=${encodeURIComponent(pathname)}`);
+      const notice = switchedOff ? `module-off&module=${encodeURIComponent(switchedOff.name)}&scope=${switchedOff.scope}` : "not-authorized";
+      router.replace(`${getDefaultPathForRole(session.role)}?notice=${notice}&from=${encodeURIComponent(pathname)}`);
     }
-  }, [canOpenRoute, pathname, portalType, router, session.role]);
+  }, [canOpenRoute, pathname, portalType, router, session.role, switchedOff]);
 
   if (!canOpenRoute && portalType === "super_admin") {
     return (
@@ -82,6 +92,7 @@ export function DashboardShell({
   if (!canOpenRoute) return null;
 
   return (
+    <PortalProvider value={portalType}>
     <PermissionProvider permissions={permissions}>
       <NavigationNoticeListener />
       <div
@@ -126,10 +137,16 @@ export function DashboardShell({
             currentThemeMode={activeTheme}
           />
           <ImpersonationBanner session={session} />
+          {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} /> : null}
           <OutboxSync />
           <PageLoadBeacon />
           <main
-            className="finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4 md:px-6 md:pb-8 md:pt-5"
+            data-portal={portalType}
+            className={cn(
+              "finance-scroll min-w-0 flex-1 overflow-y-auto px-4 pb-5 pt-4",
+              // The Back Office page frame: 24px above, 28px at the sides, 64px below.
+              portalType === "super_admin" ? "md:px-7 md:pb-16 md:pt-6" : "md:px-6 md:pb-8 md:pt-5"
+            )}
           >
             {/* No `key={pathname}` here on purpose: keying this on the route forces React to
                 tear the whole subtree down and rebuild it on every navigation, which discards
@@ -146,5 +163,6 @@ export function DashboardShell({
         </div>
       </div>
     </PermissionProvider>
+    </PortalProvider>
   );
 }

@@ -1,16 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import { Check, Pencil, Plus, X } from "lucide-react";
-import { useRouter } from "next/navigation";
-
-import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/ui/toast-provider";
+import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import type { ResourceField } from "@/components/forms/resource-form";
 import type { SuperAdminPlanRow } from "@/lib/domain/types";
-import { cn } from "@/lib/utils/cn";
 
-type PlanVariant = "secondary" | "menu" | "cardPrimary";
+type PlanVariant = "primary" | "secondary" | "menu" | "cardPrimary" | "cardCompact";
 export type Entitlements = { modules: string[]; features: string[] };
+/** What one naira is worth in each currency, as fixed for the term. A rate of 0 means none has been set yet. */
+export type PlanRates = { usd: number; ghs: number; kes: number; gbp: number; shockPercent: number };
 
 const planTierOptions = [
   { label: "Starter", value: "BASIC" },
@@ -19,114 +16,40 @@ const planTierOptions = [
   { label: "Elite", value: "ENTERPRISE" },
   { label: "NGO / Mission", value: "CUSTOM" }
 ];
-const supportTierOptions = ["COMMUNITY", "EMAIL", "PRIORITY", "DEDICATED"].map((value) => ({ label: value, value }));
-const planSteps = [
-  { n: 1, label: "Pricing" },
-  { n: 2, label: "Modules" },
-  { n: 3, label: "Features" }
+const supportTierOptions = [
+  { label: "Community", value: "COMMUNITY" },
+  { label: "Email", value: "EMAIL" },
+  { label: "Priority", value: "PRIORITY" },
+  { label: "Dedicated", value: "DEDICATED" }
 ];
-const moduleCatalog = [
-  "Core modules",
-  "Students",
-  "Attendance",
-  "Results",
-  "Fees",
-  "Admissions",
-  "Email notifications",
-  "SMS notifications",
-  "WhatsApp notifications",
-  "Payment integration",
-  "Analytics",
-  "Predictive analytics",
-  "Custom branding",
-  "Account manager",
-  "Library",
-  "Transport",
-  "Hostel",
-  "Health",
-  "Discipline",
-  "Annual verification"
+const STEPS = [
+  { name: "Identity", sub: "What the plan is called, which tier it prices, and who it is for." },
+  { name: "Price", sub: "Set the price. Every local figure below is worked out from it at the rate fixed for the term." },
+  { name: "Features", sub: "What a school on this plan can reach. Each switch is a module or capability the plan includes." },
+  { name: "Rollout", sub: "Decided now, so that nothing is improvised on the day it takes effect." }
 ];
-
-const pricingTemplates = {
-  starter: {
-    label: "Starter",
-    name: "Starter",
-    slug: "starter",
-    plan: "BASIC",
-    semesterPrice: 1500,
-    studentLimit: 250,
-    staffLimit: 0,
-    supportTier: "EMAIL",
-    apiAccess: false,
-    customBranding: false,
-    modules: ["Core modules", "Email notifications"],
-    features: ["1-250 students", "Email notifications", "All core modules"]
-  },
-  standard: {
-    label: "Standard",
-    name: "Standard",
-    slug: "standard",
-    plan: "STANDARD",
-    semesterPrice: 3500,
-    studentLimit: 700,
-    staffLimit: 0,
-    supportTier: "PRIORITY",
-    apiAccess: false,
-    customBranding: false,
-    modules: ["Core modules", "SMS notifications", "WhatsApp notifications", "Payment integration"],
-    features: ["251-700 students", "SMS and WhatsApp notifications", "Payment integration"]
-  },
-  elite: {
-    label: "Elite",
-    name: "Elite",
-    slug: "elite",
-    plan: "ENTERPRISE",
-    semesterPrice: 5500,
-    studentLimit: 0,
-    staffLimit: 0,
-    supportTier: "DEDICATED",
-    apiAccess: true,
-    customBranding: true,
-    modules: ["All core modules", "Predictive analytics", "Custom branding", "Account manager"],
-    features: ["701+ students", "Predictive analytics", "Custom branding", "Dedicated account manager"]
-  },
-  ngo: {
-    label: "NGO / Mission",
-    name: "NGO / Mission",
-    slug: "ngo-mission",
-    plan: "CUSTOM",
-    semesterPrice: 150,
-    studentLimit: 0,
-    staffLimit: 0,
-    supportTier: "EMAIL",
-    apiAccess: false,
-    customBranding: false,
-    modules: ["Core modules", "Annual verification"],
-    features: ["Any size", "90% off selected tier", "CAC or charity certificate required", "Verified annually"]
-  },
-  trial: {
-    label: "Trial",
-    name: "Trial",
-    slug: "trial",
-    plan: "PROFESSIONAL",
-    semesterPrice: 0,
-    studentLimit: 0,
-    staffLimit: 0,
-    supportTier: "EMAIL",
-    apiAccess: false,
-    customBranding: false,
-    modules: ["Starter features"],
-    features: ["Any size", "One full term", "All Starter features", "Free"]
-  }
-} as const;
-
-function getCookie(name: string) {
-  return document.cookie
-    .split("; ")
-    .find((item) => item.startsWith(`${name}=`))
-    ?.split("=")[1];
-}
+const moduleCatalog: Array<{ name: string; note: string }> = [
+  { name: "Core modules", note: "Students, attendance, results and report cards" },
+  { name: "Students", note: "Student registration and records" },
+  { name: "Attendance", note: "Registers and absence follow-up" },
+  { name: "Results", note: "Score entry, computation and report cards" },
+  { name: "Fees", note: "Fee management and receipts" },
+  { name: "Admissions", note: "Applications through to enrolment" },
+  { name: "Email notifications", note: "Included on every plan that sends mail" },
+  { name: "SMS notifications", note: "Drawn from the school’s credit wallet" },
+  { name: "WhatsApp notifications", note: "Approved templates, to people who opted in" },
+  { name: "Payment integration", note: "Card payment from the fees screens" },
+  { name: "Analytics", note: "Dashboards and reports" },
+  { name: "Predictive analytics", note: "At-risk alerts" },
+  { name: "Custom branding", note: "Reviewed by us before it is applied" },
+  { name: "Account manager", note: "A named person at the platform" },
+  { name: "Library", note: "Catalogue and loans" },
+  { name: "Transport", note: "Routes and riders" },
+  { name: "Hostel", note: "Boarding and rooms" },
+  { name: "Health", note: "Sick bay and medical records" },
+  { name: "Discipline", note: "Incidents and sanctions" },
+  { name: "Annual verification", note: "Re-confirmed each year — NGO and mission plans" }
+];
 
 function extractEntitlements(value: unknown): Entitlements {
   if (Array.isArray(value)) return { modules: value.map(String), features: [] };
@@ -141,441 +64,131 @@ function extractEntitlements(value: unknown): Entitlements {
   return { modules: [], features: [] };
 }
 
-function initialForm(plan?: SuperAdminPlanRow) {
-  const entitlements = extractEntitlements(plan?.includedModules);
+const naira = (value: number) => `₦${Math.round(value).toLocaleString("en-US")}`;
+
+/** One currency's line in the preview: what the naira price comes to at the term's rate. */
+function localLine(label: string, symbol: string, rate: number): { label: string; compute: (values: Record<string, string>) => string } {
   return {
-    name: plan?.name ?? "",
-    slug: plan?.slug ?? "",
-    plan: plan?.plan ?? "BASIC",
-    semesterPrice: plan?.monthlyPrice ?? 1500,
-    studentLimit: plan?.studentLimit ?? 0,
-    staffLimit: plan?.staffLimit ?? 0,
-    storageLimitGb: plan?.storageLimitGb ?? 0,
-    smsUnitsPerMonth: plan?.smsUnitsPerMonth ?? 0,
-    emailSendsPerMonth: plan?.emailSendsPerMonth ?? 0,
-    supportTier: plan?.supportTier ?? "EMAIL",
-    apiAccess: plan?.apiAccess ?? false,
-    customBranding: plan?.customBranding ?? false,
-    modules: entitlements.modules,
-    features: entitlements.features
+    label,
+    compute: (values) => {
+      if (!rate) return "Needs the term’s rates first";
+      const value = Number(values.monthlyPrice || 0) / rate;
+      return `${symbol}${value.toLocaleString("en-US", { maximumFractionDigits: 2, minimumFractionDigits: 2 })} · at ${naira(rate)} to the unit`;
+    }
   };
 }
 
-function TagEditor({
-  label,
-  placeholder,
-  values,
-  onChange
-}: {
-  label: string;
-  placeholder: string;
-  values: string[];
-  onChange: (next: string[]) => void;
-}) {
-  const [draft, setDraft] = useState("");
+type Mode = "create" | "edit" | "duplicate";
 
-  function addValue() {
-    const value = draft.trim();
-    if (!value || values.some((item) => item.toLowerCase() === value.toLowerCase())) return;
-    onChange([...values, value]);
-    setDraft("");
-  }
+function planFields(mode: Mode, plan: SuperAdminPlanRow | undefined, rates: PlanRates | undefined): ResourceField[] {
+  const entitlements = extractEntitlements(plan?.includedModules);
+  const knownModules = new Set(moduleCatalog.map((item) => item.name));
+  const customModules = entitlements.modules.filter((item) => !knownModules.has(item));
+  const subscribers = mode === "edit" ? (plan?.subscriberCount ?? 0) : 0;
+  const lockedPrice = mode === "edit" && subscribers > 0;
+  const r = rates ?? { usd: 0, ghs: 0, kes: 0, gbp: 0, shockPercent: 15 };
+  const base = (field: ResourceField, wizardStep: string): ResourceField => ({ ...field, wizardStep });
+  const toggles: ResourceField[] = [
+    ...moduleCatalog.map((item) => base({ name: `mod:${item.name}`, label: item.name, type: "switch", on: entitlements.modules.includes(item.name), note: item.note, section: "Modules" }, "Features")),
+    ...customModules.map((name) => base({ name: `mod:${name}`, label: name, type: "switch", on: true, note: "Added to this plan by hand", section: "Modules" }, "Features"))
+  ];
+  return [
+    base({ name: "name", label: "Plan name", required: true, defaultValue: mode === "duplicate" ? `Copy of ${plan?.name ?? ""}` : (plan?.name ?? ""), placeholder: "e.g. Group / Multi-branch", section: "Plan identity" }, "Identity"),
+    base({ name: "slug", label: "Plan code", required: true, defaultValue: mode === "duplicate" ? `${plan?.slug ?? "plan"}-copy` : (plan?.slug ?? ""), placeholder: "e.g. group-multi-branch", note: "Used in billing exports and in the API — lowercase, no spaces", section: "Plan identity" }, "Identity"),
+    base({ name: "plan", label: "Billing tier", type: "select", defaultValue: plan?.plan ?? "BASIC", options: planTierOptions, note: "Which of the platform’s tiers this plan prices", section: "Plan identity" }, "Identity"),
+    base({ name: "status", label: "Status on save", type: "static", placeholder: mode === "edit" ? `${(plan?.lifecycle ?? "ACTIVE").charAt(0) + (plan?.lifecycle ?? "ACTIVE").slice(1).toLowerCase()} · v${plan?.version ?? 1} becomes v${(plan?.version ?? 1) + 1}` : "Draft · invisible to sales and to every school", section: "Plan identity" }, "Identity"),
+    base({ name: "studentLimit", label: "Maximum students", type: "number", min: 0, defaultValue: plan?.studentLimit ?? 0, note: "0 means unlimited", section: "Eligibility" }, "Identity"),
+    base({ name: "staffLimit", label: "Maximum staff", type: "number", min: 0, defaultValue: plan?.staffLimit ?? 0, note: "0 means unlimited", section: "Eligibility" }, "Identity"),
+    base({ name: "storageLimitGb", label: "Storage (GB)", type: "number", min: 0, defaultValue: plan?.storageLimitGb ?? 0, section: "Eligibility" }, "Identity"),
+    base({ name: "supportTier", label: "Support", type: "select", defaultValue: plan?.supportTier ?? "EMAIL", options: supportTierOptions, section: "Eligibility" }, "Identity"),
 
-  return (
-    <div className="md:col-span-2">
-      <span className="field-label">{label}</span>
-      <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3">
-        <div className="flex flex-wrap gap-2">
-          {values.map((value) => (
-            <button
-              key={value}
-              type="button"
-              onClick={() => onChange(values.filter((item) => item !== value))}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] transition hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-            >
-              {value}
-              <X className="h-3 w-3" />
-            </button>
-          ))}
-          {values.length === 0 ? <span className="text-[11px] text-[var(--color-text-muted)]">No items added yet.</span> : null}
-        </div>
-        <div className="mt-3 flex gap-2">
-          <input
-            value={draft}
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addValue();
-              }
-            }}
-            placeholder={placeholder}
-            className="field-control h-10"
-          />
-          <button type="button" onClick={addValue} className="btn-secondary h-10 px-3 text-[11px]">
-            <Plus className="h-3.5 w-3.5" />
-            Add
-          </button>
-        </div>
-      </div>
-    </div>
-  );
+    base({ name: "monthlyPrice", label: "Price per semester (₦)", type: "number", min: 0, required: true, defaultValue: plan?.monthlyPrice ?? 1500, disabled: lockedPrice, note: lockedPrice ? `${subscribers} school${subscribers === 1 ? " is" : "s are"} on this plan, so its price cannot be edited in place — use Price on the plan card, which gives them 30 days’ notice` : "The one figure that is authored; everything below follows from it", section: "The price you set" }, "Price"),
+    base({ name: "usd", type: "static", ...localLine("United States · USD", "$", r.usd), section: "Local prices · preview" }, "Price"),
+    base({ name: "ghs", type: "static", ...localLine("Ghana · GHS", "GH₵ ", r.ghs), section: "Local prices · preview" }, "Price"),
+    base({ name: "kes", type: "static", ...localLine("Kenya · KES", "KSh ", r.kes), section: "Local prices · preview" }, "Price"),
+    base({ name: "gbp", type: "static", ...localLine("United Kingdom · GBP", "£", r.gbp), section: "Local prices · preview" }, "Price"),
+    base({ name: "lock1", label: "The rate is fixed for the whole term", type: "locked", note: "A school is invoiced at the rate in force when the term opened", section: "How the rate is handled" }, "Price"),
+    base({ name: "lock2", label: `A move of more than ${r.shockPercent}% is held for Finance`, type: "locked", note: "A currency shock is not a price rise; Finance decides it deliberately", section: "How the rate is handled" }, "Price"),
+    base({ name: "lock3", label: "A school is invoiced in its own currency", type: "locked", note: "The naira figure is the platform’s internal anchor, not what a bursar reads", section: "How the rate is handled" }, "Price"),
+    base({ name: "smsUnitsPerMonth", label: "SMS credits included", type: "number", min: 0, defaultValue: plan?.smsUnitsPerMonth ?? 0, section: "Notification credits" }, "Price"),
+    base({ name: "emailSendsPerMonth", label: "Email sends included", type: "number", min: 0, defaultValue: plan?.emailSendsPerMonth ?? 0, section: "Notification credits" }, "Price"),
+
+    ...toggles,
+    base({ name: "apiAccess", label: "API access", type: "switch", on: Boolean(plan?.apiAccess), note: "Platform · rate limited", section: "Capabilities" }, "Features"),
+    base({ name: "customBranding", label: "Custom report-card branding", type: "switch", on: Boolean(plan?.customBranding), note: "Reviewed by us before it is applied", section: "Capabilities" }, "Features"),
+    base({ name: "featureLines", label: "Feature lines shown on the plan card", type: "textarea", defaultValue: entitlements.features.join("\n"), placeholder: "One per line — e.g. 251–700 students", note: "Plain sentences a salesperson would say; they appear on the card as bullets", section: "What the card says" }, "Features"),
+
+    base({ name: "effective", label: "Takes effect", type: "static", placeholder: mode === "edit" ? "On saving" : "When it is published — a draft does nothing", section: "Timing and existing schools" }, "Rollout"),
+    base({ name: "existing", label: "Existing schools", type: "static", placeholder: mode === "edit" ? (subscribers > 0 ? `${subscribers} school${subscribers === 1 ? "" : "s"} on this plan — entitlement changes reach them the next time the product checks` : "None on this plan") : "None — nobody is on a new plan", section: "Timing and existing schools" }, "Rollout"),
+    base({ name: "priceNotice", label: "Price changes", type: "static", placeholder: "Reach schools only through Price on the plan card — announced, then applied after 30 days’ notice", section: "Timing and existing schools" }, "Rollout"),
+    base({ name: "route1", label: mode === "edit" ? "Saved as a new version" : "Saved as a draft", type: "locked", note: mode === "edit" ? "The version before it stays readable in the plan’s history" : "A draft is not offered to sales or to any school until it is published", section: "Approval route" }, "Rollout"),
+    base({ name: "route2", label: "Publish · Super Admin only", type: "locked", note: "From Lifecycle on the plan card", section: "Approval route" }, "Rollout"),
+    base({ name: "route3", label: "Logged", type: "locked", note: "Actor, time and what changed, kept for the life of the platform", section: "Approval route" }, "Rollout")
+  ];
 }
 
-function ModuleToggleGrid({
-  values,
-  onChange
-}: {
-  values: string[];
-  onChange: (next: string[]) => void;
-}) {
-  const [customModule, setCustomModule] = useState("");
-
-  function toggle(module: string) {
-    onChange(values.includes(module) ? values.filter((item) => item !== module) : [...values, module]);
-  }
-
-  function addCustomModule() {
-    const value = customModule.trim();
-    if (!value || values.some((item) => item.toLowerCase() === value.toLowerCase())) return;
-    onChange([...values, value]);
-    setCustomModule("");
-  }
-
-  const customValues = values.filter((value) => !moduleCatalog.includes(value));
-
-  return (
-    <div className="grid gap-4">
-      <div className="grid gap-2 sm:grid-cols-2">
-        {moduleCatalog.map((module) => {
-          const on = values.includes(module);
-          return (
-            <button
-              key={module}
-              type="button"
-              onClick={() => toggle(module)}
-              className={cn(
-                "flex min-h-[41.5px] items-center justify-between gap-3 rounded-[11px] border px-3 py-2 text-left text-[11.5px] font-semibold transition",
-                on
-                  ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
-                  : "border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-border-strong)]"
-              )}
-            >
-              <span>{module}</span>
-              <span
-                className={cn(
-                  "flex h-5 w-9 items-center rounded-full p-0.5 transition",
-                  on ? "justify-end bg-[var(--color-accent-primary)]" : "justify-start bg-[var(--color-border-default)]"
-                )}
-              >
-                <span className="flex h-4 w-4 items-center justify-center rounded-full bg-white">
-                  {on ? <Check className="h-3 w-3 text-[var(--color-accent-primary)]" /> : null}
-                </span>
-              </span>
-            </button>
-          );
-        })}
-      </div>
-
-      <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
-        <span className="field-label">Custom modules</span>
-        <div className="flex gap-2">
-          <input
-            value={customModule}
-            onChange={(event) => setCustomModule(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.preventDefault();
-                addCustomModule();
-              }
-            }}
-            placeholder="e.g. CBT engine"
-            className="field-control h-10"
-          />
-          <button type="button" onClick={addCustomModule} className="btn-secondary h-10 px-3 text-[11px]">
-            <Plus className="h-3.5 w-3.5" />
-            Add
-          </button>
-        </div>
-        {customValues.length ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {customValues.map((value) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onChange(values.filter((item) => item !== value))}
-                className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] bg-white px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] hover:border-[var(--color-danger)] hover:text-[var(--color-danger)]"
-              >
-                {value}
-                <X className="h-3 w-3" />
-              </button>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    </div>
-  );
-}
-
-function PlanDialog({
-  plan,
-  variant = "secondary",
-  mode
-}: {
-  plan?: SuperAdminPlanRow;
-  variant?: PlanVariant;
-  mode: "create" | "edit";
-}) {
-  const router = useRouter();
-  const { showToast } = useToast();
-  const [open, setOpen] = useState(false);
-  const [pending, setPending] = useState(false);
-  const [form, setForm] = useState(initialForm(plan));
-  const [step, setStep] = useState(1);
-  const twoSemesterEstimate = useMemo(() => Number(form.semesterPrice || 0) * 2, [form.semesterPrice]);
-  const TriggerIcon = variant === "menu" ? Pencil : variant === "cardPrimary" ? null : mode === "create" ? Plus : Pencil;
-  const triggerLabel = mode === "create" ? "New Plan" : "Edit plan";
-
-  function update<Value>(key: keyof typeof form, value: Value) {
-    setForm((current) => ({ ...current, [key]: value }));
-  }
-
-  function applyTemplate(key: keyof typeof pricingTemplates) {
-    const template = pricingTemplates[key];
-    setForm((current) => ({
-      ...current,
-      name: template.name,
-      slug: template.slug,
-      plan: template.plan,
-      semesterPrice: template.semesterPrice,
-      studentLimit: template.studentLimit,
-      staffLimit: template.staffLimit,
-      supportTier: template.supportTier,
-      apiAccess: template.apiAccess,
-      customBranding: template.customBranding,
-      modules: [...template.modules],
-      features: [...template.features]
-    }));
-  }
-
-  async function submit(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    setPending(true);
-    try {
-      const endpoint = mode === "create" ? "/api/super-admin/plans" : `/api/super-admin/plans/${plan?.id}`;
-      const response = await fetch(endpoint, {
-        method: mode === "create" ? "POST" : "PATCH",
-        credentials: "include",
-        headers: {
-          "Content-Type": "application/json",
-          "x-csrf-token": getCookie("fr_csrf") ?? ""
-        },
-        body: JSON.stringify({
-          name: form.name,
-          slug: form.slug,
-          plan: form.plan,
-          monthlyPrice: Number(form.semesterPrice || 0),
-          annualPrice: twoSemesterEstimate,
-          studentLimit: Number(form.studentLimit || 0),
-          staffLimit: Number(form.staffLimit || 0),
-          storageLimitGb: Number(form.storageLimitGb || 0),
-          smsUnitsPerMonth: Number(form.smsUnitsPerMonth || 0),
-          emailSendsPerMonth: Number(form.emailSendsPerMonth || 0),
-          supportTier: form.supportTier,
-          apiAccess: form.apiAccess,
-          customBranding: form.customBranding,
-          includedModules: { modules: form.modules, features: form.features }
-        })
-      });
-      const body = (await response.json()) as { ok?: boolean; error?: string };
-      if (!response.ok || body.ok === false) throw new Error(body.error ?? "Unable to save plan");
-      showToast({ variant: "success", title: "Plan saved", description: form.name });
-      setOpen(false);
-      setStep(1);
-      router.refresh();
-    } catch (error) {
-      showToast({ variant: "error", title: "Unable to save plan", description: error instanceof Error ? error.message : "Please try again." });
-    } finally {
-      setPending(false);
+/** The endpoint wants a flat plan body with the modules as an array, not one flag per switch. */
+function buildBody(mode: Mode) {
+  return (values: Record<string, unknown>) => {
+    const modules = Object.entries(values).filter(([key, value]) => key.startsWith("mod:") && value === "true").map(([key]) => key.slice(4));
+    const features = String(values.featureLines ?? "").split("\n").map((line) => line.trim()).filter(Boolean);
+    const price = Number(values.monthlyPrice ?? 0);
+    const body: Record<string, unknown> = {
+      name: values.name,
+      slug: values.slug,
+      plan: values.plan,
+      studentLimit: Number(values.studentLimit || 0),
+      staffLimit: Number(values.staffLimit || 0),
+      storageLimitGb: Number(values.storageLimitGb || 0),
+      smsUnitsPerMonth: Number(values.smsUnitsPerMonth || 0),
+      emailSendsPerMonth: Number(values.emailSendsPerMonth || 0),
+      supportTier: values.supportTier,
+      apiAccess: values.apiAccess === "true",
+      customBranding: values.customBranding === "true",
+      includedModules: { modules, features }
+    };
+    // A disabled price field is not sent; the backend keeps the price a plan with schools on it already has.
+    if (values.monthlyPrice !== undefined) {
+      body.monthlyPrice = price;
+      body.annualPrice = price * 2;
     }
-  }
+    if (mode !== "edit") body.lifecycle = "DRAFT";
+    return body;
+  };
+}
 
+function PlanDialog({ mode, plan, variant, rates, triggerLabel }: { mode: Mode; plan?: SuperAdminPlanRow; variant: PlanVariant; rates?: PlanRates; triggerLabel: string }) {
+  const create = mode !== "edit";
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        data-popover-close={variant === "menu" ? "true" : undefined}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
-          variant === "cardPrimary" ? "" : "text-[11.5px] font-semibold",
-          variant === "menu"
-            ? "flex w-full items-center justify-start rounded-[9px] px-3 py-2.5 text-left text-[var(--color-text-secondary)] hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
-            : variant === "cardPrimary"
-              ? "rounded-[7px] bg-[#0d2315] px-3 py-[6.5px] text-[10.5px] font-semibold text-white hover:bg-[#132e1d]"
-              : mode === "create"
-                ? "btn-primary px-5"
-                : "btn-secondary px-5"
-        )}
-      >
-        {TriggerIcon ? <TriggerIcon className="h-4 w-4" /> : null}
-        <span>{triggerLabel}</span>
-      </button>
-
-      <Modal
-        open={open}
-        onClose={() => setOpen(false)}
-        title={mode === "create" ? "Build a subscription plan" : `Edit ${plan?.name}`}
-        subtitle="Pricing is semester-based. Add or remove modules and feature bullets with the controls below."
-        size="lg"
-      >
-        <form onSubmit={submit} className="grid gap-5">
-          <div className="flex flex-wrap gap-2">
-            {planSteps.map((item) => {
-              const current = item.n === step;
-              const done = item.n < step;
-              return (
-                <button
-                  key={item.n}
-                  type="button"
-                  onClick={() => setStep(item.n)}
-                  className={cn(
-                    "inline-flex items-center gap-2 rounded-full border px-3 py-2 text-[11px] font-semibold transition",
-                    current || done
-                      ? "border-[var(--color-accent-primary)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
-                      : "border-[var(--color-border-default)] text-[var(--color-text-muted)]"
-                  )}
-                >
-                  <span className={cn("flex h-5 w-5 items-center justify-center rounded-full text-[9px]", current || done ? "bg-[var(--color-accent-primary)] text-white" : "bg-[var(--color-bg-subtle)]")}>
-                    {done ? <Check className="h-3 w-3" /> : item.n}
-                  </span>
-                  {item.label}
-                </button>
-              );
-            })}
-          </div>
-
-          {step === 1 ? (
-            <>
-              <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-3">
-                <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Pricing templates</p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {(Object.keys(pricingTemplates) as Array<keyof typeof pricingTemplates>).map((key) => (
-                    <button key={key} type="button" onClick={() => applyTemplate(key)} className="btn-secondary h-9 px-3 text-[11px]">
-                      {pricingTemplates[key].label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div className="grid gap-4 md:grid-cols-2">
-                <label>
-                  <span className="field-label">Plan name *</span>
-                  <input required value={form.name} onChange={(event) => update("name", event.target.value)} className="field-control h-10" placeholder="Starter" />
-                </label>
-                <label>
-                  <span className="field-label">Slug *</span>
-                  <input required value={form.slug} onChange={(event) => update("slug", event.target.value)} className="field-control h-10" placeholder="starter" />
-                </label>
-                <label>
-                  <span className="field-label">Tier *</span>
-                  <select value={form.plan} onChange={(event) => update("plan", event.target.value)} className="field-select h-10">
-                    {planTierOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
-                <label>
-                  <span className="field-label">Semester price per student (NGN) *</span>
-                  <input required type="number" min={0} value={form.semesterPrice} onChange={(event) => update("semesterPrice", Number(event.target.value))} className="field-control h-10" />
-                </label>
-                <label>
-                  <span className="field-label">Student limit (0 = unlimited)</span>
-                  <input type="number" min={0} value={form.studentLimit} onChange={(event) => update("studentLimit", Number(event.target.value))} className="field-control h-10" />
-                </label>
-                <label>
-                  <span className="field-label">Staff limit (0 = unlimited)</span>
-                  <input type="number" min={0} value={form.staffLimit} onChange={(event) => update("staffLimit", Number(event.target.value))} className="field-control h-10" />
-                </label>
-                <label>
-                  <span className="field-label">Storage limit (GB)</span>
-                  <input type="number" min={0} value={form.storageLimitGb} onChange={(event) => update("storageLimitGb", Number(event.target.value))} className="field-control h-10" />
-                </label>
-                <label>
-                  <span className="field-label">Support tier</span>
-                  <select value={form.supportTier} onChange={(event) => update("supportTier", event.target.value)} className="field-select h-10">
-                    {supportTierOptions.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-                  </select>
-                </label>
-                <label>
-                  <span className="field-label">SMS units / semester</span>
-                  <input type="number" min={0} value={form.smsUnitsPerMonth} onChange={(event) => update("smsUnitsPerMonth", Number(event.target.value))} className="field-control h-10" />
-                </label>
-                <label>
-                  <span className="field-label">Email sends / semester</span>
-                  <input type="number" min={0} value={form.emailSendsPerMonth} onChange={(event) => update("emailSendsPerMonth", Number(event.target.value))} className="field-control h-10" />
-                </label>
-                <label className="flex items-center gap-3 rounded-[11px] border border-[var(--color-border-default)] px-3 py-2">
-                  <input type="checkbox" checked={form.apiAccess} onChange={(event) => update("apiAccess", event.target.checked)} />
-                  <span className="text-[11.5px] font-semibold text-[var(--color-text-secondary)]">API access</span>
-                </label>
-                <label className="flex items-center gap-3 rounded-[11px] border border-[var(--color-border-default)] px-3 py-2">
-                  <input type="checkbox" checked={form.customBranding} onChange={(event) => update("customBranding", event.target.checked)} />
-                  <span className="text-[11.5px] font-semibold text-[var(--color-text-secondary)]">Custom branding</span>
-                </label>
-              </div>
-            </>
-          ) : null}
-
-          {step === 2 ? (
-            <div>
-              <p className="section-eyebrow">Included modules</p>
-              <h3 className="mt-1 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Turn plan modules on or off</h3>
-              <p className="mt-1 text-[11.5px] leading-5 text-[var(--color-text-secondary)]">These toggles control the modules shown on billing, onboarding, and plan comparison surfaces.</p>
-              <div className="mt-4">
-                <ModuleToggleGrid values={form.modules} onChange={(modules) => update("modules", modules)} />
-              </div>
-            </div>
-          ) : null}
-
-          {step === 3 ? (
-            <div className="grid gap-4 md:grid-cols-2">
-            <TagEditor label="Feature bullets" placeholder="e.g. 251-700 students" values={form.features} onChange={(features) => update("features", features)} />
-              <div className="rounded-[11px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                <p className="text-[11px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">Review</p>
-                <p className="mt-3 text-[12.5px] font-bold text-[var(--color-text-primary)]">{form.name || "Untitled plan"}</p>
-                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Semester price: NGN {Number(form.semesterPrice || 0).toLocaleString("en-NG")}</p>
-                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Modules enabled: {form.modules.length}</p>
-                <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">Feature bullets: {form.features.length}</p>
-              </div>
-            </div>
-          ) : null}
-
-          <div className="flex items-center justify-between border-t border-[var(--color-border-default)] pt-4">
-            <p className="text-[11px] text-[var(--color-text-muted)]">
-              Two-semester estimate stored for reports: NGN {twoSemesterEstimate.toLocaleString("en-NG")}
-            </p>
-            <div className="flex gap-2">
-              <button type="button" onClick={() => (step === 1 ? setOpen(false) : setStep(step - 1))} className="btn-secondary px-4">
-                {step === 1 ? "Cancel" : "Back"}
-              </button>
-              {step < 3 ? (
-                <button type="button" onClick={() => setStep(step + 1)} className="btn-primary px-5">Continue</button>
-              ) : (
-                <button type="submit" disabled={pending} className="btn-primary px-6">
-                  {pending ? "Saving..." : "Save plan"}
-                </button>
-              )}
-            </div>
-          </div>
-        </form>
-      </Modal>
-    </>
+    <ResourceActionDialog
+      triggerLabel={triggerLabel}
+      title={create ? "Create a new tier" : `Edit plan · ${plan?.name ?? ""}`}
+      description={create ? "A plan is a promise about price and capability. It stays in draft until a Super Admin publishes it." : "Changing a plan saves a new version. The one before it stays readable, and what a school was promised is not rewritten."}
+      endpoint={create ? "/api/super-admin/plans" : `/api/super-admin/plans/${plan?.id}`}
+      method={create ? "POST" : "PATCH"}
+      variant={variant}
+      submitLabel={create ? "Save as draft" : "Save new version"}
+      steps={STEPS}
+      transform={buildBody(mode)}
+      note={create ? "Prices are shown in naira with their local equivalents, fixed for the term, so no country is limited by what one figure is worth this month." : "A price already agreed with schools on the plan is changed only through Price on the plan card."}
+      impact={
+        create
+          ? { label: "On saving", rows: [["Saved as a draft", "Invisible to sales, unassignable to any school"], ["Nothing reaches a school", "Publishing is a separate act, from Lifecycle on the plan card"], ["Version 1 is recorded", "With who made it and when"]] }
+          : { label: "On saving", rows: [[`Becomes version ${(plan?.version ?? 1) + 1}`, "The version before it stays readable in the plan’s history"], ["Schools on the plan", "Entitlement changes apply the next time the product checks; price is untouched"], ["Logged", "Who changed what, and when"]] }
+      }
+      fields={planFields(mode, plan, rates)}
+    />
   );
 }
 
-export function PlanCreateDialog() {
-  return <PlanDialog mode="create" />;
+export function PlanCreateDialog({ rates }: { rates?: PlanRates }) {
+  return <PlanDialog mode="create" variant="primary" triggerLabel="Open plan builder" rates={rates} />;
 }
 
-export function PlanEditDialog({ plan, variant = "secondary" }: { plan: SuperAdminPlanRow; variant?: PlanVariant }) {
-  return <PlanDialog mode="edit" plan={plan} variant={variant} />;
+export function PlanEditDialog({ plan, variant = "secondary", rates }: { plan: SuperAdminPlanRow; variant?: PlanVariant; rates?: PlanRates }) {
+  return <PlanDialog mode="edit" plan={plan} variant={variant} rates={rates} triggerLabel="Edit plan" />;
+}
+
+export function PlanDuplicateDialog({ plan, variant = "cardCompact", rates }: { plan: SuperAdminPlanRow; variant?: PlanVariant; rates?: PlanRates }) {
+  return <PlanDialog mode="duplicate" plan={plan} variant={variant} rates={rates} triggerLabel="Duplicate" />;
 }

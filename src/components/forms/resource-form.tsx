@@ -15,7 +15,7 @@ import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
 export interface ResourceField {
   name: string;
   label: string;
-  type?: "text" | "email" | "number" | "textarea" | "date" | "select" | "multiselect" | "toggle" | "static";
+  type?: "text" | "email" | "number" | "textarea" | "date" | "select" | "multiselect" | "toggle" | "switch" | "locked" | "static" | "hidden";
   placeholder?: string;
   required?: boolean;
   defaultValue?: string | number | string[];
@@ -24,13 +24,33 @@ export interface ResourceField {
   max?: number;
   step?: number;
   /** "json" parses the raw text as JSON. "csv" splits it into a trimmed, non-empty string array. */
-  parse?: "json" | "csv";
+  parse?: "json" | "csv" | "bands";
+  /** Gathers this field into one object sent under this key — a set of switches that the server reads as a single map of booleans. */
+  object?: string;
   /** Renders a section heading above this field when it differs from the previous field's section. */
   section?: string;
   /** Small note under the field — for "toggle"/"static" fields, typically explains what's real vs. not built yet. */
   note?: string;
   /** Locks a toggle or select so it visually matches the design but can't actually be changed — pair with `note`. */
   disabled?: boolean;
+  /** For "switch": whether it starts on. The value sent is the string "true" or "false". */
+  on?: boolean;
+  /** For "static": works the shown value out from what is typed so far — a preview that follows the form. */
+  compute?: (values: Record<string, string>) => string;
+  /** Which step of a stepped form this field belongs to (by the step's name). */
+  wizardStep?: string;
+  /** Spans both columns. Textareas and multiselects do this already; this is for the rest. */
+  full?: boolean;
+}
+
+/**
+ * The panel the mockup puts at the foot of a form, above the buttons: what
+ * actually happens once this is saved. It is not decoration — a form that asks
+ * for a decision without stating its consequence is asking for a guess.
+ */
+export interface ResourceImpact {
+  label: string;
+  rows: Array<[string, string]>;
 }
 
 interface ResourceFormProps {
@@ -49,6 +69,43 @@ interface ResourceFormProps {
   showHeader?: boolean;
   /** Renders a "Cancel" button in the footer, next to the submit button, that calls this instead of submitting. */
   onCancel?: () => void;
+  /** What saving this does, shown as the mockup's summary panel below the fields. */
+  impact?: ResourceImpact;
+  /** One sentence shown on the left of the footer — the standing caveat for this form. */
+  note?: string;
+  /**
+   * "reason" is the mockup's decision modal: the consequence in plain words, a required reason, and a panel saying what will be
+   * recorded. The modal is itself the confirmation, so there is no second step.
+   */
+  layout?: "form" | "reason";
+  /** A stepped form: the step names in order, which one is showing, and how to move. Fields name their step; every step stays mounted so nothing is lost on the way. */
+  steps?: Array<{ name: string }>;
+  stepIndex?: number;
+  onStepChange?: (index: number) => void;
+  /** Leave the dialog open after a successful run and show the server's message in it — a test that reports what it would do. */
+  keepOpen?: boolean;
+  /** Reshapes the values just before they are sent — for an endpoint whose body is not a flat map. */
+  transform?: (payload: Record<string, unknown>) => Record<string, unknown>;
+  /** Instead of posting, hand the values to this address as a download — an export that needs a reason first. */
+  downloadHref?: string;
+  /** For the reason layout: red confirm button, for an act that cannot be quietly undone. */
+  danger?: boolean;
+  /** For the reason layout: what the record will say, and the change it describes (before → after). */
+  recorded?: { line?: string; before?: string; after?: string };
+}
+
+/** One grading band per line — "A | 70-100 | Excellent" — read into {grade, min, max, remark}. */
+function parseBands(text: string) {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const [grade, range, ...remark] = line.split("|").map((part) => part.trim());
+      const [min, max] = (range ?? "").split(/[-–]/).map((part) => Number(part.trim()));
+      if (!grade || !Number.isFinite(min) || !Number.isFinite(max)) throw new Error(`"${line}" is not a band. Write it as: A | 70-100 | Excellent`);
+      return { grade, min, max, remark: remark.join(" | ") };
+    });
 }
 
 function getCookie(name: string) {
@@ -56,6 +113,83 @@ function getCookie(name: string) {
     .split("; ")
     .find((item) => item.startsWith(`${name}=`))
     ?.split("=")[1];
+}
+
+/** The mockup's switch row: a real on/off control with a line saying what each position does. Sends "true" or "false". */
+function SwitchField({ field }: { field: ResourceField }) {
+  const [on, setOn] = useState(field.on ?? field.defaultValue === "true");
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      disabled={field.disabled}
+      onClick={() => setOn((value) => !value)}
+      style={{ display: "flex", alignItems: "flex-start", gap: 9, borderRadius: 10, padding: "9px 11px", minWidth: 0, textAlign: "left", cursor: field.disabled ? "not-allowed" : "pointer", background: on ? "#F4FAF7" : "#FCFDFC", border: `1px solid ${on ? "#CFE4DB" : "#E6EEE9"}`, opacity: field.disabled ? 0.7 : 1 }}
+    >
+      <input type="hidden" name={field.name} value={on ? "true" : "false"} />
+      <span style={{ width: 27, height: 15.5, borderRadius: 100, flex: "none", marginTop: 1, display: "flex", alignItems: "center", padding: "0 2px", background: on ? "var(--color-accent-primary)" : "#DEE8E2", justifyContent: on ? "flex-end" : "flex-start", transition: "background 120ms" }}>
+        <span style={{ width: 11.5, height: 11.5, borderRadius: 100, background: "#fff" }} />
+      </span>
+      <span style={{ minWidth: 0 }}>
+        <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#0D2315", textWrap: "pretty" }}>{field.label}</span>
+        {field.note ? <span style={{ display: "block", fontSize: 10, color: "#8C9A92", marginTop: 2, lineHeight: 1.4 }}>{field.note}</span> : null}
+      </span>
+    </button>
+  );
+}
+
+/** A searchable checklist for choosing several things. Nothing ticked means "all", which each field's note says. */
+function MultiPicker({ field }: { field: ResourceField }) {
+  const [picked, setPicked] = useState<string[]>(Array.isArray(field.defaultValue) ? field.defaultValue : []);
+  const [query, setQuery] = useState("");
+  const options = field.options ?? [];
+  const shown = options.filter((option) => option.label.toLowerCase().includes(query.trim().toLowerCase()));
+  const toggle = (value: string) => setPicked((current) => (current.includes(value) ? current.filter((item) => item !== value) : [...current, value]));
+  return (
+    <div style={{ border: "1px solid #DEE8E2", borderRadius: 10, background: "#fff", overflow: "hidden" }}>
+      {picked.map((value) => (
+        <input key={value} type="hidden" name={field.name} value={value} />
+      ))}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 11px", borderBottom: "1px solid #EDF3EF" }}>
+        <input
+          value={query}
+          onChange={(event) => setQuery(event.target.value)}
+          placeholder="Search"
+          style={{ flex: 1, minWidth: 0, fontSize: 11.5, border: "none", outline: "none", background: "transparent", color: "#0D2315" }}
+        />
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: picked.length ? "#12796A" : "#8C9A92", whiteSpace: "nowrap" }}>{picked.length ? `${picked.length} chosen` : "None chosen"}</span>
+        {picked.length ? (
+          <button type="button" onClick={() => setPicked([])} style={{ fontSize: 10.5, fontWeight: 600, color: "#8C9A92", background: "none", border: "none", cursor: "pointer" }}>
+            Clear
+          </button>
+        ) : null}
+      </div>
+      <div style={{ maxHeight: 132, overflowY: "auto" }}>
+        {shown.length === 0 ? <div style={{ padding: "10px 11px", fontSize: 11, color: "#8C9A92" }}>Nothing matches.</div> : null}
+        {shown.map((option) => {
+          const on = picked.includes(option.value);
+          return (
+            <button
+              key={option.value}
+              type="button"
+              onClick={() => toggle(option.value)}
+              style={{ display: "flex", width: "100%", alignItems: "center", gap: 9, padding: "7px 11px", textAlign: "left", fontSize: 11.5, color: "#0D2315", background: on ? "#F4FAF7" : "#fff", border: "none", borderBottom: "1px solid #F2F7F4", cursor: "pointer" }}
+            >
+              <span style={{ width: 14, height: 14, borderRadius: 4.5, flex: "none", display: "flex", alignItems: "center", justifyContent: "center", border: `1px solid ${on ? "#12796A" : "#D5E0DA"}`, background: on ? "#12796A" : "#fff" }}>
+                {on ? (
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="m5 12 5 5 9-10" />
+                  </svg>
+                ) : null}
+              </span>
+              {option.label}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function ResourceForm({
@@ -73,10 +207,22 @@ export function ResourceForm({
   onSuccess,
   showHeader = true,
   onCancel,
+  impact,
+  note,
+  layout = "form",
+  steps,
+  stepIndex = 0,
+  onStepChange,
+  transform,
+  keepOpen,
+  downloadHref,
+  danger = false,
+  recorded,
 }: ResourceFormProps) {
   const router = useRouter();
   const { showToast } = useToast();
   const [pending, setPending] = useState(false);
+  const [live, setLive] = useState<Record<string, string>>(() => Object.fromEntries(fields.filter((field) => field.defaultValue !== undefined && !Array.isArray(field.defaultValue)).map((field) => [field.name, String(field.defaultValue)])));
   const [message, setMessage] = useState<string | null>(null);
   const [tone, setTone] = useState<"success" | "warning" | "danger">("success");
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
@@ -124,6 +270,7 @@ export function ResourceForm({
       const body = (await response.json()) as {
         ok?: boolean;
         error?: string;
+        message?: string;
       };
 
       if (!response.ok || body.ok === false) {
@@ -131,14 +278,15 @@ export function ResourceForm({
       }
 
       setTone("success");
-      setMessage("Saved successfully.");
+      setMessage(keepOpen && body.message ? body.message : "Saved successfully.");
       showToast({
         variant: "success",
-        title: "Saved successfully",
+        title: body.message ? body.message.slice(0, 90) : "Saved successfully",
         description: title,
       });
       setNeedsConfirmation(false);
       setPendingPayload(null);
+      if (keepOpen) return;
       form.reset();
       router.refresh();
       onSuccess?.();
@@ -159,6 +307,19 @@ export function ResourceForm({
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
+    if (steps && stepIndex < steps.length - 1) {
+      const here = event.currentTarget.querySelectorAll<HTMLElement>(`[data-step="${steps[stepIndex].name}"] input, [data-step="${steps[stepIndex].name}"] select, [data-step="${steps[stepIndex].name}"] textarea`);
+      for (const element of Array.from(here)) {
+        const control = element as HTMLInputElement;
+        if (typeof control.checkValidity === "function" && !control.checkValidity()) {
+          control.reportValidity();
+          return;
+        }
+      }
+      onStepChange?.(stepIndex + 1);
+      return;
+    }
+
     const formData = new FormData(event.currentTarget);
     let payload: Record<string, unknown>;
     try {
@@ -176,6 +337,15 @@ export function ResourceForm({
           return acc;
         }
 
+        if (field.object) {
+          const group = (acc[field.object] ?? {}) as Record<string, boolean | string>;
+          const raw = formData.get(field.name);
+          if (field.type === "switch") group[field.name] = raw === "true";
+          else if (typeof raw === "string" && raw !== "") group[field.name] = raw;
+          acc[field.object] = group;
+          return acc;
+        }
+
         const value = formData.get(field.name);
         if (value !== null) {
           const rawValue = typeof value === "string" ? value : value.name;
@@ -183,7 +353,9 @@ export function ResourceForm({
             return acc;
           }
           acc[field.name] =
-            field.parse === "json"
+            field.parse === "bands"
+              ? parseBands(rawValue)
+              : field.parse === "json"
               ? JSON.parse(rawValue)
               : field.parse === "csv"
                 ? rawValue.split(",").map((part) => part.trim()).filter(Boolean)
@@ -191,13 +363,24 @@ export function ResourceForm({
         }
         return acc;
       }, {});
-    } catch {
+    } catch (error) {
       setTone("danger");
-      setMessage("One of the JSON fields is not valid. Please review and try again.");
+      setMessage(error instanceof Error && error.message.includes("is not a band") ? error.message : "One of the fields is not valid. Please review and try again.");
       return;
     }
 
-    if (confirmLabel && !needsConfirmation) {
+    if (transform) payload = transform(payload);
+
+    if (downloadHref) {
+      const query = new URLSearchParams();
+      for (const [key, value] of Object.entries(payload)) if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
+      window.location.assign(`${downloadHref}${downloadHref.includes("?") ? "&" : "?"}${query.toString()}`);
+      showToast({ variant: "success", title: "Export started", description: title });
+      onSuccess?.();
+      return;
+    }
+
+    if (confirmLabel && !needsConfirmation && layout !== "reason") {
       setPendingPayload(payload);
       setNeedsConfirmation(true);
       setTone("warning");
@@ -232,14 +415,25 @@ export function ResourceForm({
     danger: XCircle,
   }[tone];
 
-  const segments: Array<{ section?: string; kind: "toggle" | "field"; fields: ResourceField[] }> = [];
-  for (const field of fields) {
-    const kind: "toggle" | "field" = field.type === "toggle" ? "toggle" : "field";
+  // Every form in the mockup is read in headed sections. Where a caller names none, the fields are grouped the way the mockup would:
+  // the decision first, then the reason that goes on the record.
+  const sectioned = fields.some((field) => field.section && field.type !== "hidden");
+  const sectionOf = (field: ResourceField) => {
+    if (sectioned) return field.section;
+    if (field.type === "static") return "About this record";
+    if (field.type === "textarea" && /reason|why|note|evidence|comment|message|detail/i.test(field.name)) return "Reason";
+    return "Details";
+  };
+  const segments: Array<{ section?: string; step?: string; kind: "toggle" | "switch" | "locked" | "field"; fields: ResourceField[] }> = [];
+  const hiddenFields = fields.filter((field) => field.type === "hidden");
+  for (const rawField of fields.filter((field) => field.type !== "hidden")) {
+    const field = sectioned ? rawField : { ...rawField, section: sectionOf(rawField) };
+    const kind: "toggle" | "switch" | "locked" | "field" = field.type === "locked" || field.type === "toggle" || (field.type === "static" && /^(fixed for everyone|withheld by policy)/i.test(field.section ?? "")) ? "locked" : field.type === "switch" ? "switch" : "field";
     const last = segments[segments.length - 1];
-    if (last && last.section === field.section && last.kind === kind) {
+    if (last && last.section === field.section && last.kind === kind && last.step === field.wizardStep) {
       last.fields.push(field);
     } else {
-      segments.push({ section: field.section, kind, fields: [field] });
+      segments.push({ section: field.section, step: field.wizardStep, kind, fields: [field] });
     }
   }
 
@@ -289,21 +483,54 @@ export function ResourceForm({
         </div>
       ) : null}
 
-      <form id={formId} onSubmit={handleSubmit} className="grid gap-5">
+      <form
+        id={formId}
+        onSubmit={handleSubmit}
+        onInput={(event) => setLive(Object.fromEntries(Array.from(new FormData(event.currentTarget).entries()).map(([key, value]) => [key, typeof value === "string" ? value : value.name])))}
+        className="grid gap-5"
+      >
+          {hiddenFields.map((field) => (
+            <input key={field.name} type="hidden" name={field.name} defaultValue={field.defaultValue as string | undefined} />
+          ))}
           <div>
             {segments.map((segment, segIndex) => (
-              <div key={segment.section ?? `segment-${segIndex}`} style={{ marginBottom: segIndex === segments.length - 1 ? 0 : 20 }}>
-                {segment.section ? (
-                  <div style={{ display: "flex", alignItems: "center", gap: 9, marginBottom: 11 }}>
-                    <div style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", whiteSpace: "nowrap" }}>
+              <div
+                key={`${segment.section ?? "segment"}-${segIndex}`}
+                data-step={segment.step}
+                style={{ marginBottom: segIndex === segments.length - 1 ? 0 : 18, display: steps && segment.step && steps[stepIndex]?.name !== segment.step ? "none" : undefined }}
+              >
+                {segment.section && segment.section !== segments[segIndex - 1]?.section ? (
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", whiteSpace: "nowrap" }}>
                       {segment.section}
                     </div>
                     <div style={{ height: 1, flex: 1, background: "#EDF3EF" }} />
                   </div>
                 ) : null}
 
-                {segment.kind === "toggle" ? (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 9 }}>
+                {segment.kind === "locked" ? (
+                  <div style={{ border: "1px solid #EDF3EF", borderRadius: 11, overflow: "hidden", background: "#FBFDFC" }}>
+                    {segment.fields.map((field, lockIndex) => (
+                      <div key={field.name} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "10px 12px", borderBottom: lockIndex === segment.fields.length - 1 ? "none" : "1px solid #F2F7F4" }}>
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none", marginTop: 1 }}>
+                          <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" />
+                          <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+                        </svg>
+                        <div style={{ minWidth: 0 }}>
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#77857C", textWrap: "pretty" }}>{field.label}</div>
+                          {field.placeholder || field.note ? <div style={{ fontSize: 10, color: "#9FB8A7", marginTop: 2, lineHeight: 1.45, textWrap: "pretty" }}>{[field.placeholder, field.note].filter(Boolean).join(" — ")}</div> : null}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : segment.kind === "switch" ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                    {segment.fields.map((field) => (
+                      <SwitchField key={field.name} field={field} />
+                    ))}
+                  </div>
+                ) : segment.kind === "toggle" ? (
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 8 }}>
                     {segment.fields.map((field) => (
                       <div
                         key={field.name}
@@ -329,9 +556,9 @@ export function ResourceForm({
                         style={{
                           display: "flex",
                           alignItems: "flex-start",
-                          gap: 10,
+                          gap: 9,
                           borderRadius: 10,
-                          padding: "10px 12px",
+                          padding: "9px 11px",
                           minWidth: 0,
                           cursor: "pointer",
                           background: field.disabled ? "#FCFDFC" : "#F4FAF7",
@@ -340,8 +567,8 @@ export function ResourceForm({
                       >
                         <div
                           style={{
-                            width: 30,
-                            height: 17,
+                            width: 27,
+                            height: 15.5,
                             borderRadius: 100,
                             flex: "none",
                             marginTop: 1,
@@ -352,24 +579,24 @@ export function ResourceForm({
                             justifyContent: field.disabled ? "flex-start" : "flex-end"
                           }}
                         >
-                          <div style={{ width: 13, height: 13, borderRadius: 100, background: "#fff" }} />
+                          <div style={{ width: 11.5, height: 11.5, borderRadius: 100, background: "#fff" }} />
                         </div>
                         <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: 12, fontWeight: 600, color: "#0D2315" }}>{field.label}</div>
-                          {field.note ? <div style={{ fontSize: 11, color: "#8C9A92", marginTop: 2, lineHeight: 1.4 }}>{field.note}</div> : null}
+                          <div style={{ fontSize: 11, fontWeight: 600, color: "#0D2315", textWrap: "pretty" }}>{field.label}</div>
+                          {field.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 2, lineHeight: 1.4 }}>{field.note}</div> : null}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
                     {segment.fields.map((field) => {
                       const readonly = field.type === "static" || field.disabled;
                       const isSelect = field.type === "select";
-                      const spanFull = field.type === "textarea" || field.type === "multiselect";
+                      const spanFull = field.full || field.type === "textarea" || field.type === "multiselect";
                       return (
                         <label key={field.name} style={{ minWidth: 0, gridColumn: spanFull ? "1 / -1" : undefined }}>
-                          <div style={{ fontSize: 11.5, fontWeight: 600, color: "#435048", marginBottom: 6 }}>
+                          <div style={{ fontSize: 10.5, fontWeight: 600, color: "#435048", marginBottom: 5.5 }}>
                             {field.label}
                             {field.required ? " *" : ""}
                           </div>
@@ -380,22 +607,10 @@ export function ResourceForm({
                               placeholder={field.placeholder}
                               defaultValue={field.defaultValue as string | undefined}
                               rows={4}
-                              style={{ width: "100%", fontSize: 12.5, color: "#0D2315", fontWeight: 500, borderRadius: 10, padding: "11px 13px", background: "#fff", border: "1px solid #DEE8E2", outline: "none", resize: "vertical" }}
+                              style={{ width: "100%", fontSize: 11.5, color: "#0D2315", fontWeight: 500, borderRadius: 10, padding: "10px 11.5px", background: "#fff", border: "1px solid #DEE8E2", outline: "none", resize: "vertical" }}
                             />
                           ) : field.type === "multiselect" ? (
-                            <select
-                              name={field.name}
-                              required={field.required}
-                              multiple
-                              defaultValue={field.defaultValue as string[] | undefined}
-                              style={{ width: "100%", minHeight: 120, fontSize: 12.5, color: "#0D2315", fontWeight: 500, borderRadius: 10, padding: "11px 13px", background: "#fff", border: "1px solid #DEE8E2", outline: "none" }}
-                            >
-                              {(field.options ?? []).map((option) => (
-                                <option key={option.value} value={option.value}>
-                                  {option.label}
-                                </option>
-                              ))}
-                            </select>
+                            <MultiPicker field={field} />
                           ) : (
                             <div
                               role={field.type === "static" ? "button" : undefined}
@@ -419,17 +634,17 @@ export function ResourceForm({
                                 display: "flex",
                                 alignItems: "center",
                                 justifyContent: "space-between",
-                                gap: 8,
+                                gap: 7,
                                 borderRadius: 10,
-                                padding: "11px 13px",
+                                padding: "10px 11.5px",
                                 cursor: field.type === "static" ? "pointer" : undefined,
                                 background: readonly ? "#F7FAF8" : "#fff",
                                 border: `1px solid ${readonly ? "#E6EEE9" : "#DEE8E2"}`
                               }}
                             >
                               {field.type === "static" ? (
-                                <span style={{ fontSize: 12.5, color: "#5D6B63", fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                                  {field.placeholder}
+                                <span style={{ fontSize: 11.5, color: "#5D6B63", fontWeight: 400, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                                  {field.compute ? field.compute(live) : field.placeholder}
                                 </span>
                               ) : field.type === "select" ? (
                                 <select
@@ -437,7 +652,7 @@ export function ResourceForm({
                                   required={field.required}
                                   disabled={field.disabled}
                                   defaultValue={field.defaultValue as string | undefined}
-                                  style={{ fontSize: 12.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%", appearance: "none" }}
+                                  style={{ fontSize: 11.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%", appearance: "none" }}
                                 >
                                   {(field.options ?? []).map((option) => (
                                     <option key={option.value} value={option.value}>
@@ -454,23 +669,23 @@ export function ResourceForm({
                                   min={field.min}
                                   max={field.max}
                                   step={field.step}
-                                  style={{ fontSize: 12.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%" }}
+                                  style={{ fontSize: 11.5, color: "#0D2315", fontWeight: 500, background: "transparent", border: "none", outline: "none", width: "100%" }}
                                   type={field.type ?? "text"}
                                 />
                               )}
                               {field.type === "static" ? (
-                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
+                                <svg width="11.5" height="11.5" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
                                   <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" />
                                   <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
                                 </svg>
                               ) : isSelect ? (
-                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round" style={{ flex: "none" }}>
+                                <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round" style={{ flex: "none" }}>
                                   <path d="m6 9 6 6 6-6" />
                                 </svg>
                               ) : null}
                             </div>
                           )}
-                          {field.note ? <div style={{ fontSize: 11, color: "#8C9A92", marginTop: 5, lineHeight: 1.45 }}>{field.note}</div> : null}
+                          {field.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 4.5, lineHeight: 1.45 }}>{field.note}</div> : null}
                         </label>
                       );
                     })}
@@ -480,6 +695,20 @@ export function ResourceForm({
             ))}
           </div>
 
+        {impact && (!steps || stepIndex === steps.length - 1) ? (
+          <div style={{ background: "#F7FAF8", border: "1px solid #E6EEE9", borderRadius: 13, padding: "13.5px 15.5px" }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", marginBottom: 10 }}>
+              {impact.label}
+            </div>
+            {impact.rows.map(([label, value]) => (
+              <div key={label} style={{ display: "flex", alignItems: "flex-start", gap: 11, padding: "6.5px 0" }}>
+                <div style={{ fontSize: 11.5, fontWeight: 600, color: "#0D2315", minWidth: 171, flex: "none", textWrap: "pretty" }}>{label}</div>
+                <div style={{ fontSize: 11, color: "#5D6B63", lineHeight: 1.5, textWrap: "pretty" }}>{value}</div>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         <div
           className={
             chrome === "plain"
@@ -487,8 +716,11 @@ export function ResourceForm({
               : "border-t border-[var(--color-border-default)] pt-4"
           }
         >
-          <div className={needsConfirmation && pendingPayload ? "hidden" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"}>
+          <div className={needsConfirmation && pendingPayload ? "hidden" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-[14.5px]"}>
             <div className="min-h-[24px]">
+              {message === null && note ? (
+                <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#8C9A92]">{note}</p>
+              ) : null}
               {message ? (
                 <div
                   className="inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium"
@@ -504,17 +736,32 @@ export function ResourceForm({
             </div>
 
             <div className="flex items-center gap-2">
+              {steps && stepIndex > 0 ? (
+                <button
+                  type="button"
+                  onClick={() => onStepChange?.(stepIndex - 1)}
+                  disabled={pending}
+                  className="rounded-[10px] border border-[#DEE8E2] bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#F7FAF8] disabled:opacity-50"
+                >
+                  Back
+                </button>
+              ) : null}
               {onCancel ? (
-                <button type="button" onClick={onCancel} disabled={pending} className="btn-secondary px-5 disabled:cursor-not-allowed disabled:opacity-50">
+                <button
+                  type="button"
+                  onClick={onCancel}
+                  disabled={pending}
+                  className="rounded-[10px] border border-[#DEE8E2] bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#F7FAF8] disabled:cursor-not-allowed disabled:opacity-50"
+                >
                   Cancel
                 </button>
               ) : null}
               <button
                 type="submit"
                 disabled={pending}
-                className="btn-primary px-6"
+                className="whitespace-nowrap rounded-[10px] bg-[#0D2315] px-[16px] py-[10px] text-[11.5px] font-semibold text-white shadow-[0_7px_16px_-7px_rgba(13,35,21,0.5)] transition hover:bg-[#17402A] disabled:cursor-not-allowed disabled:opacity-60"
               >
-                {pending ? "Saving..." : submitLabel}
+                {pending ? "Saving..." : steps && stepIndex < steps.length - 1 ? "Continue" : submitLabel}
               </button>
             </div>
           </div>
@@ -561,6 +808,85 @@ export function ResourceForm({
       </form>
     </>
   );
+
+  if (layout === "reason") {
+    const reasonField = fields.find((field) => field.type === "textarea");
+    const FeedbackIcon = feedbackIcon;
+    return (
+      <form id={formId} onSubmit={handleSubmit} className="-mx-[23.5px] -my-[20px]">
+        {hiddenFields.map((field) => (
+          <input key={field.name} type="hidden" name={field.name} defaultValue={field.defaultValue as string | undefined} />
+        ))}
+        <div style={{ padding: "22px 24px 18px" }}>
+          <div style={{ fontFamily: "var(--font-heading)", fontSize: 18, fontWeight: 800, letterSpacing: "-0.015em", color: "#0D2315", textWrap: "pretty" }}>{title}</div>
+          <div style={{ fontSize: 12, color: "#5D6B63", lineHeight: 1.6, marginTop: 8, textWrap: "pretty" }}>{description}</div>
+
+          {reasonField ? (
+            <>
+              <div style={{ fontSize: 10.5, fontWeight: 600, color: "#435048", margin: "18px 0 6px" }}>
+                {reasonField.label}
+                {reasonField.required ? " (required)" : ""}
+              </div>
+              <textarea
+                name={reasonField.name}
+                required={reasonField.required}
+                placeholder={reasonField.placeholder ?? "Say what prompted this. It travels with the record permanently."}
+                defaultValue={reasonField.defaultValue as string | undefined}
+                rows={3}
+                style={{ width: "100%", minHeight: 74, fontSize: 11.5, color: "#0D2315", fontWeight: 500, borderRadius: 11, padding: "11px 13px", background: "#fff", border: "1.5px solid #DEE8E2", outline: "none", resize: "vertical", lineHeight: 1.55 }}
+              />
+              {reasonField.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 4.5, lineHeight: 1.45 }}>{reasonField.note}</div> : null}
+            </>
+          ) : null}
+
+          {reasonField || recorded ? (
+          <div style={{ background: "#F7FAF8", border: "1px solid #E6EEE9", borderRadius: 13, padding: "14px 15px", marginTop: 15 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", marginBottom: 9 }}>Will be recorded</div>
+            <div style={{ fontSize: 11.5, fontWeight: 600, color: "#0D2315" }}>{recorded?.line ?? `You · ${title}`}</div>
+            {recorded?.before || recorded?.after ? (
+              <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
+                {recorded.before ? <span style={{ fontSize: 10.5, color: "#8C9A92", background: "#F4F8F6", border: "1px solid #EDF3EF", borderRadius: 7, padding: "2px 7px" }}>{recorded.before}</span> : null}
+                {recorded.before && recorded.after ? (
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M5 12h13M13.5 7l5 5-5 5" />
+                  </svg>
+                ) : null}
+                {recorded.after ? <span style={{ fontSize: 10.5, fontWeight: 600, color: "#17604F", background: "#EAF3EE", border: "1px solid #D5E5DC", borderRadius: 7, padding: "2px 7px" }}>{recorded.after}</span> : null}
+              </div>
+            ) : null}
+            <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid #E6EEE9" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8C9A92" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
+                <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" />
+                <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
+              </svg>
+              <div style={{ fontSize: 10.5, color: "#77857C" }}>Written to the audit log under your name, and cannot be edited afterwards.</div>
+            </div>
+          </div>
+          ) : null}
+          {message ? (
+            <div className="mt-3 inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-[12px] font-medium" style={feedbackToneStyle}>
+              <FeedbackIcon className="h-4 w-4" />
+              <span>{message}</span>
+            </div>
+          ) : null}
+        </div>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", gap: 9, padding: "14px 24px", borderTop: "1px solid #EDF3EF", background: "#FBFDFC" }}>
+          {onCancel ? (
+            <button type="button" onClick={onCancel} disabled={pending} className="rounded-[10px] border border-[#DEE8E2] bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#F7FAF8] disabled:opacity-50">
+              Cancel
+            </button>
+          ) : null}
+          <button
+            type="submit"
+            disabled={pending}
+            className={`whitespace-nowrap rounded-[10px] px-[16px] py-[10px] text-[11.5px] font-semibold text-white transition disabled:cursor-not-allowed disabled:opacity-60 ${danger ? "bg-[#B23B3B] shadow-[0_7px_16px_-7px_rgba(178,59,59,0.5)] hover:bg-[#9C3030]" : "bg-[#0D2315] shadow-[0_7px_16px_-7px_rgba(13,35,21,0.5)] hover:bg-[#17402A]"}`}
+          >
+            {pending ? "Saving..." : submitLabel}
+          </button>
+        </div>
+      </form>
+    );
+  }
 
   if (chrome === "plain") return content;
 

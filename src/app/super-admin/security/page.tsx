@@ -213,13 +213,13 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
         action={
           <ResourceActionDialog
             triggerLabel="Export the audit log"
-            title="Security & Compliance"
-            description="What happened, who did it, and the obligations we operate."
+            title="Export the audit log"
+            description="The record of who did what. Taking a copy of it is itself an act — the reason you give, the filters, and the row count are written back to the audit log and kept with the copy."
             endpoint="/api/super-admin/compliance/audit-exports"
             method="POST"
             variant="heroWhite"
             submitLabel="Create export"
-            fields={[
+            note="This export is written to the audit log — actor, filters, row count and reason." fields={[
               { name: "dateFrom", label: "From", type: "date", section: "Filters" },
               { name: "dateTo", label: "To", type: "date", section: "Filters" },
               { name: "actorId", label: "Actor", type: "select", defaultValue: "", options: [{ label: "Anyone", value: "" }, ...actors.map((actor) => ({ label: `${actor.name} · ${actor.role.replaceAll("_", " ").toLowerCase()}`, value: actor.id }))], section: "Filters" },
@@ -603,7 +603,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
                 { name: "version", label: "Version", required: true, placeholder: dpa.current ? `Now ${dpa.current} — e.g. ${(Number(dpa.current) + 0.1).toFixed(1)}` : "e.g. 4.0" },
                 { name: "effectiveFrom", label: "Effective from", type: "date", note: "Blank means today." },
                 { name: "summary", label: "What changed", type: "textarea" },
-                { name: "notifySchools", label: "Tell schools that are behind", type: "select", defaultValue: "true", options: [{ label: "Yes — notify their owners in the app", value: "true" }, { label: "No — publish quietly", value: "false" }] }
+                { name: "notifySchools", label: "Tell schools that are behind", type: "switch", on: true, note: "Notify their owners in the app" }
               ]}
             />
           }

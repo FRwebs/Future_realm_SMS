@@ -76,6 +76,17 @@ export interface SchoolContextView {
   currentTerm: string;
 }
 
+/** What the Back Office has decided that a school's own app must show and obey (GET /api/v1/platform-sync). */
+export interface PlatformSyncView {
+  school: { name: string; plan: string; tier: string; status: string; billingStatus: string; trialEndsAt: string | null };
+  pendingSwitch: { to: string; from: string | null } | null;
+  readOnly: { reason: string; kind: "maintenance" | "trial" } | null;
+  platformMessage: string | null;
+  windows: Array<{ id: string; title: string; message: string; startsAt: string; endsAt: string; active: boolean }>;
+  announcements: Array<{ id: string; title: string; body: string; type: "INFO" | "WARNING" | "CRITICAL" | "NEW_FEATURE" | "PROMOTION"; publishedAt: string | null }>;
+  switchedOff: Array<{ slug: string; name: string; scope: "platform" | "school"; reason: string }>;
+}
+
 export interface DashboardMetric {
   label: string;
   value: string;
@@ -2672,7 +2683,7 @@ export interface SuperAdminBiOverview {
   funnel: Array<{ stage: string; count: number }>;
   weekOverWeek: Array<{ stage: string; thisWeek: number; lastWeek: number; changePct: number }>;
   cohorts: Array<{ cohort: string; joined: number; stillActive: number; retentionPct: number }>;
-  featureRequests: Array<{ keyword: string; requestCount: number; schoolsRequesting: number; tiersRequesting: number; priorityScore: number }>;
+  featureRequests: Array<{ keyword: string; requestCount: number; schoolsRequesting: number; tiersRequesting: number; severity?: string; priorityScore: number }>;
   schoolsActiveThisWeek: number;
 }
 
@@ -2744,14 +2755,14 @@ export interface SuperAdminInfraMonitoring {
     perSchool: Array<{ schoolName: string; queued: number; refused?: number; conflicts?: number; oldestAgeHours: number; status: string }>;
   };
   deliveryHealth: Array<{ channel: string; total: number; sent?: number; failed?: number; queued?: number; simulated?: number; failureRate: number; status: string }>;
-  integrations: Array<{ name: string; checkFrequency: string; status: string; onFailure: string }>;
+  integrations: Array<{ name: string; checkFrequency: string; status: string; onFailure: string; owner?: string | null; ownerId?: string | null }>;
   runtime?: { cpuPercent: number; loadAverage: number; cpuCores: number; memoryMb: number; systemMemoryPercent: number; processUptimeMinutes: number; dbPingMs: number; concurrentUsers: number; pageLoad: { samples: number; p75Ms: number | null; slowSamples: number; slowP75Ms: number | null } };
   backups: { lastSuccessfulAt: string | null; lastVerifiedAt?: string | null; lastRestoreTestAt?: string | null; lastRestoreResult?: string | null; region?: string; scheduled?: boolean; retentionDays?: number; recent: Array<{ id: string; scope: string; status: string; sizeMb?: number | null; school: string; startedAt: string; endedAt?: string; verified?: boolean; restoreTested?: boolean; sha256?: string | null; note?: string | null; reason?: string | null; location?: string | null }> };
   generatedAt: string;
 }
 
 export interface SuperAdminComputationMonitoring {
-  computation?: { runsToday: number; schoolsToday: number; medianMs: number | null; p95Ms: number | null; failingFrameworks: Array<{ school: string; section: string; total: number }>; bySchool: Array<{ school: string; runs: number; records: number; medianMs: number | null; recomputes: number; state: string }> };
+  computation?: { trace?: { checked: number; matched: number; pct: number | null }; regression?: { ranAt: string; passed: number; total: number; trigger: string; failures: Array<{ name: string }> } | null; recomputes?: Array<{ school: string; reason: string; at: string }>; runsToday: number; schoolsToday: number; medianMs: number | null; p95Ms: number | null; failingFrameworks: Array<{ school: string; section: string; total: number }>; bySchool: Array<{ school: string; runs: number; records: number; medianMs: number | null; recomputes: number; state: string }> };
   assessments: { pendingApproval: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string };
   broadsheets: { pending: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string; avgCompileHours: number | null };
   reportCards: { pending: number; oldestAgeHours: number | null; oldestLabel: string | null; status: string };
@@ -2800,7 +2811,7 @@ export interface SuperAdminPermissionTemplateRow {
 export interface SuperAdminTeamActivity {
   schoolsOnboardedThisMonth: number;
   totalRevenueReconciled: number;
-  members: Array<{ id: string; name: string; role: string; lastLoginAt?: string; ticketsResolved: number; actionsTaken: number; revenueReconciled: number }>;
+  members: Array<{ id: string; name: string; role: string; department?: string | null; lastLoginAt?: string; ticketsResolved: number; actionsTaken: number; revenueReconciled: number }>;
 }
 
 export interface SuperAdminPermissionGridMatrix {

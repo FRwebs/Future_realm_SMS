@@ -43,13 +43,14 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
         action={
           <ResourceActionDialog
             triggerLabel="Run manual backup"
-            title="Infrastructure"
-            description="Know about a problem before any school does."
+            title="Run a manual backup"
+            description="Takes a real pg_dump of the whole database now, fingerprints it, and can read it back and restore it into a scratch database to prove it works. A failed run is logged as a high-severity incident and the platform team is emailed."
             endpoint="/api/super-admin/system/backups"
             method="POST"
             variant="heroWhite"
             submitLabel="Run backup now"
             confirmLabel="Confirm"
+            note="A missed backup is critical and cannot be cleared until a successful one completes."
             fields={[
               { name: "scope", label: "What to back up", type: "static", placeholder: "Full platform", note: "Every manual run is the whole database — there is no partial or per-school option.", section: "Scope" },
               { name: "region", label: "Storage region", type: "static", placeholder: data.backups.region ?? "This server", note: "Where the archive is written — set by BACKUP_REGION on the server, not chosen per run.", section: "Scope" },
@@ -62,24 +63,8 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
                 note: data.backups.lastRestoreTestAt ? (data.backups.lastRestoreResult ?? "Restored into a scratch database and checked.") : "No backup has been restored yet — until one is, none is proven restorable.",
                 section: "Scope"
               },
-              {
-                name: "verifyArchive",
-                label: "Verify the archive afterwards",
-                type: "select",
-                defaultValue: "true",
-                options: [{ label: "Yes — read the file back and check it", value: "true" }, { label: "No — just write it", value: "false" }],
-                note: "Reads the dump back with pg_restore and compares its SHA-256 fingerprint.",
-                section: "Verification"
-              },
-              {
-                name: "restoreTest",
-                label: "Run a restore test into staging",
-                type: "select",
-                defaultValue: "false",
-                options: [{ label: "No", value: "false" }, { label: "Yes — restore into a scratch database, then drop it", value: "true" }],
-                note: "Slower on a large database. Never touches the live database.",
-                section: "Verification"
-              },
+              { name: "verifyArchive", label: "Verify the archive afterwards", type: "switch", on: true, note: "Reads the dump back with pg_restore and compares its SHA-256 fingerprint", section: "Verification" },
+              { name: "restoreTest", label: "Run a restore test into staging", type: "switch", on: false, note: "Restores into a scratch database, then drops it. Slower on a large database; never touches the live one", section: "Verification" },
               {
                 name: "notifyOnCompletion",
                 label: "Notify Infrastructure on completion",
@@ -280,8 +265,8 @@ async function ComputationTab() {
   return (
     <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Trace completeness" value="N/A" detail="Not built — no per-step calculation trace is stored; a run records its size and duration only" tone="neutral" icon={Activity} />
-        <StatCard label="Regression suite" value="CI only" detail="The golden-dataset tests run before a release, not at runtime — this page cannot read their result" tone="neutral" icon={FlaskConical} />
+        <StatCard label="Trace completeness" value={comp?.trace?.pct != null ? `${comp.trace.pct}%` : "No runs yet"} detail={comp?.trace?.checked ? `${comp.trace.matched} of ${comp.trace.checked} results traced back to the recorded scores (30 days)` : "Each run checks that what it wrote is what the recorded component scores add up to"} tone={comp?.trace?.pct != null && comp.trace.pct < 100 ? "warning" : "success"} icon={Activity} />
+        <StatCard label="Regression suite" value={comp?.regression ? `${comp.regression.passed}/${comp.regression.total}` : "Not run yet"} detail={comp?.regression ? `${comp.regression.failures.length ? `${comp.regression.failures.length} golden case${comp.regression.failures.length === 1 ? "" : "s"} failing — ` : "Every golden case gives its known answer — "}last run ${formatDate(comp.regression.ranAt)} (${comp.regression.trigger.toLowerCase()})` : "Fixed inputs with known answers, run through the real calculation code at start-up and daily"} tone={comp?.regression?.failures.length ? "danger" : "success"} icon={FlaskConical} />
         <StatCard label="Computations today" value={comp ? String(comp.runsToday) : "N/A"} detail={comp ? `Across ${comp.schoolsToday} school${comp.schoolsToday === 1 ? "" : "s"} — every broadsheet, ranking and report-card run` : "Unavailable"} tone="dark" icon={Cpu} />
         <StatCard
           label="Median duration"
@@ -312,7 +297,7 @@ async function ComputationTab() {
           { key: "state", header: "State", render: (row) => <StatusBadge status={row.state} tone={statusTone(row.state)} /> }
         ]}
         emptyState="No computation has been run in the last 30 days."
-        footnote="A recompute is a run over a class and term that already had a run. Trace completeness is not recorded — see the table below."
+        footnote="A recompute is a run over a class and term that already had a run; its reason is listed below."
       />
 
       {comp?.failingFrameworks.length ? (
@@ -336,33 +321,30 @@ async function ComputationTab() {
       </section>
 
       <TableCard
-        title="What is monitored here — real vs. not tracked"
-        items={[
-          { label: "Golden-dataset regression on every deployment", state: "Not tracked at runtime — a CI/deployment concern this page has no visibility into.", tone: "bad" },
-          { label: "Computation volume and duration by school", state: "Real — each broadsheet, ranking and report-card run records its school, size and measured duration.", tone: "good" },
-          { label: "Trace completeness", state: "Not built — calculation traces are not recorded yet.", tone: "bad" },
-          { label: "Recomputation events", state: "Partial — a re-run over an already-computed class and term is counted; the reason is not captured.", tone: "warn" },
-          { label: "Assessment frameworks failing validation", state: "Real — checked live against every active school's section weights.", tone: "good" }
-        ]}
-        getRowKey={(row) => row.label}
-        columns={[
-          { key: "label", header: "What this covers", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.label}</span> },
-          {
-            key: "state",
-            header: "State",
-            render: (row) => {
-              const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.tone as "good" | "warn" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
-            }
-          }
-        ]}
-        footnote={
-          <>
-            Computation runs from the start of instrumentation onward are counted; earlier results are not back-filled. There is no separate background job queue — broadsheet compilation and report card generation are
-            workflow steps schools trigger directly. A stage is flagged Warning once its oldest pending record has sat for more than 14
-            days, Critical past 30 days. Data as of {formatDate(data.generatedAt)}.
-          </>
+        title="Recomputation events"
+        description="Every time results were run again over a class and term that already had a run, and the reason given."
+        items={comp?.recomputes ?? []}
+        getRowKey={(row) => `${row.school}:${row.at}`}
+        emptyState="No result has been recomputed in the last 30 days."
+        actions={
+          <ResourceActionDialog
+            triggerLabel="Run the regression suite"
+            title="Run the golden-dataset checks"
+            description="Fixed inputs with known answers go through the real calculation code — totals, blanks and absences, grade boundaries, ranking ties. The result is kept."
+            endpoint="/api/super-admin/infra-extras/regression/run"
+            method="POST"
+            variant="secondary"
+            submitLabel="Run now"
+            keepOpen
+            fields={[]}
+          />
         }
+        columns={[
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "reason", header: "Reason", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.reason}</span> },
+          { key: "at", header: "When", render: (row) => formatDate(row.at) }
+        ]}
+        footnote={comp?.regression?.failures.length ? `Failing now: ${comp.regression.failures.map((failure) => failure.name).join("; ")}. A failure also opens a High security incident.` : undefined}
       />
     </div>
   );

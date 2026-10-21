@@ -79,7 +79,9 @@ const cache = new Map<string, { at: number; grid: Record<string, string>; custom
 async function load(userId: string, role: string) {
   const hit = cache.get(userId);
   if (hit && Date.now() - hit.at < TTL_MS) return hit;
-  const [rows, template, grants] = await Promise.all([
+  const profile = await prisma.internalProfile.findUnique({ where: { userId }, select: { customRoleId: true } });
+  const customRole = profile?.customRoleId ? await prisma.internalRole.findFirst({ where: { id: profile.customRoleId, retiredAt: null } }) : null;
+  const [rows, builtTemplate, grants] = await Promise.all([
     prisma.internalPermissionGrid.findMany({ where: { userId } }),
     prisma.internalPermissionTemplate.findUnique({ where: { roleName: role } }),
     prisma.internalAccessGrant.findMany({ where: { userId, revokedAt: null, OR: [{ expiresAt: null }, { expiresAt: { gt: new Date() } }] }, select: { moduleId: true } })
@@ -88,7 +90,7 @@ async function load(userId: string, role: string) {
     at: Date.now(),
     grid: Object.fromEntries(rows.filter((row) => row.accessLevel !== "INHERIT").map((row) => [row.moduleId, row.accessLevel])),
     custom: Object.fromEntries(rows.filter((row) => row.customActions).map((row) => [row.moduleId, row.actions])),
-    template: template && typeof template.defaultGrid === "object" && template.defaultGrid ? (template.defaultGrid as Record<string, string>) : {},
+    template: customRole && typeof customRole.grid === "object" && customRole.grid ? (customRole.grid as Record<string, string>) : builtTemplate && typeof builtTemplate.defaultGrid === "object" && builtTemplate.defaultGrid ? (builtTemplate.defaultGrid as Record<string, string>) : {},
     grants: new Set(grants.map((g) => g.moduleId))
   };
   cache.set(userId, entry);

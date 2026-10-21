@@ -124,7 +124,7 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
         description="Attribution before introductions, commission on money received."
         action={
           activeTab === "registrations" ? (
-            <ResourceActionDialog triggerLabel="Register a school" title="Partners & Commission" description="Attribution before introductions, commission on money received." endpoint="/api/super-admin/partners/deals" submitLabel="Register" variant="heroWhite" fields={dealFields(partnerOptions)} />
+            <ResourceActionDialog triggerLabel="Register a school" title="Register a school for a partner" description="Log an introduction. It is valid for 90 days; the school must sign up inside the window for the attribution to hold." endpoint="/api/super-admin/partners/deals" submitLabel="Register" variant="heroWhite" note="Registration is valid for 90 days. Commission accrues on reconciled invoices only." impact={{ label: "What this registration does", rows: [["Locks attribution for 90 days", "A second claim on this school resolves against this record"], ["No commission yet", "It accrues from the first reconciled invoice, not the first payment"]] }} fields={dealFields(partnerOptions)} />
           ) : activeTab === "statements" ? (
             <ResourceActionDialog
               triggerLabel="Issue statements"
@@ -142,7 +142,7 @@ export default async function PartnersPage({ searchParams }: { searchParams?: Pr
               ]}
             />
           ) : (
-            <ResourceActionDialog triggerLabel="Register a partner" title="Register a partner" description="A partner is an organisation, a named person who answers for it, a signed agreement, a bank account to pay, and a permanent code a school can carry." endpoint="/api/super-admin/partners" submitLabel="Register partner" variant="heroWhite" fields={partnerFields()} />
+            <ResourceActionDialog triggerLabel="Register a partner" title="Register a partner" description="A partner is an organisation, a named person who answers for it, a signed agreement, a bank account to pay, and a permanent code a school can carry." endpoint="/api/super-admin/partners" submitLabel="Register partner" variant="heroWhite" note="The reference code is issued on save and never changes. It is what a school types at signup." impact={{ label: "On saving", rows: [["A reference code is issued", "Permanent. Give it to them — it is how their schools get attributed"], ["Status", "Onboarding until the countersigned agreement is recorded, then Active"], ["Commission", "Nothing accrues until a school of theirs has a fully reconciled invoice"]] }} fields={partnerFields()} />
           )
         }
       />
@@ -196,6 +196,32 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
               <ActionMenu>
                 <Link href={`/super-admin/partners?partner=${partner.id}`} className="block px-3 py-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">See every school mapped</Link>
                 <ResourceActionDialog triggerLabel="Edit the record" title={`Edit ${partner.name}`} description="Contacts, agreement, rates, minimum performance and bank details." endpoint={`/api/super-admin/partners/${partner.id}`} method="PATCH" variant="secondary" submitLabel="Save" fields={partnerFields(partner)} />
+                {partner.countersignedAt ? (
+                  <ResourceActionDialog
+                    triggerLabel="Send login details"
+                    title="Send partner login details"
+                    description="Their own portal, scoped to the schools they brought."
+                    endpoint={`/api/super-admin/partners/${partner.id}/invite`}
+                    method="POST"
+                    variant="secondary"
+                    submitLabel="Send invitation"
+                    note="You never set a partner’s password. They receive a single-use link and set it themselves."
+                    impact={{ label: "On sending", rows: [["A login link is emailed", "Single use, valid 48 hours, to the primary contact — and the second person if you name one"], ["They choose their own password", "The link stops working the moment it is used"], ["A new invitation replaces the old", "Earlier links stop working at once"]] }}
+                    fields={[
+                      { name: "partner", label: "Partner", type: "static", placeholder: `${partner.name}${partner.code ? ` · ${partner.code}` : ""}`, section: "Who receives a login" },
+                      { name: "primary", label: "Primary login", type: "static", placeholder: partner.email ? `${partner.email}${partner.primaryContactName ? ` · ${partner.primaryContactName}` : ""}` : "No primary contact email recorded — add one first", section: "Who receives a login" },
+                      { name: "secondEmail", label: "Second login — email", type: "email", placeholder: "Optional — e.g. the day-to-day contact", section: "Who receives a login" },
+                      { name: "secondName", label: "Second login — name", section: "Who receives a login" },
+                      { name: "validity", label: "Link validity", type: "static", placeholder: "48 hours, single use", section: "Who receives a login" },
+                      { name: "scope", label: "Their schools — name, tier, tenure, state", type: "locked", note: "The list of schools they brought, and nothing else", section: "What they will see" },
+                      { name: "commission", label: "Their own commission", type: "locked", note: "Accrued, settled, and the statement history", section: "What they will see" },
+                      { name: "deals", label: "Registered deals and their expiry", type: "locked", note: "So they can see a 90-day window closing without asking us", section: "What they will see" },
+                      { name: "withheld1", label: "Student, staff or guardian data", type: "locked", note: "Never — the function does not exist for a partner login", section: "Withheld by policy" },
+                      { name: "withheld2", label: "Invoices or fee balances of their schools", type: "locked", note: "What a school pays is between the school and the platform", section: "Withheld by policy" },
+                      { name: "welcomeNote", label: "Welcome note", type: "textarea", placeholder: "Optional — appears above the login link in the invitation email", section: "First message to them" }
+                    ]}
+                  />
+                ) : null}
                 {!partner.countersignedAt ? <ResourceActionDialog triggerLabel="Record countersignature" title={`Countersigned agreement · ${partner.name}`} description="Deals can only be registered for a partner whose signed agreement is on file." endpoint={`/api/super-admin/partners/${partner.id}/countersign`} method="PATCH" variant="secondary" submitLabel="Record" fields={[{ name: "reference", label: "Reference of the countersigned agreement", required: true }, { name: "signedOn", label: "Signed on", type: "date" }]} /> : null}
                 {partner.status === "SUSPENDED" ? (
                   <ResourceActionDialog triggerLabel="Reactivate" title={`Reactivate ${partner.name}`} description="They can register deals again and accrue commission." endpoint={`/api/super-admin/partners/${partner.id}/reactivate`} method="PATCH" variant="secondary" submitLabel="Reactivate" fields={[]} />
@@ -206,7 +232,7 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
             )
           }
         ]}
-        footnote="The signed agreement is the legal record; the structured terms on this record are what the commission engine operates on. Partners have no login of their own to this platform: everything here is run by the team."
+        footnote="The signed agreement is the legal record; the structured terms on this record are what the commission engine operates on. A partner’s own login sees only their schools, commission and deals — everything else here is run by the team."
       />
 
       {focused ? (
@@ -375,7 +401,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
         emptyState="No deal has been registered."
         getRowKey={(deal) => deal.id}
         actions={
-          <ResourceActionDialog triggerLabel="Send expiry alerts" title="Send expiry alerts" description="Emails every partner with a registration expiring within 14 days." endpoint="/api/super-admin/partners/deals/expiry-alerts" method="POST" variant="secondary" submitLabel="Send alerts" fields={[]} />
+          <ResourceActionDialog triggerLabel="Send expiry alerts" title="Send expiry alerts" description="Emails every partner with a registration expiring within 14 days. This also runs by itself every hour." endpoint="/api/super-admin/partners/deals/expiry-alerts" method="POST" variant="secondary" submitLabel="Send alerts" fields={[]} />
         }
         columns={[
           { key: "school", header: "Prospect school", render: (deal) => <div><p className="font-bold text-[var(--color-text-primary)]">{deal.prospectSchoolName}</p><p className="text-[10px] text-[var(--color-text-muted)]">{deal.prospectLocation ?? "No location"}{deal.contactName ? ` · ${deal.contactName}` : ""}</p></div> },

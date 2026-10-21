@@ -437,6 +437,12 @@ a:focus-visible,
     box-shadow: var(--shadow-sm);
   }
 
+  /* The Back Office's cards are flat: white, a hairline border, no shadow. */
+  [data-portal="super_admin"] .surface-card {
+    background: var(--color-bg-surface);
+    box-shadow: none;
+  }
+
   .surface-hero {
     @apply overflow-hidden rounded-[var(--radius-hero)] border;
     border-color: var(--color-border-default);

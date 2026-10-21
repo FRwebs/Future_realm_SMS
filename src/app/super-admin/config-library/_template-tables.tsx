@@ -321,7 +321,7 @@ export function GradingScalesTable({ items, actions }: { items: SuperAdminConfig
                     { name: "version", label: "Version", required: true, defaultValue: item.lifecycle === "DRAFT" ? item.version : "", placeholder: "e.g. 2.0", section: "Identity" },
                     { name: "passMark", label: "Pass mark", type: "number", defaultValue: item.passMark, min: 0, max: 100, section: "Identity" },
                     { name: "applicableCurricula", label: "Applicable curricula (comma-separated names)", parse: "csv", defaultValue: item.applicableCurricula.join(", "), section: "Configuration" },
-                    { name: "gradeBands", label: "Grade bands (JSON array)", type: "textarea", parse: "json", required: true, defaultValue: JSON.stringify(item.gradeBands, null, 2), section: "Configuration" }
+                    { name: "gradeBands", label: "Grade bands — one per line", type: "textarea", parse: "bands", required: true, defaultValue: (Array.isArray(item.gradeBands) ? (item.gradeBands as Array<{ grade: string; min: number; max: number; remark?: string }>) : []).map((band) => `${band.grade} | ${band.min}-${band.max} | ${band.remark ?? ""}`).join("\n"), note: "Write each band as: grade | from-to | remark. The bands must cover 0 to 100 with no gap or overlap before the scale can be validated.", section: "Configuration" }
                   ]}
                 />
                 <ActionMenu triggerLabel={`Actions for ${item.name}`}>

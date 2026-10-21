@@ -1,5 +1,7 @@
 import { sampleRow, trialRow } from "@/lib/modules/live/m1-trial";
 import { apiGet } from "@/lib/api/server";
+import { linkIsOpen, switchedOffSlugs } from "@/lib/api/platform-sync";
+import { getServerSession } from "@/lib/auth/session";
 import type { KpiCard, Panel, PanelFact, TabContent } from "@/lib/modules/panels";
 import { name, pill, row, text } from "@/lib/modules/panels";
 
@@ -302,6 +304,7 @@ function oversightTab(
   cards: ReportCardRow[],
   queue: ApiApproval[],
   term: ApiToday["term"],
+  off: Set<string>,
 ): TabContent {
   const ready = cards.filter((card) => card.status.toUpperCase() === "PUBLISHED").length;
   const blockedSheets = sheets.filter((sheet) => sheet.metrics.incompleteStudents > 0);
@@ -356,7 +359,7 @@ function oversightTab(
     launchers: [
       { label: "Report cards", href: "/report-cards/completion" },
       { label: "Open the queue", href: "/approvals-workflow/queue" },
-    ],
+    ].filter((launcher) => linkIsOpen(off, launcher.href)),
     rows: [
       row("1fr", [
         {
@@ -465,6 +468,10 @@ function oversightTab(
 export async function commandCenterLiveTab(
   tabSlug: string,
 ): Promise<TabContent | null | undefined> {
+  // A module the Back Office has switched off is left out of the landing page too — no tile, no shortcut into it.
+  const session = await getServerSession();
+  const off = session ? await switchedOffSlugs(session.schoolId) : new Set<string>();
+
   if (tabSlug === "today") {
     const [data, queue, trial, sample] = await Promise.all([
       apiGet<ApiToday>("/api/v1/command-center/today"),
@@ -478,13 +485,13 @@ export async function commandCenterLiveTab(
       desc: data.term
         ? `The decisions waiting on you, and how ${data.term.name} is tracking.`
         : "The decisions waiting on you, and how the term is tracking.",
-      primary: { label: "Review submissions", href: "/score-entry-results/review" },
+      ...(linkIsOpen(off, "/score-entry-results/review") ? { primary: { label: "Review submissions", href: "/score-entry-results/review" } } : {}),
       launchers: [{ label: "Open the queue", href: "/approvals-workflow/queue" }],
       rows: [
         ...(trial ? [trial] : []),
         ...(sample ? [sample] : []),
         row("1fr", [
-          { type: "kpi", title: "Where the school stands today", per: 6, cards: kpiCards(data) },
+          { type: "kpi", title: "Where the school stands today", per: 6, cards: kpiCards(data).filter((card) => !card.href || linkIsOpen(off, card.href)) },
         ]),
         row("1.55fr 1fr", [queueTable(queue), activityList(data)]),
       ],
@@ -498,7 +505,7 @@ export async function commandCenterLiveTab(
       waitingOnMe(),
       apiGet<ApiToday>("/api/v1/command-center/today"),
     ]);
-    return oversightTab(sheets ?? [], cards ?? [], queue ?? [], data?.term ?? null);
+    return oversightTab(sheets ?? [], cards ?? [], queue ?? [], data?.term ?? null, off);
   }
 
   return undefined;

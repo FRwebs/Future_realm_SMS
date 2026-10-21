@@ -171,7 +171,7 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
             fields={[
               { name: "cannedResponseId", label: "Send a saved answer", type: "select", defaultValue: "", options: cannedOptions, note: "Leave the message below empty to send the saved answer, personalised with the school’s name." },
               { name: "body", label: "Message", type: "textarea" },
-              { name: "internalOnly", label: "Internal note only", type: "select", defaultValue: "false", options: [{ label: "No — visible to school", value: "false" }, { label: "Yes — internal only", value: "true" }] }
+              { name: "internalOnly", label: "Internal note only", type: "switch", on: false, note: "Not shown to the school" }
             ]}
           />
         </div>

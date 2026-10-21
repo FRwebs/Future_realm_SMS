@@ -16,7 +16,10 @@ export const MODAL_MAX_WIDTH = {
   md: "max-w-2xl",
   lg: "max-w-4xl",
   xl: "max-w-5xl",
-  report: "max-w-[760px]",
+  // The mockup's form modal is 684px wide; every Back Office dialog uses this size.
+  report: "max-w-[684px]",
+  // The mockup's decision modal — a consequence, a reason and what will be recorded.
+  reason: "max-w-[540px]",
 } as const;
 
 export const SIDE_PANEL_WIDTH = {

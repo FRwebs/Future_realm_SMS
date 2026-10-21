@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnModuleDestroy } from "@nestjs/common";
 import { PartnerDealStatus, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -104,7 +104,21 @@ function emptyToUndefined(value: string | undefined | null) {
 }
 
 @Injectable()
-export class PartnersService {
+export class PartnersService implements OnApplicationBootstrap, OnModuleDestroy {
+  private readonly alertLog = new Logger("PartnerAlerts");
+  private alertTimer: NodeJS.Timeout | null = null;
+
+  /** A registration window closing quietly is the most common partner complaint, so the alert goes out by itself, hourly. */
+  onApplicationBootstrap() {
+    if (process.env.PARTNER_ALERTS_SCHEDULER === "off") return;
+    this.alertTimer = setInterval(() => void this.sendExpiryAlerts().catch((error) => this.alertLog.error(error)), 3_600_000);
+    this.alertTimer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.alertTimer) clearInterval(this.alertTimer);
+  }
+
   private view(partner: Awaited<ReturnType<typeof prisma.partner.findMany>>[number] & { _count?: { deals: number } }): SuperAdminPartnerRow & Record<string, unknown> {
     const rates = Array.isArray(partner.yearRates) ? (partner.yearRates as number[]) : null;
     return {

@@ -1,5 +1,6 @@
 "use client";
 
+import { gridFields } from "./_grid-fields";
 import { useState, type ReactNode } from "react";
 
 import { DetailFacts, DetailSheet } from "@/components/data-display/detail-sheet";
@@ -21,7 +22,7 @@ function hasCeiling(value: unknown): boolean {
   return true;
 }
 
-function DepartmentReview({ department, members }: { department: SuperAdminDepartmentRow; members?: string[] }) {
+function DepartmentReview({ department, members, moduleOptions }: { department: SuperAdminDepartmentRow; members?: string[]; moduleOptions: Array<{ label: string; value: string }> }) {
   const [open, setOpen] = useState(false);
   const ceilingSet = hasCeiling(department.permissionCeiling);
 
@@ -50,16 +51,7 @@ function DepartmentReview({ department, members }: { department: SuperAdminDepar
             fields={[
               { name: "name", label: "Department name", required: true, defaultValue: department.name, section: "Identity" },
               { name: "leadEmail", label: "Lead email (optional)", type: "email", defaultValue: department.leadEmail ?? "", section: "Identity" },
-              {
-                name: "permissionCeiling",
-                label: "Permission ceiling (JSON, optional)",
-                type: "textarea",
-                parse: "json",
-                defaultValue: department.permissionCeiling ? JSON.stringify(department.permissionCeiling, null, 2) : "",
-                placeholder: '{\n  "support": "EDIT",\n  "users": "VIEW"\n}',
-                note: "Enforced — the lead can set access for members of this department up to these levels, and never raise it past them. Keys are module ids (schools, billing, support, users, …).",
-                section: "Ceiling"
-              }
+              ...gridFields(moduleOptions, "permissionCeiling", department.permissionCeiling as Record<string, unknown> | null, "Permission ceiling", "Enforced — the lead can set access for members of this department up to these levels, and never raise it past them. A module left Not set cannot be granted by the lead at all.")
             ]}
           />
         }
@@ -92,7 +84,7 @@ function DepartmentReview({ department, members }: { department: SuperAdminDepar
   );
 }
 
-export function DepartmentsTable({ items, actions, members = {} }: { items: SuperAdminDepartmentRow[]; actions: ReactNode; members?: Record<string, string[]> }) {
+export function DepartmentsTable({ items, actions, members = {}, moduleOptions }: { items: SuperAdminDepartmentRow[]; actions: ReactNode; members?: Record<string, string[]>; moduleOptions: Array<{ label: string; value: string }> }) {
   return (
     <TableCard
       title="Departments"
@@ -117,7 +109,7 @@ export function DepartmentsTable({ items, actions, members = {} }: { items: Supe
         },
         { key: "members", header: "Members", render: (item) => members[item.id]?.length ?? 0 },
         { key: "created", header: "Created", render: (item) => formatDate(item.createdAt) },
-        { key: "actions", header: "", sortable: false, render: (item) => <DepartmentReview department={item} members={members[item.id]} /> }
+        { key: "actions", header: "", sortable: false, render: (item) => <DepartmentReview department={item} members={members[item.id]} moduleOptions={moduleOptions} /> }
       ]}
       emptyState="No departments created yet."
     />

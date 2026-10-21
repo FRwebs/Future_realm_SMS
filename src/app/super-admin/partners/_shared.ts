@@ -1,4 +1,3 @@
-import type { ResourceField } from "@/components/forms/resource-form";
 
 export const expectedTierOptions = [
   { label: "Starter", value: "BASIC" },
@@ -60,55 +59,4 @@ export function agreementSummary(agreementReference: string | null, agreementVal
   if (!agreementValidTo) return reference;
   const validTo = new Date(agreementValidTo).toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
   return `${reference} · to ${validTo}`;
-}
-
-export function dealFormFields(
-  partnerOptions: Array<{ label: string; value: string }>,
-  defaultPartnerId?: string
-): ResourceField[] {
-  return [
-    { name: "partnerId", label: "Partner", type: "select", required: true, options: partnerOptions, defaultValue: defaultPartnerId, section: "Partner and prospect" },
-    { name: "prospectSchoolName", label: "Prospect school name", required: true, section: "Partner and prospect" },
-    { name: "prospectLocation", label: "Location", section: "Partner and prospect" },
-    { name: "_contact", label: "Contact at the school", type: "static", disabled: true, placeholder: "Not captured", note: "Not built — a deal registration doesn't record a contact person at the prospect school yet.", section: "Partner and prospect" },
-    { name: "expectedTier", label: "Expected tier", type: "select", options: expectedTierOptions, section: "Partner and prospect" },
-    { name: "_expectedSize", label: "Expected size", type: "static", disabled: true, placeholder: "Not captured", note: "Not built — expected student headcount isn't recorded at registration.", section: "Partner and prospect" },
-    { name: "stream", label: "Stream / referral channel", section: "Evidence of introduction" },
-    {
-      name: "introductionEvidence",
-      label: "How the introduction was made",
-      type: "textarea",
-      placeholder: "Meeting, referral note, or correspondence proving the introduction",
-      section: "Evidence of introduction"
-    },
-    { name: "_validUntil", label: "Registration valid until", type: "static", disabled: true, placeholder: "90 days from today, set automatically", note: "Not editable — every registration is valid for a fixed 90 days from the moment it's logged.", section: "Evidence of introduction" },
-    {
-      name: "commissionRatePercent",
-      label: "Commission rate override (%)",
-      type: "number",
-      min: 0,
-      max: 100,
-      step: 0.5,
-      placeholder: "Use partner default",
-      section: "Evidence of introduction"
-    },
-    {
-      name: "_confirmPartner",
-      label: "Confirm the registration to the partner",
-      type: "static",
-      disabled: true,
-      placeholder: "Sent automatically",
-      note: "Real — a confirmation email goes to the partner's contact email as soon as this deal is registered, if one is on file. There's no toggle because it isn't optional.",
-      section: "Alongside"
-    },
-    {
-      name: "_alertExpiry",
-      label: "Alert the partner 14 days before expiry",
-      type: "static",
-      disabled: true,
-      placeholder: "Manual, not automatic",
-      note: "Real, but not scheduled — use the \"Send expiry alerts\" button on the Registrations tab to email every partner whose registration is within 14 days of expiring. Nothing triggers it on its own.",
-      section: "Alongside"
-    }
-  ];
 }

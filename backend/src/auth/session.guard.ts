@@ -28,7 +28,8 @@ function getBearerToken(authorization?: string) {
 /**
  * A signed session is trusted as issued — until the person it names has changed. Every request is checked (cached for a
  * few seconds, so it costs one lookup in many) against the account itself: switched off, removed, given a different role,
- * or signed out from the Sessions list. Any of those ends the session on the next request, not at the next sign-in.
+ * signed out from the Sessions list — or its school suspended or removed by the Back Office. Any of those ends the session on the
+ * next request, not at the next sign-in.
  */
 const STATE_TTL_MS = 10_000;
 /** Back Office accounts are signed out after this long without a request. 0 turns it off. School accounts keep their full session. */
@@ -39,12 +40,15 @@ async function accountStillMatches(userId: string, role: string, tokenHash: stri
   const key = `${userId}:${tokenHash}`;
   const hit = state.get(key);
   if (hit && Date.now() - hit.at < STATE_TTL_MS) return hit;
-  const [user, platformSession] = await Promise.all([
+  const [user, platformSession, school] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { isActive: true, deletedAt: true, role: true } }),
-    prisma.platformSession.findFirst({ where: { tokenHash }, select: { revokedAt: true, lastActivityAt: true } })
+    prisma.platformSession.findFirst({ where: { tokenHash }, select: { revokedAt: true, lastActivityAt: true } }),
+    schoolId ? prisma.school.findUnique({ where: { id: schoolId }, select: { status: true, deletedAt: true } }) : Promise.resolve(null)
   ]);
   const result = !user || user.deletedAt || !user.isActive
     ? { ok: false, reason: "This account has been switched off." }
+    : !isPlatformRole(user.role) && school && (school.deletedAt || school.status === "SUSPENDED" || school.status === "DELETED")
+      ? { ok: false, reason: "Your school account has been suspended. Please contact support." }
     : String(user.role) !== role && !(await memberships.holds(userId, schoolId, role))
       ? { ok: false, reason: "Your access has changed. Sign in again." }
       : platformSession?.revokedAt

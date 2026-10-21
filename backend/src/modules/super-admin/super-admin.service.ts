@@ -11,6 +11,9 @@ import { templates } from "../config-library/templates.service";
 import { supportDesk } from "../support-desk/support-desk.service";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { createHash } from "crypto";
+import { alignTierToPlan } from "../platform-sync/plan-sync";
+import { forgetAvailability } from "../platform-sync/availability";
+import { forgetReadOnly } from "../platform-policy/read-only.interceptor";
 
 import {
   BadRequestException,
@@ -151,7 +154,11 @@ const recordPaymentSchema = z.object({
   amount: z.coerce.number().positive(),
   method: z.string().trim().min(2),
   reference: z.string().trim().min(2),
-  paidOn: z.coerce.date().default(() => new Date())
+  paidOn: z.coerce.date().default(() => new Date()),
+  payerName: z.string().trim().max(160).optional(),
+  payerRole: z.string().trim().max(80).optional(),
+  onBehalfOf: z.string().trim().max(160).optional(),
+  receiptEmail: z.string().trim().email().optional().or(z.literal("").transform(() => undefined))
 });
 
 const cancelInvoiceSchema = z.object({
@@ -479,6 +486,7 @@ const planConfigSchema = z.object({
   includedModules: z.unknown().default({ modules: [], features: [] }).transform(normalizePlanEntitlements)
 });
 const planConfigUpdateSchema = planConfigSchema.partial();
+const planCreateSchema = planConfigSchema.extend({ lifecycle: z.enum(["DRAFT", "ACTIVE"]).optional() });
 
 const privacyRequestSchema = z.object({
   schoolId: zOptionalId(),
@@ -1829,6 +1837,8 @@ export class SuperAdminService {
     const parsed = billingUpdateSchema.parse(payload);
     const before = await prisma.school.findUnique({ where: { id: schoolId }, select: { plan: true } });
     const school = await prisma.school.update({ where: { id: schoolId }, data: { plan: parsed.plan, billingStatus: "ACTIVE", status: "ACTIVE" } });
+    // The school bills on its own tier; without this it kept paying for, and being shown, the plan it was moved off.
+    await alignTierToPlan(school.id, school.plan);
     await this.audit(session, "BILLING_UPDATE", "School", school.id, { plan: parsed.plan, fromPlan: before?.plan ?? null }, school.id);
     return this.response({ schoolId: school.id, plan: school.plan }, "Subscription plan updated");
   }
@@ -2043,7 +2053,16 @@ export class SuperAdminService {
       });
     }
 
-    await this.audit(session, "PAYMENT", "PlatformInvoice", invoice.id, { amount: parsed.amount, method: parsed.method, reference: parsed.reference, fullyPaid }, invoice.schoolId);
+    if (parsed.receiptEmail && parsed.receiptEmail !== invoice.school.ownerEmail) {
+      await sendNotification({
+        channel: "EMAIL",
+        recipient: parsed.receiptEmail,
+        title: "Payment received",
+        body: `We have received ${parsed.amount} ${invoice.currency} for invoice ${invoice.invoiceNo}${parsed.payerName ? ` from ${parsed.payerName}` : ""}. Thank you.`
+      });
+    }
+
+    await this.audit(session, "PAYMENT", "PlatformInvoice", invoice.id, { amount: parsed.amount, method: parsed.method, reference: parsed.reference, fullyPaid, payerName: parsed.payerName ?? null, payerRole: parsed.payerRole ?? null, onBehalfOf: parsed.onBehalfOf ?? null }, invoice.schoolId);
     return this.response({ id: updated.id, status: updated.status }, "Payment recorded");
   }
 
@@ -2803,6 +2822,7 @@ export class SuperAdminService {
       schoolId: parsed.schoolId ?? null,
       status: parsed.status ?? null,
       lastLogin: parsed.lastLogin ?? null,
+      reason: typeof (query as Record<string, unknown> | null)?.reason === "string" ? String((query as Record<string, unknown>).reason).slice(0, 500) : null,
       rowCount: users.length
     });
     return [
@@ -2975,6 +2995,9 @@ export class SuperAdminService {
       data: parsed as Prisma.PlatformSettingUpdateInput
     });
     await this.audit(session, "SETTINGS_UPDATE", "PlatformSetting", updated.id, parsed as Prisma.InputJsonValue, null);
+    // Maintenance and module availability reach every school, so none of them should keep an old answer.
+    forgetAvailability();
+    forgetReadOnly();
     return this.response(updated, "Platform settings updated");
   }
 
@@ -2995,6 +3018,7 @@ export class SuperAdminService {
     if (!current) throw new NotFoundException("School not found.");
     const features = { ...featureDefaults(), ...jsonRecord(current.featureFlags), ...parsed };
     const school = await prisma.school.update({ where: { id: schoolId }, data: { featureFlags: features } });
+    forgetAvailability(school.id);
     await this.audit(session, "UPDATE", "SchoolFeature", school.id, features, school.id);
     return this.response({ schoolId: school.id, features }, "School feature flags updated");
   }
@@ -3795,9 +3819,10 @@ export class SuperAdminService {
 
   async createPlan(session: SessionPayload, payload: unknown) {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]));
-    const parsed = planConfigSchema.parse(payload);
-    const plan = await prisma.platformSubscriptionPlan.create({ data: parsed as Prisma.PlatformSubscriptionPlanCreateInput });
-    await this.audit(session, "CREATE", "PlatformSubscriptionPlan", plan.id, { slug: parsed.slug, monthlyPrice: parsed.monthlyPrice }, null);
+    const parsed = planCreateSchema.parse(payload);
+    const lifecycle = parsed.lifecycle ?? "ACTIVE";
+    const plan = await prisma.platformSubscriptionPlan.create({ data: { ...parsed, lifecycle, isActive: lifecycle === "ACTIVE" } as Prisma.PlatformSubscriptionPlanCreateInput });
+    await this.audit(session, "CREATE", "PlatformSubscriptionPlan", plan.id, { slug: parsed.slug, monthlyPrice: parsed.monthlyPrice, lifecycle }, null);
     return this.response({ id: plan.id }, "Subscription plan created");
   }
 
@@ -4341,19 +4366,21 @@ export class SuperAdminService {
 
     // Feature request intelligence: keyword frequency from feature-request tickets.
     const stopWords = new Set(["the", "a", "an", "to", "for", "and", "or", "of", "in", "on", "with", "please", "can", "we", "our", "add", "need", "would", "like", "want"]);
-    const keywordMap = new Map<string, { count: number; schools: Set<string>; tiers: Set<string> }>();
+    const keywordMap = new Map<string, { count: number; schools: Set<string>; tiers: Set<string>; worst: number }>();
+    const priorityRank: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3, CRITICAL: 3 };
     for (const t of featureRequests) {
       const words = t.subject.toLowerCase().replace(/[^a-z0-9\s]/g, "").split(/\s+/).filter((w) => w.length > 3 && !stopWords.has(w));
       for (const w of new Set(words)) {
-        const entry = keywordMap.get(w) ?? { count: 0, schools: new Set<string>(), tiers: new Set<string>() };
+        const entry = keywordMap.get(w) ?? { count: 0, schools: new Set<string>(), tiers: new Set<string>(), worst: 0 };
         entry.count += 1;
+        entry.worst = Math.max(entry.worst, priorityRank[String(t.priority)] ?? 2);
         entry.schools.add(t.schoolId);
         entry.tiers.add(t.school.plan);
         keywordMap.set(w, entry);
       }
     }
     const featureRequestsRanked = Array.from(keywordMap.entries())
-      .map(([keyword, v]) => ({ keyword, requestCount: v.count, schoolsRequesting: v.schools.size, tiersRequesting: v.tiers.size, priorityScore: v.count * 2 + v.schools.size + v.tiers.size }))
+      .map(([keyword, v]) => ({ keyword, requestCount: v.count, schoolsRequesting: v.schools.size, tiersRequesting: v.tiers.size, severity: v.worst >= 3 ? "HIGH" : v.worst === 2 ? "MEDIUM" : "LOW", priorityScore: v.count * 2 + v.schools.size + v.tiers.size }))
       .sort((a, b) => b.priorityScore - a.priorityScore)
       .slice(0, 10);
 
@@ -4722,14 +4749,21 @@ export class SuperAdminService {
     // claiming a live channel.
     const lastSuccessfulBackup = backups.find((b) => ["SUCCESS", "COMPLETED", "COMPLETED_SUCCESSFULLY"].includes(b.status.toUpperCase()));
     const deliveryOn = process.env.DELIVERY_ENABLED === "true";
-    const integrations = [
+    const integrationList = [
       { name: "Transactional email (SMTP)", checkFrequency: "Every 5 minutes", status: process.env.SMTP_HOST ? deliveryHealth.find((d) => d.channel === "EMAIL")!.status : "NOT_CONNECTED", onFailure: process.env.SMTP_HOST ? "Row marked failed with the mail server's reason; sign-in codes and alerts fall back to a log line" : "Falls back to a console log entry — nothing is actually sent" },
       { name: "SMS (Termii)", checkFrequency: "Every queued message", status: deliveryOn && CARRIERS.SMS.configured() ? deliveryHealth.find((d) => d.channel === "SMS")!.status : "NOT_CONNECTED", onFailure: deliveryOn && CARRIERS.SMS.configured() ? "The row is marked failed with the carrier's reason; retried up to the attempt limit" : "Messages stay queued — nothing is sent until DELIVERY_ENABLED is on and Termii keys are set" },
-      { name: "WhatsApp Business API", checkFrequency: "Not applicable", status: "NOT_CONNECTED", onFailure: "No WhatsApp provider is wired in — WhatsApp messages are never sent" },
+      { name: "WhatsApp Business API", checkFrequency: "Every queued message", status: deliveryOn && CARRIERS.WHATSAPP.configured() ? deliveryHealth.find((d) => d.channel === "WHATSAPP")?.status ?? "HEALTHY" : "NOT_CONNECTED", onFailure: deliveryOn && CARRIERS.WHATSAPP.configured() ? "The row is marked failed with Meta's reason; retried up to the attempt limit, and a template Meta rejected is never sent" : "Messages stay queued — nothing is sent until DELIVERY_ENABLED is on and the WhatsApp Business keys are set" },
       { name: "Paystack", checkFrequency: "Every 5 minutes", status: process.env.PAYSTACK_SECRET_KEY ? "HEALTHY" : "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" },
       { name: "Flutterwave", checkFrequency: "Every 5 minutes", status: process.env.FLUTTERWAVE_SECRET_KEY ? "HEALTHY" : "NOT_CONNECTED", onFailure: "Alert Finance Lead + CTO" },
       { name: "Object storage (S3-compatible)", checkFrequency: "Not applicable", status: process.env.S3_BUCKET ? "PARTIAL" : "NOT_CONNECTED", onFailure: "Falls back to a local mock path — no upload actually occurs" }
     ];
+    const ownerRows = await prisma.integrationOwner.findMany();
+    const ownerPeople = await prisma.user.findMany({ where: { id: { in: ownerRows.map((row) => row.ownerId) } }, select: { id: true, firstName: true, lastName: true } });
+    const ownerName = new Map(ownerPeople.map((person) => [person.id, `${person.firstName} ${person.lastName}`]));
+    const integrations = integrationList.map((entry) => {
+      const owner = ownerRows.find((row) => row.name === entry.name);
+      return { ...entry, ownerId: owner?.ownerId ?? null, owner: owner ? (ownerName.get(owner.ownerId) ?? null) : null };
+    });
 
     return this.response({
       uptime: {
@@ -5031,6 +5065,10 @@ export class SuperAdminService {
       prisma.auditLog.groupBy({ by: ["actorId"], where: { createdAt: { gte: thirtyDaysAgo }, actorId: { not: null } }, _count: { actorId: true } }),
       prisma.payment.groupBy({ by: ["recordedById"], where: { recordedById: { not: null }, paidAt: { gte: thirtyDaysAgo }, status: "SUCCESS" }, _sum: { amount: true } })
     ]);
+    const profiles = await prisma.internalProfile.findMany({ where: { userId: { in: members.map((m) => m.id) } }, select: { userId: true, departmentId: true } });
+    const departments = await prisma.internalDepartment.findMany({ select: { id: true, name: true } });
+    const departmentName = new Map(departments.map((d) => [d.id, d.name]));
+    const departmentOf = new Map(profiles.map((p) => [p.userId, p.departmentId ? (departmentName.get(p.departmentId) ?? null) : null]));
     const ticketMap = new Map(ticketsByAgent.map((t) => [t.assignedToId, t._count.assignedToId]));
     const actionMap = new Map(actionsByActor.map((a) => [a.actorId, a._count.actorId]));
     const revenueMap = new Map(paymentsByRecorder.map((p) => [p.recordedById, Number(p._sum?.amount ?? 0)]));
@@ -5042,6 +5080,7 @@ export class SuperAdminService {
         id: m.id,
         name: `${m.firstName} ${m.lastName}`,
         role: m.role,
+        department: departmentOf.get(m.id) ?? null,
         lastLoginAt: m.lastLoginAt?.toISOString(),
         ticketsResolved: ticketMap.get(m.id) ?? 0,
         actionsTaken: actionMap.get(m.id) ?? 0,

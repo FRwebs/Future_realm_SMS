@@ -384,7 +384,7 @@ export default async function SuperAdminSchoolDetailPage({
                   method="PATCH"
                   variant="secondary"
                   submitLabel="Save"
-                  fields={[{ name: "prioritySupport", label: "Priority support", type: "select", defaultValue: school.prioritySupport ? "false" : "true", options: [{ label: "Enabled", value: "true" }, { label: "Disabled", value: "false" }] }]}
+                  fields={[{ name: "prioritySupport", label: "Priority support", type: "switch", on: !school.prioritySupport, note: school.prioritySupport ? "Switch on to keep this school at the front of the queue; off removes the flag" : "Switch on to surface this school first in the support queue", section: "Support queue" }]}
                 />
                 <ResourceActionDialog
                   triggerLabel="Change status"
@@ -553,13 +553,14 @@ export default async function SuperAdminSchoolDetailPage({
                 <ResourceActionDialog
                   triggerLabel="Update features"
                   title="School feature flags"
-                  description="Paste a JSON object to enable or disable modules for this tenant."
+                  description="Which modules this school can use, on top of what its plan includes."
+                  note="Switching a module off hides it from the school’s navigation. Nothing it recorded is deleted."
                   endpoint={`/api/super-admin/schools/${school.id}/features`}
                   method="PATCH"
                   variant="secondary"
                   submitLabel="Save features"
                   fields={[
-                    { name: "features", label: "Feature JSON", type: "textarea", parse: "json", defaultValue: JSON.stringify(school.featureFlags, null, 2) }
+                    ...Object.entries((school.featureFlags ?? {}) as Record<string, unknown>).map(([module, enabled]) => ({ name: module, object: "features", label: module.replaceAll("_", " ").replace(/^./, (c) => c.toUpperCase()), type: "switch" as const, on: Boolean(enabled), section: "Modules available to this school" }))
                   ]}
                 />
               </div>

@@ -25,9 +25,29 @@ const reportSchema = z.object({
   compare: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
   suppressUnder: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.number().int().min(2).max(100).optional()),
   lockFilters: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
+  showDropoff: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
+  weightChurned: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
   frequency: z.enum(["WEEKLY", "MONTHLY", ""]).optional().transform((v) => v || undefined),
   recipients: z.preprocess((v) => (Array.isArray(v) ? v : typeof v === "string" && v ? v.split(/[,\n]/).map((x) => x.trim()).filter(Boolean) : []), z.array(z.string().email("A recipient is not a valid email address."))).default([])
 });
+
+const featureRequestSchema = z.object({
+  title: z.string().trim().min(3, "Say what was asked for in a line."),
+  detail: z.string().trim().optional().transform((v) => v || undefined),
+  module: z.string().trim().optional().transform((v) => v || undefined),
+  schoolId: z.string().trim().min(1, "A request with no school behind it cannot be weighted, so it cannot be scored."),
+  personName: z.string().trim().optional().transform((v) => v || undefined),
+  channel: z.enum(["PHONE", "VISIT", "WHATSAPP", "EMAIL", "OTHER"]).default("PHONE"),
+  raisedOn: z.preprocess((v) => (v === "" || v == null ? undefined : v), z.coerce.date().optional()),
+  severity: z.enum(["LOW", "MEDIUM", "HIGH"]).default("MEDIUM"),
+  blocksRenewal: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
+  mergedIntoId: z.string().trim().optional().transform((v) => v || undefined),
+  tellSchool: z.preprocess((v) => v === true || v === "true", z.boolean()).default(true),
+  roadmapFlag: z.preprocess((v) => v === true || v === "true", z.boolean()).default(false),
+  ticketRef: z.string().trim().optional().transform((v) => v || undefined)
+});
+const TIER_WEIGHT: Record<string, number> = { BASIC: 1, STANDARD: 2, PROFESSIONAL: 3, ENTERPRISE: 4, CUSTOM: 1 };
+const SEVERITY_WEIGHT: Record<string, number> = { LOW: 1, MEDIUM: 2, HIGH: 3 };
 
 const dayOf = (date: Date) => date.toISOString().slice(0, 10);
 const mondayOf = (date: Date) => {
@@ -158,6 +178,57 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy {
     return { stage: input.stage, ownerId: input.ownerId };
   }
 
+  /* ───────────────────────── feature requests logged by hand ───────────────────────── */
+
+  /** A request that arrived by phone, visit or WhatsApp, recorded so it weighs the same as a tagged ticket. */
+  async logFeatureRequest(session: SessionPayload, body: unknown) {
+    const input = featureRequestSchema.parse(body);
+    const school = await prisma.school.findFirst({ where: { id: input.schoolId, deletedAt: null }, select: { id: true, name: true } });
+    if (!school) throw new BadRequestException("That school is not on the platform.");
+    if (input.mergedIntoId) {
+      const target = await prisma.featureRequestLog.findUnique({ where: { id: input.mergedIntoId } });
+      if (!target || target.mergedIntoId) throw new BadRequestException("Choose an existing request to merge into — one that is not itself merged.");
+    }
+    const row = await prisma.featureRequestLog.create({
+      data: { title: input.title, detail: input.detail, module: input.module, schoolId: school.id, personName: input.personName, channel: input.channel, severity: input.severity, blocksRenewal: input.blocksRenewal, raisedOn: input.raisedOn ?? new Date(), mergedIntoId: input.mergedIntoId, tellSchool: input.tellSchool, roadmapFlag: input.roadmapFlag, ticketRef: input.ticketRef, loggedById: session.userId }
+    });
+    await this.audit(session, AuditAction.CREATE, "FeatureRequestLog", row.id, { title: row.title, school: school.name, merged: Boolean(input.mergedIntoId) });
+    return { id: row.id };
+  }
+
+  /** Logged requests ranked: every logged ask adds its school's tier weight times its severity to the request it belongs to. */
+  async featureRequests() {
+    const rows = await prisma.featureRequestLog.findMany({ orderBy: { createdAt: "desc" } });
+    const schools = await prisma.school.findMany({ where: { id: { in: [...new Set(rows.map((row) => row.schoolId))] } }, select: { id: true, name: true, plan: true } });
+    const byId = new Map(schools.map((school) => [school.id, school]));
+    const people = await prisma.user.findMany({ where: { id: { in: [...new Set(rows.map((row) => row.loggedById))] } }, select: { id: true, firstName: true, lastName: true } });
+    const loggedBy = new Map(people.map((person) => [person.id, `${person.firstName} ${person.lastName}`]));
+    const primaries = rows.filter((row) => !row.mergedIntoId);
+    return primaries
+      .map((primary) => {
+        const group = [primary, ...rows.filter((row) => row.mergedIntoId === primary.id)];
+        const weight = group.reduce((sum, row) => sum + (TIER_WEIGHT[byId.get(row.schoolId)?.plan ?? "BASIC"] ?? 1) * (SEVERITY_WEIGHT[row.severity] ?? 2) * (row.blocksRenewal ? 1.5 : 1), 0);
+        const tiers = new Set(group.map((row) => byId.get(row.schoolId)?.plan ?? "BASIC"));
+        const worst = group.reduce((max, row) => Math.max(max, SEVERITY_WEIGHT[row.severity] ?? 2), 1);
+        return {
+          id: primary.id,
+          title: primary.title,
+          module: primary.module,
+          asks: group.length,
+          schools: new Set(group.map((row) => row.schoolId)).size,
+          schoolNames: [...new Set(group.map((row) => byId.get(row.schoolId)?.name ?? "Unknown"))],
+          tiers: tiers.size,
+          severity: worst === 3 ? "HIGH" : worst === 2 ? "MEDIUM" : "LOW",
+          blocksRenewal: group.some((row) => row.blocksRenewal),
+          roadmapFlag: group.some((row) => row.roadmapFlag),
+          score: Math.round(weight * 10) / 10,
+          loggedBy: loggedBy.get(primary.loggedById) ?? "Unknown",
+          lastRaised: group.reduce((latest, row) => (row.raisedOn > latest ? row.raisedOn : latest), primary.raisedOn).toISOString()
+        };
+      })
+      .sort((a, b) => b.score - a.score);
+  }
+
   /* ───────────────────────── what support has heard about a module ───────────────────────── */
 
   async ticketsAbout(modules: string[]) {
@@ -181,16 +252,18 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy {
 
   /* ───────────────────────── custom reports ───────────────────────── */
 
-  private groups(rows: Array<{ plan: string; state: string | null; status: string; createdAt: Date; students: number }>, dimension: string, metric: string, prices: Map<string, number>, from?: Date, to?: Date) {
-    const out = new Map<string, { value: number; schools: number }>();
+  private groups(rows: Array<{ name: string; plan: string; state: string | null; status: string; createdAt: Date; students: number; churned: boolean }>, dimension: string, metric: string, prices: Map<string, number>, from?: Date, to?: Date, churned = false) {
+    const out = new Map<string, { value: number; schools: number; names: string[] }>();
     for (const school of rows) {
+      if (school.churned !== churned) continue;
       if (from && school.createdAt < from) continue;
       if (to && school.createdAt >= to) continue;
       const key = dimension === "tier" ? school.plan : dimension === "state" ? (school.state?.trim() || "Unspecified") : school.status;
       const add = metric === "schoolCount" ? 1 : metric === "studentCount" ? school.students : (prices.get(school.plan) ?? 0);
-      const row = out.get(key) ?? { value: 0, schools: 0 };
+      const row = out.get(key) ?? { value: 0, schools: 0, names: [] };
       row.value += add;
       row.schools += 1;
+      if (row.names.length < 60) row.names.push(school.name);
       out.set(key, row);
     }
     return out;
@@ -204,31 +277,41 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy {
     const dimension = !locked && override?.dimension && ["tier", "state", "status"].includes(override.dimension) ? override.dimension : report.dimension;
     const metric = !locked && override?.metric && ["schoolCount", "studentCount", "mrr"].includes(override.metric) ? override.metric : report.metric;
     const [schools, plans] = await Promise.all([
-      prisma.school.findMany({ where: { deletedAt: null }, select: { plan: true, state: true, status: true, createdAt: true, _count: { select: { students: { where: REAL_STUDENT } } } } }),
+      prisma.school.findMany({ where: { deletedAt: null }, select: { id: true, name: true, plan: true, state: true, status: true, createdAt: true, _count: { select: { students: { where: REAL_STUDENT } } } } }),
       prisma.platformSubscriptionPlan.findMany({ where: { isActive: true }, select: { plan: true, monthlyPrice: true } })
     ]);
+    const churnedIds = report.weightChurned ? new Set((await prisma.churnRecord.findMany({ select: { schoolId: true } })).map((row) => row.schoolId)) : new Set<string>();
     const prices = new Map(plans.map((p) => [p.plan as string, Number(p.monthlyPrice)]));
-    const rows = schools.map((s) => ({ plan: s.plan as string, state: s.state, status: s.status as string, createdAt: s.createdAt, students: s._count.students }));
+    const rows = schools.map((s) => ({ name: s.name, plan: s.plan as string, state: s.state, status: s.status as string, createdAt: s.createdAt, students: s._count.students, churned: churnedIds.has(s.id) }));
     const now = new Date();
     const from = report.periodDays ? new Date(now.getTime() - report.periodDays * DAY) : undefined;
     const current = this.groups(rows, dimension, metric, prices, from);
     const previous = report.compare && report.periodDays ? this.groups(rows, dimension, metric, prices, new Date(now.getTime() - 2 * report.periodDays * DAY), from) : null;
-    const labels = Array.from(new Set([...current.keys(), ...(previous ? previous.keys() : [])]));
+    const gone = report.weightChurned ? this.groups(rows, dimension, metric, prices, from, undefined, true) : null;
+    const labels = Array.from(new Set([...current.keys(), ...(previous ? previous.keys() : []), ...(gone ? gone.keys() : [])]));
     const result = labels.map((label) => {
-      const c = current.get(label) ?? { value: 0, schools: 0 };
+      const c = current.get(label) ?? { value: 0, schools: 0, names: [] as string[] };
       const p = previous?.get(label);
+      const g = gone?.get(label);
       const hidden = Boolean(report.suppressUnder && c.schools < report.suppressUnder);
-      return { label, value: hidden ? null : c.value, suppressed: hidden, schools: hidden ? null : c.schools, previous: hidden || !previous ? null : (p?.value ?? 0) };
+      return { label, value: hidden ? null : c.value, suppressed: hidden, schools: hidden ? null : c.schools, previous: hidden || !previous ? null : (p?.value ?? 0), churned: gone ? (g?.value ?? 0) : null, churnedSchools: gone ? (g?.schools ?? 0) : null, schoolNames: hidden ? [] : c.names, dropoff: null as number | null };
     }).sort((a, b) => (b.value ?? -1) - (a.value ?? -1));
+    if (report.showDropoff) {
+      for (let index = 1; index < result.length; index += 1) {
+        const before = result[index - 1].value;
+        const here = result[index].value;
+        if (before && here !== null && before > 0) result[index].dropoff = Math.round(((before - here) / before) * 1000) / 10;
+      }
+    }
     await prisma.customReport.update({ where: { id }, data: { generatedAt: new Date() } });
-    return { name: report.name, dimension, metric, question: report.question, locked, periodDays: report.periodDays, compare: Boolean(previous), suppressUnder: report.suppressUnder, rows: result };
+    return { name: report.name, dimension, metric, question: report.question, locked, periodDays: report.periodDays, compare: Boolean(previous), suppressUnder: report.suppressUnder, showDropoff: report.showDropoff, weightChurned: report.weightChurned, rows: result };
   }
 
   async csv(session: SessionPayload, id: string) {
     const run = await this.runReport(session, id);
     const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
-    const head = [run.dimension, run.metric, ...(run.compare ? ["previous period"] : [])];
-    return { name: run.name, content: [head.map(esc).join(","), ...run.rows.map((r) => [r.label, r.suppressed ? `under ${run.suppressUnder}` : r.value, ...(run.compare ? [r.previous ?? ""] : [])].map(esc).join(","))].join("\n") };
+    const head = [run.dimension, run.metric, ...(run.compare ? ["previous period"] : []), ...(run.showDropoff ? ["drop-off %"] : []), ...(run.weightChurned ? ["churned (separate)"] : [])];
+    return { name: run.name, content: [head.map(esc).join(","), ...run.rows.map((r) => [r.label, r.suppressed ? `under ${run.suppressUnder}` : r.value, ...(run.compare ? [r.previous ?? ""] : []), ...(run.showDropoff ? [r.dropoff ?? ""] : []), ...(run.weightChurned ? [r.churned ?? ""] : [])].map(esc).join(","))].join("\n") };
   }
 
   private async assertVisible(session: SessionPayload, report: { visibility: string; createdById: string | null }) {
@@ -252,7 +335,7 @@ export class AnalyticsService implements OnModuleInit, OnModuleDestroy {
     const input = reportSchema.parse(body);
     if (input.frequency && input.recipients.length === 0) throw new BadRequestException("A scheduled report needs at least one recipient.");
     if (input.compare && !input.periodDays) throw new BadRequestException("Comparing with the previous period needs a period.");
-    const data = { name: input.name, dimension: input.dimension, metric: input.metric, question: input.question ?? null, groupName: input.groupName ?? null, visibility: input.visibility, periodDays: input.periodDays ?? null, compare: input.compare, suppressUnder: input.suppressUnder ?? null, lockFilters: input.lockFilters, frequency: input.frequency ?? null, recipients: input.recipients };
+    const data = { name: input.name, dimension: input.dimension, metric: input.metric, question: input.question ?? null, groupName: input.groupName ?? null, visibility: input.visibility, periodDays: input.periodDays ?? null, compare: input.compare, suppressUnder: input.suppressUnder ?? null, lockFilters: input.lockFilters, showDropoff: input.showDropoff, weightChurned: input.weightChurned, frequency: input.frequency ?? null, recipients: input.recipients };
     const me = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } });
     const report = id
       ? await prisma.customReport.update({ where: { id }, data })

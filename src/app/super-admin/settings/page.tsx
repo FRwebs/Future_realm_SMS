@@ -104,8 +104,8 @@ async function PlatformTab() {
         description="The things that appear in front of a school or a parent and should almost never change. The name and contact are on every email the platform sends."
         items={[
           { setting: "Platform name", value: policy.identity.platformName, by: "Super Admin" },
-          { setting: "Maintenance mode", value: settings.maintenanceMode ? "On — non-Super Admin sign-ins are blocked" : "Off", by: "Super Admin" },
-          { setting: "Platform announcement", value: settings.platformAnnouncement || "None — shown to school admins after sign-in when set", by: "Super Admin" },
+          { setting: "Maintenance mode", value: settings.maintenanceMode ? "On — school sign-ins are blocked and schools already in can only read" : "Off", by: "Super Admin" },
+          { setting: "Platform announcement", value: settings.platformAnnouncement || "None — shown at the top of every school page when set", by: "Super Admin" },
           { setting: "School web address", value: "Chosen at signup, lower-case letters and numbers, permanent from the minute it is created", by: "Fixed" },
           { setting: "Back-office address", value: "Wherever this console is deployed — set at deployment, not here", by: "Fixed" },
           { setting: "Support email shown to schools", value: policy.identity.supportEmail || "Not set — emails carry the platform name only", by: "Super Admin" },
@@ -140,7 +140,7 @@ async function PlatformTab() {
               submitLabel="Publish settings"
               confirmLabel="Confirm Settings"
               fields={[
-                { name: "maintenanceMode", label: "Maintenance mode", type: "switch", on: Boolean(settings.maintenanceMode), note: "Schools see the maintenance page and can only read until it is switched off", section: "State" },
+                { name: "maintenanceMode", label: "Maintenance mode", type: "switch", on: Boolean(settings.maintenanceMode), note: "New school sign-ins are blocked, and schools already signed in can read but not change records, until it is switched off", section: "State" },
                 { name: "platformAnnouncement", label: "Platform announcement", type: "textarea", defaultValue: settings.platformAnnouncement ?? "", section: "Message to school administrators" }
               ]}
           />
