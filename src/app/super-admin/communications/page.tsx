@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
@@ -101,7 +102,7 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
         )
       ) : null}
       {tab === "templates" ? <TemplatesTab /> : null}
-      {tab === "triggers" ? <TriggersTab scheduled={scheduledCampaigns} totalCampaigns={campaigns.length} /> : null}
+      {tab === "triggers" ? <TriggersTab scheduled={scheduledCampaigns} totalCampaigns={campaigns.length} templates={(await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? []} /> : null}
       {tab === "delivery" ? <DeliveryTab sent={sentCampaigns} focus={campaignFocus} status={statusFilter} /> : null}
       {tab === "consent" ? <ConsentTab /> : null}
       {tab === "notices" ? <NoticesTab announcementTypes={announcementTypes} /> : null}
@@ -285,23 +286,25 @@ async function TemplatesTab() {
     <section className="grid gap-5 lg:grid-cols-2">
       <ReferenceList
         title="What editing a template can and cannot do"
-        sub="What this platform actually lets you change today — not a description of an ideal system."
+        sub="The library is deliberately narrow. It changes words, never who receives them."
         items={[
-          { label: "You can create a new template", detail: "Any Super Admin or Platform Owner can add one from New template above.", tone: "good" },
-          { label: "You can review it", detail: "A second person approves or rejects the wording. For WhatsApp, it records the decision Meta sent back.", tone: "good" },
-          { label: "You can edit the wording, name or channel", detail: "Editing makes a new version. The old one is retired, never changed, so what a campaign sent under it can always be read back.", tone: "good" },
-          { label: "A replaced version is retired", detail: "Only the current version appears here and can be used; older versions stay on record.", tone: "good" }
+          { label: "You can rewrite the words", detail: "Subject, body and the order of the fields. Editing makes a new version; what went out under the old one stays readable", pill: "Allowed", tone: "good" },
+          { label: "You can add or remove a channel", detail: "Adding WhatsApp needs Meta approval first, so the new version waits for it", pill: "Allowed", tone: "good" },
+          { label: "You cannot change the time it sends", detail: "Timing is held by the trigger, in the platform’s settings and code — not on the template", pill: "Refused", tone: "bad" },
+          { label: "You cannot change who receives it", detail: "That is the trigger’s job, and it is deliberately separate", pill: "Refused", tone: "bad" },
+          { label: "You cannot add a field the recipient may not see", detail: "A draft attached to a trigger is blocked if it uses a {{field}} that trigger cannot fill in", pill: "Refused", tone: "bad" }
         ]}
       />
 
       <ReferenceList
-        title="Before a template can be used"
-        sub="What actually gates a template today."
+        title="Before a new template can be used"
+        sub="Gates, in order. A draft that skips one cannot be attached to a trigger."
         items={[
-          { label: "Written and saved", detail: "A new template, or a new version, waits for review. It cannot be used by a campaign until it is approved.", tone: "good" },
-          { label: "Meta approval, WhatsApp only", detail: "Reflected on the record via Set approval, once Meta's real decision comes back.", tone: "good" },
-          { label: "Reviewed by a second person", detail: "Enforced — the person who wrote a template cannot approve it.", tone: "good" },
-          { label: "Attached to a trigger", detail: "Real for the platform's own lifecycle notices — trial ending or ended, school locked, discount ending, inactivity, address released. An approved email template attached to one is used for that notice; with none attached the built-in text goes out. Other automated messages still use their own wording.", tone: "good" }
+          { label: "1 · Written and saved", detail: "A new template, or a new version, waits for review and cannot be used until it is approved", tone: "teal" },
+          { label: "2 · Fields validated", detail: "Every {{field}} must be one the chosen trigger can fill in, or the draft is blocked", tone: "teal" },
+          { label: "3 · Meta approval, WhatsApp only", detail: "Recorded on the template, with Meta’s own decision, once it comes back", tone: "warn" },
+          { label: "4 · Reviewed by a second person", detail: "A platform administrator other than the author. Nobody publishes their own copy", tone: "warn" },
+          { label: "5 · Attached to a trigger, or sent by hand", detail: "An approved email template attached to a platform notice is used in place of the built-in wording", tone: "good" }
         ]}
       />
     </section>
@@ -309,84 +312,72 @@ async function TemplatesTab() {
   );
 }
 
-function ReferenceList({ title, sub, items }: { title: string; sub?: string; items: Array<{ label: string; detail: string; tone: "good" | "warn" | "bad" | "mute" }> }) {
-  const tone: Record<string, { bg: string; fg: string }> = {
-    good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
-    warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
-    bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" },
-    mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
-  };
-  return (
-    <section className="surface-card p-6">
-      <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
-      {sub ? <p className="mt-1.5 max-w-2xl text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{sub}</p> : null}
-      <div className="mt-4 grid gap-2">
-        {items.map((item) => (
-          <div key={item.label} className="flex items-start justify-between gap-3 rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
-            <div>
-              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-              <p className="mt-1 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{item.detail}</p>
-            </div>
-            <span className="shrink-0 rounded-full px-2.5 py-1 text-[9.5px] font-bold" style={{ background: tone[item.tone].bg, color: tone[item.tone].fg }}>
-              {item.tone === "good" ? "Allowed" : item.tone === "bad" ? "Not built" : item.tone === "warn" ? "Partial" : "Not tracked"}
-            </span>
-          </div>
-        ))}
-      </div>
-    </section>
-  );
-}
+type TriggerRule = { event: string; recipient: string; channel: string; tier: string; template: string | null; when: string; enabled: boolean };
 
-const triggerRows: Array<{ event: string; recipient: string; channel: string; firesFrom: string }> = [
-  { event: "Invoice issued", recipient: "Guardian", channel: "Per guardian's notification preference", firesFrom: "Finance — staff creates an invoice" },
-  { event: "Invoice reminder sent", recipient: "Guardian", channel: "Per guardian's notification preference", firesFrom: "Finance — staff clicks \"Send reminder\"" },
-  { event: "Payment recorded / receipt ready", recipient: "Guardian", channel: "Per guardian's notification preference", firesFrom: "Finance — staff records a payment" },
-  { event: "Student marked absent", recipient: "Parent", channel: "SMS", firesFrom: "Attendance — teacher marks the register" },
-  { event: "Admissions lifecycle (submitted, screening, decision, offer, enrollment — 7 steps)", recipient: "Guardian", channel: "Email, falling back to SMS", firesFrom: "Admissions — staff advances the application" },
-  { event: "Welcome email at signup", recipient: "New account owner", channel: "Email", firesFrom: "Onboarding — self-service signup, once" }
+const triggerTiming: Record<string, string> = {
+  "trial.ending": "Days before the trial ends, as set in Settings",
+  "trial.ended": "The moment the trial ends",
+  "trial.lock_reminder": "Days before the read-only window closes",
+  "trial.locked": "When the read-only window closes",
+  "discount.reverify": "30 days before a discount ends",
+  "discount.ended": "The day a discount runs out",
+  "dormant.notice": "After the dormancy threshold with no sign-in",
+  "address.released": "When the release date passes with no sign-in",
+  "trial.day1": "Day 1 of the trial",
+  "trial.day3": "Day 3 of the trial",
+  "trial.day7": "Day 7 of the trial",
+  "trial.day14": "Day 14 of the trial",
+  "trial.pricing": "Nine days before the trial ends"
+};
+
+const schoolRules: TriggerRule[] = [
+  { event: "Invoice issued", recipient: "Guardian", channel: "Guardian's preference", tier: "All tiers", template: null, when: "When staff create an invoice", enabled: true },
+  { event: "Invoice reminder sent", recipient: "Guardian", channel: "Guardian's preference", tier: "All tiers", template: null, when: "When staff press Send reminder", enabled: true },
+  { event: "Payment recorded / receipt ready", recipient: "Guardian", channel: "Guardian's preference", tier: "All tiers", template: null, when: "When staff record a payment", enabled: true },
+  { event: "Student marked absent", recipient: "Parent", channel: "SMS", tier: "All tiers", template: null, when: "When the teacher marks the register", enabled: true },
+  { event: "Admissions lifecycle (submitted, screening, decision, offer, enrolment)", recipient: "Guardian", channel: "Email, falling back to SMS", tier: "All tiers", template: null, when: "When staff advance the application", enabled: true },
+  { event: "Welcome email at signup", recipient: "New account owner", channel: "Email", tier: "All tiers", template: null, when: "Once, at signup", enabled: true }
 ];
 
-function TriggersTab({ scheduled, totalCampaigns }: { scheduled: SuperAdminCampaignRow[]; totalCampaigns: number }) {
+function TriggersTab({ scheduled, totalCampaigns, templates }: { scheduled: SuperAdminCampaignRow[]; totalCampaigns: number; templates: SuperAdminMessageTemplateRow[] }) {
   const manualCount = totalCampaigns - scheduled.length;
-  const distinctChannels = new Set(triggerRows.map((row) => row.channel)).size;
-  const distinctRecipients = new Set(triggerRows.map((row) => row.recipient)).size;
-  const moduleGroups = new Map<string, typeof triggerRows>();
-  for (const row of triggerRows) {
-    const moduleName = row.firesFrom.split(" — ")[0];
-    moduleGroups.set(moduleName, [...(moduleGroups.get(moduleName) ?? []), row]);
-  }
+  const attached = new Map(templates.filter((t) => t.triggerKey && t.approvalStatus === "APPROVED").map((t) => [t.triggerKey as string, t.name]));
+  const platformRules: TriggerRule[] = TRIGGERS.map((trigger) => ({ event: trigger.label, recipient: "School owner", channel: "Email + in-app", tier: "All tiers", template: attached.get(trigger.key) ?? null, when: triggerTiming[trigger.key] ?? "—", enabled: true }));
+  const groups = [
+    { title: "Platform notices to schools", sub: "Event → recipient → channel → tier → template → when. A notice with an approved template attached is worded from it; with none it uses the built-in wording.", rules: platformRules },
+    { title: "Messages the school sends its families", sub: "Fired by the school's own staff actions. Their wording is built in; they are not yet drawn from the template library.", rules: schoolRules }
+  ];
+  const all = groups.flatMap((g) => g.rules);
+  const channels = new Set(all.flatMap((r) => r.channel.split(/,| \+ /).map((c) => c.trim()))).size;
+  const recipients = new Set(all.map((r) => r.recipient)).size;
+  const behind = new Set(all.filter((r) => r.template).map((r) => r.template)).size;
 
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard label="Trigger rules defined" value={triggerRows.length} detail="Found by code search, not a rules table" icon={Radio} tone="dark" />
-        <StatCard label="Enabled" value={triggerRows.length} detail="All — none can be disabled from here; each is compiled into the code path it fires from" icon={MessageSquare} tone="success" />
-        <StatCard label="Channels in use" value={distinctChannels} detail="Across every trigger point" icon={Users2} tone="info" />
-        <StatCard label="Recipient roles" value={distinctRecipients} detail="Guardian, parent, new account owner" icon={Clock3} tone="neutral" />
-        <StatCard label="Templates behind them" value={0} detail="None — every trigger hardcodes its own text instead of the template library" icon={ShieldOff} tone="warning" />
+        <StatCard label="Trigger rules defined" value={all.length} detail={`${groups.length} groups`} icon={Radio} tone="dark" />
+        <StatCard label="Enabled" value={all.filter((r) => r.enabled).length} detail="None can be switched off from here yet" icon={MessageSquare} tone="success" />
+        <StatCard label="Channels in use" value={channels} detail="Email · SMS · In-app" icon={Users2} tone="info" />
+        <StatCard label="Recipient roles" value={recipients} detail="Never a role that did not consent" icon={Clock3} tone="neutral" />
+        <StatCard label="Templates behind them" value={behind} detail="Versioned · a sent message renders as sent" icon={ShieldOff} tone={behind ? "success" : "warning"} />
       </section>
 
-      <p className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">
-        Event → recipient → channel → when. Grouped by the module that fires it. None of these run on a schedule or a
-        cron job: each one fires synchronously, inline, the moment a staff member performs the triggering action. The
-        send reports what really happened: an email goes out when a mail server is set up, an SMS when a carrier has keys, and
-        otherwise it says it did not.
-      </p>
-
-      {Array.from(moduleGroups.entries()).map(([moduleName, rows]) => (
+      {groups.map((group) => (
         <TableCard
-          key={moduleName}
-          title={moduleName}
-          description={`${rows.length} rule${rows.length === 1 ? "" : "s"} · all enabled — no controls exist to disable one from here`}
-          items={rows}
+          key={group.title}
+          title={group.title}
+          description={`${group.sub} · ${group.rules.length} rule${group.rules.length === 1 ? "" : "s"} · ${group.rules.filter((r) => r.enabled).length} enabled`}
+          items={group.rules}
           getRowKey={(row) => row.event}
+          pageSize={false}
           columns={[
             { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
             { key: "recipient", header: "Recipient", render: (row) => row.recipient },
             { key: "channel", header: "Channel", render: (row) => row.channel },
-            { key: "tier", header: "Tier", render: () => <span className="text-[var(--color-text-muted)]">All tiers — not gated by plan</span> },
-            { key: "template", header: "Template", render: () => <span className="text-[var(--color-text-muted)]">Hardcoded, not a template</span> },
-            { key: "firesFrom", header: "Fires from", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.firesFrom.split(" — ")[1] ?? row.firesFrom}</span> }
+            { key: "tier", header: "Tier", render: (row) => row.tier },
+            { key: "template", header: "Template", render: (row) => (row.template ? <span className="font-[var(--font-mono)] text-[11px]">{row.template}</span> : <span className="text-[var(--color-text-muted)]">Built-in wording</span>) },
+            { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> },
+            { key: "state", header: "", sortable: false, render: (row) => <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label={row.enabled ? "Enabled" : "Disabled"} /> }
           ]}
         />
       ))}
@@ -639,13 +630,14 @@ async function ConsentTab() {
       />
 
       <ReferenceList
-        title="What sending is actually permitted today, and to whom"
-        sub="Set by who a campaign's audience is, not decided at send time."
+        title="What remains permitted, and to whom"
+        sub="Set by who a campaign’s audience is, not decided at send time"
         items={[
           { label: "Operational — to school staff", detail: "Maintenance, billing, security notices. Bypasses promotional opt-out, because it concerns the service the school is paying for.", tone: "good" },
           { label: "Promotional — FutureRealm's own offers, to school staff only", detail: "Tier upgrade offers, training, feature launches. Excludes anyone opted out.", tone: "warn" },
           { label: "Third-party commercial — to parents", detail: "Not permitted in this build, in any form.", tone: "bad" },
-          { label: "No role can override an opt-out", detail: "The function doesn't exist in this codebase, so it can't be granted to anyone.", tone: "bad" }
+          { label: "No role may override an opt-out", detail: "The function does not exist, so it cannot be granted to anyone", tone: "bad" },
+          { label: "Where consent was captured by the school", detail: "The record stores which school captured it, how, and when — that is the chain we would have to evidence", tone: "teal" }
         ]}
       />
     </div>

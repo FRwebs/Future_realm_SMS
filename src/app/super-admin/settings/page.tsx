@@ -10,7 +10,7 @@ type Policy = {
   trial: { days: number; readOnlyDays: number; lockReminderDays: number };
   dormancy: { watchDays: number; dormantDays: number; noticeDays: number };
   invoice: { netDays: number; rounding: "NONE" | "NEAREST_NAIRA" | "NEAREST_FIVE" | "NEAREST_TEN" };
-  messaging: { quietFrom: string; quietTo: string; quietHoursOn: boolean; dailyCapPerRecipient: number; maxAttempts: number };
+  messaging: { quietFrom: string; quietTo: string; quietHoursOn: boolean; dailyCapPerRecipient: number; maxAttempts: number; providerCostSms: number; providerCostSmsInternational: number; providerCostWhatsapp: number; providerCostEmail: number };
 };
 type LifecycleItem = { schoolId: string; school: string; kind: string; status: string; lastLoginAt: string | null };
 type CarrierStatus = { enabled: boolean; carriers: Array<{ channel: string; provider: string; configured: boolean }>; emailMfa: boolean; scheduler: boolean };

@@ -131,8 +131,8 @@ export class PartnersService {
       prisma.partner.findMany({ orderBy: { createdAt: "desc" }, include: { _count: { select: { deals: true } } } }),
       prisma.partnerDeal.groupBy({ by: ["partnerId"], where: { status: { in: ["CONVERTED", "COMMISSION_PAID"] }, schoolId: { not: null } }, _count: { _all: true } }),
       prisma.partnerAccrual.groupBy({ by: ["partnerId"], where: { voidedAt: null, statementId: null }, _sum: { commission: true } }),
-      prisma.partnerStatement.aggregate({ where: { status: "SETTLED" }, _sum: { net: true }, _count: true }),
-      prisma.partnerAccrual.aggregate({ where: { voidedAt: null, kind: "CLAWBACK" }, _sum: { commission: true }, _count: true }),
+      prisma.partnerStatement.aggregate({ where: { status: "SETTLED", settledAt: { gte: new Date(Date.now() - 120 * 86_400_000) } }, _sum: { net: true }, _count: true }),
+      prisma.partnerAccrual.aggregate({ where: { voidedAt: null, kind: "CLAWBACK", reconciledAt: { gte: new Date(Date.now() - 120 * 86_400_000) } }, _sum: { commission: true }, _count: true }),
       prisma.school.count({ where: { deletedAt: null, isPersonalWorkspace: false } })
     ]);
     const schoolsOf = new Map(attributed.map((row) => [row.partnerId, row._count._all]));

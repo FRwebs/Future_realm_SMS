@@ -39,7 +39,7 @@ export class PolicyService {
       }
       const raw = typeof value === "string" ? value.trim() : value;
       if (raw === "") continue;
-      const parsed = raw === "true" ? true : raw === "false" ? false : typeof raw === "string" && /^-?\d+$/.test(raw) ? Number(raw) : raw;
+      const parsed = raw === "true" ? true : raw === "false" ? false : typeof raw === "string" && /^-?\d+(\.\d+)?$/.test(raw) ? Number(raw) : raw;
       out[match[1]] = { ...(out[match[1]] ?? {}), [match[2]]: parsed };
     }
     return out;

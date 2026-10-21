@@ -1,7 +1,10 @@
 "use client";
 
+import { useRouter } from "next/navigation";
 import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
+
+import { useToast } from "@/components/ui/toast-provider";
 
 export interface PreparedColumn {
   key: string;
@@ -9,6 +12,31 @@ export interface PreparedColumn {
   headerClassName?: string;
   cellClassName?: string;
   sortable: boolean;
+}
+
+/** An action offered once rows are ticked. Serialisable, so a server page can describe it. */
+export interface SelectionAction {
+  label: string;
+  kind?: "primary" | "normal";
+  /** Where the ticked row keys go. A download action opens it as a GET with the keys in the query. */
+  endpoint: string;
+  method?: "POST" | "PATCH" | "PUT" | "DELETE" | "DOWNLOAD";
+  /** The body (or query) field that carries the ticked keys. */
+  idsField: string;
+  extra?: Record<string, unknown>;
+  confirm?: string;
+  /** Something to choose before this action can run — who the tickets go to, which priority. Sent in the body under `field`. */
+  choice?: { field: string; label: string; options: Array<{ label: string; value: string }> };
+}
+
+export interface SelectionConfig {
+  noun: string;
+  nounPlural: string;
+  actions: SelectionAction[];
+}
+
+function getCookie(name: string) {
+  return document.cookie.split("; ").find((item) => item.startsWith(`${name}=`))?.split("=")[1];
 }
 
 export interface PreparedRow {
@@ -31,6 +59,7 @@ interface TableCardBodyProps {
   primaryColumnKey?: string;
   featuredColumnKeys: string[];
   pageSize: number | false;
+  selection?: SelectionConfig;
 }
 
 type SortDirection = "asc" | "desc";
@@ -58,17 +87,46 @@ export function TableCardBody({
   primaryColumnKey,
   featuredColumnKeys,
   pageSize,
+  selection,
 }: TableCardBodyProps) {
+  const router = useRouter();
+  const { showToast } = useToast();
+  const [picked, setPicked] = useState<Array<string | number>>([]);
+  const [acting, setActing] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
   const [page, setPage] = useState(1);
   const [hiddenKeys, setHiddenKeys] = useState<string[]>([]);
   const [columnsMenuOpen, setColumnsMenuOpen] = useState(false);
   const columnsMenuRef = useRef<HTMLDivElement>(null);
+  const [choices, setChoices] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setPage(1);
+    setPicked([]);
   }, [rows]);
+
+  async function runSelection(action: SelectionAction) {
+    if (action.confirm && !window.confirm(action.confirm)) return;
+    const ids = picked.map(String);
+    if (action.method === "DOWNLOAD") {
+      window.location.href = `${action.endpoint}${action.endpoint.includes("?") ? "&" : "?"}${action.idsField}=${encodeURIComponent(ids.join(","))}`;
+      return;
+    }
+    setActing(true);
+    try {
+      const response = await fetch(action.endpoint, { method: action.method ?? "POST", credentials: "include", headers: { "Content-Type": "application/json", "x-csrf-token": getCookie("fr_csrf") ?? "" }, body: JSON.stringify({ ...(action.extra ?? {}), ...(action.choice ? { [action.choice.field]: choices[action.label] } : {}), [action.idsField]: ids }) });
+      const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
+      if (!response.ok) throw new Error(body.error ?? "That did not go through.");
+      showToast({ variant: "success", title: action.label, description: body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.` });
+      setPicked([]);
+      router.refresh();
+    } catch (error) {
+      showToast({ variant: "error", title: action.label, description: error instanceof Error ? error.message : "That did not go through." });
+    } finally {
+      setActing(false);
+    }
+  }
 
   useEffect(() => {
     try {
@@ -197,6 +255,26 @@ export function TableCardBody({
 
       {filterBar}
 
+      {selection && picked.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 border-b border-[#E6EEE9] bg-[#0D2315] px-5 py-3 text-[12px] text-white">
+          <span className="mr-2 font-semibold">{picked.length} {picked.length === 1 ? selection.noun : selection.nounPlural} selected</span>
+          {selection.actions.map((action) => (
+            <span key={action.label} className="inline-flex items-center gap-1.5">
+              {action.choice ? (
+                <select aria-label={action.choice.label} value={choices[action.label] ?? ""} onChange={(event) => setChoices((current) => ({ ...current, [action.label]: event.target.value }))} className="rounded-full border border-white/30 bg-[#0D2315] px-3 py-1.5 text-[11.5px] font-semibold text-white">
+                  <option value="">{action.choice.label}</option>
+                  {action.choice.options.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
+                </select>
+              ) : null}
+            <button type="button" disabled={acting || Boolean(action.choice && !choices[action.label])} onClick={() => void runSelection(action)} className={action.kind === "primary" ? "rounded-full bg-white px-3.5 py-1.5 font-semibold text-[#0D2315] disabled:opacity-60" : "rounded-full border border-white/30 px-3.5 py-1.5 font-semibold text-white disabled:opacity-60"}>
+              {action.label}
+            </button>
+            </span>
+          ))}
+          <button type="button" onClick={() => setPicked([])} className="ml-auto text-[11.5px] text-white/70 underline">Clear</button>
+        </div>
+      ) : null}
+
       <div>
         {rows.length === 0 ? (
           <div className="empty-state m-5">
@@ -270,6 +348,11 @@ export function TableCardBody({
                     <caption className="sr-only">{title}</caption>
                     <thead className="bg-[#F7FAF8]">
                       <tr>
+                        {selection ? (
+                          <th scope="col" className="w-10 border-b border-[#E6EEE9] px-5 py-[11px]">
+                            <input type="checkbox" aria-label="Select every row on this page" checked={pageRows.length > 0 && pageRows.every((row) => picked.includes(row.key))} onChange={(event) => setPicked((current) => (event.target.checked ? Array.from(new Set([...current, ...pageRows.map((row) => row.key)])) : current.filter((key) => !pageRows.some((row) => row.key === key))))} className="h-3.5 w-3.5 accent-[var(--color-accent-primary)]" />
+                          </th>
+                        ) : null}
                         {columns.map((column) => {
                           const isActive = sortKey === column.key;
 
@@ -315,6 +398,11 @@ export function TableCardBody({
                           key={row.key}
                           className="bg-[var(--color-bg-surface)] text-[12.5px] text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-elevated)]"
                         >
+                          {selection ? (
+                            <td className="w-10 border-b border-[#F2F7F4] px-5 py-[13px] align-top">
+                              <input type="checkbox" aria-label="Select this row" checked={picked.includes(row.key)} onChange={(event) => setPicked((current) => (event.target.checked ? [...current, row.key] : current.filter((key) => key !== row.key)))} className="h-3.5 w-3.5 accent-[var(--color-accent-primary)]" />
+                            </td>
+                          ) : null}
                           {columns.map((column) => (
                             <td
                               key={column.key}

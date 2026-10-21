@@ -45,6 +45,53 @@ export class MigrationController {
     return this.migrationService.markFilesReceived(session, id);
   }
 
+  @Post("jobs/:id/import-result")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...writeRoles)
+  recordImport(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return this.migrationService.recordImport(session, id, body);
+  }
+
+  @Get("retention")
+  retention(@CurrentSession() session: SessionPayload) {
+    return this.migrationService.retention(session);
+  }
+
+  @Post("jobs/:id/retention/extend")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...writeRoles)
+  extend(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return this.migrationService.extendRetention(session, id, body);
+  }
+
+  @Post("jobs/:id/retention/deleted")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...writeRoles)
+  deleted(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return this.migrationService.confirmDeleted(session, id, body);
+  }
+
+  @Post("source-adapters")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...writeRoles)
+  createAdapter(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.migrationService.saveAdapter(session, null, body);
+  }
+
+  @Patch("source-adapters/:id")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...writeRoles)
+  updateAdapter(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return this.migrationService.saveAdapter(session, id, body);
+  }
+
+  @Post("setup-progress/nudge")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...writeRoles)
+  nudge(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.migrationService.nudgeSetup(session, body);
+  }
+
   @Get("source-adapters")
   listSourceAdapters(@CurrentSession() session: SessionPayload) {
     return this.migrationService.listSourceAdapters(session);

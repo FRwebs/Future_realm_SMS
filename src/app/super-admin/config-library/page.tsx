@@ -235,7 +235,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             emptyState="No subject has been mapped between versions yet — it matters once a template has a second version."
           />
           <TableCard
-            title="Schools and the version they took"
+            title="Version assignment in a transitioning school"
             description="The copy each new school's setup took from the library. Per-class assignment is not built — the unit is the school."
             items={data.adoptions}
             getRowKey={(row) => row.id}
@@ -250,7 +250,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
         </div>
 
         <TableCard
-          title="Portability tests — checked against this codebase"
+          title="Portability tests every template must pass"
           description="Tests any curriculum-facing feature would need to pass to launch a new country by configuration alone rather than a code change. Checked against real code, not asserted as passing by default."
           items={[
             { test: "T1", question: "Does it work with a different currency, calendar, script or grading system?", failureLooksLike: "A fee field hardcoded to Naira; a country hardcoded at signup", state: "warn", verdict: "Partly — signup takes a country and the country profile holds currency, but \"NGN\" is still the fallback across pricing/finance code." },
@@ -370,7 +370,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
             <TableCard
-              title="Trade subjects"
+              title="Trade subjects — one is compulsory"
               items={[]}
               columns={[{ key: "a", header: "Trade subject", render: () => null }, { key: "b", header: "Trade subject", render: () => null }]}
               emptyState="No trade-subject record exists in this system."
@@ -431,7 +431,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
       {tab === "country-settings" ? (
         <div className="grid gap-5">
           <TableCard
-            title="Country profiles"
+            title="Country configuration records"
             description="Everything the platform knows about a country, held as data. A country needs a profile before a template for it can be validated."
             items={data.profiles}
             getRowKey={(row) => row.id}

@@ -30,7 +30,7 @@ const SEGMENT_MODULE: Record<string, string> = {
   partners: "partners",
   users: "users", "user-case-review-context": "users",
   communications: "communications",
-  support: "support",
+  support: "support", "support-desk": "support",
   "config-library": "curriculum",
   "feature-flags": "plans", "feature-flag-extras": "plans", plans: "plans", "plans-features": "plans",
   system: "infrastructure", "infra-extras": "infrastructure",

@@ -11,6 +11,8 @@ import {
 } from "lucide-react";
 import { CaseReviewBoard, type CaseRecord, type CaseSignal, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { FlowSteps } from "@/components/data-display/flow-steps";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -296,16 +298,58 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
         emptyState="No users match the current filters."
       />
 
-      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-        <p className="text-[12.5px] font-semibold text-[#0D2315]">Multi-school memberships — not built</p>
-        <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
-          This system's account model gives every user exactly one <code className="rounded bg-[var(--color-bg-subtle)] px-1 py-0.5 text-[10px]">schoolId</code>, and email addresses are
-          globally unique. A guardian with children at two schools, or a teacher employed by two, needs a
-          separate account and a separate email at each — there is no single account holding several
-          independent school memberships, and no plan to add one without a data-model change.
-        </p>
-      </section>
+      <MembershipsSection />
     </div>
+  );
+}
+
+type MembershipView = {
+  kpis: { multi: number; multiPct: number; guardians: number; teachers: number; owners: number; examiners: number };
+  rows: Array<{ id: string; name: string; contact: string; memberships: number; roles: string[]; lastActive: string | null }>;
+};
+
+async function MembershipsSection() {
+  const view = await apiGet<MembershipView>("/api/super-admin/users/insights/memberships").catch(() => null);
+  const k = view?.kpis;
+  return (
+    <>
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Accounts with 2+ memberships" value={k?.multi ?? 0} detail={`${k?.multiPct ?? 0}% of all accounts`} icon={UsersRound} tone="dark" />
+        <StatCard label="Guardians across schools" value={k?.guardians ?? 0} detail="Children at different schools" icon={UserCheck} tone="neutral" />
+        <StatCard label="Teachers at two schools" value={k?.teachers ?? 0} detail="Independent role and permissions at each" icon={GraduationCap} tone="neutral" />
+        <StatCard label="Proprietors of several schools" value={k?.owners ?? 0} detail="Owner at more than one account" icon={ShieldCheck} tone="neutral" />
+        <StatCard label="External examiners" value={k?.examiners ?? 0} detail="Time-boxed memberships — none are issued yet" icon={KeyRound} tone="neutral" />
+      </section>
+
+      <TableCard
+        title="Multi-school memberships"
+        description="One person, many school memberships. People are matched by the phone number their accounts share; each account keeps its own role, permissions and record access, independently."
+        items={view?.rows ?? []}
+        getRowKey={(row) => row.id}
+        pageSize={8}
+        emptyState="No person holds an account at more than one school yet."
+        columns={[
+          { key: "user", header: "User", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.name}</p><p className="text-xs text-[var(--color-text-muted)]">{row.contact}</p></div> },
+          { key: "memberships", header: "Memberships", render: (row) => row.memberships },
+          { key: "roles", header: "Roles held", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.roles.join(" · ")}</span> },
+          { key: "last", header: "Last active", render: (row) => (row.lastActive ? formatDate(row.lastActive) : "Never") },
+          { key: "open", header: "", render: (row) => <ActionMenuLink href={`/super-admin/users/${row.id}`}>Open</ActionMenuLink> }
+        ]}
+        footnote="Leaving one school does not affect any other membership. Audit entries always record which school's account an action occurred under."
+      />
+
+      <ReferenceList
+        title="What a membership record carries"
+        sub="Independently, per school"
+        items={[
+          { label: "Role at that school", detail: "A teacher at one and a guardian at another is normal", tone: "teal" },
+          { label: "Permission set and data scope", detail: "Set by that school, not inherited from another", tone: "teal" },
+          { label: "The school-issued identifier", detail: "Alongside the single platform reference", tone: "teal" },
+          { label: "Joined and left dates", detail: "Leaving is a membership event, never an account event", tone: "warn" },
+          { label: "Removal requires school admin confirmation", detail: "Support Lead action, never unilateral", tone: "bad" }
+        ]}
+      />
+    </>
   );
 }
 
@@ -321,8 +365,6 @@ async function ReviewsAndCasesTab({
   openCaseCount: number;
 }) {
   const contextEnvelope = await apiGetEnvelope<SuperAdminUserCaseReviewContext>("/api/super-admin/user-case-review-context");
-  type QualityRow = { schoolId: string; school: string; guardians: number; badPhone: number; badEmail: number; sharedPhone: number; failed: number; topReason: string | null; problems: number };
-  const contactQuality: { rows: QualityRow[] } = (await apiGet<{ rows: QualityRow[] }>("/api/super-admin/user-case-review-context/contact-quality").catch(() => null)) ?? { rows: [] };
   const caseContext = contextEnvelope.data;
   const suspiciousContextById = new Map((caseContext?.suspicious ?? []).map((entry) => [entry.flagId, entry]));
   const duplicateContextById = new Map((caseContext?.duplicates ?? []).map((entry) => [entry.flagId, entry]));
@@ -635,131 +677,160 @@ async function ReviewsAndCasesTab({
         searchPlaceholder="Search a subject, type or assignee"
       />
 
-      <TableCard
-        title="Contact quality repair"
-        description="Guardians a school cannot reach, school by school: phones no carrier can take, invalid email addresses, the same phone on several guardians, and what the delivery worker has already failed to send. It is the school's record, so the fix is the school's — ask them from here."
-        items={contactQuality.rows}
-        emptyState="Every school's guardian contacts are reachable, and nothing has failed to send in the last 30 days."
-        pageSize={false}
-        getRowKey={(row) => row.schoolId}
-        columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school}</span> },
-          { key: "guardians", header: "Guardians", render: (row) => row.guardians.toLocaleString() },
-          { key: "phone", header: "Unreachable phone", render: (row) => row.badPhone },
-          { key: "email", header: "Invalid email", render: (row) => row.badEmail },
-          { key: "shared", header: "Phone on several guardians", render: (row) => row.sharedPhone },
-          { key: "failed", header: "Failed sends (30d)", render: (row) => <div>{row.failed}{row.topReason ? <p className="text-[9.5px] text-[var(--color-text-muted)]">{row.topReason}</p> : null}</div> },
-          { key: "act", header: "", render: (row) => (row.problems ? <ResourceActionDialog triggerLabel="Ask the school to fix" title={`Ask ${row.school} to correct its contacts`} description="Sends the owner an in-app note with the counts, and records that it was sent." endpoint={`/api/super-admin/user-case-review-context/contact-quality/${row.schoolId}/notify`} method="POST" variant="secondary" submitLabel="Send" fields={[]} /> : null) }
-        ]}
-        footnote="A phone is unreachable when it is not a number a carrier can take. Failed sends come from the delivery worker, with the carrier's reason; they only exist once SMS or email delivery is switched on."
-      />
+      <RepairQueue />
     </div>
   );
 }
 
+type RepairView = {
+  rows: Array<{ schoolId: string; school: string; guardians: number; unreachable: number; sharePct: number; channels: string[]; firstFailed: string | null; state: string; problems: number; topReason: string | null; hasManager: boolean }>;
+  kpis: { unreachable: number; unreachablePct: number; schoolsAffected: number; routed: number; corrected: number; above15: number };
+};
+const REPAIR_STATE: Record<string, { label: string; bg: string; fg: string }> = {
+  OPEN: { label: "Not yet routed", bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" },
+  ROUTED: { label: "Routed to school", bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
+  AM_NOTIFIED: { label: "AM notified", bg: "var(--color-danger-dim)", fg: "var(--color-danger)" }
+};
+
+async function RepairQueue() {
+  const view = await apiGet<RepairView>("/api/super-admin/user-case-review-context/repair-queue").catch(() => null);
+  const k = view?.kpis;
+  const rows = view?.rows ?? [];
+  return (
+    <>
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Users with repeated failures" value={(k?.unreachable ?? 0).toLocaleString()} detail={`${k?.unreachablePct ?? 0}% of contactable accounts`} icon={ShieldAlert} tone="dark" />
+        <StatCard label="Schools affected" value={k?.schoolsAffected ?? 0} detail="Grouped for routing" icon={UsersRound} tone="neutral" />
+        <StatCard label="Routed to schools" value={k?.routed ?? 0} detail="We never edit a guardian's details ourselves" icon={UserCheck} tone="neutral" />
+        <StatCard label="Corrected this month" value={k?.corrected ?? 0} detail="Guardian record updates in the schools asked" icon={ShieldCheck} tone="success" />
+        <StatCard label="Schools above 15% unreachable" value={k?.above15 ?? 0} detail="Surfaced to their Account Manager" icon={LifeBuoy} tone={k?.above15 ? "warning" : "neutral"} />
+      </section>
+
+      <TableCard
+        title="Contact quality repair queue"
+        description="Delivery failures collect here rather than evaporating into a campaign report. Routed to the school for correction — the school holds the relationship and the correct data."
+        items={rows}
+        pageSize={false}
+        getRowKey={(row) => row.schoolId}
+        emptyState="Every school's guardian contacts are reachable, and nothing has failed to send in the last 30 days."
+        selection={{
+          noun: "school",
+          nounPlural: "schools",
+          actions: [
+            { label: "Route to the schools for correction", kind: "primary", endpoint: "/api/super-admin/user-case-review-context/contact-quality/route", idsField: "schoolIds" },
+            { label: "Notify the Account Managers", endpoint: "/api/super-admin/user-case-review-context/contact-quality/route", idsField: "schoolIds", extra: { notifyManagers: true } },
+            { label: "Export the affected contacts", endpoint: "/api/super-admin/user-case-review-context/contact-quality/export", method: "DOWNLOAD", idsField: "schoolIds" }
+          ]
+        }}
+        columns={[
+          { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "unreachable", header: "Unreachable", render: (row) => `${row.unreachable} guardian${row.unreachable === 1 ? "" : "s"}${row.problems > row.unreachable ? ` · ${row.problems - row.unreachable} failed sends` : ""}` },
+          { key: "share", header: "Share of guardians", render: (row) => <div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-[#EDF3EF]"><div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, row.sharePct * 4)}%`, background: row.sharePct >= 15 ? "var(--color-danger)" : "var(--color-success)" }} /></div><span className="text-[11.5px] font-semibold">{row.sharePct}%</span></div> },
+          { key: "channel", header: "Channel", render: (row) => (row.channels.length ? row.channels.join(" + ") : "—") },
+          { key: "first", header: "First failed", render: (row) => (row.firstFailed ? formatDate(row.firstFailed) : "—") },
+          { key: "state", header: "State", render: (row) => <StatusPill bg={REPAIR_STATE[row.state].bg} fg={REPAIR_STATE[row.state].fg} label={REPAIR_STATE[row.state].label} /> },
+          { key: "act", header: "", render: (row) => (row.problems ? <ResourceActionDialog triggerLabel="Open" title={`Ask ${row.school} to correct its contacts`} description="Sends the owner an in-app note with the counts, and records that it was sent." endpoint={`/api/super-admin/user-case-review-context/contact-quality/${row.schoolId}/notify`} method="POST" variant="textAction" submitLabel="Send" fields={[]} /> : null) }
+        ]}
+        footnote="A school with a high proportion of unreachable guardians is surfaced to its Account Manager — a school whose parents cannot be reached is not receiving the product's core value, whatever the adoption figures say. A phone is unreachable when no carrier can take it."
+      />
+    </>
+  );
+}
+
+type TeacherView = {
+  clusters: Array<{ name: string; location: string | null; teachers: number; activityScore: number; activity: string; onPlatform: string; deal: { id: string; label: string } | null; approach: { id: string; status: string } | null; teacherIds: string[] }>;
+  teachers: Array<{ id: string; name: string; email: string; role: string; school: string | null; city: string | null; subjects: string[]; activity: string; whatsapp: boolean; contacted: string | null }>;
+  counts: { accounts: number; schoolsNamed: number; whatsapp: number; neverContacted: number };
+  approaches: Array<{ id: string; schoolName: string; status: string; teachers: number; note: string | null; createdAt: string }>;
+  deals: Array<{ id: string; label: string }>;
+};
+
+const ACTIVITY_TONE: Record<string, { bg: string; fg: string }> = {
+  High: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
+  Medium: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
+  Low: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
+};
+
 async function IndividualTeachersTab({ params }: { params: Record<string, string | undefined> }) {
-  const query = new URLSearchParams({ role: "teacher", limit: "100" });
-  for (const key of ["search", "schoolId", "page"]) {
-    if (params[key]) query.set(key, params[key] as string);
-  }
-  const [envelope, schoolsEnvelope] = await Promise.all([
-    apiGetEnvelope<SuperAdminUserRow[]>(`/api/super-admin/users?${query.toString()}`),
-    apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
-  ]);
-  const teachers = envelope.data ?? [];
-  const schoolOptions = [
-    { label: "All schools", value: "" },
-    ...(schoolsEnvelope.data ?? []).map((school) => ({ label: school.name, value: school.id }))
+  const view = await apiGet<TeacherView>("/api/super-admin/users/insights/teachers");
+  const q = (params.search ?? "").toLowerCase();
+  const teachers = view.teachers.filter((t) => !q || `${t.name} ${t.school ?? ""} ${t.city ?? ""} ${t.subjects.join(" ")}`.toLowerCase().includes(q));
+  const messageFields = [
+    { name: "subject", label: "Subject", required: true },
+    { name: "channel", label: "Channel", type: "select" as const, defaultValue: "EMAIL", options: [{ label: "Email", value: "EMAIL" }, { label: "SMS", value: "SMS" }], note: "WhatsApp is not connected, so a teacher's WhatsApp opt-in is recorded but nothing is sent on it." },
+    { name: "body", label: "Message", type: "textarea" as const, required: true, placeholder: "End with a question, not a booking.", note: "Write to the teacher personally — never to their school." }
   ];
 
   return (
     <div className="grid gap-5">
-      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-        <p className="text-[12.5px] font-semibold text-[#0D2315]">Individual, non-customer teachers — not representable</p>
-        <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
-          Every account in this system belongs to exactly one onboarded school — there is no concept of a teacher
-          using the platform independently of a paying customer, and so no cluster of unaffiliated teachers naming
-          the same non-customer school to route to Sales or a partner. What follows is simply every real teacher
-          account on the platform today, all of them already at a customer school.
-        </p>
-      </section>
-
       <TableCard
-        title="Teachers"
-        items={teachers}
-        filterBar={
-          <FilterToolbar
-            action="/super-admin/users?tab=teachers"
-            resultCount={envelope.pagination?.total}
-            controls={[
-              { name: "search", label: "Search", type: "search", placeholder: "Name or email", defaultValue: params.search },
-              { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions }
-            ]}
-          />
-        }
+        title="School clusters — ranked by cluster strength"
+        description="Three teachers naming one school is a materially warmer lead than three teachers at three schools. Sales and Onboarding roles and above."
+        items={view.clusters}
+        getRowKey={(row) => row.name}
+        pageSize={8}
+        emptyState="No individual teacher has named a school yet."
         columns={[
-          { key: "name", header: "Name", render: (item) => item.name },
-          { key: "email", header: "Email", render: (item) => item.email },
-          { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "role", header: "Role", render: (item) => roleLabel(item.role) },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
+          { key: "school", header: "Named school", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+          { key: "location", header: "Location", render: (row) => row.location ?? <span className="text-[var(--color-text-muted)]">Not given</span> },
+          { key: "teachers", header: "Teachers", render: (row) => row.teachers },
+          { key: "activity", header: "Combined activity", render: (row) => <StatusPill bg={ACTIVITY_TONE[row.activity].bg} fg={ACTIVITY_TONE[row.activity].fg} label={`${row.activity} · ${row.activityScore}`} /> },
+          { key: "platform", header: "On platform?", render: (row) => row.onPlatform },
+          { key: "deal", header: "Partner deal", render: (row) => (row.deal ? <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label={row.deal.label} /> : row.approach?.status === "ROUTED" ? <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label="Routed" /> : <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Unregistered" />) },
           {
-            key: "actions",
-            header: "Actions",
-            render: (item) => (
-              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
-                <ActionMenuLink href={`/super-admin/users/${item.id}`}>View profile</ActionMenuLink>
-                <ResourceActionDialog
-                  triggerLabel="Reset Password"
-                  title={`Reset password for ${item.name}`}
-                  description="Generate a temporary password and require the user to change it on next support handoff."
-                  endpoint={`/api/super-admin/users/${item.id}/reset-password`}
-                  method="PATCH"
-                  variant="menu"
-                  submitLabel="Reset password"
-                  confirmLabel="Confirm Reset"
-                  confirmMessage="This audit-sensitive action will invalidate the current password."
-                  fields={[]}
-                />
-              </ActionMenu>
-            )
+            key: "act",
+            header: "",
+            render: (row) =>
+              row.deal ? (
+                <ResourceActionDialog triggerLabel="Route" title={`Route ${row.name} under its registered deal`} description="Introductions go through a registered deal, so attribution is settled before the introduction rather than argued about afterwards." endpoint="/api/super-admin/users/insights/teachers/route" method="POST" variant="textAction" submitLabel="Route" fields={[{ name: "approachId", label: "Approach list entry", type: "select", required: true, options: view.approaches.filter((a) => a.schoolName.toLowerCase() === row.name.toLowerCase()).map((a) => ({ label: `${a.schoolName} — ${a.teachers} teachers`, value: a.id })) }, { name: "dealId", label: "Registered deal", type: "select", required: true, defaultValue: row.deal.id, options: view.deals.map((d) => ({ label: d.label, value: d.id })) }]} />
+              ) : (
+                <ResourceActionDialog triggerLabel="Add to list" title={`Add ${row.name} to the approach list`} description="Keeps the school for someone to approach. Nothing is sent to the school." endpoint="/api/super-admin/users/insights/teachers/approach" method="POST" variant="textAction" submitLabel="Add" fields={[{ name: "schoolName", label: "School", defaultValue: row.name }, { name: "teacherIds", label: "Teachers", type: "multiselect", defaultValue: row.teacherIds, options: view.teachers.filter((t) => row.teacherIds.includes(t.id)).map((t) => ({ label: t.name, value: t.id })) }, { name: "note", label: "Note", type: "textarea" }]} />
+              )
           }
         ]}
-        emptyState="No teacher accounts match the current filters."
+        footnote="Routing to a partner happens only under a registered deal in Partners & Commission, so that attribution is established before the introduction rather than after."
+      />
+
+      <TableCard
+        title="Individual teachers"
+        description={`Teachers using Nooria on their own. Their school is not a customer — which makes each of them a way in. ${view.counts.accounts} accounts · ${view.counts.schoolsNamed} schools named · ${view.counts.whatsapp} opted in to WhatsApp · ${view.counts.neverContacted} never contacted.`}
+        items={teachers}
+        getRowKey={(row) => row.id}
+        pageSize={8}
+        emptyState="No teacher has signed up on their own yet."
+        actions={<ResourceActionDialog triggerLabel="Bulk message" title="Message individual teachers" description="Goes to every teacher on this list you have not unticked — by email or SMS, personally, from the platform." endpoint="/api/super-admin/users/insights/teachers/message" method="POST" variant="primary" submitLabel="Queue messages" fields={[{ name: "teacherIds", label: "Teachers", type: "multiselect", required: true, defaultValue: view.teachers.map((t) => t.id), options: view.teachers.map((t) => ({ label: `${t.name}${t.school ? ` — ${t.school}` : ""}`, value: t.id })) }, ...messageFields]} />}
+        filterBar={<FilterToolbar action="/super-admin/users?tab=teachers" resultCount={teachers.length} controls={[{ name: "search", label: "Search a teacher, school, city or subject", type: "search", placeholder: "Search a teacher, school, city or subject", defaultValue: params.search }]} />}
+        selection={{
+          noun: "teacher",
+          nounPlural: "teachers",
+          actions: [
+            { label: "Add to a school-approach list", endpoint: "/api/super-admin/users/insights/teachers/approach-selected", idsField: "teacherIds" }
+          ]
+        }}
+        columns={[
+          { key: "teacher", header: "Teacher", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.name}</p><p className="text-xs text-[var(--color-text-muted)]">{row.role}</p></div> },
+          { key: "school", header: "Claimed school", render: (row) => row.school ?? <span className="text-[var(--color-text-muted)]">None named</span> },
+          { key: "city", header: "City", render: (row) => row.city ?? "—" },
+          { key: "subjects", header: "Subjects", render: (row) => <span className="text-[12px]">{row.subjects.join(", ") || "—"}</span> },
+          { key: "activity", header: "Activity", render: (row) => <StatusPill bg={ACTIVITY_TONE[row.activity].bg} fg={ACTIVITY_TONE[row.activity].fg} label={row.activity} /> },
+          { key: "contacted", header: "Contacted", render: (row) => (row.contacted ? formatDate(row.contacted) : "Never") },
+          { key: "open", header: "", render: (row) => <ActionMenuLink href={`/super-admin/users/${row.id}`}>Open</ActionMenuLink> }
+        ]}
+        footnote="No student-level data appears in any column, export or aggregate on this screen, because the individual tier cannot hold it. What is here is the teacher, their subjects and how to reach them."
+      />
+
+      <ReferenceList
+        title="How we use this list"
+        sub="A teacher is not a lead to be harvested. They are a colleague who already chose us, and the approach has to read that way."
+        items={[
+          { label: "A cluster is the argument, not the individual", detail: "Seven teachers at one school using Nooria unprompted is a sentence a Proprietor cannot ignore. One teacher is not.", pill: "Approach", tone: "good" },
+          { label: "Message the teacher, never the school, from here", detail: "Writing to a Principal about a teacher's private account would break the trust that made this list exist", pill: "Rule", tone: "bad" },
+          { label: "WhatsApp only where they opted in", detail: "A teacher who has not opted in cannot be written to on WhatsApp — there is no override. (WhatsApp itself is not connected yet.)", pill: "Consent", tone: "bad" },
+          { label: "Ask before you introduce", detail: "Every message ends with a question, not a booking. A teacher who feels used stops using the product", pill: "Tone", tone: "warn" },
+          { label: "Route through a registered deal if a partner is involved", detail: "Attribution is settled before the introduction, never after", pill: "Attribution", tone: "teal" }
+        ]}
       />
     </div>
-  );
-}
-
-const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: string; fg: string; bd: string }> = {
-  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", bd: "#CFE4DB" },
-  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", bd: "#F2E4C6" },
-  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", bd: "#F3E0E0" },
-  ink: { bg: "#0D2315", fg: "#fff", bd: "#0D2315" },
-  plain: { bg: "#fff", fg: "var(--color-text-primary)", bd: "var(--color-border-default)" }
-};
-
-function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
-  return (
-    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
-      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
-        {steps.map((step, index) => {
-          const tone = flowToneStyle[step.tone ?? "plain"];
-          return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
-              </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
@@ -777,6 +848,11 @@ function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: strin
         <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
       </div>
       <div className="grid gap-0 p-5">
+        <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-[#E6EEE9] pb-2 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">
+          <span>Control</span>
+          <span>Specification</span>
+          <span>State</span>
+        </div>
         {rows.map((row) => (
           <div key={row.control} className="grid grid-cols-[1fr_2fr_auto] items-start gap-4 border-b border-[var(--color-border-muted)] py-3 last:border-b-0">
             <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{row.control}</p>
@@ -880,37 +956,61 @@ async function SupportAccessTab() {
 
       <TableCard
         title="Support access log"
-        description="Every impersonation session recorded on this platform's audit log."
+        description="Every session, with the mirrored entry in the school's own log. Initiate: Support Agent and above — always logged, no exceptions, no suppression."
         items={events}
+        getRowKey={(item) => item.id}
         emptyState="No support access sessions recorded yet."
         columns={[
-          { key: "by", header: "Accessed by", render: (item) => (
-            <span className="inline-flex items-center gap-1.5"><LifeBuoy className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />{item.impersonatedBy}</span>
-          ) },
-          { key: "target", header: "Target user", render: (item) => item.targetEmail },
-          { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "reason", header: "Reason", render: (item) => item.reason ?? "—" },
-          {
-            key: "duration",
-            header: "Session length",
-            render: (item) => (item.maxAgeSeconds ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label={`${Math.round(item.maxAgeSeconds / 60)} min max`} /> : "—")
-          },
-          { key: "mode", header: "Mode", render: (item) => (item.elevated ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Could act (school approved)" /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Read-only" />) },
-          { key: "started", header: "Started", render: (item) => formatDate(item.startedAt) }
+          { key: "by", header: "Agent", render: (item) => <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)]"><LifeBuoy className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />{item.impersonatedBy}</span> },
+          { key: "target", header: "Target user", render: (item) => <div><p>{item.targetRole ? roleLabel(item.targetRole) : "User"} — {item.schoolName}</p><p className="text-[11px] text-[var(--color-text-muted)]">{item.targetEmail}</p></div> },
+          { key: "reason", header: "Reason", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.reason ?? "—"}</span> },
+          { key: "duration", header: "Duration", render: (item) => (item.blocked ? "—" : item.windowEnded ? "30 min — auto-expired" : "In progress · 30 min max") },
+          { key: "mode", header: "Mode", render: (item) => (item.blocked ? <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Blocked" /> : item.elevated ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Elevated" /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Read-only" />) },
+          { key: "school", header: "School log", render: (item) => (item.blocked ? <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label={/safeguarding/i.test(item.blocked) ? "Safeguarding restriction" : "Open dispute"} /> : item.elevated && item.confirmedBy ? <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label={`Confirmed by ${item.confirmedBy}`} /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Visible" />) }
+        ]}
+        footnote="Anything beyond read-only requires a school administrator's recorded confirmation first. The school sees the same record we do, immediately."
+      />
+
+      <FlowSteps
+        title="Support access session"
+        sub="Dual-logged by design, to us and to the school"
+        steps={[
+          { label: "Agent requests view-as", note: "Reason required — no reason, no session" },
+          { label: "Eligibility checked", note: "Blocked on open dispute or safeguarding restriction", tone: "bad" },
+          { label: "Session starts", note: "Read-only, hard 30-minute limit", tone: "good" },
+          { label: "Entry written to the school's log", note: "Visible immediately to Proprietor and Principal", tone: "ink" },
+          { label: "Needs to act?", note: "Super Admin escalation + school confirmation", tone: "warn" },
+          { label: "Session ends", note: "Manually, or automatically at 30 minutes" },
+          { label: "Full record to both logs", note: "Platform audit log and the school's own log", tone: "good" }
         ]}
       />
 
       <FlowSteps
         title="Support access session — how one starts and ends"
-        sub="Time-boxed and reason-gated by design; the read-only and dual-logging guarantees below are the mockup's intent, not yet this system's behavior."
+        sub="Every view-as session is time-boxed, mirrored to the school and fully auditable"
         steps={[
-          { label: "Reason logged", note: "Required before the session can start", tone: "good" },
-          { label: "Session starts", note: "Full role access — not currently read-only", tone: "warn" },
-          { label: "Auto-expires", note: "At 30 minutes regardless of activity", tone: "good" },
-          { label: "Logged to the audit trail", note: "Pages viewed and actions taken are not itemized — only that a session ran", tone: "ink" }
+          { label: "Reason logged", note: "Before the session can start" },
+          { label: "Session starts", note: "Maximum 30 minutes", tone: "ink" },
+          { label: "Read-only by default", note: "Editing needs Super Admin escalation", tone: "warn" },
+          { label: "Auto-expires", note: "At 30 min regardless of activity", tone: "warn" },
+          { label: "Logged to audit trail", note: "Pages viewed, actions taken", tone: "good" }
+        ]}
+      />
+
+      <TableCard
+        title="Support access log — last 7 days"
+        description="Immutable — visible to Super Admin and the acting agent's Department Lead."
+        items={events.filter((item) => Date.now() - new Date(item.startedAt).getTime() < 7 * 86_400_000)}
+        getRowKey={(item) => `w-${item.id}`}
+        emptyState="No session in the last 7 days."
+        columns={[
+          { key: "admin", header: "Admin", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.impersonatedBy}</p><p className="text-[11px] capitalize text-[var(--color-text-muted)]">{item.agentRole ?? ""}</p></div> },
+          { key: "target", header: "Target user", render: (item) => <div><p>{item.targetEmail}</p><p className="text-[11px] text-[var(--color-text-muted)]">{item.schoolName}</p></div> },
+          { key: "reason", header: "Reason", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.reason ?? "—"}</span> },
+          { key: "duration", header: "Duration", render: (item) => (item.blocked ? "—" : item.windowEnded ? "30 min · expired" : "In progress") },
+          { key: "mode", header: "Mode", render: (item) => (item.blocked ? <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Blocked" /> : item.elevated ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Write escalated" /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Read-only" />) }
         ]}
       />
     </div>
   );
 }
-

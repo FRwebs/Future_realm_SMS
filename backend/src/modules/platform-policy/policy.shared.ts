@@ -33,6 +33,11 @@ export const policySchema = z.object({
     quietHoursOn: z.boolean(),
     dailyCapPerRecipient: z.number().int().min(0).max(100),
     maxAttempts: z.number().int().min(1).max(10),
+    /** What the provider charges Nooria per message, in naira. 0 means it has not been entered yet — no margin is shown. */
+    providerCostSms: z.number().min(0).max(1000),
+    providerCostSmsInternational: z.number().min(0).max(1000),
+    providerCostWhatsapp: z.number().min(0).max(1000),
+    providerCostEmail: z.number().min(0).max(1000),
   }),
 });
 
@@ -42,7 +47,7 @@ export const DEFAULT_POLICY: Policy = {
   trial: { days: 30, readOnlyDays: 7, lockReminderDays: 3 },
   dormancy: { watchDays: 60, dormantDays: 120, noticeDays: 30 },
   invoice: { netDays: 14, rounding: "NONE" },
-  messaging: { quietFrom: "21:00", quietTo: "06:00", quietHoursOn: false, dailyCapPerRecipient: 0, maxAttempts: 3 },
+  messaging: { quietFrom: "21:00", quietTo: "06:00", quietHoursOn: false, dailyCapPerRecipient: 0, maxAttempts: 3, providerCostSms: 0, providerCostSmsInternational: 0, providerCostWhatsapp: 0, providerCostEmail: 0 },
 };
 
 export const policyPatchSchema = z.object({

@@ -315,8 +315,8 @@ function ChangelogTab() {
         getRowKey={(item) => item.code}
         columns={[
           { key: "code", header: "", render: (item) => <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{item.code}</span> },
-          { key: "was", header: "Said before", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.was}</span> },
-          { key: "now", header: "Says now", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.now}</span> },
+          { key: "was", header: "v3.0 said", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.was}</span> },
+          { key: "now", header: "v4.0 says", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{item.now}</span> },
           { key: "why", header: "Why", render: (item) => <span className="text-[11px] leading-relaxed text-[var(--color-text-muted)]">{item.why}</span> }
         ]}
       />

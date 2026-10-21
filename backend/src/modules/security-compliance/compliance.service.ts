@@ -148,7 +148,7 @@ export class ComplianceService implements OnModuleInit, OnModuleDestroy {
       prisma.retentionRule.findMany({ orderBy: { dataClass: "asc" } }),
       prisma.accountClosureRequest.findMany({ include: { school: { select: { name: true, status: true, deletedAt: true } } }, orderBy: { createdAt: "desc" }, take: 50 }),
       prisma.dataPrivacyRequest.findMany({ where: { type: "ERASURE" }, include: { school: { select: { name: true } } }, orderBy: { createdAt: "desc" }, take: 50 }),
-      prisma.securityIncident.count({ where: { type: "BRUTE_FORCE_LOCKOUT", detectedAt: { gte: new Date(now.getTime() - 30 * DAY) } } }),
+      prisma.securityIncident.count({ where: { type: "BRUTE_FORCE_LOCKOUT", detectedAt: { gte: new Date(now.getTime() - 7 * DAY) } } }),
       prisma.ipAccessRule.findMany({ select: { type: true } })
     ]);
 
@@ -235,7 +235,7 @@ export class ComplianceService implements OnModuleInit, OnModuleDestroy {
       grievances: { open: grievanceOpen, total: grievanceTotal },
       retention: ruleRows,
       deletionSchedule,
-      signIn: { lockouts30d: lockouts, ipAllow: ipRules.filter((r) => r.type === "ALLOW").length, ipDeny: ipRules.filter((r) => r.type === "DENY").length, idleMinutes: Number(process.env.PLATFORM_IDLE_MINUTES ?? 30) },
+      signIn: { lockouts7d: lockouts, ipAllow: ipRules.filter((r) => r.type === "ALLOW").length, ipDeny: ipRules.filter((r) => r.type === "DENY").length, idleMinutes: Number(process.env.PLATFORM_IDLE_MINUTES ?? 30) },
       generatedAt: now.toISOString()
     };
   }

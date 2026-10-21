@@ -86,6 +86,9 @@ const registerTeacherSchema = z.object({
   position: z.string().trim().min(1).default("Subject Teacher"),
   country: z.string().trim().optional(),
   schoolName: z.string().trim().optional(),
+  city: z.string().trim().optional(),
+  /** Whether the teacher agreed to be written to on WhatsApp. Absent means no. */
+  whatsappOptIn: z.boolean().optional(),
   subjects: z.array(z.string()).default([]),
   levels: z.array(z.string()).default([]),
   /** A school already on the platform that the teacher asked to be linked to. */
@@ -548,6 +551,7 @@ export class OnboardingService {
             phone: parsed.phone,
             gender: parsed.gender,
             country: parsed.country,
+            city: parsed.city,
             jobTitle: parsed.position,
             userCode,
             passwordHash,
@@ -579,6 +583,7 @@ export class OnboardingService {
     });
 
     await rememberPassword(teacher.id, passwordHash);
+    if (parsed.whatsappOptIn) await prisma.consentRecord.create({ data: { userId: teacher.id, channel: "WHATSAPP", schoolId: workspace.id, source: "Teacher signup", optedIn: true } });
     const joinRequest = target
       ? await prisma.schoolJoinRequest.create({ data: { userId: teacher.id, schoolId: target.id, nameClaimed: parsed.schoolName ?? target.name, subjects: parsed.subjects, levels: parsed.levels } })
       : null;

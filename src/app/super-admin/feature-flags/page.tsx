@@ -211,7 +211,7 @@ async function PlansTab() {
       </section>
 
       <TableCard
-        title="Plan health by tier — what real usage shows"
+        title="Plan health — is each tier doing its job?"
         description="Grouped by the platform's five billing tiers (Basic/Standard/Professional/Enterprise/Custom), not by the individual named plans above — churn and adoption are tracked at the tier level, not per plan row. Schools with too few data points to matter are omitted."
         items={planHealth}
         getRowKey={(row) => row.tier}
@@ -506,10 +506,15 @@ async function ExceptionsTab() {
           })}
         </div>
       </section>
+      <div className="grid gap-1.5">
+        <p className="section-eyebrow">Case queue</p>
+        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Exceptions by school</h2>
+        <p className="text-[11.5px] text-[var(--color-text-secondary)]">One row per departure from a school’s plan. Open a case to see who asked, who decided, and what happens when it ends.</p>
+      </div>
       <ExceptionsCaseBoard />
       <TableCard
-        title="What happens when an override expires"
-        description="Every override has a required expiry date, and an hourly job acts on it."
+        title="What happens when an exception ends"
+        description="Every exception has a required end date, and an hourly job acts on it. Nothing is deleted: a school losing a feature never loses what it built with the feature."
         items={[
           { step: "Before expiry", what: "The case board shows it under “Ending in the next 30 days”. No reminder is sent ahead of the date.", state: "warn" },
           { step: "On the expiry date", what: "Within the hour the override is marked Expired, access it granted (or restricted) stops applying, an audit entry is written, and the school's leadership is told in the app.", state: "good" },
@@ -531,7 +536,7 @@ async function ExceptionsTab() {
         ]}
       />
       <TableCard
-        title="Branding review — what's actually checked"
+        title="Branding requirements"
         description="Custom branding, verified against the real submission and approval code. The school's plan must include custom branding (or hold an approved exception) at both submit and apply."
         items={[
           { requirement: "Logo format", spec: "Enforced — the logo must be a secure (https) link to a PNG, JPG, SVG or WebP file. Minimum width is not checked: the file is not fetched.", state: "good" },
@@ -853,7 +858,7 @@ async function FlagsSection() {
   return (
     <div className="grid gap-5">
       <TableCard
-        title="Feature flags"
+        title="Active feature flags"
         description="Staged rollout: Off → Pilot → Partial → Full, with an instant platform-wide rollback at any stage. “In stage” is measured from the day the flag entered its current stage, against that flag's own observation window."
         items={flags ?? []}
         actions={

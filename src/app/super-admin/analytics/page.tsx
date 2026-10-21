@@ -328,7 +328,7 @@ async function RetentionTab() {
         <p className="text-[11.5px] text-[var(--color-text-secondary)]">Schools grouped by the month they joined, and the share still active today.</p>
       </div>
       <TableCard
-        title="Cohorts"
+        title="Cohort retention analysis"
         description="The share of each join-month cohort that is active today. The retention curve below is read from daily snapshots of every school's status, so it starts on the day snapshots began and fills in month by month."
         items={cohorts}
         pageSize={false}
@@ -378,7 +378,8 @@ async function RetentionTab() {
         <p className="text-[11.5px] text-[var(--color-text-secondary)]">Logged churn records, grouped by reason and subscription tier.</p>
       </div>
       <TableCard
-        title={`Churn reason breakdown · ${churn.total} school${churn.total === 1 ? "" : "s"}`}
+        title="Churn reason breakdown"
+        description={`The handling admin must log a reason from a defined list when a school churns · ${churn.total} school${churn.total === 1 ? "" : "s"}`}
         items={churn.byReason}
         pageSize={false}
         getRowKey={(item) => item.reason}
@@ -609,7 +610,7 @@ async function ProductTab() {
 
       <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
         <TableCard
-          title="Adoption gaps"
+          title="Adoption gaps auto-nominated for the next sprint"
           description="Every module sitting below the 40% floor across the whole platform."
           items={adoption.gaps}
           pageSize={false}

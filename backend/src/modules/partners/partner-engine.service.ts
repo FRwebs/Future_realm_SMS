@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { sendNotification } from "../../../../src/lib/integrations/notifications";
 import { REAL_STUDENTS } from "../super-admin/sample";
 
 /**
@@ -201,6 +202,40 @@ export class PartnerEngineService {
     return { settled: true };
   }
 
+  /** The payment run: settle every ticked statement under one reference. A statement the caller issued themselves is left for someone else, and the rest still go through. */
+  async settleMany(session: SessionPayload, body: unknown) {
+    this.assert(session, SETTLERS, "Statements are settled by a Super Admin.");
+    const input = z.object({ statementIds: z.array(z.string()).min(1, "Choose at least one statement."), paymentRef: z.string().trim().optional() }).parse(body);
+    const reference = input.paymentRef || `Payment run ${new Date().toISOString().slice(0, 10)}`;
+    const settled: string[] = [];
+    const skipped: Array<{ ref: string; why: string }> = [];
+    for (const id of input.statementIds) {
+      const row = await prisma.partnerStatement.findUnique({ where: { id }, select: { ref: true } });
+      try {
+        await this.settle(session, id, { paymentRef: reference });
+        settled.push(row?.ref ?? id);
+      } catch (error) {
+        skipped.push({ ref: row?.ref ?? id, why: error instanceof Error ? error.message : "Could not be settled." });
+      }
+    }
+    return { settled: settled.length, skipped, reference };
+  }
+
+  /** Send the statement again to the partner's notices address, exactly as it stands. */
+  async resend(session: SessionPayload, body: unknown) {
+    const input = z.object({ statementIds: z.array(z.string()).min(1, "Choose at least one statement.") }).parse(body);
+    const rows = await prisma.partnerStatement.findMany({ where: { id: { in: input.statementIds } }, include: { partner: true } });
+    let sent = 0;
+    const withoutEmail: string[] = [];
+    for (const row of rows) {
+      if (!row.partner.email) { withoutEmail.push(row.partner.name); continue; }
+      await sendNotification({ channel: "EMAIL", recipient: row.partner.email, title: `Statement of account ${row.ref} — ${row.period}`, body: `Gross commission ${num(row.gross).toLocaleString("en-NG")}, clawbacks ${Math.abs(num(row.clawbacks)).toLocaleString("en-NG")}, net payable ${num(row.net).toLocaleString("en-NG")} NGN. Status: ${row.status === "SETTLED" ? "settled" : "awaiting settlement"}. Reply to this email if anything looks wrong.` }).catch(() => undefined);
+      await this.audit(session, "PartnerStatement", row.id, `Statement re-sent · ${row.partner.name} · ${row.ref}`, { to: row.partner.email });
+      sent += 1;
+    }
+    return { sent, withoutEmail };
+  }
+
   async statementsCsv(ids?: string[]) {
     const rows = await prisma.partnerStatement.findMany({ where: { status: "ISSUED", ...(ids?.length ? { id: { in: ids } } : {}) }, include: { partner: true } });
     const lines = [["Statement", "Partner", "Period", "Net payable (NGN)", "Bank", "Account number", "Account name", "Due"].join(",")];
@@ -316,9 +351,11 @@ export class PartnerEngineService {
       rows.push({ id: partner.id, name: partner.name, code: partner.code, registered: registered.length, converted: converted.length, conversion: registered.length ? Math.round((converted.length / registered.length) * 100) : null, retention: stats.retention, ticketsPer100: stats.ticketsPer100, schools: stats.schools, recentRegistrations, condition: minPerTerm || partner.minRetentionPercent !== null ? (registrationBreached || retentionBreached ? "BREACHED" : "MET") : "NONE", conditionNote: registrationBreached ? `Fewer than ${minPerTerm * 2} registrations across the last two terms` : retentionBreached ? `Retention ${stats.retention}% is below the ${partner.minRetentionPercent}% the agreement asks for` : null });
     }
     const direct = await schoolStats([], true);
+    const overall = await schoolStats(Array.from(partnerSchoolIds));
+    const activeBase = await prisma.school.count({ where: { deletedAt: null, isPersonalWorkspace: false, status: { in: ["ACTIVE", "TRIAL", "GRACE_PERIOD"] } } });
     const allConverted = rows.reduce((sum, row) => sum + row.converted, 0);
     const allRegistered = rows.reduce((sum, row) => sum + row.registered, 0);
-    return { rows, direct, totals: { partnerSchools: partnerSchoolIds.size, conversion: allRegistered ? Math.round((allConverted / allRegistered) * 100) : null, breached: rows.filter((row) => row.condition === "BREACHED").length } };
+    return { rows, direct, overall, totals: { activeBase, breachedNames: rows.filter((row) => row.condition === "BREACHED").map((row) => row.name), partnerSchools: partnerSchoolIds.size, conversion: allRegistered ? Math.round((allConverted / allRegistered) * 100) : null, breached: rows.filter((row) => row.condition === "BREACHED").length } };
   }
 
   /** How many real students a school has — what the partner sheet shows beside each school it brought. */

@@ -1,6 +1,7 @@
 import { AlertTriangle, Crown, ShieldCheck, Timer, UserCog, Users2 } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
+import { FlowSteps } from "@/components/data-display/flow-steps";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -216,6 +217,29 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
         </div>
       </section>
 
+      <FlowSteps
+        title="New hire onboarding"
+        sub="From account creation to first authenticated login"
+        steps={[
+          { label: "Super Admin creates account", note: "Only role that can" },
+          { label: "Department + role template", note: "Default permissions applied", tone: "good" },
+          { label: "Fine-tune permissions", note: "Optional, per person", tone: "good" },
+          { label: "Account activated", note: "Activation link sent by email", tone: "good" },
+          { label: "First login", note: "Email code every time; authenticator app optional", tone: "good" }
+        ]}
+      />
+      <FlowSteps
+        title="Offboarding"
+        sub="No delay between departure confirmation and access revocation — this is an operational security requirement"
+        steps={[
+          { label: "Departure confirmed", note: "HR or Department Lead" },
+          { label: "Instant revocation", note: "One action by Super Admin", tone: "bad" },
+          { label: "All sessions terminated", note: "Immediately, everywhere", tone: "bad" },
+          { label: "Status: Revoked", note: "Account retained, access gone", tone: "warn" },
+          { label: "Logged to the audit trail", note: "Who, when, and why", tone: "ink" }
+        ]}
+      />
+
       <TableCard
         title="Recently onboarded (30 days)"
         description="Newest first."
@@ -329,7 +353,7 @@ async function RolesTab() {
       <PrivilegesByRoleTable items={roleBreakdown} />
 
       <TableCard
-        title="Three rules that sit above every cell in the matrix"
+        title="Three rules that sit above every cell above"
         description="These are properties of what was built, verified against the real code — not settings that could be toggled off."
         items={[
           { rule: "Nobody can read a child's record", detail: "Not Super Admin, not anyone. No Super Admin endpoint returns individual student data — the function does not exist, so it cannot be granted or escalated to." },
@@ -344,7 +368,7 @@ async function RolesTab() {
       />
 
       <TableCard
-        title="How access is actually enforced — the real dimensions"
+        title="The three dimensions"
         description="What this system checks, and where, for an internal team member."
         items={[
           { dimension: "Role", question: "Which of the seven platform roles is this person?", enforcedWhere: "Set on the account at creation; embedded in their session token and checked by every guarded endpoint on every request.", state: "Real" as const },
@@ -374,7 +398,7 @@ async function RolesTab() {
       />
 
       <TableCard
-        title="Role templates"
+        title="Permission templates"
         description="Default permission grids per role, applied automatically when a new account is created."
         items={templates ?? []}
         actions={
@@ -399,7 +423,7 @@ async function RolesTab() {
       />
 
       <TableCard
-        title="Access matrix"
+        title="Module access at a glance"
         description="What each person holds in each Back Office module — their own setting, else their role's template. A dash means nothing is set, so the role's own rules apply. Change a cell from “Set module permission” on a person in People."
         items={members}
         getRowKey={(member) => member.id}

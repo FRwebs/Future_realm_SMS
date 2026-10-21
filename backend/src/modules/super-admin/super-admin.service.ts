@@ -1,12 +1,14 @@
 import os from "os";
 import { CARRIERS } from "../notification-delivery/providers";
 import { TRIGGER_KEYS } from "../platform-policy/triggers";
+import { TRIGGERS } from "../../../../src/lib/domain/message-triggers";
 import { supportAccess } from "../support-access/support-access.service";
 import { contrastOnWhite } from "../plans-features/branding";
 import { forgetAccess } from "../team-access/access";
 import { scopeStatesFor, teamAccess } from "../team-access/team-access.service";
 import { analytics } from "../analytics-bi/analytics.service";
 import { templates } from "../config-library/templates.service";
+import { supportDesk } from "../support-desk/support-desk.service";
 import { plansFeatures } from "../plans-features/plans-features.service";
 import { createHash } from "crypto";
 
@@ -39,6 +41,9 @@ const pageSchema = z.object({
   plan: z.string().trim().optional(),
   state: z.string().trim().optional(),
   category: z.string().trim().optional(),
+  priority: z.string().trim().optional(),
+  assignedToId: z.string().trim().optional(),
+  sla: z.string().trim().optional(),
   role: z.string().trim().optional(),
   action: z.string().trim().optional(),
   dateFrom: z.coerce.date().optional(),
@@ -155,7 +160,8 @@ const cancelInvoiceSchema = z.object({
 
 const walletTopUpSchema = z.object({
   smsCredits: z.coerce.number().int().min(0).default(0),
-  whatsappCredits: z.coerce.number().int().min(0).default(0)
+  whatsappCredits: z.coerce.number().int().min(0).default(0),
+  reason: z.string().trim().min(5, "Say why the credit is being added by hand.").optional()
 });
 
 const promoCodeCreateSchema = z.object({
@@ -211,7 +217,7 @@ const settingsSchema = z.object({
 const featureSchema = z.record(z.boolean());
 const featurePayloadSchema = z.union([featureSchema, z.object({ features: featureSchema })]);
 
-const ticketCategoryValues = ["BILLING", "TECHNICAL_BUG", "FEATURE_REQUEST", "ACCOUNT_ACCESS", "DATA_ISSUE", "RESULT_COMPUTATION", "NOTIFICATION_DELIVERY", "SYNC_OFFLINE_ISSUE", "DATA_CORRECTION_REQUEST", "OTHER"] as const;
+const ticketCategoryValues = ["BILLING", "TECHNICAL_BUG", "FEATURE_REQUEST", "ACCOUNT_ACCESS", "DATA_ISSUE", "RESULT_COMPUTATION", "NOTIFICATION_DELIVERY", "SYNC_OFFLINE_ISSUE", "DATA_CORRECTION_REQUEST", "FEE_MANAGEMENT", "DATA_MIGRATION", "ONBOARDING_SETUP", "OTHER"] as const;
 const ticketStatusValues = ["OPEN", "TRIAGED", "IN_PROGRESS", "AWAITING_SCHOOL_RESPONSE", "ESCALATED", "RESOLVED", "CLOSED"] as const;
 
 const supportTicketSchema = z.object({
@@ -224,7 +230,8 @@ const supportTicketSchema = z.object({
 });
 
 const ticketMessageSchema = z.object({
-  body: z.string().min(2),
+  body: z.string().optional(),
+  cannedResponseId: z.string().optional(),
   internalOnly: z.coerce.boolean().default(false)
 });
 
@@ -1788,10 +1795,12 @@ export class SuperAdminService {
       prisma.school.count({ where }),
       getPlanPriceMap()
     ]);
+    const studentTotals = new Map((await prisma.student.groupBy({ by: ["schoolId"], where: { schoolId: { in: schools.map((x) => x.id) }, ...REAL_STUDENTS }, _count: { _all: true } })).map((row) => [row.schoolId, row._count._all]));
     return this.response(
       schools.map((school) => ({
         schoolId: school.id,
         schoolName: school.name,
+        students: studentTotals.get(school.id) ?? 0,
         plan: school.plan,
         status: school.billingStatus,
         tenantStatus: school.status,
@@ -1851,12 +1860,14 @@ export class SuperAdminService {
       }),
       prisma.platformInvoice.count({ where })
     ]);
+    const studentCounts = new Map((await prisma.student.groupBy({ by: ["schoolId"], where: { schoolId: { in: invoices.map((i) => i.schoolId) }, ...REAL_STUDENTS }, _count: { _all: true } })).map((row) => [row.schoolId, row._count._all]));
     return this.response(
       invoices.map((invoice) => ({
         id: invoice.id,
         invoiceNo: invoice.invoiceNo,
         schoolId: invoice.schoolId,
         schoolName: invoice.school.name,
+        students: studentCounts.get(invoice.schoolId) ?? 0,
         amount: Number(invoice.amount),
         taxAmount: Number(invoice.taxAmount),
         totalAmount: Number(invoice.amount) + Number(invoice.taxAmount),
@@ -2181,7 +2192,12 @@ export class SuperAdminService {
       create: { schoolId, smsBalance: parsed.smsCredits, whatsappBalance: parsed.whatsappCredits, lastToppedUpAt: new Date() },
       update: { smsBalance: { increment: parsed.smsCredits }, whatsappBalance: { increment: parsed.whatsappCredits }, lastToppedUpAt: new Date() }
     });
-    await this.audit(session, "UPDATE", "NotificationWallet", wallet.id, { smsCredits: parsed.smsCredits, whatsappCredits: parsed.whatsappCredits }, schoolId);
+    const note = parsed.reason ? `Added by hand · ${parsed.reason}` : "Added by hand";
+    const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true } });
+    for (const [channel, credits] of [["SMS", parsed.smsCredits], ["WHATSAPP", parsed.whatsappCredits]] as const) {
+      if (credits > 0) await prisma.creditLedger.create({ data: { schoolId, channel, kind: "TOPUP", credits, amount: 0, method: "BY_HAND", note, createdById: actor?.id ?? null } });
+    }
+    await this.audit(session, "UPDATE", "NotificationWallet", wallet.id, { smsCredits: parsed.smsCredits, whatsappCredits: parsed.whatsappCredits, reason: parsed.reason ?? null }, schoolId);
     return this.response({ schoolId, smsBalance: wallet.smsBalance, whatsappBalance: wallet.whatsappBalance }, "Notification credits topped up");
   }
 
@@ -2524,7 +2540,7 @@ export class SuperAdminService {
           totalActiveSchools: statusCounts.ACTIVE ?? 0,
           totalStudents,
           schoolsOnline: onlineSchoolSessions.length,
-          uptime30Day: apiUptime,
+          uptime30Day: await this.uptime30d(),
           offlineSyncQueueSize: pendingSyncDrafts,
           lastSuccessfulBackupAt: lastBackup?.endedAt?.toISOString() ?? lastBackup?.startedAt.toISOString() ?? null
         },
@@ -2831,7 +2847,11 @@ export class SuperAdminService {
     if (!user) throw new NotFoundException("User not found or inactive.");
     if (platformRoles.has(user.role)) throw new BadRequestException("Cannot impersonate another platform admin account.");
     const blocked = await supportAccess.blockedReason(user.id);
-    if (blocked) throw new BadRequestException(blocked);
+    if (blocked) {
+      // A refused attempt is a record too: who tried, which account, and which gate stopped it.
+      await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, role: user.role, schoolId: user.schoolId, reason: parsed.reason, startedAt: new Date().toISOString(), blocked: blocked }, user.schoolId);
+      throw new BadRequestException(blocked);
+    }
     if (parsed.elevationId) await supportAccess.redeem(parsed.elevationId, user.id);
     const maxAgeSeconds = 30 * 60;
     const startedAt = new Date();
@@ -2852,7 +2872,7 @@ export class SuperAdminService {
         elevationId: parsed.elevationId
       }
     }, { maxAgeSeconds });
-    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, schoolId: user.schoolId, reason: parsed.reason, startedAt: startedAt.toISOString(), maxAgeSeconds, elevated: Boolean(parsed.elevationId), ...(parsed.elevationId ? { elevationId: parsed.elevationId } : {}) }, user.schoolId);
+    await this.audit(session, "IMPERSONATE", "User", user.id, { email: user.email, role: user.role, schoolId: user.schoolId, reason: parsed.reason, startedAt: startedAt.toISOString(), maxAgeSeconds, elevated: Boolean(parsed.elevationId), ...(parsed.elevationId ? { elevationId: parsed.elevationId } : {}) }, user.schoolId);
     await supportAccess.tellSchool(user.schoolId, session.name ?? "A Future Realm agent", `${user.firstName} ${user.lastName}`, Boolean(parsed.elevationId), parsed.reason);
     return this.response({ token, expiresInSeconds: maxAgeSeconds, user: { id: user.id, email: user.email, role: user.role, schoolName: user.school.name } }, "Impersonation token generated");
   }
@@ -2865,17 +2885,27 @@ export class SuperAdminService {
       orderBy: { createdAt: "desc" },
       take: 100
     });
+    const elevationIds = events.map((e) => ((e.metadata ?? {}) as { elevationId?: string }).elevationId).filter((id): id is string => Boolean(id));
+    const approvals = await prisma.approvalRequest.findMany({ where: { id: { in: elevationIds } }, include: { decidedBy: { select: { firstName: true, lastName: true, role: true } } } });
+    const approval = new Map(approvals.map((a) => [a.id, a]));
     return this.response(events.map((event) => {
       const metadata = (event.metadata ?? {}) as Record<string, unknown>;
+      const granted = typeof metadata.elevationId === "string" ? approval.get(metadata.elevationId) : undefined;
+      const startedAt = (metadata.startedAt as string) ?? event.createdAt.toISOString();
       return {
         id: event.id,
         impersonatedBy: event.actor ? `${event.actor.firstName} ${event.actor.lastName}` : "System",
+        agentRole: event.actor ? String(event.actor.role).replaceAll("_", " ").toLowerCase() : null,
         targetEmail: (metadata.email as string) ?? "Unknown",
+        targetRole: (metadata.role as string) ?? null,
         schoolName: event.school?.name ?? "Platform",
         reason: (metadata.reason as string) ?? null,
-        startedAt: (metadata.startedAt as string) ?? event.createdAt.toISOString(),
+        startedAt,
         maxAgeSeconds: (metadata.maxAgeSeconds as number) ?? null,
-        elevated: Boolean(metadata.elevated)
+        elevated: Boolean(metadata.elevated),
+        blocked: (metadata.blocked as string) ?? null,
+        confirmedBy: granted?.decidedBy ? `${granted.decidedBy.firstName} ${granted.decidedBy.lastName} · ${String(granted.decidedBy.role).replaceAll("_", " ").toLowerCase()}` : null,
+        windowEnded: !metadata.blocked && Date.now() - new Date(startedAt).getTime() > ((metadata.maxAgeSeconds as number) ?? 1800) * 1000
       };
     }));
   }
@@ -2922,16 +2952,24 @@ export class SuperAdminService {
   async listSupportTickets(session: SessionPayload, query: unknown) {
     assertSuperAdmin(session);
     const parsed = pageSchema.parse(query);
+    const statusFilter: Prisma.SupportTicketWhereInput =
+      !parsed.status || parsed.status.toLowerCase() === "active" ? { status: { notIn: ["RESOLVED", "CLOSED"] } }
+      : parsed.status.toLowerCase() === "all" ? {}
+      : { status: parsed.status.toUpperCase() as never };
     const where: Prisma.SupportTicketWhereInput = {
       ...(parsed.schoolId ? { schoolId: parsed.schoolId } : {}),
-      ...(parsed.status ? { status: parsed.status.toUpperCase() as never } : {}),
+      ...statusFilter,
+      ...(parsed.category ? { category: parsed.category.toUpperCase() as never } : {}),
+      ...(parsed.priority ? { priority: parsed.priority.toUpperCase() as never } : {}),
+      ...(parsed.assignedToId ? (parsed.assignedToId === "none" ? { assignedToId: null } : { assignedToId: parsed.assignedToId }) : {}),
+      ...(parsed.sla === "breached" ? { slaDueAt: { lt: new Date() }, status: { notIn: ["RESOLVED", "CLOSED"] } } : {}),
       ...(parsed.search ? { OR: [{ subject: { contains: parsed.search, mode: "insensitive" } }, { ticketNo: { contains: parsed.search, mode: "insensitive" } }] } : {})
     };
     const [tickets, total] = await Promise.all([
       prisma.supportTicket.findMany({
         where,
         include: { school: true, assignedTo: true, createdBy: true, csatResponse: true, _count: { select: { messages: true } } },
-        orderBy: [{ priority: "desc" }, { updatedAt: "desc" }],
+        orderBy: [{ priority: "desc" }, { slaDueAt: "asc" }, { updatedAt: "desc" }],
         skip: (parsed.page - 1) * parsed.limit,
         take: parsed.limit
       }),
@@ -3041,10 +3079,16 @@ export class SuperAdminService {
   async addTicketMessage(session: SessionPayload, ticketId: string, payload: unknown) {
     assertSuperAdmin(session);
     const parsed = ticketMessageSchema.parse(payload);
-    const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId } });
+    const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId }, include: { school: { select: { name: true } } } });
     if (!ticket) throw new NotFoundException("Support ticket not found.");
+    // A saved answer stands in for the message: it is personalised with the school's name and counted as used.
+    const canned = parsed.cannedResponseId ? await prisma.cannedResponse.findUnique({ where: { id: parsed.cannedResponseId } }) : null;
+    if (parsed.cannedResponseId && !canned) throw new NotFoundException("That saved answer no longer exists.");
+    const text = (parsed.body?.trim() || (canned ? canned.body.replaceAll("{{school}}", ticket.school.name).replaceAll("{{ticket_no}}", ticket.ticketNo) : "")).trim();
+    if (text.length < 2) throw new BadRequestException("Write a message, or choose a saved answer.");
+    if (canned && !parsed.body?.trim()) await prisma.cannedResponse.update({ where: { id: canned.id }, data: { usedCount: { increment: 1 } } });
     const actor = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] } });
-    const message = await prisma.ticketMessage.create({ data: { ticketId, authorId: actor?.id, body: parsed.body, internalOnly: parsed.internalOnly } });
+    const message = await prisma.ticketMessage.create({ data: { ticketId, authorId: actor?.id, body: text, internalOnly: parsed.internalOnly } });
     if (!["RESOLVED", "CLOSED"].includes(ticket.status)) {
       await prisma.supportTicket.update({ where: { id: ticketId }, data: { status: parsed.internalOnly ? ticket.status : "AWAITING_SCHOOL_RESPONSE" } });
     }
@@ -3057,6 +3101,7 @@ export class SuperAdminService {
     const parsed = ticketStatusSchema.parse(payload);
     const ticket = await prisma.supportTicket.findUnique({ where: { id: ticketId }, include: { school: true } });
     if (!ticket) throw new NotFoundException("Support ticket not found.");
+    if (parsed.status === "CLOSED" && ticket.category === "OTHER") throw new BadRequestException("This ticket is categorised as Other. Reclassify it before it can be closed.");
 
     const updated = await prisma.supportTicket.update({
       where: { id: ticketId },
@@ -3146,11 +3191,13 @@ export class SuperAdminService {
     const record = await prisma.dataCorrectionRecord.findUnique({ where: { id: recordId }, include: { ticket: true } });
     if (!record) throw new NotFoundException("Data correction record not found.");
     if (record.status !== "PENDING") throw new BadRequestException("This correction has already been resolved.");
+    if (!record.validatedAt) throw new BadRequestException("Operations has not validated this request yet. Validate the evidence the school supplied first.");
     const updated = await prisma.dataCorrectionRecord.update({
       where: { id: recordId },
       data: { status: "COMPLETED", approvedById: session.userId, completedAt: new Date() }
     });
     await this.audit(session, "UPDATE", "DataCorrectionRecord", record.id, { fieldCorrected: record.fieldCorrected, oldValue: record.oldValue, newValue: record.newValue }, record.ticket.schoolId);
+    await supportDesk.notifySchoolOfCorrection(record.id).catch(() => undefined);
     return this.response({ id: updated.id, status: updated.status }, "Data correction approved and logged");
   }
 
@@ -3180,6 +3227,7 @@ export class SuperAdminService {
     });
     return this.response(
       records.map((record) => ({
+        validatedAt: record.validatedAt?.toISOString() ?? null,
         id: record.id,
         ticketId: record.ticket.id,
         ticketNo: record.ticket.ticketNo,
@@ -3195,6 +3243,16 @@ export class SuperAdminService {
       })),
       "Data correction requests loaded"
     );
+  }
+
+  /** Share of API requests over the last 30 days that did not fail on our side (status under 500). Counted, not sampled. */
+  private async uptime30d(): Promise<number> {
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const [total, failed] = await Promise.all([
+      prisma.apiUsageLog.count({ where: { createdAt: { gte: since } } }),
+      prisma.apiUsageLog.count({ where: { createdAt: { gte: since }, status: { gte: 500 } } })
+    ]);
+    return total ? Math.round(((total - failed) / total) * 10000) / 100 : 100;
   }
 
   async ticketAnalytics(session: SessionPayload) {
@@ -4032,12 +4090,22 @@ export class SuperAdminService {
     assertAnyPlatformRole(session, new Set<UserRole>(["PLATFORM_OWNER", "SUPER_ADMIN"]), "Only Super Admin can add message templates.");
     const parsed = messageTemplateSchema.parse(payload);
     await this.checkTrigger(parsed.triggerKey, parsed.channel);
+    this.checkFields(parsed.triggerKey, parsed.body);
     // Nobody approves their own wording: a new template waits for a second person (and, on WhatsApp, for Meta).
     const template = await prisma.messageTemplate.create({
       data: { ...parsed, approvalStatus: parsed.channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW", createdById: session.userId }
     });
     await this.audit(session, "CREATE", "MessageTemplate", template.id, { name: parsed.name, channel: parsed.channel }, null);
     return this.response({ id: template.id }, "Message template created");
+  }
+
+  /** Every {{field}} in the wording must be one the trigger can fill in — otherwise the draft is blocked, not sent with a hole in it. */
+  private checkFields(triggerKey: string | undefined | null, body: string) {
+    if (!triggerKey) return;
+    const trigger = TRIGGERS.find((t) => t.key === triggerKey);
+    if (!trigger) return;
+    const unknown = Array.from(new Set(Array.from(body.matchAll(/{{\s*(\w+)\s*}}/g)).map((m) => m[1]))).filter((name) => !(trigger.vars as readonly string[]).includes(name));
+    if (unknown.length) throw new BadRequestException(`“${trigger.label}” cannot fill in ${unknown.map((n) => `{{${n}}}`).join(", ")}. The fields it offers are ${trigger.vars.map((v) => `{{${v}}}`).join(", ")}.`);
   }
 
   /** A trigger is worded from one template at a time, and only an email can stand in for the notice. */
@@ -4068,6 +4136,7 @@ export class SuperAdminService {
     const channel = parsed.channel ?? current.channel;
     const triggerKey = parsed.triggerKey === undefined ? current.triggerKey : parsed.triggerKey || null;
     await this.checkTrigger(triggerKey ?? undefined, channel, current.id);
+    this.checkFields(triggerKey, parsed.body ?? current.body);
     const [, created] = await prisma.$transaction([
       prisma.messageTemplate.update({ where: { id: templateId }, data: { retiredAt: new Date() } }),
       prisma.messageTemplate.create({ data: { name: parsed.name ?? current.name, channel, category: parsed.category ?? current.category, body: parsed.body ?? current.body, placeholders: current.placeholders, triggerKey, version: current.version + 1, supersedesId: current.id, createdById: session.userId, approvalStatus: channel === "WHATSAPP" ? "PENDING_META_APPROVAL" : "PENDING_REVIEW" } })
@@ -4532,8 +4601,7 @@ export class SuperAdminService {
     };
 
     // Uptime & performance.
-    const successful = apiUsage.filter((a) => a.status < 500).length;
-    const apiUptime = apiUsage.length ? Math.round((successful / apiUsage.length) * 1000) / 10 : 100;
+    const apiUptime = await this.uptime30d();
     const durations = apiUsage.filter((a) => typeof a.durationMs === "number").map((a) => a.durationMs as number);
     const avgResponseMs = durations.length ? Math.round(durations.reduce((s, d) => s + d, 0) / durations.length) : 0;
 

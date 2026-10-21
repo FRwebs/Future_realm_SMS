@@ -3,6 +3,7 @@ import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -24,7 +25,7 @@ type PartnerRow = {
   minRegistrationsPerTerm: number | null; minRetentionPercent: number | null; bank: string | null; createdAt: string; schools: number; accrued: number;
 };
 type Registry = { kpis: { partners: number; active: number; dormant: number; suspended: number; attributedSchools: number; attributedShare: number | null; liability: number; settled: number; settledStatements: number; clawbacks: number; clawbackCount: number }; partners: PartnerRow[] };
-type Performance = { rows: Array<{ id: string; name: string; code: string | null; registered: number; converted: number; conversion: number | null; retention: number | null; ticketsPer100: number | null; schools: number; recentRegistrations: number; condition: "MET" | "BREACHED" | "NONE"; conditionNote: string | null }>; direct: { schools: number; retention: number | null; ticketsPer100: number | null }; totals: { partnerSchools: number; conversion: number | null; breached: number } };
+type Performance = { rows: Array<{ id: string; name: string; code: string | null; registered: number; converted: number; conversion: number | null; retention: number | null; ticketsPer100: number | null; schools: number; recentRegistrations: number; condition: "MET" | "BREACHED" | "NONE"; conditionNote: string | null }>; direct: { schools: number; retention: number | null; ticketsPer100: number | null }; overall: { schools: number; retention: number | null; ticketsPer100: number | null }; totals: { activeBase: number; breachedNames: string[]; partnerSchools: number; conversion: number | null; breached: number } };
 type Deal = SuperAdminPartnerDealRow & { rejectedReason?: string | null; expectedStudents?: number | null; contactName?: string | null };
 type Commission = { kpis: { liability: number; settled: number; settledStatements: number; clawbacks: number; clawbackCount: number }; lines: Array<{ id: string; school: string; partner: string; stream: string; kind: string; collected: number; year: number | null; rate: number; commission: number; reconciledAt: string; statemented: boolean; note: string | null }> };
 type Statement = { id: string; ref: string; partnerId: string; partner: string; code: string | null; period: string; gross: number; clawbacks: number; net: number; invoices: number; status: string; issuedAt: string; dueAt: string; settledAt: string | null; paymentRef: string | null };
@@ -73,26 +74,6 @@ function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: A
             </div>
           );
         })}
-      </div>
-    </section>
-  );
-}
-
-function Rules({ title, sub, rules }: { title: string; sub: string; rules: Array<{ label: string; sub: string; tone: "good" | "warn" | "bad" }> }) {
-  return (
-    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
-      <div className="mt-4 grid gap-3">
-        {rules.map((rule) => (
-          <div key={rule.label} className="flex items-start gap-2.5 rounded-[9px] border px-3.5 py-3" style={{ borderColor: flowToneStyle[rule.tone].bd, background: flowToneStyle[rule.tone].bg }}>
-            <div className="mt-0.5 h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: flowToneStyle[rule.tone].fg }} />
-            <div>
-              <p className="text-[11px] font-bold" style={{ color: flowToneStyle[rule.tone].fg }}>{rule.label}</p>
-              <p className="mt-0.5 text-[10.5px] leading-snug text-[var(--color-text-secondary)]">{rule.sub}</p>
-            </div>
-          </div>
-        ))}
       </div>
     </section>
   );
@@ -213,8 +194,8 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
         <StatCard label="Partners on the registry" value={k.partners} detail={`${k.active} active · ${k.dormant} dormant · ${k.suspended} suspended`} icon={Handshake} tone="dark" />
         <StatCard label="Attributed schools" value={k.attributedSchools} detail={k.attributedShare === null ? "No schools yet" : `${k.attributedShare}% of the schools on the platform`} icon={Link2} tone="info" />
         <StatCard label="Commission liability accrued" value={compactCurrency(k.liability)} detail="Earned and not yet on a statement" icon={PiggyBank} tone="success" />
-        <StatCard label="Commission settled" value={compactCurrency(k.settled)} detail={`Across ${k.settledStatements} settled statement${k.settledStatements === 1 ? "" : "s"}`} icon={BadgeCheck} tone="info" />
-        <StatCard label="Clawbacks" value={compactCurrency(Math.abs(k.clawbacks))} detail={`${k.clawbackCount} reversed payment${k.clawbackCount === 1 ? "" : "s"}`} icon={Undo2} tone="neutral" />
+        <StatCard label="Commission settled (last term)" value={compactCurrency(k.settled)} detail={`Across ${k.settledStatements} statement${k.settledStatements === 1 ? "" : "s"} · last 120 days`} icon={BadgeCheck} tone="info" />
+        <StatCard label="Clawbacks this term" value={compactCurrency(Math.abs(k.clawbacks))} detail={`${k.clawbackCount} reversed payment${k.clawbackCount === 1 ? "" : "s"} · last 120 days`} icon={Undo2} tone="neutral" />
       </section>
 
       <TableCard
@@ -270,6 +251,14 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
         />
       ) : null}
 
+      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
+        <StatCard label="Partner-sourced schools" value={performance.totals.partnerSchools} detail={performance.totals.activeBase ? `${Math.round((performance.totals.partnerSchools / performance.totals.activeBase) * 100)}% of active base` : "No schools yet"} icon={Link2} tone="dark" />
+        <StatCard label="Registration → signup" value={performance.totals.conversion === null ? "—" : `${performance.totals.conversion}%`} detail="Across all partners" icon={BadgeCheck} tone="info" />
+        <StatCard label="Signup → second term" value={performance.overall.retention === null ? "—" : `${performance.overall.retention}%`} detail={performance.direct.retention === null ? "Direct-sourced not yet measurable" : `vs ${performance.direct.retention}% direct-sourced`} icon={Clock3} tone="neutral" />
+        <StatCard label="Support tickets / 100 schools" value={performance.overall.ticketsPer100 ?? "—"} detail={performance.direct.ticketsPer100 === null ? "No direct baseline yet" : `vs ${performance.direct.ticketsPer100} direct — first-line obligation`} icon={Handshake} tone="neutral" />
+        <StatCard label="Minimum performance alerts" value={performance.totals.breached} detail={performance.totals.breachedNames.length ? performance.totals.breachedNames.join(", ") : "Every partner is within its minimums"} icon={Undo2} tone={performance.totals.breached ? "warning" : "success"} />
+      </section>
+
       <TableCard
         title="Partner performance"
         description="Retention of partner-sourced schools against direct-sourced is the number that reveals whether a channel is producing customers or merely signatures."
@@ -308,15 +297,15 @@ async function PartnersTab({ registry, focus }: { registry: Registry; focus?: st
           ]}
           footnote="The engine applies the agency rate only to invoices marked as stream A and never to a subscription invoice, or the reverse."
         />
-        <Rules
-          title="Rules the system enforces rather than trusts"
-          sub="Encoded in the accrual engine, not in the agreement text."
-          rules={[
-            { label: "Commission accrues on reconciled revenue only", sub: "An invoice is a statement of what is owed, a recorded payment is somebody saying money arrived; matching it to the bank is what counts.", tone: "bad" },
-            { label: "Commission accrues on fully settled invoices only", sub: "A partial payment accrues nothing until the balance is settled.", tone: "bad" },
-            { label: "A commission rate belongs to a stream", sub: "Stream A rates cannot reach a subscription invoice.", tone: "bad" },
-            { label: "Relationship year runs from the first reconciled invoice", sub: "Not from the agreement date.", tone: "warn" },
-            { label: "Commission is computed on the amount actually collected", sub: "Before tax, never list price.", tone: "good" }
+        <ReferenceList
+          title="Three rules the system enforces rather than trusts"
+          sub="Encoded in the accrual engine, not in the agreement text"
+          items={[
+            { label: "Commission accrues on reconciled revenue only", detail: "An invoice is a statement of what is owed, not income received", tone: "bad" },
+            { label: "Commission accrues on fully settled invoices only", detail: "A partial payment accrues nothing until the balance is settled", tone: "bad" },
+            { label: "A commission rate belongs to a stream", detail: "Stream A rates cannot reach a subscription invoice at any point", tone: "bad" },
+            { label: "Relationship year runs from first reconciled invoice", detail: "Not from the agreement date — a school signed in month eleven still carries a full first-year rate", tone: "warn" },
+            { label: "Commission is computed on the amount actually collected", detail: "Discounted price, never list price", tone: "good" }
           ]}
         />
       </section>
@@ -419,7 +408,6 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
 
 async function CommissionTab() {
   const commission = await apiGet<Commission>("/api/super-admin/partners/commission");
-  const k = commission.kpis;
   return (
     <div className="grid gap-5">
       <FlowSteps
@@ -435,15 +423,9 @@ async function CommissionTab() {
           { label: "Accrued", note: "A liability, and a line on the statement", tone: "ink" }
         ]}
       />
-      <section className="grid gap-3 md:grid-cols-4">
-        <StatCard label="Liability accrued" value={compactCurrency(k.liability)} detail="Earned, not yet on a statement" icon={PiggyBank} tone="dark" />
-        <StatCard label="Settled to date" value={compactCurrency(k.settled)} detail={`${k.settledStatements} statement${k.settledStatements === 1 ? "" : "s"}`} icon={BadgeCheck} tone="info" />
-        <StatCard label="Clawbacks (120 days)" value={compactCurrency(Math.abs(k.clawbacks))} detail={`${k.clawbackCount} reversed payment${k.clawbackCount === 1 ? "" : "s"}`} icon={Undo2} tone="neutral" />
-        <StatCard label="Lines on record" value={commission.lines.length} detail="Each traces to an invoice and a reconciliation" icon={Clock3} tone="neutral" />
-      </section>
       <TableCard
-        title="Accruals"
-        description="Every line traceable to an invoice and a reconciliation record."
+        title="Accruals this settlement period"
+        description="Every line traceable to an invoice and a reconciliation record. View amounts: Finance Lead, Sales Lead, Super Admin."
         items={commission.lines}
         emptyState="Nothing has accrued yet. A payment accrues commission when it is reconciled, the invoice is fully settled, and the school is attributed to a partner."
         getRowKey={(line) => line.id}
@@ -464,7 +446,18 @@ async function CommissionTab() {
           { key: "commission", header: "Commission", render: (line) => <span className="font-bold" style={{ color: line.commission < 0 ? "var(--color-danger)" : undefined }}>{formatCurrency(line.commission)}</span> },
           { key: "reconciled", header: "Reconciled", render: (line) => <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(line.reconciledAt)}{line.kind === "CLAWBACK" ? " · clawback" : ""}{line.statemented ? " · on a statement" : ""}</span> }
         ]}
-        footnote="A rate change mid-term applies to invoices reconciled after the change, never retrospectively."
+        footnote="Clawback: a reconciled payment later reversed, refunded or charged back creates a negative accrual against the next settlement. A rate change mid-term applies to invoices reconciled after the change, never retrospectively."
+      />
+      <ReferenceList
+        title="Rate resolution inputs"
+        sub="All four must resolve before an accrual is written"
+        items={[
+          { label: "Stream", detail: "A or B — taken from the invoice type, never chosen by a person", tone: "teal" },
+          { label: "Partner agreement version", detail: "The version in force on the reconciliation date", tone: "teal" },
+          { label: "Relationship year", detail: "Counted from the school’s first reconciled invoice", tone: "teal" },
+          { label: "Amount actually collected", detail: "Discounted price, net of any reversal", tone: "teal" },
+          { label: "Notification credit purchases", detail: "Not subscription revenue for commission unless the agreement says so — default is not", tone: "warn" }
+        ]}
       />
     </div>
   );
@@ -485,7 +478,15 @@ async function StatementsTab({ focus }: { focus?: string }) {
         items={statements}
         emptyState="No statement has been issued."
         getRowKey={(statement) => statement.id}
-        actions={<a href="/api/super-admin/partners/statements/export" className="text-[11px] font-semibold text-[var(--color-text-accent)]">Export the payment run (CSV)</a>}
+        selection={{
+          noun: "statement",
+          nounPlural: "statements",
+          actions: [
+            { label: "Settle the selected statements", kind: "primary", endpoint: "/api/super-admin/partners/statements/settle-many", idsField: "statementIds", confirm: "Settle the ticked statements under one payment-run reference? A statement you issued yourself is left for another Super Admin." },
+            { label: "Re-send to the partners", endpoint: "/api/super-admin/partners/statements/resend", idsField: "statementIds" },
+            { label: "Export for the payment run", endpoint: "/api/super-admin/partners/statements/export", method: "DOWNLOAD", idsField: "ids" }
+          ]
+        }}
         columns={[
           { key: "partner", header: "Partner", render: (statement) => <div><p className="font-bold text-[var(--color-text-primary)]">{statement.partner}</p><p className="text-[10px] text-[var(--color-text-muted)]">{statement.ref}</p></div> },
           { key: "period", header: "Period", render: (statement) => statement.period },

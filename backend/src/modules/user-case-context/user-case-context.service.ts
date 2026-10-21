@@ -181,6 +181,74 @@ export class UserCaseContextService {
     return { ok: true, data: { rows, totals: { schools: rows.length, badPhone: rows.reduce((sum, entry) => sum + entry.badPhone, 0), badEmail: rows.reduce((sum, entry) => sum + entry.badEmail, 0), failed: rows.reduce((sum, entry) => sum + entry.failed, 0) } } };
   }
 
+  /** The repair queue as the Users page shows it: the counts per school plus how long it has been failing, on which channel, and what has been done about it. */
+  async repairQueue(session: SessionPayload) {
+    const base = (await this.contactQuality(session)).data;
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const monthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+    const [failed, history, schools, corrected] = await Promise.all([
+      prisma.notificationLog.findMany({ where: { status: "FAILED", sentAt: { gte: since }, channel: { in: ["SMS", "EMAIL"] } }, select: { schoolId: true, channel: true, sentAt: true } }),
+      prisma.auditLog.findMany({ where: { entityType: "CaseContact", schoolId: { in: base.rows.map((r) => r.schoolId) } }, select: { schoolId: true, metadata: true, createdAt: true }, orderBy: { createdAt: "asc" } }),
+      prisma.school.findMany({ where: { id: { in: base.rows.map((r) => r.schoolId) } }, select: { id: true, accountManagerId: true } }),
+      prisma.auditLog.count({ where: { entityType: "Guardian", action: AuditAction.UPDATE, createdAt: { gte: monthStart }, schoolId: { in: base.rows.map((r) => r.schoolId) } } })
+    ]);
+    const bySchool = (id: string) => failed.filter((f) => f.schoolId === id);
+    const rows = base.rows.map((row) => {
+      const failures = bySchool(row.schoolId);
+      const channels = new Set<string>(failures.map((f) => f.channel));
+      if (row.badPhone) channels.add("SMS");
+      if (row.badEmail) channels.add("EMAIL");
+      const events = history.filter((h) => h.schoolId === row.schoolId).map((h) => String(((h.metadata ?? {}) as { summary?: string }).summary ?? ""));
+      const state = events.some((e) => /account manager/i.test(e)) ? "AM_NOTIFIED" : events.some((e) => /asked to correct/i.test(e)) ? "ROUTED" : "OPEN";
+      const unreachable = row.badPhone + row.badEmail;
+      const first = failures.map((f) => f.sentAt?.getTime() ?? Infinity).sort((a, b) => a - b)[0];
+      return { ...row, unreachable, sharePct: row.guardians ? Math.round((unreachable / row.guardians) * 1000) / 10 : 0, channels: Array.from(channels).sort(), firstFailed: Number.isFinite(first) ? new Date(first).toISOString() : null, state, hasManager: Boolean(schools.find((x) => x.id === row.schoolId)?.accountManagerId) };
+    });
+    const guardianTotal = rows.reduce((sum, r) => sum + r.guardians, 0);
+    return {
+      rows,
+      kpis: {
+        unreachable: rows.reduce((sum, r) => sum + r.unreachable, 0),
+        unreachablePct: guardianTotal ? Math.round((rows.reduce((sum, r) => sum + r.unreachable, 0) / guardianTotal) * 1000) / 10 : 0,
+        schoolsAffected: rows.filter((r) => r.problems > 0).length,
+        routed: rows.filter((r) => r.state !== "OPEN").length,
+        corrected,
+        above15: rows.filter((r) => r.sharePct >= 15).length
+      }
+    };
+  }
+
+  /** Asks several schools at once, and tells each school's Account Manager when asked to. */
+  async routeMany(session: SessionPayload, body: unknown) {
+    const input = z.object({ schoolIds: z.array(z.string()).min(1), notifyManagers: z.boolean().default(false) }).parse(body);
+    let asked = 0;
+    for (const id of input.schoolIds) {
+      try { await this.askSchoolToFix(session, id); asked += 1; } catch { /* a school with nothing to fix is skipped */ }
+    }
+    let managers = 0;
+    if (input.notifyManagers) {
+      const quality = (await this.contactQuality(session)).data.rows;
+      const schools = await prisma.school.findMany({ where: { id: { in: input.schoolIds }, accountManagerId: { not: null } }, select: { id: true, name: true, accountManagerId: true } });
+      for (const school of schools) {
+        const row = quality.find((q) => q.schoolId === school.id);
+        await prisma.notificationLog.create({ data: { schoolId: school.id, userId: school.accountManagerId, channel: "IN_APP", title: `${school.name}: guardians cannot be reached`, body: `${row ? row.badPhone + row.badEmail : 0} guardians have an unreachable phone or email and ${row?.failed ?? 0} messages failed in 30 days. The school has been asked to correct them.`, status: "QUEUED", sentAt: new Date() } });
+        await prisma.auditLog.create({ data: { schoolId: school.id, actorId: session.userId, action: AuditAction.UPDATE, entityType: "CaseContact", entityId: school.id, metadata: { summary: "Account Manager notified of unreachable guardians" } } });
+        managers += 1;
+      }
+    }
+    return { asked, managers };
+  }
+
+  /** A CSV of the affected guardians for the schools chosen — name, school, the contact that fails and why. */
+  async exportContacts(session: SessionPayload, schoolIds: string[]) {
+    assertPlatformRole(session);
+    const guardians = await prisma.guardian.findMany({ where: { schoolId: { in: schoolIds } }, select: { firstName: true, lastName: true, phone: true, email: true, canReceiveSms: true, canReceiveEmail: true, school: { select: { name: true } } }, take: 50000 });
+    const bad = guardians.filter((g) => (g.canReceiveSms && !msisdn(g.phone)) || (g.canReceiveEmail && g.email && !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(g.email)));
+    const esc = (v: unknown) => `"${String(v ?? "").replaceAll('"', '""')}"`;
+    await prisma.auditLog.create({ data: { actorId: session.userId, action: AuditAction.EXPORT, entityType: "GuardianContacts", entityId: "repair-queue", metadata: { rowCount: bad.length, schools: schoolIds.length } as Prisma.InputJsonValue } });
+    return ["School,Guardian,Phone,Email,Problem", ...bad.map((g) => [g.school.name, `${g.firstName} ${g.lastName}`, g.phone, g.email ?? "", g.canReceiveSms && !msisdn(g.phone) ? "Phone no carrier can reach" : "Invalid email address"].map(esc).join(","))].join("\n");
+  }
+
   /** Asks the school to correct its own guardians' contacts — it is their record, so the fix is theirs. */
   async askSchoolToFix(session: SessionPayload, schoolId: string) {
     assertPlatformRole(session);

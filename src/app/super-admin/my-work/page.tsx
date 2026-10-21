@@ -14,6 +14,14 @@ import type {
   MyWorkTone
 } from "@/lib/domain/types";
 
+function timeAgoShort(iso: string) {
+  const minutes = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
+  if (minutes < 1) return "just now";
+  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 1440) return `${Math.round(minutes / 60)} h ago`;
+  return `${Math.round(minutes / 1440)} d ago`;
+}
+
 const nowIcons: Record<MyWorkNowIcon, LucideIcon> = {
   tickets: LifeBuoy,
   approvals: CheckCircle2,
@@ -100,6 +108,7 @@ function NowCard({ card }: { card: MyWorkNowCard }) {
 
 export default async function MyWorkPage() {
   const summary = await apiGet<MyWorkSummary>("/api/super-admin/my-work");
+  const recentViews = await apiGet<Array<{ id: string; label: string; href: string; viewedAt: string }>>("/api/super-admin/my-work/views").catch(() => []);
   const now = summary?.now ?? [];
   const schools = summary?.schools ?? { source: "account_manager" as const, portfolioTotal: 0, signalTotal: 0, rows: [] };
   const cases = summary?.cases ?? [];
@@ -290,9 +299,18 @@ export default async function MyWorkPage() {
               <p className="font-[var(--font-heading)] text-[12px] font-extrabold text-[var(--color-text-primary)]">Recently viewed</p>
               <p className="mt-0.5 text-[10.5px] text-[#8c9a92]">For resuming interrupted work</p>
             </div>
-            <div className="px-[16px] py-6 text-[11.5px] text-[var(--color-text-muted)]">
-              Not tracked yet — this platform doesn&rsquo;t record a per-admin view history.
-            </div>
+            {recentViews.length === 0 ? (
+              <div className="px-[16px] py-6 text-[11.5px] text-[var(--color-text-muted)]">Nothing yet — a school or ticket you open will appear here so you can pick it up again.</div>
+            ) : (
+              <div className="grid">
+                {recentViews.map((view) => (
+                  <Link key={view.id} href={view.href as never} className="flex items-center justify-between gap-3 border-b border-[var(--color-border-muted)] px-[16px] py-3 last:border-b-0 hover:bg-[var(--color-bg-subtle)]">
+                    <span className="min-w-0 truncate text-[11.5px] font-semibold text-[var(--color-text-primary)]">{view.label}</span>
+                    <span className="shrink-0 text-[10px] text-[var(--color-text-muted)]">{timeAgoShort(view.viewedAt)}</span>
+                  </Link>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </div>

@@ -3,6 +3,7 @@ import { UserRole } from "@prisma/client";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { REAL_STUDENTS } from "../super-admin/sample";
 
 const platformRoles = new Set<UserRole>([
   "PLATFORM_OWNER",
@@ -32,6 +33,8 @@ export interface SchoolDormancyRow {
   noticeSentAt: string | null;
   releaseDueAt: string | null;
   lifecycleNote: string | null;
+  realStudents: number;
+  releaseCheck: "NOT_DUE" | "CLEAR" | "HELD_PAYING" | "HELD_DATA";
 }
 
 @Injectable()
@@ -45,7 +48,7 @@ export class SchoolDirectoryExtrasService {
   async listDormancy(session: SessionPayload): Promise<SchoolDormancyRow[]> {
     assertPlatformRole(session);
 
-    const [schools, lastLogins] = await Promise.all([
+    const [schools, lastLogins, realCounts] = await Promise.all([
       prisma.school.findMany({
         where: { deletedAt: null },
         select: { id: true, name: true, status: true, billingStatus: true, createdAt: true, dormantAt: true, dormancyNoticeAt: true, addressReleaseDueAt: true, lifecycleNote: true, subdomain: true }
@@ -54,8 +57,10 @@ export class SchoolDirectoryExtrasService {
         by: ["schoolId"],
         where: { success: true, schoolId: { not: null } },
         _max: { createdAt: true }
-      })
+      }),
+      prisma.student.groupBy({ by: ["schoolId"], where: { ...REAL_STUDENTS }, _count: { _all: true } })
     ]);
+    const real = new Map(realCounts.map((row) => [row.schoolId, row._count._all]));
 
     const lastLoginMap = new Map<string, Date>();
     for (const row of lastLogins) {
@@ -76,7 +81,9 @@ export class SchoolDirectoryExtrasService {
         dormantAt: school.dormantAt?.toISOString() ?? null,
         noticeSentAt: school.dormancyNoticeAt?.toISOString() ?? null,
         releaseDueAt: school.addressReleaseDueAt?.toISOString() ?? null,
-        lifecycleNote: school.lifecycleNote
+        lifecycleNote: school.lifecycleNote,
+        realStudents: real.get(school.id) ?? 0,
+        releaseCheck: !school.dormantAt ? ("NOT_DUE" as const) : (real.get(school.id) ?? 0) > 0 ? ("HELD_DATA" as const) : school.billingStatus === "ACTIVE" ? ("HELD_PAYING" as const) : ("CLEAR" as const)
       }))
       .sort((a, b) => {
         // Never-logged-in schools first, then oldest last-login first.

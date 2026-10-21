@@ -6,6 +6,7 @@ import { CaseReviewBoard, type CaseRecord, type CaseTypeFilter } from "@/compone
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { ServerPagination } from "@/components/data-display/server-pagination";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
@@ -42,6 +43,8 @@ interface SchoolDormancyRow {
   noticeSentAt?: string | null;
   releaseDueAt?: string | null;
   lifecycleNote?: string | null;
+  realStudents?: number;
+  releaseCheck?: "NOT_DUE" | "CLEAR" | "HELD_PAYING" | "HELD_DATA";
 }
 
 interface WebAddressRecordRow {
@@ -172,11 +175,12 @@ const lifecycleFlow = [
 ];
 
 const disputeFlow = [
-  { label: "Claim submitted", trigger: "By the genuine school, via Log a claim" },
-  { label: "Evidence pending", trigger: "Claimant's evidence notes reviewed" },
-  { label: "Holder contacted", trigger: "10 working days to respond", emphasize: true },
-  { label: "Response recorded", trigger: "What the current holder said" },
-  { label: "Decided", trigger: "Negotiated, reassigned, or declined — written to the audit log" }
+  { label: "Claim submitted", trigger: "By the genuine school, through a published form" },
+  { label: "Evidence required", trigger: "Any two of four accepted documents" },
+  { label: "Onboarding Lead reviews", trigger: "Insufficient evidence → claim stays open until decided" },
+  { label: "Current holder contacted", trigger: "10 working days to respond", emphasize: true },
+  { label: "Outcome decided", trigger: "Negotiated, reassigned, or declined" },
+  { label: "Super Admin confirms", trigger: "Audit log entry · both parties told in writing" }
 ];
 
 const statusReference = [
@@ -968,6 +972,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           <section className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
               <TableCard
                 title="What loads with every new school"
+                description="Generated against the school’s own selected curriculum configuration"
                 items={[
                 { contents: "Calendar", detail: "The school year the school is in, in three terms (September to July), with the current term set." },
                 { contents: "Grading and assessment", detail: "A grading scale (Nigerian A–F for Nigeria, a plain percentage scale elsewhere) and seven assessment components: six continuous (10 each) and a terminal exam (40)." },
@@ -985,25 +990,18 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 { key: "detail", header: "Detail", render: (item) => <span className="text-[11.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</span> }
               ]}
             />
-            <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
-              <div className="border-b border-[#E6EEE9] px-5 py-4">
-                <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Controls on sample data</p>
-              </div>
-              <div className="grid gap-3 p-5">
-                {[
-                  ["Labelled", "Admission numbers begin SMP-, the class is named Sample Class, and the school's dashboard says so."],
-                  ["Excluded from reports", "Platform counts of students, revenue per student and billing rolls leave the sample out."],
-                  ["Non-routable contacts", "No guardian, phone number or email is created, so no message can ever reach it."],
-                  ["One-action removal", "The school's proprietor removes the whole class from the dashboard or School Configuration. What the school added is never touched."],
-                  ["Never lands in a real record", "Everything it created is listed in a manifest, so removal deletes exactly that and nothing else."]
-                ].map(([label, detail]) => (
-                  <div key={label} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                    <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{label}</p>
-                    <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{detail}</p>
-                  </div>
-                ))}
-              </div>
-            </section>
+            <ReferenceList
+              title="Controls on sample data"
+              sub="Every one of these is a hard requirement"
+              items={[
+                { label: "Clearly labelled as sample data wherever it appears", detail: "Admission numbers begin SMP-, the class is named Sample Class, and the school’s dashboard says so", tone: "teal" },
+                { label: "Excluded from all real reports, analytics and platform metrics", detail: "Platform counts of students, revenue per student and billing rolls leave the sample out", tone: "teal" },
+                { label: "Removable in one action", detail: "And removed automatically once the school enrols 20 real students; the owner is told", tone: "good" },
+                { label: "Synthetic provenance is mandatory", detail: "Names are generated, never derived from any real school. Everything it created is listed in a manifest, so removal deletes exactly that and nothing else", tone: "bad" },
+                { label: "Guardian phone numbers and emails are non-routable", detail: "No guardian, phone number or email is created, so a trial admin testing a notification cannot reach a real person", tone: "bad" },
+                { label: "Generated against the school’s own curriculum configuration", detail: "The class sits on the levels and subjects the school chose at signup", tone: "good" }
+              ]}
+            />
           </section>
 
           <TableCard
@@ -1240,7 +1238,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
               <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
                 <div className="border-b border-[#E6EEE9] px-5 py-4">
-                  <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Accepted evidence</p>
+                  <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Accepted evidence — any two</p>
+                  <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Supplied by the claimant with the published form</p>
                 </div>
                 <div className="grid gap-3 p-5">
                   {[
@@ -1288,7 +1287,8 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
           <TableCard
             title="Dormancy register"
-            description="Every school with no successful login on record, or none in the last 30 days — computed live from real login history."
+            description="Every school with no successful sign-in in the last 30 days — the release check runs before any address returns to the pool. Real data present → address held indefinitely, escalated to a person."
+            footnote="Every dormant account remains fully intact and instantly restorable — dormancy never touches school data."
             items={dormancySchools
               .filter((school) => !school.lastSuccessfulLoginAt || Date.now() - new Date(school.lastSuccessfulLoginAt).getTime() > 30 * 24 * 60 * 60 * 1000)
               .sort((a, b) => new Date(a.lastSuccessfulLoginAt ?? 0).getTime() - new Date(b.lastSuccessfulLoginAt ?? 0).getTime())}
@@ -1297,11 +1297,20 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             getRowKey={(school) => school.id}
             columns={[
               { key: "school", header: "School", render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{school.name}</Link> },
-              { key: "status", header: "Account status", render: (school) => (statusTone[school.status] ? <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: statusTone[school.status].bg, color: statusTone[school.status].fg }}>{statusTone[school.status].label}</span> : school.status) },
-              { key: "lastLogin", header: "Last successful login", render: (school) => (school.lastSuccessfulLoginAt ? timeAgo(school.lastSuccessfulLoginAt) : "Never") },
-              { key: "since", header: "On platform since", render: (school) => timeAgo(school.createdAt) },
-              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? timeAgo(school.noticeSentAt) : <span className="text-[var(--color-text-muted)]">Not yet</span>) },
-              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? <span>{new Date(school.releaseDueAt).toLocaleDateString("en-GB")}{school.billingStatus === "ACTIVE" ? " · paying, held for a person" : ""}</span> : <span className="text-[var(--color-text-muted)]">—</span>) }
+              { key: "address", header: "Address", render: (school) => (school.address ? <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px]">{school.address}</span> : <span className="text-[var(--color-text-muted)]">Released</span>) },
+              { key: "dormantSince", header: "Dormant since", render: (school) => (school.dormantAt ? new Date(school.dormantAt).toLocaleDateString("en-GB") : <span className="text-[var(--color-text-muted)]">{school.lastSuccessfulLoginAt ? `Last sign-in ${timeAgo(school.lastSuccessfulLoginAt)}` : "Never signed in"}</span>), sortValue: (school) => school.dormantAt ?? "" },
+              { key: "noticeSent", header: "Notice sent", render: (school) => (school.noticeSentAt ? new Date(school.noticeSentAt).toLocaleDateString("en-GB") : <span className="text-[var(--color-text-muted)]">Not yet</span>) },
+              { key: "releaseDue", header: "Release due", render: (school) => (school.releaseDueAt ? new Date(school.releaseDueAt).toLocaleDateString("en-GB") : <span className="text-[var(--color-text-muted)]">—</span>) },
+              {
+                key: "check",
+                header: "Release check",
+                render: (school) => {
+                  const check = school.releaseCheck ?? "NOT_DUE";
+                  const tone = check === "CLEAR" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Clear — releases on the date" } : check === "HELD_DATA" ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: `Held — ${school.realStudents} real students` } : check === "HELD_PAYING" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Held — paying, a person decides" } : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not dormant yet" };
+                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                }
+              },
+              { key: "open", header: "", sortable: false, render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Open</Link> }
             ]}
           />
 
