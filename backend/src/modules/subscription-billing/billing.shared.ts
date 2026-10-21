@@ -78,9 +78,48 @@ export function tierOf(school: { plan: string; schoolSubscription: { tier: strin
   return own && own in TIERS ? own : PLAN_TO_TIER[school.plan] ?? "STANDARD";
 }
 
-export function rateOf(school: { plan: string; schoolSubscription: { tier: string; ratePerStudent: unknown } | null }): number {
+/** A rate a school keeps until a date, whatever the tier's rate does meanwhile. */
+export type PriceLock = { rate: number; until: Date; reason: string | null };
+
+type LockableSubscription = {
+  lockedMonthlyPrice?: unknown;
+  priceLockedUntil?: Date | null;
+  priceLockReason?: string | null;
+};
+
+/**
+ * The agreed price a school is still holding, if any.
+ *
+ * A lock is what makes "the price you agreed is the price you pay until you
+ * renew" true rather than aspirational: when the tier rate moves, schools
+ * already on it are pinned at what they agreed, and only pick the new rate up
+ * at their next renewal. An expired lock is simply ignored — it is left on the
+ * row so the history of what a school was holding, and why, survives.
+ */
+export function priceLockOf(
+  school: { schoolSubscription: LockableSubscription | null },
+  at: Date = new Date(),
+): PriceLock | null {
+  const sub = school.schoolSubscription;
+  if (!sub || sub.lockedMonthlyPrice === null || sub.lockedMonthlyPrice === undefined) return null;
+  if (!sub.priceLockedUntil || sub.priceLockedUntil <= at) return null;
+  return { rate: num(sub.lockedMonthlyPrice), until: sub.priceLockedUntil, reason: sub.priceLockReason ?? null };
+}
+
+/**
+ * What this school pays per student per term.
+ *
+ * In order: a rate negotiated for them outright, then a price they are still
+ * holding from before a change, then their tier's rate.
+ */
+export function rateOf(
+  school: { plan: string; schoolSubscription: ({ tier: string; ratePerStudent: unknown } & LockableSubscription) | null },
+): number {
   const own = school.schoolSubscription?.ratePerStudent;
-  return own === null || own === undefined ? TIERS[tierOf(school)].rate : num(own);
+  if (own !== null && own !== undefined) return num(own);
+  const lock = priceLockOf(school);
+  if (lock) return lock.rate;
+  return TIERS[tierOf(school)].rate;
 }
 
 export async function rollCount(schoolId: string): Promise<number> {

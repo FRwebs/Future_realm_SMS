@@ -1,4 +1,4 @@
-import { CAPABILITIES, PLAN_TO_TIER, TIERS, discountFor, metaOf, quote, rateOf, round2, tierOf } from "../../backend/src/modules/subscription-billing/billing.shared";
+import { CAPABILITIES, PLAN_TO_TIER, TIERS, discountFor, metaOf, priceLockOf, quote, rateOf, round2, tierOf } from "../../backend/src/modules/subscription-billing/billing.shared";
 
 describe("the price list", () => {
   it("prices a tier per student per term", () => {
@@ -52,5 +52,45 @@ describe("which tier a school is on", () => {
   it("reads an invoice's notes without failing on nothing", () => {
     expect(metaOf(null)).toEqual({});
     expect(metaOf({ kind: "TOPUP" }).kind).toBe("TOPUP");
+  });
+});
+
+describe("a price a school is holding", () => {
+  const DAY = 86_400_000;
+  const held = (over: Record<string, unknown> = {}) => ({
+    plan: "STANDARD",
+    schoolSubscription: {
+      tier: "STANDARD",
+      ratePerStudent: null,
+      lockedMonthlyPrice: 450,
+      priceLockedUntil: new Date(Date.now() + 30 * DAY),
+      priceLockReason: "Held at the price agreed before the change",
+      ...over
+    }
+  });
+
+  it("charges the held price, not the tier's", () => {
+    expect(rateOf(held())).toBe(450);
+    expect(TIERS.STANDARD.rate).toBe(600);
+  });
+
+  it("stops holding it once the date passes", () => {
+    const lapsed = held({ priceLockedUntil: new Date(Date.now() - DAY) });
+    expect(priceLockOf(lapsed)).toBeNull();
+    expect(rateOf(lapsed)).toBe(TIERS.STANDARD.rate);
+  });
+
+  it("lets a rate negotiated outright beat a held one", () => {
+    expect(rateOf(held({ ratePerStudent: 300 }))).toBe(300);
+  });
+
+  it("falls back to the tier when nothing is held", () => {
+    expect(rateOf(held({ lockedMonthlyPrice: null, priceLockedUntil: null }))).toBe(TIERS.STANDARD.rate);
+  });
+
+  it("reports what is held and why", () => {
+    const lock = priceLockOf(held());
+    expect(lock?.rate).toBe(450);
+    expect(lock?.reason).toContain("agreed before the change");
   });
 });

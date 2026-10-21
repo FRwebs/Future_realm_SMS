@@ -396,14 +396,92 @@ export class PlansFeaturesService implements OnModuleInit, OnModuleDestroy {
     return { id };
   }
 
+  /**
+   * The date a school next renews — the start of its next term, because that is
+   * what a renewal invoice is for. A school with no term calendar yet falls back
+   * to a semester from today, so a lock is never open-ended.
+   */
+  private async renewsOn(schoolId: string): Promise<Date> {
+    const today = new Date();
+    const next = await prisma.term.findFirst({
+      where: { schoolId, startDate: { gt: today } },
+      orderBy: { startDate: "asc" },
+      select: { startDate: true },
+    });
+    return next?.startDate ?? new Date(today.getTime() + 180 * DAY);
+  }
+
+  /**
+   * Pin every school already on this plan to the rate they agreed, until they
+   * renew.
+   *
+   * Without this a price change reaches everyone the moment it lands, including
+   * schools part-way through a term they have already been invoiced for. A
+   * school that has negotiated its own rate, or is already holding one, is left
+   * alone: it has a price of its own and this is not it.
+   */
+  private async holdPriceForSubscribers(plan: SubscriptionPlan, oldMonthly: Prisma.Decimal, reason: string) {
+    const schools = await prisma.school.findMany({ where: { deletedAt: null, plan }, select: { id: true } });
+    let held = 0;
+    for (const school of schools) {
+      const sub = await prisma.schoolSubscription.findUnique({ where: { schoolId: school.id } });
+      if (!sub) continue;
+      if (sub.ratePerStudent !== null) continue;
+      if (sub.priceLockedUntil && sub.priceLockedUntil > new Date()) continue;
+      await prisma.schoolSubscription.update({
+        where: { schoolId: school.id },
+        data: {
+          lockedMonthlyPrice: oldMonthly,
+          priceLockedUntil: await this.renewsOn(school.id),
+          priceLockReason: reason,
+        },
+      });
+      held += 1;
+    }
+    return held;
+  }
+
   async applyDuePriceChanges() {
     const due = await prisma.planPriceChange.findMany({ where: { status: "SCHEDULED", effectiveAt: { lte: new Date() } } });
     for (const change of due) {
+      const plan = await prisma.platformSubscriptionPlan.findUnique({ where: { id: change.planId }, select: { plan: true, name: true } });
+      // Hold the old price for everyone on the plan BEFORE the plan moves, so
+      // what they are pinned at is the price they were actually sold.
+      const held = plan
+        ? await this.holdPriceForSubscribers(plan.plan, change.oldMonthly, `Held at the ${plan.name} price agreed before the change of ${change.effectiveAt.toISOString().slice(0, 10)}`)
+        : 0;
       await prisma.platformSubscriptionPlan.update({ where: { id: change.planId }, data: { monthlyPrice: change.newMonthly, annualPrice: change.newAnnual } });
-      await this.recordVersion(change.planId, `Price ₦${Number(change.oldMonthly).toLocaleString("en-NG")} → ₦${Number(change.newMonthly).toLocaleString("en-NG")} a month${change.reason ? ` — ${change.reason}` : ""}`, change.createdById);
+      await this.recordVersion(change.planId, `Price ₦${Number(change.oldMonthly).toLocaleString("en-NG")} → ₦${Number(change.newMonthly).toLocaleString("en-NG")} a month${change.reason ? ` — ${change.reason}` : ""}${held ? ` · ${held} school${held === 1 ? "" : "s"} held at the old price until renewal` : ""}`, change.createdById);
       await prisma.planPriceChange.update({ where: { id: change.id }, data: { status: "APPLIED", appliedAt: new Date() } });
     }
     return due.length;
+  }
+
+  /** Every school currently holding a price, for the Plans page. */
+  async priceLocks() {
+    const rows = await prisma.schoolSubscription.findMany({
+      where: { priceLockedUntil: { gt: new Date() }, lockedMonthlyPrice: { not: null } },
+      select: { schoolId: true, tier: true, lockedMonthlyPrice: true, priceLockedUntil: true, priceLockReason: true, school: { select: { name: true, plan: true } } },
+      orderBy: { priceLockedUntil: "asc" },
+    });
+    return rows.map((row) => ({
+      schoolId: row.schoolId,
+      school: row.school.name,
+      plan: row.school.plan as string,
+      tier: row.tier,
+      heldAt: Number(row.lockedMonthlyPrice),
+      until: row.priceLockedUntil!.toISOString(),
+      reason: row.priceLockReason,
+    }));
+  }
+
+  /** Release a held price early — the school picks the current rate up at once. */
+  async releasePriceLock(session: SessionPayload, schoolId: string) {
+    const sub = await prisma.schoolSubscription.findUnique({ where: { schoolId }, select: { lockedMonthlyPrice: true, priceLockedUntil: true } });
+    if (!sub?.priceLockedUntil || sub.priceLockedUntil <= new Date()) throw new BadRequestException("This school is not holding a price.");
+    await prisma.schoolSubscription.update({ where: { schoolId }, data: { lockedMonthlyPrice: null, priceLockedUntil: null, priceLockReason: null } });
+    await this.audit(session, AuditAction.BILLING_UPDATE, "SchoolSubscription", schoolId, { priceLockReleased: true, wasHeldAt: Number(sub.lockedMonthlyPrice) });
+    return { schoolId, released: true };
   }
 
   /** An exception past its end date stops applying: it is marked expired, and the school is told. */
