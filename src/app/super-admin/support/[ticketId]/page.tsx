@@ -1,5 +1,7 @@
 import Link from "next/link";
 
+import { ViewTracker } from "@/components/super-admin/view-tracker";
+
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -23,10 +25,13 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
     apiGet<SuperAdminTicketDetail>(`/api/super-admin/support/tickets/${ticketId}`),
     apiGetEnvelope<SuperAdminInternalMember[]>("/api/super-admin/internal-team?status=ACTIVE")
   ]);
+  const cannedEnvelope = await apiGetEnvelope<Array<{ id: string; title: string; category: string }>>("/api/super-admin/support/canned-responses").catch(() => ({ data: [] as Array<{ id: string; title: string; category: string }> }));
+  const cannedOptions = [{ label: "— Write my own —", value: "" }, ...(cannedEnvelope.data ?? []).map((row) => ({ label: `${row.category.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())} — ${row.title}`, value: row.id }))];
   const agentOptions = (agentsEnvelope.data ?? []).map((agent) => ({ label: `${agent.name} (${agent.role.replaceAll("_", " ")})`, value: agent.id }));
 
   return (
     <div className="grid gap-5">
+      <ViewTracker kind="TICKET" entityId={ticketId} label={`${ticket.ticketNo} · ${ticket.subject}`} href={`/super-admin/support/${ticketId}`} />
       <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
         <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
           <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
@@ -139,18 +144,7 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
               header: "Actions",
               render: (item) =>
                 item.status === "PENDING" ? (
-                  <ResourceActionDialog
-                    triggerLabel="Approve"
-                    title="Approve data correction"
-                    description="This is a Super Admin-only action and is fully audited."
-                    endpoint={`/api/super-admin/support/data-correction/${item.id}/approve`}
-                    method="PATCH"
-                    variant="secondary"
-                    submitLabel="Approve"
-                    confirmLabel="Confirm"
-                    confirmMessage="This logs an approved correction to the audit trail."
-                    fields={[]}
-                  />
+                  <Link href="/super-admin/support?tab=corrections" className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Validate and approve</Link>
                 ) : (
                   <span className="text-xs text-[var(--color-text-muted)]">{item.completedAt ? formatDate(item.completedAt) : "-"}</span>
                 )
@@ -175,7 +169,8 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
             method="POST"
             submitLabel="Send"
             fields={[
-              { name: "body", label: "Message", type: "textarea", required: true },
+              { name: "cannedResponseId", label: "Send a saved answer", type: "select", defaultValue: "", options: cannedOptions, note: "Leave the message below empty to send the saved answer, personalised with the school’s name." },
+              { name: "body", label: "Message", type: "textarea" },
               { name: "internalOnly", label: "Internal note only", type: "select", defaultValue: "false", options: [{ label: "No — visible to school", value: "false" }, { label: "Yes — internal only", value: "true" }] }
             ]}
           />

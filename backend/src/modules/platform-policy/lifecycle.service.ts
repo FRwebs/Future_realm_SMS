@@ -2,6 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/commo
 import { AuditAction, type Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { REAL_STUDENTS } from "../super-admin/sample";
 import { renderTrigger, type TriggerKey } from "./triggers";
 import { sendEmail } from "../../../../src/lib/integrations/mailer";
 import { PolicyService } from "./policy.service";
@@ -222,6 +223,20 @@ export class LifecycleService implements OnModuleInit, OnModuleDestroy {
         break;
       }
       case "ADDRESS_RELEASE": {
+        // The release check: an address is never returned to the pool while real children's records sit behind it. It is held
+        // for as long as that is true, and a person is told once.
+        const real = await prisma.student.count({ where: { schoolId: school.id, ...REAL_STUDENTS } });
+        if (real > 0) {
+          const held = `Release held — ${real} real student${real === 1 ? "" : "s"} on the roll`;
+          const current = await prisma.school.findUnique({ where: { id: school.id }, select: { lifecycleNote: true } });
+          if (current?.lifecycleNote !== held) {
+            await prisma.school.update({ where: { id: school.id }, data: { lifecycleNote: held, ...stamp } });
+            const people = await prisma.user.findMany({ where: { OR: [{ id: school.accountManagerId ?? "" }, { role: { in: ["SUPER_ADMIN", "PLATFORM_OWNER"] } }], isActive: true }, select: { id: true, schoolId: true } });
+            for (const person of people) await prisma.notificationLog.create({ data: { schoolId: person.schoolId, userId: person.id, channel: "IN_APP", title: `${school.name}'s address is held`, body: `${school.name} has been dormant past its release date but holds ${real} real student record${real === 1 ? "" : "s"}, so its web address stays held until a person decides.`, status: "SENT", metadata: { kind: "RELEASE_HELD", schoolId: school.id } } });
+            await this.note(school.id, kind, held, { students: real });
+          }
+          break;
+        }
         const address = school.subdomain ?? school.slug;
         await prisma.$transaction([
           prisma.webAddressRecord.updateMany({ where: { OR: [{ schoolId: school.id }, { address }] }, data: { state: "RETIRED", schoolId: null, retiredAt: now, releaseEligibleAt: now, changeReason: "Released after dormancy" } }),

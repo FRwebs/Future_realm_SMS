@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { sendNotification } from "../../../../src/lib/integrations/notifications";
 
 const platformRoles = new Set<UserRole>([
   "PLATFORM_OWNER",
@@ -414,6 +415,20 @@ export class WebAddressRegistryService {
       }
     });
 
-    return { ok: true, message: "Dispute decided.", data: mapDispute(updated) };
+    // Both parties are told in writing — the claimant at the address they gave, the holder at its owner's.
+    const outcomeText = parsed.outcome === "REASSIGNED" ? "The address has been reassigned to the claimant, and the holder keeps a redirect for 90 days." : parsed.outcome === "NEGOTIATED" ? `The two parties have agreed a way forward${parsed.qualifiedAddressOffered ? `; the claimant has been offered ${parsed.qualifiedAddressOffered}` : ""}.` : "The claim was declined: the current holder keeps the address.";
+    const holderRecord = dispute.webAddressRecordId ? await prisma.webAddressRecord.findUnique({ where: { id: dispute.webAddressRecordId }, select: { school: { select: { name: true, ownerEmail: true } } } }) : null;
+    // An address that predates the registry is still held by the school whose subdomain it is.
+    const holder = holderRecord?.school ? holderRecord : { school: await prisma.school.findFirst({ where: { subdomain: dispute.claimedAddress, deletedAt: null }, select: { name: true, ownerEmail: true } }) };
+    const notice = `The dispute over the web address "${dispute.claimedAddress}" has been decided. ${outcomeText}`;
+    const told: string[] = [];
+    for (const [who, email] of [["claimant", dispute.claimantContactEmail], ["holder", holder?.school?.ownerEmail ?? null]] as const) {
+      if (!email) continue;
+      await sendNotification({ channel: "EMAIL", recipient: email, title: `Decision on the web address ${dispute.claimedAddress}`, body: notice }).catch(() => undefined);
+      told.push(who);
+    }
+    await prisma.auditLog.create({ data: { actorId: session.userId, action: "UPDATE", entityType: "AddressDisputeNotice", entityId: disputeId, metadata: { told, outcome: parsed.outcome } } });
+
+    return { ok: true, message: told.length ? "Dispute decided and both parties told." : "Dispute decided.", data: mapDispute(updated) };
   }
 }

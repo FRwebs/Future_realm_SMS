@@ -561,6 +561,9 @@ enum PlatformTicketCategory {
   NOTIFICATION_DELIVERY
   SYNC_OFFLINE_ISSUE
   DATA_CORRECTION_REQUEST
+  FEE_MANAGEMENT
+  DATA_MIGRATION
+  ONBOARDING_SETUP
   OTHER
 }
 
@@ -4456,6 +4459,8 @@ model CannedResponse {
   title       String
   body        String
   updatedById String?
+  /// How many times an agent put this answer into a reply.
+  usedCount   Int                    @default(0)
   createdAt   DateTime               @default(now())
   updatedAt   DateTime               @updatedAt
   updatedBy   User?                  @relation(fields: [updatedById], references: [id], onDelete: SetNull)
@@ -4472,6 +4477,9 @@ model DataCorrectionRecord {
   status         String        @default("PENDING")
   requestedById  String?
   approvedById   String?
+  /// Operations checks the evidence the school sent before a Super Admin is asked to approve.
+  validatedById  String?
+  validatedAt    DateTime?
   completedAt    DateTime?
   createdAt      DateTime      @default(now())
   ticket         SupportTicket @relation(fields: [ticketId], references: [id], onDelete: Cascade)
@@ -4938,6 +4946,19 @@ model MigrationJob {
   rolledBackAt              DateTime?
   rollbackReason            String?
   notes                     String?
+  /// What the off-platform run actually produced, recorded by the specialist.
+  studentsImported          Int?
+  resultsImported           Int?
+  rowsRejected              Int?
+  rejectedNote              String?
+  /// How many source files this job still holds, and when they must go. Source exports are children's data.
+  filesCount                Int?
+  retentionDays             Int                @default(90)
+  retentionExtendedTo       DateTime?
+  retentionExtendReason     String?
+  retentionApprovedById     String?
+  sourceFilesDeletedAt      DateTime?
+  sourceFilesDeletedNote    String?
   createdById               String?
   createdAt                 DateTime           @default(now())
   updatedAt                 DateTime           @updatedAt
@@ -4955,6 +4976,9 @@ model MigrationSourceAdapter {
   name      String   @unique
   status    String
   notes     String?
+  /// The file types this adapter reads, and what a specialist must know before running it.
+  formats   String?
+  quirks    String?
   createdAt DateTime @default(now())
 }
 
@@ -6567,6 +6591,9 @@ model CountryProfile {
   dataProtectionRegime  String?
   verificationSources   String[] @default([])
   isLive                Boolean  @default(false)
+  /// When the support desk is staffed there, e.g. "08:00–17:00 WAT, Mon–Fri". Service-level clocks pause outside it.
+  supportHours          String?
+  publicHolidays        Int?
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
 }
@@ -6644,4 +6671,65 @@ model InternalAnomaly {
 
   @@index([status, detectedAt])
   @@index([userId, kind, detectedAt])
+}
+
+/// A school a group of individual teachers named, kept for someone to approach — never a message to the school itself.
+model TeacherApproach {
+  id          String   @id @default(cuid())
+  schoolName  String
+  teacherIds  String[] @default([])
+  /// LISTED until someone routes it; ROUTED once it sits under a registered partner deal.
+  status      String   @default("LISTED")
+  dealId      String?
+  note        String?
+  createdById String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([schoolName])
+}
+
+/// One step of the trial communication schedule for one school: sent, or suppressed because it would be absurd.
+model TrialMessage {
+  id        String   @id @default(cuid())
+  schoolId  String
+  step      String
+  status    String
+  reason    String?
+  logId     String?
+  createdAt DateTime @default(now())
+
+  @@unique([schoolId, step])
+  @@index([step, status])
+}
+
+/// One attempt by the platform to refill a school's credits when its balance fell below the floor, and how it ended.
+model AutoTopupAttempt {
+  id        String   @id @default(cuid())
+  schoolId  String
+  channel   String
+  credits   Int
+  amount    Decimal  @default(0) @db.Decimal(12, 2)
+  trigger   String
+  invoiceId String?
+  /// ISSUED (an invoice was raised and the owner told), STOPPED (three unpaid in a row — a person now owns it).
+  outcome   String
+  attempt   Int      @default(1)
+  createdAt DateTime @default(now())
+
+  @@index([schoolId, createdAt])
+}
+
+/// What a Back Office person opened lately, so My Work can put them back where they left off. One row per person and record.
+model AdminView {
+  id       String   @id @default(cuid())
+  userId   String
+  kind     String
+  entityId String
+  label    String
+  href     String
+  viewedAt DateTime @default(now())
+
+  @@unique([userId, kind, entityId])
+  @@index([userId, viewedAt])
 }

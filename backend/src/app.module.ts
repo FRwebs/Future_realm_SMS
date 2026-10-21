@@ -34,6 +34,11 @@ import { ParentsModule } from "./modules/parents/parents.module";
 import { OperationsModule } from "./modules/operations/operations.module";
 import { PartnersModule } from "./modules/partners/partners.module";
 import { ComplianceModule } from "./modules/security-compliance/compliance.module";
+import { BillingExtrasModule } from "./modules/billing-extras/billing-extras.module";
+import { SupportDeskModule } from "./modules/support-desk/support-desk.module";
+import { AdminViewsModule } from "./modules/admin-views/admin-views.module";
+import { InvitationOpsModule } from "./modules/invitation-ops/invitation-ops.module";
+import { UserInsightsModule } from "./modules/user-insights/user-insights.module";
 import { SupportAccessModule } from "./modules/support-access/support-access.module";
 import { TeamAccessModule } from "./modules/team-access/team-access.module";
 import { AnalyticsModule } from "./modules/analytics-bi/analytics.module";
@@ -120,6 +125,11 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     AnalyticsModule,
     TeamAccessModule,
     SupportAccessModule,
+    UserInsightsModule,
+    BillingExtrasModule,
+    SupportDeskModule,
+    InvitationOpsModule,
+    AdminViewsModule,
     ParentPortalModule,
     ParentsModule,
     StudentPortalModule,

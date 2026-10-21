@@ -115,7 +115,7 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-        <StatCard label="API uptime (24h)" value={`${data.uptime.apiUptime}%`} detail={`${data.uptime.requestsLast24h.toLocaleString()} requests · target 99.5%`} tone="dark" icon={Server} />
+        <StatCard label="API uptime (30d)" value={`${data.uptime.apiUptime}%`} detail={`${data.uptime.requestsLast24h.toLocaleString()} requests · target 99.5%`} tone="dark" icon={Server} />
         <StatCard label="API response (avg)" value={`${data.uptime.avgResponseMs}ms`} detail="Warning above 1.5s" tone={statusTone(data.uptime.responseStatus)} icon={Timer} />
         <StatCard label="Server CPU" value={rt ? `${rt.cpuPercent}%` : "N/A"} detail={rt ? `Load ${rt.loadAverage} on ${rt.cpuCores} cores · API uses ${rt.memoryMb} MB · up ${formatUptime(rt.processUptimeMinutes)}` : "Runtime figures unavailable"} tone={rt && rt.cpuPercent > 85 ? "danger" : rt && rt.cpuPercent > 70 ? "warning" : "neutral"} icon={Cpu} />
         <StatCard label="DB query time" value={rt ? `${rt.dbPingMs}ms` : "N/A"} detail="A round-trip to the database, measured when this page loaded" tone={rt && rt.dbPingMs > 250 ? "warning" : "neutral"} icon={Database} />
@@ -139,7 +139,7 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
         title="Uptime and performance thresholds"
         description="Every metric this platform actually measures, with its real warning and critical levels — plus what genuinely happens on a breach, not what a mature system would do."
         items={[
-          { metric: "API uptime (24h)", current: `${data.uptime.apiUptime}%`, warning: "< 99.5%", critical: "< 99%", action: "None — the status badge on this page changes; nothing pages or emails anyone.", status: data.uptime.apiUptimeStatus },
+          { metric: "API uptime (30d)", current: `${data.uptime.apiUptime}%`, warning: "< 99.5%", critical: "< 99%", action: "None — the status badge on this page changes; nothing pages or emails anyone.", status: data.uptime.apiUptimeStatus },
           { metric: "API response time (average)", current: `${data.uptime.avgResponseMs}ms`, warning: "> 1.5s", critical: "> 3s", action: "None — same as above, a badge change only.", status: data.uptime.responseStatus }
         ]}
         getRowKey={(row) => row.metric}

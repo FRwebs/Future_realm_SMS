@@ -78,7 +78,7 @@ type ComplianceOverview = {
   grievances: { open: number; total: number };
   retention: Array<{ id: string; dataClass: string; retentionDays: number; basis: string; trigger: string; enforcement: string; enforced: boolean; waiting: number | null; oldest: string | null; nextDue: string | null }>;
   deletionSchedule: Array<{ id: string; subject: string; dataClass: string; started: string; due: string; state: string; evidence: string | null }>;
-  signIn: { lockouts30d: number; ipAllow: number; ipDeny: number; idleMinutes: number };
+  signIn: { lockouts7d: number; ipAllow: number; ipDeny: number; idleMinutes: number };
   generatedAt: string;
 };
 
@@ -216,14 +216,14 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
   ]);
   const logs = envelope.data ?? [];
   const adminSessions = sessions.filter((s) => s.user && platformRoles.has(s.user.role));
-  const failedAttempts = attempts.filter((a) => a.status === "FAILED").length;
+  const failedAttempts = attempts.filter((a) => a.status === "FAILED" && Date.now() - new Date(a.createdAt).getTime() < 86_400_000).length;
 
   return (
     <div className="grid gap-5">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Active admin sessions" value={adminSessions.length} detail="Platform-role accounts only" icon={MonitorCheck} tone="dark" />
-        <StatCard label="Failed logins (recent)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
-        <StatCard label="Auto-lockouts (30d)" value={signIn.lockouts30d} detail="Accounts locked for 15 minutes after 5 failed sign-ins in 10 — each one raises a High incident" icon={AlertTriangle} tone={signIn.lockouts30d ? "warning" : "neutral"} />
+        <StatCard label="Failed logins (24h)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
+        <StatCard label="Auto-lockouts (7d)" value={signIn.lockouts7d} detail="Accounts locked for 15 minutes after 5 failed sign-ins in 10 — each one raises a High incident" icon={AlertTriangle} tone={signIn.lockouts7d ? "warning" : "neutral"} />
         <StatCard
           label="MFA coverage"
           value={`${mfaCoverage.enabled}/${mfaCoverage.total}`}
@@ -235,7 +235,7 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
       </section>
 
       <TableCard
-        title="Admin login policy — what's actually enforced"
+        title="Admin login policy"
         description="Verified against the real session and login code, not stated as intent."
         items={[
           { control: "Multi-factor authentication", spec: "Every Back Office sign-in asks for a one-time code sent to the account's email (when a mail server is configured). An authenticator app can be turned on top of it from Profile → Sessions & security; with the app on, its code is asked for instead.", state: "enforced" as const },
@@ -291,7 +291,7 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
       />
 
       <TableCard
-        title="Login activity"
+        title="Recent admin logins"
         description="Every account type — Back Office and school sign-ins share one log. A device the account has never used is marked."
         items={attempts}
         emptyState="No login attempts have been recorded."
@@ -439,7 +439,7 @@ function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; s
         ]}
       />
       <TableCard
-        title="Security incidents"
+        title="Incident register"
         items={incidents}
         actions={
           <ResourceActionDialog
@@ -746,7 +746,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
       />
 
       <TableCard
-        title="NDPC data deletion requests"
+        title="NDPC compliance — data deletion requests"
         description="Every erasure request end-to-end, not only the completed ones — a school closure isn't evidenced until this row shows a confirmation hash."
         items={report.all}
         getRowKey={(item) => item.id}
@@ -845,7 +845,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
         ]}
       />
       <TableCard
-        title="Deletion schedule"
+        title="Deletion schedule — executed and evidenced"
         description="Every deletion clock that is running — a school's closure request, and each erasure request. A clock that has run out stays marked Due until someone executes it and the evidence is recorded."
         items={overview.deletionSchedule}
         getRowKey={(row) => row.id}
@@ -891,7 +891,7 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
       />
 
       <TableCard
-        title="Data privacy requests"
+        title="Open requests and grievances"
         description="Every request is logged with the real NDPA 30-day response window — shown as days left, not just a status."
         items={privacy}
         actions={

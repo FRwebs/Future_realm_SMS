@@ -19,9 +19,10 @@ function statusTone(status: string): Parameters<typeof StatusBadge>[0]["tone"] {
 
 interface JobsTableProps {
   jobs: MigrationJobRow[];
+  openCount?: number;
 }
 
-export function JobsTable({ jobs }: JobsTableProps) {
+export function JobsTable({ jobs, openCount }: JobsTableProps) {
   const [search, setSearch] = useState("");
   const [sourceSystem, setSourceSystem] = useState("All");
   const [status, setStatus] = useState<"All" | MigrationJobStatus>("All");
@@ -61,6 +62,8 @@ export function JobsTable({ jobs }: JobsTableProps) {
   return (
     <TableCard
       title="Migration job registry"
+      description={`Blocked over 48 hours raises the school’s churn risk.${openCount === undefined ? "" : ` · ${openCount} open job${openCount === 1 ? "" : "s"}`}`}
+      footnote="Rollback is available at any point up to sign-off. It records the reason and moves the job to the exception path; the import runs off-platform, so the specialist removes what was loaded."
       items={filtered}
       pageSize={false}
       emptyState="No migration jobs match this filter."
@@ -85,6 +88,13 @@ export function JobsTable({ jobs }: JobsTableProps) {
               <p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p>
             </div>
           )
+        },
+        { key: "expected", header: "Expected", render: (job) => ((job.studentsExpected ?? 0) + (job.resultsExpected ?? 0)).toLocaleString() },
+        { key: "imported", header: "Imported", render: (job) => (job.studentsImported == null ? <span className="text-[var(--color-text-muted)]">Not recorded</span> : ((job.studentsImported ?? 0) + (job.resultsImported ?? 0)).toLocaleString()) },
+        {
+          key: "rejected",
+          header: "Rejected",
+          render: (job) => (job.rowsRejected == null ? <span className="text-[var(--color-text-muted)]">—</span> : <span className="font-semibold" style={{ color: job.rowsRejected ? "var(--color-danger)" : undefined }} title={job.rejectedNote ?? undefined}>{job.rowsRejected.toLocaleString()}</span>)
         },
         { key: "status", header: "Status", render: (job) => <StatusBadge status={job.status} tone={statusTone(job.status)} /> },
         { key: "specialist", header: "Specialist", render: (job) => job.specialistName ?? "Unassigned" },
@@ -137,6 +147,24 @@ export function JobsTable({ jobs }: JobsTableProps) {
                   variant="menu"
                   submitLabel="Confirm receipt"
                   fields={[]}
+                />
+              ) : null}
+              {job.status !== "INVITED" && job.status !== "FILES_AWAITED" && job.status !== "ROLLED_BACK" ? (
+                <ResourceActionDialog
+                  triggerLabel="Record import result"
+                  title={`Record what was imported — ${job.schoolName}`}
+                  description="The import runs off-platform. Record what it produced, and why any rows were refused, so the school can fix its file."
+                  endpoint={`/api/super-admin/migration/jobs/${job.id}/import-result`}
+                  method="POST"
+                  variant="menu"
+                  submitLabel="Record result"
+                  fields={[
+                    { name: "studentsImported", label: "Students imported", type: "number", min: 0, defaultValue: job.studentsImported ?? "", required: true },
+                    { name: "resultsImported", label: "Result records imported", type: "number", min: 0, defaultValue: job.resultsImported ?? 0 },
+                    { name: "rowsRejected", label: "Rows rejected", type: "number", min: 0, defaultValue: job.rowsRejected ?? 0 },
+                    { name: "rejectedNote", label: "Why rows were rejected", type: "textarea", defaultValue: job.rejectedNote ?? "" },
+                    { name: "filesCount", label: "Source files held", type: "number", min: 0, defaultValue: job.filesCount ?? "", note: "How many source files this job still holds. They are deleted 90 days after sign-off." }
+                  ]}
                 />
               ) : null}
               {job.status !== "COMPLETED" && job.status !== "ROLLED_BACK" ? (

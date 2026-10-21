@@ -1,6 +1,8 @@
 import { ReactNode } from "react";
 
-import { TableCardBody, type PreparedColumn, type PreparedRow } from "./table-card-body";
+import { TableCardBody, type PreparedColumn, type PreparedRow, type SelectionConfig } from "./table-card-body";
+
+export type { SelectionAction, SelectionConfig } from "./table-card-body";
 
 export interface TableColumn<TItem> {
   key: string;
@@ -68,6 +70,9 @@ interface TableCardProps<TItem> {
    * Optional muted note rendered in its own strip below the table, e.g. a source/ownership caveat.
    */
   footnote?: ReactNode;
+
+  /** Tick-boxes on every row and an action bar for what to do with the ticked ones. Rows are identified by getRowKey. */
+  selection?: SelectionConfig;
 }
 
 function resolveSortValue<TItem>(item: TItem, column: TableColumn<TItem>): string | number | Date | null | undefined {
@@ -95,6 +100,7 @@ export function TableCard<TItem>({
   footnote,
   filterBar,
   pageSize = 10,
+  selection,
 }: TableCardProps<TItem>) {
   const preparedColumns: PreparedColumn[] = columns.map((column) => {
     const sortable =
@@ -148,6 +154,7 @@ export function TableCard<TItem>({
       primaryColumnKey={primaryKey}
       featuredColumnKeys={featuredColumnKeys}
       pageSize={pageSize}
+      selection={selection}
     />
   );
 }

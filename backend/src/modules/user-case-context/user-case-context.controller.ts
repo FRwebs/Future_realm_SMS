@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -32,6 +33,25 @@ export class UserCaseContextController {
   @Get("contact-quality")
   contactQuality(@CurrentSession() session: SessionPayload) {
     return this.caseContextService.contactQuality(session);
+  }
+
+  @Get("repair-queue")
+  repairQueue(@CurrentSession() session: SessionPayload) {
+    return this.caseContextService.repairQueue(session).then((data) => ({ ok: true, data }));
+  }
+
+  @Post("contact-quality/route")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  routeMany(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.caseContextService.routeMany(session, body).then((data) => ({ ok: true, data }));
+  }
+
+  @Get("contact-quality/export")
+  async exportContacts(@CurrentSession() session: SessionPayload, @Query("schoolIds") schoolIds: string, @Res() response: Response) {
+    const csv = await this.caseContextService.exportContacts(session, (schoolIds ?? "").split(",").filter(Boolean));
+    response.setHeader("Content-Type", "text/csv; charset=utf-8");
+    response.setHeader("Content-Disposition", 'attachment; filename="unreachable-guardians.csv"');
+    response.send(csv);
   }
 
   @Post("contact-quality/:schoolId/notify")

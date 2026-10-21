@@ -1,6 +1,8 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
 
+import { ViewTracker } from "@/components/super-admin/view-tracker";
+
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
@@ -187,6 +189,7 @@ export default async function SuperAdminSchoolDetailPage({
 
   return (
     <div className="grid gap-5">
+      <ViewTracker kind="SCHOOL" entityId={schoolId} label={school.name} href={`/super-admin/schools/${schoolId}`} />
       <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-[20px]">
         <Link href="/super-admin/schools" className="mb-4 inline-flex text-[11.5px] font-semibold text-[#12796A] underline">
           ← Back to schools

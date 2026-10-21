@@ -80,6 +80,20 @@ export class PartnersController {
     return { ok: true, data: await this.engine.settle(session, id, body) };
   }
 
+  @Post("statements/settle-many")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...partnerWriteRoles)
+  async settleMany(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.engine.settleMany(session, body), message: "Payment run recorded" };
+  }
+
+  @Post("statements/resend")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...partnerWriteRoles)
+  async resendStatements(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.engine.resend(session, body), message: "Statements sent" };
+  }
+
   @Post("clawbacks")
   @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
   @Roles(...partnerWriteRoles)

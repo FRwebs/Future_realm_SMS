@@ -459,6 +459,12 @@ export interface MigrationJobRow {
   rolledBackAt?: string | null;
   rollbackReason?: string | null;
   notes?: string | null;
+  studentsImported?: number | null;
+  resultsImported?: number | null;
+  rowsRejected?: number | null;
+  rejectedNote?: string | null;
+  filesCount?: number | null;
+  sourceFilesDeletedAt?: string | null;
   specialistId?: string | null;
   specialistName?: string | null;
   createdById?: string | null;
@@ -471,6 +477,8 @@ export interface MigrationSourceAdapterRow {
   id: string;
   name: string;
   status: string;
+  formats?: string | null;
+  quirks?: string | null;
   notes?: string | null;
   jobsRun: number;
   completionRatePct: number | null;
@@ -479,7 +487,7 @@ export interface MigrationSourceAdapterRow {
 
 export interface SuperAdminSetupProgress {
   steps: Array<{ key: string; label: string; reached: number; completed: number; completionRatePct: number; medianHours?: number | null }>;
-  stalled: Array<{ schoolName: string; daysSinceSignup: number; incompleteCount: number }>;
+  stalled: Array<{ schoolId?: string; schoolName: string; daysSinceSignup: number; incompleteCount: number; stalledStep?: number; stalledLabel?: string; accountManager?: string | null }>;
   medianHoursToComplete?: number | null;
   schoolsFinished?: number;
 }
@@ -659,11 +667,17 @@ export interface SuperAdminImpersonationLogRow {
   startedAt: string;
   maxAgeSeconds?: number | null;
   elevated?: boolean;
+  agentRole?: string | null;
+  targetRole?: string | null;
+  blocked?: string | null;
+  confirmedBy?: string | null;
+  windowEnded?: boolean;
 }
 
 export interface SuperAdminBillingRow {
   schoolId: string;
   schoolName: string;
+  students?: number;
   plan: SubscriptionPlan;
   status: PlatformBillingStatus;
   tenantStatus: TenantStatus;
@@ -801,6 +815,7 @@ export interface SuperAdminInvoiceRow {
   invoiceNo: string;
   schoolId: string;
   schoolName: string;
+  students?: number;
   amount: number;
   taxAmount: number;
   totalAmount: number;
@@ -2429,6 +2444,7 @@ export interface SuperAdminDataCorrectionRow {
   status: string;
   requestedBy: string | null;
   approvedBy: string | null;
+  validatedAt?: string | null;
   createdAt: string;
   completedAt: string | null;
 }

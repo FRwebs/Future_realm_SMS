@@ -36,6 +36,8 @@ interface FilterToolbarProps {
   primaryCount?: number;
   showAdvancedToggle?: boolean;
   advancedOpen?: boolean;
+  /** Values the form always carries, such as the tab it sits on. */
+  hidden?: Record<string, string>;
 }
 
 /**
@@ -47,6 +49,7 @@ export function FilterToolbar({
   action,
   controls,
   resultCount,
+  hidden,
 }: FilterToolbarProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -65,6 +68,7 @@ export function FilterToolbar({
 
   return (
     <form ref={formRef} action={action} className="flex flex-wrap items-center gap-[9px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-5 py-3.5">
+      {Object.entries(hidden ?? {}).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
       {searchControl ? (
         <div className="flex w-full items-center gap-[9px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] sm:w-[280px]">
           <Search className="h-[15px] w-[15px] shrink-0 text-[#9FB8A7]" />

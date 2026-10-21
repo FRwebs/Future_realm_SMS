@@ -1,7 +1,8 @@
-import { BadRequestException, Injectable } from "@nestjs/common";
+import { BadRequestException, Injectable, Logger, OnApplicationBootstrap, OnModuleDestroy } from "@nestjs/common";
 import { AuditAction, type Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { REAL_STUDENTS } from "../super-admin/sample";
 import { schoolRoleTemplates } from "../../../../src/lib/modules/school-modules";
 import { dayOf, today } from "../attendance-management/attendance.shared";
 import { CardService } from "../report-cards/card.service";
@@ -24,9 +25,44 @@ export const TRIAL_CREDITS = { SMS: 200, WHATSAPP: 100 } as const;
 
 export type ProvisionStep = { key: string; label: string; detail: string };
 
+/** A school that has enrolled this many real students no longer needs the demonstration class. */
+export const SAMPLE_AUTO_REMOVE_AT = 20;
+
 @Injectable()
-export class ProvisioningService {
+export class ProvisioningService implements OnApplicationBootstrap, OnModuleDestroy {
+  private readonly log = new Logger("SampleClass");
+  private timer: NodeJS.Timeout | null = null;
+
   constructor(private readonly cards: CardService) {}
+
+  onApplicationBootstrap() {
+    if (process.env.SAMPLE_AUTOREMOVE === "off") return;
+    this.timer = setInterval(() => void this.removeOutgrown().catch((error) => this.log.error(error)), 3_600_000);
+    this.timer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  /** The sample class goes by itself once the school has enrolled twenty real students; the owner is told. */
+  async removeOutgrown() {
+    const schools = await prisma.school.findMany({ where: { deletedAt: null, sampleDataLoadedAt: { not: null }, sampleDataClearedAt: null }, select: { id: true, name: true } });
+    let removed = 0;
+    for (const school of schools) {
+      const real = await prisma.student.count({ where: { schoolId: school.id, ...REAL_STUDENTS } });
+      if (real < SAMPLE_AUTO_REMOVE_AT) continue;
+      try {
+        await this.clearSample(school.id, null);
+        const owners = await prisma.user.findMany({ where: { schoolId: school.id, role: { in: ["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL"] }, isActive: true }, select: { id: true } });
+        if (owners.length) await prisma.notificationLog.createMany({ data: owners.map((owner) => ({ schoolId: school.id, userId: owner.id, channel: "IN_APP" as const, title: "Your sample class has been removed", body: `${school.name} now has ${real} real students, so the demonstration class was taken away. Nothing you added was touched.`, status: "SENT" as const, metadata: { kind: "SAMPLE_REMOVED" } })) });
+        removed += 1;
+      } catch (error) {
+        this.log.warn(`${school.name}: ${error instanceof Error ? error.message : "could not remove the sample class"}`);
+      }
+    }
+    return { checked: schools.length, removed };
+  }
 
   /** The permanent record of the trial: its tier, its credits, and the ledger that explains them. */
   async issueTrial(tx: Prisma.TransactionClient | typeof prisma, schoolId: string, ownerId: string, email: string): Promise<ProvisionStep> {
@@ -211,7 +247,7 @@ export class ProvisioningService {
   }
 
   /** The sample class, removed whole. What the school has added of its own is not touched. */
-  async clearSample(schoolId: string, actorId: string) {
+  async clearSample(schoolId: string, actorId: string | null) {
     const item = await new ConfigStore(schoolId, "sample-data").get<{ classId: string; levelId: string; studentIds: string[]; students: number }>("manifest");
     if (!item) throw new BadRequestException("There is no sample class to remove.");
     const { classId, levelId, studentIds } = item.data;
