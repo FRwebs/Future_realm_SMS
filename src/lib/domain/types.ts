@@ -693,6 +693,14 @@ export interface SuperAdminAuditLogRow {
   action: string;
   superAdmin: string;
   target: string;
+  /** Split out so the table can show the kind without the identifier. */
+  entityType?: string;
+  entityId?: string;
+  /** What the record held before and after, when the entry recorded both. */
+  before?: string;
+  after?: string;
+  /** The area of the product this belongs to, for filtering and grouping. */
+  category?: string;
   schoolId?: string;
   schoolName?: string;
   details?: unknown;

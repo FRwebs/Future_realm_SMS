@@ -143,6 +143,44 @@ function AuditDetailsPreview({ details }: { details: unknown }) {
   return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">{text}</span>;
 }
 
+/**
+ * What the record held before, and what it holds now.
+ *
+ * This is the column the mockup's audit log leads on and ours did not have:
+ * an entry that says a value was updated, without saying from what to what,
+ * cannot answer the question the log exists for. Entries that recorded only
+ * one side show that side; entries that recorded neither fall back to the
+ * metadata, which is what was being shown for everything before.
+ */
+function AuditChange({ row }: { row: SuperAdminAuditLogRow }) {
+  if (!row.before && !row.after) return <AuditDetailsPreview details={row.details} />;
+  return (
+    <span className="flex min-w-0 flex-col gap-[2px] text-[10.5px] leading-[1.35]">
+      {row.before ? (
+        <span className="truncate text-[var(--color-text-muted)] line-through decoration-[#D6E0DA]">{row.before}</span>
+      ) : null}
+      {row.after ? <span className="truncate text-[var(--color-text-primary)]">{row.after}</span> : null}
+    </span>
+  );
+}
+
+/** The kind of record, with its identifier kept short enough to scan past. */
+function AuditTarget({ row }: { row: SuperAdminAuditLogRow }) {
+  if (!row.entityType) {
+    return <span className="font-[var(--font-mono)] text-[10.5px]">{row.target}</span>;
+  }
+  return (
+    <span className="flex min-w-0 flex-col">
+      <span className="truncate text-[11px] font-semibold text-[var(--color-text-primary)]">{row.entityType}</span>
+      {row.entityId ? (
+        <span className="truncate font-[var(--font-mono)] text-[9.5px] text-[var(--color-text-muted)]">
+          {row.entityId.slice(-8)}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
 function tabHref(tab: string) {
   return tab === "audit" ? "/super-admin/security" : `/super-admin/security?tab=${tab}`;
 }
@@ -246,9 +284,10 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
               return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
             }
           },
-          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.target}</span> },
-          { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
-          { key: "details", header: "Details", render: (item) => <AuditDetailsPreview details={item.details} /> }
+          { key: "target", header: "Target", render: (item) => <AuditTarget row={item} /> },
+          { key: "change", header: "Before → after", render: (item) => <AuditChange row={item} /> },
+          { key: "category", header: "Category", render: (item) => item.category ?? "—" },
+          { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" }
         ]}
       />
 

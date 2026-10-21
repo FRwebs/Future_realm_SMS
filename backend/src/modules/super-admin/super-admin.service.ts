@@ -2837,6 +2837,41 @@ export class SuperAdminService {
     ].join("\n");
   }
 
+  /**
+   * One line of a JSON value, for the before/after column.
+   *
+   * An audit row answers "what changed", and a pretty-printed blob of metadata
+   * does not: it is the same width for a one-field edit as for a whole record.
+   * Scalars read as themselves; an object reads as its fields, longest ones cut
+   * rather than wrapped, because the full value is still on the record.
+   */
+  private summariseAuditValue(value: Prisma.JsonValue | null): string | undefined {
+    if (value === null || value === undefined) return undefined;
+    if (typeof value !== "object") return String(value);
+    if (Array.isArray(value)) return value.length ? `${value.length} items` : undefined;
+
+    const parts = Object.entries(value as Record<string, unknown>)
+      .filter(([, v]) => v !== null && v !== undefined && v !== "")
+      .map(([k, v]) => `${k} ${typeof v === "object" ? "…" : String(v)}`);
+    if (!parts.length) return undefined;
+    const line = parts.join(" · ");
+    return line.length > 90 ? `${line.slice(0, 89)}…` : line;
+  }
+
+  /** Which area of the product an entry belongs to, from what it touched. */
+  private auditCategory(entityType: string, action: string): string {
+    const type = entityType.toLowerCase();
+    if (/score|result|broadsheet|grade/.test(type)) return "Scores";
+    if (/invoice|payment|fee|wallet|subscription|plan/.test(type)) return "Finance";
+    if (/attendance|register/.test(type)) return "Attendance";
+    if (/approval|request/.test(type)) return "Approvals";
+    if (/user|staff|role|permission|session/.test(type)) return "Access";
+    if (/campaign|message|notification|template/.test(type)) return "Communications";
+    if (/school|admission|student|guardian/.test(type)) return "Records";
+    if (action === "EXPORT") return "Exports";
+    return entityType;
+  }
+
   private mapAuditLog(log: Prisma.AuditLogGetPayload<{ include: { actor: true; school: true } }>) {
     return {
       id: log.id,
@@ -2844,6 +2879,11 @@ export class SuperAdminService {
       action: log.action,
       superAdmin: log.actor ? `${log.actor.firstName} ${log.actor.lastName}` : "System",
       target: `${log.entityType}:${log.entityId}`,
+      entityType: log.entityType,
+      entityId: log.entityId,
+      before: this.summariseAuditValue(log.oldValue),
+      after: this.summariseAuditValue(log.newValue),
+      category: this.auditCategory(log.entityType, log.action),
       schoolId: log.schoolId,
       schoolName: log.school?.name,
       details: log.metadata
