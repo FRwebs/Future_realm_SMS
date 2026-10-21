@@ -17,12 +17,14 @@ import { FeatureMatrixTable } from "./_feature-matrix-table";
 import { PlanCardGrid } from "./_plan-cards";
 import type {
   SuperAdminBrandingAssetRow,
+  SuperAdminChurnAnalysis,
   SuperAdminFeatureFlagCaseHistory,
   SuperAdminFeatureFlagRow,
   SuperAdminFeatureOverrideRow,
   SuperAdminInternalMember,
   SuperAdminPlanLifecycleRow,
   SuperAdminPlanRow,
+  SuperAdminProductAdoption,
   SuperAdminSchoolRow
 } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
@@ -68,7 +70,6 @@ const rolloutOptions = [
   { label: "Partial", value: "PARTIAL" },
   { label: "Full", value: "FULL" }
 ];
-const yesNo = [{ label: "Yes", value: "true" }, { label: "No", value: "false" }];
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
@@ -118,12 +119,12 @@ export default async function SuperAdminFeatureFlagsPage({ searchParams }: { sea
         action={
           <ResourceActionDialog
             triggerLabel="New feature flag"
-            title="Plans & Features"
-            description="Commercial packaging held apart from product capability."
+            title="New feature flag"
+            description="A capability ships in stages, with exit criteria and a way back. Every flag starts Off."
             endpoint="/api/super-admin/plans-features/flags"
             variant="heroWhite"
             submitLabel="Create flag"
-            fields={[
+            note="Every flag carries an instant platform-wide rollback from its own row on the Rollout tab." fields={[
               { name: "name", label: "Flag name", required: true, section: "The capability" },
               { name: "key", label: "Key", required: true, placeholder: "module.feature-name", section: "The capability" },
               { name: "area", label: "Area", placeholder: "e.g. Report Cards, Fees, Communications", section: "The capability" },
@@ -156,14 +157,31 @@ type Currencies = {
 };
 
 async function PlansTab() {
-  const [plans, migrations, currencies] = await Promise.all([
+  const [plans, migrations, currencies, churn, adoption, overview] = await Promise.all([
     apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
     apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
-    apiGet<Currencies>("/api/super-admin/billing-extras/currencies")
+    apiGet<Currencies>("/api/super-admin/billing-extras/currencies"),
+    apiGet<SuperAdminChurnAnalysis>("/api/super-admin/analytics/churn"),
+    apiGet<SuperAdminProductAdoption>("/api/super-admin/analytics/product-adoption"),
+    apiGet<PlansOverview>("/api/super-admin/plans-features/plans")
   ]);
+  const ratesByTier = new Map((overview?.rates ?? []).map((row) => [row.tier, row]));
+  const tierColumns = adoption?.tierColumns ?? [];
+  const heatmapByTier = adoption?.heatmapByTier ?? [];
+  const churnByTier = new Map((churn?.byTier ?? []).map((row) => [row.plan, row]));
+  const planHealth = tierColumns
+    .filter((tier) => tier.schoolCount > 0)
+    .map((tier, tierIndex) => {
+      const adoptionValues = heatmapByTier.map((row) => row.cells[tierIndex]).filter((value): value is number => value !== null);
+      const adoptionIndex = adoptionValues.length > 0 ? Math.round(adoptionValues.reduce((sum, value) => sum + value, 0) / adoptionValues.length) : null;
+      const churnPct = churnByTier.get(tier.plan)?.ratePct ?? 0;
+      const verdict = churnPct >= 8 ? "High churn for this tier — worth reviewing pricing or entitlements" : adoptionIndex === null ? "Not enough module-adoption data to call this yet" : adoptionIndex < 40 ? "Low module adoption relative to other tiers" : "No churn or adoption concern flagged";
+      return { tier: tier.plan, schools: tier.schoolCount, adoptionIndex, churnPct, verdict };
+    });
   const termAgo = Date.now() - 120 * 86_400_000;
   const changesThisTerm = (migrations ?? []).filter((row) => new Date(row.changedAt).getTime() >= termAgo).length;
   const fx = (value: number | null, symbol: string) => (value === null ? <span className="text-[var(--color-text-muted)]">Set the rate</span> : `${symbol}${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`);
+  const planRates = { usd: currencies.rates.usd, ghs: currencies.rates.ghs, kes: currencies.rates.kes, gbp: currencies.rates.gbp, shockPercent: currencies.shockPercent };
   const legacyCount = (plans ?? []).filter((plan) => plan.lifecycle === "LEGACY").length;
   const draftCount = (plans ?? []).filter((plan) => plan.lifecycle === "DRAFT").length;
   const activePlans = (plans ?? []).filter((plan) => plan.isActive);
@@ -179,15 +197,15 @@ async function PlansTab() {
         <StatCard label="Plan changes this term" value={changesThisTerm} detail="Schools that changed tier in the last 120 days" icon={Repeat2} tone="success" />
       </section>
 
-      <PlanCardGrid plans={plans ?? []} actions={<PlanCreateDialog />} />
+      <PlanCardGrid plans={plans ?? []} rates={planRates} actions={<PlanCreateDialog rates={planRates} />} />
 
       {currencies.pending ? (
         <section className="rounded-[14px] px-5 py-4" style={{ background: "var(--color-warning-dim)", border: "1px solid var(--color-warning)" }}>
           <p className="text-[11.5px] font-bold" style={{ color: "var(--color-warning)" }}>New rates for {currencies.pending.ratesFor} are held for Finance</p>
           <p className="mt-1 text-[11px] leading-5 text-[var(--color-text-secondary)]">{currencies.pending.proposedBy} proposed ₦{currencies.pending.ngnPerUsd.toLocaleString("en-NG")} per dollar ({currencies.pending.source}). It moved {currencies.pending.moved}, past the {currencies.shockPercent}% guard. Nothing changes until it is decided; the current rates stay in force.</p>
           <div className="mt-3 flex gap-2">
-            <ResourceActionDialog triggerLabel="Approve the new rates" title="Approve the held rates" description="They take effect now for the whole term." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="secondary" submitLabel="Approve" fields={[{ name: "approve", label: "Decision", type: "select", defaultValue: "true", options: [{ label: "Approve", value: "true" }] }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
-            <ResourceActionDialog triggerLabel="Reject them" title="Reject the held rates" description="The current rates stay for the term." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="danger" submitLabel="Reject" fields={[{ name: "approve", label: "Decision", type: "select", defaultValue: "false", options: [{ label: "Reject", value: "false" }] }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
+            <ResourceActionDialog triggerLabel="Approve the new rates" title="Approve the held rates" description="The new rates take effect now and stay fixed for the whole term. Every school is invoiced at them from here." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="secondary" submitLabel="Approve the rates" recorded={{ line: `You · approved the held rates for ${currencies.pending.ratesFor}`, before: "Held for Finance", after: "In force" }} fields={[{ name: "approve", label: "Decision", type: "hidden", defaultValue: "true" }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
+            <ResourceActionDialog triggerLabel="Reject them" title="Reject the held rates" description="The current rates stay in force for the term. The proposal is closed with your reason." endpoint="/api/super-admin/billing-extras/pricing/decide" method="POST" variant="danger" submitLabel="Reject the rates" recorded={{ line: `You · rejected the held rates for ${currencies.pending.ratesFor}`, before: "Held for Finance", after: "Rejected" }} fields={[{ name: "approve", label: "Decision", type: "hidden", defaultValue: "false" }, { name: "reason", label: "Reason", type: "textarea", required: true }]} />
           </div>
         </section>
       ) : null}
@@ -203,34 +221,37 @@ async function PlansTab() {
             {currencies.refreshConfigured ? <ResourceActionDialog triggerLabel="Fetch from the rate provider" title="Fetch the term's rates" description="Takes the rates from the provider set up for this deployment and fixes them for the current term. A move beyond the guard is held for Finance." endpoint="/api/super-admin/billing-extras/pricing/refresh" method="POST" variant="secondary" submitLabel="Fetch" fields={[]} /> : null}
             <ResourceActionDialog
               triggerLabel="Set the term's rates"
-              title="Rates fixed for the term"
+              title="Fix the term’s rates"
               description={`How many naira one unit of each currency is worth. Fixed when the term opens and never moved inside it. A move of more than ${currencies.shockPercent}% on any currency is held for Finance to decide.`}
               endpoint="/api/super-admin/billing-extras/pricing/rates"
               method="POST"
               variant="secondary"
               submitLabel="Save rates"
+              note="A school is invoiced at the rate in force when the term opened. A currency shock is not a price rise."
+              impact={{ label: "On saving", rows: [["Local prices follow", "Every figure in the table is worked out again from these rates"], ["Fixed for the term", "A second set cannot be saved for the same term"], ["A big move is held", `Anything beyond ${currencies.shockPercent}% on any currency waits for Finance to decide`]] }}
               fields={[
-                { name: "ratesFor", label: "Term these rates are fixed for", defaultValue: currencies.term ?? "", placeholder: "e.g. Term 1 · 2026/27" },
-                { name: "ngnPerUsd", label: "₦ per US dollar", type: "number", defaultValue: currencies.rates.usd, min: 0, step: 0.01 },
-                { name: "ngnPerGhs", label: "₦ per Ghana cedi", type: "number", defaultValue: currencies.rates.ghs, min: 0, step: 0.01 },
-                { name: "ngnPerKes", label: "₦ per Kenya shilling", type: "number", defaultValue: currencies.rates.kes, min: 0, step: 0.01 },
-                { name: "ngnPerGbp", label: "₦ per pound sterling", type: "number", defaultValue: currencies.rates.gbp, min: 0, step: 0.01 }
+                { name: "ratesFor", label: "Term these rates are fixed for", defaultValue: currencies.term ?? "", placeholder: "e.g. Term 1 · 2026/27", section: "Which term" },
+                { name: "ngnPerUsd", label: "₦ per US dollar", type: "number", defaultValue: currencies.rates.usd, min: 0, step: 0.01, section: "What one unit is worth in naira" },
+                { name: "ngnPerGhs", label: "₦ per Ghana cedi", type: "number", defaultValue: currencies.rates.ghs, min: 0, step: 0.01, section: "What one unit is worth in naira" },
+                { name: "ngnPerKes", label: "₦ per Kenya shilling", type: "number", defaultValue: currencies.rates.kes, min: 0, step: 0.01, section: "What one unit is worth in naira" },
+                { name: "ngnPerGbp", label: "₦ per pound sterling", type: "number", defaultValue: currencies.rates.gbp, min: 0, step: 0.01, section: "What one unit is worth in naira" }
               ]}
             />
             <ResourceActionDialog
               triggerLabel="Author prices in US dollars"
               title="Price the tiers once, in US dollars"
-              description="Each tier's naira price becomes its dollar price at the term's rate, rounded to the nearest 50 kobo — so a rate change moves every tier together. Choose Naira to go back to the built-in naira prices."
+              description="Each tier’s naira price becomes its dollar price at the term’s rate, rounded to the nearest 50 kobo — so a rate change moves every tier together."
+              note="Choose Naira to go back to the built-in naira prices."
               endpoint="/api/super-admin/billing-extras/pricing/usd"
               method="POST"
               variant="secondary"
               submitLabel="Save pricing"
               fields={[
-                { name: "anchor", label: "Plans are priced in", type: "select", defaultValue: currencies.anchor, options: [{ label: "Naira (built-in prices)", value: "NGN" }, { label: "US dollars", value: "USD" }] },
-                { name: "STANDARD", label: "Standard — $ per student per term", type: "number", defaultValue: currencies.usdPrices.STANDARD, min: 0, step: 0.01 },
-                { name: "PREMIUM", label: "Premium — $ per student per term", type: "number", defaultValue: currencies.usdPrices.PREMIUM, min: 0, step: 0.01 },
-                { name: "ELITE", label: "Elite — $ per student per term", type: "number", defaultValue: currencies.usdPrices.ELITE, min: 0, step: 0.01 },
-                { name: "reason", label: "Reason", type: "textarea", required: true }
+                { name: "anchor", label: "Plans are priced in", type: "select", defaultValue: currencies.anchor, options: [{ label: "Naira (built-in prices)", value: "NGN" }, { label: "US dollars", value: "USD" }], section: "The anchor" },
+                { name: "STANDARD", label: "Standard — $ per student per term", type: "number", defaultValue: currencies.usdPrices.STANDARD, min: 0, step: 0.01, section: "The price you set" },
+                { name: "PREMIUM", label: "Premium — $ per student per term", type: "number", defaultValue: currencies.usdPrices.PREMIUM, min: 0, step: 0.01, section: "The price you set" },
+                { name: "ELITE", label: "Elite — $ per student per term", type: "number", defaultValue: currencies.usdPrices.ELITE, min: 0, step: 0.01, section: "The price you set" },
+                { name: "reason", label: "Why this is changing", type: "textarea", required: true, section: "Reason" }
               ]}
             />
           </div>
@@ -243,6 +264,32 @@ async function PlansTab() {
           { key: "ghs", header: "Ghana", render: (row) => fx(row.ghs, "GH₵") },
           { key: "kes", header: "Kenya", render: (row) => fx(row.kes, "KSh ") },
           { key: "gbp", header: "UK", render: (row) => fx(row.gbp, "£") }
+        ]}
+      />
+
+      <TableCard
+        title="Plan health — is each tier doing its job?"
+        description="Grouped by the platform’s five billing tiers; churn and adoption are tracked per tier, not per named plan. Tiers with no schools are left out."
+        items={planHealth}
+        getRowKey={(row) => row.tier}
+        pageSize={false}
+        emptyState="No tier has enough schools yet to compute adoption or churn."
+        footnote="Moves are counted from tier changes that recorded where the school came from — changes made before that was kept are not in the count."
+        columns={[
+          { key: "tier", header: "Tier", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.tier}</span> },
+          { key: "schools", header: "Schools", render: (row) => row.schools },
+          { key: "adoption", header: "Adoption index", render: (row) => (row.adoptionIndex === null ? <span className="text-[var(--color-text-muted)]">Not enough data</span> : `${row.adoptionIndex}%`) },
+          { key: "churn", header: "Churn rate", render: (row) => `${row.churnPct}%` },
+          {
+            key: "moves",
+            header: "Moves (180 days)",
+            render: (row) => {
+              const moves = ratesByTier.get(row.tier);
+              if (!moves || (moves.upgrades === 0 && moves.downgrades === 0)) return <span className="text-[var(--color-text-muted)]">None recorded</span>;
+              return <span>{moves.upgrades} up · {moves.downgrades} down</span>;
+            }
+          },
+          { key: "verdict", header: "Verdict", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.verdict}</span> }
         ]}
       />
 
@@ -272,13 +319,14 @@ async function TierMatrixTab() {
           missing.length === 0 ? null : (
           <ResourceActionDialog
             triggerLabel="Add a feature"
-            title="Add a registry feature to the matrix"
-            description="Choose a feature the product knows how to gate and set which of the five billing tiers have it. It is kept in the change log below."
+            title="Add a feature to the matrix"
+            description="Choose a feature the product knows how to gate and set which of the five billing tiers have it. It is kept in the change log."
+            note="A feature must exist in the registry first — the registry is part of the product, so a feature is added to it when the product can honour it."
             endpoint="/api/super-admin/plans-features/matrix"
             submitLabel="Save access"
             fields={[
               { name: "featureKey", label: "Feature", type: "select", required: true, options: missing.map((row) => ({ label: `${row.name} — ${row.module}${row.enforcedAt ? "" : " (catalogue only)"}`, value: row.key })), note: "A feature has to be in the registry before it can have a row. Only features marked with a place the product enforces them change what a school can do.", section: "Feature" },
-              ...view.tiers.map((tier) => ({ name: tier.tier, label: `${TIER_LABEL[tier.tier] ?? tier.tier} (${tier.schools} school${tier.schools === 1 ? "" : "s"})`, type: "select" as const, defaultValue: "false", options: yesNo, section: "Access by tier" })),
+              ...view.tiers.map((tier) => ({ name: tier.tier, label: TIER_LABEL[tier.tier] ?? tier.tier, type: "switch" as const, on: false, note: `${tier.schools} school${tier.schools === 1 ? "" : "s"} on this tier`, section: "Which tiers have it" })),
               { name: "reason", label: "Why this is changing", type: "textarea", required: true, section: "Reason" },
               { name: "migrationPlan", label: "Migration plan (needed when taking access away from schools)", type: "textarea", placeholder: "What those schools are offered instead, and when they are told", note: "If any school is on a tier that loses the feature, this is required — and those schools are told in the app.", section: "Reason" }
             ]}
@@ -401,8 +449,13 @@ async function PlanChangesSection() {
   );
 }
 
+type PriceLockRow = { schoolId: string; school: string; plan: string; tier: string; heldAt: number; until: string; reason: string | null };
+
 async function LifecycleSection() {
-  const migrations = await apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle");
+  const [migrations, priceLocks] = await Promise.all([
+    apiGet<SuperAdminPlanLifecycleRow[]>("/api/super-admin/feature-flags/lifecycle"),
+    apiGet<PriceLockRow[]>("/api/super-admin/plans-features/price-locks").catch(() => [] as PriceLockRow[])
+  ]);
 
   return (
     <div className="grid gap-[14px]">
@@ -445,6 +498,53 @@ async function LifecycleSection() {
       </section>
 
       <TableCard
+        title="Schools holding an older price"
+        description="A school pinned to the price it agreed, until the start of its next term. Releasing one makes the current price apply to it at once."
+        items={priceLocks}
+        pageSize={false}
+        getRowKey={(row) => row.schoolId}
+        emptyState="No school is holding an older price. One appears here whenever a scheduled price change lands on a plan that has schools on it."
+        columns={[
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "plan", header: "Plan", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.plan}</span> },
+          { key: "held", header: "Held at", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{formatCurrency(row.heldAt)}</span>, sortValue: (row) => row.heldAt },
+          { key: "until", header: "Until", render: (row) => <span className="text-[var(--color-text-secondary)]">{new Date(row.until).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" })}</span>, sortValue: (row) => row.until },
+          { key: "reason", header: "Why", render: (row) => <span className="text-[11px] text-[var(--color-text-muted)]">{row.reason ?? "—"}</span> },
+          {
+            key: "release",
+            header: "",
+            render: (row) => (
+              <ResourceActionDialog
+                triggerLabel="Release"
+                title={`Release the held price — ${row.school}`}
+                description="The school stops holding its old price and is charged the plan's current price from its next invoice."
+                endpoint={`/api/super-admin/plans-features/price-locks/${row.schoolId}/release`}
+                variant="secondary"
+                submitLabel="Release the price"
+                confirmLabel="Release it"
+                confirmMessage="This school was promised its old price until it renews. Releasing it early changes what the next invoice asks for."
+                fields={[
+                  { name: "_school", label: "School", type: "static", placeholder: row.school, section: "What you are releasing" },
+                  { name: "_held", label: "Currently held at", type: "static", placeholder: formatCurrency(row.heldAt), section: "What you are releasing" },
+                  { name: "_until", label: "Was due to run until", type: "static", placeholder: new Date(row.until).toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" }), section: "What you are releasing" },
+                  { name: "_reason", label: "Why it was held", type: "static", placeholder: row.reason ?? "Not recorded", section: "What you are releasing", full: true }
+                ]}
+                impact={{
+                  label: "On releasing",
+                  rows: [
+                    ["Charged at the current price", "From the next invoice raised for this school — anything already invoiced is unchanged."],
+                    ["The school is not told automatically", "Releasing a price early is a conversation to have first; nothing on this screen has it for you."],
+                    ["Logged against the subscription", "With the price it was holding and who released it."]
+                  ]
+                }}
+                note="A held price exists because the school was told it would keep it. Release it only when the school has agreed."
+              />
+            )
+          }
+        ]}
+      />
+
+      <TableCard
         title="Grandfathering rules"
         description="How schools are protected from surprise price or entitlement changes. Checked against the real code."
         items={[
@@ -453,7 +553,7 @@ async function LifecycleSection() {
           { rule: "Legacy plans stay open to their existing schools indefinitely", spec: "Enforced — Legacy closes a plan to new schools and keeps it for those on it. Activating a replacement for a tier moves the old plan to Legacy automatically if schools are still on it.", state: "good" },
           { rule: "An archive requires zero schools on the plan first", spec: "Enforced — a plan with schools on it can be archived only by choosing a plan to move them to; they are moved, recorded and told. The old Archive button is refused while schools are on the plan.", state: "good" },
           { rule: "Entitlement removals need a migration plan", spec: "Enforced — see the Feature Matrix tab: removing access from a tier that has schools on it needs a written migration plan, and those schools are told.", state: "good" },
-          { rule: "A school keeps the price it agreed at signup until renewal", spec: "Not built — there is no per-school price lock. A scheduled change reaches every school on the plan on its date, after notice.", state: "warn" }
+          { rule: "A school keeps the price it agreed until it renews", spec: "Enforced — when a scheduled change lands, every school already on that plan is pinned to the price it was sold, until the start of its next term. They pick the new price up when they renew, not part-way through a term they have already been invoiced for. A school holding a price is listed below.", state: "good" }
         ]}
         getRowKey={(row) => row.rule}
         columns={[
@@ -545,24 +645,24 @@ function overrideDecisions(item: SuperAdminFeatureOverrideRow): ReactNode {
       <>
         <ResourceActionDialog
           triggerLabel="Approve"
-          title={`Approve override for ${item.schoolName}`}
-          description="Approve this feature override request."
+          title="Grant plan exception"
+          description={`${item.schoolName} gains ${item.flagName ?? "this feature"} immediately, above what its plan includes, until the end date on the request. It is logged against your name.`}
+          recorded={{ line: `You · Grant plan exception · ${item.schoolName}`, before: "Waiting on a decision", after: "In force" }}
           endpoint={`/api/super-admin/feature-flags/overrides/${item.id}/approve`}
           method="PATCH"
           variant="secondary"
           submitLabel="Approve"
-          confirmLabel="Confirm"
           fields={[]}
         />
         <ResourceActionDialog
           triggerLabel="Reject"
-          title={`Reject override for ${item.schoolName}`}
-          description="Reject this pending override request. A reason is required and recorded on the case history."
+          title="Decline plan exception"
+          description={`${item.schoolName} does not gain the feature. The request is closed with your reason on the case history.`}
+          recorded={{ line: `You · Decline plan exception · ${item.schoolName}`, before: "Waiting on a decision", after: "Declined" }}
           endpoint={`/api/super-admin/feature-flag-extras/overrides/${item.id}/reject`}
           method="PATCH"
           variant="danger"
-          submitLabel="Reject override"
-          confirmLabel="Confirm rejection"
+          submitLabel="Decline exception"
           fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
         />
       </>
@@ -572,14 +672,13 @@ function overrideDecisions(item: SuperAdminFeatureOverrideRow): ReactNode {
     return (
       <ResourceActionDialog
         triggerLabel="Revoke"
-        title={`Revoke override for ${item.schoolName}`}
-        description="Immediately disables this override. A reason is required and recorded on the case history."
+        title="End plan exception"
+        description={`Access stops today rather than on the end date. What ${item.schoolName} built with the feature stays, and becomes read-only.`}
+        recorded={{ line: `You · End plan exception · ${item.schoolName}`, before: item.expiryDate ? `In force until ${formatDate(item.expiryDate)}` : "In force", after: "Ended today" }}
         endpoint={`/api/super-admin/feature-flag-extras/overrides/${item.id}/revoke`}
         method="PATCH"
         variant="danger"
-        submitLabel="Revoke override"
-        confirmLabel="Confirm revoke"
-        confirmMessage="This disables the override for this school immediately."
+        submitLabel="End it now"
         fields={[{ name: "reason", label: "Reason", type: "textarea", required: true }]}
       />
     );
@@ -592,8 +691,9 @@ function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
     return (
       <ResourceActionDialog
         triggerLabel="Approve"
-        title={`Approve branding for ${item.schoolName}`}
-        description="Mark these assets as reviewed and approved for quality."
+        title={`Approve the branding for ${item.schoolName}`}
+        description="The logo and colours are marked reviewed and approved. They are not applied to the school’s live account until you apply them."
+        recorded={{ line: `You · Approve branding · ${item.schoolName}`, before: "Waiting for review", after: "Approved" }}
         endpoint={`/api/super-admin/feature-flags/branding/${item.id}/approve`}
         method="PATCH"
         variant="secondary"
@@ -606,14 +706,13 @@ function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
     return (
       <ResourceActionDialog
         triggerLabel="Apply to live account"
-        title={`Apply branding for ${item.schoolName}`}
-        description="Applies the approved logo and colours to the school's live account."
+        title={`Apply the branding for ${item.schoolName}`}
+        description="The approved logo and colours go onto the school’s live account now — its report cards and portal change at once."
+        recorded={{ line: `You · Apply branding · ${item.schoolName}`, before: "Approved", after: "Applied" }}
         endpoint={`/api/super-admin/feature-flags/branding/${item.id}/apply`}
         method="PATCH"
         variant="secondary"
         submitLabel="Apply now"
-        confirmLabel="Confirm apply"
-        confirmMessage="This updates the school's live branding immediately."
         fields={[]}
       />
     );
@@ -622,12 +721,11 @@ function brandingDecisions(item: SuperAdminBrandingAssetRow): ReactNode {
 }
 
 async function ExceptionsCaseBoard() {
-  const [overrides, branding, flags, schoolsEnvelope, plans, caseHistory] = await Promise.all([
+  const [overrides, branding, flags, schoolsEnvelope, caseHistory] = await Promise.all([
     apiGet<SuperAdminFeatureOverrideRow[]>("/api/super-admin/feature-flags/overrides"),
     apiGet<SuperAdminBrandingAssetRow[]>("/api/super-admin/feature-flags/branding"),
     apiGet<SuperAdminFeatureFlagRow[]>("/api/super-admin/feature-flags"),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100"),
-    apiGet<SuperAdminPlanRow[]>("/api/super-admin/plans"),
     apiGet<SuperAdminFeatureFlagCaseHistory>("/api/super-admin/feature-flag-extras/case-history")
   ]);
 
@@ -635,7 +733,6 @@ async function ExceptionsCaseBoard() {
   const schoolOptions = schools.map((school) => ({ label: school.name, value: school.id }));
   const flagOptions = (flags ?? []).map((flag) => ({ label: flag.name, value: flag.id }));
   const schoolById = new Map(schools.map((school) => [school.id, school]));
-  const planCatalog = plans ?? [];
   const now = Date.now();
 
   const overrideRows = overrides ?? [];
@@ -693,50 +790,6 @@ async function ExceptionsCaseBoard() {
     };
   });
 
-  const brandingCases: CaseRecord[] = brandingRows.map((item) => {
-    const school = schoolById.get(item.schoolId);
-    const planRecord = school ? planCatalog.find((plan) => plan.plan === school.plan && plan.isActive) : undefined;
-    const signals: CaseRecord["signals"] = [];
-    if (planRecord && !planRecord.customBranding) {
-      signals.push({
-        text: `${school?.name ?? item.schoolName} is on the ${planRecord.name} plan, which does not include custom branding — data-integrity issue.`,
-        tone: "bad"
-      });
-    }
-    if (!item.logoUrl) {
-      signals.push({ text: "No logo URL provided — colour-only branding.", tone: "warn" });
-    }
-
-    const history = (caseHistory?.branding?.[item.id] ?? []).map((event) => ({ what: event.what, when: formatDate(event.when) }));
-
-    return {
-      id: item.id,
-      subject: school?.name ?? item.schoolName,
-      meta: `Custom branding · ${item.appliedTo.replaceAll("_", " ")}`,
-      type: "custom-branding",
-      initials: initialsFrom(school?.name ?? item.schoolName),
-      assignee: item.status === "PENDING" ? "Awaiting Super Admin review" : item.approvedBy ?? "Super Admin",
-      age: formatAge(item.createdAt),
-      slaTone: "neutral",
-      facts: [
-        { label: "School", value: school?.name ?? item.schoolName },
-        { label: "School tier", value: school?.plan ?? "Unknown" },
-        { label: "Applies to", value: item.appliedTo.replaceAll("_", " ") },
-        { label: "Colours", value: `${item.primaryColour} / ${item.secondaryColour}` },
-        { label: "Logo", value: item.logoUrl ? "Provided" : "Not provided" }
-      ],
-      signals,
-      evidence: item.logoUrl ? [{ name: item.logoUrl, who: school?.name ?? item.schoolName }] : [],
-      checks: [
-        { label: "Brand colours submitted", done: true },
-        { label: "Logo provided", done: Boolean(item.logoUrl) },
-        { label: "Reviewed by Super Admin", done: item.status !== "PENDING", who: item.approvedBy ?? undefined },
-        { label: "Applied to live account", done: item.status === "APPLIED", who: item.appliedAt ? formatDate(item.appliedAt) : undefined }
-      ],
-      history,
-      decisions: brandingDecisions(item)
-    };
-  });
 
   // The "types" pill counts mirror the Exceptions tab badge's own open/active definition
   // (see the badge computation above SuperAdminFeatureFlagsPage): an override is "open" while
@@ -749,9 +802,8 @@ async function ExceptionsCaseBoard() {
   const activeBrandingCount = brandingRows.filter((item) => item.status === "APPLIED").length;
 
   const types: CaseTypeFilter[] = [
-    { label: "All open", value: "all", count: activeOverrideCount + activeBrandingCount },
-    { label: "Feature override", value: "feature-override", count: activeOverrideCount },
-    { label: "Custom branding", value: "custom-branding", count: activeBrandingCount }
+    { label: "All open", value: "all", count: activeOverrideCount },
+    { label: "Feature override", value: "feature-override", count: activeOverrideCount }
   ];
 
   const waitingCount = overrideRows.filter((item) => item.status === "PENDING").length + brandingRows.filter((item) => item.status === "PENDING").length;
@@ -784,18 +836,19 @@ async function ExceptionsCaseBoard() {
         toolbar={
           <>
         <ResourceActionDialog
-          triggerLabel="Request override"
-          title="Request a per-school feature override"
-          description="Grant or restrict a specific flag for one school. Requires an expiry date and approval."
+          triggerLabel="Grant an exception"
+          title="Grant a plan exception"
+          description="Give one school something its plan does not include — or take something away — deliberately, with a reason and an end date."
           endpoint="/api/super-admin/feature-flags/overrides"
           submitLabel="Request override"
           variant="secondary"
-          fields={[
-            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-            { name: "flagId", label: "Feature flag", type: "select", required: true, options: flagOptions },
-            { name: "overrideStatus", label: "Type", type: "select", defaultValue: "GRANTED", options: [{ label: "Grant access", value: "GRANTED" }, { label: "Restrict access", value: "RESTRICTED" }] },
-            { name: "reason", label: "Reason", type: "textarea", required: true },
-            { name: "expiryDate", label: "Expiry date", type: "date", required: true }
+          note="Every exception needs an end date, and a decision from someone other than the person who asked." impact={{ label: "On approval", rows: [["The school gains it from that day", "Above what its plan includes, until the end date"], ["The plan is untouched", "An override is its own record, separate from the plan and the feature matrix"], ["Ends on the date you set", "Access stops; what the school built with it stays, read-only"]] }} fields={[
+            { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions, section: "Who and what" },
+            { name: "flagId", label: "Feature", type: "select", required: true, options: flagOptions, section: "Who and what" },
+            { name: "overrideStatus", label: "Direction", type: "select", defaultValue: "GRANTED", options: [{ label: "Added — above the plan", value: "GRANTED" }, { label: "Removed — below the plan", value: "RESTRICTED" }], note: "Added usually closes a sale or holds a renewal; removed is almost always non-payment", section: "Who and what" },
+            { name: "reason", label: "Reason", type: "textarea", required: true, placeholder: "Who asked, why, and what it is holding — in words someone else can judge", section: "Why, in words someone else can judge" },
+            { name: "expiryDate", label: "End date", type: "date", required: true, note: "Required. The system will not save an exception without one", section: "When it ends" },
+            { name: "afterwards", label: "What happens then", type: "locked", note: "Access stops. Everything the school built with it stays, read-only", section: "When it ends" }
           ]}
         />
         <ResourceActionDialog
@@ -815,10 +868,26 @@ async function ExceptionsCaseBoard() {
           </>
         }
         types={types}
-        cases={[...overrideCases, ...brandingCases]}
-        emptyState="No feature overrides or branding exceptions on record."
-        footerNote={`${overrideRows.length} override(s) · ${brandingRows.length} branding asset(s), most recent first.`}
-        searchPlaceholder="Search a subject, type or assignee"
+        cases={overrideCases}
+        emptyState="No plan exceptions on record. A feature given to one school above its plan, or taken away from it, appears here."
+        footerNote={`${overrideRows.length} exception${overrideRows.length === 1 ? "" : "s"}, most recent first.`}
+        searchPlaceholder="Search a school, feature or assignee"
+      />
+
+      <TableCard
+        title="Custom branding queue"
+        description="Assets are reviewed for quality and appropriateness before they are applied to a school’s live account."
+        items={brandingRows}
+        getRowKey={(row) => row.id}
+        emptyState="No school has submitted branding."
+        columns={[
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.schoolName}</span> },
+          { key: "logo", header: "Logo", render: (row) => (row.logoUrl ? <a href={row.logoUrl} target="_blank" rel="noreferrer" className="font-semibold text-[var(--color-text-accent)] hover:underline">View logo</a> : <span className="text-[var(--color-text-muted)]">None supplied</span>) },
+          { key: "colours", header: "Brand colours", render: (row) => <span className="inline-flex items-center gap-2"><span className="h-3.5 w-3.5 rounded-[4px] border border-[#DEE8E2]" style={{ background: row.primaryColour }} />{row.primaryColour}<span className="h-3.5 w-3.5 rounded-[4px] border border-[#DEE8E2]" style={{ background: row.secondaryColour }} />{row.secondaryColour}</span> },
+          { key: "applied", header: "Applied to", render: (row) => row.appliedTo },
+          { key: "status", header: "Status", render: (row) => <StatusBadge status={row.status} /> },
+          { key: "decision", header: "", sortable: false, render: (row) => (row.status === "PENDING" || row.status === "APPROVED" ? brandingDecisions(row) : null) }
+        ]}
       />
     </div>
   );
@@ -842,19 +911,21 @@ async function FlagsSection() {
         items={flags ?? []}
         actions={
           <ResourceActionDialog
-            triggerLabel="Create Flag"
-            title="Create feature flag"
-            description="Use a stable key such as results.new-broadsheet or fees.paystack-v2."
+            triggerLabel="New flag"
+            title="New feature flag"
+            description="A capability ships in stages, with exit criteria and a way back. Every flag starts Off."
             endpoint="/api/super-admin/plans-features/flags"
-            submitLabel="Create Flag"
+            submitLabel="Create flag"
+            note="Every flag carries an instant platform-wide rollback from its own row."
             fields={[
-              { name: "key", label: "Flag Key", required: true, placeholder: "module.feature-name" },
-              { name: "name", label: "Display Name", required: true },
-              { name: "area", label: "Area", placeholder: "e.g. Report Cards" },
-              { name: "ownerId", label: "Owner", type: "select", defaultValue: "", options: memberOptions },
-              { name: "description", label: "Description", type: "textarea" },
-              { name: "exitCriteria", label: "Exit criteria", type: "textarea", note: "Required before the flag can leave Off." },
-              { name: "observationDays", label: "Observation window (days)", type: "number", defaultValue: 7, min: 0, max: 90 }
+              { name: "name", label: "Flag name", required: true, section: "The capability" },
+              { name: "key", label: "Key", required: true, placeholder: "module.feature-name", note: "Lowercase, dot-separated, permanent once created — code and audit records refer to it", section: "The capability" },
+              { name: "area", label: "Area", placeholder: "e.g. Report Cards", section: "The capability" },
+              { name: "ownerId", label: "Owner", type: "select", defaultValue: "", options: memberOptions, note: "The person accountable for deciding when each stage is done", section: "The capability" },
+              { name: "description", label: "What it does", type: "textarea", section: "The capability" },
+              { name: "exitCriteria", label: "Exit criteria", type: "textarea", placeholder: "In measurable terms — what must be true before this moves on", note: "Required before the flag can leave Off", section: "First stage" },
+              { name: "observationDays", label: "Observation window (days per stage)", type: "number", defaultValue: 7, min: 0, max: 90, section: "First stage" },
+              { name: "stage", label: "Stage", type: "static", placeholder: "Off", section: "First stage" }
             ]}
           />
         }
@@ -885,45 +956,48 @@ async function FlagsSection() {
               <ActionMenu triggerLabel={`Actions for ${item.name}`}>
                 <ResourceActionDialog
                   triggerLabel="Update rollout"
-                  title={`Update rollout — ${item.name}`}
-                  description={`Moving up needs the stage's ${item.observationDays ?? 7}-day window to have run and the exit criterion you met written below. Pilot schools are told in the app when they are added.`}
+                  title={`Move ${item.name} to the next stage`}
+                  description={`A flag moves one stage at a time. Moving up needs the stage’s ${item.observationDays ?? 7}-day window to have run and the exit criterion you met written below.`}
+                  note="Moving down, or rolling back, is always allowed."
+                  impact={{ label: "On saving", rows: [["The stage is recorded", "With who moved it, the date the stage began, and what was said to be met"], ["Pilot schools are told", "In the app, when they are added to a Pilot"], ["The window restarts", "The observation window is counted from today, in the new stage"]] }}
                   endpoint={`/api/super-admin/plans-features/flags/${item.id}/advance`}
                   method="POST"
                   variant="menu"
                   submitLabel="Update rollout"
                   fields={[
-                    { name: "rolloutStatus", label: "Rollout stage", type: "select", defaultValue: item.rolloutStatus, options: rolloutOptions, section: "Stage" },
+                    { name: "current", label: "Now", type: "static", placeholder: `${item.rolloutStatus} · ${item.rolloutPercent}% · ${item.daysInStage ?? 0} days in stage`, section: "Stage" },
+                    { name: "rolloutStatus", label: "Move to", type: "select", defaultValue: item.rolloutStatus, options: rolloutOptions, section: "Stage" },
                     { name: "rolloutPercent", label: "Percent (for Partial)", type: "number", defaultValue: item.rolloutPercent, min: 0, max: 100, section: "Stage" },
-                    { name: "pilotSchoolIds", label: "Pilot schools (for Pilot)", type: "multiselect", options: schoolOptions, defaultValue: item.pilotSchoolIds ?? [], note: "Hold Cmd/Ctrl to pick several.", section: "Stage" },
+                    { name: "pilotSchoolIds", label: "Pilot schools (for Pilot)", type: "multiselect", options: schoolOptions, defaultValue: item.pilotSchoolIds ?? [], section: "Stage" },
                     { name: "note", label: "Exit criterion met", type: "textarea", placeholder: item.exitCriteria ?? "Required when moving up past Pilot", section: "Evidence" },
                     { name: "skipWindowReason", label: "Waive the observation window (Super Admin only)", type: "textarea", placeholder: "Leave empty unless moving up early — say why", section: "Evidence" }
                   ]}
                 />
                 <ResourceActionDialog
                   triggerLabel="Edit flag"
-                  title={`Edit ${item.name}`}
+                  title={`Edit flag · ${item.name}`}
                   description="Who owns it, what it is part of, and what has to be true for each stage to be finished."
+                  note="Every stage carries a written exit criterion — a rollout with none is a rollout nobody can decide about."
                   endpoint={`/api/super-admin/plans-features/flags/${item.id}`}
                   method="PATCH"
                   variant="menu"
                   submitLabel="Save"
                   fields={[
-                    { name: "area", label: "Area", defaultValue: item.area ?? "" },
-                    { name: "ownerId", label: "Owner", type: "select", defaultValue: item.ownerId ?? "", options: memberOptions },
-                    { name: "exitCriteria", label: "Exit criteria", type: "textarea", defaultValue: item.exitCriteria ?? "" },
-                    { name: "observationDays", label: "Observation window (days)", type: "number", defaultValue: item.observationDays ?? 7, min: 0, max: 90 }
+                    { name: "area", label: "Area", defaultValue: item.area ?? "", section: "The capability" },
+                    { name: "ownerId", label: "Owner", type: "select", defaultValue: item.ownerId ?? "", options: memberOptions, section: "The capability" },
+                    { name: "exitCriteria", label: "Exit criteria", type: "textarea", defaultValue: item.exitCriteria ?? "", section: "Stage rules" },
+                    { name: "observationDays", label: "Observation window (days)", type: "number", defaultValue: item.observationDays ?? 7, min: 0, max: 90, section: "Stage rules" }
                   ]}
                 />
                 <ResourceActionDialog
                   triggerLabel="Instant rollback"
                   title={`Roll back ${item.name}`}
-                  description="Immediately disables this feature platform-wide and clears its pilot schools. A reason is required and kept in the stage history."
+                  description="The feature is disabled for every school immediately and its pilot schools are cleared. The reason is kept in the stage history."
+                  recorded={{ line: `You · Roll back ${item.name}`, before: `${item.rolloutStatus} · ${item.rolloutPercent}%`, after: "Off" }}
                   endpoint={`/api/super-admin/plans-features/flags/${item.id}/rollback`}
                   method="POST"
                   variant="menuDanger"
                   submitLabel="Roll back now"
-                  confirmLabel="Confirm rollback"
-                  confirmMessage="This disables the feature for every school immediately."
                   fields={[{ name: "reason", label: "Why it is being rolled back", type: "textarea", required: true }]}
                 />
               </ActionMenu>

@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Param, Patch, Post, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -62,6 +62,31 @@ export class TemplatesController {
   @Delete("mappings/:id")
   removeMapping(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
     return ok(this.templates.removeMapping(s, id), "Mapping removed");
+  }
+
+  @Get("class-assignments")
+  classAssignments(@Query("schoolId") schoolId?: string) {
+    return ok(this.templates.classAssignments(schoolId), "Class assignments loaded");
+  }
+
+  @Get("class-options")
+  classOptions() {
+    return ok(this.templates.classOptions(), "Classes loaded");
+  }
+
+  @Post("class-assignments")
+  assignClass(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.templates.assignClass(session, body), "Class assigned to a template version");
+  }
+
+  @Post("class-assignments/:classId/clear")
+  clearClassAssignment(@CurrentSession() session: SessionPayload, @Param("classId") classId: string) {
+    return ok(this.templates.clearClassAssignment(session, classId), "Class put back on the school's own version");
+  }
+
+  @Get("templates/:id/schools")
+  schoolsUsing(@Param("id") id: string) {
+    return ok(this.templates.schoolsUsing(id), "Schools using this template");
   }
 
   @Post("country-profiles")

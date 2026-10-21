@@ -96,6 +96,20 @@ export class PlansFeaturesController {
   cancelPrice(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
     return ok(this.service.cancelPrice(session, id), "Price change cancelled");
   }
+
+  @Get("price-locks")
+  @UseGuards(SessionGuard, RolesGuard)
+  @Roles(...planRoles)
+  priceLocks() {
+    return ok(this.service.priceLocks(), "Price locks loaded");
+  }
+
+  @Post("price-locks/:schoolId/release")
+  @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
+  @Roles(...planRoles)
+  releasePriceLock(@CurrentSession() session: SessionPayload, @Param("schoolId") schoolId: string) {
+    return ok(this.service.releasePriceLock(session, schoolId), "Price released");
+  }
 }
 
 /** What the signed-in school may use — read by the school's own app. */

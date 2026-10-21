@@ -2,9 +2,11 @@ import { Globe2 } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
+import { formatDate } from "@/lib/utils/formatters";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
 import { CurriculumTemplatesTable, GradingScalesTable, ReportCardsTable } from "./_template-tables";
@@ -46,7 +48,7 @@ function countryFields(row?: SuperAdminConfigLibrary["profiles"][number]) {
   return [
     { name: "country", label: "Country", required: true, defaultValue: row?.country ?? "", section: "Identity" },
     { name: "currency", label: "Currency (3 letters)", required: true, defaultValue: row?.currency ?? "NGN", section: "Identity" },
-    { name: "isLive", label: "Schools are being set up here", type: "select" as const, defaultValue: String(row?.isLive ?? false), options: [{ label: "Yes — live", value: "true" }, { label: "No — not yet", value: "false" }], section: "Identity" },
+    { name: "isLive", label: "Schools are being set up here", type: "switch" as const, on: (String(row?.isLive ?? false)) === "true", note: "Signup is open for this country, using its phone pattern and currency", section: "Identity" },
     { name: "phonePattern", label: "Phone pattern (regular expression)", defaultValue: row?.phonePattern ?? "", section: "Phone and channel" },
     { name: "phonePrefixes", label: "Network prefixes (comma-separated)", type: "textarea" as const, parse: "csv" as const, defaultValue: row?.phonePrefixes.join(", ") ?? "", section: "Phone and channel" },
     { name: "defaultChannel", label: "Default parent channel", type: "select" as const, defaultValue: row?.defaultChannel ?? "", options: [{ label: "Not set", value: "" }, { label: "SMS", value: "SMS" }, { label: "Email", value: "EMAIL" }, { label: "WhatsApp", value: "WHATSAPP" }], section: "Phone and channel" },
@@ -58,6 +60,18 @@ function countryFields(row?: SuperAdminConfigLibrary["profiles"][number]) {
   ];
 }
 
+type ClassAssignmentRow = {
+  id: string;
+  schoolId: string;
+  school: string;
+  classId: string;
+  className: string;
+  templateId: string;
+  template: string;
+  version: string;
+  assignedAt: string;
+};
+
 function tabHref(tab: string) {
   return tab === "curricula" ? "/super-admin/config-library" : `/super-admin/config-library?tab=${tab}`;
 }
@@ -65,6 +79,10 @@ function tabHref(tab: string) {
 export default async function SuperAdminConfigLibraryPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab = "curricula" } = searchParams ? await searchParams : {};
   const data = await apiGet<SuperAdminConfigLibrary>("/api/super-admin/config-library");
+  const [classAssignments, classOptions] = await Promise.all([
+    apiGet<ClassAssignmentRow[]>("/api/super-admin/config-library/class-assignments").catch(() => [] as ClassAssignmentRow[]),
+    apiGet<Array<{ value: string; label: string }>>("/api/super-admin/config-library/class-options").catch(() => [] as Array<{ value: string; label: string }>)
+  ]);
 
   // Defensive fetch: this endpoint lives in its own newly-added module, so if it's ever
   // unreachable (e.g. not yet deployed) the rest of the page still renders.
@@ -93,12 +111,12 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
         action={
           <ResourceActionDialog
             triggerLabel="New template"
-            title="Curriculum & Academics"
-            description="The master library every school draws a copy from."
+            title="New master template"
+            description="Starts a draft. It becomes available to new schools only once it is validated and published — and a published version is never edited again, a new version is made instead."
             endpoint="/api/super-admin/config-library/curricula"
             submitLabel="Save draft"
             variant="heroWhite"
-            fields={[
+            note="No template reaches a school until it is validated and published, and a published version is never edited again." fields={[
               { name: "name", label: "Template name", required: true, placeholder: "e.g. Nigerian Standard (NERDC)", section: "Identity" },
               { name: "country", label: "Country", type: "select", required: true, options: data.profiles.map((profile) => ({ label: profile.country, value: profile.country })), note: "A country needs a profile (Country Settings) before a template can be validated.", section: "Identity" },
               { name: "version", label: "Version", required: true, defaultValue: "1.0", section: "Identity" },
@@ -177,11 +195,74 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
         </section>
 
         <TableCard
+          title="Classes pinned to a version"
+          description="A class running a named template version of its own, rather than whatever its school adopted. This is what lets a leaving year finish on the syllabus it was taught."
+          items={classAssignments}
+          pageSize={false}
+          getRowKey={(row) => row.id}
+          emptyState="No class is pinned. Every class runs the version its school adopted at setup, which is the right answer until a school is mid-change."
+          actions={
+            <ResourceActionDialog
+              triggerLabel="Pin a class"
+              title="Pin a class to a template version"
+              description="The class runs this version whatever its school adopts afterwards, until the pin is removed."
+              endpoint="/api/super-admin/config-library/class-assignments"
+              variant="secondary"
+              submitLabel="Pin the class"
+              fields={[
+                { name: "classId", label: "Class", type: "select", required: true, section: "What to pin", options: classOptions, note: classOptions.length ? undefined : "No active class was found to pin." },
+                { name: "templateId", label: "Template version", type: "select", required: true, section: "What to pin", options: data.curricula.filter((row) => row.lifecycle !== "DRAFT").map((row) => ({ label: `${row.name} ${row.version} · ${row.lifecycle.toLowerCase()}`, value: row.id })), note: "A draft is not offered — nothing should be taught against a version that has not been validated." }
+              ]}
+              impact={{
+                label: "Once pinned",
+                rows: [
+                  ["Only this class moves", "Every other class in the school carries on with what the school adopted."],
+                  ["It survives the school adopting a new version", "That is the point: the pin is what the class is running, and it outranks the school's own."],
+                  ["Removable at any time", "Clearing the pin puts the class straight back on its school's version."]
+                ]
+              }}
+              note="Pin a class only when it genuinely needs a different syllabus from the rest of its school — usually a cohort finishing what it started."
+            />
+          }
+          columns={[
+            { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+            { key: "class", header: "Class", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.className}</span> },
+            { key: "template", header: "Running", render: (row) => <span className="text-[var(--color-text-primary)]">{row.template} <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{row.version}</span></span> },
+            { key: "at", header: "Pinned", render: (row) => <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(row.assignedAt)}</span>, sortValue: (row) => row.assignedAt },
+            {
+              key: "clear",
+              header: "",
+              render: (row) => (
+                <ResourceActionDialog
+                  triggerLabel="Unpin"
+                  title={`Unpin ${row.className}`}
+                  description="The class goes back to running whatever its school adopted."
+                  endpoint={`/api/super-admin/config-library/class-assignments/${row.classId}/clear`}
+                  variant="secondary"
+                  submitLabel="Unpin the class"
+                  fields={[
+                    { name: "_class", label: "Class", type: "static", placeholder: `${row.school} · ${row.className}`, section: "What you are unpinning" },
+                    { name: "_running", label: "Currently running", type: "static", placeholder: `${row.template} ${row.version}`, section: "What you are unpinning" }
+                  ]}
+                  impact={{
+                    label: "On unpinning",
+                    rows: [
+                      ["Back on the school's version", "Whatever the school adopted, from the next computation."],
+                      ["Nothing already recorded changes", "Results worked out while the pin was on stay as they were."]
+                    ]
+                  }}
+                />
+              )
+            }
+          ]}
+        />
+
+        <TableCard
           title="Versioning requirements"
           description="Checked against the real template-update code, not the aspiration."
           items={[
             { requirement: "Templates are versioned", spec: "Enforced — a template is a name plus a version. Publishing a new version supersedes the Active one; a validated or published version cannot be edited, only copied into a new draft. Effective-from is kept.", state: "good" },
-            { requirement: "Assignment is per class", spec: "Not built — a copy is taken per school at setup. There is no link from a class or cohort to a template version, so two classes cannot run different versions.", state: "bad" },
+            { requirement: "Assignment is per class", spec: "Enforced — a class can be pinned to a named template version of its own, so a leaving year can finish on the syllabus it was taught while the intake below it starts on the new one. A class with no pin runs whatever its school adopted, and a draft cannot be pinned to anything.", state: "good" },
             { requirement: "Historical results are immutable", spec: "Partly — a school owns its copy, so publishing a new version cannot change a school's past results. A score record still carries no curriculum-version tag of its own.", state: "warn" },
             { requirement: "Migration path is explicit", spec: "Enforced as data — subject mappings (renamed, merged, split) are recorded between versions of the same template and checked against both subject lists.", state: "good" },
             { requirement: "Schools are notified, not forced", spec: "Partly — schools are never forced: they keep their copy. They are not notified of a new version either; nothing tells a school one exists.", state: "warn" }
@@ -340,6 +421,19 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 No stage or subject structure has been entered for this template yet. Each table below fills from the template once a Product Lead adds it; until then it is empty rather than assumed.</p>
             </div>
           </section>
+          <ReferenceList
+            title="Nigerian template defaults"
+            sub="Shipped configuration — the school confirms or changes it during setup"
+            items={[
+              { label: "Seven components", detail: "Assignment, classwork, two tests, project and practical at 10 each, and a terminal exam at 40", tone: "teal" },
+              { label: "Term aggregation: weighted sum to a score out of 100", detail: "The only rule that exists; each term stands alone", tone: "teal" },
+              { label: "Position: computed within class, and arm where used", detail: "Never platform-wide", tone: "teal" },
+              { label: "Ties: equal position, next position skipped", detail: "Not configurable per school", tone: "teal" },
+              { label: "Absent: recorded as absent, never as zero", detail: "A distinct flag, separate from a numeric score", tone: "teal" },
+              { label: "Rounding: two decimals", detail: "Applied to every computed total and average; not configurable", tone: "teal" }
+            ]}
+          />
+
           <TableCard
             title="Level structure — Nigerian National (NERDC 2025)"
             items={data.curricula.filter((c) => c.country.toLowerCase() === "nigeria")}
@@ -398,7 +492,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 { name: "version", label: "Version", required: true, defaultValue: "1.0", section: "Identity" },
                 { name: "passMark", label: "Pass mark", type: "number", defaultValue: 40, min: 0, max: 100, section: "Identity" },
                 { name: "applicableCurricula", label: "Applicable curricula (comma-separated template names)", parse: "csv", note: "A new school in the country of a curriculum named here is given a copy once this scale is published.", section: "Configuration" },
-                { name: "gradeBands", label: "Grade bands (JSON array)", type: "textarea", parse: "json", required: true, defaultValue: "[\n  { \"grade\": \"A1\", \"min\": 75, \"max\": 100, \"remark\": \"Excellent\" }\n]", section: "Configuration" }
+                { name: "gradeBands", label: "Grade bands — one per line", type: "textarea", parse: "bands", required: true, defaultValue: "A1 | 75-100 | Excellent", note: "Write each band as: grade | from-to | remark. The bands must cover 0 to 100 with no gap or overlap before the scale can be validated.", section: "Configuration" }
               ]}
             />
           }
@@ -456,36 +550,6 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             ]}
             emptyState="No country has a profile yet."
             footnote={data.unprofiled.length ? `Schools exist in ${data.unprofiled.map((row) => `${row.country} (${row.schools})`).join(", ")} with no profile — add one.` : "Every country that has a school has a profile."}
-          />
-
-          <TableCard
-            title="Where each country field is read"
-            description="Each field a country profile holds, and whether anything in the platform reads it yet. Recording a field is not the same as enforcing it."
-            items={[
-              { field: "currency", purpose: "Formatting, invoicing, reporting", state: "Recorded — finance and pricing code still falls back to NGN directly rather than reading the profile.", tone: "warn" },
-              { field: "phone_pattern / phone_prefixes", purpose: "Valid patterns and recognised network prefixes", state: "Recorded — signup's phone check still uses the built-in Nigerian pattern; the profile's pattern is not yet applied.", tone: "warn" },
-              { field: "education_authority", purpose: "Name of the education regulator", state: "Recorded as reference — no screen or check reads it yet.", tone: "warn" },
-              { field: "registration_authority", purpose: "Name of the business registration body", state: "Recorded as reference — the NGO plan's CAC wording is still a literal in plan copy.", tone: "warn" },
-              { field: "default_channel", purpose: "Dominant parent notification channel", state: "Recorded as reference — delivery sends on the channel a message is queued for; it does not consult this.", tone: "warn" },
-              { field: "consent_age", purpose: "Age below which a guardian must consent", state: "Recorded as reference — guardian consent is captured per family; the age is not enforced anywhere.", tone: "warn" },
-              { field: "data_protection_regime", purpose: "Which framework applies", state: "Recorded — shown on this page; Security & Compliance's own obligations are authored separately.", tone: "warn" },
-              { field: "verification_sources[]", purpose: "Which public checks a reviewer can perform here", state: "Recorded as reference — the school risk review shows its own fixed checks.", tone: "warn" },
-              { field: "blocked_address_terms[]", purpose: "Reserved and offensive web-address terms", state: "Real, but global — a platform-wide list in the web-address registry, not per country.", tone: "warn" },
-              { field: "currency / timezone defaults on a school", purpose: "Per-school formatting", state: "Real — set on each school at signup.", tone: "good" }
-            ]}
-            getRowKey={(row) => row.field}
-            columns={[
-              { key: "field", header: "Field", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{row.field}</span> },
-              { key: "purpose", header: "Purpose", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.purpose}</span> },
-              {
-                key: "state",
-                header: "Read by the platform",
-                render: (row) => {
-                  const tone = row.tone === "good" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)" } : { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" };
-                  return <span className="inline-block rounded-[7px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
-                }
-              }
-            ]}
           />
         </div>
       ) : null}

@@ -69,6 +69,11 @@ export function checkBands(bands: Band[], passMark: number): string[] {
 
 const platformSubjectKey = (value: string) => value.trim().toLowerCase();
 
+const assignSchema = z.object({
+  classId: z.string().trim().min(1, "Choose a class."),
+  templateId: z.string().trim().min(1, "Choose a template version."),
+});
+
 @Injectable()
 export class TemplatesService {
   private async audit(session: SessionPayload | null, action: AuditAction, entityType: string, entityId: string, metadata: Prisma.InputJsonValue) {
@@ -270,6 +275,135 @@ export class TemplatesService {
 
   async recordAdoption(schoolId: string, rows: Array<{ kind: "GRADING" | "CURRICULUM"; templateId: string; templateName: string; version: string }>) {
     if (rows.length) await prisma.templateAdoption.createMany({ data: rows.map((row) => ({ schoolId, ...row })) });
+  }
+
+  /* ─────────────────── assignment per class ─────────────────── */
+
+  /**
+   * Which template version each class is running.
+   *
+   * A school adopts a template as a whole, which is fine until a school is
+   * mid-change: the leaving year sits an examination against the syllabus it
+   * was taught, while the intake below it starts on the new one. Without a row
+   * per class the only answer available is "whatever the school adopted", and
+   * the two cohorts cannot be told apart. A class with no row runs the school's
+   * own adoption, so nothing has to be assigned for a school to work.
+   */
+  async classAssignments(schoolId?: string) {
+    const rows = await prisma.classTemplateAssignment.findMany({
+      where: schoolId ? { schoolId } : {},
+      orderBy: { assignedAt: "desc" },
+      take: 300,
+    });
+    const [schools, classes] = await Promise.all([
+      prisma.school.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.schoolId))] } }, select: { id: true, name: true } }),
+      prisma.classRoom.findMany({ where: { id: { in: rows.map((r) => r.classId) } }, select: { id: true, name: true, arm: true } }),
+    ]);
+    const schoolName = new Map(schools.map((row) => [row.id, row.name]));
+    const className = new Map(classes.map((row) => [row.id, row.arm ? `${row.name} ${row.arm}` : row.name]));
+    return rows.map((row) => ({
+      id: row.id,
+      schoolId: row.schoolId,
+      school: schoolName.get(row.schoolId) ?? "A removed school",
+      classId: row.classId,
+      className: className.get(row.classId) ?? "A removed class",
+      templateId: row.templateId,
+      template: row.templateName,
+      version: row.version,
+      assignedAt: row.assignedAt.toISOString(),
+    }));
+  }
+
+  /**
+   * Every class that could be pinned, labelled by its school.
+   *
+   * Flat rather than school-then-class because the control that uses it is a
+   * single select; a deployment with enough schools to make this unwieldy wants
+   * a search, which this list is the data behind either way.
+   */
+  async classOptions() {
+    const rows = await prisma.classRoom.findMany({
+      where: { isActive: true, deletedAt: null, school: { deletedAt: null } },
+      select: { id: true, name: true, arm: true, school: { select: { name: true } } },
+      orderBy: [{ school: { name: "asc" } }, { displayOrder: "asc" }, { name: "asc" }],
+      take: 500,
+    });
+    return rows.map((row) => ({
+      value: row.id,
+      label: `${row.school.name} · ${row.arm ? `${row.name} ${row.arm}` : row.name}`,
+    }));
+  }
+
+  /** Put one class on a named template version. Re-assigning replaces the row. */
+  async assignClass(session: SessionPayload, body: unknown) {
+    const input = assignSchema.parse(body);
+    const klass = await prisma.classRoom.findUnique({ where: { id: input.classId }, select: { id: true, name: true, arm: true, schoolId: true } });
+    if (!klass) throw new NotFoundException("That class does not exist.");
+    const template = await prisma.curriculumTemplate.findUnique({ where: { id: input.templateId }, select: { id: true, name: true, version: true, lifecycle: true } });
+    if (!template) throw new NotFoundException("That template version does not exist.");
+    // A draft has not been checked yet; putting a class on one would mean
+    // teaching against a syllabus nobody has validated.
+    if (template.lifecycle === "DRAFT") throw new BadRequestException("A draft cannot be assigned to a class. Validate and publish it first.");
+    const row = await prisma.classTemplateAssignment.upsert({
+      where: { classId: input.classId },
+      create: {
+        schoolId: klass.schoolId,
+        classId: klass.id,
+        templateId: template.id,
+        templateName: template.name,
+        version: template.version,
+        assignedById: session.userId,
+      },
+      update: { templateId: template.id, templateName: template.name, version: template.version, assignedById: session.userId, assignedAt: new Date() },
+    });
+    await this.audit(session, "UPDATE", "ClassTemplateAssignment", row.id, { class: klass.arm ? `${klass.name} ${klass.arm}` : klass.name, template: template.name, version: template.version });
+    return { id: row.id, className: klass.arm ? `${klass.name} ${klass.arm}` : klass.name, template: template.name, version: template.version };
+  }
+
+  /** Put the class back on whatever its school adopted. */
+  async clearClassAssignment(session: SessionPayload, classId: string) {
+    const row = await prisma.classTemplateAssignment.findUnique({ where: { classId } });
+    if (!row) throw new NotFoundException("That class is not on a version of its own.");
+    await prisma.classTemplateAssignment.delete({ where: { classId } });
+    await this.audit(session, "DELETE", "ClassTemplateAssignment", row.id, { cleared: true, template: row.templateName, version: row.version });
+    return { classId, cleared: true };
+  }
+
+  /**
+   * The version a class is actually running — its own if it has one, else the
+   * school's adoption. This is the function anything computing results against
+   * a syllabus should ask.
+   */
+  async versionForClass(classId: string) {
+    const own = await prisma.classTemplateAssignment.findUnique({ where: { classId } });
+    if (own) return { templateId: own.templateId, template: own.templateName, version: own.version, source: "class" as const };
+    const klass = await prisma.classRoom.findUnique({ where: { id: classId }, select: { schoolId: true } });
+    if (!klass) return null;
+    const adopted = await prisma.templateAdoption.findFirst({ where: { schoolId: klass.schoolId, kind: "CURRICULUM" }, orderBy: { adoptedAt: "desc" } });
+    if (!adopted) return null;
+    return { templateId: adopted.templateId, template: adopted.templateName, version: adopted.version, source: "school" as const };
+  }
+
+  /** Every school running a given template, for the template's own row. */
+  async schoolsUsing(templateId: string) {
+    const [adoptions, classRows] = await Promise.all([
+      prisma.templateAdoption.findMany({ where: { templateId }, orderBy: { adoptedAt: "desc" } }),
+      prisma.classTemplateAssignment.findMany({ where: { templateId } }),
+    ]);
+    const ids = [...new Set([...adoptions.map((r) => r.schoolId), ...classRows.map((r) => r.schoolId)])];
+    const schools = await prisma.school.findMany({ where: { id: { in: ids } }, select: { id: true, name: true, plan: true } });
+    return schools.map((school) => {
+      const adopted = adoptions.find((row) => row.schoolId === school.id);
+      const classes = classRows.filter((row) => row.schoolId === school.id).length;
+      return {
+        schoolId: school.id,
+        school: school.name,
+        plan: school.plan as string,
+        adoptedAt: adopted?.adoptedAt.toISOString() ?? null,
+        classesPinned: classes,
+        how: adopted && classes ? "Adopted, with classes pinned to it" : adopted ? "Adopted at setup" : "Pinned on individual classes only",
+      };
+    });
   }
 }
 
