@@ -233,6 +233,7 @@ async function PlatformTab() {
             { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
             { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> }
           ]}
+          footnote="Data is never deleted at any of these stages. Access narrows and the web address can be released; the records stay."
         />
       </section>
 
@@ -312,6 +313,7 @@ async function DefaultsTab() {
           },
           { key: "where", header: "Where it lives", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.where}</span> }
         ]}
+        footnote="The last two cannot be switched off by anyone, at any tier, for any reason. A school must always be able to see what was done in its workspace and to take its data with it."
       />
 
       <TableCard
@@ -427,6 +429,7 @@ async function NotificationsTab() {
           }
         ]}
         emptyState="No rules recorded."
+        footnote="The last row is not a switch that is turned off. There is no code path that sends it, which is why it can be stated as a fact rather than a policy."
       />
       <ReferenceList
         title="Providers in use"
@@ -477,6 +480,7 @@ async function SecurityTab() {
         }
       ]}
       emptyState="No requirements recorded."
+      footnote="Nothing on this page is adjustable from this screen. A control that can be relaxed under pressure is not a control — these change in code and ship with a release."
     />
   );
 }
@@ -490,6 +494,17 @@ const integrationPurpose: Record<string, string> = {
   "Object storage (S3-compatible)": "Files and source exports"
 };
 
+// The health check names a service after whichever provider is wired in — "SMS
+// (Termii)" rather than "SMS" — so an exact-key lookup silently lost the purpose
+// of any row whose provider is named. Fall back to the longest key the name starts with.
+function purposeOf(name: string) {
+  if (integrationPurpose[name]) return integrationPurpose[name];
+  const key = Object.keys(integrationPurpose)
+    .filter((candidate) => name.startsWith(candidate))
+    .sort((a, b) => b.length - a.length)[0];
+  return key ? integrationPurpose[key] : "—";
+}
+
 async function IntegrationsTab() {
   const monitoring = await apiGet<SuperAdminInfraMonitoring>("/api/super-admin/system/monitoring");
 
@@ -502,12 +517,13 @@ async function IntegrationsTab() {
       getRowKey={(item) => item.name}
       columns={[
         { key: "name", header: "Service", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10px] text-[var(--color-text-muted)]">Checked {item.checkFrequency.toLowerCase()}</p></div> },
-        { key: "purpose", header: "Purpose", render: (item) => integrationPurpose[item.name] ?? "—" },
+        { key: "purpose", header: "Purpose", render: (item) => purposeOf(item.name) },
         { key: "onFailure", header: "If it fails", render: (item) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{item.onFailure}</span> },
         { key: "owner", header: "Owner", render: () => <span className="text-[var(--color-text-muted)]">Not tracked</span> },
         { key: "status", header: "State", render: (item) => <StatusBadge status={item.status} tone={integrationStatusTone(item.status)} /> }
       ]}
       emptyState="No integrations recorded."
+      footnote="“If it fails” is the column that matters: a dependency whose failure has no stated answer is one nobody has thought through yet."
     />
   );
 }
