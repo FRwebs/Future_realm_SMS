@@ -61,9 +61,9 @@ export default async function MigrationPage({ searchParams }: { searchParams?: P
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Schools & Revenue"
+        eyebrow="MODULE 14"
         title="Onboarding & Migration"
         description="Move a school’s entire history across, and prove nothing was lost."
         action={<NewMigrationJobAction />}
@@ -73,7 +73,7 @@ export default async function MigrationPage({ searchParams }: { searchParams?: P
 
       {tab === "jobs" ? <JobsTab jobs={jobs} /> : null}
       {tab === "setup" ? <SetupProgressTab progress={setupProgress} /> : null}
-      {tab === "invitations" ? <InvitationsTab jobs={invitations} params={params} /> : null}
+      {tab === "invitations" ? <InvitationsTab params={params} /> : null}
       {tab === "adapters" ? <SourceAdaptersTab /> : null}
     </div>
   );
@@ -141,7 +141,7 @@ function JobsTab({ jobs }: { jobs: MigrationJobRow[] }) {
   const open = jobs.filter((job) => !["COMPLETED", "ROLLED_BACK", "SIGNED_OFF"].includes(job.status)).length;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Jobs in progress" value={active.length} detail={`Across ${sources} source system${sources === 1 ? "" : "s"}`} tone="dark" icon={Database} />
         <StatCard label="Blocked over 48 hours" value={blockedOver48h} detail="Waiting 48 hours with no movement · raises churn risk" tone={blockedOver48h > 0 ? "danger" : "success"} icon={TriangleAlert} />
@@ -197,7 +197,7 @@ async function RetentionTable() {
             const tone = tones[job.state];
             return (
               <div className="grid gap-1.5">
-                <span className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}{job.state === "HELD" ? ` · ${job.daysLeft}d` : ""}</span>
+                <span className="inline-flex w-fit items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}{job.state === "HELD" ? ` · ${job.daysLeft}d` : ""}</span>
                 <div className="flex gap-3">
                   <ResourceActionDialog triggerLabel="Confirm deleted" title={`Confirm the files are deleted — ${job.school}`} description="Record how and where the source files were destroyed. This is the evidence." endpoint={`/api/super-admin/migration/jobs/${job.id}/retention/deleted`} method="POST" variant="textAction" submitLabel="Record deletion" fields={[{ name: "evidence", label: "Evidence", type: "textarea", required: true, placeholder: "e.g. Removed from the shared drive and the specialist’s laptop on 21 Oct; checked by Ife S." }]} />
                   <ResourceActionDialog triggerLabel="Extend" title={`Extend retention — ${job.school}`} description="The school is told, with your reason." endpoint={`/api/super-admin/migration/jobs/${job.id}/retention/extend`} method="POST" variant="textAction" submitLabel="Extend and tell the school" fields={[
@@ -226,7 +226,7 @@ async function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgres
   }, null);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Schools in setup" value={totalSchools} detail="Provisioned or in trial." tone="dark" icon={School} />
         <StatCard label="Setup complete" value={fullyComplete} detail={totalSchools > 0 ? `${Math.round((fullyComplete / totalSchools) * 100)}% of the cohort` : "No schools yet"} tone="success" icon={Check} />
@@ -263,41 +263,26 @@ async function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgres
           ]}
         />
 
-        <section className="surface-card p-6">
-          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Stalled schools — outreach queue</p>
-          <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Incomplete setup after 5 days alerts the assigned Account Manager</p>
-          {progress.stalled.length === 0 ? (
-            <p className="py-8 text-center text-[11.5px] text-[var(--color-text-muted)]">No school has been stalled past 5 days.</p>
-          ) : (
-            <div className="mt-4 grid gap-2">
-              {progress.stalled.map((item) => {
-                const urgent = item.daysSinceSignup >= 8;
-                const tone = urgent ? "var(--color-danger)" : "var(--color-warning)";
-                return (
-                  <div key={item.schoolId ?? item.schoolName} className="flex items-start gap-2.5 rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-3">
-                    <span className="mt-[5px] h-2 w-2 shrink-0 rounded-[2.5px]" style={{ background: tone }} />
-                    <div className="min-w-0 flex-1">
-                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.schoolName}</p>
-                      <p className="mt-1 text-[10.5px] text-[var(--color-text-secondary)]">
-                        Stalled at step {item.stalledStep ?? "?"} · {item.daysSinceSignup} day{item.daysSinceSignup === 1 ? "" : "s"} · {item.accountManager ?? "Unassigned"}
-                      </p>
-                    </div>
-                    {item.schoolId ? (
-                      item.accountManager ? (
-                        <ResourceActionDialog triggerLabel="Contact" title={`Contact ${item.schoolName}`} description={`Emails the school’s owner about step ${item.stalledStep}: ${item.stalledLabel}. Leave the message empty to send the standard prompt.`} endpoint="/api/super-admin/migration/setup-progress/nudge" method="POST" variant="textAction" submitLabel="Send" fields={[
-                          { name: "schoolId", label: "School", type: "select", defaultValue: item.schoolId, options: [{ label: item.schoolName, value: item.schoolId }] },
-                          { name: "message", label: "Message", type: "textarea", placeholder: "Optional — a personal note instead of the standard prompt" }
-                        ]} />
-                      ) : (
-                        <ResourceActionDialog triggerLabel="Assign" title={`Assign an Account Manager — ${item.schoolName}`} description="Someone has to own this school’s setup." endpoint={`/api/super-admin/schools/${item.schoolId}/account-manager`} method="POST" variant="textAction" submitLabel="Assign" fields={[{ name: "accountManagerEmail", label: "Account Manager", type: "select", options: managerOptions, required: true }]} />
-                      )
-                    ) : null}
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </section>
+        <ReferenceList
+          title="Stalled schools — outreach queue"
+          sub="Incomplete setup after 5 days alerts the assigned Account Manager"
+          emptyText="No school has been stalled past 5 days."
+          items={progress.stalled.map((item) => ({
+            label: item.schoolName,
+            detail: `Stalled at step ${item.stalledStep ?? "?"} · ${item.daysSinceSignup} day${item.daysSinceSignup === 1 ? "" : "s"} · ${item.accountManager ?? "Unassigned"}`,
+            tone: item.daysSinceSignup >= 8 ? ("bad" as const) : ("warn" as const),
+            action: item.schoolId ? (
+              item.accountManager ? (
+                <ResourceActionDialog triggerLabel="Contact" title={`Contact ${item.schoolName}`} description={`Emails the school’s owner about step ${item.stalledStep}: ${item.stalledLabel}. Leave the message empty to send the standard prompt.`} endpoint="/api/super-admin/migration/setup-progress/nudge" method="POST" variant="textAction" submitLabel="Send" fields={[
+                                          { name: "schoolId", label: "School", type: "select", defaultValue: item.schoolId, options: [{ label: item.schoolName, value: item.schoolId }] },
+                                          { name: "message", label: "Message", type: "textarea", placeholder: "Optional — a personal note instead of the standard prompt" }
+                                        ]} />
+              ) : (
+                <ResourceActionDialog triggerLabel="Assign" title={`Assign an Account Manager — ${item.schoolName}`} description="Someone has to own this school’s setup." endpoint={`/api/super-admin/schools/${item.schoolId}/account-manager`} method="POST" variant="textAction" submitLabel="Assign" fields={[{ name: "accountManagerEmail", label: "Account Manager", type: "select", options: managerOptions, required: true }]} />
+              )
+            ) : undefined
+          }))}
+        />
       </section>
     </div>
   );
@@ -318,7 +303,7 @@ const invitationState = {
   CANCELLED: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Cancelled" }
 } as const;
 
-async function InvitationsTab({ jobs, params }: { jobs: MigrationJobRow[]; params: Record<string, string | undefined> }) {
+async function InvitationsTab({ params }: { params: Record<string, string | undefined> }) {
   const query = new URLSearchParams();
   for (const key of ["schoolId", "role", "state", "age"]) if (params[key]) query.set(key, params[key] as string);
   const [data, schools] = await Promise.all([
@@ -328,7 +313,7 @@ async function InvitationsTab({ jobs, params }: { jobs: MigrationJobRow[]; param
   const reasonChoice = (field: string, label: string, reasons: string[]) => ({ field, label, options: reasons.map((reason) => ({ label: reason, value: reason })) });
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="Invitation operations"
         description="Back-office controls for accounts Nooria creates after a closed deal — resend limits are enforced by the system at five per account per 24 hours."
@@ -364,7 +349,7 @@ async function InvitationsTab({ jobs, params }: { jobs: MigrationJobRow[]; param
           { key: "role", header: "Role", render: (row) => row.roleLabel },
           { key: "resends", header: "Resends", render: (row) => <span title={`${row.sentToday} of ${data.limit} links used in the last 24 hours`}>{row.resends}</span> },
           { key: "issued", header: "Issued", render: (row) => <span>{formatDate(row.issuedAt)}<span className="block text-[10px] text-[var(--color-text-muted)]">{row.ageDays} day{row.ageDays === 1 ? "" : "s"} ago</span></span>, sortValue: (row) => row.issuedAt },
-          { key: "state", header: "State", render: (row) => { const tone = invitationState[row.state]; return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>; } },
+          { key: "state", header: "State", render: (row) => { const tone = invitationState[row.state]; return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>; } },
           {
             key: "action",
             header: "Action",
@@ -398,26 +383,7 @@ async function InvitationsTab({ jobs, params }: { jobs: MigrationJobRow[]; param
         ]}
       />
 
-      <MigrationInvitations jobs={jobs} />
     </div>
-  );
-}
-
-function MigrationInvitations({ jobs }: { jobs: MigrationJobRow[] }) {
-  return (
-    <TableCard
-      title="Migration jobs awaiting files"
-      description="A migration job sits at Invited until the school’s source files arrive. This is separate from account invitations above."
-      items={jobs}
-      emptyState="No migration job is waiting. Every job has already moved past the invitation stage."
-      columns={[
-        { key: "schoolName", header: "School", render: (job) => <div><p className="font-semibold text-[var(--color-text-primary)]">{job.schoolName}</p><p className="text-xs text-[var(--color-text-muted)]">{job.sourceSystem}</p></div> },
-        { key: "specialist", header: "Specialist", render: (job) => job.specialistName ?? "Unassigned" },
-        { key: "expected", header: "Expected records", render: (job) => ((job.studentsExpected ?? 0) + (job.resultsExpected ?? 0)).toLocaleString() },
-        { key: "createdAt", header: "Invited", render: (job) => formatDate(job.createdAt) },
-        { key: "actions", header: "Actions", sortable: false, render: (job) => <ResourceActionDialog triggerLabel="Mark files received" title={`Mark files received — ${job.schoolName}`} description="Confirms the school's historical data files have arrived and moves this job into active migration." endpoint={`/api/super-admin/migration/jobs/${job.id}/files-received`} method="POST" variant="secondary" submitLabel="Confirm receipt" fields={[]} /> }
-      ]}
-    />
   );
 }
 
@@ -461,7 +427,7 @@ async function SourceAdaptersTab() {
                   : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
             return (
               <div className="grid gap-1">
-                <span className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{adapter.status}</span>
+                <span className="inline-flex w-fit items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{adapter.status}</span>
                 <ResourceActionDialog triggerLabel="Edit" title={`Edit ${adapter.name}`} description="Update how this source is read." endpoint={`/api/super-admin/migration/source-adapters/${adapter.id}`} method="PATCH" variant="textAction" submitLabel="Save" fields={fields(adapter)} />
               </div>
             );

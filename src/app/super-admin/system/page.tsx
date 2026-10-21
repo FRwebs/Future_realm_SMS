@@ -35,16 +35,16 @@ export default async function SuperAdminSystemPage({ searchParams }: { searchPar
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Platform"
+        eyebrow="MODULE 12"
         title="Infrastructure"
-        description="Health, offline sync queue, result-computation pipeline, delivery & integrations, and backups."
+        description="Know about a problem before any school does."
         action={
           <ResourceActionDialog
             triggerLabel="Run manual backup"
-            title="Run a manual backup"
-            description="Takes a real pg_dump of the whole database now, fingerprints it, and can read it back and restore it into a scratch database to prove it works. A failed run is logged as a high-severity incident and the platform team is emailed."
+            title="Infrastructure"
+            description="Know about a problem before any school does."
             endpoint="/api/super-admin/system/backups"
             method="POST"
             variant="heroWhite"
@@ -113,7 +113,7 @@ function formatUptime(minutes: number) {
 function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
   const rt = data.runtime;
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
         <StatCard label="API uptime (30d)" value={`${data.uptime.apiUptime}%`} detail={`${data.uptime.requestsLast24h.toLocaleString()} requests · target 99.5%`} tone="dark" icon={Server} />
         <StatCard label="API response (avg)" value={`${data.uptime.avgResponseMs}ms`} detail="Warning above 1.5s" tone={statusTone(data.uptime.responseStatus)} icon={Timer} />
@@ -159,7 +159,7 @@ function UptimeTab({ data }: { data: SuperAdminInfraMonitoring }) {
 
 function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Records queued" value={String(data.syncQueue.pending)} detail="Across all schools" tone="dark" icon={UploadCloud} />
         <StatCard label="Avg queue age" value={`${data.syncQueue.avgQueueAgeHours}h`} detail="Warning above 2 hours" icon={Clock3} tone="neutral" />
@@ -168,7 +168,7 @@ function SyncQueueTab({ data }: { data: SuperAdminInfraMonitoring }) {
         <StatCard label="Schools with pending" value={String(data.syncQueue.schoolsWithPending)} detail="Distinct schools queued" icon={Server} tone="neutral" />
       </section>
 
-      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.4fr_1fr]">
         <TableCard
           title="Per-school sync status"
           description="Unique to the offline-first architecture — the most important technical health indicator on the platform. Oldest queued records first."
@@ -218,7 +218,7 @@ async function DeliveryTab({ data }: { data: SuperAdminInfraMonitoring }) {
   };
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="Notification delivery monitoring"
         description="Infrastructure-level, distinct from Communications' campaign tracking — this answers whether the send actually went through, not whether the message resonated. Failure rate is failed ÷ attempted over the last 30 days; messages still waiting, or simulated before delivery was real, are not counted as either."
@@ -278,7 +278,7 @@ async function ComputationTab() {
   const comp = data.computation;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Trace completeness" value="N/A" detail="Not built — no per-step calculation trace is stored; a run records its size and duration only" tone="neutral" icon={Activity} />
         <StatCard label="Regression suite" value="CI only" detail="The golden-dataset tests run before a release, not at runtime — this page cannot read their result" tone="neutral" icon={FlaskConical} />
@@ -340,7 +340,7 @@ async function ComputationTab() {
         items={[
           { label: "Golden-dataset regression on every deployment", state: "Not tracked at runtime — a CI/deployment concern this page has no visibility into.", tone: "bad" },
           { label: "Computation volume and duration by school", state: "Real — each broadsheet, ranking and report-card run records its school, size and measured duration.", tone: "good" },
-          { label: "Trace completeness", state: "Not built — no calculation-trace concept exists in this codebase.", tone: "bad" },
+          { label: "Trace completeness", state: "Not built — calculation traces are not recorded yet.", tone: "bad" },
           { label: "Recomputation events", state: "Partial — a re-run over an already-computed class and term is counted; the reason is not captured.", tone: "warn" },
           { label: "Assessment frameworks failing validation", state: "Real — checked live against every active school's section weights.", tone: "good" }
         ]}
@@ -352,7 +352,7 @@ async function ComputationTab() {
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.tone as "good" | "warn" | "bad"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -376,7 +376,7 @@ function BackupsTab({ data }: { data: SuperAdminInfraMonitoring }) {
   const age = hoursSince(backups.lastSuccessfulAt);
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3">
         <StatCard label="Last successful backup" value={backups.lastSuccessfulAt ? formatDate(backups.lastSuccessfulAt) : "None logged"} detail={age === null ? "Run one from the button above" : age < 1 ? "Less than an hour ago" : `${age}h ago`} icon={DatabaseBackup} tone={age === null || age > 48 ? "danger" : age > 26 ? "warning" : "dark"} />
         <StatCard label="Last verified" value={backups.lastVerifiedAt ? formatDate(backups.lastVerifiedAt) : "Never"} detail="Archive read back and its fingerprint matched" icon={Activity} tone={backups.lastVerifiedAt ? "neutral" : "warning"} />

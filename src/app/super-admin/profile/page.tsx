@@ -127,26 +127,26 @@ export default async function SuperAdminProfilePage() {
               {session ? roleLabels[session.role] : profile.role.replaceAll("_", " ")} · {profile.email}
             </p>
             <div className="mt-[11.5px] flex flex-wrap items-center gap-[6.5px]">
-              <span className="rounded-full bg-white/[0.14] px-2.5 py-1 text-[10px] font-bold text-white">
+              <span className="rounded-full bg-white/[0.14] px-[9px] py-[3px] text-[11px] font-bold text-white">
                 {session ? roleLabels[session.role] : profile.role.replaceAll("_", " ")}
               </span>
               <span
                 className={
                   profile.isActive
-                    ? "rounded-full bg-[rgba(62,224,138,0.16)] px-2.5 py-1 text-[10px] font-bold text-[#8FE9BB]"
-                    : "rounded-full bg-white/[0.14] px-2.5 py-1 text-[10px] font-bold text-white"
+                    ? "rounded-full bg-[rgba(62,224,138,0.16)] px-[9px] py-[3px] text-[11px] font-bold text-[#8FE9BB]"
+                    : "rounded-full bg-white/[0.14] px-[9px] py-[3px] text-[11px] font-bold text-white"
                 }
               >
                 {profile.accountStatus.replaceAll("_", " ")}
               </span>
-              <span className="rounded-full bg-white/[0.14] px-2.5 py-1 text-[10px] font-bold text-white">
+              <span className="rounded-full bg-white/[0.14] px-[9px] py-[3px] text-[11px] font-bold text-white">
                 {isProduction ? "Production access" : "Development access"}
               </span>
             </div>
           </div>
         </section>
 
-        <article className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
             <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Your details</p>
             <ResourceActionDialog
@@ -178,7 +178,7 @@ export default async function SuperAdminProfilePage() {
           <FieldLine label="Last sign-in" value={profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"} />
         </article>
 
-        <article className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
             <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Recent actions by you</p>
             <p className="whitespace-nowrap text-[10.5px] text-[#8C9A92]">Immutable audit trail</p>
@@ -205,7 +205,7 @@ export default async function SuperAdminProfilePage() {
       </div>
 
       <div className="flex min-w-0 flex-col gap-3.5">
-        <article className="rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
+        <article className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
           <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">What you can do</p>
           <p className="mb-3.5 mt-1 text-[10.5px] leading-[1.5] text-[#8C9A92]">
             Derived from your role&apos;s real permission grant — not editable here.
@@ -217,8 +217,8 @@ export default async function SuperAdminProfilePage() {
                 <span
                   className={
                     row.level === "Full"
-                      ? "shrink-0 rounded-full bg-[var(--color-success-dim)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-success)]"
-                      : "shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-secondary)]"
+                      ? "shrink-0 rounded-full bg-[var(--color-success-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-success)]"
+                      : "shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-secondary)]"
                   }
                 >
                   {row.level}
@@ -230,7 +230,7 @@ export default async function SuperAdminProfilePage() {
           )}
         </article>
 
-        <article className="rounded-[12.5px] border border-[#E1EBE5] bg-[var(--color-bg-subtle)] p-[16px]">
+        <article className="rounded-[14px] border border-[#E1EBE5] bg-[var(--color-bg-subtle)] p-[16px]">
           <p className="mb-3 text-[12px] font-semibold text-[var(--color-text-primary)]">Your portfolio</p>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2 first:border-t-0">
             <p className="text-[11px] text-[#77857C]">Active sessions</p>
@@ -250,7 +250,7 @@ export default async function SuperAdminProfilePage() {
           </div>
         </article>
 
-        <article className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
             <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Sessions &amp; security</p>
           </div>
@@ -282,7 +282,7 @@ export default async function SuperAdminProfilePage() {
               <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Production access</p>
               <p className="text-pretty mt-0.5 text-[10px] text-[#8C9A92]">Granted {formatDate(profile.createdAt)} · every action is written to the audit log.</p>
             </div>
-            <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[10px] font-bold text-[var(--color-text-secondary)]">Audited</span>
+            <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-secondary)]">Audited</span>
           </div>
         </article>
       </div>

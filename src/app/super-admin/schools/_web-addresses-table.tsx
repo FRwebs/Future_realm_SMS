@@ -175,7 +175,7 @@ export function WebAddressesTable({ schools, registryRecords, disputes }: WebAdd
             if (!record) return <span className="text-[10.5px] text-[var(--color-text-muted)]">Not yet in registry</span>;
             const tone = registryStateTone[record.state] ?? registryStateTone.LIVE;
             return (
-              <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+              <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                 {tone.label}
               </span>
             );

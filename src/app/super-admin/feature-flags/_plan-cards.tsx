@@ -40,7 +40,7 @@ function PlanCard({ plan, others }: { plan: SuperAdminPlanRow; others: SuperAdmi
   const revenue = plan.monthlyPrice * plan.subscriberCount;
 
   return (
-    <article className="flex flex-col rounded-[12.5px] border border-[var(--color-border-default)] bg-white p-5">
+    <article className="flex flex-col rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
           <p className="truncate text-[14.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</p>
@@ -122,7 +122,7 @@ function PlanCard({ plan, others }: { plan: SuperAdminPlanRow; others: SuperAdmi
 
 export function PlanCardGrid({ plans, actions }: { plans: SuperAdminPlanRow[]; actions: ReactNode }) {
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Subscription plans</p>
@@ -133,7 +133,7 @@ export function PlanCardGrid({ plans, actions }: { plans: SuperAdminPlanRow[]; a
         {actions}
       </div>
       {plans.length === 0 ? (
-        <p className="rounded-[12.5px] border border-[var(--color-border-default)] bg-white p-6 text-[11.5px] text-[var(--color-text-muted)]">
+        <p className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6 text-[11.5px] text-[var(--color-text-muted)]">
           No subscription plans configured yet — build one to get started.
         </p>
       ) : (

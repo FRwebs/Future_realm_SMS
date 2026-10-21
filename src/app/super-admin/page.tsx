@@ -174,7 +174,7 @@ function Sparkline({ values, stroke, fill, dot, width = 132, height = 30 }: { va
 function StatusPill({ tone, label }: { tone: HealthTone; label: string }) {
   const colors = toneColors[tone];
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: colors.bg, color: colors.fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: colors.bg, color: colors.fg }}>
       {label}
     </span>
   );
@@ -420,7 +420,7 @@ export default async function SuperAdminDashboardPage() {
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="relative overflow-hidden rounded-[18px] bg-[#0d2315] px-6 py-[27px] text-white md:px-8">
         <div className="pointer-events-none absolute -right-[99px] -top-40 h-[420px] w-[420px] rounded-full border border-[rgba(95,214,180,0.13)]" />
         <div className="pointer-events-none absolute -right-10 -top-[81px] h-[270px] w-[270px] rounded-full border border-[rgba(95,214,180,0.09)]" />
@@ -471,7 +471,7 @@ export default async function SuperAdminDashboardPage() {
       </section>
 
       <section className="grid gap-3.5 lg:grid-cols-[1.5fr_1fr]">
-        <article className="flex flex-col justify-between rounded-[14.5px] bg-[#0d2315] px-6 pb-5 pt-[20px]">
+        <article className="flex flex-col justify-between rounded-[14px] bg-[#0d2315] px-6 pb-5 pt-[20px]">
           <div className="flex items-start justify-between gap-4">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.07em] text-white/50">Collected against invoiced · Term 1</p>
@@ -503,7 +503,7 @@ export default async function SuperAdminDashboardPage() {
           </div>
         </article>
 
-        <article className="flex flex-col rounded-[14.5px] border px-[20px] py-5" style={{ borderColor: "#f0dfdf", background: "var(--color-bg-surface)" }}>
+        <article className="flex flex-col rounded-[14px] border px-[20px] py-5" style={{ borderColor: "#f0dfdf", background: "var(--color-bg-surface)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
               <p className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#a4726f" }}>Overdue balances</p>
@@ -545,7 +545,7 @@ export default async function SuperAdminDashboardPage() {
         {revenueTiles.map((tile) => {
           const color = tile.positive ? "#12796A" : "#B23B3B";
           return (
-            <article key={tile.label} className="rounded-[12.5px] border px-[16px] pb-[12.5px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
+            <article key={tile.label} className="rounded-[14px] border px-[16px] pb-[12.5px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
               <p className="min-h-[28px] text-[10.5px] leading-[1.35] text-[#77857C]">{tile.label}</p>
               <div className="mt-[8px] flex items-baseline gap-[6.5px]">
                 <p className="font-[var(--font-heading)] text-[21.5px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
@@ -580,7 +580,7 @@ export default async function SuperAdminDashboardPage() {
                     <p className="text-[11.5px] leading-5 text-[var(--color-text-primary)]">{item.label}</p>
                     <p className="mt-0.5 text-[10px] text-[var(--color-text-muted)]">{item.detail}</p>
                   </div>
-                  <span className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: colors.bg, color: colors.fg }}>{item.countdown}</span>
+                  <span className="shrink-0 rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: colors.bg, color: colors.fg }}>{item.countdown}</span>
                 </div>
               );
             })}
@@ -592,7 +592,7 @@ export default async function SuperAdminDashboardPage() {
           </div>
         </section>
 
-        <section className="rounded-[14.5px] border border-[#0d2315] bg-[#0d2315] p-5">
+        <section className="rounded-[14px] border border-[#0d2315] bg-[#0d2315] p-5">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-[12.5px] font-semibold text-white">Channel &amp; commission</h3>
             <p className="text-[10.5px] text-white/50">Module 13</p>
@@ -707,7 +707,7 @@ export default async function SuperAdminDashboardPage() {
         </section>
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
+      <section className="grid items-start gap-[14px] xl:grid-cols-[1.3fr_1fr]">
         <section className="surface-card overflow-hidden p-0">
           <div className="flex items-center justify-between border-b border-[var(--color-border-muted)] px-5 py-4">
             <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Alert centre</h3>

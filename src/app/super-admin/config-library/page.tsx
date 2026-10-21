@@ -85,16 +85,16 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Platform"
+        eyebrow="MODULE 09"
         title="Curriculum & Academics"
-        description="A versioned library of curriculum, grading scale and report card templates, and the country profiles they hang from. A new school's setup copies the published grading scale for its country and records which version it took; the school then owns its copy."
+        description="The master library every school draws a copy from."
         action={
           <ResourceActionDialog
             triggerLabel="New template"
-            title="New master template"
-            description="Starts a draft. It becomes available to new schools only once it is validated and published — and a published version is never edited again, a new version is made instead."
+            title="Curriculum & Academics"
+            description="The master library every school draws a copy from."
             endpoint="/api/super-admin/config-library/curricula"
             submitLabel="Save draft"
             variant="heroWhite"
@@ -121,12 +121,12 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
       <DetailTabs tabs={tabs} />
 
       {tab === "curricula" ? (
-        <div className="grid gap-5">
+        <div className="grid gap-[14px]">
         <CurriculumTemplatesTable items={data.curricula} />
 
         <TableCard
           title="The six-layer curriculum configuration model — what's real today"
-          description="A fully layered model would let a school swap each of these independently, and read its own choice from live configuration rather than hard-coded assumptions. Rated here against what this codebase actually does, not the aspiration."
+          description="A fully layered model would let a school swap each of these independently, and read its own choice from live configuration rather than hard-coded assumptions. Each layer is rated against what the platform does today."
           items={[
             { layer: "1", name: "Education System", governs: "Calendar shape, term/semester count, currency, language, phone format, promotion policy", state: "Partly — a country profile (Country Settings tab) now holds currency, phone format, authorities, consent age and channel as data, and the template names its calendar. A school's own term dates are still set on the school, and its currency still defaults to NGN in finance code.", tone: "warn" },
             { layer: "2", name: "Level Structure", governs: "The stages and classes a school may operate, and which are examination/transition points", state: "Not built — every school creates its own class-level rows directly; there's no master \"stages\" record to select from, and nothing in the schema links a class to a curriculum template.", tone: "bad" },
@@ -151,10 +151,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           ]}
         />
 
-        <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
+        <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white">
           <div className="border-b border-[#E6EEE9] px-5 py-4">
-            <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Three hard constraints on every other module</p>
-            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Each follows directly from the governing principle — checked against this codebase, not asserted.</p>
+            <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Three hard constraints on every other module</p>
+            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Each follows directly from the governing principle — each one checked against how the platform actually behaves.</p>
           </div>
           <div className="grid gap-3 p-5">
             {[
@@ -195,7 +195,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               header: "State",
               render: (row) => {
                 const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "N/A" } }[row.state as "good" | "warn" | "bad" | "mute"];
-                return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
               }
             }
           ]}
@@ -203,7 +203,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
 
         <CurriculumLifecycleFlow />
 
-        <div className="grid gap-5 lg:grid-cols-2">
+        <div className="grid items-start gap-[14px] lg:grid-cols-2">
           <TableCard
             title="Subject mapping between template versions"
             description="How a subject is renamed, merged or split when a template changes, so a student's history stays explainable years later."
@@ -273,7 +273,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               header: "State",
               render: (row) => {
                 const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Passing" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Fails" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not reviewed" } }[row.state as "good" | "warn" | "bad" | "mute"];
-                return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
               }
             }
           ]}
@@ -282,10 +282,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
       ) : null}
 
       {tab === "assessment-frameworks" ? (
-        <div className="grid gap-5">
+        <div className="grid gap-[14px]">
           <TableCard
-            title="Ready-made assessment frameworks — there isn't a library, only real usage"
-            description="A school selects one during setup in the mockup. In this codebase there is no platform preset to select — every school builds its own from scratch. This groups real, active per-school configurations by their weight pattern, most common first."
+            title="Ready-made assessment frameworks"
+            description="Frameworks in use across schools, grouped by weight pattern, most common first. Weights must total exactly 100 — the system refuses to save a framework that does not."
             items={extras.weightPatterns}
             getRowKey={(row) => row.pattern}
             columns={[
@@ -298,7 +298,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               <>
                 Real counts, aggregated live across every school: {extras.assessmentFrameworkStats.schoolsWithFrameworks} school(s) with a setup ·{" "}
                 {extras.assessmentFrameworkStats.totalComponents} class-level component(s) · {extras.assessmentFrameworkStats.totalSectionComponents} section-level component(s). A publishable
-                framework library, unlike Curriculum, Grading Scale, and Report Card templates, would need a new Prisma model — it doesn&apos;t exist in this schema.
+                Each school sets up its own framework; there is no shared framework library yet.
               </>
             }
           />
@@ -311,7 +311,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               { field: "max_raw_score", meaning: "The score the component is marked out of", constraint: "Entry above the maximum is rejected at entry, not at computation — enforced.", state: "good" },
               { field: "term_aggregation", meaning: "How components combine into a term score", constraint: "Weighted sum by default — real, and the only rule that exists; nothing else is configurable.", state: "good" },
               { field: "session_aggregation", meaning: "How term scores combine", constraint: "Not built — there is no \"average of terms\" or \"final term only\" computation; each term stands alone.", state: "bad" },
-              { field: "cumulative_display", meaning: "Running cumulative alongside the term score", constraint: "Not built — no cumulative-average concept exists anywhere in this codebase.", state: "bad" },
+              { field: "cumulative_display", meaning: "Running cumulative alongside the term score", constraint: "Not built — there is no cumulative average yet.", state: "bad" },
               { field: "rounding", meaning: "Where and how rounding occurs", constraint: "Every computed total and average is rounded to two decimals — real, and not configurable per school.", state: "good" },
               { field: "position_basis", meaning: "Position within arm, class, or both", constraint: "Rankings are scoped to the student's class (and arm, where used) — real; never platform-wide.", state: "good" },
               { field: "tie_handling", meaning: "Two students with identical totals", constraint: "Equal position with the next skipped, by default — real, and not configurable per school.", state: "good" },
@@ -327,19 +327,17 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 header: "State",
                 render: (row) => {
                   const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "bad"];
-                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                  return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               }
             ]}
           />
 
-          <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
+          <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white">
             <div className="border-b border-[#E6EEE9] px-5 py-4">
-              <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Nigerian curriculum structure — not populated in this codebase</p>
+              <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Nigerian National (NERDC 2025) — not configured yet</p>
               <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">
-                The mockup describes a detailed NERDC 2025 stage and subject taxonomy. None of it exists as real data here: no seed script or admin action has ever created a Nigerian curriculum
-                template, and every table below is honestly empty rather than filled with that fictional structure.
-              </p>
+                No stage or subject structure has been entered for this template yet. Each table below fills from the template once a Product Lead adds it; until then it is empty rather than assumed.</p>
             </div>
           </section>
           <TableCard
@@ -354,7 +352,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             ]}
             emptyState="No curriculum template is on file for Nigeria — every real school on this platform builds its own class and subject structure directly, with no template behind it."
           />
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid items-start gap-[14px] lg:grid-cols-2">
             <TableCard
               title="Junior secondary subject framework"
               items={[]}
@@ -368,7 +366,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               emptyState="No subject-framework record exists for senior secondary — a school enters its own subjects directly."
             />
           </div>
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid items-start gap-[14px] lg:grid-cols-2">
             <TableCard
               title="Trade subjects — one is compulsory"
               items={[]}
@@ -379,7 +377,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               title="Primary subject sets"
               items={[]}
               columns={[{ key: "lower", header: "Primary 1–3", render: () => null }, { key: "upper", header: "Primary 4–6", render: () => null }]}
-              emptyState="No primary-level subject-set record exists — lower and upper primary aren't distinguished anywhere in this schema."
+              emptyState="No primary-level subject-set record exists — lower and upper primary are not distinguished yet."
             />
           </div>
         </div>
@@ -429,7 +427,7 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
       ) : null}
 
       {tab === "country-settings" ? (
-        <div className="grid gap-5">
+        <div className="grid gap-[14px]">
           <TableCard
             title="Country configuration records"
             description="Everything the platform knows about a country, held as data. A country needs a profile before a template for it can be validated."
@@ -514,7 +512,7 @@ function CurriculumLifecycleFlow() {
   ];
 
   return (
-    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
+    <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6">
       <p className="text-[12.5px] font-semibold text-[#0D2315]">Template lifecycle</p>
       <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
         A template moves through these stages in one direction only; each is a recorded state, not a flag.

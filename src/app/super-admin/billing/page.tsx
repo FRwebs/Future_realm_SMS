@@ -1,4 +1,4 @@
-import { AlertTriangle, BadgePercent, Calendar, CreditCard, DollarSign, Gift, Repeat2, TicketPercent, TrendingUp } from "lucide-react";
+import { AlertTriangle, Calendar, CreditCard, DollarSign, Repeat2, TrendingUp } from "lucide-react";
 import type { Route } from "next";
 import Link from "next/link";
 
@@ -6,15 +6,14 @@ import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
+import { BarList } from "@/components/data-display/bar-list";
 import { ReferenceList } from "@/components/data-display/reference-list";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { PlanEditDialog } from "@/components/super-admin/plan-action-dialogs";
 import { ActionMenu } from "@/components/ui/action-menu";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type {
   SuperAdminBillingRow,
-  SuperAdminChurnRiskRow,
   SuperAdminInvoiceRow,
   SuperAdminPlanRow,
   SuperAdminPromoCodeRow,
@@ -57,21 +56,12 @@ const invoiceStatusReference = [
   { status: "Cancelled", meaning: "Voided with a logged reason. No longer collectible." }
 ];
 
-const churnSignalReference = [
-  { signal: "No admin or teacher login in 10+ days", weight: -25, threshold: "10 days since last login" },
-  { signal: "No result or score entry in 14+ days", weight: -25, threshold: "14 days since last score entry" },
-  { signal: "No fee recording activity in 14+ days", weight: -15, threshold: "14 days since last recorded payment" },
-  { signal: "Trial nearing expiry with low engagement", weight: -25, threshold: "Trial ends within 7 days and no login in 7+ days" },
-  { signal: "Critical support ticket unresolved 5+ days", weight: -15, threshold: "Open CRITICAL ticket older than 5 days" },
-  { signal: "No parent notification sent all term", weight: -5, threshold: "Zero notifications sent since term start" }
-];
-
-const billingRules = [
-  "Billed per school, per plan, per term — a flat rate per tier, not multiplied by enrolled headcount anywhere in this system's real revenue or invoice figures.",
-  "Trials run 30 days automatically at signup, with every feature unlocked and no card required.",
-  "A school moves to Grace Period on the first missed payment, then Suspended if it lapses further.",
-  "Notification (SMS/WhatsApp) credit revenue is tracked separately from subscription revenue.",
-  "Pricing here is the live rate card used by onboarding, billing, and upgrades."
+const billingRules = (trialDays: number) => [
+  `Trials run ${trialDays} days automatically at signup, with every feature unlocked and no card required`,
+  "A school moves to Grace Period on the first missed payment, then Suspended if it lapses further",
+  "Notification credits (SMS and WhatsApp) are bought separately as usage-based bundles, and their revenue is tracked apart from subscriptions",
+  "Student count is confirmed at the start of each term — the system recommends but never auto-changes tiers",
+  "Pricing on this module is the live rate card used by onboarding, billing and upgrades"
 ];
 
 function studentRangeLabel(plan: SuperAdminPlanRow) {
@@ -94,18 +84,15 @@ function planPriceLabel(plan: SuperAdminPlanRow) {
   const slug = plan.slug.toLowerCase();
   if (slug === "trial") return "Free";
   if (slug === "ngo-mission") return "90% off tier";
-  return formatCurrency(plan.monthlyPrice);
+  return `₦${plan.monthlyPrice.toLocaleString("en-US")}`;
 }
 
-function planUsd(plan: SuperAdminPlanRow) {
-  const usdLabels: Record<string, string> = {
-    starter: "$0.90",
-    standard: "$2.20",
-    elite: "$3.45",
-    "ngo-mission": "90% off",
-    trial: "Free"
-  };
-  return usdLabels[plan.slug.toLowerCase()] ?? `≈ $${Math.round(plan.monthlyPrice / 1540).toLocaleString()}`;
+/** The dollar price at the term's fixed rate. Without a rate fixed for the term there is nothing honest to show. */
+function planUsd(plan: SuperAdminPlanRow, naira: number) {
+  const slug = plan.slug.toLowerCase();
+  if (slug === "trial") return "Free";
+  if (slug === "ngo-mission") return "90% off";
+  return naira > 0 ? `$${(plan.monthlyPrice / naira).toFixed(2)}` : "—";
 }
 
 function planEntitlements(value: unknown) {
@@ -121,9 +108,17 @@ function planEntitlements(value: unknown) {
   return { modules: [], features: [] };
 }
 
+function planAddOns(plan: SuperAdminPlanRow) {
+  const entitlements = planEntitlements(plan.includedModules);
+  const list = entitlements.features.length ? entitlements.features : entitlements.modules;
+  const extras = [plan.apiAccess ? "API access" : null, plan.customBranding ? "Custom branding" : null].filter((item): item is string => Boolean(item));
+  const all = [...new Set([...list.filter((item) => !/students?\b|any size|certificate required/i.test(item)).slice(0, 3), ...extras])];
+  return all.length ? all.join(", ") : "Core modules";
+}
+
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -150,7 +145,11 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
     apiGetEnvelope<SuperAdminInvoiceRow[]>("/api/super-admin/billing/invoices"),
     apiGetEnvelope<SuperAdminSchoolRow[]>("/api/super-admin/schools?limit=100")
   ]);
-  const termLabel = (await apiGet<{ term: string | null }>("/api/super-admin/billing-extras/currencies").catch(() => ({ term: null }))).term;
+  const currencies = await apiGet<{ term: string | null; rates?: { usd: number } }>("/api/super-admin/billing-extras/currencies").catch(() => ({ term: null, rates: { usd: 0 } }));
+  const termLabel = currencies.term;
+  const usdRate = currencies.rates?.usd ?? 0;
+  const lastMonth = revenue.monthlyRevenue[revenue.monthlyRevenue.length - 1];
+  const reconciledMonth = lastMonth ? { month: lastMonth.month, amount: lastMonth.amount } : null;
   const trialPolicy = (await apiGet<{ trial: { days: number; readOnlyDays: number; lockReminderDays: number } }>("/api/super-admin/platform-policy").catch(() => null))?.trial ?? { days: TRIAL_DAYS, readOnlyDays: 7, lockReminderDays: 3 };
   const billing = billingEnvelope.data ?? [];
   const schoolsForRecommendations = schoolsEnvelope.data ?? [];
@@ -200,16 +199,16 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Schools & Revenue"
+        eyebrow="MODULE 03"
         title="Subscriptions & Billing"
-        description="Subscription tiers, invoice lifecycle, churn risk, notification credit wallets, and promo campaigns."
+        description="The commercial relationship, and the line between invoiced and received."
         action={
           <ResourceActionDialog
             triggerLabel="Create invoice run"
-            title="Create invoice run"
-            description="Drafts a PlatformInvoice for every targeted school at once, priced from each school's own current plan. Nothing is sent until reviewed and sent individually from the Invoices tab."
+            title="Subscriptions & Billing"
+            description="The commercial relationship, and the line between invoiced and received."
             endpoint="/api/super-admin/billing/invoices/run"
             method="POST"
             variant="heroWhite"
@@ -257,7 +256,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 type: "select",
                 section: "Exclusions",
                 defaultValue: "false",
-                note: "The mockup's \"NGO awaiting verification\" exclusion has no equivalent in this schema — there's no NGO/organization-type field, only a general verification status. This excludes any school whose registration hasn't been verified yet.",
+                note: "Excludes any school whose registration has not been verified yet.",
                 options: [
                   { label: "Include", value: "false" },
                   { label: "Exclude", value: "true" }
@@ -270,143 +269,74 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
 
       <DetailTabs tabs={tabs} />
 
-      {activeTab === "overview" ? (
+{activeTab === "overview" ? (
         <>
           <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
-            <StatCard
-              label="Semester revenue"
-              value={formatCompactCurrency(revenue.mrr)}
-              detail={`Current semester recurring revenue. Full value: ${formatCurrency(revenue.mrr)}.`}
-              icon={Repeat2}
-              tone="dark"
-            />
-            <StatCard
-              label="Year estimate"
-              value={formatCompactCurrency(revenue.arr)}
-              detail={`Estimated from semester billing. Full value: ${formatCurrency(revenue.arr)}.`}
-              icon={TrendingUp}
-              tone="success"
-            />
-            <StatCard
-              label="ARPU"
-              value={formatCompactCurrency(arpu)}
-              detail={`Average per paying school across ${revenue.totalPaidSchools} paid tenant${revenue.totalPaidSchools === 1 ? "" : "s"}.`}
-              icon={DollarSign}
-              tone="info"
-            />
-            <StatCard
-              label="Churn rate"
-              value={`${churnRatePct}%`}
-              detail={`${notRenewedCount} of ${report.activeSchoolCount} active schools did not renew last term.`}
-              icon={AlertTriangle}
-              tone="warning"
-            />
-            <StatCard
-              label="Renewal pipeline"
-              value={formatCompactCurrency(report.mrr)}
-              detail={`Projected next-term renewal value from ${report.activeSchoolCount} active schools.`}
-              icon={Calendar}
-              tone="success"
-            />
-            <StatCard
-              label="Credit revenue"
-              value={formatCompactCurrency(report.notificationCreditRevenue)}
-              detail={`${report.creditRevenueSharePct}% of platform revenue from notification credit bundles.`}
-              icon={CreditCard}
-              tone="accent"
-            />
+            <StatCard label="Reconciled (month)" value={formatCompactCurrency(reconciledMonth?.amount ?? 0)} detail={reconciledMonth ? `Payments recorded in ${reconciledMonth.month}` : "No payments recorded yet"} icon={Repeat2} tone="dark" />
+            <StatCard label="Run rate" value={formatCompactCurrency(revenue.arr)} detail="Current-term billing across the year" icon={TrendingUp} tone="success" />
+            <StatCard label="ARPU per school" value={formatCompactCurrency(arpu)} detail={`Across ${revenue.totalPaidSchools} paying school${revenue.totalPaidSchools === 1 ? "" : "s"}`} icon={DollarSign} tone="info" />
+            <StatCard label="Churn last term" value={`${churnRatePct}%`} detail={`${notRenewedCount} of ${report.activeSchoolCount} did not renew`} icon={AlertTriangle} tone="warning" />
+            <StatCard label="Renewal pipeline" value={formatCompactCurrency(report.mrr)} detail={`Next term · ${report.activeSchoolCount} schools`} icon={Calendar} tone="success" />
+            <StatCard label="Credit revenue" value={formatCompactCurrency(report.notificationCreditRevenue)} detail={`${report.creditRevenueSharePct}% of platform revenue`} icon={CreditCard} tone="accent" />
           </section>
 
-          <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
-            <section className="surface-card overflow-hidden">
-              <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-                <p className="section-eyebrow">Revenue composition</p>
-                <h2 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Semester revenue by active tier</h2>
-              </div>
-              <div className="grid gap-4 p-5">
-                {schoolsWithRevenue.length === 0 ? (
-                  <p className="rounded-[11px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
-                    No active paid subscriptions yet.
-                  </p>
-                ) : (
-                  schoolsWithRevenue.map((item) => {
-                    const price = planByTier.get(item.plan)?.monthlyPrice ?? 0;
-                    const tierMrr = price * item.count;
-                    return (
-                      <div key={item.plan} className="grid gap-2">
-                        <div className="flex items-start justify-between gap-4">
-                          <div>
-                            <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{item.plan}</p>
-                            <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">
-                              {item.count} subscription{item.count === 1 ? "" : "s"} at {formatCurrency(price)}
-                            </p>
-                          </div>
-                          <p className="font-[var(--font-mono)] text-[12.5px] font-bold text-[var(--color-text-primary)]">{formatCurrency(tierMrr)}</p>
-                        </div>
-                        <div className="h-2 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                          <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${Math.max(6, (tierMrr / maxTierMrr) * 100)}%` }} />
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
-              </div>
-              <div className="border-t border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
-                <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Billing rules</p>
-                <div className="mt-2 grid gap-2">
-                  {billingRules.map((rule) => (
-                    <p key={rule} className="text-[11px] leading-5 text-[var(--color-text-secondary)]">{rule}</p>
-                  ))}
-                </div>
-              </div>
-            </section>
-
-            <section className="surface-card overflow-hidden">
-              <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
-                <div>
-                  <p className="section-eyebrow">Collections</p>
-                  <h2 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Receivables &amp; renewals</h2>
-                </div>
-                <Link href={tabHref("pricing") as Route} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
-                  View rate card
-                </Link>
-              </div>
-              <div className="grid gap-4 p-5">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-[11.5px] text-[var(--color-text-secondary)]">Outstanding receivables</p>
-                  <p className="font-[var(--font-mono)] text-[13.5px] font-bold" style={{ color: "var(--color-warning)" }}>
-                    {formatCurrency(report.outstandingReceivables)}
-                  </p>
-                </div>
-                <p className="-mt-2 text-[10.5px] text-[var(--color-text-muted)]">
-                  {report.unpaidSchoolCount} school{report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance.
-                </p>
-                <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-4">
-                  <p className="text-[11.5px] text-[var(--color-text-secondary)]">Renewal rate</p>
-                  <p className="font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{report.renewalRate}%</p>
-                </div>
-                <p className="-mt-2 text-[10.5px] text-[var(--color-text-muted)]">
-                  {report.renewedRecently} of {report.activeSchoolCount} active schools renewed in the last 90 days.
-                </p>
-                <div className="flex items-center justify-between gap-3 border-t border-[var(--color-border-default)] pt-4">
-                  <p className="text-[11.5px] text-[var(--color-text-secondary)]">Notification credit revenue</p>
-                  <p className="font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{formatCompactCurrency(report.notificationCreditRevenue)}</p>
-                </div>
-                <p className="-mt-2 text-[10.5px] text-[var(--color-text-muted)]">{report.creditRevenueSharePct}% of platform revenue, kept separate from subscriptions.</p>
-              </div>
-            </section>
+          <section className="grid items-start gap-[14px] xl:grid-cols-[1fr_1.25fr]">
+            <BarList
+              title="Revenue split by tier"
+              items={schoolsWithRevenue.map((item, index) => {
+                const tierMrr = (planByTier.get(item.plan)?.monthlyPrice ?? 0) * item.count;
+                return { label: `${planLabel(item.plan)} · ${item.count} subscription${item.count === 1 ? "" : "s"}`, value: formatCompactCurrency(tierMrr), pct: (tierMrr / maxTierMrr) * 100, tone: (["ink", "teal", "mid", "soft"] as const)[Math.min(index, 3)] };
+              })}
+              empty="No active paid subscriptions yet."
+              footer={
+                <>
+                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Additional billing rules</p>
+                  <ul className="mt-2 grid gap-2">
+                    {billingRules(trialPolicy.days).map((rule) => (
+                      <li key={rule} className="flex gap-2 text-[11.5px] leading-[1.5] text-[#435048]">
+                        <span className="mt-[7px] h-1 w-1 flex-none rounded-full bg-[#435048]" />
+                        {rule}
+                      </li>
+                    ))}
+                  </ul>
+                </>
+              }
+            />
+          <TableCard
+            title="Subscription structure"
+            description="Per term · the tier follows the student count confirmed each term"
+            items={activePlans}
+            emptyState="No active plans. Configure one in Plans & Features."
+            getRowKey={(plan) => plan.id}
+            columns={[
+              { key: "tier", header: "Tier", render: (plan) => <span className="font-bold text-[var(--color-text-primary)]">{planLabel(plan.plan)}</span> },
+              { key: "range", header: "Student range", render: (plan) => studentRangeLabel(plan) },
+              { key: "naira", header: "Naira", render: (plan) => planPriceLabel(plan) },
+              { key: "usd", header: "USD", render: (plan) => planUsd(plan, usdRate) },
+              { key: "addons", header: "Key add-ons unlocked", render: (plan) => planAddOns(plan) }
+            ]}
+          />
           </section>
 
           <TableCard
             title={`Tier recommendations — ${termLabel ?? "this term"} rollover`}
-            description="Student counts are the confirmed headcount on each school’s roll. The system recommends; it never applies a tier change by itself."
+            description="Student counts were confirmed at term start. The system recommends; it never applies a tier change by itself."
             footnote={`${tierRecommendations.length} recommendation${tierRecommendations.length === 1 ? "" : "s"} · accept or dismiss per school. Dismissing asks for a reason and keeps the school on its current tier until someone decides otherwise. Nothing here changes a price by itself.`}
             items={tierRecommendations}
             emptyState="No school's real headcount currently mismatches its tier."
             getRowKey={(row) => row.school.id}
             columns={[
-              { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school.name}</span> },
-              { key: "confirmed", header: "Confirmed students", render: (row) => row.school.totalStudents.toLocaleString() },
+              {
+                key: "school",
+                header: "School",
+                render: (row) => (
+                  <div>
+                    <p className="font-bold text-[var(--color-text-primary)]">{row.school.name}</p>
+                    <p className="text-[11.5px] text-[#8C9A92]">{[row.school.city, row.school.state].filter(Boolean).join(", ") || "—"}</p>
+                  </div>
+                )
+              },
+              { key: "confirmed", header: "Confirmed", render: (row) => row.school.totalStudents.toLocaleString() },
               { key: "current", header: "Current tier", render: (row) => planLabel(row.currentPlan.plan) },
               {
                 key: "recommended",
@@ -421,7 +351,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 key: "difference",
                 header: "Termly difference",
                 render: (row) => (
-                  <span className="font-[var(--font-mono)] font-bold" style={{ color: row.termlyDifference >= 0 ? "var(--color-success)" : "var(--color-warning)" }}>
+                  <span className="font-bold" style={{ color: row.termlyDifference >= 0 ? "var(--color-success)" : "var(--color-warning)" }}>
                     {row.termlyDifference >= 0 ? "+" : "−"}{formatCurrency(Math.abs(row.termlyDifference))}
                   </span>
                 )
@@ -432,7 +362,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 render: (row) => {
                   const dismissed = dismissals[row.school.id];
                   if (dismissed && dismissed.plan === row.recommendedPlan.plan) {
-                    return <span className="text-[10.5px] text-[var(--color-text-muted)]" title={dismissed.reason}>Dismissed by {dismissed.by} · {dismissed.reason}</span>;
+                    return <span className="text-[11.5px] text-[#8C9A92]" title={dismissed.reason}>Dismissed by {dismissed.by} · {dismissed.reason}</span>;
                   }
                   return (
                     <div className="flex items-center gap-3">
@@ -466,77 +396,14 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               }
             ]}
           />
-
-          <TableCard
-            title="School billing"
-            description="Subscription status by tenant."
-            items={billing}
-            columns={[
-              { key: "school", header: "School", render: (item) => item.schoolName },
-              { key: "plan", header: "Plan", render: (item) => item.plan },
-              { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-              { key: "last", header: "Last Payment", render: (item) => item.lastPaymentAt ? formatDate(item.lastPaymentAt) : "—" },
-              { key: "next", header: "Next Due", render: (item) => item.nextDueAt ? formatDate(item.nextDueAt) : "—" },
-              {
-                key: "actions",
-                header: "Actions",
-                render: (item) => (
-                  <ActionMenu triggerLabel={`Billing actions for ${item.schoolName}`}>
-                    <ResourceActionDialog
-                      triggerLabel="Change Plan"
-                      title={`Change plan for ${item.schoolName}`}
-                      description="Update this school's subscription plan."
-                      endpoint={`/api/super-admin/billing/${item.schoolId}`}
-                      method="PATCH"
-                      variant="menu"
-                      submitLabel="Save plan"
-                      fields={[{ name: "plan", label: "Plan", type: "select", options: planOptions, defaultValue: item.plan }]}
-                    />
-                    <ResourceActionDialog
-                      triggerLabel="Extend Trial"
-                      title={`Extend trial for ${item.schoolName}`}
-                      description="Add trial days and move billing due date forward."
-                      endpoint={`/api/super-admin/billing/${item.schoolId}/extend-trial`}
-                      method="POST"
-                      variant="menu"
-                      submitLabel="Extend trial"
-                      fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
-                    />
-                    <ResourceActionDialog
-                      triggerLabel="Suspend Billing"
-                      title={`Suspend billing for ${item.schoolName}`}
-                      description="Marks billing as overdue and restricts school access."
-                      endpoint={`/api/super-admin/billing/${item.schoolId}/suspend-billing`}
-                      method="PATCH"
-                      variant="menuDanger"
-                      submitLabel="Suspend billing"
-                      confirmLabel="Confirm Suspend"
-                      fields={[]}
-                    />
-                  </ActionMenu>
-                )
-              }
-            ]}
-          />
-
-          <div className="grid gap-1.5">
-            <p className="section-eyebrow">Retention</p>
-            <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Churn risk</h2>
-          </div>
-          <ChurnRiskTab />
-
-          <div className="grid gap-1.5">
-            <p className="section-eyebrow">Reporting</p>
-            <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Revenue reporting</h2>
-          </div>
-          <RevenueReportTab revenue={revenue} report={report} />
         </>
+      
       ) : null}
 
       {activeTab === "invoices" ? <InvoicesTab billing={billing} params={params} allInvoices={allInvoices} /> : null}
       {activeTab === "trials" ? <TrialsTab trialBilling={trialBilling} trialPolicy={trialPolicy} /> : null}
       {activeTab === "wallets" ? <WalletsTab billing={billing} /> : null}
-      {activeTab === "pricing" ? <PricingPromotionsTab billing={billing} activePlans={activePlans} /> : null}
+      {activeTab === "pricing" ? <PricingPromotionsTab billing={billing} /> : null}
     </div>
   );
 }
@@ -564,7 +431,7 @@ async function InvoicesTab({
   const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <div className="grid gap-3.5">
         <TableCard
       title="Invoices"
@@ -680,7 +547,7 @@ async function InvoicesTab({
         />
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.2fr_1fr]">
         <TableCard
           title="What each status means"
           description="Six states, and only these six. A school and Future Realm read the same word for the same thing."
@@ -688,7 +555,7 @@ async function InvoicesTab({
           pageSize={false}
           getRowKey={(row) => row.status}
           columns={[
-            { key: "status", header: "Status", render: (row) => { const tone = invoiceStatusTone[row.status.toUpperCase().replace(/\s+/g, "_")] ?? invoiceStatusTone.DRAFT; return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{row.status}</span>; } },
+            { key: "status", header: "Status", render: (row) => { const tone = invoiceStatusTone[row.status.toUpperCase().replace(/\s+/g, "_")] ?? invoiceStatusTone.DRAFT; return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{row.status}</span>; } },
             { key: "meaning", header: "Meaning", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.meaning}</span> }
           ]}
         />
@@ -837,8 +704,89 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
     })
     .sort((a, b) => (a.daysRemaining ?? 999) - (b.daysRemaining ?? 999));
 
+  const dormancy = (await apiGet<{ dormancy?: { dormantDays: number; noticeDays: number } }>("/api/super-admin/platform-policy").catch(() => null))?.dormancy;
+  const wizardByUser = new Map((journey?.pipeline ?? []).map((row) => [row.schoolId, row.wizardTotal > 0 ? row.wizardDone / row.wizardTotal : 0]));
+  const engagement = (schoolId: string) => {
+    const share = wizardByUser.get(schoolId) ?? 0;
+    return share >= 2 / 3 ? "High" : share >= 1 / 3 ? "Medium" : "Low";
+  };
+
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.7fr_1fr]">
+      <TableCard
+        title="Trials in progress"
+        description="Every school still inside its trial, nearest the end first"
+        items={trials}
+        pageSize={false}
+        getRowKey={(trial) => trial.schoolId}
+        emptyState="No schools currently on trial. Trial schools will appear here as they self-onboard."
+        columns={[
+          { key: "school", header: "School", render: (trial) => <span className="font-bold text-[var(--color-text-primary)]">{trial.schoolName}</span> },
+          {
+            key: "day",
+            header: "Trial day",
+            render: (trial) => (
+              <div className="flex items-center gap-[10px]">
+                <span className="whitespace-nowrap">{trial.daysRemaining === null ? "—" : `Day ${Math.min(trialPolicy.days, Math.max(0, trialPolicy.days - trial.daysRemaining))} of ${trialPolicy.days}`}</span>
+                <div className="h-[5px] w-[56px] overflow-hidden rounded-full bg-[#EDF3EF]">
+                  <div className="h-full rounded-full" style={{ width: `${Math.max(4, trial.pct)}%`, background: trial.daysRemaining !== null && trial.daysRemaining <= 2 ? "#DB5555" : trial.daysRemaining !== null && trial.daysRemaining <= 7 ? "#D9A22C" : "#12796A" }} />
+                </div>
+              </div>
+            )
+          },
+          {
+            key: "remaining",
+            header: "Days remaining",
+            render: (trial) => (
+              <span className="font-bold" style={{ color: trial.daysRemaining !== null && trial.daysRemaining <= 2 ? "#DB5555" : "var(--color-text-primary)" }}>
+                {trial.daysRemaining === null ? "—" : trial.daysRemaining < 0 ? `Overdue ${Math.abs(trial.daysRemaining)} days` : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"}`}
+              </span>
+            )
+          },
+          { key: "engagement", header: "Engagement", render: (trial) => <StatusBadge status={engagement(trial.schoolId)} /> },
+          {
+            key: "action",
+            header: "Action",
+            render: (trial) => (
+              <ResourceActionDialog
+                triggerLabel="Extend trial"
+                title={`Extend trial for ${trial.schoolName}`}
+                description="Add trial days and move billing due date forward. The reason and the admin who approved it are logged."
+                endpoint={`/api/super-admin/billing/${trial.schoolId}/extend-trial`}
+                method="POST"
+                variant="textAction"
+                submitLabel="Extend trial"
+                fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
+              />
+            )
+          }
+        ]}
+        footnote="Engagement is how much of the school's setup wizard is done: High is two-thirds or more, Medium a third or more, otherwise Low."
+      />
+
+      <div className="grid gap-[14px]">
+      <ReferenceList
+        title="Automatic trial alerts"
+        items={[
+          { label: `${trialPolicy.lockReminderDays} days before the trial ends`, detail: "The owner is told the trial is ending, by email and in-app", tone: "warn" },
+          { label: "The day it ends", detail: `The school becomes read-only for ${trialPolicy.readOnlyDays} days and the owner is told the date it will be locked`, tone: "warn" },
+          { label: `${trialPolicy.lockReminderDays} days before the lock`, detail: "The owner is reminded the school is about to be locked", tone: "warn" },
+          { label: `${trialPolicy.readOnlyDays} days after the trial`, detail: "The school is locked. Nothing is deleted; only support can reopen it", tone: "bad" },
+          ...(dormancy ? [{ label: `${dormancy.dormantDays} days without a login`, detail: `Account moves to Dormant · web address released ${dormancy.noticeDays} days after notice`, tone: "bad" as const }] : []),
+          { label: "Trial extended", detail: "Logged with the reason and the admin who approved it", tone: "good" }
+        ]}
+      />
+
+      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
+        <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Post-trial behaviour</h3>
+        <p className="mt-1 text-pretty text-[12.5px] leading-[1.6] text-[#435048]">
+          At day {trialPolicy.days} the school moves to Trial Ended — read-only for {trialPolicy.readOnlyDays} days, then locked at day {trialPolicy.days + trialPolicy.readOnlyDays}. Data is retained in full, never deleted, and restored instantly on conversion.
+        </p>
+      </section>
+      </div>
+      </div>
+
       <TableCard
         title={`Trial communication schedule — day 0 to day ${trialPolicy.days + trialPolicy.readOnlyDays}`}
         description="Every message below the lifecycle ones is a template in Communications, not text embedded in code, so it can be edited without a deployment. Attach a template to a trigger there."
@@ -876,193 +824,7 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
         footnote="A failed send is a failed delivery on the school's own record, so it lands in the contact-quality repair queue under Users → Reviews & Cases rather than disappearing."
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1.6fr_1fr]">
-        {trials.length === 0 ? (
-          <section className="surface-card p-6">
-            <div className="empty-state">
-              <p className="text-[13.5px] font-semibold text-[var(--color-text-primary)]">No schools currently on trial</p>
-              <p className="mt-1 max-w-md text-[11.5px] text-[var(--color-text-secondary)]">
-                Trial schools will appear here as they self-onboard.
-              </p>
-            </div>
-          </section>
-        ) : (
-          <div className="grid gap-3 self-start">
-            {trials.map((trial) => {
-              const overdue = trial.daysRemaining !== null && trial.daysRemaining < 0;
-              const urgent = trial.daysRemaining !== null && trial.daysRemaining <= 2;
-              const soon = trial.daysRemaining !== null && trial.daysRemaining <= 5;
-              const barColor = overdue || urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-accent-primary)";
-              return (
-                <article key={trial.schoolId} className="surface-card p-4">
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{trial.schoolName}</p>
-                      <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{trial.plan} tier</p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      {trial.daysRemaining !== null ? (
-                        <StatusPill
-                          bg={overdue || urgent ? "var(--color-danger-dim)" : soon ? "var(--color-warning-dim)" : "var(--color-accent-primary-dim)"}
-                          fg={overdue || urgent ? "var(--color-danger)" : soon ? "var(--color-warning)" : "var(--color-text-accent)"}
-                          label={overdue ? `Overdue ${Math.abs(trial.daysRemaining)}d — still on Trial` : trial.daysRemaining === 0 ? "Expires today" : `${trial.daysRemaining} day${trial.daysRemaining === 1 ? "" : "s"} left`}
-                        />
-                      ) : null}
-                      <ResourceActionDialog
-                        triggerLabel="Extend"
-                        title={`Extend trial for ${trial.schoolName}`}
-                        description="Add trial days and move billing due date forward."
-                        endpoint={`/api/super-admin/billing/${trial.schoolId}/extend-trial`}
-                        method="POST"
-                        variant="secondary"
-                        submitLabel="Extend trial"
-                        fields={[{ name: "days", label: "Days", type: "number", defaultValue: 14, min: 1, max: 365 }]}
-                      />
-                    </div>
-                  </div>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                    <div className="h-full rounded-full transition-all" style={{ width: `${trial.pct}%`, background: barColor }} />
-                  </div>
-                </article>
-              );
-            })}
-          </div>
-        )}
-
-        <div className="grid gap-3.5 self-start">
-          <section className="surface-card p-5">
-            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Automatic trial alerts</p>
-            <div className="mt-3 grid gap-2.5">
-              {[
-                [`${trialPolicy.lockReminderDays} days before the trial ends`, "The owner is told the trial is ending, by email and in-app."],
-                ["The day it ends", `The school becomes read-only for ${trialPolicy.readOnlyDays} days and the owner is told the date it will be locked.`],
-                [`${trialPolicy.lockReminderDays} days before the lock`, "The owner is reminded the school is about to be locked."],
-                [`${trialPolicy.readOnlyDays} days after the trial`, "The school is locked. Nothing is deleted; only support can reopen it."]
-              ].map(([when, what]) => (
-                <div key={when} className="border-b border-[var(--color-border-muted)] pb-2.5 last:border-b-0 last:pb-0">
-                  <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{when}</p>
-                  <p className="mt-0.5 text-[10.5px] leading-5 text-[var(--color-text-muted)]">{what}</p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-3 text-[10px] text-[var(--color-text-muted)]">Set in Settings → Platform. Each step is written to the audit log.</p>
-          </section>
-          <section className="rounded-[12.5px] p-5" style={{ background: "var(--color-bg-subtle)", border: "1px solid var(--color-border-default)" }}>
-            <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">Post-trial behaviour</p>
-            <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-              When a trial ends the school moves to a <strong>read-only</strong> window of {trialPolicy.readOnlyDays} days: it can read and export, but every change is refused, and the way out — choosing a plan or paying — stays open. Paying switches editing straight back on. After the window the school is <strong>locked</strong> and cannot sign in until support reopens it. Nothing is ever deleted by this.
-            </p>
-          </section>
-        </div>
-      </div>
     </div>
-  );
-}
-
-async function ChurnRiskTab() {
-  const envelope = await apiGetEnvelope<SuperAdminChurnRiskRow[]>("/api/super-admin/billing/churn");
-  const schools = envelope.data ?? [];
-  const flaggedSchools = schools.filter((school) => school.score < 50).slice(0, 6);
-
-  return (
-    <section className="grid gap-5">
-      <section className="surface-card p-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="section-eyebrow">Churn risk scoring</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Retention risk</h2>
-            <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
-              Daily behavioural signal scoring (login recency, result/fee activity, trial engagement, support health). Schools with a score below 50 are flagged as high risk.
-            </p>
-          </div>
-          <ResourceActionDialog
-            triggerLabel="Recalculate now"
-            title="Recalculate churn risk"
-            description="Recompute the churn risk score for every active, trial, and grace-period school."
-            endpoint="/api/super-admin/billing/churn/recalculate"
-            method="POST"
-            submitLabel="Recalculate"
-            fields={[]}
-          />
-        </div>
-      </section>
-
-      <div className="grid gap-5 xl:grid-cols-[1.7fr_1fr]">
-        <TableCard
-          title="Schools by churn risk"
-          description="Lowest scores (highest risk) first."
-          items={schools}
-          columns={[
-            { key: "school", header: "School", render: (item) => item.schoolName },
-            {
-              key: "score",
-              header: "Score",
-              render: (item) => (
-                <span className="font-[var(--font-mono)] font-bold" style={{ color: item.score < 50 ? "var(--color-danger)" : "var(--color-text-primary)" }}>
-                  {item.score}
-                </span>
-              )
-            },
-            { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-            { key: "plan", header: "Plan", render: (item) => item.plan },
-            { key: "signals", header: "Signals", render: (item) => item.signals.length ? item.signals.join("; ") : "No risk signals" },
-            { key: "calculated", header: "Last calculated", render: (item) => (item.lastCalculatedAt ? formatDate(item.lastCalculatedAt) : "Never") }
-          ]}
-          emptyState="No churn scores calculated yet. Click Recalculate now."
-        />
-
-        <div className="grid gap-3.5 self-start">
-          <section className="surface-card p-5">
-            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Churn risk signals</p>
-            <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Every school starts at 100. Each signal below subtracts its weight; a final score under 50 is flagged high risk.</p>
-            <div className="mt-3.5 grid gap-3">
-              {churnSignalReference.map((row) => (
-                <div key={row.signal} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                  <div className="flex items-start justify-between gap-3">
-                    <p className="text-[11px] font-semibold leading-5 text-[var(--color-text-primary)]">{row.signal}</p>
-                    <span className="shrink-0 rounded-full px-2 py-0.5 text-[10px] font-bold" style={{ background: "var(--color-danger-dim)", color: "var(--color-danger)" }}>
-                      {row.weight}
-                    </span>
-                  </div>
-                  <p className="mt-1 text-[10px] text-[var(--color-text-muted)]">{row.threshold}</p>
-                </div>
-              ))}
-            </div>
-          </section>
-
-          <section className="surface-card p-5">
-            <div className="flex items-center justify-between">
-              <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Flagged schools</p>
-              <p className="text-[10px] text-[var(--color-text-muted)]">Weekly digest to Finance &amp; CS</p>
-            </div>
-            <div className="mt-3.5 grid gap-4">
-              {flaggedSchools.length === 0 ? (
-                <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">
-                  No schools currently below the risk threshold.
-                </p>
-              ) : (
-                flaggedSchools.map((school) => (
-                  <div key={school.schoolId}>
-                    <div className="flex items-center justify-between gap-3">
-                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{school.schoolName}</p>
-                      <span className="font-[var(--font-mono)] text-[11.5px] font-bold" style={{ color: "var(--color-danger)" }}>
-                        {school.score}
-                      </span>
-                    </div>
-                    <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                      <div className="h-full rounded-full" style={{ width: `${school.score}%`, background: "var(--color-danger)" }} />
-                    </div>
-                    <p className="mt-1.5 text-[10px] text-[var(--color-text-muted)]">
-                      {school.signals[0] ?? "No specific signal logged"}
-                    </p>
-                  </div>
-                ))
-              )}
-            </div>
-          </section>
-        </div>
-      </div>
-    </section>
   );
 }
 
@@ -1097,7 +859,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-5">
         <StatCard label="Credit held across all schools" value={formatCompactCurrency(k.heldValue, "NGN")} detail="SMS and WhatsApp, unspent, at the price schools pay" icon={CreditCard} tone="dark" />
         <StatCard label="Schools below the message floor" value={k.belowFloor} detail={k.belowFloor ? `Low-balance alert sent to ${k.alerted} in the last 7 days` : "Every wallet is above its floor"} icon={AlertTriangle} tone={k.belowFloor ? "warning" : "success"} />
@@ -1176,7 +938,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
         ]}
       />
 
-      <div className="grid gap-5 xl:grid-cols-[1.4fr_1fr]">
+      <div className="grid items-start gap-[14px] xl:grid-cols-[1.4fr_1fr]">
         <TableCard
           title="Provider rate card"
           description="What Nooria pays the provider against what the school pays. The only figure on this tab a school must never see. Super Admin only."
@@ -1224,111 +986,54 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
   );
 }
 
-async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAdminBillingRow[]; activePlans: SuperAdminPlanRow[] }) {
-  const [codesEnvelope, reportEnvelope] = await Promise.all([
-    apiGetEnvelope<SuperAdminPromoCodeRow[]>("/api/super-admin/billing/promo-codes"),
-    apiGetEnvelope<Array<{ campaignName: string; totalRedemptions: number; totalDiscountIssued: number; schoolsConverted: number }>>("/api/super-admin/billing/promo-codes/report")
-  ]);
-  const codes = codesEnvelope.data ?? [];
-  const campaigns = reportEnvelope.data ?? [];
+async function PricingPromotionsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
+  const codes = (await apiGetEnvelope<SuperAdminPromoCodeRow[]>("/api/super-admin/billing/promo-codes")).data ?? [];
   const schoolOptions = billing.map((item) => ({ label: item.schoolName, value: item.schoolId }));
-
-  const activeCodeCount = codes.filter((code) => code.isActive).length;
+  const now = Date.now();
+  const stateOf = (code: SuperAdminPromoCodeRow) => (code.expiresAt && new Date(code.expiresAt).getTime() < now ? "Expired" : code.isActive ? "Active" : "Inactive");
+  const activeCodes = codes.filter((code) => stateOf(code) === "Active");
   const totalRedemptions = codes.reduce((sum, code) => sum + code.uses, 0);
   const totalDiscountIssued = codes.reduce((sum, code) => sum + code.totalDiscountIssued, 0);
   const totalSchoolsConverted = codes.reduce((sum, code) => sum + code.schoolsConverted, 0);
+  const campaignCount = new Set(activeCodes.map((code) => code.campaignName ?? code.code)).size;
+  const stat = (label: string, value: string, sub: string) => (
+    <div key={label}>
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#77857C]">{label}</p>
+      <p className="mt-1 text-[18px] font-extrabold tracking-[-0.02em] text-[var(--color-text-primary)]">{value}</p>
+      <p className="mt-0.5 text-[11.5px] text-[#8C9A92]">{sub}</p>
+    </div>
+  );
 
   return (
-    <section className="grid gap-5">
-      <section className="surface-card overflow-hidden">
-        <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="section-eyebrow">Live rate card</p>
-            <h2 className="mt-1 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Subscription plans</h2>
-          </div>
-          <Link href="/super-admin/feature-flags?tab=plans" className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
-            Open Tier Plans
-          </Link>
+    <TableCard
+      title="Promo codes"
+      description="Discount codes, the campaign each belongs to, and how they have been used."
+      items={codes}
+      getRowKey={(code) => code.id}
+      emptyState="No promo codes created yet."
+      footnote={
+        <div className="grid gap-4 md:grid-cols-3">
+          {stat("Total redemptions", totalRedemptions.toLocaleString(), `Across ${campaignCount} active campaign${campaignCount === 1 ? "" : "s"}`)}
+          {stat("Total discount issued", formatCurrency(totalDiscountIssued), "Across all codes")}
+          {stat("Schools converted via codes", totalSchoolsConverted.toLocaleString(), "Schools that paid after redeeming a code")}
         </div>
-        <div className="grid gap-3 p-5 md:grid-cols-2 lg:grid-cols-3">
-          {activePlans.length === 0 ? (
-            <p className="rounded-[11px] border border-dashed border-[var(--color-border-default)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)] md:col-span-2 xl:col-span-3">
-              No active plans. Configure one in Feature &amp; Tier Management.
-            </p>
-          ) : (
-            activePlans.map((plan) => {
-              const entitlements = planEntitlements(plan.includedModules);
-              const featureSummary = entitlements.features.length
-                ? entitlements.features.slice(0, 3).join(", ")
-                : entitlements.modules.slice(0, 3).join(", ");
-              return (
-              <article key={plan.id} className="rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-[var(--shadow-sm)]">
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{plan.plan}</p>
-                    <h3 className="mt-1 truncate text-[13.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</h3>
-                    <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{plan.slug}</p>
-                  </div>
-                  <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Active" />
-                </div>
-
-                <div className="mt-4 grid grid-cols-2 gap-3">
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">Semester</p>
-                    <p className="mt-1 font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{planPriceLabel(plan)}</p>
-                    <p className="text-[10.5px] text-[var(--color-text-muted)]">flat rate, per school</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.1em] text-[var(--color-text-muted)]">USD</p>
-                    <p className="mt-1 font-[var(--font-mono)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{planUsd(plan)}</p>
-                    <p className="text-[10.5px] text-[var(--color-text-muted)]">{plan.subscriberCount} subscriber{plan.subscriberCount === 1 ? "" : "s"}</p>
-                  </div>
-                </div>
-
-                <div className="mt-4 grid gap-2 border-t border-[var(--color-border-default)] pt-3 text-[11px] text-[var(--color-text-secondary)]">
-                  <div className="flex justify-between gap-3">
-                    <span>Students</span>
-                    <span className="font-semibold text-[var(--color-text-primary)]">{studentRangeLabel(plan)}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span>Staff</span>
-                    <span className="font-semibold text-[var(--color-text-primary)]">{plan.staffLimit ? `${plan.staffLimit.toLocaleString()} staff` : "Unlimited"}</span>
-                  </div>
-                  <div className="flex justify-between gap-3">
-                    <span>Support</span>
-                    <span className="font-semibold text-[var(--color-text-primary)]">{plan.supportTier}</span>
-                  </div>
-                  {featureSummary ? (
-                    <p className="border-t border-[var(--color-border-default)] pt-2 leading-5">{featureSummary}</p>
-                  ) : null}
-                </div>
-
-                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
-                  <div className="flex flex-wrap gap-1.5">
-                    {plan.apiAccess ? <StatusPill bg="var(--color-info-dim)" fg="var(--color-info)" label="API" /> : null}
-                    {plan.customBranding ? <StatusPill bg="var(--color-accent-primary-dim)" fg="var(--color-text-accent)" label="Branding" /> : null}
-                    {!plan.apiAccess && !plan.customBranding ? <StatusPill bg="var(--color-bg-subtle)" fg="var(--color-text-muted)" label="Core" /> : null}
-                  </div>
-                  <PlanEditDialog plan={plan} />
-                </div>
-              </article>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      <section className="grid gap-3 md:grid-cols-3">
-        <StatCard label="Active promo codes" value={activeCodeCount} detail={`${codes.length} total code${codes.length === 1 ? "" : "s"} created`} tone="dark" icon={TicketPercent} />
-        <StatCard label="Total redemptions" value={totalRedemptions} detail={`${totalSchoolsConverted} school${totalSchoolsConverted === 1 ? "" : "s"} converted`} tone="accent" icon={Gift} />
-        <StatCard label="Total discount issued" value={formatCurrency(totalDiscountIssued)} detail="Across all codes" tone="warning" icon={BadgePercent} />
-      </section>
-
-      <TableCard
-        title="Promo codes"
-        description="Discount codes and their redemption performance."
-        items={codes}
-        actions={
+      }
+      actions={
+        <div className="flex items-center gap-2">
+          <ResourceActionDialog
+            triggerLabel="Apply a code"
+            title="Apply a promo code to a school"
+            description="Applies the code's discount to one school's account."
+            endpoint="/api/super-admin/billing/promo-codes/apply"
+            method="POST"
+            variant="secondary"
+            submitLabel="Apply code"
+            fields={[
+              { name: "code", label: "Code", type: "select", required: true, options: codes.map((code) => ({ label: code.code, value: code.code })) },
+              { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
+              { name: "reason", label: "Reason", type: "textarea", required: true }
+            ]}
+          />
           <ResourceActionDialog
             triggerLabel="Create promo code"
             title="Create promo code"
@@ -1345,158 +1050,16 @@ async function PricingPromotionsTab({ billing, activePlans }: { billing: SuperAd
               { name: "expiresAt", label: "Expiry date", type: "date" }
             ]}
           />
-        }
-        columns={[
-          { key: "code", header: "Code", render: (item) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{item.code}</span> },
-          { key: "campaign", header: "Campaign", render: (item) => item.campaignName ?? "Uncategorized" },
-          { key: "value", header: "Value", render: (item) => (item.type === "PERCENTAGE" ? `${item.value}%` : formatCurrency(item.value)) },
-          { key: "uses", header: "Redemptions", render: (item) => `${item.uses}${item.maxUses ? ` / ${item.maxUses}` : ""}` },
-          { key: "discount", header: "Total discount issued", render: (item) => formatCurrency(item.totalDiscountIssued) },
-          { key: "converted", header: "Schools converted", render: (item) => item.schoolsConverted },
-          {
-            key: "actions",
-            header: "Apply",
-            render: (item) => (
-              <ResourceActionDialog
-                triggerLabel="Apply to school"
-                title={`Apply ${item.code} to a school`}
-                description="Applies this promo code's discount to a school's account."
-                endpoint="/api/super-admin/billing/promo-codes/apply"
-                method="POST"
-                variant="secondary"
-                submitLabel="Apply code"
-                fields={[
-                  { name: "code", label: "Code", defaultValue: item.code },
-                  { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-                  { name: "reason", label: "Reason", type: "textarea", required: true }
-                ]}
-              />
-            )
-          }
-        ]}
-        emptyState="No promo codes created yet."
-      />
-
-      <TableCard
-        title="Campaign performance"
-        description="Redemptions and discount issued, grouped by campaign."
-        items={campaigns}
-        columns={[
-          { key: "campaign", header: "Campaign", render: (item) => item.campaignName },
-          { key: "redemptions", header: "Total redemptions", render: (item) => item.totalRedemptions },
-          { key: "discount", header: "Total discount issued", render: (item) => formatCurrency(item.totalDiscountIssued) },
-          { key: "converted", header: "Schools converted", render: (item) => item.schoolsConverted }
-        ]}
-        emptyState="No campaign activity yet."
-      />
-    </section>
-  );
-}
-
-function RevenueReportTab({ revenue, report }: { revenue: SuperAdminRevenueView; report: SuperAdminRevenueReport }) {
-  const subscriberCounts = new Map<string, number>(revenue.schoolsByPlan.map((item) => [item.plan, item.count]));
-  const maxTierRevenue = Math.max(...report.revenueByTier.map((item) => item.revenue), 1);
-
-  return (
-    <section className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
-        <StatCard
-          label="Outstanding"
-          value={formatCompactCurrency(report.outstandingReceivables)}
-          detail={`${report.unpaidSchoolCount} school${report.unpaidSchoolCount === 1 ? "" : "s"} with an open balance. Full value: ${formatCurrency(report.outstandingReceivables)}.`}
-          icon={AlertTriangle}
-          tone="dark"
-        />
-        <StatCard
-          label="Renewal rate"
-          value={`${report.renewalRate}%`}
-          detail={`${report.renewedRecently} of ${report.activeSchoolCount} renewed in the last 90 days.`}
-          icon={Repeat2}
-          tone="success"
-        />
-        <StatCard
-          label="ARPU"
-          value={formatCompactCurrency(report.arpu)}
-          detail={`Per paying school, per semester. Full value: ${formatCurrency(report.arpu)}.`}
-          icon={DollarSign}
-          tone="info"
-        />
-        <StatCard
-          label="Credit share"
-          value={`${report.creditRevenueSharePct}%`}
-          detail={`${formatCompactCurrency(report.notificationCreditRevenue)} of platform revenue from credit bundles.`}
-          icon={CreditCard}
-          tone="accent"
-        />
-        <StatCard
-          label="Next term"
-          value={formatCompactCurrency(report.mrr)}
-          detail={`Active schools × confirmed tiers. Full value: ${formatCurrency(report.mrr)}.`}
-          icon={TrendingUp}
-          tone="success"
-        />
-      </section>
-
-      <section className="grid gap-5 lg:grid-cols-2">
-        <section className="surface-card p-6">
-          <p className="section-eyebrow">Tier split</p>
-          <h3 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Revenue by tier</h3>
-          <div className="mt-4 grid gap-3">
-            {report.revenueByTier.map((item) => (
-              <div key={item.plan}>
-                <div className="flex items-center justify-between text-[11.5px] font-semibold text-[var(--color-text-primary)]">
-                  <span className="flex items-center gap-2">
-                    <span className="h-2 w-2 rounded-[2.5px] bg-[var(--color-accent-primary)]" />
-                    {item.plan}
-                    <span className="text-[10px] font-medium text-[var(--color-text-muted)]">{subscriberCounts.get(item.plan) ?? 0} subs</span>
-                  </span>
-                  <span className="font-[var(--font-mono)]">{formatCurrency(item.revenue)}</span>
-                </div>
-                <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
-                  <div className="h-full rounded-full bg-[var(--color-accent-primary)]" style={{ width: `${(item.revenue / maxTierRevenue) * 100}%` }} />
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-        <TableCard
-          title="LTV projection by tier"
-          items={report.ltvByTier}
-          columns={[
-            { key: "tier", header: "Tier", render: (item) => item.plan },
-            { key: "duration", header: "Avg duration", render: (item) => `${(item.avgTenureMonths / 4).toFixed(1)} terms` },
-            { key: "termly", header: "Termly value", render: (item) => formatCurrency(item.termlyValue) },
-            { key: "ltv", header: "Projected LTV", render: (item) => formatCurrency(item.ltv) }
-          ]}
-          emptyState="No active subscriptions yet."
-        />
-      </section>
-
-      <TableCard
-        title="Revenue by state"
-        description="Where the platform's schools and revenue are concentrated, and where growth is coming from."
-        items={report.revenueByState}
-        columns={[
-          { key: "state", header: "State", render: (item) => item.state },
-          { key: "topCity", header: "Top city", render: (item) => item.topCity ?? "—" },
-          { key: "schools", header: "Schools", render: (item) => item.schoolCount },
-          { key: "revenue", header: "Semester revenue", render: (item) => formatCurrency(item.revenue) },
-          { key: "arpu", header: "ARPU", render: (item) => formatCurrency(item.arpu) },
-          {
-            key: "trend",
-            header: "Trend (90d)",
-            render: (item) =>
-              item.newSchools90d > 0 ? (
-                <span className="font-semibold" style={{ color: "var(--color-success)" }}>
-                  +{item.newSchools90d} school{item.newSchools90d === 1 ? "" : "s"}
-                </span>
-              ) : (
-                <span className="text-[var(--color-text-muted)]">Steady</span>
-              )
-          }
-        ]}
-        emptyState="No school location data yet."
-      />
-    </section>
+        </div>
+      }
+      columns={[
+        { key: "code", header: "Code", render: (code) => <span className="font-bold text-[var(--color-text-primary)]">{code.code}</span> },
+        { key: "discount", header: "Discount", render: (code) => (code.type === "PERCENTAGE" ? `${code.value}% off` : `${formatCurrency(code.value)} flat`) },
+        { key: "campaign", header: "Campaign", render: (code) => code.campaignName ?? "—" },
+        { key: "redemptions", header: "Redemptions", render: (code) => `${code.uses} / ${code.maxUses ?? "—"}` },
+        { key: "validTo", header: "Valid to", render: (code) => (code.expiresAt ? formatDate(code.expiresAt) : "No expiry") },
+        { key: "status", header: "Status", render: (code) => <StatusBadge status={stateOf(code)} /> }
+      ]}
+    />
   );
 }

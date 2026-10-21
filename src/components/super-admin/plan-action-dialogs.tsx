@@ -528,7 +528,7 @@ function PlanDialog({
           {step === 2 ? (
             <div>
               <p className="section-eyebrow">Included modules</p>
-              <h3 className="mt-1 text-[15.5px] font-bold text-[var(--color-text-primary)]">Turn plan modules on or off</h3>
+              <h3 className="mt-1 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Turn plan modules on or off</h3>
               <p className="mt-1 text-[11.5px] leading-5 text-[var(--color-text-secondary)]">These toggles control the modules shown on billing, onboarding, and plan comparison surfaces.</p>
               <div className="mt-4">
                 <ModuleToggleGrid values={form.modules} onChange={(modules) => update("modules", modules)} />

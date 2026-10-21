@@ -43,7 +43,7 @@ function churnSignal(reason: string) {
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -98,16 +98,16 @@ export default async function SuperAdminAnalyticsPage({ searchParams }: { search
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Overview"
+        eyebrow="MODULE 07"
         title="Analytics & BI"
         description="Honest measurement, made easier than optimistic measurement."
         action={
           <ResourceActionDialog
             triggerLabel="Build report"
-            title="Build a report"
-            description="Answer one question well, then save it for the people who ask it monthly."
+            title="Analytics & BI"
+            description="Honest measurement, made easier than optimistic measurement."
             endpoint="/api/super-admin/analytics-bi/reports"
             variant="heroWhite"
             submitLabel="Build report"
@@ -164,7 +164,7 @@ async function GrowthTab() {
   });
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <section className="surface-card overflow-hidden">
         <SectionHeader title="Growth and conversion funnel" description="Each stage is a real school count computed from signup, trial, and billing records — not a sample." />
         <div className="flex items-end gap-2.5 px-5 pb-[20px] pt-2.5">
@@ -240,7 +240,7 @@ async function GrowthTab() {
 
       <div className="grid gap-1.5">
         <p className="section-eyebrow">Displacement</p>
-        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Where schools switched from</h2>
+        <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Where schools switched from</h2>
         <p className="text-[11.5px] text-[var(--color-text-secondary)]">Computed from real migration records — which system a school moved from, and whether the move stuck.</p>
       </div>
 
@@ -320,11 +320,11 @@ async function RetentionTab() {
   const maxTierRegionNps = Math.max(...nps.byTierAndRegion.map((item) => Math.abs(item.npsScore)), 1);
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       {/* Cohort retention */}
       <div className="grid gap-1.5">
         <p className="section-eyebrow">Cohort retention</p>
-        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Retention by signup cohort</h2>
+        <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Retention by signup cohort</h2>
         <p className="text-[11.5px] text-[var(--color-text-secondary)]">Schools grouped by the month they joined, and the share still active today.</p>
       </div>
       <TableCard
@@ -344,7 +344,7 @@ async function RetentionTab() {
             header: "Verdict",
             render: (item) => {
               const tone = item.joined < 3 ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Too early" } : item.retentionPct >= 80 ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Product working" } : item.retentionPct >= 60 ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Watch" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "At risk" };
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             },
             sortValue: (item) => item.retentionPct
           }
@@ -374,7 +374,7 @@ async function RetentionTab() {
       {/* Churn analysis */}
       <div className="mt-2 grid gap-1.5">
         <p className="section-eyebrow">Churn analysis</p>
-        <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Why schools leave</h2>
+        <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Why schools leave</h2>
         <p className="text-[11.5px] text-[var(--color-text-secondary)]">Logged churn records, grouped by reason and subscription tier.</p>
       </div>
       <TableCard
@@ -406,7 +406,7 @@ async function RetentionTab() {
         ]}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-[14px] lg:grid-cols-2">
         <section className="surface-card p-6">
           <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Churn rate by tier</p>
           <p className="mt-1.5 text-[10.5px] text-[var(--color-text-muted)]">Share of every school that has ever been on a tier which later churned.</p>
@@ -455,7 +455,7 @@ async function RetentionTab() {
       <div className="mt-2 flex flex-wrap items-end justify-between gap-3">
         <div className="grid gap-1.5">
           <p className="section-eyebrow">NPS &amp; satisfaction</p>
-          <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Net promoter score</h2>
+          <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Net promoter score</h2>
           <p className="text-[11.5px] text-[var(--color-text-secondary)]">Recorded from school admin survey responses.</p>
         </div>
         <ResourceActionDialog
@@ -509,7 +509,7 @@ async function RevenueTab() {
   const report = await apiGet<SuperAdminRevenueReport>("/api/super-admin/analytics/revenue-report");
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard
           label="Total outstanding receivables"
@@ -548,7 +548,7 @@ async function RevenueTab() {
         />
       </section>
 
-      <section className="grid gap-5 xl:grid-cols-[1.2fr_1fr]">
+      <section className="grid items-start gap-[14px] xl:grid-cols-[1.2fr_1fr]">
         <RevenueStateTable items={report.revenueByState} />
         <TableCard
           title="LTV projection by tier"
@@ -592,7 +592,7 @@ async function ProductTab() {
   const sprintCandidates = adoption.heatmapByTier.filter((row) => populated.filter((tier) => (row.cells[tier.index] ?? 100) < 40).length >= Math.min(2, populated.length) && populated.length > 0);
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-2 lg:grid-cols-5">
         <StatCard label="Weekly active schools" value={adoption.schoolsActiveThisWeek} detail="At least one login in the last 7 days" icon={Building2} tone="dark" />
         <StatCard label="Platform adoption index" value={adoption.adoptionIndex} detail={`Weighted across ${adoption.modulesTracked} modules`} icon={Gauge} />
@@ -608,7 +608,7 @@ async function ProductTab() {
         schoolsInScope={adoption.tierColumns.reduce((sum, tier) => sum + tier.schoolCount, 0)}
       />
 
-      <section className="grid gap-5 xl:grid-cols-[1.35fr_1fr]">
+      <section className="grid items-start gap-[14px] xl:grid-cols-[1.35fr_1fr]">
         <TableCard
           title="Adoption gaps auto-nominated for the next sprint"
           description="Every module sitting below the 40% floor across the whole platform."
@@ -672,7 +672,7 @@ async function ReportsTab() {
   const ownerName = session?.name ? `You · ${session.name}` : "You";
 
   return (
-    <section className="grid gap-5 xl:grid-cols-[1.1fr_1fr]">
+    <section className="grid items-start gap-[14px] xl:grid-cols-[1.1fr_1fr]">
       <SavedReportsTable
         items={reports}
         actions={

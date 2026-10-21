@@ -1,8 +1,10 @@
+import { FlowSteps } from "@/components/data-display/flow-steps";
 import { AlertTriangle, FileWarning, MonitorCheck, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
@@ -121,7 +123,7 @@ const privacyStatusOptions = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -165,16 +167,16 @@ export default async function SuperAdminSecurityPage({ searchParams }: { searchP
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Trust & Control"
+        eyebrow="MODULE 10"
         title="Security & Compliance"
-        description="The accountability layer — active sessions, login activity and the platform audit trail, security incidents tracked from detection to resolution, NDPC-compliant data deletion evidence, and data subject requests."
+        description="What happened, who did it, and the obligations we operate."
         action={
           <ResourceActionDialog
             triggerLabel="Export the audit log"
-            title="Export the audit log"
-            description="The record of who did what. Taking a copy of it is itself an act — the reason you give, the filters, and the row count are written back to the audit log and kept with the copy."
+            title="Security & Compliance"
+            description="What happened, who did it, and the obligations we operate."
             endpoint="/api/super-admin/compliance/audit-exports"
             method="POST"
             variant="heroWhite"
@@ -219,7 +221,37 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
   const failedAttempts = attempts.filter((a) => a.status === "FAILED" && Date.now() - new Date(a.createdAt).getTime() < 86_400_000).length;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
+      <TableCard
+        title="Full audit log"
+        description={
+          <>
+            Most recent 30 events. For search, action-type and date-range filters plus CSV export, use the{" "}
+            <Link href="/super-admin/audit-logs" className="font-semibold text-[var(--color-text-accent)] underline">
+              full audit log
+            </Link>
+            .
+          </>
+        }
+        items={logs}
+        emptyState="No audit events recorded yet."
+        columns={[
+          { key: "timestamp", header: "Timestamp", render: (item) => formatDate(item.timestamp) },
+          { key: "admin", header: "Super Admin", render: (item) => item.superAdmin },
+          {
+            key: "action",
+            header: "Action",
+            render: (item) => {
+              const tone = auditActionTone(item.action);
+              return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
+            }
+          },
+          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.target}</span> },
+          { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
+          { key: "details", header: "Details", render: (item) => <AuditDetailsPreview details={item.details} /> }
+        ]}
+      />
+
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Active admin sessions" value={adminSessions.length} detail="Platform-role accounts only" icon={MonitorCheck} tone="dark" />
         <StatCard label="Failed logins (24h)" value={failedAttempts} detail="Across all account types, not admin-only" icon={FileWarning} tone={failedAttempts ? "warning" : "neutral"} />
@@ -234,59 +266,15 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
         <StatCard label="IP whitelist" value={signIn.ipAllow ? `${signIn.ipAllow} allowed` : "Off"} detail={signIn.ipAllow || signIn.ipDeny ? `${signIn.ipAllow} allow · ${signIn.ipDeny} deny rule${signIn.ipDeny === 1 ? "" : "s"}, exact address, Back Office accounts only` : "No rules set — any address may sign in to the Back Office"} icon={ShieldCheck} tone={signIn.ipAllow ? "success" : "neutral"} />
       </section>
 
-      <TableCard
+      <ReferenceList
         title="Admin login policy"
-        description="Verified against the real session and login code, not stated as intent."
+        sub="Enforced at platform level, verified against the real session and sign-in code"
         items={[
-          { control: "Multi-factor authentication", spec: "Every Back Office sign-in asks for a one-time code sent to the account's email (when a mail server is configured). An authenticator app can be turned on top of it from Profile → Sessions & security; with the app on, its code is asked for instead.", state: "enforced" as const },
-          { control: "Session expiry", spec: `An 8-hour session from sign-in, and a Back Office session ends after ${signIn.idleMinutes} minutes without a request (PLATFORM_IDLE_MINUTES). School accounts keep the full session.`, state: "enforced" as const },
-          { control: "Failed-login handling", spec: "5 failed attempts for one account in 10 minutes lock it for 15 minutes, counted by account so switching between email and User ID does not reset it. Each lockout opens a High incident automatically.", state: "enforced" as const },
-          { control: "IP whitelist", spec: "Enforced at sign-in for Back Office accounts, exact address only — any allow rule switches it to allow-list mode. See Internal Team → Security for the rules.", state: "enforced" as const },
-          { control: "Unrecognised device/location challenge", spec: "A sign-in from a device the account has not used before is flagged on the login record and the account's owner is emailed. It does not block the sign-in — the email code already gates it. Location shows only where a network edge (Cloudflare, Vercel, CloudFront) reports it.", state: "partial" as const }
-        ]}
-        getRowKey={(row) => row.control}
-        columns={[
-          { key: "control", header: "Control", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.control}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
-          {
-            key: "state",
-            header: "State",
-            render: (row) => {
-              const tone = row.state === "enforced" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" } : row.state === "partial" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Alerts, does not block" } : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" };
-              return <StatusPill bg={tone.bg} fg={tone.fg} label={tone.label} />;
-            }
-          }
-        ]}
-      />
-
-      <TableCard
-        title="Active sessions"
-        items={sessions}
-        emptyState="No active sessions are currently tracked."
-        columns={[
-          { key: "user", header: "User", render: (item) => item.user ? `${item.user.firstName} ${item.user.lastName}` : "Unknown" },
-          { key: "role", header: "Role", render: (item) => item.user?.role ?? "-" },
-          { key: "device", header: "Device", render: (item) => item.device ?? "Unknown" },
-          { key: "ip", header: "IP", render: (item) => item.ipAddress ?? "-" },
-          { key: "last", header: "Last activity", render: (item) => formatDate(item.lastActivityAt) },
-          {
-            key: "actions",
-            header: "Actions",
-            render: (item) => (
-              <ResourceActionDialog
-                triggerLabel="Force logout"
-                title={`Force logout — ${item.user ? `${item.user.firstName} ${item.user.lastName}` : "this session"}`}
-                description="Immediately ends this session. The user is signed out on their next request and must log in again."
-                endpoint={`/api/super-admin/security/sessions/${item.id}/revoke`}
-                method="PATCH"
-                variant="menuDanger"
-                submitLabel="Force logout"
-                confirmLabel="Confirm logout"
-                confirmMessage="This immediately signs the user out."
-                fields={[]}
-              />
-            )
-          }
+          { label: "Multi-factor authentication", detail: "Every Back Office sign-in asks for a one-time code sent to the account's email (when a mail server is configured). An authenticator app can be turned on top of it from Profile → Sessions & security; with the app on, its code is asked for instead.", pill: "Enforced", tone: "good" as const },
+          { label: "Session expiry", detail: `An 8-hour session from sign-in, and a Back Office session ends after ${signIn.idleMinutes} minutes without a request (PLATFORM_IDLE_MINUTES). School accounts keep the full session.`, pill: "Enforced", tone: "good" as const },
+          { label: "Failed-login handling", detail: "5 failed attempts for one account in 10 minutes lock it for 15 minutes, counted by account so switching between email and User ID does not reset it. Each lockout opens a High incident automatically.", pill: "Enforced", tone: "good" as const },
+          { label: "IP whitelist", detail: "Enforced at sign-in for Back Office accounts, exact address only — any allow rule switches it to allow-list mode. See Internal Team → Security for the rules.", pill: "Enforced", tone: "good" as const },
+          { label: "Unrecognised device/location challenge", detail: "A sign-in from a device the account has not used before is flagged on the login record and the account's owner is emailed. It does not block the sign-in — the email code already gates it. Location shows only where a network edge (Cloudflare, Vercel, CloudFront) reports it.", pill: "Alerts, does not block", tone: "warn" as const },
         ]}
       />
 
@@ -328,68 +316,7 @@ async function AuditLogTab({ sessions, attempts, mfaCoverage, signIn }: { sessio
           { key: "dl", header: "File", render: (item) => <a href={`/api/super-admin/compliance/audit-exports/${item.id}/download`} className="font-semibold text-[var(--color-text-accent)] underline">Download</a> }
         ]}
       />
-
-      <TableCard
-        title="Platform audit trail"
-        description={
-          <>
-            Most recent 30 events. For search, action-type and date-range filters plus CSV export, use the{" "}
-            <Link href="/super-admin/audit-logs" className="font-semibold text-[var(--color-text-accent)] underline">
-              full audit log
-            </Link>
-            .
-          </>
-        }
-        items={logs}
-        emptyState="No audit events recorded yet."
-        columns={[
-          { key: "timestamp", header: "Timestamp", render: (item) => formatDate(item.timestamp) },
-          { key: "admin", header: "Super Admin", render: (item) => item.superAdmin },
-          {
-            key: "action",
-            header: "Action",
-            render: (item) => {
-              const tone = auditActionTone(item.action);
-              return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
-            }
-          },
-          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.target}</span> },
-          { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
-          { key: "details", header: "Details", render: (item) => <AuditDetailsPreview details={item.details} /> }
-        ]}
-      />
     </div>
-  );
-}
-
-const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: string; fg: string; bd: string }> = {
-  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", bd: "#CFE4DB" },
-  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", bd: "#F2E4C6" },
-  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", bd: "#F3E0E0" },
-  ink: { bg: "#0D2315", fg: "#fff", bd: "#0D2315" },
-  plain: { bg: "#fff", fg: "var(--color-text-primary)", bd: "var(--color-border-default)" }
-};
-
-function FlowSteps({ title, sub, steps }: { title: string; sub: string; steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> }) {
-  return (
-    <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-      <p className="text-[12.5px] font-semibold text-[#0D2315]">{title}</p>
-      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">{sub}</p>
-      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
-        {steps.map((step, index) => {
-          const tone = flowToneStyle[step.tone ?? "plain"];
-          return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
-              </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
   );
 }
 
@@ -425,7 +352,7 @@ function BreachSteps({ incident }: { incident: SecurityIncident }) {
 function IncidentsTab({ incidents, schools }: { incidents: SecurityIncident[]; schools: SuperAdminSchoolRow[] }) {
   const schoolOptions = schools.map((school) => ({ label: school.name, value: school.id }));
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <FlowSteps
         title="Security incident lifecycle"
         sub="Every incident closes with a documented root cause and a prevention measure — the post-incident note is required before Resolved can be set."
@@ -596,7 +523,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
   const artefacts = overview.obligations.filter((row) => platformAttrs.includes(row.title));
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-5">
         <StatCard
           label="Days to next filing"
@@ -617,7 +544,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
         <StatCard label="Unresolved breach obligations" value={unresolvedBreaches} detail="Open Critical or High incidents with no regulator notice recorded yet" icon={AlertTriangle} tone={unresolvedBreaches ? "danger" : "success"} />
       </section>
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-[14px] lg:grid-cols-2">
         <TableCard
           title="Data processing agreement coverage"
           description="What each school accepted, set against the version in force. Publishing a new version tells every school that is behind."
@@ -701,7 +628,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
         ]}
       />
 
-      <div className="grid gap-5 lg:grid-cols-2">
+      <div className="grid items-start gap-[14px] lg:grid-cols-2">
         <TableCard
           title="Registration tiers"
           description={`NDPA reference thresholds, set against what this platform holds: ${subjects.students.toLocaleString()} students, ${subjects.guardians.toLocaleString()} guardians and ${subjects.accounts.toLocaleString()} staff accounts — ${total.toLocaleString()} people. That puts the platform in: ${tier}.`}
@@ -790,7 +717,7 @@ async function ComplianceTab({ incidents, privacy, overview }: { incidents: Secu
             header: "State",
             render: (row) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Real" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" } }[row.tone as "good" | "warn"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -870,7 +797,7 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="Data subject request routes"
         description="The school is the controller for its own students and guardians; Nooria is the processor. Erasure is never executed unilaterally, without the controller's instruction."

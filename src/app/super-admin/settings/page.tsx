@@ -1,3 +1,4 @@
+import { ReferenceList } from "@/components/data-display/reference-list";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -43,37 +44,6 @@ function tabHref(tab: string) {
   return tab === "platform" ? "/super-admin/settings" : `/super-admin/settings?tab=${tab}`;
 }
 
-function ReferenceList({ title, sub, items }: { title: string; sub?: string; items: Array<{ label: string; detail: string; tone?: "good" | "warn" | "bad" | "mute" }> }) {
-  const toneStyle = {
-    good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" },
-    warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" },
-    bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" },
-    mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
-  } as const;
-  return (
-    <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {sub ? <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">{sub}</p> : null}
-      </div>
-      <div className="grid gap-3 p-5">
-        {items.map((item) => {
-          const tone = toneStyle[item.tone ?? "mute"];
-          return (
-            <div key={item.label} className="flex items-start gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-              <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: tone.fg }} />
-              <div className="min-w-0">
-                <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-                <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
-
 export default async function SuperAdminSettingsPage({ searchParams }: { searchParams?: Promise<{ tab?: string }> }) {
   const { tab: rawTab } = searchParams ? await searchParams : {};
   const validTabs = new Set(["platform", "defaults", "notifications", "security", "integrations"]);
@@ -88,11 +58,11 @@ export default async function SuperAdminSettingsPage({ searchParams }: { searchP
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Overview"
+        eyebrow="SETTINGS"
         title="Settings"
-        description="Platform-wide defaults, what a new school starts with, and the reference facts for how notifications, security, and outside integrations actually behave on this platform."
+        description="How the platform behaves by default, before any school changes anything."
       />
 
       <DetailTabs tabs={tabs} />
@@ -118,7 +88,7 @@ async function PlatformTab() {
   const openCountries = library.profiles.filter((profile) => profile.isLive).map((profile) => profile.country);
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <ReferenceList
         title="What this page is"
         sub="Platform-wide defaults. Everything here is what a school gets before it has decided anything of its own — and every school can override most of it."
@@ -131,7 +101,7 @@ async function PlatformTab() {
 
       <section className="surface-card p-6">
         <p className="section-eyebrow">Platform-wide</p>
-        <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Maintenance and announcement</h2>
+        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Maintenance and announcement</h2>
         <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">Maintenance blocks non-Super Admin logins. The announcement is shown to school admins after login.</p>
         <div className="mt-5 flex flex-wrap items-center gap-3">
           <span
@@ -199,11 +169,11 @@ async function PlatformTab() {
         columns={[
           { key: "setting", header: "Setting", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.setting}</span> },
           { key: "value", header: "Value", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.value}</span> },
-          { key: "by", header: "Changeable by", render: (item) => <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>{item.by}</span> }
+          { key: "by", header: "Changeable by", render: (item) => <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: "var(--color-bg-subtle)", color: "var(--color-text-muted)" }}>{item.by}</span> }
         ]}
       />
 
-      <section className="grid gap-5 lg:grid-cols-[1.2fr_1fr]">
+      <section className="grid items-start gap-[14px] lg:grid-cols-[1.2fr_1fr]">
         <TableCard
           title="Pricing and currency"
           description={fx?.anchor === "USD" ? "Plans are priced in US dollars; every naira figure is derived from the rate fixed for the term. Manage it on Plans & Features → Plans." : "Plans are priced in naira. Author them in US dollars on Plans & Features → Plans to have every local figure follow one rate."}
@@ -303,7 +273,7 @@ async function DefaultsTab() {
   const settings = await apiGet<SuperAdminSettingsView>("/api/super-admin/settings");
 
   return (
-    <section className="grid gap-5">
+    <section className="grid gap-[14px]">
       <TableCard
         title="What a new school starts with"
         description="What is configured for a school automatically at signup, and who can change it afterwards. Each row is what the signup actually writes."
@@ -337,7 +307,7 @@ async function DefaultsTab() {
                 : item.canChange === "N/A"
                   ? { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)" }
                   : { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" };
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.canChange}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{item.canChange}</span>;
             }
           },
           { key: "where", header: "Where it lives", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.where}</span> }
@@ -357,7 +327,7 @@ async function DefaultsTab() {
             header: "Status",
             render: (item) => (
               <span
-                className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
+                className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
                 style={item.enabled ? { background: "var(--color-success-dim)", color: "var(--color-success)" } : { background: "var(--color-bg-elevated)", color: "var(--color-text-muted)" }}
               >
                 {item.enabled ? "Enabled" : "Disabled"}
@@ -383,7 +353,7 @@ async function DefaultsTab() {
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="section-eyebrow">Academic defaults</p>
-            <h2 className="mt-2 font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Default grading scale</h2>
+            <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Default grading scale</h2>
             <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
               Used as the platform-level default for newly created school tenants — each school can then edit its own copy. Curriculum
               templates, assessment frameworks, and report card layouts are managed in Curriculum &amp; Academics, not duplicated here.
@@ -411,7 +381,7 @@ async function NotificationsTab() {
   const m = policy.messaging;
   const carrier = (channel: string) => carriers.carriers.find((entry) => entry.channel === channel);
   return (
-    <section className="grid gap-5 xl:grid-cols-[1.3fr_1fr]">
+    <section className="grid items-start gap-[14px] xl:grid-cols-[1.3fr_1fr]">
       <TableCard
         title="Sending rules"
         description="How the platform behaves when it sends something, above any individual template. Enforced by the delivery worker."
@@ -452,7 +422,7 @@ async function NotificationsTab() {
             header: "State",
             render: (item) => {
               const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not set" } }[item.state as "good" | "warn" | "bad" | "mute"];
-              return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+              return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
             }
           }
         ]}
@@ -502,7 +472,7 @@ async function SecurityTab() {
           header: "State",
           render: (item) => {
             const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "By design" } }[item.state as "good" | "warn" | "bad" | "mute"];
-            return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+            return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
           }
         }
       ]}
@@ -526,7 +496,7 @@ async function IntegrationsTab() {
   return (
     <TableCard
       title="Connected services"
-      description="What the platform actually depends on outside itself right now, read live from the same health check Infrastructure uses. Owner is not tracked — no owning team is recorded against any integration in this codebase."
+      description="What the platform actually depends on outside itself right now, read live from the same health check Infrastructure uses. The owning team is not recorded against an integration yet."
       items={monitoring.integrations}
       pageSize={false}
       getRowKey={(item) => item.name}

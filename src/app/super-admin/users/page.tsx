@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import {
-  Copy,
   GraduationCap,
   KeyRound,
   LifeBuoy,
@@ -70,7 +69,7 @@ const roleTabs = [
 
 function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }) {
   return (
-    <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: bg, color: fg }}>
+    <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: bg, color: fg }}>
       {label}
     </span>
   );
@@ -120,11 +119,11 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
   }
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Operations"
+        eyebrow="MODULE 05"
         title="Users"
-        description="One account, many schools. Review identities, recover access, and keep sensitive user support actions accountable."
+        description="One account, many schools — the identity model made visible."
         action={
           <a
             href={`/api/super-admin/users/export?${exportQuery.toString()}`}
@@ -143,7 +142,6 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
           suspiciousFlags={suspiciousFlags}
           duplicateFlags={duplicateFlags}
           recoveryRecords={recoveryRecords}
-          openCaseCount={openCaseCount}
         />
       ) : null}
       {tab === "teachers" ? <IndividualTeachersTab params={params} /> : null}
@@ -170,7 +168,7 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
         <StatCard label="Total user accounts" value={stats?.totalUsers ?? 0} detail={`Across ${stats?.activeSchools ?? 0} active schools`} icon={UsersRound} tone="dark" />
         <StatCard label="School admins" value={stats?.schoolAdmins ?? 0} detail={`${stats?.adminsPerSchoolAvg ?? 0} per school average`} icon={ShieldCheck} tone="info" />
@@ -386,13 +384,11 @@ async function MembershipsSection() {
 async function ReviewsAndCasesTab({
   suspiciousFlags,
   duplicateFlags,
-  recoveryRecords,
-  openCaseCount
+  recoveryRecords
 }: {
   suspiciousFlags: SuperAdminSuspiciousActivityRow[];
   duplicateFlags: SuperAdminDuplicateFlagRow[];
   recoveryRecords: SuperAdminAccountRecoveryRow[];
-  openCaseCount: number;
 }) {
   const contextEnvelope = await apiGetEnvelope<SuperAdminUserCaseReviewContext>("/api/super-admin/user-case-review-context");
   const caseContext = contextEnvelope.data;
@@ -602,8 +598,6 @@ async function ReviewsAndCasesTab({
     };
   });
 
-  const openRecoveryCount = recoveryRecords.filter((record) => !record.completedAt).length;
-
   const recoveryCases: CaseRecord[] = recoveryRecords.map((record) => {
     const ctx = recoveryContextById.get(record.id);
     const completed = Boolean(record.completedAt);
@@ -657,25 +651,11 @@ async function ReviewsAndCasesTab({
   ];
 
   return (
-    <div className="grid gap-5">
-      <section className="grid gap-3 md:grid-cols-4">
-        <StatCard label="Open cases" value={openCaseCount} detail="Across suspicious activity, duplicates, and in-progress recoveries." icon={ShieldAlert} tone="dark" />
-        <StatCard label="Suspicious activity" value={suspiciousFlags.length} detail="Unresolved flags awaiting review." icon={ShieldAlert} tone="danger" />
-        <StatCard label="Duplicate accounts" value={duplicateFlags.length} detail="Pending match review." icon={Copy} tone="info" />
-        <StatCard label="Recoveries" value={recoveryRecords.length} detail={`${openRecoveryCount} still open`} icon={KeyRound} tone="success" />
-      </section>
-
-      <section className="flex flex-wrap items-center justify-between gap-3 rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-4 shadow-sm">
-        <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-[11.5px] bg-[var(--color-bg-ink)] text-white">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
-          <div>
-            <p className="text-[11.5px] font-extrabold text-[var(--color-text-primary)]">Case queue</p>
-            <p className="text-[11px] text-[var(--color-text-muted)]">Signals are scanned, selected, and resolved from one review surface.</p>
-          </div>
-        </div>
-        <div className="flex shrink-0 flex-wrap gap-2">
+    <div className="grid gap-[14px]">
+      <CaseReviewBoard
+        title="Case queue"
+        toolbar={
+          <>
           <ResourceActionDialog
             triggerLabel="Run suspicious activity scan"
             title="Recalculate suspicious activity"
@@ -696,10 +676,8 @@ async function ReviewsAndCasesTab({
             submitLabel="Run scan"
             fields={[]}
           />
-        </div>
-      </section>
-
-      <CaseReviewBoard
+          </>
+        }
         types={typeFilters}
         cases={allCases}
         emptyState="No open cases right now. Run a scan to check for new suspicious activity or duplicate accounts."
@@ -792,7 +770,7 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <TableCard
         title="School clusters — ranked by cluster strength"
         description="Three teachers naming one school is a materially warmer lead than three teachers at three schools. Sales and Onboarding roles and above."
@@ -887,7 +865,7 @@ function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: strin
           <div key={row.control} className="grid grid-cols-[1fr_2fr_auto] items-start gap-4 border-b border-[var(--color-border-muted)] py-3 last:border-b-0">
             <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{row.control}</p>
             <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{row.spec}</p>
-            <span className="inline-flex shrink-0 items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: stateStyle[row.state].bg, color: stateStyle[row.state].fg }}>
+            <span className="inline-flex shrink-0 items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: stateStyle[row.state].bg, color: stateStyle[row.state].fg }}>
               {stateStyle[row.state].label}
             </span>
           </div>
@@ -909,7 +887,7 @@ async function SupportAccessTab() {
   const events = envelope.data ?? [];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ControlSpecTable
         rows={[
           { control: "Default mode", spec: "Read-only. A session opened without the school's approval can look at everything but every change is refused, whatever the person's role.", state: "enforced" },

@@ -111,7 +111,7 @@ function reasonFromDetails(details: unknown): string | null {
 
 function DetailSection({ title, fields }: { title: string; fields: Array<{ label: string; value: ReactNode }> }) {
   return (
-    <div className="overflow-hidden rounded-[12.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+    <div className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
       <div className="border-b border-[var(--color-border-muted)] px-[16px] py-[11.5px] text-[12px] font-semibold text-[var(--color-text-primary)]">
         {title}
       </div>
@@ -151,7 +151,7 @@ function FieldList({ fields }: { fields: Array<{ label: string; value: ReactNode
 function TogglePill({ enabled }: { enabled: boolean }) {
   return (
     <span
-      className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
+      className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
       style={{
         background: enabled ? "var(--color-success-dim)" : "var(--color-bg-subtle)",
         color: enabled ? "var(--color-success)" : "var(--color-text-muted)"
@@ -188,15 +188,15 @@ export default async function SuperAdminSchoolDetailPage({
   const verificationColor = verification.tone === "neutral" ? "var(--color-text-muted)" : `var(--color-${verification.tone})`;
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ViewTracker kind="SCHOOL" entityId={schoolId} label={school.name} href={`/super-admin/schools/${schoolId}`} />
-      <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-[20px]">
+      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-[20px]">
         <Link href="/super-admin/schools" className="mb-4 inline-flex text-[11.5px] font-semibold text-[#12796A] underline">
           ← Back to schools
         </Link>
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="flex min-w-0 items-center gap-3.5">
-            <div className="flex h-[47px] w-[47px] shrink-0 items-center justify-center rounded-[12.5px] bg-[#0D2315] font-[var(--font-heading)] text-[15.5px] font-bold text-white">
+            <div className="flex h-[47px] w-[47px] shrink-0 items-center justify-center rounded-[14px] bg-[#0D2315] font-[var(--font-heading)] text-[15.5px] font-bold text-white">
               {initials(school.name)}
             </div>
             <div className="min-w-0">
@@ -307,9 +307,9 @@ export default async function SuperAdminSchoolDetailPage({
             />
           </section>
 
-          <section className="grid gap-5 lg:grid-cols-2">
+          <section className="grid items-start gap-[14px] lg:grid-cols-2">
             <section className="surface-card p-6">
-              <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Contact & ownership</h2>
+              <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Contact & ownership</h2>
               <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Account manager, school group and status actions for this tenant.</p>
 
               <div className="mt-5 rounded-[9px] bg-[var(--color-bg-subtle)] p-4">
@@ -408,7 +408,7 @@ export default async function SuperAdminSchoolDetailPage({
             <section className="surface-card p-6">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">School contacts</h2>
+                  <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">School contacts</h2>
                   <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Secondary contacts beyond the primary owner.</p>
                 </div>
                 <ResourceActionDialog
@@ -481,7 +481,7 @@ export default async function SuperAdminSchoolDetailPage({
       {tab === "configuration" ? (
         <section className="surface-card p-6">
           <p className="section-eyebrow">Read-only — owned by the school</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Academic configuration</h2>
+          <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Academic configuration</h2>
           <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Configuration belongs to the school; Future Realm admins can view but not edit it here.</p>
           <div className="mt-5">
             <FieldList
@@ -502,7 +502,7 @@ export default async function SuperAdminSchoolDetailPage({
       {tab === "usage" ? (
         <section className="surface-card p-6">
           <p className="section-eyebrow">Usage — module adoption and activity</p>
-          <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Usage & engagement</h2>
+          <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Usage & engagement</h2>
           <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Module adoption and recent activity for this tenant.</p>
           <div className="mt-5">
             <FieldList
@@ -535,7 +535,7 @@ export default async function SuperAdminSchoolDetailPage({
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
               <div>
                 <p className="section-eyebrow">Subscription & billing</p>
-                <h2 className="mt-2 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">Plan and billing status</h2>
+                <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Plan and billing status</h2>
               </div>
               <div className="flex flex-wrap gap-2">
                 <ResourceActionDialog
@@ -578,7 +578,7 @@ export default async function SuperAdminSchoolDetailPage({
           </section>
 
           <section className="surface-card p-6">
-            <h2 className="font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">Data export & closure</h2>
+            <h2 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Data export & closure</h2>
             <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">
               {school.dataExportedAt
                 ? `Full data export completed ${formatDate(school.dataExportedAt)}. This school can now be deactivated or closed.`
@@ -592,10 +592,10 @@ export default async function SuperAdminSchoolDetailPage({
       ) : null}
 
       {tab === "activity" ? (
-        <section className="overflow-hidden rounded-[14.5px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
           <div className="border-b border-[var(--color-border-muted)] px-[20px] py-[15.5px]">
             <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">History</p>
-            <h2 className="mt-1 font-[var(--font-heading)] text-[15.5px] font-bold text-[var(--color-text-primary)]">{school.name}</h2>
+            <h2 className="mt-1 text-[12.5px] font-semibold text-[var(--color-text-primary)]">{school.name}</h2>
             <p className="mt-2 text-[10.5px] leading-[1.5] text-[var(--color-text-secondary)]">
               Every entry on this record: who, what, when and why. Immutable — no user at any level can alter them.
             </p>

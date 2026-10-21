@@ -1,11 +1,12 @@
 import type { ReactNode } from "react";
 import Link from "next/link";
-import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Mail, MapPin, Moon, Phone, Repeat2, ShieldCheck, Users } from "lucide-react";
+import { ArrowRight, Building2, Clock3, FileWarning, Gavel, Moon, Repeat2, ShieldCheck } from "lucide-react";
 
 import { CaseReviewBoard, type CaseRecord, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { ServerPagination } from "@/components/data-display/server-pagination";
+import { FlowSteps } from "@/components/data-display/flow-steps";
 import { ReferenceList } from "@/components/data-display/reference-list";
 import { StatCard } from "@/components/data-display/stat-card";
 import { TableCard } from "@/components/data-display/table-card";
@@ -238,10 +239,6 @@ function initials(name: string) {
     .join("")
     .toUpperCase();
   return letters || "—";
-}
-
-function planLabel(plan: string) {
-  return plan.charAt(0) + plan.slice(1).toLowerCase();
 }
 
 function categoryLabel(category?: string) {
@@ -700,8 +697,6 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
   const pendingVerificationEnvelope = await apiGetEnvelope<SuperAdminPendingVerificationSchool[]>("/api/super-admin/schools-pending-verification");
   const pendingVerification = pendingVerificationEnvelope.data ?? [];
-  const missingRegistrationCount = pendingVerification.filter((school) => !school.cacNumber && !school.ministryApprovalNumber).length;
-  const missingContactCount = pendingVerification.filter((school) => !school.ownerEmail || !school.ownerPhone).length;
 
   // Reviews & Cases (risk review): each flagged school's own evidence (SchoolContact
   // records) and history (its AuditLog trail) — fetched per case via the same real,
@@ -835,9 +830,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
   ];
 
   return (
-    <div className="grid gap-5">
+    <div className="grid gap-[14px]">
       <ModuleHero
-        eyebrow="Schools & Revenue"
+        eyebrow="MODULE 02"
         title="School Accounts"
         description="Every school from signup to closure, with every lifecycle action."
         action={<AddSchoolWizard plans={activePlans} />}
@@ -884,15 +879,10 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           />
         </>
       ) : activeTab === "approval-queue" ? (
-        <section className="grid gap-5">
-          <section className="grid gap-3 md:grid-cols-3">
-            <StatCard label="Pending review" value={pendingVerification.length} detail="Schools flagged during onboarding." icon={Clock3} tone="dark" />
-            <StatCard label="Missing registration" value={missingRegistrationCount} detail="No CAC or ministry approval recorded." icon={FileWarning} tone="danger" />
-            <StatCard label="Contact gaps" value={missingContactCount} detail="Owner email or phone needs completion." icon={Users} tone="info" />
-          </section>
-
+        <section className="grid gap-[14px]">
           <CaseReviewBoard
             variant="lean"
+            title="Flagged for manual review"
             types={reviewCaseTypes}
             cases={reviewCases}
             emptyState="Queue is clear. Risk-flagged schools, open ownership transfers and open address disputes will appear here as one queue."
@@ -901,7 +891,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
           />
         </section>
       ) : activeTab === "provisioning" ? (
-        <section className="grid gap-5">
+        <section className="grid gap-[14px]">
           <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
             <StatCard
               label="Provisioned last 7 days"
@@ -963,13 +953,13 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 header: "State",
                 render: (school) => {
                   const tone = statusTone[school.status] ?? statusTone.ARCHIVED;
-                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                  return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               }
             ]}
           />
 
-          <section className="grid gap-5 xl:grid-cols-[1.25fr_1fr]">
+          <section className="grid items-start gap-[14px] xl:grid-cols-[1.25fr_1fr]">
               <TableCard
                 title="What loads with every new school"
                 description="Generated against the school’s own selected curriculum configuration"
@@ -1018,80 +1008,9 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
               { key: "state", header: "State", render: (school) => <span className="text-[10.5px] text-[var(--color-text-muted)]">{school.sample === "LOADED" ? (school.realStudents > 0 ? "Mixed with real data" : "Sample only") : school.sample === "REMOVED" ? "Clean" : "No sample"}</span> }
             ]}
           />
-
-          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
-            <div className="mb-4 flex items-center justify-between gap-3">
-              <h2 className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Schools still mid-setup</h2>
-              <span className="rounded-full bg-[#F0F5F2] px-2.5 py-1 text-[10px] font-bold text-[#77857C]">
-                {provisioningSchools.length} schools
-              </span>
-            </div>
-            <div className="grid gap-3">
-              {provisioningSchools.length === 0 ? (
-                <div className="empty-state">
-                  <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
-                    <Building2 className="h-5 w-5" />
-                  </div>
-                  <p className="mt-4 text-[13.5px] font-semibold text-[var(--color-text-primary)]">No schools mid-setup</p>
-                  <p className="mt-1 max-w-md text-[11.5px] text-[var(--color-text-secondary)]">
-                    Every school on the platform has already converted off the trial plan.
-                  </p>
-                </div>
-              ) : (
-                provisioningSchools.map((school) => (
-                <article key={school.id} className="rounded-[11px] border border-[#E6EEE9] bg-[#FCFDFC] p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div className="flex items-start gap-3">
-                      <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[11px] bg-[#F0F5F2] font-[var(--font-mono)] text-[12.5px] font-bold text-[#0D2315]">
-                        {initials(school.name)}
-                      </span>
-                      <div>
-                        <Link href={`/super-admin/schools/${school.id}`} className="text-[12.5px] font-bold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">
-                          {school.name}
-                        </Link>
-                        <p className="mt-0.5 text-[11px] text-[var(--color-text-muted)]">{categoryLabel(school.category)} · {planLabel(school.plan)} tier</p>
-                      </div>
-                    </div>
-                    <span className="inline-flex items-center rounded-full bg-[#E4F1EC] px-2.5 py-1 text-[10px] font-bold text-[#17604F]">
-                      Onboarded {timeAgo(school.createdAt)}
-                    </span>
-                  </div>
-
-                  <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
-                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
-                      <MapPin className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
-                      <span className="truncate">{[school.address, school.city, school.state].filter(Boolean).join(", ") || "No address on file"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
-                      <Users className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
-                      <span className="truncate">{school.ownerName ?? "Owner not recorded"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
-                      <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
-                      <span className="truncate">{school.ownerPhone ?? "No phone on file"}</span>
-                    </div>
-                    <div className="flex items-center gap-2 rounded-[7px] bg-white px-3 py-2 text-[11px] text-[var(--color-text-secondary)]">
-                      <Mail className="h-3.5 w-3.5 shrink-0 text-[var(--color-text-muted)]" />
-                      <span className="truncate">{school.ownerEmail ?? "No email on file"}</span>
-                    </div>
-                  </div>
-
-                  <div className="mt-3 flex items-center justify-between">
-                    <p className="text-[11px] text-[var(--color-text-muted)]">
-                      {school.totalStudents.toLocaleString()} student(s) declared at signup
-                    </p>
-                    <Link href={`/super-admin/schools/${school.id}`} className="btn-link text-[11.5px]">
-                      View school
-                    </Link>
-                  </div>
-                </article>
-              ))
-              )}
-            </div>
-          </section>
         </section>
       ) : activeTab === "web-addresses" ? (
-        <section className="grid gap-5">
+        <section className="grid gap-[14px]">
           <section className="grid gap-3 md:grid-cols-3 lg:grid-cols-5">
             <StatCard label="Addresses live" value={liveAddressCount} detail="One per school, permanent from minute one." icon={ShieldCheck} tone="dark" />
             <StatCard label="Held (retiring)" value={heldAddressCount} detail="12 months from closure, then released." icon={Moon} tone={heldAddressCount > 0 ? "warning" : "success"} />
@@ -1102,171 +1021,128 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
 
           <WebAddressesTable schools={webAddressSchools} registryRecords={registryRecords} disputes={addressDisputes} />
 
-          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
-            <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Address dispute — a real school finds its name taken</h2>
-            <div className="mt-5 flex flex-wrap items-center gap-2.5">
-              {disputeFlow.map((stage, index) => (
-                <div key={stage.label} className="flex items-center gap-2.5">
-                  <div
-                    className="min-w-[9rem] rounded-[10px] border px-4 py-3"
-                    style={
-                      stage.emphasize
-                        ? { background: "var(--color-text-primary)", borderColor: "var(--color-text-primary)", color: "var(--color-bg-surface)" }
-                        : { background: "var(--color-bg-surface)", borderColor: "var(--color-border-default)", color: "var(--color-text-primary)" }
-                    }
-                  >
-                    <p className="text-[11.5px] font-semibold">{stage.label}</p>
-                    <p className={`mt-[2.5px] text-[9.5px] ${stage.emphasize ? "opacity-75" : "text-[var(--color-text-muted)]"}`}>{stage.trigger}</p>
-                  </div>
-                  {index < disputeFlow.length - 1 ? (
-                    <ArrowRight className="h-4 w-4 shrink-0 text-[var(--color-text-muted)]" />
-                  ) : null}
-                </div>
-              ))}
-            </div>
-          </section>
+          <FlowSteps title="Address dispute — a real school finds its name taken" steps={disputeFlow.map((stage) => ({ label: stage.label, note: stage.trigger, tone: stage.emphasize ? ("ink" as const) : undefined }))} />
 
-          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-              <div>
-                <h2 className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Address disputes</h2>
-                <p className="mt-1 text-[11.5px] text-[#77857C]">{openDisputeCount} open of {addressDisputes.length} logged.</p>
-              </div>
+          <section className="grid items-start gap-[14px] xl:grid-cols-[1.1fr_1fr]">
+            <TableCard
+              title="Open disputes"
+              description={`${openDisputeCount} open of ${addressDisputes.length} logged`}
+              actions={
               <ResourceActionDialog
-                triggerLabel="Log a claim"
-                title="Log an address dispute"
-                description="Records a claim submitted by a genuine school through the published dispute form."
-                endpoint="/api/super-admin/web-address-registry/disputes"
-                submitLabel="Log claim"
-                fields={[
-                  { name: "claimedAddress", label: "Claimed address", required: true },
-                  { name: "claimantSchoolName", label: "Claimant school name", required: true },
-                  { name: "claimantContactName", label: "Claimant contact name", required: true },
-                  { name: "claimantContactEmail", label: "Claimant contact email", type: "email", required: true },
-                  { name: "claimantContactPhone", label: "Claimant contact phone" },
-                  { name: "evidenceNotes", label: "Evidence notes", type: "textarea", required: true }
-                ]}
-              />
-            </div>
-
-            <div className="mt-5 grid gap-5 xl:grid-cols-[1.1fr_1fr]">
-              <TableCard
-                title="Disputes"
-                items={addressDisputes}
-                emptyState="No disputes logged."
-                columns={[
-                  {
-                    key: "claim",
-                    header: "Claim",
-                    render: (dispute) => (
-                      <div>
-                        <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
-                        <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
-                      </div>
-                    )
-                  },
-                  {
-                    key: "status",
-                    header: "Status",
-                    render: (dispute) => {
-                      const tone = disputeStatusTone[dispute.status] ?? disputeStatusTone.EVIDENCE_PENDING;
-                      return (
-                        <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
-                          {dispute.outcome ? `${tone.label} · ${dispute.outcome}` : tone.label}
-                        </span>
-                      );
-                    }
-                  },
-                  {
-                    key: "due",
-                    header: "Holder response due",
-                    render: (dispute) => (dispute.holderResponseDueAt ? dueIn(dispute.holderResponseDueAt) : "—")
-                  },
-                  {
-                    key: "actions",
-                    header: "Actions",
-                    render: (dispute) => (
-                      <ActionMenu triggerLabel={`Actions for ${dispute.claimedAddress}`}>
-                        {dispute.status === "EVIDENCE_PENDING" ? (
-                          <ResourceActionDialog
-                            triggerLabel="Notify holder"
-                            title="Notify current holder"
-                            description="10 working days to respond, starting now."
-                            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/notify-holder`}
-                            variant="menu"
-                            submitLabel="Notify holder"
-                            fields={[]}
-                          />
-                        ) : null}
-                        {dispute.status === "HOLDER_CONTACTED" ? (
-                          <ResourceActionDialog
-                            triggerLabel="Record holder response"
-                            title="Record holder response"
-                            description="What did the current holder say?"
-                            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/holder-response`}
-                            variant="menu"
-                            submitLabel="Save response"
-                            fields={[{ name: "holderResponse", label: "Holder response", type: "textarea", required: true }]}
-                          />
-                        ) : null}
-                        {dispute.status !== "DECIDED" ? (
-                          <ResourceActionDialog
-                            triggerLabel="Decide"
-                            title={`Decide dispute — ${dispute.claimedAddress}`}
-                            description="Written to the audit log. Both parties are notified of the outcome."
-                            endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/decide`}
-                            variant="menuDanger"
-                            submitLabel="Confirm decision"
-                            confirmLabel="Confirm"
-                            confirmMessage="This decision is final and cannot be reopened."
-                            fields={[
-                              { name: "outcome", label: "Outcome", type: "select", defaultValue: "NEGOTIATED", options: [
-                                { label: "Negotiated — holder keeps it, claimant offered alternative", value: "NEGOTIATED" },
-                                { label: "Reassigned to claimant", value: "REASSIGNED" },
-                                { label: "Declined — claim not upheld", value: "DECLINED" }
-                              ] },
-                              { name: "qualifiedAddressOffered", label: "Qualified alternative offered (if any)" },
-                              { name: "reassignToSchoolId", label: "Reassign to school (required if reassigning)", type: "select", options: [{ label: "— Select a school —", value: "" }, ...schoolOptions] }
-                            ]}
-                          />
-                        ) : null}
-                      </ActionMenu>
-                    )
-                  }
-                ]}
-              />
-
-              <section className="overflow-hidden rounded-[12.5px] border border-[#DEE8E2] bg-white">
-                <div className="border-b border-[#E6EEE9] px-5 py-4">
-                  <p className="font-[var(--font-display)] text-[14.5px] font-bold text-[#0D2315]">Accepted evidence — any two</p>
-                  <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Supplied by the claimant with the published form</p>
-                </div>
-                <div className="grid gap-3 p-5">
-                  {[
-                    "Letterhead or official communication bearing the name",
-                    "Business or charity registration document",
-                    "Ministry or education authority approval",
-                    "Email from a verified domain matching the school website"
-                  ].map((item) => (
-                    <div key={item} className="flex items-start gap-2.5 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                      <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-text-accent)" }} />
-                      <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{item}</p>
-                    </div>
-                  ))}
-                  <div className="flex items-start gap-2.5 border-t border-[var(--color-border-default)] pt-3">
-                    <span className="mt-0.5 h-2 w-2 shrink-0 rounded-full" style={{ background: "var(--color-danger)" }} />
+              triggerLabel="Log a claim"
+              title="Log an address dispute"
+              description="Records a claim submitted by a genuine school through the published dispute form."
+              endpoint="/api/super-admin/web-address-registry/disputes"
+              submitLabel="Log claim"
+              fields={[
+                { name: "claimedAddress", label: "Claimed address", required: true },
+                { name: "claimantSchoolName", label: "Claimant school name", required: true },
+                { name: "claimantContactName", label: "Claimant contact name", required: true },
+                { name: "claimantContactEmail", label: "Claimant contact email", type: "email", required: true },
+                { name: "claimantContactPhone", label: "Claimant contact phone" },
+                { name: "evidenceNotes", label: "Evidence notes", type: "textarea", required: true }
+              ]}
+            />
+              }
+              items={addressDisputes}
+              emptyState="No disputes logged."
+              columns={[
+                {
+                  key: "claim",
+                  header: "Claim",
+                  render: (dispute) => (
                     <div>
-                      <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">The default is possession</p>
-                      <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">Reassigned only where the holder cannot evidence any legitimate claim.</p>
+                      <span className="rounded-[5.5px] bg-[var(--color-bg-subtle)] px-2 py-1 font-[var(--font-mono)] text-[11px] text-[var(--color-text-primary)]">{dispute.claimedAddress}</span>
+                      <p className="mt-1 text-[11px] text-[var(--color-text-secondary)]">{dispute.claimantSchoolName} · {dispute.claimantContactName}</p>
                     </div>
-                  </div>
-                </div>
-              </section>
-            </div>
+                  )
+                },
+                {
+                  key: "status",
+                  header: "Status",
+                  render: (dispute) => {
+                    const tone = disputeStatusTone[dispute.status] ?? disputeStatusTone.EVIDENCE_PENDING;
+                    return (
+                      <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
+                        {dispute.outcome ? `${tone.label} · ${dispute.outcome}` : tone.label}
+                      </span>
+                    );
+                  }
+                },
+                {
+                  key: "due",
+                  header: "Holder response due",
+                  render: (dispute) => (dispute.holderResponseDueAt ? dueIn(dispute.holderResponseDueAt) : "—")
+                },
+                {
+                  key: "actions",
+                  header: "Actions",
+                  render: (dispute) => (
+                    <ActionMenu triggerLabel={`Actions for ${dispute.claimedAddress}`}>
+                      {dispute.status === "EVIDENCE_PENDING" ? (
+                        <ResourceActionDialog
+                          triggerLabel="Notify holder"
+                          title="Notify current holder"
+                          description="10 working days to respond, starting now."
+                          endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/notify-holder`}
+                          variant="menu"
+                          submitLabel="Notify holder"
+                          fields={[]}
+                        />
+                      ) : null}
+                      {dispute.status === "HOLDER_CONTACTED" ? (
+                        <ResourceActionDialog
+                          triggerLabel="Record holder response"
+                          title="Record holder response"
+                          description="What did the current holder say?"
+                          endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/holder-response`}
+                          variant="menu"
+                          submitLabel="Save response"
+                          fields={[{ name: "holderResponse", label: "Holder response", type: "textarea", required: true }]}
+                        />
+                      ) : null}
+                      {dispute.status !== "DECIDED" ? (
+                        <ResourceActionDialog
+                          triggerLabel="Decide"
+                          title={`Decide dispute — ${dispute.claimedAddress}`}
+                          description="Written to the audit log. Both parties are notified of the outcome."
+                          endpoint={`/api/super-admin/web-address-registry/disputes/${dispute.id}/decide`}
+                          variant="menuDanger"
+                          submitLabel="Confirm decision"
+                          confirmLabel="Confirm"
+                          confirmMessage="This decision is final and cannot be reopened."
+                          fields={[
+                            { name: "outcome", label: "Outcome", type: "select", defaultValue: "NEGOTIATED", options: [
+                              { label: "Negotiated — holder keeps it, claimant offered alternative", value: "NEGOTIATED" },
+                              { label: "Reassigned to claimant", value: "REASSIGNED" },
+                              { label: "Declined — claim not upheld", value: "DECLINED" }
+                            ] },
+                            { name: "qualifiedAddressOffered", label: "Qualified alternative offered (if any)" },
+                            { name: "reassignToSchoolId", label: "Reassign to school (required if reassigning)", type: "select", options: [{ label: "— Select a school —", value: "" }, ...schoolOptions] }
+                          ]}
+                        />
+                      ) : null}
+                    </ActionMenu>
+                  )
+                }
+              ]}
+            />
+
+            <ReferenceList
+              title="Accepted evidence — any two"
+              sub="Supplied by the claimant with the published form"
+              items={[
+                { label: "Letterhead or official communication bearing the name", tone: "teal" },
+                { label: "Business or charity registration document", tone: "teal" },
+                { label: "Ministry or education authority approval", tone: "teal" },
+                { label: "Email from a verified domain matching the school website", tone: "teal" },
+                { label: "The default is possession", detail: "Reassigned only where the holder cannot evidence any legitimate claim", tone: "bad" }
+              ]}
+            />
           </section>
         </section>
       ) : (
-        <section className="grid gap-5">
+        <section className="grid gap-[14px]">
           <TableCard
             title="Dormancy stages — what's actually automated"
             description="Run by the lifecycle engine every 30 minutes, on the day counts in Settings → Platform. Each step is written to the audit log and tells the people it affects."
@@ -1307,14 +1183,14 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                 render: (school) => {
                   const check = school.releaseCheck ?? "NOT_DUE";
                   const tone = check === "CLEAR" ? { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Clear — releases on the date" } : check === "HELD_DATA" ? { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: `Held — ${school.realStudents} real students` } : check === "HELD_PAYING" ? { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Held — paying, a person decides" } : { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not dormant yet" };
-                  return <span className="inline-flex items-center rounded-full px-2.5 py-1 text-[10px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                  return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
                 }
               },
               { key: "open", header: "", sortable: false, render: (school) => <Link href={`/super-admin/schools/${school.id}`} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Open</Link> }
             ]}
           />
 
-          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-6">
+          <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6">
             <h2 className="text-[12.5px] font-semibold text-[#0D2315]">School account lifecycle — every fork condition labelled</h2>
             <div className="mt-5 flex flex-wrap items-center gap-2.5">
               {lifecycleFlow.map((stage, index) => (
@@ -1338,7 +1214,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
             </div>
           </section>
 
-          <section className="rounded-[12.5px] border border-[#DEE8E2] bg-white p-5">
+          <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
             <div className="flex items-center justify-between gap-3">
               <h2 className="text-[12.5px] font-semibold text-[#0D2315]">Account status reference</h2>
               <p className="text-[10.5px] text-[#8c9a92]">Status changes always require a logged reason</p>
@@ -1352,7 +1228,7 @@ export default async function SuperAdminSchoolsPage({ searchParams }: { searchPa
                     className={`grid gap-3 px-4 py-3.5 sm:grid-cols-[9rem_1.6fr_1.4fr_1fr] sm:items-center ${index % 2 === 1 ? "bg-[#FBFDFC]" : "bg-white"}`}
                   >
                     <span
-                      className="inline-flex w-fit items-center rounded-full px-2.5 py-1 text-[10px] font-bold"
+                      className="inline-flex w-fit items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold"
                       style={{ background: tone.bg, color: tone.fg }}
                     >
                       {row.label}
