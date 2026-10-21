@@ -40,11 +40,11 @@ function PlanCard({ plan, others }: { plan: SuperAdminPlanRow; others: SuperAdmi
   const revenue = plan.monthlyPrice * plan.subscriberCount;
 
   return (
-    <article className="flex flex-col rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+    <article className="flex min-w-0 flex-col rounded-[14px] border border-[var(--color-border-default)] bg-white p-[18px]">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <p className="truncate text-[14.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</p>
-          <p className="mt-0.5 truncate text-[10.5px] text-[var(--color-text-muted)]">{planCode(plan)}</p>
+          <p className="truncate font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</p>
+          <p className="mt-[2.5px] truncate text-[10px] text-[var(--color-text-muted)]">{planCode(plan)}</p>
         </div>
         <span className="shrink-0 whitespace-nowrap rounded-full bg-[#F1F4F2] px-[8px] py-[2.5px] text-[10px] font-bold text-[#5C6A62]">
           {lifecycle.charAt(0) + lifecycle.slice(1).toLowerCase()}{plan.version && plan.version > 1 ? ` · v${plan.version}` : ""}
@@ -137,7 +137,7 @@ export function PlanCardGrid({ plans, actions }: { plans: SuperAdminPlanRow[]; a
           No subscription plans configured yet — build one to get started.
         </p>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="grid items-stretch gap-[11px] [grid-template-columns:repeat(auto-fill,minmax(232px,1fr))]">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} others={plans} />
           ))}
