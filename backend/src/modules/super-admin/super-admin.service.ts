@@ -1397,7 +1397,7 @@ export class SuperAdminService {
     if (!role) return undefined;
     const value = role.toUpperCase();
     if (value === "SCHOOL_ADMIN") return schoolAdminRoles;
-    if (value === "TEACHER") return ["TEACHER", "SUBJECT_TEACHER", "CLASS_TEACHER"];
+    if (value === "TEACHER") return ["TEACHER", "SUBJECT_TEACHER", "CLASS_TEACHER", "HEAD_OF_DEPARTMENT", "TEACHING_ASSISTANT", "COVER_TEACHER"];
     if (value === "PARENT") return ["PARENT"];
     if (value === "STUDENT") return ["STUDENT"];
     return Object.values(UserRole).includes(value as UserRole) ? [value as UserRole] : undefined;
@@ -1473,7 +1473,7 @@ export class SuperAdminService {
    */
   async getUserStats(session: SessionPayload) {
     assertSuperAdmin(session);
-    const teacherRoles: UserRole[] = ["TEACHER", "SUBJECT_TEACHER", "CLASS_TEACHER"];
+    const teacherRoles: UserRole[] = ["TEACHER", "SUBJECT_TEACHER", "CLASS_TEACHER", "HEAD_OF_DEPARTMENT", "TEACHING_ASSISTANT", "COVER_TEACHER"];
     const parentStudentRoles: UserRole[] = ["PARENT", "STUDENT"];
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
 
@@ -2557,7 +2557,7 @@ export class SuperAdminService {
       users: {
         total: Object.values(roleCounts).reduce((sum, count) => sum + count, 0),
         parents: roleCounts.PARENT ?? 0,
-        teachers: (roleCounts.TEACHER ?? 0) + (roleCounts.CLASS_TEACHER ?? 0) + (roleCounts.SUBJECT_TEACHER ?? 0),
+        teachers: (roleCounts.TEACHER ?? 0) + (roleCounts.CLASS_TEACHER ?? 0) + (roleCounts.SUBJECT_TEACHER ?? 0) + (roleCounts.HEAD_OF_DEPARTMENT ?? 0) + (roleCounts.TEACHING_ASSISTANT ?? 0) + (roleCounts.COVER_TEACHER ?? 0),
         students: roleCounts.STUDENT ?? 0,
         schoolAdmins: schoolAdminRoles.reduce((sum, role) => sum + (roleCounts[role] ?? 0), 0)
       },

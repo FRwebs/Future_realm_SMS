@@ -286,6 +286,10 @@ export class RecordService {
       outcome: entry.outcome ?? "Closed",
       visibleTo: entry.visibleTo ?? "Form master, counsellor and leadership"
     }));
+    // Incidents a teacher reports are discipline records; they belong in the same conduct log the form master and leadership read.
+    const incidents = await prisma.disciplineRecord.findMany({ where: { schoolId, studentId: id, deletedAt: null }, orderBy: { occurredAt: "desc" }, take: 30 });
+    for (const incident of incidents) log.push({ id: incident.id, date: incident.occurredAt.toISOString(), kind: "Conduct", entry: `${incident.category} · ${incident.severity}: ${incident.description}`, by: incident.reporterId ?? null, outcome: incident.status === "OPEN" ? "Open" : incident.status.charAt(0) + incident.status.slice(1).toLowerCase(), visibleTo: "Leadership and the form master" });
+    log.sort((a, b) => b.date.localeCompare(a.date));
     const recorders = await prisma.user.findMany({ where: { id: { in: Array.from(new Set(log.map((entry) => entry.by).filter((value): value is string => Boolean(value)))) } }, select: { id: true, firstName: true, lastName: true, role: true } });
     const recorderName = new Map(recorders.map((user) => [user.id, `${fullName(user)} · ${String(user.role).replace(/_/g, " ").toLowerCase()}`]));
     const medical = student.medicalRecord;

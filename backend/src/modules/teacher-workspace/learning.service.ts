@@ -59,7 +59,7 @@ export class LearningService {
   /* ───────────────────────── what a person sees ───────────────────────── */
 
   private async context(session: SessionPayload) {
-    const me = await this.workspace.me(session);
+    const me = await this.workspace.me(session, { anyStaff: true });
     const subjects = me.teaching.map((row) => row.subject.toLowerCase());
     return { me, subjects };
   }

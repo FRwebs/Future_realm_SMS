@@ -40,6 +40,7 @@ import { TriggerRulesModule } from "./modules/trigger-rules/trigger-rules.module
 import { SupportDeskModule } from "./modules/support-desk/support-desk.module";
 import { MembershipsModule } from "./modules/memberships/memberships.module";
 import { CurriculumCatalogueModule } from "./modules/curriculum-catalogue/curriculum-catalogue.module";
+import { NotificationsModule } from "./modules/notifications/notifications.controller";
 import { ApiAccessModule } from "./modules/api-access/api-access.module";
 import { WhatsAppModule } from "./modules/whatsapp/whatsapp.module";
 import { AdminViewsModule } from "./modules/admin-views/admin-views.module";
@@ -144,6 +145,7 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     AdminViewsModule,
     WhatsAppModule,
     ApiAccessModule,
+    NotificationsModule,
     CurriculumCatalogueModule,
     MembershipsModule,
     ParentPortalModule,

@@ -343,7 +343,7 @@ async function MembershipsSection() {
           <ResourceActionDialog triggerLabel="Add a membership" title="Add a person to a school" description="Gives an existing account a role at another school. They switch to it from the menu under their name, and are told by email." endpoint="/api/v1/memberships" method="POST" variant="secondary" submitLabel="Add" fields={[
             { name: "email", label: "Their account email", type: "email", required: true },
             { name: "schoolId", label: "School", type: "select", required: true, options: schoolOptions },
-            { name: "role", label: "Role at that school", type: "select", required: true, options: ["SUBJECT_TEACHER", "CLASS_TEACHER", "HEAD_OF_DEPARTMENT", "EXAMINATION_OFFICER", "BURSAR", "ADMINISTRATOR", "PRINCIPAL", "PARENT"].map((value) => ({ label: value.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), value })) },
+            { name: "role", label: "Role at that school", type: "select", required: true, options: ["SUBJECT_TEACHER", "TEACHING_ASSISTANT", "COVER_TEACHER", "CLASS_TEACHER", "HEAD_OF_DEPARTMENT", "EXAMINATION_OFFICER", "BURSAR", "ADMINISTRATOR", "PRINCIPAL", "PARENT"].map((value) => ({ label: value.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()), value })) },
             { name: "expiresAt", label: "Ends on (blank = no end)", type: "date" },
             { name: "note", label: "Note", type: "textarea" }
           ]} />

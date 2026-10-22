@@ -16,6 +16,8 @@ import { attendanceLiveTab } from "@/lib/modules/live/m4-attendance";
 import { scoreEntryResultsLiveTab } from "@/lib/modules/live/m5-score-entry-results";
 import { feeManagementLiveTab } from "@/lib/modules/live/m10-fee-management";
 import { studentRecordsLiveTab } from "@/lib/modules/live/m8-student-records";
+import { teacherEmploymentTab } from "@/lib/modules/live/t18-employment";
+import { teacherTrainingTab } from "@/lib/modules/live/t19-training";
 import { teacherLessonNotesTab } from "@/lib/modules/live/t17-lesson-notes";
 import { getTeacherTabContent } from "@/lib/modules/live/teacher-index";
 
@@ -48,6 +50,9 @@ const liveModules: Record<string, LiveTabBuilder> = {
   m16: syncSupportLiveTab,
   // Leadership reads Lesson Notes through its Review and Coverage tabs only; they need nothing from the teacher workspace.
   m17: (tab) => teacherLessonNotesTab(tab, undefined as never),
+  // Leave, pay and learning belong to every employee. A member of staff who is not a teacher and has been given these reads them the same way.
+  m18: (tab) => teacherEmploymentTab(tab, { persona: "subject-teacher" } as never, []),
+  m19: (tab, query) => teacherTrainingTab(tab, query ?? {}),
 };
 
 /** Which modules read from the API today — used by tests and by the module page. */
