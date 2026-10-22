@@ -19,7 +19,8 @@ import { TeacherObservationsService } from "./observations.service";
 import { LearningManageController, LearningPublicController } from "./learning.controller";
 import { LearningService } from "./learning.service";
 import { TeacherEmploymentService } from "./employment.service";
-import { TeacherLessonNotesService } from "./lesson-notes.service";
+import { TeacherNotesService } from "./lesson-notes/notes.service";
+import { TeacherSchemeService } from "./lesson-notes/scheme.service";
 import { TeacherMessagesService } from "./messages.service";
 import { TeacherQuestionsService } from "./questions.service";
 import { TeacherTimetableService } from "./timetable.service";
@@ -30,7 +31,7 @@ import { TeacherWorkspaceService } from "./workspace.service";
 @Module({
   imports: [AttendanceManagementModule, StaffAccessModule, RolesManagementModule, StudentRecordsModule],
   controllers: [TeacherWorkspaceController, LearningManageController, LearningPublicController],
-  providers: [TeacherWorkspaceService, MyDayService, TeacherTimetableService, TeacherQuestionsService, TeacherCalendarService, PeriodRegistersService, RegisterHistoryService, TeacherScoresService, TeacherRemarksService, TeacherStudentsService, TeacherConcernsService, TeacherFamiliesService, TeacherMessagesService, TeacherLessonNotesService, TeacherEmploymentService, LearningService, PermissionsGuard, TeacherObservationsService],
-  exports: [TeacherWorkspaceService, MyDayService, TeacherTimetableService, TeacherQuestionsService, TeacherCalendarService, PeriodRegistersService, RegisterHistoryService, TeacherScoresService, TeacherRemarksService, TeacherStudentsService, TeacherConcernsService, TeacherFamiliesService, TeacherLessonNotesService]
+  providers: [TeacherWorkspaceService, MyDayService, TeacherTimetableService, TeacherQuestionsService, TeacherCalendarService, PeriodRegistersService, RegisterHistoryService, TeacherScoresService, TeacherRemarksService, TeacherStudentsService, TeacherConcernsService, TeacherFamiliesService, TeacherMessagesService, TeacherSchemeService, TeacherNotesService, TeacherEmploymentService, LearningService, PermissionsGuard, TeacherObservationsService],
+  exports: [TeacherWorkspaceService, MyDayService, TeacherTimetableService, TeacherQuestionsService, TeacherCalendarService, PeriodRegistersService, RegisterHistoryService, TeacherScoresService, TeacherRemarksService, TeacherStudentsService, TeacherConcernsService, TeacherFamiliesService, TeacherSchemeService, TeacherNotesService]
 })
 export class TeacherWorkspaceModule {}

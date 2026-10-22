@@ -98,6 +98,7 @@ export class SheetsService {
     const framework = subject.pinned ? subject.sheet?.frameworkAt : null;
     const blocked = this.mayEnter(session, subject) ?? this.locked(subject);
     const windows = await this.windowsFor(session.schoolId, term.id, subject.columns);
+    const returnedBy = subject.state === "Returned" && subject.sheet?.decidedById ? await prisma.user.findUnique({ where: { id: subject.sheet.decidedById }, select: { firstName: true, lastName: true, role: true } }) : null;
     const others = new Map<string, number | null>();
     for (const row of subject.rows) {
       const totals = arm.subjects.filter((entry) => entry.subjectId !== subjectId).map((entry) => entry.rows.find((r) => r.id === row.id)?.total).filter((value): value is number => typeof value === "number");
@@ -111,7 +112,7 @@ export class SheetsService {
       stats: { scored: subject.scored, roll: subject.roll, mean: subject.mean, high: subject.high, low: subject.low, passed: subject.passed, failed: subject.failed, armMean: this.armMean(arm), blanks: subject.rows.filter((row) => !row.complete).length, absences: subject.rows.reduce((total, row) => total + row.absent, 0) },
       bands: arm.bands.map((band) => ({ label: band.label, min: band.min, max: band.max, remark: band.remark })), passMark: subject.passMark,
       blocked, editable: !blocked, mine: subject.teacherId === session.userId, enteredBy: names.map((user) => fullName(user)),
-      submittedAt: subject.sheet?.submittedAt?.toISOString() ?? null, returned: subject.state === "Returned" ? { note: subject.sheet?.decisionNote ?? "", at: subject.sheet?.returnedAt?.toISOString() ?? null } : null,
+      submittedAt: subject.sheet?.submittedAt?.toISOString() ?? null, returned: subject.state === "Returned" ? { note: subject.sheet?.decisionNote ?? "", at: subject.sheet?.returnedAt?.toISOString() ?? null, by: returnedBy ? fullName(returnedBy) : null, byRole: returnedBy ? String(returnedBy.role).replace(/_/g, " ").toLowerCase().replace(/^./, (c) => c.toUpperCase()) : null } : null,
       windows, flags: subject.flags
     };
   }

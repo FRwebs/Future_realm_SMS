@@ -214,7 +214,8 @@ export class MyDayService {
           : subject.state === "Unassigned" ? "Nobody teaches it"
           : closes ? `${Math.max(0, Math.ceil((closes.getTime() - now.getTime()) / 86_400_000))} days left` : "No window set";
         return {
-          classId: arm.room.id, subjectId: subject.subjectId, unit: `${subject.name} · ${arm.room.name}`, sub: `${subject.roll} children`,
+          classId: arm.room.id, subjectId: subject.subjectId, unit: `${subject.name} · ${arm.room.name}`, sub: `${subject.roll} children`, subject: subject.name, arm: arm.room.name, roll: subject.roll, entered, mean: subject.mean,
+          submittedAt: subject.sheet?.submittedAt?.toISOString() ?? null, decidedAt: subject.sheet?.decidedAt?.toISOString() ?? null,
           ownerId: subject.teacherId, owner: subject.teacherId === session.userId ? "You" : subject.teacherId ? names.get(subject.teacherId) ?? "Unknown" : "Nobody yet",
           state: subject.state, age, overdue: (subject.state === "Not started" || subject.state === "In progress") && Boolean(closes && closes.getTime() - now.getTime() < 5 * 86_400_000),
           decidedByMe: subject.sheet?.decidedById === session.userId
@@ -229,7 +230,8 @@ export class MyDayService {
         submitted: inCount, sheets: rows.length, withTeacher: rows.filter((row) => row.state !== "Submitted" && row.state !== "Approved" && row.ownerId !== session.userId).length,
         returnedByMe: rows.filter((row) => row.decidedByMe && row.state === "Returned").length,
         mineSubmitted: mine.filter((row) => row.state === "Submitted" || row.state === "Approved").length, mine: mine.length,
-        waitingOnMe: rows.filter((row) => row.state === "Submitted" && row.ownerId !== session.userId).length
+        waitingOnMe: rows.filter((row) => row.state === "Submitted" && row.ownerId !== session.userId).length,
+        notStarted: rows.filter((row) => row.state === "Not started").length, approved: rows.filter((row) => row.state === "Approved").length
       },
       closes: closes?.toISOString() ?? null,
       rows: rows.sort((a, b) => Number(b.overdue) - Number(a.overdue) || a.unit.localeCompare(b.unit))

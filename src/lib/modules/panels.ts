@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 /**
  * The panel vocabulary the School Admin mockup builds every tab from.
  *
@@ -226,6 +228,8 @@ export type DrawerSpec = {
 export type Trigger = {
   href?: string;
   drawer?: DrawerSpec;
+  /** Runs in the browser — for a surface that is built on the client and holds its own state. Never authored on the server. */
+  run?: () => void;
 };
 
 export type KpiCard = {
@@ -253,6 +257,8 @@ export type TableCellKind =
   | { kind: "bar"; pct: number; label: string; tone?: PanelTone }
   /** A capability a tier either has or does not: a tick, or a muted dash. */
   | { kind: "mark"; ok: boolean }
+  /** A cell drawn by the client that holds it — a score being typed. `plain` is what search and filters read. */
+  | { kind: "node"; node: ReactNode; plain?: string }
   | ({ kind: "action"; label: string } & Trigger);
 
 export type TableRow = {
@@ -279,6 +285,8 @@ export type TableFilter = {
    * "Assigned" is inside "Unassigned". The row's `keywords` carry the token.
    */
   match?: Record<string, string>;
+  /** Option → page. Choosing one goes there instead of narrowing the rows: a switcher between arms or subjects. */
+  go?: Record<string, string>;
 };
 
 export type PanelAction = {
@@ -305,6 +313,8 @@ export type ListItem = {
   facts?: PanelFact[];
   drawer?: DrawerSpec;
   href?: string;
+  /** Runs in the browser, for a list built by a client surface (see `Trigger.run`). */
+  run?: () => void;
 };
 
 export type BarRow = {
@@ -443,6 +453,8 @@ export type FormSubmit = {
 export type StepItem = {
   label: string;
   sub?: string;
+  /** The number in the step's dot, where the steps are a window onto a longer run (the 9th child of 30). */
+  n?: number;
   state: "done" | "current" | "todo" | "blocked";
   /** Where the stage opens — the applicants behind a pipeline count, say. */
   href?: string;
@@ -764,6 +776,8 @@ export type Panel =
       rows: TableRow[];
       acts?: PanelAction[];
       foot?: string;
+      /** Actions laid in the foot bar, to the right of `foot` — where a long sheet ends and what to do with it begins. */
+      footActs?: PanelAction[];
       /** Shown instead of rows when there are none. */
       empty?: string;
       /** The cells are themselves the controls, so a row does not also open a record behind them. */
@@ -783,6 +797,8 @@ export type Panel =
       /** What one row is, for counts: "3 arms", "no teachers match". */
       noun?: string;
       nounPlural?: string;
+      /** A wide table that fits its panel instead of sliding: tighter cells and headings that wrap, for tables of many small figures. */
+      dense?: boolean;
     }
   | {
       type: "list";
@@ -857,7 +873,20 @@ export type Panel =
    * of the browser's storage it holds. Drawn on the device, so it is always about the device being used.
    */
   | { type: "device"; title?: string; sub?: string }
-  | { type: "steps"; title?: string; sub?: string; steps: StepItem[]; foot?: string }
+  | {
+      type: "steps";
+      title?: string;
+      sub?: string;
+      steps: StepItem[];
+      foot?: string;
+      /** Arrows either side, for steps that are a window onto a longer run. */
+      prevHref?: string;
+      nextHref?: string;
+      prevTitle?: string;
+      nextTitle?: string;
+      /** Said at the right of the bar: "8 of 9 · Business Studies JSS 2 Gold". */
+      note?: string;
+    }
   | {
       type: "form";
       title?: string;
@@ -875,6 +904,11 @@ export type Panel =
       actions?: PanelAction[];
     }
   | { type: "quote"; body: string; attribution?: string }
+  /**
+   * A purpose-built surface that the panel vocabulary cannot draw — a scheme of work with its week ribbon, a note being written.
+   * The server names the component and hands it its data; the component is looked up in the embed registry on the client.
+   */
+  | { type: "embed"; component: string; props: Record<string, unknown> }
   | GridPanel
   | FlowPanel
   | QuotesPanel

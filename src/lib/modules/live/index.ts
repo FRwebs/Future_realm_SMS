@@ -49,7 +49,7 @@ const liveModules: Record<string, LiveTabBuilder> = {
   m15: auditSecurityLiveTab,
   m16: syncSupportLiveTab,
   // Leadership reads Lesson Notes through its Review and Coverage tabs only; they need nothing from the teacher workspace.
-  m17: (tab) => teacherLessonNotesTab(tab, undefined as never),
+  m17: (tab, query) => teacherLessonNotesTab(tab, undefined, query ?? {}),
   // Leave, pay and learning belong to every employee. A member of staff who is not a teacher and has been given these reads them the same way.
   m18: (tab) => teacherEmploymentTab(tab, { persona: "subject-teacher" } as never, []),
   m19: (tab, query) => teacherTrainingTab(tab, query ?? {}),

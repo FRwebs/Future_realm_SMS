@@ -77,7 +77,17 @@ const dayWords = (iso: string) => new Intl.DateTimeFormat("en-GB", { weekday: "l
 export async function teacherAttendanceTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[], query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
   const held = new Set(permissions);
   if (tabSlug === "mark") return markTab(await apiGet<RegistersView>(`${API}/registers`), me, held);
-  if (tabSlug === "register") return registerTab(await apiGet<ArmHistory | PeriodHistory>(`${API}/register-history${query.arm ? `?class=${encodeURIComponent(query.arm)}` : ""}`));
+  if (tabSlug === "register") {
+    // Without an arm named, the tab is the index of every register held; naming one
+    // opens that register's own history, which is what the index links to.
+    if (!query.arm) {
+      // An API that predates the index still serves the per-arm history, so fall back
+      // to it rather than failing the whole tab during a rolling deploy.
+      const index = await apiGet<RegisterIndex>(`${API}/register-index`).catch(() => null);
+      if (index) return registerIndexTab(index);
+    }
+    return registerTab(await apiGet<ArmHistory | PeriodHistory>(`${API}/register-history${query.arm ? `?class=${encodeURIComponent(query.arm)}` : ""}`));
+  }
   return undefined;
 }
 
@@ -111,7 +121,17 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
     }]),
     row("1fr", [{
       type: "table", title: "Your registers today", sub: "A daily register and a period register are different records.", meta: `${v.registers.length} register${v.registers.length === 1 ? "" : "s"} · ${open.length} outstanding`, noun: "register", nounPlural: "registers",
-      search: v.registers.length > 2 ? "Find an arm or a register" : undefined, head: ["Arm", "Register", "Roll", "Why it is yours", "State", "Note", ""], rows: tableRows, noRowOpen: true,
+      search: v.registers.length > 2 ? "Find an arm or a register" : undefined,
+      // The mockup filters this list by arm, by register kind and by state. With one
+      // register they are noise, so they appear once there is something to narrow.
+      filters: v.registers.length > 2
+        ? [
+            { label: "Arm", value: "All", options: ["All", ...new Set(v.registers.map((entry) => entry.arm))] },
+            { label: "Register", value: "All", options: ["All", "Daily register", "Period register"] },
+            { label: "State", value: "All", options: ["All", ...new Set(v.registers.map((entry) => entry.state))] },
+          ]
+        : undefined,
+      head: ["Arm", "Register", "Roll", "Why it is yours", "State", "Note", ""], rows: tableRows, noRowOpen: true,
       empty: v.schoolDay ? "No register is yours today. Daily registers belong to form masters; period registers appear on the days you teach." : "Today is not a school day in this term — there is no register to take.",
       foot: "Where the daily register already exists, a period register opens against it — absences are carried in, so you are never asked the same question twice.",
     }]),
@@ -137,6 +157,64 @@ function markTab(v: RegistersView, me: TeacherWorkspaceView, held: Set<string>):
     primary: first ? { label: open.length ? `Mark ${first.arm} · ${first.roll} children` : `Open ${first.arm}`, icon: CHECK, href: markHref(first) } : undefined,
     launchers: held.has("attendance.register.view") ? [{ label: "Register history", href: "/attendance/register" }] : [],
     rows: rows.filter((entry): entry is PanelRow => Boolean(entry)),
+  };
+}
+
+type RegisterIndex = {
+  term: { id: string; name: string } | null; date: string | null; schoolDays: number; markedToday: number; correctionsPending: number;
+  registers: Array<{ classId: string; subjectId: string | null; periodNumber: number | null; arm: string; what: string; kind: "daily" | "period"; roll: number; why: string; today: string; termRate: number | null }>;
+};
+
+/**
+ * Every register this person holds, in one list.
+ *
+ * The daily register for an arm and a period register for a subject are
+ * different records, so the list says which each row is and why it is theirs.
+ * Only a daily register carries a term figure — a period register is
+ * subordinate to it and would be reporting the same children twice.
+ */
+function registerIndexTab(v: RegisterIndex): TabContent {
+  const daily = v.registers.filter((entry) => entry.kind === "daily");
+  // The API boundary is not type-checked, so a shape change on the server reaches
+  // the page as whatever it is. A count that is not a number is shown as unknown
+  // rather than stringified into the card.
+  const schoolDays = typeof v.schoolDays === "number" ? String(v.schoolDays) : "—";
+  const rows: TableRow[] = v.registers.map((entry) => ({
+    keywords: `${entry.arm} ${entry.what} ${entry.why}`,
+    cells: [
+      text(entry.arm, { strong: true }),
+      text(entry.what),
+      text(entry.why, { tone: "neutral" }),
+      pill(entry.today, entry.today === "Marked" ? "positive" : entry.today === "Not due" ? "neutral" : "attention"),
+      entry.termRate === null ? text("—", { tone: "neutral" }) : text(`${entry.termRate}%`, { mono: true }),
+      text(entry.roll ? String(entry.roll) : "—", { mono: true }),
+      { kind: "action", label: "Open", href: `/attendance/register?arm=${entry.classId}` },
+    ] as TableCellKind[],
+  }));
+  return {
+    title: "Register", desc: "Every register you hold. Open one to see each day you marked and what was missed.",
+    rows: [
+      row("1fr", [{
+        // Named here rather than left to the shared KPI titles, which title this tab
+        // after the teacher's own arm — right for one arm's history, wrong above cards
+        // that count every register they hold.
+        type: "kpi", title: "Your registers this term", per: 4,
+        cards: [
+          { label: "Registers you hold", value: String(v.registers.length), sub: `${daily.length} daily · ${v.registers.length - daily.length} period` },
+          { label: "Marked today", value: String(v.markedToday), unit: `of ${v.registers.length}`, sub: v.date ? dayWords(v.date) : "No term is running", tone: v.registers.length && v.markedToday === v.registers.length ? "positive" : "attention" },
+          { label: "School days so far", value: schoolDays, sub: v.term ? v.term.name : "No term is running" },
+          { label: "Corrections pending", value: String(v.correctionsPending), sub: v.correctionsPending ? "Waiting on approval" : "Nothing waiting on approval", tone: v.correctionsPending ? "attention" : "positive" },
+        ],
+      }]),
+      row("1fr", [{
+        type: "table", title: "Your registers", sub: "Open each for its days, its children and every change made.",
+        meta: `${v.registers.length} register${v.registers.length === 1 ? "" : "s"}`, noun: "register", nounPlural: "registers",
+        search: v.registers.length > 2 ? "Find an arm or a register" : undefined,
+        head: ["Arm", "Register", "Why you have it", "Today", "Term", "Roll", ""], rows, noRowOpen: true,
+        empty: "You hold no register. Daily registers belong to form masters; period registers appear on the days you teach.",
+        foot: "The daily register is the arm's record. A period register sits under it and never overwrites its figure.",
+      }]),
+    ],
   };
 }
 

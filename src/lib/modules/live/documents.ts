@@ -67,6 +67,7 @@ export function cardPaper(view: CardView): DocumentSpec {
           { label: "Pos", align: "center" },
           { label: "Class avg", align: "center" },
           { label: "Remark", align: "left" },
+          ...(card.subjects.some((subject) => subject.comment) ? [{ label: "Teacher’s comment", align: "left" as const }] : []),
         ],
         rows: card.subjects.map((subject) => [
           subject.subject,
@@ -79,6 +80,7 @@ export function cardPaper(view: CardView): DocumentSpec {
           subject.pos ? `${subject.pos}/${subject.outOf}` : "—",
           subject.classAvg === null ? "—" : String(subject.classAvg),
           { text: subject.total === null ? "Awaiting the score sheet" : subject.remark || "—" },
+          ...(card.subjects.some((entry) => entry.comment) ? [subject.comment ?? "—"] : []),
         ]),
       },
     ],

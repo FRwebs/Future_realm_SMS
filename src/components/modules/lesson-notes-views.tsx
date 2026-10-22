@@ -1,14 +1,14 @@
 import { notFound } from "next/navigation";
 
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { CatalogueImport } from "@/components/modules/catalogue-import";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import { CatalogueImport } from "@/components/modules/catalogue-import";
-import { loadCatalogueOptions, loadNote, loadReviewNote, loadScheme, notePage, reviewNotePage, schemePage } from "@/lib/modules/live/t17-lesson-notes";
+import { addSubjectPage, historyNotePage, historyPage, notePage, reviewNotePage, subjectNotesPage } from "@/lib/modules/live/t17-lesson-notes";
 import type { TabContent } from "@/lib/modules/panels";
 
-/** The pages Lesson Notes opens from its tabs: a subject's scheme, a week's note, and a note under review. */
+/** The pages Lesson Notes opens from its tabs: adding a subject, a subject's notes, a week's note, the history, and a note under review. */
 
 async function gate() {
   const session = await getServerSession();
@@ -23,29 +23,20 @@ function Workspace({ content }: { content: Page }) {
   return <ModuleWorkspace eyebrow="Lesson Notes" title={content.title ?? "Lesson Notes"} description={content.desc ?? ""} primary={content.primary} launchers={content.launchers} rows={content.rows} back={content.crumb} />;
 }
 
-export async function SchemeView({ subjectId }: { subjectId: string }) {
+async function open(build: () => Promise<Page>) {
   const access = await gate();
   if (!access.ok) return access.denied;
-  const scheme = await loadScheme(subjectId).catch(() => null);
-  if (!scheme) notFound();
-  return <Workspace content={schemePage(scheme, await loadCatalogueOptions(subjectId))} />;
+  const page = await build().catch(() => null);
+  if (!page) notFound();
+  return <Workspace content={page} />;
 }
 
-export async function NoteView({ subjectId, week }: { subjectId: string; week: string }) {
-  const access = await gate();
-  if (!access.ok) return access.denied;
-  const note = await loadNote(subjectId, week).catch(() => null);
-  if (!note) notFound();
-  return <Workspace content={notePage(note)} />;
-}
-
-export async function ReviewNoteView({ planId }: { planId: string }) {
-  const access = await gate();
-  if (!access.ok) return access.denied;
-  const note = await loadReviewNote(planId).catch(() => null);
-  if (!note) notFound();
-  return <Workspace content={reviewNotePage(note)} />;
-}
+export const AddSubjectView = () => open(() => addSubjectPage());
+export const SubjectNotesView = ({ subjectId, term }: { subjectId: string; term?: string }) => open(() => subjectNotesPage(subjectId, term));
+export const NoteView = ({ subjectId, week, term }: { subjectId: string; week: string; term?: string }) => open(() => notePage(subjectId, week, term));
+export const HistoryView = ({ subjectId }: { subjectId: string }) => open(() => historyPage(subjectId));
+export const HistoryNoteView = ({ subjectId, planId }: { subjectId: string; planId: string }) => open(() => historyNotePage(subjectId, planId));
+export const ReviewNoteView = ({ planId }: { planId: string }) => open(() => reviewNotePage(planId));
 
 /** Load a curriculum's outlines for this school from Excel. */
 export async function CatalogueImportView() {

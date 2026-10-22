@@ -79,7 +79,7 @@ export type CompletionArmPage = {
 };
 
 export type CardComponent = { name: string; short: string; max: number; score: number | "ABS" | null };
-export type CardSubject = { subjectId: string; subject: string; teacher: string | null; components: CardComponent[]; total: number | null; grade: string | null; remark: string; pos: number | null; outOf: number; classAvg: number | null; caTotal: number | null; examTotal: number | null };
+export type CardSubject = { subjectId: string; subject: string; teacher: string | null; comment?: string | null; components: CardComponent[]; total: number | null; grade: string | null; remark: string; pos: number | null; outOf: number; classAvg: number | null; caTotal: number | null; examTotal: number | null };
 export type CardData = {
   studentId: string; studentName: string; admissionNumber: string; gender: string; dob: string | null; className: string; arm: string; formMaster: string | null; term: string; termId: string; session: string; classId: string;
   attendance: { days: number; present: number; absent: number; pct: number | null };
