@@ -41,7 +41,7 @@ const builders: Record<string, TeacherTabBuilder> = {
   m12: (tab, me, _permissions, query) => teacherMessagesTab(tab, me, query),
   m13: (tab, me) => teacherApprovalsTab(tab, me),
   m16: (tab, me) => teacherSyncSupportTab(tab, me),
-  m17: (tab, me) => teacherLessonNotesTab(tab, me),
+  m17: (tab, me, _permissions, query) => teacherLessonNotesTab(tab, me, query),
   m18: (tab, me, permissions) => teacherEmploymentTab(tab, me, permissions),
   m19: (tab, _me, _permissions, query) => teacherTrainingTab(tab, query),
 };

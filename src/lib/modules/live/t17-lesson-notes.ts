@@ -1,383 +1,302 @@
 import { apiGet } from "@/lib/api/server";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
-import { area, select, text } from "@/lib/modules/live/m7-forms";
-import type { DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
-import { pill, row, text as cell } from "@/lib/modules/panels";
+import { LN_API, type AddOptions, type Letterhead, type NoteData, type Overview, type SchemeData, type Section, type SubjectNotesData, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
+import type { DrawerSpec, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrackerRow } from "@/lib/modules/panels";
+import { bar, pill, row, text as cell } from "@/lib/modules/panels";
 
 /**
  * M17 for a teaching person: Lesson Notes. The scheme of work comes first — a term's weeks, each a topic — and a note is written once
- * per topic for every arm that takes it. A note is the teacher's, and is signed by their head of department (a head of department's own
- * by the academic lead); whoever signs it never edits it.
+ * per topic. A note is the teacher's, and is signed by their head of department (a head of department's own by the academic lead);
+ * whoever signs it never edits it. Every page here is drawn fully with nothing behind it: an empty term reads as an invitation, not a fault.
  */
 
-export const API = "/api/v1/teacher-workspace";
-const PEN = "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4";
-const PLUS = "M12 5.5v13M5.5 12h13";
+export const API = LN_API;
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
+const PEN = "M4 20h4L19 9l-4-4L4 16zM13.5 6.5l4 4";
 const SEND = "M4.5 12.5 19.5 5l-4 15-4.2-5.3z";
 
-type Curriculum = {
-  persona: string;
-  term: { name: string; session: string; week: number; weeks: number };
-  rows: Array<{ subjectId: string; subject: string; arms: string[]; schemes: number; planned: number; weeks: number; reached: number; expected: number; thisWeek: string | null; status: string }>;
+type Page = TabContent & { crumb: { label: string; href: string } };
+type Q = Record<string, string | undefined>;
+
+/* ───────────────────────── loaders ───────────────────────── */
+
+const withTerm = (termId?: string) => (termId ? `?termId=${encodeURIComponent(termId)}` : "");
+export const loadAddOptions = () => apiGet<AddOptions>(`${API}/curriculum/add/options`);
+export const loadSubjectNotes = (subjectId: string, termId?: string) => apiGet<SubjectNotesData>(`${API}/notes/subject/${subjectId}${withTerm(termId)}`);
+export const loadNote = (subjectId: string, week: string, termId?: string) => apiGet<NoteData>(`${API}/notes/${subjectId}/${week}${withTerm(termId)}`);
+export const loadHistory = (subjectId: string) => apiGet<History>(`${API}/notes/history/${subjectId}`);
+export const loadHistoryNote = (subjectId: string, planId: string) => apiGet<HistoryNote>(`${API}/notes/history/${subjectId}/${planId}`);
+export const loadReviewNote = (planId: string) => apiGet<ReviewNote>(`${API}/notes/review/${planId}`);
+
+type Landing = {
+  persona: string; term: { id: string; name: string; session: string; current: number | null; weeks: number; phase: string }; terms: Array<{ id: string; name: string }>; signer: { name: string } | null;
+  kpis: { toWrite: number; drafts: number; withReviewer: number; signed: number; returned: number };
+  rework: Array<{ planId: string; subjectId: string; subject: string; arms: string[]; week: number; topic: string; section: string | null; note: string; at: string }>;
+  subjects: Array<{ subjectId: string; subject: string; arms: string[]; readOnly: boolean; earlyYears: boolean; planned: number; due: number; notStarted: number; drafts: number; submitted: number; signed: number; returned: number; thisWeek?: { week: number; topic: string; state: string } | null; next: number | null; state: string }>;
+  history: Array<{ subjectId: string; subject: string; terms: Array<{ termId: string; term: string; session: string; signed: number }> }>;
 };
-export type SchemePage = {
-  subject: string; subjectId: string; arms: string[]; term: { name: string; session: string; week: number; weeks: number };
-  schemeStatus: string; returnReason: string | null;
-  weeks: Array<{ week: number; topic: string; planned: boolean; subtopics: string[]; kind: string; status: string; note: string | null }>;
-};
-type Section = { key: string; label: string; hint: string; placeholder: string; required: boolean };
-type NotesList = {
-  persona: string; signer: { name: string } | null; term: { week: number; weeks: number; name: string; session: string }; sections: Section[];
-  rows: Array<{ subjectId: string; subject: string; arms: string[]; weeks: Array<{ week: number; topic: string; state: string; written: number; planId: string | null; review: string | null; section: string | null; resubmitted: boolean; at: string | null }> }>;
-};
-export type NotePage = {
-  subject: string; subjectId: string; arms: string[]; week: number; weeks: number; term: { name: string; session: string; current: number };
-  topic: string; subtopics: string[]; status: string; sections: Section[]; state: string; text: Record<string, string>; planId: string | null;
-  returned: { note: string; section: string | null; at: string | null } | null; resubmitReply: string | null; signedBy: string | null; signedAt: string | null;
-  signer: { name: string } | null; reuse: { term: string; sections: Record<string, string> } | null;
-  previous: { week: number; topic: string } | null; next: { week: number; topic: string } | null; person: string;
-};
+type History = { subjectId: string; subject: string; terms: Array<{ termId: string; term: string; session: string; notes: Array<{ planId: string; week: number; topic: string; signedAt: string | null; signedBy: string | null; version: number }> }> };
+type HistoryNote = { letterhead: Letterhead; id: string; subjectId: string; subject: string; topic: string; week: number; arms: string[]; term: string; session: string; version: number; sections: Section[]; text: Record<string, string>; signedBy: string | null; signedAt: string | null; thread: ThreadEntry[] };
+export type ReviewNote = { letterhead: Letterhead; id: string; subject: string; topic: string; week: number; term: string; version: number; arms: string[]; teacher: string; state: string; sections: Section[]; text: Record<string, string>; own: boolean; canSign: boolean; resubmitReply: string | null; thread: ThreadEntry[] };
 type Review = {
-  scope: "school" | "department"; term: { name: string; session: string; week: number }; waiting: number; signed: number; returned: number;
-  rows: Array<{ id: string; week: number; topic: string; subject: string; arms: string[]; teacher: string; role: string; state: string; own: boolean; canSign: boolean; at: string; resubmitted: boolean }>;
+  scope: "school" | "department"; term: { name: string; session: string; current: number | null; phase: string };
+  kpis: { notStarted: number; inProgress: number; submitted: number; signed: number; returned: number; signable: number };
+  rows: Array<{ id: string; planId: string | null; teacher: string; subject: string; arms: string[]; week: number; topic: string; state: string; own: boolean; canSign: boolean; routedTo: string | null; age: number; at: string | null; resubmitted: boolean }>;
 };
-export type ReviewNote = { id: string; subject: string; topic: string; week: number; arms: string[]; teacher: string; state: string; sections: Section[]; text: Record<string, string>; own: boolean; canSign: boolean };
 type Coverage = {
-  scope: "school" | "department"; term: { name: string; session: string; week: number };
-  rows: Array<{ subject: string; arm: string; teacher: string; expected: number; reached: number; state: string }>;
+  scope: "school" | "department"; term: { name: string; session: string; current: number | null; phase: string };
+  rows: Array<{ subject: string; arm: string; teacher: string; planned: number; expected: number; reached: number; state: string }>;
   kpis: { onSchedule: number; behind: number; none: number; covered: number | null; total: number };
 };
+type CatalogueRow = { id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; book: string | null; topics: number; own: boolean };
 
-const stateTone = (state: string): PanelTone => (state === "Approved" ? "positive" : state === "Submitted" ? "submitted" : state === "Returned" ? "negative" : state === "Draft" ? "progress" : "neutral");
-const stateLabel = (state: string) => (state === "Approved" ? "Signed" : state === "Submitted" ? "With the reviewer" : state);
-const weekTone = (status: string): PanelTone => (status === "Taught" ? "positive" : status === "Partly taught" || status === "In progress" ? "progress" : status === "Not planned" ? "neutral" : "neutral");
-const stamp = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "");
-const KINDS: Record<string, string> = { Teaching: "TEACHING", Revision: "REVISION", Exam: "EXAM", Activity: "ACTIVITY", Holiday: "HOLIDAY" };
-const kindLabel = (kind: string) => Object.entries(KINDS).find(([, value]) => value === kind)?.[0] ?? "Teaching";
+const stamp = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
+const embed = (component: string, props: Record<string, unknown>): PanelRow => row("1fr", [{ type: "embed", component, props }]);
+const noTerm = (title: string): TabContent => ({ title, desc: "There is no current term, so nothing can be planned or written.", rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "No term is current", body: "Lesson notes follow the school’s term. When the school office sets the current term in School Configuration, this page fills in." }])] });
 
-export const noteHref = (subjectId: string, week: number) => `/lesson-notes/notes/${subjectId}/${week}`;
-export const schemeHref = (subjectId: string) => `/lesson-notes/curriculum/${subjectId}`;
+/* ───────────────────────── the tabs ───────────────────────── */
 
-export async function teacherLessonNotesTab(tabSlug: string, me: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
-  if (tabSlug === "curriculum") return curriculumTab(await apiGet<Curriculum>(`${API}/curriculum`));
-  if (tabSlug === "notes") return notesTab(await apiGet<NotesList>(`${API}/notes`));
+export async function teacherLessonNotesTab(tabSlug: string, me: TeacherWorkspaceView | undefined, query: Q = {}): Promise<TabContent | null | undefined> {
+  try {
+    if (tabSlug === "curriculum" && me) return await curriculumTab(query);
+    if (tabSlug === "notes" && me) return notesTab(await apiGet<Landing>(`${API}/notes${withTerm(query.term)}`), query);
+  } catch (error) {
+    if (error instanceof Error && /No term is current/i.test(error.message)) return noTerm(tabSlug === "notes" ? "Notes" : "Curriculum");
+    throw error;
+  }
   if (tabSlug === "review") return reviewTab(await apiGet<Review>(`${API}/notes/review`));
   if (tabSlug === "coverage") {
     const [coverage, catalogue] = await Promise.all([apiGet<Coverage>(`${API}/notes/coverage`), apiGet<CatalogueRow[]>("/api/v1/curriculum-catalogue").catch(() => [] as CatalogueRow[])]);
     const content = coverageTab(coverage);
-    return { ...content, launchers: [{ label: "Import a curriculum from Excel", href: "/lesson-notes/coverage/import" }], rows: [...content.rows, catalogueRow(catalogue)] };
+    return { ...content, launchers: [...(content.launchers ?? []), { label: "Import a curriculum from Excel", href: "/lesson-notes/coverage/import" }], rows: [...content.rows, catalogueRow(catalogue)] };
   }
-  void me;
   return undefined;
 }
 
-function noSubjects(title: string, desc: string): TabContent {
-  return { title, desc, rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You are not named on a subject this term", body: "A scheme of work and its notes belong to the teacher of a subject in an arm. When the school names you on one, it appears here." }])] };
-}
-
-export type CatalogueOptions = { subject: string; stages: string[]; term: number | null; termName: string; weeks: number; options: Array<{ id: string; curriculum: string; stage: string; source: string | null; book: string | null; own: boolean; topics: number; preview: string[] }> };
-export const loadScheme = (subjectId: string) => apiGet<SchemePage>(`${API}/curriculum/${subjectId}`);
-export const loadCatalogueOptions = (subjectId: string) => apiGet<CatalogueOptions>(`${API}/curriculum/${subjectId}/catalogue`).catch(() => null);
-export const loadNote = (subjectId: string, week: string) => apiGet<NotePage>(`${API}/notes/${subjectId}/${week}`);
-export const loadReviewNote = (planId: string) => apiGet<ReviewNote>(`${API}/notes/review/${planId}`);
-
 /* ───────────────────────── Curriculum ───────────────────────── */
 
-function curriculumTab(v: Curriculum): TabContent {
-  if (!v.rows.length) return noSubjects("Curriculum", "One scheme of work for each subject you teach.");
-  const planned = v.rows.reduce((sum, entry) => sum + entry.planned, 0);
-  const weeks = v.rows.reduce((sum, entry) => sum + entry.weeks, 0);
-  const reached = v.rows.reduce((sum, entry) => sum + Math.min(entry.reached, entry.expected), 0);
-  const expected = v.rows.reduce((sum, entry) => sum + entry.expected, 0);
-  const noScheme = v.rows.filter((entry) => entry.planned === 0).length;
-  const rows: TableRow[] = v.rows.map((entry) => ({
-    keywords: `${entry.subject} ${entry.arms.join(" ")}`, href: schemeHref(entry.subjectId),
-    cells: [
-      { kind: "name", name: entry.subject, sub: entry.arms.join(", "), avatar: false },
-      cell(entry.thisWeek || "Not planned yet", { tone: entry.thisWeek ? undefined : "attention" }),
-      cell(`${entry.planned} of ${entry.weeks}`, { mono: true }),
-      cell(entry.expected ? `${Math.min(entry.reached, entry.expected)} of ${entry.expected}` : "—", { mono: true, tone: entry.expected && entry.reached < entry.expected ? "negative" : undefined }),
-      pill(entry.status, entry.status === "Approved" ? "positive" : entry.status === "Submitted" ? "submitted" : entry.status === "Returned" ? "negative" : entry.status === "No scheme" ? "neutral" : "progress"),
-      { kind: "action", label: entry.planned ? "Open" : "Plan it", href: schemeHref(entry.subjectId) },
-    ] as TableCellKind[],
-  }));
+async function curriculumTab(query: Q): Promise<TabContent> {
+  const overview = await apiGet<Overview>(`${API}/curriculum`);
+  const chosen = overview.subjects.find((entry) => entry.subjectId === query.subject) ?? overview.subjects[0];
+  const scheme = chosen ? await apiGet<SchemeData>(`${API}/curriculum/${chosen.subjectId}${withTerm(query.term)}`) : null;
+  const week = Number(query.week);
   return {
-    title: "Curriculum", desc: `${v.term.name}, ${v.term.session} · week ${v.term.week}. Plan the term once, then teach from it every week.`,
-    rows: [
-      row("1fr", [{
-        type: "kpi", sub: "Counted from your own schemes of work — nothing here is typed in twice.", per: 4,
-        cards: [
-          { label: "Subjects you teach", value: String(v.rows.length), sub: v.rows.map((entry) => entry.subject).slice(0, 3).join(", ") },
-          { label: "Weeks planned", value: String(planned), unit: `of ${weeks}`, sub: noScheme ? `${noScheme} subject${noScheme === 1 ? "" : "s"} with nothing planned` : "Every subject has a plan", tone: noScheme ? "attention" : "positive" },
-          { label: "Taught so far", value: String(reached), unit: expected ? `of ${expected}` : undefined, sub: expected ? (reached >= expected ? "On schedule" : `${expected - reached} behind the plan`) : "No week is due yet", tone: expected && reached < expected ? "attention" : "positive" },
-          { label: "This week", value: String(v.term.week), unit: `of ${v.term.weeks}`, sub: `${v.term.name}` },
-        ],
-      }]),
-      row("1fr", [{
-        type: "table", title: "Your schemes of work", sub: "One per subject. Open one to plan its weeks.", meta: `${v.rows.length} subject${v.rows.length === 1 ? "" : "s"}`, noun: "subject", nounPlural: "subjects",
-        head: ["Subject", "This week", "Planned", "Taught", "Scheme", ""], rows, per: 10, empty: "Nothing to show.", foot: "A scheme taught across arms is planned once. A week marked taught counts for every arm.",
-      }]),
-    ],
+    title: "Curriculum",
+    desc: scheme
+      ? `${scheme.term.name}, ${scheme.term.session}. Plan the term once, then teach from it every week.`
+      : `${overview.term.name}, ${overview.term.session}. One scheme of work for each subject you teach.`,
+    primary: overview.canAdd ? { label: "Add a subject", href: "/lesson-notes/curriculum/add" } : undefined,
+    rows: [embed("scheme-workspace", { overview, scheme, initialWeek: Number.isFinite(week) && week > 0 ? week : undefined })],
   };
 }
 
-export function schemePage(p: SchemePage, catalogue: CatalogueOptions | null = null): TabContent & { crumb: { label: string; href: string } } {
-  const planned = p.weeks.filter((entry) => entry.planned);
-  const taught = planned.filter((entry) => entry.status === "Taught" || entry.status === "Partly taught").length;
-  const due = planned.filter((entry) => entry.week <= p.term.week).length;
-  const planDrawer = (entry: SchemePage["weeks"][number]): DrawerSpec => ({
-    mode: "form", kicker: `${p.subject} · week ${entry.week}`, title: entry.planned ? "Edit the week" : "Plan the week",
-    sub: `One topic for every arm you take (${p.arms.join(", ")}).`,
-    commitLabel: "Save the week", commitDone: "Week saved", commitDoneBody: "A scheme that was signed or submitted goes back to draft so it can be signed again.",
-    fields: [
-      text("Topic", { value: entry.topic, required: true, span: 2, placeholder: "e.g. Quadratic equations" }),
-      area("What is taught", { value: entry.subtopics.join("\n"), span: 2, placeholder: "One sub-topic per line", hint: "These are what a colleague covering your class would teach." }),
-      select("Kind of week", Object.keys(KINDS), { value: kindLabel(entry.kind), span: 2 }),
-    ] as FormField[],
-    submit: { endpoint: `${API}/curriculum/${p.subjectId}/weeks/${entry.week}`, method: "POST", map: { Topic: "topic", "What is taught": "subtopics", "Kind of week": "kind" }, encode: { "Kind of week": KINDS } },
-  });
-  const taughtDrawer = (entry: SchemePage["weeks"][number], taught: boolean): DrawerSpec => ({
-    mode: "commit", kicker: `${p.subject} · week ${entry.week}`, title: taught ? "Mark the week taught" : "Mark the week not yet taught",
-    sub: taught ? "It counts as covered for every arm that takes it." : "It goes back to planned, and the coverage figures follow.",
-    facts: [["Topic", entry.topic, ""], ["Arms", p.arms.join(", "), "Marked together"]],
-    commitLabel: taught ? "Mark taught" : "Undo", commitDone: taught ? "Week marked taught" : "Week reopened", commitDoneBody: "Coverage is counted from this — nobody retypes it.",
-    submit: { endpoint: `${API}/curriculum/${p.subjectId}/weeks/${entry.week}/taught`, method: "POST", body: { taught } },
-  });
-  const rows: TableRow[] = p.weeks.map((entry) => ({
-    keywords: `${entry.topic} ${entry.week}`,
-    cells: [
-      cell(`Week ${entry.week}`, { strong: true, mono: true, tone: entry.week === p.term.week ? "positive" : undefined }),
-      cell(entry.topic || "Not planned yet", { tone: entry.planned ? undefined : "attention", strong: entry.planned }),
-      cell(entry.subtopics.length ? entry.subtopics.join(" · ") : "—"),
-      pill(entry.status, weekTone(entry.status)),
-      entry.planned ? pill(entry.note ? stateLabel(stateOf(entry.note)) : "No note", stateTone(entry.note ? stateOf(entry.note) : "None")) : cell("—"),
-      { kind: "action", label: entry.planned ? "Edit" : "Plan", drawer: planDrawer(entry) },
-      entry.planned ? { kind: "action", label: "Note", href: noteHref(p.subjectId, entry.week) } : cell(""),
-      entry.planned ? { kind: "action", label: entry.status === "Taught" ? "Undo" : "Taught", drawer: taughtDrawer(entry, entry.status !== "Taught") } : cell(""),
-    ] as TableCellKind[],
-  }));
-  const submit: DrawerSpec = {
-    mode: "commit", kicker: p.subject, title: "Submit the scheme for approval",
-    sub: "Your head of department reads it and signs it, or returns it with what to change.",
-    facts: [["Subject", p.subject, p.arms.join(", ")], ["Weeks planned", `${planned.length} of ${p.weeks.length}`, "At least 10 are needed"], ["Current state", p.schemeStatus, ""]],
-    commitLabel: "Submit the scheme", commitDone: "Scheme submitted", commitDoneBody: "Your head of department has it. You will be told if it comes back.",
-    submit: { endpoint: `${API}/curriculum/${p.subjectId}/submit`, method: "POST" },
-  };
-  const first = p.weeks.find((entry) => !entry.planned);
-  const labelOf = (option: CatalogueOptions["options"][number]) => `${option.curriculum} · ${option.stage}${option.own ? " · your school’s" : ""} — ${option.topics} topics (${option.preview.slice(0, 2).join(", ")}…)`;
-  const fromCatalogue: DrawerSpec | null = catalogue && catalogue.options.length
-    ? {
-        mode: "form", kicker: p.subject, title: "Start from a published curriculum", sub: `The outlines for ${catalogue.subject} at ${catalogue.stages.join(" / ")}, ${catalogue.termName}. Weeks you have already planned stay as they are unless you say otherwise.`,
-        commitLabel: "Fill the term", commitDone: "Term filled", commitDoneBody: "The weeks are in your scheme. Edit any of them; nothing is submitted.",
-        fields: [
-          select("Outline", catalogue.options.map(labelOf), { span: 2, required: true }),
-          { label: "Replace weeks I have planned", kind: "toggle", on: false, onLabel: "Replace them", offLabel: "Keep what I planned", span: 2 } as FormField,
-        ],
-        submit: { endpoint: `${API}/curriculum/${p.subjectId}/catalogue/apply`, method: "POST", map: { Outline: "entryId", "Replace weeks I have planned": "replace" }, encode: { Outline: Object.fromEntries(catalogue.options.map((option) => [labelOf(option), option.id])) } },
-      }
-    : null;
+export async function addSubjectPage(): Promise<Page> {
+  const options = await loadAddOptions();
   return {
     crumb: { label: "Back to Curriculum", href: "/lesson-notes/curriculum" },
-    title: `${p.subject} · scheme of work`, desc: `${p.arms.join(", ")} · ${p.term.name}, ${p.term.session} · week ${p.term.week} of ${p.term.weeks}.`,
-    primary: first ? { label: `Plan week ${first.week}`, icon: PLUS, drawer: planDrawer(first) } : undefined,
-    launchers: [...(fromCatalogue ? [{ label: "Start from the catalogue", drawer: fromCatalogue }] : []), { label: "Submit the scheme", drawer: submit }],
-    rows: [
-      ...(!planned.length && catalogue && !catalogue.options.length ? [row("1fr", [{ type: "note", tone: "neutral" as PanelTone, icon: EYE, title: "No published outline matches this subject yet", body: `Nothing in the catalogue is for ${p.subject} at this stage in ${catalogue.termName}. Your head of department can load your curriculum from Excel, or you can plan the weeks yourself.` }])] : []),
-      ...(p.returnReason ? [row("1fr", [{ type: "note", tone: "attention", icon: EYE, title: "Your head of department returned this scheme", body: p.returnReason }])] : []),
-      row("1fr", [{
-        type: "kpi", per: 4,
-        cards: [
-          { label: "Weeks planned", value: String(planned.length), unit: `of ${p.weeks.length}`, tone: planned.length >= 10 ? "positive" : "attention", sub: planned.length >= 10 ? "Enough to submit" : `${10 - planned.length} more before it can be submitted` },
-          { label: "Taught", value: String(taught), unit: due ? `of ${due} due` : undefined, tone: due && taught < due ? "attention" : "positive", sub: due ? (taught >= due ? "On schedule" : `${due - taught} behind`) : "No week is due yet" },
-          { label: "Scheme", value: p.schemeStatus, sub: "Signed by your head of department" },
-          { label: "Notes written", value: String(planned.filter((entry) => entry.note).length), unit: `of ${planned.length}`, sub: "One per planned week" },
-        ],
-      }]),
-      row("1fr", [{
-        type: "table", title: "The term, week by week", sub: "Plan a week once and the note, the coverage and My Day all follow it.", meta: `${planned.length} planned`, noun: "week", nounPlural: "weeks",
-        head: ["Week", "Topic", "What is taught", "Status", "Note", "", "", ""], rows, per: 14, noRowOpen: true, empty: "Nothing to show.", foot: "Marking a week taught counts it for every arm you take that subject in.",
-      }]),
-    ] as PanelRow[],
+    title: "Add a subject", desc: "Plan a subject the school has not given you. The school office is told, so it can go on the timetable.",
+    rows: [embed("add-subject", { options })],
   };
 }
-
-const stateOf = (status: string) => (status === "DRAFT" ? "Draft" : status === "SUBMITTED" ? "Submitted" : status === "APPROVED" ? "Approved" : status === "RETURNED" ? "Returned" : status);
 
 /* ───────────────────────── Notes ───────────────────────── */
 
-function notesTab(v: NotesList): TabContent {
-  if (!v.rows.length) return noSubjects("Notes", "A note for every week you teach.");
-  const all = v.rows.flatMap((entry) => entry.weeks.map((week) => ({ ...week, subject: entry.subject, subjectId: entry.subjectId, arms: entry.arms })));
-  const count = (state: string) => all.filter((entry) => entry.state === state).length;
-  const due = all.filter((entry) => entry.week <= v.term.week);
-  const owed = due.filter((entry) => entry.state === "Not started" || entry.state === "Draft").length;
-  const rows: TableRow[] = all.sort((a, b) => Number(b.week === v.term.week) - Number(a.week === v.term.week) || a.week - b.week || a.subject.localeCompare(b.subject)).map((entry) => ({
-    keywords: `${entry.subject} ${entry.topic} ${entry.state}`, href: noteHref(entry.subjectId, entry.week),
+function notesTab(v: Landing, query: Q): TabContent {
+  if (!v.subjects.length && !v.history.length) {
+    return {
+      title: "Notes", desc: `${v.term.name}, ${v.term.session}. One note for every planned week, signed before you teach it.`,
+      rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You have no subject to write notes for yet", body: "A note is written against a week of a scheme of work. When the school names you on a subject — or you add one yourself in Curriculum — its weeks appear here, ready to write." }])],
+      primary: { label: "Open Curriculum", href: "/lesson-notes/curriculum" },
+    };
+  }
+  const k = v.kpis;
+  const totalPlanned = v.subjects.reduce((sum, entry) => sum + entry.planned, 0);
+  const totalWritten = v.subjects.reduce((sum, entry) => sum + entry.drafts + entry.submitted + entry.signed + entry.returned, 0);
+  const rework: TableRow[] = v.rework.map((entry) => ({
+    keywords: `${entry.subject} ${entry.topic}`, href: `/lesson-notes/notes/${entry.subjectId}/${entry.week}?term=${v.term.id}`,
     cells: [
-      cell(`Week ${entry.week}`, { strong: true, mono: true, tone: entry.week === v.term.week ? "positive" : undefined }),
-      { kind: "name", name: entry.topic, sub: `${entry.subject} · ${entry.arms.join(", ")}`, avatar: false },
-      cell(entry.state === "Not started" ? "—" : `${entry.written} of 7 sections`, { mono: true }),
-      pill(stateLabel(entry.state), stateTone(entry.state)),
-      cell(entry.review ? `“${entry.review}”` : entry.resubmitted ? "Resubmitted with a reply" : entry.at ? stamp(entry.at) : "", { tone: entry.review ? "negative" : undefined }),
-      { kind: "action", label: entry.state === "Not started" || entry.state === "Draft" ? "Write" : entry.state === "Returned" ? "Revise" : "Open", href: noteHref(entry.subjectId, entry.week) },
+      { kind: "name", name: entry.topic, sub: `${entry.subject} · ${entry.arms.join(", ")} · week ${entry.week}`, avatar: false },
+      cell(entry.note || "No comment left", { tone: "negative" }), cell(stamp(entry.at)),
+      { kind: "action", label: "Rework it", href: `/lesson-notes/notes/${entry.subjectId}/${entry.week}?term=${v.term.id}` },
     ] as TableCellKind[],
   }));
-  const current = all.find((entry) => entry.week === v.term.week && (entry.state === "Not started" || entry.state === "Draft"));
+  const subjects: TableRow[] = v.subjects.map((entry) => {
+    // What this subject still wants from the teacher, said once rather than spread
+    // across four count columns they would have to add up themselves.
+    const needs = [
+      entry.returned ? `${entry.returned} returned` : "",
+      entry.notStarted ? `${entry.notStarted} not written` : "",
+      entry.drafts ? `${entry.drafts} ${entry.drafts === 1 ? "draft" : "drafts"}` : "",
+      entry.submitted ? `${entry.submitted} with the reviewer` : "",
+    ].filter(Boolean).join(" · ") || "Nothing";
+    // Every planned week whose note has been started. Derived rather than sent, so the
+    // count can never disagree with the four state counts beside it.
+    const written = entry.drafts + entry.submitted + entry.signed + entry.returned;
+    const week = entry.thisWeek ?? null;
+    return {
+      keywords: `${entry.subject} ${entry.arms.join(" ")} ${entry.state} ${week?.topic ?? ""}`, href: `/lesson-notes/notes/${entry.subjectId}?term=${v.term.id}`,
+      cells: [
+        { kind: "name", name: entry.subject, sub: entry.arms.join(", "), avatar: false },
+        cell(entry.arms.join(", ")),
+        week
+          ? { kind: "name", name: week.topic || `Week ${week.week}`, sub: `Week ${week.week} · ${week.state === "Not started" ? "not written" : week.state === "Approved" ? "signed" : week.state.toLowerCase()}`, avatar: false } as TableCellKind
+          : cell(v.term.current ? "Nothing this week" : "The term is not running", { tone: "neutral" }),
+        entry.planned
+          ? bar(Math.round((written / entry.planned) * 100), `${written}/${entry.planned}`, written === entry.planned ? "positive" : "progress")
+          : cell("—"),
+        cell(entry.planned ? `${entry.signed} of ${entry.planned}` : "—", { mono: true }),
+        cell(needs),
+        pill(entry.state, entry.state === "Returned" ? "negative" : entry.state === "Behind" ? "attention" : entry.state === "Draft open" ? "progress" : entry.state === "On track" ? "positive" : "neutral"),
+        { kind: "action", label: entry.readOnly ? "Read" : "Open", href: `/lesson-notes/notes/${entry.subjectId}?term=${v.term.id}` },
+      ] as TableCellKind[],
+    };
+  });
+  const history: TableRow[] = v.history.flatMap((entry) => entry.terms.map((t) => ({
+    keywords: `${entry.subject} ${t.term}`, href: `/lesson-notes/notes/history/${entry.subjectId}`,
+    cells: [{ kind: "name", name: entry.subject, sub: `${t.term}${t.session ? `, ${t.session}` : ""}`, avatar: false }, cell(`${t.signed} signed note${t.signed === 1 ? "" : "s"}`, { mono: true }), { kind: "action", label: "Read them", href: `/lesson-notes/notes/history/${entry.subjectId}` }] as TableCellKind[],
+  })));
+  const other = v.terms.filter((t) => t.id !== v.term.id);
+  const next = v.subjects.find((entry) => entry.next && !entry.readOnly);
   return {
-    title: "Notes", desc: `${v.term.name}, ${v.term.session} · week ${v.term.week}. ${v.signer ? `${v.signer.name} signs them.` : "Nobody is named to sign them yet."}`,
-    primary: current ? { label: `Write week ${current.week}’s note`, icon: PEN, href: noteHref(current.subjectId, current.week) } : undefined,
+    title: "Notes", desc: `${v.term.name}, ${v.term.session}${v.term.current ? ` · week ${v.term.current} of ${v.term.weeks}` : ""}. ${v.signer ? `${v.signer.name} signs your notes.` : "No one is named to sign your notes yet."}`,
+    primary: next ? { label: `Write week ${next.next}`, icon: PEN, href: `/lesson-notes/notes/${next.subjectId}/${next.next}?term=${v.term.id}` } : undefined,
+    launchers: other.map((t) => ({ label: `Notes for ${t.name}`, href: `/lesson-notes/notes?term=${t.id}` })),
     rows: [
       row("1fr", [{
-        type: "kpi", sub: "Counted from your notes. A note is written once per topic and serves every arm that takes it.", per: 4,
+        type: "kpi", per: 5, sub: query.term ? undefined : "Counted from your own notes — nothing here is typed in twice.",
         cards: [
-          { label: "Owed now", value: String(owed), sub: owed ? "Weeks due without a finished note" : "Every due week has a note", tone: owed ? "attention" : "positive" },
-          { label: "With the reviewer", value: String(count("Submitted")), sub: v.signer ? `${v.signer.name} signs them` : "", tone: count("Submitted") ? "progress" : "neutral" },
-          { label: "Returned", value: String(count("Returned")), sub: count("Returned") ? "Read what to change" : "Nothing returned", tone: count("Returned") ? "negative" : "positive" },
-          { label: "Signed", value: String(count("Approved")), unit: `of ${all.length}`, sub: "Ready to teach from", tone: "positive" },
+          { label: "Subjects", value: String(v.subjects.length), sub: v.subjects.map((entry) => entry.subject).join(" · ") || "None yet" },
+          { label: "Notes written", value: String(totalWritten), unit: `of ${totalPlanned}`, sub: k.toWrite ? `${k.toWrite} not written for weeks already reached` : "Up to date for every week reached", tone: k.toWrite ? "attention" : "positive" },
+          { label: "Signed this term", value: String(k.signed), unit: `of ${totalPlanned}`, sub: v.signer ? `By ${v.signer.name}` : "No one is named to sign them yet", tone: "positive" },
+          { label: "With the reviewer", value: String(k.withReviewer), sub: k.withReviewer ? "Waiting to be signed" : "Nothing waiting", tone: k.withReviewer ? "submitted" : "neutral" },
+          { label: "Returned for rework", value: String(k.returned), sub: k.returned ? `${v.rework[0]?.topic ?? "A note"} · read the comment` : "Nothing sent back", tone: k.returned ? "negative" : "positive" },
         ],
       }]),
       row("1fr", [{
-        type: "table", title: "Your notes", sub: "This week first, then in order.", meta: `${all.length} planned week${all.length === 1 ? "" : "s"}`, noun: "note", nounPlural: "notes", search: "Find a note",
-        head: ["Week", "Topic", "Written", "State", "", ""], rows, per: 12, empty: "Plan a week in Curriculum first — a note is written against a topic.", foot: "A note can only be written for a week that is planned in the scheme of work.",
+        type: "table", title: "Sent back for rework", sub: "A reviewer returned these with what to change. Open one, change it, and say what you changed.", meta: `${v.rework.length} returned`, noun: "note", nounPlural: "notes",
+        head: ["Note", "What to change", "Returned", ""], rows: rework, noRowOpen: false, empty: "Nothing has been sent back.",
+        emptyTitle: "Nothing has been sent back", emptyBody: "When a reviewer returns a note, it lands here with their comment beside the section to change.",
+      }]),
+      row("1fr", [{
+        type: "table", title: "Every note this term", sub: "One row per subject. Open one to see its topics week by week, and write the note for any of them.",
+        meta: `${v.subjects.length} subject${v.subjects.length === 1 ? "" : "s"} · ${totalPlanned} note${totalPlanned === 1 ? "" : "s"} · ${v.term.name}`, noun: "subject", nounPlural: "subjects",
+        search: "Find a subject, a class or this week’s topic",
+        filters: [{ label: "State", value: "All", options: ["All", "Returned", "Behind", "Draft open", "On track"] }],
+        head: ["Subject", "Classes", "This week", "Written", "Signed", "Needs you", "State", ""], rows: subjects, empty: "You are not named on a subject.",
+        emptyTitle: "No subjects to write for", emptyBody: "Your subjects come from the school admin, or from Add a subject in Curriculum.",
+      }]),
+      row("1fr", [{
+        type: "table", title: "Note history", sub: "Signed notes from earlier terms stay here to teach from again.", meta: `${history.length} term${history.length === 1 ? "" : "s"}`, noun: "term", nounPlural: "terms",
+        head: ["Subject and term", "Signed notes", ""], rows: history, empty: "No signed note from an earlier term yet.",
+        emptyTitle: "Nothing from earlier terms yet", emptyBody: "Once a note is signed and the term has passed, it is kept here. When the topic comes round again you can start from it.",
       }]),
     ],
   };
 }
 
-export function notePage(p: NotePage): TabContent & { crumb: { label: string; href: string } } {
-  const editable = p.state === "Not started" || p.state === "Draft" || p.state === "Returned";
-  const required = p.sections.filter((section) => section.required);
-  const writtenReq = required.filter((section) => (p.text[section.key] ?? "").trim()).length;
-  const written = p.sections.filter((section) => (p.text[section.key] ?? "").trim()).length;
-  const nest = Object.fromEntries(p.sections.map((section): [string, [string, string]] => [section.label, ["sections", section.key]]));
-  const writeDrawer: DrawerSpec = {
-    mode: "form", kicker: `${p.subject} · week ${p.week}`, title: p.state === "Not started" ? "Write the note" : "Edit the note", sub: `${p.topic} — for ${p.arms.join(", ")}. Saving keeps it as a draft; nothing goes to the reviewer until you submit.`,
-    commitLabel: "Save the draft", commitDone: "Draft saved", commitDoneBody: "Open it again any time; submit it when every required section is written.",
-    fields: p.sections.map((section) => area(section.label, { value: p.text[section.key] ?? "", span: 2, required: section.required, placeholder: section.placeholder, hint: `${section.required ? "Required. " : ""}${section.hint}` })),
-    submit: { endpoint: `${API}/notes/${p.subjectId}/${p.week}`, method: "POST", nest },
-  };
-  const returnedFirst = p.state === "Returned";
-  const submitDrawer: DrawerSpec = {
-    mode: "form", kicker: `${p.subject} · week ${p.week}`, title: returnedFirst ? "Resubmit the note" : "Submit for signing",
-    sub: `${p.signer ? `${p.signer.name} reads it and signs it, or sends it back with what to change.` : "No reviewer is named for you — raise it with the office."}`,
-    commitLabel: "Submit the note", commitDone: "Note submitted", commitDoneBody: "You cannot edit it while it is with the reviewer, but you can withdraw it.",
-    reviewNote: `${writtenReq} of ${required.length} required sections written.`,
-    fields: [
-      ...(returnedFirst ? [area("What you changed", { span: 2, required: true, placeholder: "Say what you changed, so the reviewer reads the right part." })] : []),
-      { label: "Required sections", kind: "static", value: `${writtenReq} of ${required.length} written`, span: 2, hint: required.map((section) => section.label).join(" · ") } as FormField,
-    ],
-    submit: { endpoint: `${API}/notes/${p.subjectId}/${p.week}/submit`, method: "POST", map: { "What you changed": "reply" } },
-  };
-  const withdraw: DrawerSpec = {
-    mode: "commit", kicker: p.subject, title: "Withdraw the note", sub: "It goes back to a draft so you can edit it.", facts: [["Week", String(p.week), p.topic]],
-    commitLabel: "Withdraw it", commitDone: "Note withdrawn", commitDoneBody: "It is a draft again.", submit: { endpoint: `${API}/notes/${p.subjectId}/${p.week}/withdraw`, method: "POST" },
-  };
-  const revise: DrawerSpec = {
-    mode: "commit", kicker: p.subject, title: "Revise a signed note", sub: "It becomes a draft and has to be signed again.", facts: [["Signed by", p.signedBy ?? "—", p.signedAt ? stamp(p.signedAt) : ""]],
-    commitLabel: "Start a revision", commitDone: "Note reopened", commitDoneBody: "Edit it, then submit it for signing.", submit: { endpoint: `${API}/notes/${p.subjectId}/${p.week}/revise`, method: "POST" },
-  };
-  const reuse: DrawerSpec | null = p.reuse && p.state === "Not started" ? {
-    mode: "form", kicker: `${p.subject} · week ${p.week}`, title: "Start from last time’s note", sub: "A signed note on the same topic from an earlier term. It becomes a new draft you can change.",
-    commitLabel: "Use it as a draft", commitDone: "Draft started", commitDoneBody: "Change what is out of date, then submit it.",
-    fields: p.sections.map((section) => area(section.label, { value: p.reuse!.sections[section.key] ?? "", span: 2, placeholder: section.placeholder })),
-    submit: { endpoint: `${API}/notes/${p.subjectId}/${p.week}`, method: "POST", nest },
-  } : null;
-  const hasText = (key: string) => Boolean((p.text[key] ?? "").trim());
-  const rows: PanelRow[] = [
-    ...(p.returned ? [row("1fr", [{ type: "note", tone: "attention", icon: EYE, title: p.returned.section ? `${p.signer?.name ?? "The reviewer"} asks you to change “${p.sections.find((section) => section.key === p.returned!.section)?.label ?? p.returned.section}”` : `${p.signer?.name ?? "The reviewer"} returned this note`, body: p.returned.note || "No comment was left." }])] : []),
-    row("1fr", [{ type: "days", title: "The term’s notes", sub: "Walk the weeks without going back to the list.", days: [
-      ...(p.previous ? [{ label: `Week ${p.previous.week}`, href: noteHref(p.subjectId, p.previous.week), state: "plain" as const }] : []),
-      { label: `Week ${p.week}`, href: noteHref(p.subjectId, p.week), state: "now" as const },
-      ...(p.next ? [{ label: `Week ${p.next.week}`, href: noteHref(p.subjectId, p.next.week), state: "plain" as const }] : []),
-    ] }]),
-    row("1fr", [{
-      type: "kpi", per: 4,
-      cards: [
-        { label: "Topic", value: p.topic, sub: p.arms.join(", ") },
-        { label: "State", value: stateLabel(p.state), sub: p.state === "Approved" ? `${p.signedBy ?? ""}${p.signedAt ? ` · ${stamp(p.signedAt)}` : ""}` : p.signer ? `Signed by ${p.signer.name}` : "No reviewer named", tone: stateTone(p.state) },
-        { label: "Sections written", value: String(written), unit: "of 7", sub: `${writtenReq} of ${required.length} required`, tone: writtenReq === required.length ? "positive" : "attention" },
-        { label: "Week", value: String(p.week), unit: `of ${p.weeks}`, sub: p.week === p.term.current ? "This week" : p.week < p.term.current ? "Already taught" : "Ahead" },
-      ],
-    }]),
-    ...(p.subtopics.length ? [row("1fr", [{ type: "facts", title: "What the scheme says is taught", sub: "From your scheme of work for this subject.", per: 1, facts: p.subtopics.map((topic, index): PanelFact => [`Part ${index + 1}`, topic, ""]) }])] : []),
-    row("1fr", [{
-      type: "quotes", title: "The note", sub: editable ? "Seven sections. Required ones must be written before it can be submitted." : p.state === "Submitted" ? "With the reviewer — it cannot be edited unless you withdraw it." : "Signed. Revise it to change it.",
-      quotes: p.sections.map((section) => ({ label: `${section.label}${section.required ? " · required" : ""}`, text: p.text[section.key] ?? "", by: p.person, emptyText: section.hint, pill: hasText(section.key) ? "Written" : section.required ? "Required" : "Optional", tone: (hasText(section.key) ? "positive" : section.required ? "attention" : "neutral") as PanelTone, ...(editable ? { act: hasText(section.key) ? "Edit the note" : "Write the note", trigger: { drawer: writeDrawer } } : {}) })),
-    }]),
-    ...(p.resubmitReply && p.state === "Submitted" ? [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You resubmitted this note", body: p.resubmitReply }])] : []),
-  ];
+export async function subjectNotesPage(subjectId: string, termId?: string): Promise<Page> {
+  const data = await loadSubjectNotes(subjectId, termId);
   return {
     crumb: { label: "Back to Notes", href: "/lesson-notes/notes" },
-    title: `${p.subject} · week ${p.week}`, desc: `${p.topic} · ${p.arms.join(", ")} · ${p.term.name}, ${p.term.session}.`,
-    primary: editable ? { label: p.state === "Not started" ? "Write the note" : "Edit the note", icon: PEN, drawer: writeDrawer } : p.state === "Approved" ? { label: "Revise the note", icon: PEN, drawer: revise } : { label: "Withdraw the note", icon: PEN, drawer: withdraw },
-    launchers: [
-      ...(editable && p.state !== "Not started" ? [{ label: returnedFirst ? "Resubmit" : "Submit for signing", drawer: submitDrawer }] : []),
-      ...(reuse ? [{ label: "Start from last time", drawer: reuse }] : []),
-      { label: "Open the scheme", href: schemeHref(p.subjectId) },
-    ],
-    rows,
+    title: `${data.subject} · notes`, desc: `${data.arms.join(", ")} · ${data.term.name}, ${data.term.session}.`,
+    launchers: data.readOnly ? [] : [{ label: "Open the scheme", href: `/lesson-notes/curriculum?subject=${data.subjectId}&term=${data.term.id}` }, { label: "Note history", href: `/lesson-notes/notes/history/${data.subjectId}` }],
+    rows: [embed("subject-notes", { data })],
+  };
+}
+
+export async function notePage(subjectId: string, week: string, termId?: string): Promise<Page> {
+  const data = await loadNote(subjectId, week, termId);
+  return {
+    crumb: { label: `Back to ${data.subject} notes`, href: `/lesson-notes/notes/${data.subjectId}?term=${data.term.id}` },
+    title: data.earlyYears ? `${data.subject} · week ${data.week} plan` : `${data.subject} · week ${data.week}`, desc: `${data.topic} · ${data.arms.join(", ")} · ${data.term.name}, ${data.term.session}.`,
+    rows: [embed("note-document", { data })],
+  };
+}
+
+export async function historyPage(subjectId: string): Promise<Page> {
+  const data = await loadHistory(subjectId);
+  const tables = data.terms.map((term): PanelRow => {
+    const rows: TableRow[] = term.notes.map((note) => ({
+      keywords: note.topic, href: `/lesson-notes/notes/history/${subjectId}/${note.planId}`,
+      cells: [cell(`Week ${note.week}`, { mono: true, strong: true }), { kind: "name", name: note.topic, sub: note.version > 1 ? `Version ${note.version}` : undefined, avatar: false }, cell(note.signedBy ?? "—"), cell(stamp(note.signedAt)), { kind: "action", label: "Read", href: `/lesson-notes/notes/history/${subjectId}/${note.planId}` }] as TableCellKind[],
+    }));
+    return row("1fr", [{ type: "table", title: `${term.term}${term.session ? `, ${term.session}` : ""}`, sub: "Signed notes — read-only.", meta: `${rows.length} signed`, noun: "note", nounPlural: "notes", head: ["Week", "Topic", "Signed by", "Signed", ""], rows, empty: "None." }]);
+  });
+  return {
+    crumb: { label: "Back to Notes", href: "/lesson-notes/notes" },
+    title: `${data.subject} · note history`, desc: "Every note of yours that was signed, term by term. Read one to teach from it again.",
+    rows: tables.length ? tables : [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: `No signed ${data.subject} note yet`, body: "Once a note is signed it is kept here, term by term, so you can start from it when the topic comes round again." }])],
+  };
+}
+
+export async function historyNotePage(subjectId: string, planId: string): Promise<Page> {
+  const note = await loadHistoryNote(subjectId, planId);
+  return {
+    crumb: { label: `Back to ${note.subject} history`, href: `/lesson-notes/notes/history/${subjectId}` },
+    title: `${note.topic} · week ${note.week}`, desc: `${note.subject} · ${note.arms.join(", ")} · ${note.term}${note.session ? `, ${note.session}` : ""}.`,
+    rows: [embed("note-reader", { data: { id: note.id, subject: note.subject, topic: note.topic, week: note.week, term: note.term, version: note.version, arms: note.arms, signedBy: note.signedBy, signedAt: note.signedAt, state: "Approved", sections: note.sections, text: note.text, thread: note.thread, letterhead: note.letterhead, back: { label: "History", href: `/lesson-notes/notes/history/${subjectId}` } } })],
   };
 }
 
 /* ───────────────────────── Review ───────────────────────── */
 
 function reviewTab(v: Review): TabContent {
-  const rows: TableRow[] = v.rows.map((entry) => ({
-    keywords: `${entry.subject} ${entry.topic} ${entry.teacher} ${entry.state}`, href: `/lesson-notes/review/${entry.id}`,
-    cells: [
-      { kind: "name", name: entry.topic, sub: `${entry.subject} · ${entry.arms.join(", ")}`, avatar: false },
-      cell(`Week ${entry.week}`, { mono: true }), cell(entry.teacher), cell(stamp(entry.at)),
-      pill(stateLabel(entry.state), stateTone(entry.state)),
-      { kind: "action", label: entry.canSign ? "Read and sign" : "Open", href: `/lesson-notes/review/${entry.id}` },
-    ] as TableCellKind[],
+  const k = v.kpis;
+  const trackerRows: TrackerRow[] = v.rows.map((entry) => ({
+    unit: entry.topic, sub: `${entry.subject} · ${entry.arms.join(", ") || "no arm named"} · week ${entry.week}${entry.resubmitted ? " · resubmitted" : ""}`,
+    owner: entry.teacher, role: entry.routedTo ? `Goes to ${entry.routedTo}` : "Teacher", state: entry.state === "Approved" ? "Signed" : entry.state === "Submitted" ? "With the reviewer" : entry.state,
+    age: entry.state === "Submitted" ? (entry.age === 0 ? "Today" : `${entry.age} day${entry.age === 1 ? "" : "s"}`) : entry.at ? stamp(entry.at) : "—", overdue: entry.state === "Submitted" && entry.age >= 3,
+    href: entry.planId ? `/lesson-notes/review/${entry.planId}` : undefined, act: entry.canSign ? "Read and sign" : entry.planId ? "Read" : undefined,
   }));
+  const order = ["Returned", "With the reviewer", "Draft", "Not started", "Signed"];
+  const by = (sort: (a: TrackerRow, b: TrackerRow) => number) => [...trackerRows].sort(sort);
+  const waiting = v.rows.filter((entry) => entry.canSign);
+  const signAll: DrawerSpec = {
+    mode: "commit", kicker: "Review", title: `Sign the ${waiting.length} waiting`, sub: "Each is signed on its own, and each teacher is told. You cannot sign your own.",
+    facts: waiting.slice(0, 6).map((entry): [string, string, string] => [entry.teacher, entry.topic, `${entry.subject} · week ${entry.week}`]),
+    commitLabel: `Sign ${waiting.length}`, commitDone: "Signed", commitDoneBody: "The teachers are told. Open any to see the signature in its thread.",
+    submit: { endpoint: `${API}/notes/review/sign`, method: "POST", body: { planIds: waiting.map((entry) => entry.planId) } },
+  };
   return {
-    title: "Review", desc: `${v.scope === "school" ? "Every department’s" : "Your department’s"} notes, ${v.term.name} · week ${v.term.week}. You never sign your own.`,
+    title: "Review", desc: `${v.scope === "school" ? "Every department’s" : "Your department’s"} notes, ${v.term.name}${v.term.current ? ` · week ${v.term.current}` : ""}. You never sign your own.`,
+    primary: waiting.length ? { label: `Sign the ${waiting.length} waiting`, icon: SEND, drawer: signAll } : undefined,
     rows: [
       row("1fr", [{
-        type: "kpi", per: 3,
+        type: "kpi", per: 5, sub: "One row below for every subject, arm and week a note is due — started or not.",
         cards: [
-          { label: "Waiting for a signature", value: String(v.waiting), sub: v.waiting ? "Oldest first in the list" : "Nothing is waiting", tone: v.waiting ? "attention" : "positive" },
-          { label: "Returned", value: String(v.returned), sub: "With the teacher to change", tone: v.returned ? "progress" : "neutral" },
-          { label: "Signed", value: String(v.signed), sub: "Ready to teach from", tone: "positive" },
+          { label: "Not started", value: String(k.notStarted), sub: "Due, with no note", tone: k.notStarted ? "attention" : "positive" },
+          { label: "In progress", value: String(k.inProgress), sub: "Drafts", tone: "progress" },
+          { label: "Waiting for a signature", value: String(k.submitted), sub: k.submitted ? "Oldest first in the list" : "Nothing is waiting", tone: k.submitted ? "submitted" : "positive" },
+          { label: "Returned", value: String(k.returned), sub: "With the teacher to change", tone: k.returned ? "negative" : "neutral" },
+          { label: "Signed", value: String(k.signed), sub: "Ready to teach from", tone: "positive" },
         ],
       }]),
       row("1fr", [{
-        type: "table", title: "Notes in your scope", sub: "Open one to read all seven sections, then sign it or return it with what to change.", meta: `${v.rows.length} note${v.rows.length === 1 ? "" : "s"}`, noun: "note", nounPlural: "notes", search: "Find a note or a teacher",
-        filters: [{ label: "State", value: "All", options: ["All", "With the reviewer", "Returned", "Signed", "Draft"], column: 4 }],
-        head: ["Note", "Week", "Teacher", "Last change", "State", ""], rows, per: 12, empty: "No note has been written yet.", foot: "A note you wrote goes to the academic lead, not to you.",
+        type: "tracker", title: "Notes due", sub: "Open a note to read all its sections, then sign it or return it with what to change.", noun: "notes signed",
+        groups: ["By state", "By teacher", "By subject", "By age"],
+        rows: by((a, b) => order.indexOf(a.state) - order.indexOf(b.state)),
+        groupRows: {
+          "By state": by((a, b) => order.indexOf(a.state) - order.indexOf(b.state)),
+          "By teacher": by((a, b) => a.owner.localeCompare(b.owner)),
+          "By subject": by((a, b) => (a.sub ?? "").localeCompare(b.sub ?? "")),
+          "By age": by((a, b) => (b.overdue ? 1 : 0) - (a.overdue ? 1 : 0) || parseInt(b.age) - parseInt(a.age) || 0),
+        },
+        clear: { title: "No note is due yet", body: "Notes appear here once a scheme of work has weeks that have come round. Nothing has been planned for the term so far." },
       }]),
     ],
   };
 }
 
-export function reviewNotePage(p: ReviewNote): TabContent & { crumb: { label: string; href: string } } {
-  const sign: DrawerSpec = {
-    mode: "commit", kicker: `${p.subject} · week ${p.week}`, title: "Sign the note", sub: `${p.teacher} is told it is signed.`, facts: [["Topic", p.topic, p.arms.join(", ")], ["Teacher", p.teacher, ""]],
-    commitLabel: "Sign it", commitDone: "Note signed", commitDoneBody: "It is ready to teach from.", submit: { endpoint: `${API}/notes/review/${p.id}/decide`, method: "POST", body: { decision: "sign" } },
-  };
-  const send: DrawerSpec = {
-    mode: "form", kicker: `${p.subject} · week ${p.week}`, title: "Return the note", sub: `Say what to change — ${p.teacher} sees it beside the section.`,
-    commitLabel: "Return it", commitDone: "Note returned", commitDoneBody: "They are told, and can resubmit with a reply.",
-    fields: [select("Section to change", ["Not one section", ...p.sections.map((section) => section.label)], { span: 2 }), area("What to change", { span: 2, required: true, placeholder: "Be specific — a return without a comment cannot be acted on." })],
-    submit: { endpoint: `${API}/notes/review/${p.id}/decide`, method: "POST", body: { decision: "return" }, map: { "Section to change": "section", "What to change": "note" }, encode: { "Section to change": { "Not one section": "", ...Object.fromEntries(p.sections.map((section) => [section.label, section.key])) } } },
-  };
+export async function reviewNotePage(planId: string): Promise<Page> {
+  const note = await loadReviewNote(planId);
   return {
     crumb: { label: "Back to Review", href: "/lesson-notes/review" },
-    title: `${p.topic} · week ${p.week}`, desc: `${p.subject} · ${p.arms.join(", ")} · written by ${p.teacher}.`,
-    primary: p.canSign ? { label: "Sign the note", icon: SEND, drawer: sign } : undefined,
-    launchers: p.canSign ? [{ label: "Return it", drawer: send }] : [],
-    rows: [
-      row("1fr", [{ type: "note", tone: p.own ? "attention" : "neutral", icon: EYE, title: p.own ? "You wrote this note" : `State: ${stateLabel(p.state)}`, body: p.own ? "Someone else signs it — it goes to the academic lead." : p.canSign ? "Read all seven sections, then sign it or return it with what to change. You never edit it yourself." : "Only a note that has been submitted can be signed." }]),
-      row("1fr", [{ type: "quotes", title: "The note", sub: "Exactly as the teacher wrote it.", quotes: p.sections.map((section) => ({ label: section.label, text: p.text[section.key] ?? "", by: p.teacher, emptyText: section.required ? "Required, and not written." : "Not written.", pill: (p.text[section.key] ?? "").trim() ? "Written" : section.required ? "Missing" : "Blank", tone: ((p.text[section.key] ?? "").trim() ? "positive" : section.required ? "negative" : "neutral") as PanelTone })) }]),
-    ],
+    title: `${note.topic} · week ${note.week}`, desc: `${note.subject} · ${note.arms.join(", ")} · written by ${note.teacher}.`,
+    rows: [embed("note-reader", { data: { id: note.id, subject: note.subject, topic: note.topic, week: note.week, term: note.term, version: note.version, arms: note.arms, teacher: note.teacher, state: note.state, sections: note.sections, text: note.text, thread: note.thread, letterhead: note.letterhead, review: { own: note.own, canSign: note.canSign, resubmitReply: note.resubmitReply }, back: { label: "Review", href: "/lesson-notes/review" } } })],
   };
 }
 
 /* ───────────────────────── Coverage ───────────────────────── */
-
-type CatalogueRow = { id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; book: string | null; topics: number; own: boolean };
 
 /** The outlines a teacher can start a scheme from: the platform's, and the school's own. */
 function catalogueRow(entries: CatalogueRow[]): PanelRow {
@@ -389,36 +308,50 @@ function catalogueRow(entries: CatalogueRow[]): PanelRow {
     keywords: `${entry.curriculum} ${entry.subject} ${entry.stage}`,
     cells: [{ kind: "name", name: entry.subject, sub: `${entry.curriculum} · ${entry.stage} · term ${entry.term}`, avatar: false }, cell(String(entry.topics), { mono: true }), cell(entry.source ?? "—"), pill(entry.own ? "Your school’s" : "Platform", entry.own ? "progress" : "neutral"), entry.own ? { kind: "action", label: "Remove", drawer: remove(entry) } : cell("")] as TableCellKind[],
   }));
-  return row("1fr", [{ type: "table", title: "Curriculum catalogue", sub: "The outlines a teacher can start a scheme of work from. The platform’s are loaded for every school; load your own from Excel.", meta: `${entries.length} outline${entries.length === 1 ? "" : "s"}`, noun: "outline", nounPlural: "outlines", search: "Find a subject or stage", head: ["Subject", "Topics", "Source", "From", ""], rows, per: 10, noRowOpen: true, empty: "Nothing has been loaded. Import a curriculum from Excel, or ask the platform team to load the national one.", foot: "Nothing here is written by the product — it is exactly what was imported." }]);
+  return row("1fr", [{
+    type: "table", title: "Curriculum catalogue", sub: "The outlines a teacher can start a scheme of work from. The platform’s are loaded for every school; load your own from Excel.", meta: `${entries.length} outline${entries.length === 1 ? "" : "s"}`, noun: "outline", nounPlural: "outlines",
+    head: ["Subject", "Topics", "Source", "From", ""], rows, per: 8, search: "Find an outline", noRowOpen: true, empty: "No outline has been loaded.",
+    emptyTitle: "No outline has been loaded", emptyBody: "Load the national or your own curriculum from Excel, and teachers can start a scheme from it instead of a blank page.",
+  }]);
 }
 
 function coverageTab(v: Coverage): TabContent {
   const k = v.kpis;
+  const tone = (state: string): PanelTone => (state === "On schedule" ? "positive" : state === "Behind" ? "negative" : "neutral");
   const rows: TableRow[] = v.rows.map((entry) => ({
     keywords: `${entry.subject} ${entry.arm} ${entry.teacher} ${entry.state}`,
     cells: [
       { kind: "name", name: entry.subject, sub: entry.arm, avatar: false }, cell(entry.teacher),
-      cell(entry.expected ? `${Math.min(entry.reached, entry.expected)} of ${entry.expected}` : "—", { mono: true }),
-      pill(entry.state, entry.state === "On schedule" ? "positive" : entry.state === "Behind" ? "negative" : "neutral"),
+      cell(entry.planned ? String(entry.planned) : "—", { mono: true }), cell(entry.expected ? String(entry.expected) : "—", { mono: true }), cell(entry.expected ? String(Math.min(entry.reached, entry.expected)) : "—", { mono: true }),
+      pill(entry.state, tone(entry.state)),
     ] as TableCellKind[],
   }));
+  const bars = v.rows.filter((entry) => entry.expected > 0).sort((a, b) => Math.min(a.reached, a.expected) / a.expected - Math.min(b.reached, b.expected) / b.expected).slice(0, 12).map((entry) => {
+    const pct = Math.round((Math.min(entry.reached, entry.expected) / entry.expected) * 100);
+    return { label: `${entry.subject} · ${entry.arm}`, value: pct, display: `${Math.min(entry.reached, entry.expected)} of ${entry.expected}`, sub: entry.teacher, tone: tone(entry.state) };
+  });
   return {
-    title: "Coverage", desc: `${v.scope === "school" ? "Every" : "Your department’s"} subject, against the scheme — ${v.term.name} · week ${v.term.week}.`,
+    title: "Coverage", desc: `${v.scope === "school" ? "Every" : "Your department’s"} subject, against the scheme — ${v.term.name}${v.term.current ? ` · week ${v.term.current}` : v.term.phase === "after" ? " · the term has ended" : ""}.`,
+    launchers: [{ label: "Export the audit (CSV)", href: `${API}/notes/coverage/export` }],
     rows: [
       row("1fr", [{
-        type: "kpi", sub: "Expected is the weeks of each scheme due by now; reached is what the teacher has marked taught.", per: 4,
+        type: "kpi", sub: "Expected is the weeks of each scheme due by now; reached is what the teacher has ticked off or marked taught — the calendar’s guess does not count.", per: 4,
         cards: [
-          { label: "Covered", value: k.covered === null ? "—" : `${k.covered}%`, sub: "Of what was due", tone: k.covered !== null && k.covered < 80 ? "attention" : "positive" },
+          { label: "Covered", value: k.covered === null ? "—" : `${k.covered}%`, sub: k.covered === null ? "Nothing is due yet" : "Of what was due", tone: k.covered !== null && k.covered < 80 ? "attention" : "positive" },
           { label: "On schedule", value: String(k.onSchedule), unit: `of ${k.total}`, tone: "positive", sub: "Subject-arms" },
           { label: "Behind", value: String(k.behind), sub: k.behind ? "Reached less than was due" : "Nobody is behind", tone: k.behind ? "negative" : "positive" },
           { label: "No scheme on file", value: String(k.none), sub: k.none ? "Nothing to measure against" : "Every subject has one", tone: k.none ? "attention" : "positive" },
         ],
       }]),
-      row("1fr", [{
-        type: "table", title: "Coverage by subject and arm", sub: "A week counts when the teacher marks it taught in the scheme.", meta: `${v.rows.length} subject-arm${v.rows.length === 1 ? "" : "s"}`, noun: "subject", nounPlural: "subjects", search: "Find a subject or a teacher",
-        filters: [{ label: "State", value: "All", options: ["All", "On schedule", "Behind", "No scheme on file"], column: 3 }],
-        head: ["Subject", "Teacher", "Taught", "State"], rows, per: 15, noRowOpen: true, empty: "No class-subject is set up yet.",
-      }]),
+      row("1.4fr 1fr", [
+        {
+          type: "table", title: "Coverage by subject and arm", sub: "Expected against reached, for every subject in your scope.", meta: `${v.rows.length} subject-arm${v.rows.length === 1 ? "" : "s"}`, noun: "subject", nounPlural: "subjects", search: "Find a subject or a teacher",
+          filters: [{ label: "State", value: "All", options: ["All", "On schedule", "Behind", "No scheme on file"], column: 5 }],
+          head: ["Subject", "Teacher", "Planned", "Expected", "Reached", "State"], rows, per: 12, noRowOpen: true, acts: [{ label: "Export these rows", export: true }],
+          empty: "No class-subject is set up yet.", emptyTitle: "Nothing to measure yet", emptyBody: "Coverage is counted from each subject’s scheme of work. When class subjects are mapped and schemes planned, they appear here.",
+        },
+        { type: "bars", title: "Furthest behind first", sub: "Share of the weeks due that have been reached.", rows: bars, foot: bars.length ? "Only subjects with weeks due are shown." : "Nothing is due yet, so there is nothing to compare." },
+      ]),
     ],
   };
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Header, Param, ParseIntPipe, Post, Query, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Header, Param, ParseIntPipe, Post, Put, Query, Res, UseGuards } from "@nestjs/common";
 import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
@@ -21,7 +21,8 @@ import { LeaveService } from "../staff-access/leave.service";
 import { TeacherObservationsService } from "./observations.service";
 import { LearningService } from "./learning.service";
 import { TeacherEmploymentService } from "./employment.service";
-import { TeacherLessonNotesService } from "./lesson-notes.service";
+import { TeacherNotesService } from "./lesson-notes/notes.service";
+import { TeacherSchemeService } from "./lesson-notes/scheme.service";
 import { TeacherMessagesService } from "./messages.service";
 import { TeacherQuestionsService } from "./questions.service";
 import { TeacherTimetableService } from "./timetable.service";
@@ -31,7 +32,7 @@ import { TeacherWorkspaceService } from "./workspace.service";
 @Controller("v1/teacher-workspace")
 @UseGuards(SessionGuard)
 export class TeacherWorkspaceController {
-  constructor(private readonly service: TeacherWorkspaceService, private readonly day: MyDayService, private readonly timetable: TeacherTimetableService, private readonly questions: TeacherQuestionsService, private readonly calendar: TeacherCalendarService, private readonly periods: PeriodRegistersService, private readonly history: RegisterHistoryService, private readonly scores: TeacherScoresService, private readonly remarks: TeacherRemarksService, private readonly studentsSvc: TeacherStudentsService, private readonly concerns: TeacherConcernsService, private readonly families: TeacherFamiliesService, private readonly messages: TeacherMessagesService, private readonly notes: TeacherLessonNotesService, private readonly employment: TeacherEmploymentService, private readonly leave: LeaveService, private readonly appraisal: AppraisalService, private readonly learning: LearningService, private readonly observations: TeacherObservationsService) {}
+  constructor(private readonly service: TeacherWorkspaceService, private readonly day: MyDayService, private readonly timetable: TeacherTimetableService, private readonly questions: TeacherQuestionsService, private readonly calendar: TeacherCalendarService, private readonly periods: PeriodRegistersService, private readonly history: RegisterHistoryService, private readonly scores: TeacherScoresService, private readonly remarks: TeacherRemarksService, private readonly studentsSvc: TeacherStudentsService, private readonly concerns: TeacherConcernsService, private readonly families: TeacherFamiliesService, private readonly messages: TeacherMessagesService, private readonly scheme: TeacherSchemeService, private readonly notes: TeacherNotesService, private readonly employment: TeacherEmploymentService, private readonly leave: LeaveService, private readonly appraisal: AppraisalService, private readonly learning: LearningService, private readonly observations: TeacherObservationsService) {}
 
   /** Who this teaching person is, from their real assignments. */
   @Get("me")
@@ -90,6 +91,12 @@ export class TeacherWorkspaceController {
     return ok(this.service.me(session).then(async (me) => ({ ...(await this.periods.today(session, me)), medianSeconds: await this.history.medianSeconds(session) })));
   }
 
+  /** Every register this person holds, as a list — the Register tab's own index. */
+  @Get("register-index")
+  registerIndex(@CurrentSession() session: SessionPayload) {
+    return ok(this.history.index(session));
+  }
+
   /** The history behind them: an arm's days for a form master, the periods taken for everyone else. */
   @Get("register-history")
   registerHistory(@CurrentSession() session: SessionPayload, @Query("class") classId?: string) {
@@ -128,6 +135,24 @@ export class TeacherWorkspaceController {
   @Get("results/:classId/:subjectId")
   myResult(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string) {
     return ok(this.scores.result(session, classId, subjectId));
+  }
+
+  /** One child in one of their subjects: how the total was reached, and the comment that prints beside it. */
+  @Get("results/:classId/:subjectId/students/:studentId")
+  myResultStudent(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string, @Param("studentId") studentId: string) {
+    return ok(this.scores.student(session, classId, subjectId, studentId));
+  }
+
+  @Put("results/:classId/:subjectId/students/:studentId/comment")
+  @UseGuards(CsrfGuard)
+  saveSubjectComment(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string, @Param("studentId") studentId: string, @Body() body: unknown) {
+    return ok(this.scores.saveComment(session, classId, subjectId, studentId, body));
+  }
+
+  /** The form class against every subject it takes. */
+  @Get("broadsheet/:classId")
+  formBroadsheet(@CurrentSession() session: SessionPayload, @Param("classId") classId: string) {
+    return ok(this.scores.formBroadsheet(session, classId));
   }
 
   /** Submit the drafted remarks of the class together. */
@@ -213,51 +238,70 @@ export class TeacherWorkspaceController {
     return ok(this.day.day(session));
   }
 
-  /* ── Lesson notes ── */
+  /* ── Lesson notes: the scheme of work ── */
 
-  /** Every subject they teach, with the scheme of work's progress. */
   @Get("curriculum")
   curriculum(@CurrentSession() session: SessionPayload) {
-    return ok(this.notes.curriculum(session));
+    return ok(this.scheme.overview(session));
+  }
+
+  @Get("curriculum/add/options")
+  addSubjectOptions(@CurrentSession() session: SessionPayload) {
+    return ok(this.scheme.addOptions(session));
+  }
+
+  @Post("curriculum/add")
+  @UseGuards(CsrfGuard)
+  addSubject(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.scheme.addSubject(session, body));
+  }
+
+  @Post("curriculum/import")
+  @UseGuards(CsrfGuard)
+  importScheme(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.scheme.importWeeks(session, body));
   }
 
   @Get("curriculum/:subjectId")
-  scheme(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
-    return ok(this.notes.scheme(session, subjectId));
+  schemeOf(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Query("termId") termId?: string) {
+    return ok(this.scheme.scheme(session, subjectId, termId));
   }
 
-  @Get("curriculum/:subjectId/catalogue")
-  catalogueOptions(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
-    return ok(this.notes.catalogueFor(session, subjectId));
+  @Put("curriculum/:subjectId")
+  @UseGuards(CsrfGuard)
+  replaceScheme(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Body() body: unknown) {
+    return ok(this.scheme.replace(session, subjectId, body));
+  }
+
+  @Delete("curriculum/:subjectId")
+  @UseGuards(CsrfGuard)
+  removeSubject(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
+    return ok(this.scheme.removeSubject(session, subjectId));
   }
 
   @Post("curriculum/:subjectId/catalogue/apply")
   @UseGuards(CsrfGuard)
   catalogueApply(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Body() body: unknown) {
-    return ok(this.notes.applyCatalogue(session, subjectId, body));
+    return ok(this.scheme.applyCatalogue(session, subjectId, body));
   }
 
-  @Post("curriculum/:subjectId/weeks/:week")
+  @Post("curriculum/:subjectId/weeks/:week/coverage")
   @UseGuards(CsrfGuard)
-  saveWeek(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: unknown) {
-    return ok(this.notes.saveWeek(session, subjectId, week, body));
-  }
-
-  @Post("curriculum/:subjectId/weeks/:week/taught")
-  @UseGuards(CsrfGuard)
-  setTaught(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: { taught?: boolean }) {
-    return ok(this.notes.setTaught(session, subjectId, week, body?.taught !== false));
+  weekCoverage(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: unknown) {
+    return ok(this.scheme.coverage(session, subjectId, week, body));
   }
 
   @Post("curriculum/:subjectId/submit")
   @UseGuards(CsrfGuard)
-  submitScheme(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
-    return ok(this.notes.submitScheme(session, subjectId));
+  submitScheme(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Body() body: { termId?: string }) {
+    return ok(this.scheme.submit(session, subjectId, body?.termId));
   }
 
+  /* ── Lesson notes: the notes ── */
+
   @Get("notes")
-  lessonNotes(@CurrentSession() session: SessionPayload) {
-    return ok(this.notes.notes(session));
+  lessonNotes(@CurrentSession() session: SessionPayload, @Query("termId") termId?: string) {
+    return ok(this.notes.landing(session, termId));
   }
 
   @Get("notes/review")
@@ -265,9 +309,10 @@ export class TeacherWorkspaceController {
     return ok(this.notes.review(session));
   }
 
-  @Get("notes/coverage")
-  coverage(@CurrentSession() session: SessionPayload) {
-    return ok(this.notes.coverage(session));
+  @Post("notes/review/sign")
+  @UseGuards(CsrfGuard)
+  signNotes(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.notes.signMany(session, body));
   }
 
   @Get("notes/review/:planId")
@@ -281,33 +326,67 @@ export class TeacherWorkspaceController {
     return ok(this.notes.decide(session, planId, body));
   }
 
+  @Get("notes/coverage")
+  coverage(@CurrentSession() session: SessionPayload) {
+    return ok(this.notes.coverage(session));
+  }
+
+  @Get("notes/coverage/export")
+  async exportCoverage(@CurrentSession() session: SessionPayload, @Res() res: Response) {
+    const file = await this.notes.exportCoverage(session);
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", `attachment; filename="${file.filename}"`);
+    res.send(file.csv);
+  }
+
+  @Get("notes/history/:subjectId")
+  noteHistory(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string) {
+    return ok(this.notes.history(session, subjectId));
+  }
+
+  @Get("notes/history/:subjectId/:planId")
+  noteHistoryRead(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("planId") planId: string) {
+    return ok(this.notes.historyNote(session, subjectId, planId));
+  }
+
+  @Get("notes/subject/:subjectId")
+  subjectNotes(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Query("termId") termId?: string) {
+    return ok(this.notes.subject(session, subjectId, termId));
+  }
+
+  @Post("notes/subject/:subjectId/submit-drafts")
+  @UseGuards(CsrfGuard)
+  submitDrafts(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Body() body: { termId?: string }) {
+    return ok(this.notes.submitDrafts(session, subjectId, body?.termId));
+  }
+
   @Get("notes/:subjectId/:week")
-  note(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number) {
-    return ok(this.notes.note(session, subjectId, week));
+  note(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Query("termId") termId?: string) {
+    return ok(this.notes.note(session, subjectId, week, termId));
   }
 
   @Post("notes/:subjectId/:week")
   @UseGuards(CsrfGuard)
   saveNote(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: unknown) {
-    return ok(this.notes.saveNote(session, subjectId, week, body));
+    return ok(this.notes.save(session, subjectId, week, body));
   }
 
   @Post("notes/:subjectId/:week/submit")
   @UseGuards(CsrfGuard)
   submitNote(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: unknown) {
-    return ok(this.notes.submitNote(session, subjectId, week, body));
+    return ok(this.notes.submit(session, subjectId, week, body));
   }
 
   @Post("notes/:subjectId/:week/withdraw")
   @UseGuards(CsrfGuard)
-  withdrawNote(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number) {
-    return ok(this.notes.withdraw(session, subjectId, week));
+  withdrawNote(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: { termId?: string }) {
+    return ok(this.notes.withdraw(session, subjectId, week, body?.termId));
   }
 
   @Post("notes/:subjectId/:week/revise")
   @UseGuards(CsrfGuard)
-  reviseNote(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number) {
-    return ok(this.notes.revise(session, subjectId, week));
+  reviseNote(@CurrentSession() session: SessionPayload, @Param("subjectId") subjectId: string, @Param("week", ParseIntPipe) week: number, @Body() body: { termId?: string }) {
+    return ok(this.notes.revise(session, subjectId, week, body?.termId));
   }
 
   /* ── My Employment ── */

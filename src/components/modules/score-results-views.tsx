@@ -7,7 +7,7 @@ import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getServerSession } from "@/lib/auth/session";
 import { ScoreImport } from "@/components/modules/score-import";
 import { childPage, loadChild } from "@/lib/modules/live/t5-observations";
-import { scrubForTeacher } from "@/lib/modules/live/teacher-scrub";
+import { formBroadsheetPage, loadFormBroadsheet, loadSheets, loadStudentResult, studentWorkingPage, teacherGridPage, teacherPreviewPage } from "@/lib/modules/live/t5-scores";
 import { broadsheetPage, gridPage, loadBroadsheet, loadGrid, previewPage } from "@/lib/modules/live/m5-enter";
 import { armResultPage, loadArmResult, loadCorrectionOptions, loadCorrections, loadStudent, studentResultPage } from "@/lib/modules/live/m5-results";
 import { armReviewPage, loadArmReview, loadReview, loadSheet, sheetPage } from "@/lib/modules/live/m5-review";
@@ -60,11 +60,35 @@ export async function GridView({ classId, subjectId, preview }: { classId: strin
   if (!access.ok) return access.denied;
   const grid = await loadGrid(classId, subjectId).catch(() => null);
   if (!grid) notFound();
-  const content = (preview ? previewPage(grid) : gridPage(grid)).content;
-  // A teacher reaches the grid from their own sheets; what it links to is filtered to what a teacher holds.
+  // A teacher reaches the sheet from their own sheets, and meets the teacher's pages — never the administrator's.
   const session = await getServerSession();
   const teacher = session ? await getTeacherWorkspace(session.role, session.schoolId) : null;
-  return <Workspace content={teacher ? scrubForTeacher(content, { back: { label: "Back to my sheets", href: "/score-entry-results/enter" } }) : content} />;
+  if (teacher) {
+    const sheets = await loadSheets().catch(() => null);
+    if (sheets) {
+      const typeable = grid.editable && grid.state !== "Submitted" && grid.state !== "Approved";
+      return <Workspace content={preview || !typeable ? teacherPreviewPage(grid, sheets) : teacherGridPage(grid, sheets)} />;
+    }
+  }
+  return <Workspace content={(preview ? previewPage(grid) : gridPage(grid)).content} />;
+}
+
+/** One child in one of a teacher's subjects: how the total was reached, and the comment that prints beside it. */
+export async function StudentWorkingView({ classId, subjectId, studentId }: { classId: string; subjectId: string; studentId: string }) {
+  const access = await gate();
+  if (!access.ok) return access.denied;
+  const student = await loadStudentResult(classId, subjectId, studentId).catch(() => null);
+  if (!student) notFound();
+  return <Workspace content={studentWorkingPage(student)} />;
+}
+
+/** The form class against every subject it takes. */
+export async function FormBroadsheetView({ classId }: { classId: string }) {
+  const access = await gate();
+  if (!access.ok) return access.denied;
+  const sheet = await loadFormBroadsheet(classId).catch(() => null);
+  if (!sheet) notFound();
+  return <Workspace content={formBroadsheetPage(sheet)} />;
 }
 
 export async function BroadsheetView({ classId }: { classId: string }) {

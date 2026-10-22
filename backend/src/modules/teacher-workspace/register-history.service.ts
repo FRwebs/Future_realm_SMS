@@ -4,6 +4,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { add, dayOf, emptyTally, iso, loadPolicy, longDay, rate, schoolDaysBetween, today } from "../attendance-management/attendance.shared";
 import { armName } from "../fee-management/fees.shared";
+import { PeriodRegistersService } from "./period-registers.service";
 import { TeacherWorkspaceService } from "./workspace.service";
 
 /**
@@ -12,7 +13,73 @@ import { TeacherWorkspaceService } from "./workspace.service";
  */
 @Injectable()
 export class RegisterHistoryService {
-  constructor(private readonly workspace: TeacherWorkspaceService) {}
+  constructor(private readonly workspace: TeacherWorkspaceService, private readonly periods: PeriodRegistersService) {}
+
+  /**
+   * Every register this person holds, with what each one is worth so far.
+   *
+   * The Register tab used to open straight into one arm's history, which is only
+   * right for a form master who holds exactly one. A subject teacher holds
+   * several period registers and a form master covering for someone holds two
+   * daily ones; neither could see the others at all. This is the list those
+   * registers were missing, and each row opens the history that already existed.
+   */
+  async index(session: SessionPayload) {
+    const me = await this.workspace.me(session);
+    if (!me.term) return { term: null, date: null, schoolDays: 0, markedToday: 0, correctionsPending: 0, registers: [] };
+    const schoolId = session.schoolId;
+    const term = await prisma.term.findUniqueOrThrow({ where: { id: me.term.id } });
+    const now = today();
+    // schoolDaysBetween returns the days themselves, not a count.
+    const schoolDays = schoolDaysBetween(term, dayOf(term.startDate), now < dayOf(term.endDate) ? now : dayOf(term.endDate)).length;
+    const live = await this.periods.today(session, me);
+
+    // One pass for the term's daily marks across every arm in the list, rather
+    // than a query per row.
+    const classIds = [...new Set(live.registers.map((entry) => entry.classId))];
+    const marks = classIds.length
+      ? await prisma.studentAttendance.groupBy({
+          by: ["classId", "status"],
+          where: { schoolId, termId: term.id, subjectId: null, classId: { in: classIds } },
+          _count: { _all: true },
+        })
+      : [];
+    const termRate = new Map<string, number | null>();
+    for (const id of classIds) {
+      const rows = marks.filter((row) => row.classId === id);
+      const tally = emptyTally();
+      for (const row of rows) for (let i = 0; i < row._count._all; i += 1) add(tally, row.status);
+      termRate.set(id, rate(tally));
+    }
+
+    const correctionsPending = await prisma.attendanceCorrection.count({
+      where: { schoolId, classId: { in: classIds.length ? classIds : ["none"] }, status: "AWAITING" },
+    });
+
+    // `me.teaching` already records whether each assignment is substantive or a
+    // cover, and when a cover ends — so the reason a register is yours is read
+    // from there rather than guessed from the register's kind.
+    const coverOf = new Map(
+      me.teaching.filter((row) => row.basis === "Cover").map((row) => [row.classId, { until: row.until as string | null }]),
+    );
+    return {
+      term: { id: term.id, name: term.name },
+      date: live.date,
+      schoolDays,
+      markedToday: live.registers.filter((entry) => entry.state === "Marked").length,
+      correctionsPending,
+      registers: live.registers.map((entry) => {
+        const cover = coverOf.get(entry.classId);
+        return {
+          classId: entry.classId, subjectId: entry.subjectId, periodNumber: entry.periodNumber,
+          arm: entry.arm, what: entry.what, kind: entry.kind, roll: entry.roll,
+          why: cover ? `Cover${cover.until ? ` · until ${longDay(new Date(cover.until))}` : ""}` : entry.kind === "daily" ? "Form Master" : "Subject teacher",
+          today: entry.state,
+          termRate: entry.kind === "daily" ? termRate.get(entry.classId) ?? null : null,
+        };
+      }),
+    };
+  }
 
   async history(session: SessionPayload, classId?: string) {
     const me = await this.workspace.me(session);

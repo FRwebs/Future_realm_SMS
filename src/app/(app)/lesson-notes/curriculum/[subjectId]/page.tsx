@@ -1,10 +1,7 @@
-import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 
-import { SchemeView } from "@/components/modules/lesson-notes-views";
-
-export const metadata: Metadata = { title: "Lesson Notes · Scheme of work", description: "A subject's term, week by week." };
-
+/** A subject's scheme lives on the Curriculum tab, where the subjects sit beside it. */
 export default async function SchemePage({ params }: { params: Promise<{ subjectId: string }> }) {
   const { subjectId } = await params;
-  return <SchemeView subjectId={subjectId} />;
+  redirect(`/lesson-notes/curriculum?subject=${encodeURIComponent(subjectId)}`);
 }

@@ -899,6 +899,8 @@ model School {
   trainingSuggestions           TrainingSuggestion[]
   childObservations             ChildObservation[]
   learningSupportPlans          LearningSupportPlan[]
+  lessonNoteComments            LessonNoteComment[]
+  subjectComments               SubjectComment[]
   attendanceCorrections         AttendanceCorrection[]
   attendanceCases               AttendanceCase[]
   scoreSheets                   ScoreSheet[]
@@ -2164,6 +2166,17 @@ model SchemeOfWork {
   approvedAt        DateTime?
   approvedById      String?
   returnReason      String?
+  /// Periods a week and minutes a period this scheme is planned on — the arithmetic behind "teaching time".
+  periodsPerWeek    Int?
+  lessonMinutes     Int?
+  /// The curriculum it began from ("NERDC"), what it cites, and the book it teaches from.
+  curriculum        String?
+  source            String?
+  book              String?
+  /// A subject the teacher added themselves, because the school had not mapped it to them yet.
+  addedByTeacher    Boolean            @default(false)
+  /// The first week of the term it is planned for, when it begins part-way through.
+  startWeek         Int                @default(1)
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
   school            School             @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -2204,6 +2217,15 @@ model SowTopic {
   coverageNotes         String?
   weekType              SchemeOfWorkWeekType   @default(TEACHING)
   sortOrder             Int                    @default(0)
+  /// "Postponed", "Partly taught"… set by the teacher; empty means the status is read from the calendar and what is covered.
+  statusOverride        String?
+  /// Which of the sub-topics have been covered, by position.
+  coveredSubtopics      Int[]                  @default([])
+  assessment            String?
+  /// Periods this week takes, when it differs from the scheme's usual.
+  periods               Int?
+  /// [{ kind, label }] — a chapter, a worksheet, apparatus, a link.
+  resourceList          Json?
   createdAt             DateTime               @default(now())
   updatedAt             DateTime               @updatedAt
   school                School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -3976,6 +3998,8 @@ model LessonPlan {
   returnedSection   String?
   /// What the teacher said they changed, when they resubmit.
   resubmitReply     String?
+  /// Each time a signed note is revised and signed again it is a new version.
+  version           Int              @default(1)
   deletedAt         DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
@@ -7249,4 +7273,39 @@ model CurriculumCatalogueEntry {
   @@unique([scopeKey, curriculum, subject, stage, term])
   @@index([scopeKey])
   @@index([subject, stage])
+}
+
+/// The conversation on a lesson note: what the reviewer asked to be changed, and what the teacher said they changed.
+model LessonNoteComment {
+  id        String   @id @default(cuid())
+  schoolId  String
+  planId    String
+  authorId  String
+  /// RETURN (a reviewer sent it back), REPLY (the teacher answered on resubmitting), SIGN (signed), NOTE (a remark).
+  kind      String
+  section   String?
+  body      String
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, planId, createdAt])
+}
+
+/// What a subject teacher says about one child in one subject for the term. It prints on the report card beside the subject's line,
+/// under the form master's remark. One per child, subject and term; the author is whoever wrote it last.
+model SubjectComment {
+  id        String   @id @default(cuid())
+  schoolId  String
+  termId    String
+  classId   String
+  subjectId String
+  studentId String
+  authorId  String
+  text      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([termId, subjectId, studentId])
+  @@index([schoolId, termId, classId, subjectId])
 }

@@ -250,6 +250,8 @@ function SidebarContent({
         <nav
           className={cn(
             "sidebar-scroll h-full",
+            // A flat rail (a teacher's) has no section title to sit under the top fade, so its first item needs the room instead.
+            !filteredGroups[0]?.title && "pt-[14px]",
             collapsed && !isMobile
               ? "overflow-x-visible overflow-y-auto px-1.5"
               : "overflow-y-auto px-3",

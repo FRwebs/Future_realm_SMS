@@ -73,14 +73,16 @@ export class CardService {
     if (!student) throw new NotFoundException("That child is not in this school.");
     const results = studentResults(arm, approvedOnly);
     const mine = results.find((entry) => entry.id === studentId);
-    const [attendance, sheet, remarks, room, next, skills] = await Promise.all([
+    const [attendance, sheet, remarks, room, next, skills, subjectComments] = await Promise.all([
       prisma.studentAttendance.groupBy({ by: ["status"], where: { schoolId, studentId, termId: term.id, subjectId: null }, _count: { _all: true } }),
       prisma.resultSheet.findFirst({ where: { schoolId, studentId, termId: term.id }, select: { teacherComment: true, principalComment: true } }),
       prisma.reportRemark.findMany({ where: { schoolId, studentId, termId: term.id, state: "SUBMITTED" } }),
       prisma.classRoom.findFirst({ where: { id: arm.room.id }, select: { classTeacher: { select: { firstName: true, lastName: true } } } }),
       prisma.term.findFirst({ where: { schoolId, startDate: { gt: term.endDate } }, orderBy: { startDate: "asc" }, select: { startDate: true } }),
-      prisma.studentSkill.findMany({ where: { schoolId, studentId, termId: term.id }, include: { skill: { select: { name: true, category: true, displayOrder: true } } } })
+      prisma.studentSkill.findMany({ where: { schoolId, studentId, termId: term.id }, include: { skill: { select: { name: true, category: true, displayOrder: true } } } }),
+      prisma.subjectComment.findMany({ where: { schoolId, studentId, termId: term.id }, select: { subjectId: true, text: true } })
     ]);
+    const commentOf = new Map(subjectComments.map((entry) => [entry.subjectId, entry.text]));
     const days = attendance.reduce((total, row) => total + row._count._all, 0);
     const absent = attendance.find((row) => row.status === "ABSENT")?._count._all ?? 0;
     const excused = attendance.find((row) => row.status === "EXCUSED")?._count._all ?? 0;
@@ -96,7 +98,7 @@ export class CardService {
       const exam = subject.columns.filter((column) => column.exam).reduce((sum, column) => (typeof row?.cells[column.key] === "number" ? sum + (row?.cells[column.key] as number) : sum), 0);
       const ca = subject.columns.filter((column) => !column.exam).reduce((sum, column) => (typeof row?.cells[column.key] === "number" ? sum + (row?.cells[column.key] as number) : sum), 0);
       return {
-        subjectId: subject.subjectId, subject: subject.name, teacher: subject.teacher,
+        subjectId: subject.subjectId, subject: subject.name, teacher: subject.teacher, comment: commentOf.get(subject.subjectId) ?? null,
         components: subject.columns.map((column) => ({ name: column.name, short: column.short, max: column.max, score: usable ? (row?.cells[column.key] ?? null) : null })),
         total, grade: grade?.label ?? null, remark: grade?.remark ?? (total === null ? "Awaiting the score sheet" : ""), pos: usable ? row?.pos ?? null : null, outOf: subject.scored, classAvg: usable ? subject.mean : null,
         caTotal: total === null ? null : round2(ca), examTotal: total === null ? null : round2(exam), counts: subject.counts
@@ -117,7 +119,7 @@ export class CardService {
       gender: student.gender === "MALE" ? "Male" : student.gender === "FEMALE" ? "Female" : "Other", dob: student.dateOfBirth ? iso(dayOf(student.dateOfBirth)) : null,
       classId: arm.room.id, className: arm.room.levelName, arm: arm.room.name, formMaster: room?.classTeacher ? fullName(room.classTeacher) : null,
       term: term.name, termId: term.id, session: term.session, attendance: { days, present, absent, pct: counted > 0 ? Math.round((present / counted) * 1000) / 10 : null },
-      subjects: subjects.map((entry) => ({ subjectId: entry.subjectId, subject: entry.subject, teacher: entry.teacher, components: entry.components, total: entry.total, grade: entry.grade, remark: entry.remark, pos: entry.pos, outOf: entry.outOf, classAvg: entry.classAvg, caTotal: entry.caTotal, examTotal: entry.examTotal })),
+      subjects: subjects.map((entry) => ({ subjectId: entry.subjectId, subject: entry.subject, teacher: entry.teacher, comment: entry.comment, components: entry.components, total: entry.total, grade: entry.grade, remark: entry.remark, pos: entry.pos, outOf: entry.outOf, classAvg: entry.classAvg, caTotal: entry.caTotal, examTotal: entry.examTotal })),
       total: sum, average, grade: mine?.grade ?? null, gradeRemark: average === null ? null : gradeOf(arm.bands, average)?.remark ?? null, position: mine?.pos ?? null, outOf: results.filter((entry) => entry.average !== null).length,
       passed: counting.filter((entry) => (entry.total as number) >= arm.passMark).length, credits: counting.filter((entry) => (entry.total as number) >= CREDIT_MARK).length, expected: subjects.filter((entry) => entry.counts).length,
       classTeacherRemark: remarkOf("FORM_MASTER").text, principalRemark: remarkOf("PRINCIPAL").text, classTeacherBy: nameOf(fmRow?.authorId), principalBy: nameOf(prRow?.authorId),

@@ -1,5 +1,6 @@
 "use client";
 
+import { EmbeddedPanel } from "@/components/modules/embed-registry";
 import { DevicePanel } from "@/components/modules/device-panel";
 import Link from "next/link";
 import type { Route } from "next";
@@ -92,6 +93,7 @@ function cellPlain(cell: TableCellKind | undefined): string {
   if (cell.kind === "pill") return cell.label;
   if (cell.kind === "bar") return cell.label;
   if (cell.kind === "mark") return cell.ok ? "Yes" : "No";
+  if (cell.kind === "node") return cell.plain ?? "";
   if (cell.kind === "action") return "";
   return cell.text;
 }
@@ -156,6 +158,14 @@ function TriggerControl({
   children?: React.ReactNode;
 }) {
   const body = children ?? label;
+
+  if (trigger.run) {
+    return (
+      <button type="button" onClick={trigger.run} className={className} style={style}>
+        {body}
+      </button>
+    );
+  }
 
   if (trigger.href) {
     return (
@@ -371,10 +381,14 @@ function FactList({ facts, per }: { facts: PanelFact[]; per?: number }) {
 function Cell({
   cell,
   openDrawer,
+  dense,
 }: {
   cell: TableCellKind;
   openDrawer: OpenDrawer;
+  dense?: boolean;
 }) {
+  if (cell.kind === "node") return <>{cell.node}</>;
+
   if (cell.kind === "mark") {
     return (
       <span
@@ -524,6 +538,7 @@ function rowText(tableRow: TableRow): string[] {
     if (cell.kind === "action") return "";
     // A tick is searchable as the word, so "included" narrows a comparison table.
     if (cell.kind === "mark") return cell.ok ? "Included" : "Not included";
+    if (cell.kind === "node") return cell.plain ?? "";
     return cell.text;
   });
   return [...cells, tableRow.keywords ?? ""];
@@ -569,8 +584,8 @@ function TablePanel({
 
       for (const filter of panel.filters ?? []) {
         const chosen = filterValues[filter.label];
-        // The first option is the "all" one and never narrows anything.
-        if (!chosen || chosen === filter.options[0]) continue;
+        // The first option is the "all" one and never narrows anything; a switcher between pages never narrows this one.
+        if (!chosen || chosen === filter.options[0] || filter.go) continue;
 
         const haystack =
           filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
@@ -630,6 +645,7 @@ function TablePanel({
       if (value.kind === "bar") return value.label;
       if (value.kind === "mark") return value.ok ? "Yes" : "No";
       if (value.kind === "action") return "";
+      if (value.kind === "node") return value.plain ?? "";
       return value.text;
     };
     const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
@@ -680,6 +696,8 @@ function TablePanel({
   const aligns = panel.head.map((heading, index) => {
     const sample = panel.rows[0]?.cells[index];
     if (sample?.kind === "action") return "right";
+    // A cell the client draws (a mark being typed) sits under its heading, centred.
+    if (sample?.kind === "node") return "center";
     if (
       sample?.kind === "text" &&
       (sample.mono || /^[-+₦$]?[\d.,]+%?$/.test(sample.text.trim()))
@@ -688,11 +706,15 @@ function TablePanel({
     return "left";
   });
   const lastIndex = panel.head.length - 1;
+  // A dense table fits its panel: cells sit closer, headings wrap, and nothing asks for a slider.
+  const dense = Boolean(panel.dense);
+  const gap = dense ? "5px" : "9px";
   const edge = (index: number) =>
     cn(
-      index === 0 && !panel.selectable ? "pl-[18px]" : "pl-[9px]",
-      index === lastIndex ? "pr-[18px]" : "pr-[9px]",
+      index === 0 && !panel.selectable ? "pl-[18px]" : dense ? "pl-[5px]" : "pl-[9px]",
+      index === lastIndex ? "pr-[18px]" : dense ? "pr-[5px]" : "pr-[9px]",
     );
+  void gap;
   // The meta line asserts a count; the pager states the truth below it. Where the two disagree the
   // line says which it is, appended — so an authored figure can never contradict the rows.
   const claimed = panel.meta?.match(/^([\d,]+)\s+(\S+)/);
@@ -779,6 +801,11 @@ function TablePanel({
               <select
                 value={filterValues[filter.label] ?? filter.value}
                 onChange={(event) => {
+                  const target = filter.go?.[event.target.value];
+                  if (target) {
+                    router.push(target as Route);
+                    return;
+                  }
                   setFilterValues((current) => ({
                     ...current,
                     [filter.label]: event.target.value,
@@ -887,7 +914,7 @@ function TablePanel({
         </div>
       ) : (
         <div className="-mx-[18px] min-w-0 overflow-x-auto">
-          <table className="w-full min-w-[640px] border-collapse">
+          <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
             <thead>
               <tr
                 style={{
@@ -915,7 +942,8 @@ function TablePanel({
                     scope="col"
                     className={cn(
                       "py-[10px] align-middle text-[9.5px] font-semibold uppercase leading-[1.3] tracking-[0.05em]",
-                      aligns[index] === "right" ? "text-right" : "text-left",
+                      dense && "text-[9px] tracking-[0.03em]",
+                      aligns[index] === "right" ? "text-right" : aligns[index] === "center" ? "text-center" : "text-left",
                       edge(index),
                     )}
                     style={{ color: MUTED }}
@@ -971,12 +999,13 @@ function TablePanel({
                       <td
                         key={cellIndex}
                         className={cn(
-                          "py-[11px] align-middle",
+                          dense ? "py-[9px] align-middle" : "py-[11px] align-middle",
                           edge(cellIndex),
                           aligns[cellIndex] === "right" && "text-right",
+                          aligns[cellIndex] === "center" && "text-center",
                         )}
                       >
-                        <Cell cell={cell} openDrawer={openDrawer} />
+                        <Cell cell={cell} openDrawer={openDrawer} dense={dense} />
                       </td>
                     ))}
                   </tr>
@@ -1052,8 +1081,22 @@ function TablePanel({
         </div>
       ) : null}
 
-      {panel.foot ? (
-        <PanelFoot className="mb-0 mt-0">{panel.foot}</PanelFoot>
+      {panel.foot || panel.footActs?.length ? (
+        <div
+          className="-mx-[18px] -mb-[12px] flex flex-wrap items-center justify-between gap-[10px] border-t bg-[#F7FAF8] px-[18px] py-[10px]"
+          style={{ borderColor: "#EDF3EF" }}
+        >
+          <p className="min-w-0 flex-1 text-pretty text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+            {panel.foot}
+          </p>
+          {panel.footActs?.length ? (
+            <div className="flex flex-none flex-wrap items-center gap-[7px]">
+              {panel.footActs.map((act) => (
+                <TriggerControl key={act.label} trigger={act} label={act.label} openDrawer={openDrawer} className={panelActClass(act.primary)} />
+              ))}
+            </div>
+          ) : null}
+        </div>
       ) : null}
     </section>
   );
@@ -1074,7 +1117,7 @@ const TRACKER_STATE_TONE: Record<string, PanelTone> = {
 };
 
 /** A row is finished when nothing more is owed on it. */
-const TRACKER_DONE = new Set(["Complete", "Resolved", "Declined"]);
+const TRACKER_DONE = new Set(["Complete", "Resolved", "Declined", "Signed"]);
 
 /**
  * A tracker: one row per thing that has to be true before the school can go on,
@@ -1406,6 +1449,7 @@ export function PanelView({
             const swatch = toneOf(item.tone);
             const trigger = {
               href: item.href,
+              run: item.run,
               drawer:
                 item.drawer ??
                 (item.facts?.length
@@ -1417,9 +1461,9 @@ export function PanelView({
                     }
                   : undefined),
             };
-            const actionable = Boolean(trigger.href || trigger.drawer);
+            const actionable = Boolean(trigger.href || trigger.drawer || trigger.run);
             // Every row can be read: with nothing authored for it, the row opens what it says.
-            const rowRead: DrawerSpec | undefined = trigger.href
+            const rowRead: DrawerSpec | undefined = trigger.href || trigger.run
               ? undefined
               : (trigger.drawer ??
                 { mode: "view", kicker: panel.title, title: item.label, sub: item.sub, facts: [["Item", item.label, item.sub ?? ""], ["State", item.pill ?? "—", ""]].map((fact) => (fact[2] ? fact : [fact[0], fact[1]])) as PanelFact[], readOnly: true, readOnlyNote: "This is a record of what happened. It is read-only." });
@@ -1641,7 +1685,20 @@ export function PanelView({
 
   if (panel.type === "steps") {
     // The mockup draws a pipeline as one ink bar of numbered pills: what is done is ticked, where things
-    // stand is lifted, and what is still to come is dimmed. A stage that opens somewhere is a link.
+    // stand is lifted, and what is still to come is dimmed. A stage that opens somewhere is a link. A run of
+    // children or weeks adds arrows either side and says where you are at the right — and wraps, never slides.
+    const arrow = (href: string | undefined, title: string, path: string) => {
+      const style = { width: 28, height: 28, borderRadius: 9, background: href ? "rgba(255,255,255,0.14)" : "rgba(255,255,255,0.05)", border: `1px solid rgba(255,255,255,${href ? 0.22 : 0.08})`, color: href ? "#fff" : "rgba(255,255,255,0.3)" };
+      const body = (
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={path} /></svg>
+      );
+      return href ? (
+        <Link href={href as Route} title={title} aria-label={title} className="flex flex-none items-center justify-center" style={style}>{body}</Link>
+      ) : (
+        <span aria-hidden="true" className="flex flex-none items-center justify-center" style={style}>{body}</span>
+      );
+    };
+    const arrows = Boolean(panel.prevHref || panel.nextHref);
     return (
       <section className="min-w-0 overflow-hidden rounded-[14px]" style={{ background: "#0D2315" }} aria-label={panel.title ?? "Stages"}>
         {panel.title || panel.sub ? (
@@ -1650,7 +1707,9 @@ export function PanelView({
             {panel.sub ? <p className="mt-[2px] text-[10.5px]" style={{ color: "rgba(255,255,255,0.55)" }}>{panel.sub}</p> : null}
           </div>
         ) : null}
-        <ol className="flex flex-wrap items-center gap-[7px] px-[16px] py-[14px]">
+        <div className={arrows ? "flex items-center gap-[8px] px-[12px] py-[11px]" : "px-[16px] py-[14px]"}>
+          {arrows ? arrow(panel.prevHref, panel.prevTitle ?? "Previous", "M14.5 5.5 8 12l6.5 6.5") : null}
+        <ol className="flex min-w-0 flex-1 flex-wrap items-center gap-[7px]">
           {panel.steps.map((step, index) => {
             const now = step.state === "current";
             const next = step.state === "todo";
@@ -1658,10 +1717,10 @@ export function PanelView({
             const body = (
               <>
                 <span
-                  className="flex h-[18px] w-[18px] flex-none items-center justify-center rounded-full text-[9.5px] font-bold"
+                  className="flex h-[18px] min-w-[18px] flex-none items-center justify-center rounded-full px-[3px] text-[9.5px] font-bold"
                   style={{ background: step.state === "done" ? "#fff" : blocked ? "#DB5555" : now ? "#12796A" : "rgba(255,255,255,0.12)", color: step.state === "done" ? "#0D2315" : "#fff" }}
                 >
-                  {step.state === "done" ? "\u2713" : index + 1}
+                  {step.state === "done" ? "\u2713" : (step.n ?? index + 1)}
                 </span>
                 <span className="whitespace-nowrap text-[10.5px] font-semibold">{step.label}</span>
                 {step.sub ? <span className="whitespace-nowrap text-[10px]" style={{ color: "rgba(255,255,255,0.55)" }}>{step.sub}</span> : null}
@@ -1672,7 +1731,7 @@ export function PanelView({
             return (
               <li key={`${step.label}-${index}`} aria-current={now ? "step" : undefined}>
                 {step.href ? (
-                  <Link href={step.href as Route} className={className} style={style}>
+                  <Link href={step.href as Route} className={cn(className, "transition hover:bg-white/10")} style={style}>
                     {body}
                   </Link>
                 ) : (
@@ -1684,6 +1743,9 @@ export function PanelView({
             );
           })}
         </ol>
+          {arrows ? arrow(panel.nextHref, panel.nextTitle ?? "Next", "M9.5 5.5 16 12l-6.5 6.5") : null}
+          {panel.note ? <span className="hidden flex-none whitespace-nowrap pr-[4px] text-[10.5px] font-semibold md:block" style={{ color: "rgba(255,255,255,0.62)" }}>{panel.note}</span> : null}
+        </div>
         {panel.foot ? <p className="px-[16px] pb-[12px] text-[10.5px]" style={{ color: "rgba(255,255,255,0.55)" }}>{panel.foot}</p> : null}
       </section>
     );
@@ -2041,6 +2103,7 @@ function FormPanel({
     return <ScoreGrid panel={panel} />;
   }
 
+  if (panel.type === "embed") return <EmbeddedPanel component={panel.component} props={panel.props} openDrawer={openDrawer} />;
   if (panel.type === "marker") return <RegisterMarker panel={panel} openDrawer={openDrawer} />;
   if (panel.type === "sheet") return <SheetEntry panel={panel} openDrawer={openDrawer} />;
   if (panel.type === "days") return <DayStrip panel={panel} />;

@@ -55,7 +55,7 @@ export type Grid = {
   mine: boolean;
   enteredBy: string[];
   submittedAt: string | null;
-  returned: { note: string; at: string | null } | null;
+  returned: { note: string; at: string | null; by?: string | null; byRole?: string | null } | null;
   windows: Array<{ component: string; key: string; opensAt: string; closesAt: string; open: boolean; late: boolean }>;
   flags: Flag[];
 };
