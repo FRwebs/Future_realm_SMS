@@ -300,7 +300,16 @@ export class RecordService {
     const primaryLink = student.guardians.find((link) => link.isPrimary) ?? student.guardians[0];
     const consentOf = (guardianId: string, code: string) => consents.find((row) => row.guardianId === guardianId && row.typeCode === code);
     const sent = [
-      ...guardianContacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`, pill: entry.kind === "INVITE" ? "Delivered" : "Delivered" })),
+      ...guardianContacts
+        // A call is about one child: it is on that child's record, and not on a sibling's.
+        .filter((entry) => entry.kind !== "CALL" || !(entry.detail as { studentId?: string } | null)?.studentId || (entry.detail as { studentId?: string }).studentId === student.id)
+        .map((entry) => {
+          const call = entry.kind === "CALL" ? ((entry.detail ?? {}) as { outcome?: string; note?: string; by?: string }) : null;
+          const day = entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+          return call
+            ? { at: entry.createdAt, label: `Call · ${call.outcome ?? "logged"}${call.note ? ` — ${call.note}` : ""}`, sub: `Phone · ${day} · ${call.by ?? "A teacher"}`, pill: call.outcome === "Spoke to them" ? "Reached" : "Not reached" }
+            : { at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${day}`, pill: "Delivered" };
+        }),
       ...feeContacts.map((entry) => ({ at: entry.createdAt, label: entry.summary, sub: `${entry.channel ?? "In-app"} · ${entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`, pill: "Delivered" }))
     ]
       .sort((a, b) => b.at.getTime() - a.at.getTime())

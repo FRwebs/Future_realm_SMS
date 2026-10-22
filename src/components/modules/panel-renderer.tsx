@@ -879,10 +879,13 @@ function TablePanel({
                   );
                 }
                 const spec = forSelection(act);
+                // A bulk action that goes to another page carries the ticked rows with it, as the page's own query.
+                const ids = panel.rows.filter((row) => selected.has(row)).map((row) => row.id).filter((id): id is string => Boolean(id));
+                const href = act.href && act.selection ? `${act.href}${act.href.includes("?") ? "&" : "?"}${act.selection.key}=${ids.map(encodeURIComponent).join(",")}` : act.href;
                 return (
                   <TriggerControl
                     key={act.label}
-                    trigger={{ href: act.href, drawer: spec ?? undefined }}
+                    trigger={{ href, drawer: spec ?? undefined }}
                     label={act.label}
                     openDrawer={openDrawer}
                     className={className}

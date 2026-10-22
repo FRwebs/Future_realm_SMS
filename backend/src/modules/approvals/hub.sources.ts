@@ -46,7 +46,7 @@ async function roomsOf(schoolId: string, ids: string[]) {
 /* ───────────────────────── what is waiting ───────────────────────── */
 
 export async function loadPending(schoolId: string): Promise<Item[]> {
-  const [corrections, sheets, registers, waivers, changes, leave, native, joins] = await Promise.all([
+  const [corrections, sheets, registers, waivers, changes, leave, native, joins, sends] = await Promise.all([
     prisma.scoreCorrection.findMany({ where: { schoolId, status: { in: ["AWAITING", "IN_REVIEW"] } }, orderBy: { createdAt: "asc" }, take: LIMIT }),
     prisma.scoreSheet.findMany({ where: { schoolId, status: "SUBMITTED" }, orderBy: { submittedAt: "asc" }, take: LIMIT }),
     prisma.attendanceCorrection.findMany({ where: { schoolId, status: "AWAITING" }, orderBy: { createdAt: "asc" }, take: LIMIT }),
@@ -55,8 +55,9 @@ export async function loadPending(schoolId: string): Promise<Item[]> {
     prisma.leaveRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT, include: { staff: { include: { user: { select: { id: true, firstName: true, lastName: true, preferredName: true, role: true } } } } } }),
     prisma.approvalRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT }),
     prisma.schoolJoinRequest.findMany({ where: { schoolId, status: "PENDING" }, orderBy: { createdAt: "asc" }, take: LIMIT, include: { user: { select: { id: true, firstName: true, lastName: true, jobTitle: true, userCode: true } } } }),
+    prisma.messageCampaign.findMany({ where: { schoolId, status: "AWAITING_APPROVAL" }, orderBy: { createdAt: "asc" }, take: LIMIT }),
   ]);
-  const people = await peopleOf(schoolId, [...corrections.map((row) => row.requestedById), ...sheets.map((row) => row.submittedById), ...registers.map((row) => row.requestedById), ...waivers.map((row) => row.requestedById), ...changes.map((row) => row.requestedById), ...native.map((row) => row.requestedById)]);
+  const people = await peopleOf(schoolId, [...sends.map((row) => row.createdById), ...corrections.map((row) => row.requestedById), ...sheets.map((row) => row.submittedById), ...registers.map((row) => row.requestedById), ...waivers.map((row) => row.requestedById), ...changes.map((row) => row.requestedById), ...native.map((row) => row.requestedById)]);
   const students = await studentsOf(schoolId, [...corrections.map((row) => row.studentId), ...registers.map((row) => row.studentId), ...waivers.map((row) => row.studentId), ...changes.map((row) => row.studentId)]);
   const subjects = await subjectsOf(schoolId, [...corrections.map((row) => row.subjectId), ...sheets.map((row) => row.subjectId)]);
   const rooms = await roomsOf(schoolId, [...corrections.map((row) => row.classId), ...sheets.map((row) => row.classId), ...registers.map((row) => row.classId)]);
@@ -94,6 +95,9 @@ export async function loadPending(schoolId: string): Promise<Item[]> {
   for (const row of joins) {
     add("JOIN_REQUEST", row.id, { type: "TEACHER_JOIN", title: `${who(row.user)} · asks to join`, summary: `${row.user.jobTitle ?? "Teacher"}${row.subjects.length ? ` · ${row.subjects.slice(0, 3).join(", ")}` : ""}`, requester: { id: row.user.id, name: who(row.user), role: "TEACHER" }, raisedAt: row.createdAt, state: "Awaiting", step: 1, blocking: null, evidence: null, href: "/approvals-workflow/queue", ref: {} });
   }
+  for (const row of sends) {
+    add("MESSAGE_SEND", row.id, { type: "MASS_COMMUNICATION", title: `${row.audienceLabel} · ${row.recipientCount} ${row.recipientCount === 1 ? "family" : "families"}`, summary: row.body.length > 160 ? `${row.body.slice(0, 157)}…` : row.body, requester: person(row.createdById), raisedAt: row.createdAt, state: "Awaiting", step: 1, blocking: `${row.recipientCount} ${row.recipientCount === 1 ? "family" : "families"} not yet written to`, evidence: null, href: "/communication-center/sent", ref: {} });
+  }
   for (const row of native) {
     const type = (["SCORE_CORRECTION", "RESULTS_PUBLICATION", "FEE_WAIVER", "RECORD_CHANGE", "LEAVE", "STAFF_ACCESS", "MASS_COMMUNICATION", "TIMETABLE_CHANGE"].includes(row.kind) ? row.kind : "OTHER") as RouteType;
     add("NATIVE", row.id, { type, title: row.title, summary: row.summary, requester: person(row.requestedById), raisedAt: row.createdAt, state: "Awaiting", step: 1, blocking: row.blocking, evidence: null, href: "/approvals-workflow/queue", nativeAssigneeId: row.assigneeId, nativeAssigneeRole: row.assigneeRole, ref: {} });
@@ -104,7 +108,7 @@ export async function loadPending(schoolId: string): Promise<Item[]> {
 /* ───────────────────────── what has been decided ───────────────────────── */
 
 export async function loadDecided(schoolId: string, since: Date): Promise<Decided[]> {
-  const [corrections, sheets, registers, waivers, changes, leave, native, joins] = await Promise.all([
+  const [corrections, sheets, registers, waivers, changes, leave, native, joins, sends] = await Promise.all([
     prisma.scoreCorrection.findMany({ where: { schoolId, status: { in: ["APPROVED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500 }),
     prisma.scoreSheet.findMany({ where: { schoolId, status: { in: ["APPROVED", "RETURNED"] }, decidedAt: { gte: since }, submittedAt: { not: null } }, take: 500 }),
     prisma.attendanceCorrection.findMany({ where: { schoolId, status: { in: ["APPLIED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500 }),
@@ -113,8 +117,9 @@ export async function loadDecided(schoolId: string, since: Date): Promise<Decide
     prisma.leaveRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "REJECTED"] }, reviewedAt: { gte: since } }, take: 500, include: { staff: { include: { user: { select: { id: true, firstName: true, lastName: true } } } } } }),
     prisma.approvalRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "REJECTED", "RETURNED"] }, decidedAt: { gte: since } }, take: 500 }),
     prisma.schoolJoinRequest.findMany({ where: { schoolId, status: { in: ["APPROVED", "DECLINED"] }, decidedAt: { gte: since } }, take: 500, include: { user: { select: { id: true, firstName: true, lastName: true } } } }),
+    prisma.messageCampaign.findMany({ where: { schoolId, approvedById: { not: null }, status: { in: ["SENT", "RETURNED", "CANCELLED"] }, updatedAt: { gte: since } }, take: 500 }),
   ]);
-  const people = await peopleOf(schoolId, [...corrections.flatMap((row) => [row.requestedById, row.decidedById]), ...sheets.flatMap((row) => [row.submittedById, row.decidedById]), ...registers.flatMap((row) => [row.requestedById, row.decidedById]), ...waivers.flatMap((row) => [row.requestedById, row.approvedById]), ...changes.flatMap((row) => [row.requestedById, row.decidedById]), ...leave.map((row) => row.decidedById), ...native.flatMap((row) => [row.requestedById, row.decidedById])]);
+  const people = await peopleOf(schoolId, [...sends.flatMap((row) => [row.createdById, row.approvedById]), ...corrections.flatMap((row) => [row.requestedById, row.decidedById]), ...sheets.flatMap((row) => [row.submittedById, row.decidedById]), ...registers.flatMap((row) => [row.requestedById, row.decidedById]), ...waivers.flatMap((row) => [row.requestedById, row.approvedById]), ...changes.flatMap((row) => [row.requestedById, row.decidedById]), ...leave.map((row) => row.decidedById), ...native.flatMap((row) => [row.requestedById, row.decidedById])]);
   const name = (id: string | null | undefined) => (id ? people.get(id)?.name ?? null : null);
   const out: Decided[] = [];
   const add = (source: Source, id: string, type: RouteType, title: string, requesterId: string | null, requesterName: string | null, decidedById: string | null, raisedAt: Date, decidedAt: Date | null, outcome: Decided["outcome"], note: string | null) => {
@@ -127,6 +132,7 @@ export async function loadDecided(schoolId: string, since: Date): Promise<Decide
   for (const row of changes) add("RECORD_CHANGE", row.id, "RECORD_CHANGE", `${row.field} change`, row.requestedById, name(row.requestedById), row.decidedById, row.createdAt, row.decidedAt, row.status === "APPROVED" ? "Approved" : "Declined", row.decisionNote);
   for (const row of leave) add("LEAVE", row.id, "LEAVE", `${row.type} leave`, row.staff.user.id, who(row.staff.user), row.decidedById, row.createdAt, row.reviewedAt, row.status === "APPROVED" ? "Approved" : "Declined", row.decisionNote);
   for (const row of joins) add("JOIN_REQUEST", row.id, "TEACHER_JOIN", `${who(row.user)} · asks to join`, row.user.id, who(row.user), row.decidedById, row.createdAt, row.decidedAt, row.status === "APPROVED" ? "Approved" : "Declined", row.note);
+  for (const row of sends) add("MESSAGE_SEND", row.id, "MASS_COMMUNICATION", `${row.audienceLabel} · ${row.recipientCount} families`, row.createdById, name(row.createdById), row.approvedById, row.createdAt, row.updatedAt, row.status === "SENT" ? "Approved" : row.status === "RETURNED" ? "Returned" : "Declined", row.decisionNote);
   for (const row of native) {
     const type = (["SCORE_CORRECTION", "RESULTS_PUBLICATION", "FEE_WAIVER", "RECORD_CHANGE", "LEAVE", "STAFF_ACCESS", "MASS_COMMUNICATION", "TIMETABLE_CHANGE"].includes(row.kind) ? row.kind : "OTHER") as RouteType;
     add("NATIVE", row.id, type, row.title, row.requestedById, name(row.requestedById), row.decidedById, row.createdAt, row.decidedAt, row.status === "APPROVED" ? "Approved" : row.status === "RETURNED" ? "Returned" : "Declined", row.decisionNote);
@@ -239,6 +245,19 @@ export async function contextOf(schoolId: string, item: Item): Promise<Context> 
       request: [["Request", `${who(row.staff.user)} · ${/leave$/i.test(row.type) ? row.type.toLowerCase() : `${row.type.toLowerCase()} leave`}, ${shortDay(row.startDate)} to ${shortDay(row.endDate)}`], ["Days", String(row.days ?? "—")], ["Why", `“${row.reason}”`], ["Stage", text(row.stage, "First stage")]],
       context: [["Taken this year", `${taken._sum.days ?? 0} days`, "Approved leave since 1 January"], ["Cover", row.cover ?? "Not arranged", row.coverState]],
       downstream: [["If approved", "The leave is booked", "The timetable and registers are told who is away"], ["If declined", "No leave is booked", "The requester reads your reason"]],
+      evidence: [],
+    };
+  }
+
+  if (item.source === "MESSAGE_SEND") {
+    const row = await prisma.messageCampaign.findFirst({ where: { id: item.id, schoolId } });
+    if (!row) return empty;
+    const wallet = await prisma.notificationWallet.findUnique({ where: { schoolId } });
+    const audience = (row.audience ?? {}) as { acknowledge?: boolean };
+    return {
+      request: [["Message", row.body], ["Audience", row.audienceLabel, `${row.recipientCount} reachable`], ["Channel", row.channel === "IN_APP" ? "In-app" : row.channel === "SMS" ? "SMS" : "Email", row.channel === "SMS" ? "1 credit per part of the message, per family" : "Free"], ["Asks for acknowledgement", audience.acknowledge ? "Yes" : "No"]],
+      context: [["Sent by", requester, "Under the school's name, never theirs"], ["Why it waits", `More than ${row.thresholdAt ?? "the threshold"} recipients`, "The school's mass-communication threshold"], ["School SMS balance", `${(wallet?.smsBalance ?? 0).toLocaleString("en-NG")} credits`]],
+      downstream: [["If approved", "It goes now", "Each family gets their own words; the credits are taken as it leaves"], ["If returned or declined", "Nothing is sent", "The sender reads your reason and can change it"]],
       evidence: [],
     };
   }

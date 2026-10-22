@@ -201,6 +201,13 @@ export class TeacherWorkspaceController {
     return ok(this.families.guardians(session));
   }
 
+  /** Log a call to one of the class's families: it lands on the child's record under the caller's name. */
+  @Post("guardians/:id/calls")
+  @UseGuards(CsrfGuard)
+  logCall(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.families.logCall(session, id, body));
+  }
+
   /** What the families of the class have sent in. */
   @Get("submissions")
   mySubmissions(@CurrentSession() session: SessionPayload) {
@@ -230,6 +237,19 @@ export class TeacherWorkspaceController {
   @Get("messages/sent")
   sentMessages(@CurrentSession() session: SessionPayload) {
     return ok(this.messages.sent(session));
+  }
+
+  /** One sent message, recipient by recipient: delivered, read, acknowledged, answered. */
+  @Get("messages/sent/:id")
+  sentMessage(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return ok(this.messages.sentOne(session, id));
+  }
+
+  /** Throw away a draft of yours. */
+  @Delete("messages/drafts/:id")
+  @UseGuards(CsrfGuard)
+  discardDraft(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return ok(this.messages.discardDraft(session, id), "Draft discarded");
   }
 
   /** "My Day": everything this person owes today, counted from their own assignments. */

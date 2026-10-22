@@ -16,6 +16,7 @@ import { ConfigStore } from "../staff-access/staff-access.shared";
 import { ChangesService } from "../student-records/changes.service";
 import { ApprovalsService } from "./approvals.service";
 import { APPROVER_LABELS, ENFORCED, ESCALATE_TO, labelOfRole, loadRoutes, mayDecide, NOTIFY, OVERSIGHT, OWNERS, parseKey, ROLES_OF, ROUTE_DEFAULTS, WHO_MAY_SUBMIT, daysBetween, type Decided, type Item, type Route, type RouteType } from "./hub.shared";
+import { CommunicationCenterService } from "../communications/communication-center.service";
 import { contextOf, loadDecided, loadPending } from "./hub.sources";
 import { RULE_FIELDS, type StandingRule } from "./standing-rules";
 
@@ -57,6 +58,7 @@ export class HubService {
     private readonly changes: ChangesService,
     private readonly leave: LeaveService,
     private readonly onboarding: OnboardingService,
+    private readonly messaging: CommunicationCenterService,
   ) {}
 
   private async audit(session: SessionPayload, action: AuditAction, entityType: string, entityId: string, metadata: Record<string, unknown>) {
@@ -249,6 +251,8 @@ export class HubService {
         return out(await this.changes.decide(session, item.id, { decision: decision === "approve" ? "approve" : "decline", ...body }), decision === "approve" ? "Approved" : "Declined");
       case "JOIN_REQUEST":
         return out(await this.onboarding.decideJoinRequest(session, item.id, { decision: decision === "approve" ? "APPROVE" : "DECLINE", note }), decision === "approve" ? "Approved" : "Declined");
+      case "MESSAGE_SEND":
+        return out(await this.messaging.decide(session, item.id, { action: decision === "approve" ? "APPROVE" : decision === "return" ? "RETURN" : "CANCEL", note }), decision === "approve" ? "Approved" : decision === "return" ? "Returned" : "Declined");
       case "LEAVE":
         return out(await this.leave.decide(session, item.id, { decision, ...body }), decision === "approve" ? "Approved" : decision === "return" ? "Returned" : "Declined");
       default: {

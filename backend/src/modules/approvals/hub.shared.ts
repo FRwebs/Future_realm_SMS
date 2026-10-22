@@ -105,7 +105,7 @@ export const daysBetween = (from: Date, to: Date = new Date()) => Math.max(0, (t
 
 /* ───────────────────────── what a decision looks like, wherever it lives ───────────────────────── */
 
-export type Source = "SCORE_CORRECTION" | "SCORE_SHEET" | "ATTENDANCE_CORRECTION" | "FEE_WAIVER" | "RECORD_CHANGE" | "LEAVE" | "JOIN_REQUEST" | "NATIVE";
+export type Source = "SCORE_CORRECTION" | "SCORE_SHEET" | "ATTENDANCE_CORRECTION" | "FEE_WAIVER" | "RECORD_CHANGE" | "LEAVE" | "JOIN_REQUEST" | "MESSAGE_SEND" | "NATIVE";
 
 export type Person = { id: string; name: string; role: string } | null;
 
