@@ -172,7 +172,7 @@ function enterTab(v: SheetsView, me: TeacherWorkspaceView): TabContent {
       ],
     }]),
     row("1fr", [{
-      type: "table", title: "Your sheets", sub: "One subject-arm is one sheet. Open one and every child in that arm is on it.", meta: `${total} assignment${total === 1 ? "" : "s"} · ${v.rows.length} with score entry`, noun: "sheet", nounPlural: "sheets",
+      type: "table", dense: true, title: "Your sheets", sub: "One subject-arm is one sheet. Open one and every child in that arm is on it.", meta: `${total} assignment${total === 1 ? "" : "s"} · ${v.rows.length} with score entry`, noun: "sheet", nounPlural: "sheets",
       search: total > 2 ? "Find a subject or an arm" : undefined,
       filters: total > 1 ? [{ label: "Subject", value: "All", options: ["All", ...subjects], column: 0 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved", "Not granted"], column: 3 }] : undefined,
       head: ["Subject", "Arm", "Roll", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 12,
@@ -304,7 +304,7 @@ export function teacherPreviewPage(g: Grid, v: SheetsView): Content {
       body: "A blank is not a zero and it is not an absence. Submitting with blanks leaves those children without a total, and their report cards stay blocked.", acts: [{ label: "Go back and fill them in", href: back }],
     }]) : null,
     row("1fr", [{
-      type: "table", title: `Every child in ${g.arm.name}`, tag: "Ranked by total", tagTone: "neutral",
+      type: "table", dense: true, title: `Every child in ${g.arm.name}`, tag: "Ranked by total", tagTone: "neutral",
       sub: `${g.columns.map((column) => `${column.name} /${column.max}`).join(", ")}. A dash is blank, not a zero.`, meta: `${g.subject.name}${g.pinned ? " · framework pinned" : ""}`,
       search: "Find a child by name or roll number",
       filters: [{ label: "Grade", value: "All", options: ["All", ...g.bands.map((band) => band.label)], match: Object.fromEntries(g.bands.map((band) => [band.label, `grade:${band.label}|`])) }, { label: "Rating", value: "All", options: ["All", ...ratings], match: Object.fromEntries(ratings.map((rating) => [rating, `rating:${rating}|`])) }],
@@ -373,7 +373,7 @@ function resultsTab(r: ResultsView, permissions: string[]): TabContent {
       ],
     }]),
     row("1fr", [{
-      type: "table", title: "Your subject-arms", sub: "Open one for every child, ranked, with the components behind each total.", noun: "subject-arm", nounPlural: "subject-arms",
+      type: "table", dense: true, title: "Your subject-arms", sub: "Open one for every child, ranked, with the components behind each total.", noun: "subject-arm", nounPlural: "subject-arms",
       filters: r.rows.length > 1 ? [{ label: "Subject", value: "All", options: ["All", ...subjects], column: 0 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }, { label: "State", value: "All", options: ["All", "Not entered", "Provisional", "Final"], column: 7 }] : undefined,
       head: ["Subject", "Arm", "Roll", "Entered", "Average", "Pass", "Highest", "State", ""], rows, noRowOpen: true, per: 12, empty: "No result yet — nothing is assigned to you for score entry.", foot: "Provisional until the sheet is approved.",
     }]),
@@ -476,7 +476,7 @@ export function subjectResultPage(s: SubjectResult): Content {
         }])
       : null,
     row("1fr", [{
-      type: "table", title: `Every child in ${s.arm.name}`, tag: "Ranked by total", tagTone: "neutral",
+      type: "table", dense: true, title: `Every child in ${s.arm.name}`, tag: "Ranked by total", tagTone: "neutral",
       sub: s.hasLast ? "Since last term compares this total with the same subject last term." : "Since last term shows once the school has last term’s total for this subject on record.",
       noun: "child", nounPlural: "children", search: "Find a child by name or roll number", filters, selectable: true, bulkActs: [{ label: "Export the selected results", primary: true, export: true }],
       acts: [{ label: "Export these rows", export: true }],
@@ -555,7 +555,7 @@ export function studentWorkingPage(st: StudentResult): Content {
   const cell = (value: number | "ABS" | null): TableCellKind => (value === null ? text("—", { tone: "neutral" }) : value === "ABS" ? pill("ABS", "withheld") : text(String(value), { mono: true }));
   const when = (iso: string | null) => (iso ? shortDay(iso) : "");
   const components: PanelRow["panels"][number] = {
-    type: "table", title: "How the total was reached", sub: "The stored components, not a recalculation.", noun: "component", nounPlural: "components", per: 0,
+    type: "table", dense: true, title: "How the total was reached", sub: "The stored components, not a recalculation.", noun: "component", nounPlural: "components", per: 0,
     head: ["Component", "Mark", "Share", "Class average"],
     rows: st.components.map((component) => ({
       cells: [
@@ -640,13 +640,13 @@ export function formBroadsheetPage(b: FormBroadsheet): Content {
         ],
       }]),
       row("1fr", [{
-        type: "table", title: `Broadsheet · ${b.arm.name}`, tag: "Ranked by average", tagTone: "neutral", noun: "child", nounPlural: "children",
+        type: "table", dense: true, title: `Broadsheet · ${b.arm.name}`, tag: "Ranked by average", tagTone: "neutral", noun: "child", nounPlural: "children",
         sub: "A dash is a mark nobody has entered yet. It is never a zero, and it is not averaged in.", search: "Find a child by name or admission number",
         filters: [{ label: "Grade", value: "All", options: ["All", ...b.bands.map((band) => band.label)], match: Object.fromEntries(b.bands.map((band) => [band.label, `grade:${band.label}|`])) }, { label: "Standing", value: "All", options: ["All", "Complete", "Marks missing"], match: { Complete: "standing:Complete|", "Marks missing": "standing:Marks missing|" } }],
         head: ["#", "Student", ...b.subjects.map(code), "Avg", "Grade", "Standing", ""], rows, noRowOpen: true, per: 40, foot: "Each column is a subject, shortened to its first letters.",
       }]),
       row("1fr", [{
-        type: "table", title: "Where each subject stands", sub: "Who owns each sheet, and how much of it is in.", noun: "subject", nounPlural: "subjects",
+        type: "table", dense: true, title: "Where each subject stands", sub: "Who owns each sheet, and how much of it is in.", noun: "subject", nounPlural: "subjects",
         head: ["Subject", "Code", "Teacher", "Entered", "Missing", "Average"], rows: standing, noRowOpen: true, foot: "You see where each sheet stands.",
       }]),
     ],
@@ -697,7 +697,7 @@ function reviewTab(o: OversightView): TabContent {
       ],
     }]),
     row("1fr", [{
-      type: "table", title: `${o.department} sheets`, sub: "You can see where a sheet stands. You cannot change a score inside it.", meta: `${o.rows.length} sheets · ${k.waitingOnMe} waiting on you`, noun: "sheet", nounPlural: "sheets",
+      type: "table", dense: true, title: `${o.department} sheets`, sub: "You can see where a sheet stands. You cannot change a score inside it.", meta: `${o.rows.length} sheets · ${k.waitingOnMe} waiting on you`, noun: "sheet", nounPlural: "sheets",
       search: "Find a subject, arm or teacher", selectable: true, bulkActs: [{ label: "Export selected", primary: true, export: true }],
       filters: [{ label: "State", value: "All", options: ["All", "Not started", "In progress", "Submitted", "Returned", "Approved"], column: 3 }, { label: "Teacher", value: "All", options: ["All", ...teachers], column: 2 }, { label: "Arm", value: "All", options: ["All", ...arms], column: 1 }],
       head: ["Subject", "Arm", "Teacher", "State", "Entered", "Avg", "Note", ""], rows, noRowOpen: true, per: 8, empty: `${o.department} has no sheet this term.`,
