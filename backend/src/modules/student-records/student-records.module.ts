@@ -6,13 +6,14 @@ import { RolesManagementModule } from "../roles-management/roles-management.modu
 import { AdmissionsBoardService } from "./admissions-board.service";
 import { ChangesService } from "./changes.service";
 import { RecordService } from "./record.service";
+import { SupportPlansService } from "./support-plans.service";
 import { RegistryService } from "./registry.service";
 import { StudentRecordsController } from "./student-records.controller";
 
 @Module({
   imports: [AdmissionsModule, RolesManagementModule],
   controllers: [StudentRecordsController],
-  providers: [RegistryService, RecordService, ChangesService, AdmissionsBoardService, PermissionsGuard],
-  exports: [ChangesService]
+  providers: [RegistryService, RecordService, SupportPlansService, ChangesService, AdmissionsBoardService, PermissionsGuard],
+  exports: [ChangesService, SupportPlansService]
 })
 export class StudentRecordsModule {}

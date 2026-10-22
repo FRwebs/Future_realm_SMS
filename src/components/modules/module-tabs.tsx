@@ -10,18 +10,26 @@ import type { SchoolModule } from "@/lib/modules/school-modules";
 export function ModuleTabs({
   module,
   visibleTabSlugs,
+  labels,
+  name,
 }: {
   module: SchoolModule;
+  /** The tabs to show, in the order to show them. */
   visibleTabSlugs: string[];
+  /** The holder's own words for a tab (a teacher's "My students" is the registry). */
+  labels?: Record<string, string>;
+  /** The holder's own name for the module. */
+  name?: string;
 }) {
-  const visible = new Set(visibleTabSlugs);
+  const bySlug = new Map(module.tabs.map((tab) => [tab.slug, tab]));
 
   return (
     <TabBar
-      ariaLabel={`${module.name} tabs`}
-      items={module.tabs
-        .filter((tab) => visible.has(tab.slug))
-        .map((tab) => ({ href: `/${module.slug}/${tab.slug}`, label: tab.label }))}
+      ariaLabel={`${name ?? module.name} tabs`}
+      items={visibleTabSlugs
+        .map((slug) => bySlug.get(slug))
+        .filter((tab): tab is NonNullable<typeof tab> => Boolean(tab))
+        .map((tab) => ({ href: `/${module.slug}/${tab.slug}`, label: labels?.[tab.slug] ?? tab.label }))}
     />
   );
 }

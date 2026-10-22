@@ -5,6 +5,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
@@ -272,6 +273,7 @@ export class AcademicsController {
   @UseGuards(SessionGuard, PermissionsGuard)
   @RequirePermission("results.view")
   async reportCards(@CurrentSession() session: SessionPayload) {
+    await refuseTeaching(session, "Report Cards — your class’s cards");
     return { ok: true, data: await this.academicsService.listReportCards(session) };
   }
 

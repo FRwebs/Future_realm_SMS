@@ -22,7 +22,8 @@ describe("role-aware navigation and route access", () => {
 
   it("gives the proprietor every module, in the mockup's seven sections", () => {
     expect(sectionsFor("SCHOOL_OWNER")).toEqual(schoolModuleSections);
-    expect(labelsFor("SCHOOL_OWNER")).toEqual(schoolModules.map((module) => module.name));
+    // Every administrator module, and Lesson Notes for signing — not the teacher's own My Employment and Training.
+    expect([...labelsFor("SCHOOL_OWNER")].sort()).toEqual(schoolModules.filter((module) => !["m18", "m19"].includes(module.code)).map((module) => module.name).sort());
   });
 
   it("puts every staff role in the same shell rather than a portal of its own", () => {

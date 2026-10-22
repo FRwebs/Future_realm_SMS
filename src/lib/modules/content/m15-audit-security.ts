@@ -670,8 +670,13 @@ const dataProtectionTab: TabContent = {
   ],
 };
 
+import { unreachable } from "@/lib/modules/content/teaching-workspace";
+
+const integrationsContent = unreachable("Integrations", "Keys that let another system read a small slice of the record.", "The school’s API keys");
+
 export const auditSecurityContent: ModuleContent = {
   "audit-log": auditLogTab,
   monitoring: monitoringTab,
   "data-protection": dataProtectionTab,
+  integrations: integrationsContent,
 };

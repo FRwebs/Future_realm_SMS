@@ -111,6 +111,8 @@ export type Dossier = {
     passMark: number;
   };
   cards: Array<{ id: string; termId: string; term: string; session: string; avg: number | null; pos: number | null; grade: string; state: string; published: string | null }>;
+  /** The child's learning support plan: what their teachers must do, and — only for those who write it — the background behind it. */
+  support?: { canManage: boolean; plan: { id: string; strategies: Array<{ area: string; strategy: string }>; reviewedOn: string; nextReviewOn: string; overdue: boolean; author: { name: string; title: string } | null; confidentialNote?: string | null } | null };
   wellbeing: {
     log: Array<{ id: string; date: string; kind: string; entry: string; by: string; outcome: string; visibleTo: string }>;
     counselling: number;

@@ -25,10 +25,10 @@ const TIER_RANK: Record<string, number> = { BASIC: 1, STANDARD: 2, PROFESSIONAL:
  */
 export const FEATURE_REGISTRY = [
   { key: "branding.custom", name: "Custom branding on report cards", module: "Report Cards", enforcedAt: "Submitting or applying a school's own branding", defaults: ["ENTERPRISE", "CUSTOM"] },
-  { key: "communications.whatsapp", name: "WhatsApp notifications", module: "Communications", enforcedAt: null, defaults: ["STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"] },
-  { key: "analytics.predictive", name: "Predictive analytics", module: "Analytics & BI", enforcedAt: null, defaults: ["ENTERPRISE"] },
-  { key: "integrations.api", name: "API access", module: "Integrations", enforcedAt: null, defaults: ["ENTERPRISE"] },
-  { key: "support.account_manager", name: "Dedicated account manager", module: "Support", enforcedAt: null, defaults: ["ENTERPRISE"] }
+  { key: "communications.whatsapp", name: "WhatsApp notifications", module: "Communications", enforcedAt: "Sending a WhatsApp message, and buying or auto-topping-up WhatsApp credits", defaults: ["STANDARD", "PROFESSIONAL", "ENTERPRISE", "CUSTOM"] },
+  { key: "analytics.predictive", name: "Predictive analytics", module: "Analytics & BI", enforcedAt: "The Early warning panel in Analytics & Reports → Insights", defaults: ["ENTERPRISE"] },
+  { key: "integrations.api", name: "API access", module: "Integrations", enforcedAt: "Making an API key, and every call a key makes", defaults: ["ENTERPRISE"] },
+  { key: "support.account_manager", name: "Dedicated account manager", module: "Support", enforcedAt: "Whether the school is shown a named account manager in Help & Support", defaults: ["ENTERPRISE"] }
 ] as const;
 
 const flagCreateSchema = z.object({

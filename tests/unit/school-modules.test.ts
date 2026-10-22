@@ -15,12 +15,13 @@ import {
 } from "@/lib/modules/school-modules";
 
 describe("school admin module spec", () => {
-  it("defines the sixteen modules across seven sections, as the mockup does", () => {
-    expect(schoolModules).toHaveLength(16);
+  it("defines the sixteen administrator modules across seven sections, as the mockup does — and the teaching workspace's three beside them", () => {
+    const admin = schoolModules.filter((module) => !module.workspace);
+    expect(admin).toHaveLength(16);
     expect(schoolModuleSections).toHaveLength(7);
-    expect(schoolModules.map((module) => module.code)).toEqual(
-      Array.from({ length: 16 }, (_, index) => `m${index + 1}`),
-    );
+    expect(admin.map((module) => module.code)).toEqual(Array.from({ length: 16 }, (_, index) => `m${index + 1}`));
+    // Lesson Notes, My Employment and Training are the teacher mockup's own modules.
+    expect(schoolModules.filter((module) => module.workspace === "teaching").map((module) => module.code)).toEqual(["m17", "m18", "m19"]);
 
     for (const module of schoolModules) {
       expect(schoolModuleSections).toContain(module.section);
@@ -69,10 +70,13 @@ describe("school admin module spec", () => {
 
   it("treats an unlisted module as full access, which is how Proprietor is expressed", () => {
     expect(schoolModuleLevel("Proprietor", "m10")).toBe(3);
-    expect(schoolTemplateReach("Proprietor")).toBe(16);
-    expect(schoolPermissionKeysForRoleTemplate("Proprietor")).toHaveLength(
-      allSchoolPermissionKeys().length,
-    );
+    // The sixteen, plus Lesson Notes — where the leadership signs a head of department's notes. Leave, pay and training for a proprietor
+    // are handled in Staff & Access, so My Employment and Training are not theirs unless granted.
+    expect(schoolTemplateReach("Proprietor")).toBe(17);
+    const adminSlugs = new Set(schoolModules.filter((module) => !module.workspace).map((module) => module.slug));
+    const held = new Set(schoolPermissionKeysForRoleTemplate("Proprietor"));
+    for (const key of allSchoolPermissionKeys().filter((entry) => adminSlugs.has(entry.split(".")[0]!))) expect(held.has(key), key).toBe(true);
+    expect([...held].some((key) => key.startsWith("my-employment.") || key.startsWith("training."))).toBe(false);
   });
 
   it("never implies approval or deletion from a full access level", () => {
@@ -106,12 +110,13 @@ describe("school admin module spec", () => {
   });
 
   it("gives every role template a coherent, non-empty reach", () => {
-    expect(schoolRoleTemplates).toHaveLength(11);
+    // The eleven administrator templates, and the two the teacher mockup adds: Teaching Assistant and Cover / Substitute.
+    expect(schoolRoleTemplates).toHaveLength(13);
 
     for (const template of schoolRoleTemplates) {
       const reach = schoolTemplateReach(template.name);
       expect(reach).toBeGreaterThan(0);
-      expect(reach).toBeLessThanOrEqual(16);
+      expect(reach).toBeLessThanOrEqual(schoolModules.length);
       expect(schoolPermissionKeysForRoleTemplate(template.name).length).toBeGreaterThan(0);
     }
 

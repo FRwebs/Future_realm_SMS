@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { canOpenModule } from "@/lib/auth/server-access";
+import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getServerSession } from "@/lib/auth/session";
+import { teacherArmPage, teacherRemarkPage } from "@/lib/modules/live/t6-report-cards";
 import { completionArmPage, loadCompletionArm } from "@/lib/modules/live/m6-completion";
 import { loadRemarkPage, remarkPage } from "@/lib/modules/live/m6-remarks";
 import type { TabContent } from "@/lib/modules/panels";
@@ -31,7 +33,10 @@ export async function RemarkView({ classId, studentId }: { classId: string; stud
   if (!access.ok) return access.denied;
   const page = await loadRemarkPage(classId, studentId).catch(() => null);
   if (!page) notFound();
-  return <Workspace content={remarkPage(page, page.school).content} />;
+  // A form master writes their own remark; the Principal's review is not theirs.
+  const session = await getServerSession();
+  const teacher = session ? await getTeacherWorkspace(session.role, session.schoolId) : null;
+  return <Workspace content={teacher ? teacherRemarkPage(page) : remarkPage(page, page.school).content} />;
 }
 
 export async function CompletionArmView({ classId }: { classId: string }) {
@@ -39,5 +44,7 @@ export async function CompletionArmView({ classId }: { classId: string }) {
   if (!access.ok) return access.denied;
   const arm = await loadCompletionArm(classId).catch(() => null);
   if (!arm) notFound();
-  return <Workspace content={completionArmPage(arm, arm.school).content} />;
+  const session = await getServerSession();
+  const teacher = session ? await getTeacherWorkspace(session.role, session.schoolId) : null;
+  return <Workspace content={teacher ? teacherArmPage(arm, teacher) : completionArmPage(arm, arm.school).content} />;
 }

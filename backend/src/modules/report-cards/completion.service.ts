@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertClassReadable, classScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -67,7 +68,9 @@ export class CompletionService {
   async overview(session: SessionPayload) {
     const schoolId = session.schoolId;
     const term = await this.cards.term(schoolId);
-    const arms = await loadAll(schoolId, term);
+    // A teaching person reads the cards of the arms they answer for, and nobody else's.
+    const only = await classScope(session);
+    const arms = await loadAll(schoolId, term, only ?? undefined);
     const policy = await loadPolicy(schoolId);
     const staff = await loadStaffNames(schoolId, arms.map((arm) => arm.room.classTeacherId ?? ""));
     const owing = policy.withholdForDebt ? await owingStudents(schoolId, term.id, arms.flatMap((arm) => arm.students.map((student) => student.id))) : undefined;
@@ -94,6 +97,7 @@ export class CompletionService {
   /* ───────────────────────── one arm ───────────────────────── */
 
   async arm(session: SessionPayload, classId: string) {
+    await assertClassReadable(session, classId);
     const schoolId = session.schoolId;
     const term = await this.cards.term(schoolId);
     const arm = await loadArm(schoolId, term, classId);

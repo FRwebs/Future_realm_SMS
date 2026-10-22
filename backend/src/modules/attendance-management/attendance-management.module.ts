@@ -14,6 +14,6 @@ import { RegisterService } from "./register.service";
   imports: [RolesManagementModule],
   controllers: [AttendanceManagementController],
   providers: [Access, RegisterService, CasesService, CorrectionsService, ComplianceService, OutputsService, PermissionsGuard],
-  exports: [Access, OutputsService, CorrectionsService, RegisterService]
+  exports: [Access, OutputsService, CorrectionsService, RegisterService, CasesService]
 })
 export class AttendanceManagementModule {}

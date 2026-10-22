@@ -6,6 +6,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { OperationsService } from "./operations.service";
@@ -25,6 +26,8 @@ export class OperationsController {
   @Get("discipline")
   @RequirePermission("discipline.view")
   async discipline(@CurrentSession() session: SessionPayload) {
+    // The whole school's discipline file is not a teacher's to read; a teacher reports an incident and does not read the file.
+    await refuseTeaching(session, "My students — where you can report an incident");
     return { ok: true, data: await this.operationsService.listDiscipline(session) };
   }
 

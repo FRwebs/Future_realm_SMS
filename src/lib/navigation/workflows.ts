@@ -66,6 +66,8 @@ export type WorkflowNavItem = {
   badge?: string;
   /** An unresolved problem in that module, per the mockup's amber dot. */
   dot?: boolean;
+  /** A drawn icon (SVG path on a 24px grid) instead of a named one — the teaching workspace's rail uses these. */
+  iconPath?: string;
 };
 
 export type WorkflowNavGroup = {
@@ -198,6 +200,32 @@ export function getVisibleWorkflowNavGroups(
     .filter((group) => group.items.length > 0 || hiddenIds.length === 0);
 
   return dedupeGroups(mappedGroups);
+}
+
+export type TeacherRail = {
+  items: Array<{ id: string; href: string; label: string; iconPath: string }>;
+  extra: Array<{ id: string; href: string; label: string }>;
+};
+
+/** The teaching workspace's rail: one flat list in the teacher's order, then whatever more an administrator has granted. */
+export function teacherRailGroups(rail: TeacherRail, badges: Record<string, number | undefined> = {}): WorkflowNavGroup[] {
+  const groups: WorkflowNavGroup[] = [
+    {
+      title: "",
+      eyebrow: "",
+      description: "Your modules",
+      items: rail.items.map((item) => ({ id: item.id, href: item.href as Route, label: item.label, description: "Your teaching workspace", icon: LayoutDashboard, iconPath: item.iconPath, badge: badges[item.id] ? String(badges[item.id]) : undefined })),
+    },
+  ];
+  if (rail.extra.length) {
+    groups.push({
+      title: "Also granted to you",
+      eyebrow: "Also granted to you",
+      description: "Modules your school has added",
+      items: rail.extra.map((item) => ({ id: item.id, href: item.href as Route, label: item.label, description: "Granted by your school", icon: iconMap[getNavigationItemForPath(item.href)?.icon ?? ""] ?? LayoutDashboard })),
+    });
+  }
+  return groups;
 }
 
 export function getWorkflowNavItemForPath(path: string) {

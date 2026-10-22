@@ -43,6 +43,8 @@ const ROLE_FOR_TEMPLATE: Record<string, UserRole> = {
   "Head of Department": UserRole.HEAD_OF_DEPARTMENT,
   "Form Master": UserRole.CLASS_TEACHER,
   "Subject Teacher": UserRole.SUBJECT_TEACHER,
+  "Teaching Assistant": UserRole.TEACHING_ASSISTANT,
+  "Cover / Substitute": UserRole.COVER_TEACHER,
   "School Nurse": UserRole.SCHOOL_NURSE,
   Counsellor: UserRole.GUIDANCE_COUNSELLOR,
   "ICT Officer": UserRole.ICT_CBT_ADMIN

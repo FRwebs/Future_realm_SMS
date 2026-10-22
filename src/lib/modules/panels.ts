@@ -720,7 +720,7 @@ export type FlowPanel = {
   acts?: PanelAction[];
 };
 
-export type Quote = { label: string; by: string; role?: string; when?: string; pill?: string; tone?: PanelTone; text?: string; emptyText?: string; act?: string; trigger?: Trigger };
+export type Quote = { label: string; by: string; role?: string; when?: string; pill?: string; tone?: PanelTone; text?: string; emptyText?: string; act?: string; trigger?: Trigger; /** Pictures that go with it — addresses the browser can fetch with the reader's own sign-in. */ photos?: string[] };
 export type QuotesPanel = { type: "quotes"; title: string; sub?: string; quotes: Quote[] };
 
 export type Panel =

@@ -14,6 +14,7 @@ import { subscriptionBillingContent } from "@/lib/modules/content/m11-subscripti
 import { communicationCenterContent } from "@/lib/modules/content/m12-communication-center";
 import { analyticsReportsContent } from "@/lib/modules/content/m14-analytics-reports";
 import { auditSecurityContent } from "@/lib/modules/content/m15-audit-security";
+import { lessonNotesContent, myEmploymentContent, trainingContent } from "@/lib/modules/content/teaching-workspace";
 import { syncSupportContent } from "@/lib/modules/content/m16-sync-support";
 
 /** Content for every module, keyed by module code. */
@@ -34,6 +35,9 @@ export const moduleContent: Record<string, ModuleContent> = {
   m14: analyticsReportsContent,
   m15: auditSecurityContent,
   m16: syncSupportContent,
+  m17: lessonNotesContent,
+  m18: myEmploymentContent,
+  m19: trainingContent,
 };
 
 export function getTabContent(code: string, tabSlug: string): TabContent | undefined {

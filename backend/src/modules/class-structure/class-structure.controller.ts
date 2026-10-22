@@ -5,6 +5,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { ClassStructureExtrasService } from "./class-structure-extras.service";
@@ -79,13 +80,16 @@ export class ClassStructureController {
 
   @Get("timetables")
   @RequirePermission("timetable.view")
-  timetableList(@CurrentSession() session: SessionPayload) {
+  async timetableList(@CurrentSession() session: SessionPayload) {
+    // The whole school's timetable versions are the administrator's; a teaching role reads its own (v1/teacher-workspace/timetable).
+    await refuseTeaching(session, "your own timetable under Timetable");
     return this.timetables.ok(this.timetables.list(session));
   }
 
   @Get("timetables/:id")
   @RequirePermission("timetable.view")
-  timetableOne(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+  async timetableOne(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    await refuseTeaching(session, "your own timetable under Timetable");
     return this.timetables.ok(this.timetables.detail(session, id));
   }
 

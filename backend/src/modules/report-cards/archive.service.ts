@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { classScope } from "../../common/teaching-scope";
 import { AuditAction } from "@prisma/client";
 import { z } from "zod";
 
@@ -28,9 +29,11 @@ export class ArchiveService {
 
   async overview(session: SessionPayload, query: { term?: string; arm?: string }) {
     const schoolId = session.schoolId;
+    // A teaching person retrieves the cards of the arms they answer for — they do not browse the school.
+    const only = await classScope(session);
     const terms = await prisma.term.findMany({ where: { schoolId }, include: { academicSession: { select: { name: true } } }, orderBy: { startDate: "desc" } });
     const sheets = await prisma.resultSheet.findMany({
-      where: { schoolId, OR: [{ status: "PUBLISHED" }, { publishedAt: { not: null } }], ...(query.term ? { termId: query.term } : {}), ...(query.arm ? { student: { currentClassId: query.arm } } : {}) },
+      where: { schoolId, OR: [{ status: "PUBLISHED" }, { publishedAt: { not: null } }], ...(query.term ? { termId: query.term } : {}), ...(query.arm || only ? { student: { currentClassId: query.arm && (!only || only.includes(query.arm)) ? query.arm : only ? { in: only } : query.arm } } : {}) },
       select: { id: true, studentId: true, termId: true, publishedAt: true, student: { select: { firstName: true, lastName: true, admissionNumber: true, currentClass: { select: { id: true, name: true, arm: true } }, guardians: { select: { guardian: { select: { userId: true } } } } } } },
       orderBy: { publishedAt: "desc" }, take: 400
     });
@@ -53,7 +56,7 @@ export class ArchiveService {
     const people = await loadStaffNames(schoolId, batches.map((batch) => batch.byId));
     const students = await prisma.student.findMany({ where: { id: { in: revisions.map((entry) => entry.studentId) } }, select: { id: true, firstName: true, lastName: true } });
     const nameOf = new Map(students.map((student) => [student.id, fullName(student)]));
-    const arms = await prisma.classRoom.findMany({ where: { schoolId, deletedAt: null, students: { some: { status: "ACTIVE" } } }, select: { id: true, name: true, arm: true }, orderBy: [{ name: "asc" }] });
+    const arms = await prisma.classRoom.findMany({ where: { schoolId, deletedAt: null, ...(only ? { id: { in: only } } : {}), students: { some: { status: "ACTIVE" } } }, select: { id: true, name: true, arm: true }, orderBy: [{ name: "asc" }] });
     return {
       terms: terms.map((term) => ({ id: term.id, name: term.name, session: term.academicSession?.name ?? "", current: term.isCurrent })), arms: arms.map((arm) => ({ id: arm.id, name: armName(arm) })),
       kpis: { issued: rows.length, sessions: new Set(terms.map((term) => term.academicSessionId)).size, revisions: revisions.length + rows.filter((row) => row.revision > 1 && !revisions.length).length, undelivered: rows.filter((row) => row.delivery === "Undelivered").length, withheld },

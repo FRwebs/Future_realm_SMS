@@ -39,6 +39,8 @@ import { PartnerPortalModule } from "./modules/partner-portal/partner-portal.mod
 import { TriggerRulesModule } from "./modules/trigger-rules/trigger-rules.module";
 import { SupportDeskModule } from "./modules/support-desk/support-desk.module";
 import { MembershipsModule } from "./modules/memberships/memberships.module";
+import { CurriculumCatalogueModule } from "./modules/curriculum-catalogue/curriculum-catalogue.module";
+import { ApiAccessModule } from "./modules/api-access/api-access.module";
 import { WhatsAppModule } from "./modules/whatsapp/whatsapp.module";
 import { AdminViewsModule } from "./modules/admin-views/admin-views.module";
 import { InvitationOpsModule } from "./modules/invitation-ops/invitation-ops.module";
@@ -56,6 +58,7 @@ import { SupportModule } from "./modules/support/support.module";
 import { TelemetryModule } from "./modules/telemetry/telemetry.module";
 import { PlatformPolicyModule } from "./modules/platform-policy/platform-policy.module";
 import { PlatformSyncModule } from "./modules/platform-sync/platform-sync.module";
+import { TeacherWorkspaceModule } from "./modules/teacher-workspace/teacher-workspace.module";
 import { NotificationDeliveryModule } from "./modules/notification-delivery/delivery.module";
 import { SyncModule } from "./modules/sync/sync.module";
 import { AuditModule } from "./modules/audit/audit.module";
@@ -116,6 +119,7 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     NotificationDeliveryModule,
     PlatformPolicyModule,
     PlatformSyncModule,
+    TeacherWorkspaceModule,
     TelemetryModule,
     SupportModule,
     RolesManagementModule,
@@ -139,6 +143,8 @@ import { WebAddressRegistryModule } from "./modules/web-address-registry/web-add
     InvitationOpsModule,
     AdminViewsModule,
     WhatsAppModule,
+    ApiAccessModule,
+    CurriculumCatalogueModule,
     MembershipsModule,
     ParentPortalModule,
     ParentsModule,

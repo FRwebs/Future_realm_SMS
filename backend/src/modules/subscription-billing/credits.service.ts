@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { CHANNEL_RATES, TIERS, discountFor, gatewayMode, json, nextInvoiceNo, num, quote, round2, schoolOf, taxRate, tierOf, currentTerm } from "./billing.shared";
+import { plansFeatures } from "../plans-features/plans-features.service";
 import { PaymentsService } from "./payments.service";
 
 /**
@@ -54,6 +55,7 @@ export class CreditsService {
     const invoiceNo = new Map(invoices.map((row) => [row.id, row.invoiceNo]));
     const balance = { SMS: wallet?.smsBalance ?? 0, WHATSAPP: wallet?.whatsappBalance ?? 0 };
     const auto = (sub?.autoTopup ?? null) as { on: boolean; channel: string; quantity: number } | null;
+    const whatsapp = await plansFeatures.entitled(schoolId, "communications.whatsapp");
     return {
       configured: Boolean(wallet),
       term: term ? `${term.name} ${term.academicSession?.name ?? ""}`.trim() : null,
@@ -62,7 +64,7 @@ export class CreditsService {
       lastToppedUpAt: wallet?.lastToppedUpAt?.toISOString() ?? null,
       channels: [
         { key: "SMS", name: "SMS", paid: true, rate: CHANNEL_RATES.SMS, base: base.SMS, topped: toppedThisTerm("SMS"), used: count("SMS"), balance: balance.SMS, note: "160 characters a message", sendsCovered: guardians ? Math.floor(balance.SMS / guardians) : 0 },
-        { key: "WHATSAPP", name: "WhatsApp", paid: true, rate: CHANNEL_RATES.WHATSAPP, base: base.WHATSAPP, topped: toppedThisTerm("WHATSAPP"), used: 0, balance: balance.WHATSAPP, note: "Billed by conversation, not message" },
+        { key: "WHATSAPP", name: "WhatsApp", paid: true, rate: CHANNEL_RATES.WHATSAPP, base: base.WHATSAPP, topped: toppedThisTerm("WHATSAPP"), used: 0, balance: balance.WHATSAPP, note: "Billed by conversation, not message", entitled: whatsapp.allowed, why: whatsapp.why },
         { key: "EMAIL", name: "Email", paid: false, rate: 0, base: 0, topped: 0, used: count("EMAIL"), balance: 0, note: "Unlimited on every tier" },
         { key: "IN_APP", name: "In-app", paid: false, rate: 0, base: 0, topped: 0, used: count("IN_APP"), balance: 0, note: "Unlimited · reaches activated families only" }
       ],
@@ -88,6 +90,7 @@ export class CreditsService {
     if (credits < 100) throw new BadRequestException("The smallest top-up is 100 credits.");
     if (credits > 500_000) throw new BadRequestException("The largest single top-up is 500,000 credits. Speak to your Account Manager about more.");
     const priced = this.price(input.channel, credits);
+    if (priced.key === "WHATSAPP") await plansFeatures.require(schoolId, "communications.whatsapp");
     const { key, rate, discount } = priced;
     const subtotal = inSchoolCurrency(Number(priced.subtotal), school.currency);
     const tax = round2(subtotal * (await taxRate(school.country)));
@@ -103,6 +106,7 @@ export class CreditsService {
 
   async saveSettings(session: SessionPayload, body: unknown, quiet = false) {
     const input = settingsSchema.parse(body);
+    if (input.auto && input.channel.toLowerCase().startsWith("what")) await plansFeatures.require(session.schoolId, "communications.whatsapp");
     const school = await schoolOf(session.schoolId);
     const data = { autoTopup: json({ on: input.auto, channel: input.channel.toLowerCase().startsWith("what") ? "WHATSAPP" : "SMS", quantity: number(input.quantity) || 10_000 }), warnAt: number(input.warnAt) || 2000, warnWho: input.warnWho };
     await prisma.schoolSubscription.upsert({ where: { schoolId: session.schoolId }, update: data, create: { schoolId: session.schoolId, tier: tierOf(school), ...data } });

@@ -9,6 +9,7 @@ import { PermissionsGuard } from "../../auth/permissions.guard";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { ok } from "../student-records/records.shared";
+import { EarlyWarningService } from "./early-warning.service";
 import { InsightsService } from "./insights.service";
 import { ReportsService } from "./reports.service";
 
@@ -23,12 +24,18 @@ const csv = (response: Response, name: string, content: string) => {
 @Controller("v1/analytics-reports")
 @UseGuards(SessionGuard, PermissionsGuard)
 export class AnalyticsReportsController {
-  constructor(private readonly insights: InsightsService, private readonly reports: ReportsService) {}
+  constructor(private readonly insights: InsightsService, private readonly reports: ReportsService, private readonly warning: EarlyWarningService) {}
 
   @Get("insights")
   @RequirePermission("analytics-reports.insights.view")
   overview(@CurrentSession() session: SessionPayload) {
     return ok(this.insights.overview(session));
+  }
+
+  @Get("early-warning")
+  @RequirePermission("analytics-reports.insights.view")
+  earlyWarning(@CurrentSession() session: SessionPayload) {
+    return ok(this.warning.overview(session));
   }
 
   @Get("reports")

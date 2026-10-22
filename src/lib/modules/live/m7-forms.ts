@@ -1135,7 +1135,7 @@ export function revealDrawer(person: { id: string; name: string }): DrawerSpec {
 
 /** Someone who already has an account — a teacher at two schools, an external examiner — is added with a role here instead of a second account. */
 export function addExistingAccountDrawer(): DrawerSpec {
-  const roles: Array<[string, string]> = [["Subject teacher", "SUBJECT_TEACHER"], ["Class teacher", "CLASS_TEACHER"], ["Head of department", "HEAD_OF_DEPARTMENT"], ["Examination officer", "EXAMINATION_OFFICER"], ["Bursar", "BURSAR"], ["Administrator", "ADMINISTRATOR"]];
+  const roles: Array<[string, string]> = [["Subject teacher", "SUBJECT_TEACHER"], ["Teaching assistant", "TEACHING_ASSISTANT"], ["Cover / substitute", "COVER_TEACHER"], ["Class teacher", "CLASS_TEACHER"], ["Head of department", "HEAD_OF_DEPARTMENT"], ["Examination officer", "EXAMINATION_OFFICER"], ["Bursar", "BURSAR"], ["Administrator", "ADMINISTRATOR"]];
   return {
     mode: "form",
     kicker: "Staff · access",

@@ -8,6 +8,8 @@ import {
   type Option,
 } from "@/lib/modules/live/m7-forms";
 import { appraisalTab, loadAppraisal, loadModeration } from "@/lib/modules/live/m7-appraisal";
+import { learningTab } from "@/lib/modules/live/m7-learning";
+import { gapsPanel, type Gaps } from "@/lib/modules/live/t18-employment";
 import { leaveTab, loadLeave } from "@/lib/modules/live/m7-leave";
 import { loadPayroll, payrollTab } from "@/lib/modules/live/m7-payroll";
 import { permissionsTab } from "@/lib/modules/live/m7-permissions";
@@ -416,11 +418,16 @@ export async function staffAccessLiveTab(tabSlug: string): Promise<TabContent | 
     return payrollTab(await loadPayroll());
   }
   if (tabSlug === "leave") {
-    return leaveTab(await loadLeave());
+    const [data, gaps] = await Promise.all([loadLeave(), apiGet<Gaps>("/api/v1/teacher-workspace/cover/gaps").catch(() => null)]);
+    const content = leaveTab(data);
+    return gaps ? { ...content, rows: [...content.rows, gapsPanel(gaps)] } : content;
   }
   if (tabSlug === "appraisal") {
     const [overview, moderation] = await Promise.all([loadAppraisal(), loadModeration()]);
     return appraisalTab(overview, moderation);
+  }
+  if (tabSlug === "learning") {
+    return learningTab();
   }
   return undefined;
 }

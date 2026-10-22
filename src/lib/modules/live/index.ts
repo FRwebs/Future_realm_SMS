@@ -16,6 +16,8 @@ import { attendanceLiveTab } from "@/lib/modules/live/m4-attendance";
 import { scoreEntryResultsLiveTab } from "@/lib/modules/live/m5-score-entry-results";
 import { feeManagementLiveTab } from "@/lib/modules/live/m10-fee-management";
 import { studentRecordsLiveTab } from "@/lib/modules/live/m8-student-records";
+import { teacherLessonNotesTab } from "@/lib/modules/live/t17-lesson-notes";
+import { getTeacherTabContent } from "@/lib/modules/live/teacher-index";
 
 /**
  * Where a module stops being written and starts being read.
@@ -44,6 +46,8 @@ const liveModules: Record<string, LiveTabBuilder> = {
   m14: analyticsReportsLiveTab,
   m15: auditSecurityLiveTab,
   m16: syncSupportLiveTab,
+  // Leadership reads Lesson Notes through its Review and Coverage tabs only; they need nothing from the teacher workspace.
+  m17: (tab) => teacherLessonNotesTab(tab, undefined as never),
 };
 
 /** Which modules read from the API today — used by tests and by the module page. */
@@ -82,6 +86,10 @@ export async function getLiveTabContent(
   tabSlug: string,
   query?: Record<string, string | undefined>,
 ): Promise<TabContent | undefined> {
+  // A teaching person's pages are their own, built from what they are assigned to.
+  const own = await getTeacherTabContent(code, tabSlug, query);
+  if (own) return own;
+
   const builder = liveModules[code];
   if (!builder) return undefined;
 

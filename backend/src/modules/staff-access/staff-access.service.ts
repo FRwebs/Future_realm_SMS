@@ -23,6 +23,8 @@ import { accountState, daysSince, fullName, monthYear, roleTitle, store, templat
 /** What the add-staff wizard offers, and the account role each choice becomes. */
 export const ROLE_CHOICES: Record<string, UserRole> = {
   "Subject Teacher": UserRole.SUBJECT_TEACHER,
+  "Teaching Assistant": UserRole.TEACHING_ASSISTANT,
+  "Cover / Substitute": UserRole.COVER_TEACHER,
   "Form Master": UserRole.CLASS_TEACHER,
   "Head of Department": UserRole.HEAD_OF_DEPARTMENT,
   "Exam Officer": UserRole.EXAM_OFFICER,
@@ -44,7 +46,7 @@ export const ROLE_CHOICES: Record<string, UserRole> = {
   Principal: UserRole.PRINCIPAL
 };
 
-const TEACHING_CHOICES = new Set(["Subject Teacher", "Form Master", "Head of Department", "Vice Principal (Academics)", "Principal"]);
+const TEACHING_CHOICES = new Set(["Subject Teacher", "Teaching Assistant", "Cover / Substitute", "Form Master", "Head of Department", "Vice Principal (Academics)", "Principal"]);
 
 const onboardSchema = z.object({
   title: z.string().optional(),

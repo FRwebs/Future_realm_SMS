@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -63,6 +64,7 @@ export class SubmissionsService {
   }
 
   async overview(session: SessionPayload) {
+    await refuseTeaching(session, "Guardians → Submissions");
     const schoolId = session.schoolId;
     const [rows, types, term] = await Promise.all([
       prisma.guardianSubmission.findMany({ where: { schoolId }, include: { guardian: { select: { firstName: true, lastName: true } }, student: { select: { firstName: true, lastName: true, admissionNumber: true } } }, orderBy: { createdAt: "desc" } }),
