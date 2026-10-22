@@ -10,7 +10,7 @@ import { roleLabels } from "@/lib/auth/roles";
 import { dropdownItemsFor } from "@/components/layout/topbar";
 import { SessionUser } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
-import { getVisibleWorkflowNavGroups } from "@/lib/navigation/workflows";
+import { getVisibleWorkflowNavGroups, teacherRailGroups, type TeacherRail } from "@/lib/navigation/workflows";
 import { cn } from "@/lib/utils/cn";
 
 type SidebarProps = {
@@ -24,6 +24,8 @@ type SidebarProps = {
   theme?: "default" | "finance-dark" | "finance-light";
   navBadges?: Record<string, number | undefined>;
   hiddenNavIds?: string[];
+  /** The teaching workspace's rail, when the signed-in person is a teacher. */
+  teacherRail?: TeacherRail | null;
 };
 
 function normalizePath(path: string) {
@@ -59,6 +61,7 @@ function SidebarContent({
   isMobile = false,
   navBadges,
   hiddenNavIds,
+  teacherRail,
 }: {
   session: SessionUser;
   permissions?: string[];
@@ -70,6 +73,7 @@ function SidebarContent({
   isMobile?: boolean;
   navBadges?: Record<string, number | undefined>;
   hiddenNavIds?: string[];
+  teacherRail?: TeacherRail | null;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -79,12 +83,10 @@ function SidebarContent({
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const profilePath = dropdownItemsFor(session)[0]?.path ?? "/dashboard";
 
-  const visibleGroups = getVisibleWorkflowNavGroups(
-    session.role,
-    permissions,
-    portalType,
-    hiddenNavIds,
-  );
+  const visibleGroups =
+    teacherRail && portalType === "school"
+      ? teacherRailGroups(teacherRail, navBadges)
+      : getVisibleWorkflowNavGroups(session.role, permissions, portalType, hiddenNavIds);
 
   const normalizedPath = normalizePath(pathname);
 
@@ -256,7 +258,7 @@ function SidebarContent({
           <div className="grid gap-0 pb-3">
             {filteredGroups.map((group) => (
               <section key={group.title} className="grid gap-0">
-                {!collapsed && (
+                {!collapsed && group.title && (
                   <div className="px-[9px] pb-[5px] pt-[11px]">
                     <p className="text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[rgba(255,255,255,0.62)]">
                       {group.title}
@@ -303,13 +305,31 @@ function SidebarContent({
                               : "font-medium text-[rgba(255,255,255,0.72)] hover:bg-[rgba(255,255,255,0.08)] hover:text-white",
                           )}
                         >
-                          <Icon
-                            className={cn(
-                              "relative z-[1] shrink-0",
-                              collapsed ? "h-[18px] w-[18px]" : "h-[15.5px] w-[15.5px]",
-                            )}
-                            strokeWidth={1.7}
-                          />
+                          {item.iconPath ? (
+                            <svg
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth={1.7}
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              aria-hidden
+                              className={cn(
+                                "relative z-[1] shrink-0",
+                                collapsed ? "h-[18px] w-[18px]" : "h-[15.5px] w-[15.5px]",
+                              )}
+                            >
+                              <path d={item.iconPath} />
+                            </svg>
+                          ) : (
+                            <Icon
+                              className={cn(
+                                "relative z-[1] shrink-0",
+                                collapsed ? "h-[18px] w-[18px]" : "h-[15.5px] w-[15.5px]",
+                              )}
+                              strokeWidth={1.7}
+                            />
+                          )}
 
                           {!collapsed && (
                             <span className="relative z-[1] flex-1 truncate">
@@ -479,6 +499,7 @@ export function Sidebar({
   portalType = "school",
   navBadges,
   hiddenNavIds,
+  teacherRail,
 }: SidebarProps) {
   const pathname = usePathname();
 
@@ -503,6 +524,7 @@ export function Sidebar({
           portalType={portalType}
           navBadges={navBadges}
           hiddenNavIds={hiddenNavIds}
+          teacherRail={teacherRail}
         />
       </aside>
 
@@ -518,6 +540,7 @@ export function Sidebar({
             portalType={portalType}
             navBadges={navBadges}
             hiddenNavIds={hiddenNavIds}
+            teacherRail={teacherRail}
             isMobile
           />
         </aside>

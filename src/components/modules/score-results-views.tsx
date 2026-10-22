@@ -3,7 +3,11 @@ import { notFound } from "next/navigation";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { canOpenModule } from "@/lib/auth/server-access";
+import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { getServerSession } from "@/lib/auth/session";
+import { ScoreImport } from "@/components/modules/score-import";
+import { childPage, loadChild } from "@/lib/modules/live/t5-observations";
+import { scrubForTeacher } from "@/lib/modules/live/teacher-scrub";
 import { broadsheetPage, gridPage, loadBroadsheet, loadGrid, previewPage } from "@/lib/modules/live/m5-enter";
 import { armResultPage, loadArmResult, loadCorrectionOptions, loadCorrections, loadStudent, studentResultPage } from "@/lib/modules/live/m5-results";
 import { armReviewPage, loadArmReview, loadReview, loadSheet, sheetPage } from "@/lib/modules/live/m5-review";
@@ -56,7 +60,11 @@ export async function GridView({ classId, subjectId, preview }: { classId: strin
   if (!access.ok) return access.denied;
   const grid = await loadGrid(classId, subjectId).catch(() => null);
   if (!grid) notFound();
-  return <Workspace content={(preview ? previewPage(grid) : gridPage(grid)).content} />;
+  const content = (preview ? previewPage(grid) : gridPage(grid)).content;
+  // A teacher reaches the grid from their own sheets; what it links to is filtered to what a teacher holds.
+  const session = await getServerSession();
+  const teacher = session ? await getTeacherWorkspace(session.role, session.schoolId) : null;
+  return <Workspace content={teacher ? scrubForTeacher(content, { back: { label: "Back to my sheets", href: "/score-entry-results/enter" } }) : content} />;
 }
 
 export async function BroadsheetView({ classId }: { classId: string }) {
@@ -73,4 +81,25 @@ export async function ArmResultView({ classId }: { classId: string }) {
   const [arm, corrections, options] = await Promise.all([loadArmResult(classId).catch(() => null), loadCorrections(classId), loadCorrectionOptions()]);
   if (!arm) notFound();
   return <Workspace content={armResultPage(arm, corrections.rows, options).content} />;
+}
+
+/** An early-years child: what the teacher saw, in words. */
+export async function ObserveView({ studentId }: { studentId: string }) {
+  const access = await gate();
+  if (!access.ok) return access.denied;
+  const child = await loadChild(studentId).catch(() => null);
+  if (!child) notFound();
+  return <Workspace content={childPage(child)} />;
+}
+
+/** Bring a sheet's scores in from the school's Excel template. */
+export async function ScoreImportView({ classId, subjectId }: { classId: string; subjectId: string }) {
+  const access = await gate();
+  if (!access.ok) return access.denied;
+  const back = `/score-entry-results/enter/${classId}/${subjectId}`;
+  return (
+    <ModuleWorkspace eyebrow="Score Entry & Results" title="Import scores from Excel" description="Download the template, fill it in, check what would change, then import it as a draft." rows={[]} back={{ label: "Back to the sheet", href: back }}>
+      <ScoreImport classId={classId} subjectId={subjectId} back={back} />
+    </ModuleWorkspace>
+  );
 }

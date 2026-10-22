@@ -343,7 +343,7 @@ async function TierMatrixTab() {
           { requirement: "Removing a feature in active use requires a migration plan", spec: "Enforced — the save counts the schools on the tiers losing access and refuses without a written migration plan; those schools are then told in the app.", state: "good" },
           { requirement: "Adding a feature needs a logged reason", spec: "Enforced — a reason is required on every change. Access takes effect immediately for every school on the tier; there is no renewal-timing option.", state: "warn" },
           { requirement: "A new feature must exist in a registry first", spec: "Enforced — only registry features can be given a row. The registry is part of the product, so a feature is added to it when the product can honour it.", state: "good" },
-          { requirement: "The product reads the matrix", spec: "Partial — custom branding is checked against it when a school's branding is submitted or applied. The other registry features are catalogue only until the product has something to gate (marked below).", state: "warn" }
+          { requirement: "The product reads the matrix", spec: "Yes — every registry feature is read where the product uses it: branding on submit/apply, WhatsApp at send and top-up, Early warning, API keys on every call, and the account manager card. Each row below says where.", state: "ok" }
         ]}
         getRowKey={(row) => row.requirement}
         columns={[

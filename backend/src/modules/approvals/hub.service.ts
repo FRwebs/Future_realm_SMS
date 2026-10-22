@@ -1,4 +1,5 @@
 import { OnboardingService } from "../onboarding/onboarding.service";
+import { teachingScope } from "../../common/teaching-scope";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { AuditAction, ApprovalStatus } from "@prisma/client";
 import { z } from "zod";
@@ -70,8 +71,13 @@ export class HubService {
 
   /* ───────────────────────── what a person may decide ───────────────────────── */
 
-  private canDecide(session: SessionPayload, item: Item, route: Route): boolean {
+  private canDecide(session: SessionPayload, item: Item, route: Route, dept: { sheets: Set<string>; users: Set<string> } | null = null): boolean {
     if (item.requester?.id === session.userId) return false;
+    // A head of department decides what their own department submits: its score sheets, and the first stage of its staff's leave.
+    if (dept) {
+      if (item.type === "SCORE_SHEET" && item.ref.classId && item.ref.subjectId && dept.sheets.has(`${item.ref.classId}:${item.ref.subjectId}`)) return true;
+      if (item.type === "LEAVE" && item.step === 1 && item.requester && dept.users.has(item.requester.id)) return true;
+    }
     if (item.source === "NATIVE") {
       if (item.nativeAssigneeId) return item.nativeAssigneeId === session.userId || OWNERS.has(session.role);
       if (item.nativeAssigneeRole === session.role) return true;
@@ -82,6 +88,8 @@ export class HubService {
   private async frame(session: SessionPayload) {
     const [routes, pending] = await Promise.all([loadRoutes(session.schoolId), loadPending(session.schoolId)]);
     const byType = new Map(routes.map((route) => [route.type, route]));
+    const scope = await teachingScope(session);
+    const dept = scope?.departmentId ? { sheets: scope.department, users: new Set((await prisma.staffProfile.findMany({ where: { schoolId: session.schoolId, departmentId: scope.departmentId }, select: { userId: true } })).map((row) => row.userId)) } : null;
     const keys = pending.map((item) => item.key);
     const escalated = new Set((await prisma.approvalMessage.findMany({ where: { schoolId: session.schoolId, itemKey: { in: keys }, kind: "SYSTEM", body: { startsWith: "Escalated" } }, select: { itemKey: true } })).map((row) => row.itemKey));
     const now = Date.now();
@@ -95,11 +103,11 @@ export class HubService {
         escalatesIn: Math.ceil((dueAt - now) / DAY),
         overdue: dueAt < now,
         escalated: escalated.has(item.key),
-        mine: this.canDecide(session, item, route),
+        mine: this.canDecide(session, item, route, dept),
         raisedByMe: item.requester?.id === session.userId,
       };
     });
-    return { routes, byType, views };
+    return { routes, byType, views, dept };
   }
 
   private present(view: Awaited<ReturnType<HubService["frame"]>>["views"][number]) {
@@ -151,6 +159,7 @@ export class HubService {
     const { routes, views } = await this.frame(session);
     await this.sweep(session, views);
     const canSeeAll = OVERSIGHT.has(session.role);
+    const teachingRole = (await teachingScope(session)) !== null;
     const mine = views.filter((view) => view.mine).sort((a, b) => Number(b.overdue) - Number(a.overdue) || b.age - a.age);
     const raised = views.filter((view) => view.raisedByMe);
     const decided = await loadDecided(session.schoolId, await this.sessionStart(session.schoolId));
@@ -173,7 +182,7 @@ export class HubService {
         oldest: oldest ? { days: oldest.age, type: typeName(oldest.item.type), title: oldest.item.title } : null,
         blocked: { items: blocking.length, text: blocking.slice(0, 3).map((view) => view.item.blocking).join(" · ") },
         decided: { count: decided.length, avgDays: avg === null ? null : Math.round(avg * 10) / 10 },
-        inFlight: views.length,
+        inFlight: teachingRole ? mine.length + raised.length : views.length,
       },
       featured: first && context ? { ...this.present(first), facts: context.request } : null,
       waiting: mine.map((view) => this.present(view)),
@@ -254,11 +263,11 @@ export class HubService {
   async decide(session: SessionPayload, key: string, body: unknown) {
     const input = decideSchema.parse(body);
     const { source, id } = parseKey(key);
-    const { byType, views } = await this.frame(session);
+    const { byType, views, dept } = await this.frame(session);
     const view = views.find((entry) => entry.item.key === key);
     if (!view) throw new BadRequestException("That decision is no longer waiting — somebody else has already decided it.");
     const route = byType.get(view.item.type) as Route;
-    if (!this.canDecide(session, view.item, route)) {
+    if (!this.canDecide(session, view.item, route, dept)) {
       if (view.item.requester?.id === session.userId) throw new ForbiddenException("You raised this yourself, so someone else must decide it.");
       throw new ForbiddenException(`This sits with the ${view.item.step === 2 && route.second ? route.second : route.approver}, not with you.`);
     }

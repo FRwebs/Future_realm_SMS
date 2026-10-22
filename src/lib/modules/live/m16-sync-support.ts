@@ -108,6 +108,15 @@ export function supportTab(o: SupportOverview): TabContent {
       acts: [{ label: "Check this device", href: "/sync-support/sync" }, ...(o.status.ok ? [] : [{ label: "Raise a ticket", drawer: raiseTicketDrawer({ category: "TECHNICAL_BUG", subject: "The system is not answering" }) }])],
     }],
   });
+  const manager = o.accountManager;
+  if (manager && manager.state !== "not-in-plan") {
+    rows.push({
+      cols: "1fr",
+      panels: [manager.state === "assigned"
+        ? { type: "facts", title: "Your dedicated account manager", sub: "Part of your plan: a named person at Future Realm who knows your school.", per: 3, facts: [["Name", manager.name ?? "", ""], ["Email", manager.email ?? "", "Reaches them directly"], ["Phone", manager.phone ?? "Not given", ""]] }
+        : { type: "note", tone: "neutral", icon: CHECK, title: "Your plan includes a dedicated account manager", body: "None has been named for this school yet. Raise a ticket and ask for yours to be assigned." }],
+    });
+  }
   rows.push({
     cols: "1fr",
     panels: [{

@@ -522,6 +522,15 @@ export function QuotesPanelView({ panel, openDrawer }: { panel: QuotesPanel; ope
                   {quote.emptyText}
                 </p>
               )}
+              {quote.photos?.length ? (
+                <div className="mt-[9px] flex flex-wrap gap-[8px]">
+                  {quote.photos.map((src, index) => (
+                    <a key={src} href={src} target="_blank" rel="noreferrer" title="Open the photograph">
+                      <img src={src} alt={`Photograph ${index + 1} for ${quote.label}`} className="h-[72px] w-[96px] rounded-[9px] border object-cover" style={{ borderColor: "#E4EDE8" }} loading="lazy" />
+                    </a>
+                  ))}
+                </div>
+              ) : null}
               {quote.act && quote.trigger?.drawer ? (
                 <button type="button" onClick={() => openDrawer(quote.trigger!.drawer!)} className="mt-[9px] rounded-[8px] bg-[#0D2315] px-[12px] py-[6px] text-[11px] font-semibold text-white">
                   {quote.act}

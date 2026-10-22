@@ -1,8 +1,10 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { TEACHING_ROLES } from "../../common/teaching-scope";
 import { PlatformTicketCategory, PlatformTicketPriority } from "@prisma/client";
 import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { plansFeatures } from "../plans-features/plans-features.service";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { supportDesk } from "../support-desk/support-desk.service";
 import { platformIdentity } from "../../../../src/lib/platform-identity";
@@ -44,8 +46,10 @@ export class SupportService {
   }
 
   async tickets(session: SessionPayload) {
+    // A teaching person sees the tickets they raised themselves — not everything the school has asked of support.
+    const own = TEACHING_ROLES.has(session.role);
     const rows = await prisma.supportTicket.findMany({
-      where: { schoolId: session.schoolId },
+      where: { schoolId: session.schoolId, ...(own ? { createdById: session.userId } : {}) },
       include: {
         // Internal notes are support's own working-out. They are excluded at
         // the query rather than filtered afterwards, so a change to the shape
@@ -171,6 +175,10 @@ export class SupportService {
       prisma.ticketCsatResponse.aggregate({ where: { ticket: { schoolId: session.schoolId } }, _avg: { score: true }, _count: { _all: true } }),
       this.tickets(session),
     ]);
+    // A dedicated account manager is part of some plans only. Without the entitlement the school is not told of one.
+    const entitled = await plansFeatures.entitled(session.schoolId, "support.account_manager");
+    const school = await prisma.school.findUnique({ where: { id: session.schoolId }, select: { accountManager: { select: { firstName: true, lastName: true, email: true, phone: true } } } });
+    const manager = school?.accountManager ?? null;
     const mine = String(session.role);
     const target = (roleTarget: string | null) => !roleTarget || roleTarget.split(/[,;|]/).map((value) => value.trim().toUpperCase().replace(/\s+/g, "_")).includes(mine);
     return {
@@ -180,6 +188,9 @@ export class SupportService {
       tickets,
       responseTarget: "4 working hours",
       contact: { platformName: platformIdentity().platformName, email: platformIdentity().supportEmail, phone: platformIdentity().supportPhone },
+      accountManager: entitled.allowed
+        ? manager ? { state: "assigned", name: `${manager.firstName} ${manager.lastName}`, email: manager.email, phone: manager.phone ?? null } : { state: "unassigned", name: null, email: null, phone: null }
+        : { state: "not-in-plan", name: null, email: null, phone: null, why: entitled.why },
     };
   }
 }

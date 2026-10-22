@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { ResultWorkflowStatus } from "@prisma/client";
 import { endOfDay, startOfDay } from "date-fns";
 
@@ -58,6 +59,8 @@ export class CommandCenterService {
   }
 
   async today(session: SessionPayload): Promise<CommandCenterToday> {
+    // The school's money, roll and audit feed are not a teacher's day. Theirs is read from My Day.
+    await refuseTeaching(session, "My Day");
     const schoolId = session.schoolId;
     const now = new Date();
     const dayStart = startOfDay(now);

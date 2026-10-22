@@ -6,7 +6,7 @@ import { ModuleTabs } from "@/components/modules/module-tabs";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getTabContent } from "@/lib/modules/content";
 import { getLiveTabContent } from "@/lib/modules/live";
-import { withKpiTitles } from "@/lib/modules/kpi-titles";
+import { teacherKpiTitle, withKpiTitles } from "@/lib/modules/kpi-titles";
 import { canOpenModule, getServerPermissions } from "@/lib/auth/server-access";
 import { isSchoolStaffRole } from "@/lib/modules/school-access";
 import {
@@ -16,6 +16,8 @@ import {
   schoolPermissionKey,
 } from "@/lib/modules/school-modules";
 import { getServerSession } from "@/lib/auth/session";
+import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
+import { orderTeacherTabs, teacherModuleByCode, teacherModuleDescription, teacherModuleLabel } from "@/lib/modules/teacher-workspace";
 
 type PageProps = { params: Promise<{ module: string; tab: string }>; searchParams?: Promise<Record<string, string | string[] | undefined>> };
 
@@ -67,18 +69,32 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
     (await getLiveTabContent(module.code, tab.slug, query)) ?? getTabContent(module.code, tab.slug);
 
   // The tabs of this module they can open — one they cannot is absent from the strip.
-  const visibleTabSlugs = module.tabs.filter((moduleTab) => canViewTab(moduleTab.slug)).map((moduleTab) => moduleTab.slug);
+  let visibleTabSlugs = module.tabs.filter((moduleTab) => canViewTab(moduleTab.slug)).map((moduleTab) => moduleTab.slug);
+
+  // A teacher meets the same module in their own words and their own order of tabs.
+  const teacher = await getTeacherWorkspace(session.role, session.schoolId);
+  const teaching = teacher && teacherModuleByCode[module.code] ? teacher : null;
+  if (teaching) visibleTabSlugs = orderTeacherTabs(module.code, visibleTabSlugs);
+  const moduleName = teaching ? (teacherModuleLabel(module.code, teaching.persona) ?? module.name) : module.name;
+  const tabLabels: Record<string, string> | undefined = teaching && module.code === "m8" ? { registry: "My students" } : undefined;
 
   return (
     <ModuleWorkspace
-      eyebrow={module.name}
-      title={content?.title ?? tab.label}
-      description={content?.desc ?? module.description}
+      eyebrow={moduleName}
+      title={content?.title ?? tabLabels?.[tab.slug] ?? tab.label}
+      description={content?.desc ?? (teaching ? teacherModuleDescription(module.code, teaching.persona) : undefined) ?? module.description}
       primary={content?.primary}
       launchers={content?.launchers}
       rows={
         content?.rows
-          ? withKpiTitles(content.rows, module.code, tab.label)
+          ? withKpiTitles(
+              content.rows,
+              module.code,
+              tab.label,
+              teacher
+                ? (code, label) => teacherKpiTitle(code, label, { earlyYears: teacher.persona === "early-years", arm: teacher.formArms.length === 1 ? teacher.formArms[0]!.name : teacher.formArms.length ? null : teacher.assistantArms[0]?.name ?? null, department: teacher.department?.name ?? null })
+                : undefined,
+            )
           : [
               {
                 cols: "1fr",
@@ -94,7 +110,7 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
             ]
       }
     >
-      <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} />
+      <ModuleTabs module={module} visibleTabSlugs={visibleTabSlugs} labels={tabLabels} name={moduleName} />
     </ModuleWorkspace>
   );
 }

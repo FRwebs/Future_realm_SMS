@@ -41,7 +41,7 @@ export type Plan = {
   gateway: "test" | "live";
 };
 
-export type ChannelRow = { key: string; name: string; paid: boolean; rate: number; base: number; topped: number; used: number; balance: number; note: string; sendsCovered?: number };
+export type ChannelRow = { key: string; name: string; paid: boolean; rate: number; base: number; topped: number; used: number; balance: number; note: string; sendsCovered?: number; entitled?: boolean; why?: string };
 
 export type Credits = {
   configured: boolean;

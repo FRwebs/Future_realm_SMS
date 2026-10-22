@@ -2021,11 +2021,14 @@ const activityTab: TabContent = {
   ],
 };
 
+import { learningContent } from "@/lib/modules/content/teaching-workspace";
+
 export const staffAccessContent: ModuleContent = {
   directory: directoryTab,
   permissions: permissionsTab,
   payroll: payrollTab,
   leave: leaveTab,
   appraisal: appraisalTab,
+  learning: learningContent,
   activity: activityTab,
 };

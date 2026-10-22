@@ -47,6 +47,8 @@ enum UserRole {
   HEAD_OF_DEPARTMENT
   CLASS_TEACHER
   SUBJECT_TEACHER
+  TEACHING_ASSISTANT
+  COVER_TEACHER
   BURSAR
   ACCOUNTANT
   ACCOUNT_OFFICER
@@ -887,6 +889,16 @@ model School {
   guardianContacts              GuardianContact[]
   cashUpDays                    CashUpDay[]
   attendanceRegisters           AttendanceRegister[]
+  periodRegisters               PeriodRegister[]
+  safeguardingConcerns          SafeguardingConcern[]
+  staffAbsences                 StaffAbsence[]
+  coverAssignments              CoverAssignment[]
+  trainingCourses               TrainingCourse[]
+  trainingEnrolments            TrainingEnrolment[]
+  trainingCertificates          TrainingCertificate[]
+  trainingSuggestions           TrainingSuggestion[]
+  childObservations             ChildObservation[]
+  learningSupportPlans          LearningSupportPlan[]
   attendanceCorrections         AttendanceCorrection[]
   attendanceCases               AttendanceCase[]
   scoreSheets                   ScoreSheet[]
@@ -1418,6 +1430,9 @@ model ProfileDocument {
   sizeBytes          Int?
   verificationStatus String    @default("PENDING")
   notes              String?
+  /// Who issued it, and when it lapses — so a renewal can be asked for before it does.
+  issuedBy           String?
+  expiresOn          DateTime?
   uploadedById       String?
   deletedAt          DateTime?
   createdAt          DateTime  @default(now())
@@ -2281,25 +2296,25 @@ model SubjectTeacherHistory {
 }
 
 model GradingScheme {
-  id                String        @id @default(cuid())
-  schoolId          String
-  academicSessionId String?
-  name              String
-  description       String?
-  isActive          Boolean       @default(false)
-  rankingEnabled    Boolean       @default(true)
-  passMark          Float         @default(40)
+  id                 String        @id @default(cuid())
+  schoolId           String
+  academicSessionId  String?
+  name               String
+  description        String?
+  isActive           Boolean       @default(false)
+  rankingEnabled     Boolean       @default(true)
+  passMark           Float         @default(40)
   /// How a session score is worked out from its terms: NONE (each term stands alone), MEAN, FINAL_TERM or WEIGHTED.
-  sessionAggregation String       @default("NONE")
+  sessionAggregation String        @default("NONE")
   /// For WEIGHTED: one weight per term in order, totalling 100.
-  termWeights        Int[]        @default([])
+  termWeights        Int[]         @default([])
   /// Whether a report card shows the running session average beside the term's own.
-  cumulativeDisplay  Boolean      @default(false)
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
-  school            School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  bands             GradeBand[]
-  resultSheets      ResultSheet[]
+  cumulativeDisplay  Boolean       @default(false)
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+  school             School        @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  bands              GradeBand[]
+  resultSheets       ResultSheet[]
 
   @@unique([schoolId, name])
   @@index([schoolId, isActive])
@@ -3953,6 +3968,14 @@ model LessonPlan {
   approvedAt        DateTime?
   rejectedAt        DateTime?
   reviewNote        String?
+  /// The arms this one note serves — a note is written once per topic and applies to every arm that takes it.
+  classIds          String[]         @default([])
+  /// The sections of the note as the teacher wrote them: { obj, prior, content, act, res, eval, asg } (or the early-years set).
+  sections          Json?
+  /// The section the reviewer asked to be changed, when a note is returned.
+  returnedSection   String?
+  /// What the teacher said they changed, when they resubmit.
+  resubmitReply     String?
   deletedAt         DateTime?
   createdAt         DateTime         @default(now())
   updatedAt         DateTime         @updatedAt
@@ -5332,13 +5355,18 @@ model KnowledgeBaseArticle {
 }
 
 model ApiKey {
-  id        String    @id @default(cuid())
-  schoolId  String?
-  name      String
-  keyHash   String
-  scope     Json
-  revokedAt DateTime?
-  createdAt DateTime  @default(now())
+  id          String    @id @default(cuid())
+  schoolId    String?
+  name        String
+  keyHash     String
+  scope       Json
+  /// The first characters of the key, so a person can tell keys apart without ever seeing the secret again.
+  prefix      String?
+  createdById String?
+  lastUsedAt  DateTime?
+  calls       Int       @default(0)
+  revokedAt   DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([schoolId, revokedAt])
 }
@@ -5493,6 +5521,8 @@ model StaffAppraisal {
   staffComment    String?
   sharedAt        DateTime?
   acknowledgedAt  DateTime?
+  /// When the appraisee submitted their own self-assessment. Until then the reviewer cannot read it.
+  selfSubmittedAt DateTime?
   createdAt       DateTime               @default(now())
   updatedAt       DateTime               @updatedAt
   school          School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -5750,38 +5780,38 @@ model GuardianContact {
 
 /// How this school is billed: its tier, what it expects to pay, and how it wants to be told. Rows are made when the school first changes something; until then the tier is read from the school's plan.
 model SchoolSubscription {
-  id             String    @id @default(cuid())
+  id                 String    @id @default(cuid())
   /// A price this school keeps until the date, whatever the plan's price becomes meanwhile.
-  lockedMonthlyPrice Decimal? @db.Decimal(12, 2)
+  lockedMonthlyPrice Decimal?  @db.Decimal(12, 2)
   priceLockedUntil   DateTime?
   priceLockReason    String?
-  schoolId       String    @unique
-  tier           String    @default("STANDARD")
-  ratePerStudent Decimal?  @db.Decimal(12, 2)
-  baseSms        Int?
-  baseWhatsapp   Int?
-  autoRenew      Boolean   @default(false)
-  remindDays     Int       @default(14)
-  invoiceTo      String?
-  receiptEmail   String?
-  pendingTier    String?
-  pendingFrom    DateTime?
-  switchReason   String?
-  keepCredits    Boolean   @default(true)
-  autoTopup      Json?
-  warnAt         Int       @default(2000)
-  warnWho        String    @default("The Bursar")
-  billingContact String?
-  billingEmail   String?
-  schoolContact  String?
-  productOnly    Boolean   @default(true)
-  dpoName        String?
-  dpoEmail       String?
-  hosting        String?
-  retentionDays  Int?
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
-  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  schoolId           String    @unique
+  tier               String    @default("STANDARD")
+  ratePerStudent     Decimal?  @db.Decimal(12, 2)
+  baseSms            Int?
+  baseWhatsapp       Int?
+  autoRenew          Boolean   @default(false)
+  remindDays         Int       @default(14)
+  invoiceTo          String?
+  receiptEmail       String?
+  pendingTier        String?
+  pendingFrom        DateTime?
+  switchReason       String?
+  keepCredits        Boolean   @default(true)
+  autoTopup          Json?
+  warnAt             Int       @default(2000)
+  warnWho            String    @default("The Bursar")
+  billingContact     String?
+  billingEmail       String?
+  schoolContact      String?
+  productOnly        Boolean   @default(true)
+  dpoName            String?
+  dpoEmail           String?
+  hosting            String?
+  retentionDays      Int?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  school             School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 }
 
 /// Every credit that came onto, or went off, the messaging wallet — so a balance can be explained.
@@ -6429,19 +6459,19 @@ model PageLoadSample {
 
 /// One run of the result computation for an arm: how many students and scores it read, how long it took, and whether it re-ran over results already published.
 model ComputationRun {
-  id         String   @id @default(cuid())
+  id           String   @id @default(cuid())
   /// How many results this run could trace back to recorded component scores, out of how many it checked.
   traceChecked Int?
   traceMatched Int?
-  schoolId   String
-  classId    String
-  termId     String
-  students   Int
-  records    Int
-  durationMs Int
-  recompute  Boolean  @default(false)
-  reason     String?
-  createdAt  DateTime @default(now())
+  schoolId     String
+  classId      String
+  termId       String
+  students     Int
+  records      Int
+  durationMs   Int
+  recompute    Boolean  @default(false)
+  reason       String?
+  createdAt    DateTime @default(now())
 
   @@index([schoolId, createdAt])
   @@index([createdAt])
@@ -6695,7 +6725,6 @@ model InternalProfile {
   updatedAt        DateTime @updatedAt
 }
 
-
 /// Something about a Back Office account's behaviour that a person should look at: out-of-hours access, an unfamiliar device, a large export, two places at once.
 model InternalAnomaly {
   id           String    @id @default(cuid())
@@ -6844,22 +6873,22 @@ model FeatureRequestLog {
 /// A rule the platform follows without anyone pressing a button: when this happens, tell these people, on these channels, in these words.
 /// A new rule is created disabled and only starts sending once somebody deliberately enables it.
 model TriggerRule {
-  id          String    @id @default(cuid())
+  id          String            @id @default(cuid())
   /// INVOICE_OVERDUE, INVOICE_DUE_SOON or SCHOOL_INACTIVE.
   event       String
   /// The condition's number of days.
   days        Int
   /// Limits the rule to one plan; null means every plan.
   plan        String?
-  recipients  String[]  @default([])
-  channels    String[]  @default([])
+  recipients  String[]          @default([])
+  channels    String[]          @default([])
   templateId  String?
   /// The hour of the day, in the platform's time zone, from which it may send.
-  sendHour    Int       @default(9)
+  sendHour    Int               @default(9)
   groupName   String
-  enabled     Boolean   @default(false)
+  enabled     Boolean           @default(false)
   createdById String
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime          @default(now())
   enabledAt   DateTime?
   lastFiredAt DateTime?
   fires       TriggerRuleFire[]
@@ -6869,14 +6898,14 @@ model TriggerRule {
 
 /// One firing of a rule at one invoice or school — also what stops it firing twice for the same thing.
 model TriggerRuleFire {
-  id        String      @id @default(cuid())
-  ruleId    String
-  rule      TriggerRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  entityId  String
-  schoolId  String
-  sent      Int         @default(0)
-  summary   String
-  firedAt   DateTime    @default(now())
+  id       String      @id @default(cuid())
+  ruleId   String
+  rule     TriggerRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  entityId String
+  schoolId String
+  sent     Int         @default(0)
+  summary  String
+  firedAt  DateTime    @default(now())
 
   @@unique([ruleId, entityId])
   @@index([firedAt])
@@ -6885,20 +6914,20 @@ model TriggerRuleFire {
 /// A person at a partner who signs in to the partner portal. Separate from school and platform accounts: it can only ever see the
 /// schools the partner brought, never student, staff or guardian data, and never what a school pays.
 model PartnerAccount {
-  id               String    @id @default(cuid())
-  partnerId        String
-  partner          Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
-  email            String    @unique
-  name             String
-  isPrimary        Boolean   @default(true)
-  passwordHash     String?
+  id              String    @id @default(cuid())
+  partnerId       String
+  partner         Partner   @relation(fields: [partnerId], references: [id], onDelete: Cascade)
+  email           String    @unique
+  name            String
+  isPrimary       Boolean   @default(true)
+  passwordHash    String?
   /// Only the hash of the single-use link is kept; the link itself goes by email and is valid for 48 hours.
-  inviteHash       String?
-  inviteExpiresAt  DateTime?
-  invitedAt        DateTime?
-  lastLoginAt      DateTime?
-  isActive         Boolean   @default(true)
-  createdAt        DateTime  @default(now())
+  inviteHash      String?
+  inviteExpiresAt DateTime?
+  invitedAt       DateTime?
+  lastLoginAt     DateTime?
+  isActive        Boolean   @default(true)
+  createdAt       DateTime  @default(now())
 
   @@index([partnerId])
 }
@@ -6949,4 +6978,275 @@ model ClassTemplateAssignment {
 
   @@index([schoolId])
   @@index([templateId])
+}
+
+/// A register taken for one period by the teacher who teaches it. Subordinate to the daily register: a child the daily register
+/// has absent is already absent here, and a period register never overwrites the daily figure — it only adds what the period saw.
+model PeriodRegister {
+  id           String    @id @default(cuid())
+  schoolId     String
+  classId      String
+  subjectId    String
+  termId       String
+  date         DateTime
+  periodNumber Int
+  /// DRAFT while the teacher is still working; SUBMITTED once written to the day.
+  status       String    @default("SUBMITTED")
+  /// Marks entered but not submitted: { studentId: { status, reason } }.
+  draft        Json?
+  markedById   String
+  startedAt    DateTime  @default(now())
+  submittedAt  DateTime?
+  roll         Int       @default(0)
+  /// Marked before the period ended.
+  inPeriod     Boolean   @default(true)
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, date, periodNumber])
+  @@index([schoolId, markedById, date])
+  @@index([schoolId, termId, subjectId])
+}
+
+/// A worry about a child, raised by any member of staff. It goes to the school's safeguarding lead and to nobody else: it is never
+/// on the child's record a teacher reads, and the lead's reading of it is on a separate audit stream.
+model SafeguardingConcern {
+  id           String    @id @default(cuid())
+  schoolId     String
+  studentId    String
+  raisedById   String
+  /// What was seen or said, in the words of the person who raised it.
+  summary      String
+  /// Whether anyone is in immediate danger.
+  urgent       Boolean   @default(false)
+  status       String    @default("OPEN")
+  leadId       String?
+  decisionNote String?
+  decidedAt    DateTime?
+  createdAt    DateTime  @default(now())
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, status, createdAt])
+  @@index([schoolId, studentId])
+}
+
+/// A day a staff member told the school they would not be in. What they hold is listed for cover until someone is named.
+model StaffAbsence {
+  id         String   @id @default(cuid())
+  schoolId   String
+  userId     String
+  day        DateTime @db.Date
+  reason     String
+  reportedAt DateTime @default(now())
+  school     School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, day])
+  @@index([schoolId, day])
+}
+
+/// Someone holding a colleague's class for a stated period. An end date is mandatory: cover is time-boxed by rule, and it
+/// stops granting access the day it ends without anyone remembering to take it away.
+model CoverAssignment {
+  id          String    @id @default(cuid())
+  schoolId    String
+  coverUserId String
+  /// Who is being covered, when it is one named person.
+  ownerUserId String?
+  classId     String
+  /// The subject covered; empty means the arm's daily register and its form class work.
+  subjectId   String?
+  /// REGISTER_AND_SCORES, or REGISTER only.
+  scope       String    @default("REGISTER_AND_SCORES")
+  startsOn    DateTime  @db.Date
+  endsOn      DateTime  @db.Date
+  reason      String?
+  createdById String?
+  endedAt     DateTime?
+  createdAt   DateTime  @default(now())
+  school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, coverUserId, endsOn])
+  @@index([schoolId, classId])
+}
+
+/// A self-paced course: lessons with a question each, ending in a certificate the school recognises.
+model TrainingCourse {
+  id              String              @id @default(cuid())
+  schoolId        String
+  title           String
+  summary         String?
+  /// The catalogue section it sits under.
+  section         String              @default("School courses")
+  provider        String
+  hours           Float
+  format          String              @default("Self-paced")
+  certificateName String
+  /// Months a certificate stays valid; empty means it does not expire.
+  validMonths     Int?
+  /// A pathway level this course counts towards, e.g. "Foundation".
+  pathway         String?
+  outcomes        String[]            @default([])
+  task            String?
+  /// Who it fits: persona slugs, or empty for everyone.
+  personas        String[]            @default([])
+  /// Subject words a teacher's own subjects are matched against.
+  subjects        String[]            @default([])
+  /// Personas who must finish it, and by when.
+  requiredFor     String[]            @default([])
+  requiredBy      DateTime?
+  requiredNote    String?
+  publishedAt     DateTime?
+  archivedAt      DateTime?
+  createdById     String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  school          School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  lessons         TrainingLesson[]
+  enrolments      TrainingEnrolment[]
+
+  @@index([schoolId, archivedAt])
+}
+
+model TrainingLesson {
+  id           String         @id @default(cuid())
+  courseId     String
+  position     Int
+  title        String
+  minutes      Int            @default(10)
+  body         String
+  question     String
+  options      String[]
+  correctIndex Int
+  explanation  String?
+  course       TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, position])
+}
+
+model TrainingEnrolment {
+  id               String         @id @default(cuid())
+  schoolId         String
+  courseId         String
+  userId           String
+  completedLessons Int[]          @default([])
+  startedAt        DateTime       @default(now())
+  completedAt      DateTime?
+  school           School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  course           TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([schoolId, userId])
+}
+
+/// Earned on finishing a course, or brought from elsewhere and verified by the office. It stays the person's.
+model TrainingCertificate {
+  id           String    @id @default(cuid())
+  schoolId     String
+  userId       String
+  courseId     String?
+  name         String
+  issuedBy     String
+  issuedAt     DateTime
+  expiresAt    DateTime?
+  hours        Float     @default(0)
+  /// Anyone can check a certificate against this.
+  code         String    @unique
+  /// VALID, PENDING (waiting for the office to verify) or REJECTED.
+  state        String    @default("VALID")
+  external     Boolean   @default(false)
+  evidence     String?
+  note         String?
+  verifiedById String?
+  verifiedAt   DateTime?
+  createdAt    DateTime  @default(now())
+  school       School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, userId])
+}
+
+model TrainingSuggestion {
+  id        String   @id @default(cuid())
+  schoolId  String
+  userId    String
+  topic     String
+  why       String?
+  createdAt DateTime @default(now())
+  school    School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, createdAt])
+}
+
+/// What an early-years teacher saw a child do — described in words against the school's own learning areas, never scored.
+model ChildObservation {
+  id           String   @id @default(cuid())
+  schoolId     String
+  studentId    String
+  classId      String
+  termId       String
+  /// 1 or 2: the half-term it counts towards.
+  halfTerm     Int
+  /// { "Literacy": "Developing", ... } — only the areas seen this time.
+  areas        Json
+  note         String?
+  /// Photographs the teacher attached, each shrunk in the browser and kept on the record as a data address — nothing depends on a file store.
+  photos       String[] @default([])
+  observedById String
+  observedAt   DateTime @default(now())
+  school       School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, classId, termId])
+  @@index([studentId, termId])
+}
+
+/// What a child's teachers must do to help them learn. The strategies are shared with every teacher of the child; the background
+/// behind them is held only by the people who write the plan and never travels with it.
+model LearningSupportPlan {
+  id               String    @id @default(cuid())
+  schoolId         String
+  studentId        String
+  /// [{ area, strategy }] — "Seating", "Front of the room, away from the window".
+  strategies       Json
+  /// The reasons and any diagnosis. Never shown to a teacher.
+  confidentialNote String?
+  reviewedOn       DateTime  @db.Date
+  nextReviewOn     DateTime  @db.Date
+  /// ACTIVE, or ENDED when the child no longer needs one.
+  status           String    @default("ACTIVE")
+  authorId         String
+  endedAt          DateTime?
+  endedReason      String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+  school           School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@index([schoolId, studentId, status])
+  @@index([schoolId, nextReviewOn])
+}
+
+/// One subject's outline for one stage and term, from a published curriculum (NERDC, say) — loaded by the platform for every school, or by a
+/// school for its own. A teacher fills a scheme of work from it; nothing is copied until they choose to.
+model CurriculumCatalogueEntry {
+  id           String   @id @default(cuid())
+  /// Null for the platform's catalogue, offered to every school.
+  schoolId     String?
+  /// "platform" or the school's id — so one scope cannot hold two entries for the same subject, stage and term.
+  scopeKey     String
+  curriculum   String
+  subject      String
+  stage        String
+  /// 1, 2 or 3.
+  term         Int
+  source       String?
+  book         String?
+  /// [{ week, topic, subtopics: string[], assessment }]
+  topics       Json
+  version      String   @default("1")
+  importedById String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@unique([scopeKey, curriculum, subject, stage, term])
+  @@index([scopeKey])
+  @@index([subject, stage])
 }

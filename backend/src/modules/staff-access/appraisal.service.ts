@@ -277,6 +277,78 @@ export class AppraisalService {
 
   /* ───────────────────────── one appraisal ───────────────────────── */
 
+  /* ───────────────────────── a person's own appraisal ───────────────────────── */
+
+  /** The signed-in person's own appraisal for the current cycle: what they are measured on, where it stands, and what they have said. */
+  async mine(session: SessionPayload) {
+    const schoolId = session.schoolId;
+    const profile = await prisma.staffProfile.findUnique({ where: { userId: session.userId }, include: { user: true } });
+    if (!profile) throw new NotFoundException("This account has no staff record, so there is no appraisal.");
+    const cycle = await this.cycleName(schoolId);
+    const setName = kpiSetFor(templateName(profile.user.role));
+    const [appraisal, published, previous, set] = await Promise.all([
+      prisma.staffAppraisal.findUnique({ where: { staffId_cycle: { staffId: profile.id, cycle: cycle.name } }, include: { ratings: true, reviewer: { select: { firstName: true, lastName: true, jobTitle: true } } } }),
+      store(schoolId, "appraisal-cycles").get<{ publishedAt: string; publishedBy: string; deadline: string | null }>(cycle.name),
+      prisma.staffAppraisal.findFirst({ where: { staffId: profile.id, cycle: { not: cycle.name }, status: { in: ["SHARED", "ACKNOWLEDGED"] } }, orderBy: { sharedAt: "desc" }, select: { cycle: true, overallScore: true } }),
+      this.set(schoolId, setName)
+    ]);
+    const byName = new Map((appraisal?.ratings ?? []).map((rating) => [rating.criterion, rating]));
+    const kpis = set.kpis.map((kpi) => {
+      const rating = byName.get(kpi.name);
+      const automatic = isAutomaticSource(kpi.source);
+      return { name: kpi.name, measure: kpi.measure, source: kpi.source, weight: kpi.weight, target: kpi.target, automatic, auto: rating?.autoScore ?? null, self: rating?.selfScore ?? null, evidence: rating?.evidence ?? null, reviewer: appraisal?.status === "DRAFT" ? null : rating && rating.score > 0 ? rating.score : null, comment: appraisal?.status === "DRAFT" ? null : rating?.comment ?? null };
+    });
+    const shared = appraisal?.status === "SHARED" || appraisal?.status === "ACKNOWLEDGED";
+    return {
+      cycle: cycle.name, published: Boolean(appraisal), publishedAt: published?.data.publishedAt ?? null, publishedBy: published?.data.publishedBy ?? null, deadline: published?.data.deadline ?? null,
+      set: setName, id: appraisal?.id ?? null, status: appraisal?.status ?? null, selfSubmittedAt: appraisal?.selfSubmittedAt?.toISOString() ?? null,
+      reviewer: appraisal ? { name: fullName(appraisal.reviewer), title: appraisal.reviewer.jobTitle ?? null } : null,
+      shared, overall: shared ? appraisal?.overallScore ?? null : null, strengths: shared ? appraisal?.strengths ?? null : null, improvements: shared ? appraisal?.improvements ?? null : null,
+      reviewerComment: shared ? appraisal?.reviewerComment ?? null : null, staffComment: appraisal?.staffComment ?? null, sharedAt: appraisal?.sharedAt?.toISOString() ?? null, acknowledgedAt: appraisal?.acknowledgedAt?.toISOString() ?? null,
+      previous: previous ? { cycle: previous.cycle, score: previous.overallScore } : null, kpis
+    };
+  }
+
+  /** Save the self-assessment as a draft, or submit it. A draft is the appraisee's alone. */
+  async saveSelf(session: SessionPayload, body: unknown, submit: boolean) {
+    const input = z.object({ scores: z.record(z.string(), z.coerce.number().min(1).max(5)).default({}), evidence: z.record(z.string(), z.string()).default({}) }).parse(body);
+    const profile = await prisma.staffProfile.findUnique({ where: { userId: session.userId }, include: { user: true } });
+    if (!profile) throw new ForbiddenException("Only staff have an appraisal.");
+    const cycle = await this.cycleName(session.schoolId);
+    const appraisal = await prisma.staffAppraisal.findUnique({ where: { staffId_cycle: { staffId: profile.id, cycle: cycle.name } }, include: { ratings: true } });
+    if (!appraisal) throw new BadRequestException("No appraisal has been published to you for this cycle yet.");
+    if (appraisal.status !== "DRAFT" || appraisal.selfSubmittedAt) throw new BadRequestException("Your self-assessment has been submitted, so it can no longer change.");
+    for (const rating of appraisal.ratings) {
+      const score = input.scores[rating.criterion];
+      const evidence = input.evidence[rating.criterion];
+      if (score === undefined && evidence === undefined) continue;
+      await prisma.staffAppraisalRating.update({ where: { id: rating.id }, data: { ...(score !== undefined ? { selfScore: Math.round(score) } : {}), ...(evidence !== undefined ? { evidence: evidence.trim() || null } : {}) } });
+    }
+    if (submit) {
+      const fresh = await prisma.staffAppraisalRating.findMany({ where: { appraisalId: appraisal.id } });
+      const manual = fresh.filter((rating) => rating.autoScore === null);
+      const missing = manual.filter((rating) => !rating.selfScore);
+      if (missing.length) throw new BadRequestException(`Rate yourself on ${missing.length} more: ${missing.slice(0, 3).map((item) => item.criterion).join(", ")}${missing.length > 3 ? "…" : ""}.`);
+      await prisma.staffAppraisal.update({ where: { id: appraisal.id }, data: { selfSubmittedAt: new Date() } });
+      await prisma.notificationLog.create({ data: { schoolId: session.schoolId, userId: appraisal.reviewerId, channel: "IN_APP", title: "A self-assessment is ready to review", body: `${fullName(profile.user)} · ${cycle.name}`, status: "QUEUED", sentAt: new Date() } });
+      await this.audit(session, AuditAction.UPDATE, "StaffAppraisal", appraisal.id, { summary: `Self-assessment submitted · ${fullName(profile.user)}` });
+    }
+    return { id: appraisal.id, submitted: submit };
+  }
+
+  /** The appraisee's written response, once the review has been shared with them. */
+  async respond(session: SessionPayload, body: unknown) {
+    const input = z.object({ comment: z.string().trim().min(3, "Write your response — or say you have none to add.") }).parse(body);
+    const profile = await prisma.staffProfile.findUnique({ where: { userId: session.userId } });
+    if (!profile) throw new ForbiddenException("Only staff have an appraisal.");
+    const cycle = await this.cycleName(session.schoolId);
+    const appraisal = await prisma.staffAppraisal.findUnique({ where: { staffId_cycle: { staffId: profile.id, cycle: cycle.name } } });
+    if (!appraisal || appraisal.status === "DRAFT") throw new BadRequestException("The review has not been shared with you yet.");
+    await prisma.staffAppraisal.update({ where: { id: appraisal.id }, data: { staffComment: input.comment, status: "ACKNOWLEDGED", acknowledgedAt: new Date() } });
+    await this.audit(session, AuditAction.UPDATE, "StaffAppraisal", appraisal.id, { summary: "Appraisal acknowledged with a response" });
+    return { id: appraisal.id };
+  }
+
   async one(session: SessionPayload, id: string) {
     const appraisal = await prisma.staffAppraisal.findFirst({ where: { id, schoolId: session.schoolId }, include: { ratings: true, staff: { include: { user: true, department: { select: { name: true } } } }, reviewer: true } });
     if (!appraisal) throw new NotFoundException("That appraisal does not exist.");
@@ -303,7 +375,9 @@ export class AppraisalService {
       sharedAt: appraisal.sharedAt?.toISOString() ?? null,
       kpis: kpis.map((kpi) => {
         const rating = byName.get(kpi.name);
-        return { ...kpi, ratingId: rating?.id ?? null, self: rating?.selfScore ?? null, auto: rating?.autoScore ?? null, mine: rating && rating.score > 0 ? rating.score : null, comment: rating?.comment ?? null, evidence: rating?.evidence ?? null };
+        // A draft self-assessment is the appraisee's alone: the reviewer reads it only once it has been submitted.
+        const hidden = !appraisal.selfSubmittedAt && appraisal.reviewerId === session.userId && appraisal.staff.userId !== session.userId;
+        return { ...kpi, ratingId: rating?.id ?? null, self: hidden ? null : rating?.selfScore ?? null, auto: rating?.autoScore ?? null, mine: rating && rating.score > 0 ? rating.score : null, comment: rating?.comment ?? null, evidence: hidden ? null : rating?.evidence ?? null };
       })
     };
   }

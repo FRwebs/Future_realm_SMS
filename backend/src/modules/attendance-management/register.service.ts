@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertClassReadable, classScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -122,7 +123,9 @@ export class RegisterService {
     const now = today();
     const focus = dateText ? { date: dayOf(dateText), today: dayOf(dateText).getTime() === now.getTime(), note: null as string | null } : await focusDay(schoolId, term, now);
     const date = focus.date;
-    const [arms, calendar, ledger] = await Promise.all([loadArms(schoolId), termCalendar(schoolId, term, now, policy.markCutoff), buildLedger(schoolId, term, policy)]);
+    // A teaching person reads the registers of the arms they answer for — not the whole school's day.
+    const only = await classScope(session);
+    const [arms, calendar, ledger] = await Promise.all([loadArms(schoolId).then((all) => (only ? all.filter((arm) => only.includes(arm.id)) : all)), termCalendar(schoolId, term, now, policy.markCutoff), buildLedger(schoolId, term, policy)]);
     const marks = await prisma.studentAttendance.groupBy({ by: ["classId", "status"], where: { schoolId, date, subjectId: null }, _count: { _all: true } });
     const byArm = new Map<string, Tally>();
     for (const row of marks) {
@@ -203,6 +206,7 @@ export class RegisterService {
   /* ───────────────────────── one arm, one day ───────────────────────── */
 
   async day(session: SessionPayload, classId: string, dateText?: string) {
+    await assertClassReadable(session, classId);
     const schoolId = session.schoolId;
     const term = await this.termOrThrow(schoolId);
     const policy = await loadPolicy(schoolId);
@@ -277,6 +281,7 @@ export class RegisterService {
   /* ───────────────────────── one arm, one week ───────────────────────── */
 
   async week(session: SessionPayload, classId: string, startText?: string) {
+    await assertClassReadable(session, classId);
     const schoolId = session.schoolId;
     const term = await this.termOrThrow(schoolId);
     const policy = await loadPolicy(schoolId);
@@ -339,6 +344,7 @@ export class RegisterService {
   /* ───────────────────────── one arm, the whole term ───────────────────────── */
 
   async trend(session: SessionPayload, classId: string) {
+    await assertClassReadable(session, classId);
     const schoolId = session.schoolId;
     const term = await this.termOrThrow(schoolId);
     const policy = await loadPolicy(schoolId);
@@ -425,7 +431,7 @@ export class RegisterService {
     const prior = date < now;
     let whyNot: string | null = null;
     try {
-      this.access.assertMarker(session, arm);
+      await this.access.assertMarker(session, { ...arm, id: classId });
     } catch (error) {
       whyNot = error instanceof Error ? error.message : "You cannot mark this register.";
     }
@@ -461,7 +467,7 @@ export class RegisterService {
     const schoolId = session.schoolId;
     const term = await this.termOrThrow(schoolId);
     const arm = await this.arm(schoolId, classId);
-    this.access.assertMarker(session, arm);
+    await this.access.assertMarker(session, { ...arm, id: classId });
     const date = dayOf(input.date);
     if (date > today()) throw new BadRequestException("A register cannot be taken for a day that has not happened.");
     if (!isSchoolDay(term, date)) throw new BadRequestException(`${longDay(date)} is not a school day in ${term.name}.`);
@@ -487,7 +493,7 @@ export class RegisterService {
     const term = await this.termOrThrow(schoolId);
     const policy = await loadPolicy(schoolId);
     const arm = await this.arm(schoolId, classId);
-    this.access.assertMarker(session, arm);
+    await this.access.assertMarker(session, { ...arm, id: classId });
     const date = dayOf(input.date);
     const now = opts.capturedAt ? today(opts.capturedAt) : today();
     if (date > now) throw new BadRequestException("A register cannot be taken for a day that has not happened.");

@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { classScope, studentScope, teachingScope } from "../../common/teaching-scope";
 import { AuditAction } from "@prisma/client";
 import { z } from "zod";
 
@@ -45,8 +46,11 @@ export class ComplianceService {
     if (!term) throw new NotFoundException("No term is current, so there is nothing to hold anyone to.");
     const policy = await loadPolicy(schoolId);
     const now = today();
+    // A head of department sees the registers of their own department's form masters, and nobody else's.
+    const scope = await teachingScope(session);
+    const department = scope?.departmentId ? (await prisma.department.findUnique({ where: { id: scope.departmentId }, select: { name: true } }))?.name ?? "" : null;
     const [arms, calendar, ledger, focus, registers] = await Promise.all([
-      loadArms(schoolId), termCalendar(schoolId, term, now, policy.markCutoff), buildLedger(schoolId, term, policy), focusDay(schoolId, term, now),
+      loadArms(schoolId).then((all) => (scope ? all.filter((arm) => department !== null && arm.dept === department) : all)), termCalendar(schoolId, term, now, policy.markCutoff), buildLedger(schoolId, term, policy), focusDay(schoolId, term, now),
       prisma.attendanceRegister.findMany({ where: { schoolId, termId: term.id, status: "SUBMITTED", submittedAt: { not: null } }, select: { startedAt: true, submittedAt: true } })
     ]);
     const clock = lagosClock(new Date()) ?? "00:00";
@@ -117,6 +121,7 @@ export class ComplianceService {
   async teacher(session: SessionPayload, userId: string) {
     const schoolId = session.schoolId;
     const overview = await this.compliance(session);
+    if (await teachingScope(session)) if (!overview.teachers.some((teacher) => teacher.id === userId)) throw new ForbiddenException("That person is not in your department.");
     const row = overview.teachers.find((teacher) => teacher.id === userId);
     const user = await prisma.user.findFirst({ where: { id: userId, schoolId }, select: { id: true, firstName: true, lastName: true, phone: true, email: true, role: true, staffProfile: { select: { employeeNo: true, department: { select: { name: true } } } } } });
     if (!user) throw new NotFoundException("That person is not on the staff.");
@@ -132,15 +137,20 @@ export class ComplianceService {
         where: { schoolId, isActive: true, deletedAt: null, role: { notIn: ["STUDENT", "PARENT", "PLATFORM_OWNER", "PLATFORM_ADMIN", "SUPPORT_AGENT", "SALES_MANAGER", "DEVELOPER", "SUPER_ADMIN"] as never[] } },
         select: { id: true, firstName: true, lastName: true, role: true }, orderBy: [{ firstName: "asc" }]
       }),
-      prisma.student.findMany({ where: { schoolId, status: "ACTIVE" }, select: { id: true, firstName: true, lastName: true, admissionNumber: true, currentClass: { select: { name: true, arm: true } } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: 800 }),
+      prisma.student.findMany({ where: { schoolId, status: "ACTIVE" }, select: { id: true, firstName: true, lastName: true, admissionNumber: true, currentClassId: true, currentClass: { select: { name: true, arm: true } } }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }], take: 800 }),
       loadArms(schoolId),
       prisma.school.findUnique({ where: { id: schoolId }, select: { name: true } })
     ]);
+    // A teaching role sees the children and arms it answers for or teaches, and itself among the staff — never the school's lists.
+    const arms_ = await classScope(session);
+    const students_ = await studentScope(session);
+    const own = students_ ? new Set(students_) : null;
+    const scopedStudents = own ? students.filter((student) => student.currentClassId && own.has(student.currentClassId)) : students;
     return {
       school: school?.name ?? "",
-      staff: staff.map((user) => ({ id: user.id, name: fullName(user), role: user.role })),
-      students: students.map((student) => ({ id: student.id, name: fullName(student), adm: student.admissionNumber, arm: student.currentClass ? armName(student.currentClass) : "No arm yet" })),
-      arms: arms.map((arm) => ({ id: arm.id, name: arm.name, master: arm.master }))
+      staff: staff.filter((user) => !arms_ || user.id === session.userId).map((user) => ({ id: user.id, name: fullName(user), role: user.role })),
+      students: scopedStudents.map((student) => ({ id: student.id, name: fullName(student), adm: student.admissionNumber, arm: student.currentClass ? armName(student.currentClass) : "No arm yet" })),
+      arms: arms.filter((arm) => !own || own.has(arm.id)).map((arm) => ({ id: arm.id, name: arm.name, master: arm.master }))
     };
   }
 

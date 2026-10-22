@@ -45,6 +45,7 @@ export type SupportOverview = {
   articles: Article[];
   satisfaction: { average: number | null; responses: number };
   contact?: { platformName: string; email: string; phone: string };
+  accountManager?: { state: "assigned" | "unassigned" | "not-in-plan"; name: string | null; email: string | null; phone: string | null; why?: string };
   tickets: { tickets: Ticket[]; open: number; waitingOnSchool: number; breached: number; resolved: number };
   responseTarget: string;
 };

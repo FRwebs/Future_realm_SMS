@@ -2,7 +2,7 @@ import { cardDrawer } from "@/lib/modules/live/m6-forms";
 import { receiptDrawer } from "@/lib/modules/live/documents";
 import { apiGet } from "@/lib/api/server";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
-import { attendanceSessionDrawer, collectorDrawer, documentDrawer, mapGuardianDrawer, noteDrawer, requestChangeDrawer, sensitiveDrawer, SR } from "@/lib/modules/live/m8-forms";
+import { attendanceSessionDrawer, collectorDrawer, documentDrawer, endSupportPlanDrawer, mapGuardianDrawer, noteDrawer, requestChangeDrawer, sensitiveDrawer, SR, supportPlanDrawer } from "@/lib/modules/live/m8-forms";
 import { FEE_TONE, STATE_TONE, attTone, gradeTone, loadRegistry, studentHref } from "@/lib/modules/live/m8-registry";
 import type { Dossier, DossierSubject, Registry, TermResult } from "@/lib/modules/live/m8-types";
 import { name as nameCell, pill, text, type KpiCard, type PanelFact, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
@@ -361,6 +361,21 @@ function wellbeing({ d, wrap }: Body): RecordPage {
   return wrap({
     rows: [
       { cols: "1fr", panels: [{ type: "kpi", title: "Wellbeing", sub: "Recorded by the form master, the counsellor and the school nurse.", per: 3, cards: [{ label: "Conduct", value: incidents ? "Occasional" : "Clean", sub: incidents ? plural(incidents, "incident") : "No incidents on record", tone: incidents ? "attention" : "positive" }, { label: "Guidance and counselling", value: String(w.counselling), unit: w.counselling === 1 ? "session" : "sessions", sub: `${w.visits} sick-bay ${w.visits === 1 ? "visit" : "visits"}`, tone: "neutral" }, { label: "Health", value: health ? "On file" : "Nothing on file", sub: health?.conditions ?? "No known conditions recorded", tone: "sensitive", link: "Reveal the record", drawer: sensitiveDrawer(d) }] }] },
+      ...(d.support && (d.support.plan || d.support.canManage)
+        ? [{
+            cols: "1fr",
+            panels: [
+              d.support.plan
+                ? {
+                    type: "facts" as const, title: "Learning support plan", tag: d.support.plan.overdue ? "Review overdue" : "Current", tagTone: (d.support.plan.overdue ? "attention" : "positive") as PanelTone,
+                    sub: `Every teacher of ${d.name.split(" ")[0]} reads the strategies. ${d.support.canManage ? "The background below is yours and the leadership’s — a teacher never sees it." : ""}`.trim(), per: 1,
+                    acts: d.support.canManage ? [{ label: "Revise the plan", primary: true, drawer: supportPlanDrawer(d) }, { label: "End the plan", drawer: endSupportPlanDrawer(d) }] : undefined,
+                    facts: [...d.support.plan.strategies.map((entry): PanelFact => [entry.area, entry.strategy, ""]), ["Reviewed", dayLong(d.support.plan.reviewedOn), `Next review ${dayLong(d.support.plan.nextReviewOn)}`] as PanelFact, ...(d.support.canManage ? [["Background", d.support.plan.confidentialNote || "None written", "Held by the writers of the plan; never sent to a teacher"] as PanelFact] : [])],
+                  }
+                : { type: "note" as const, tone: "neutral" as PanelTone, title: "No learning support plan for this child", body: "If a child needs their teachers to work differently, write a plan: the strategies go to every teacher, the reasons stay with you.", acts: [{ label: "Write a plan", drawer: supportPlanDrawer(d) }] },
+            ],
+          }]
+        : []),
       {
         cols: "1.15fr 1fr",
         panels: [

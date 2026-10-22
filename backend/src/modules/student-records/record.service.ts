@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertStudentArmReadable, teachingScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -6,6 +7,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { PAYMENT_MODE } from "../fee-management/fees.shared";
 import { loadConsentTypes } from "./consent.shared";
+import { SupportPlansService } from "./support-plans.service";
 import {
   STANDING,
   ageOf,
@@ -85,6 +87,8 @@ function isoDate(date: Date | null | undefined) {
 
 @Injectable()
 export class RecordService {
+  constructor(private readonly plans: SupportPlansService) {}
+
   private async audit(session: SessionPayload, action: AuditAction, entityType: string, entityId: string, metadata?: Prisma.InputJsonValue) {
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action, entityType, entityId, metadata } });
   }
@@ -95,7 +99,27 @@ export class RecordService {
     return student;
   }
 
+  /**
+   * One child, in full — and, for a teaching person, only what a teacher holds: the class they answer for or the children they teach,
+   * with wellbeing reduced to a flag, family to a number to call, and a fee to paid or unpaid. Never an amount, never a file.
+   */
   async dossier(session: SessionPayload, id: string) {
+    const full = await this.dossierFull(session, id);
+    if (!(await teachingScope(session))) return { ...full, support: await this.plans.forStudent(session, id, "manager") };
+    await assertStudentArmReadable(session, full.arm?.id);
+    return {
+      ...full,
+      // A teacher reads what they must do for the child — never why.
+      support: await this.plans.forStudent(session, id, "teacher"),
+      address: null, previousSchool: null,
+      wellbeing: { log: [], counselling: 0, visits: 0, health: full.wellbeing.health && (full.wellbeing.health.conditions || full.wellbeing.health.allergies) ? { conditions: null, allergies: null, bloodGroup: null, genotype: null, notes: null, alert: true } : null },
+      fees: { billed: 0, paid: 0, owing: 0, state: full.fees.state, days: 0, structures: [], items: [], invoices: [], receipts: [], familyId: "" },
+      records: { ...full.records, audit: [], documents: [], missing: [], changes: [] },
+      family: { ...full.family, consent: [], sent: full.family.sent }
+    };
+  }
+
+  private async dossierFull(session: SessionPayload, id: string) {
     const schoolId = session.schoolId;
     const [student, term, bands] = await Promise.all([
       prisma.student.findFirst({

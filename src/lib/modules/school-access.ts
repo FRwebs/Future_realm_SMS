@@ -5,6 +5,8 @@ import {
   schoolModules,
   schoolPermissionKey,
   schoolRoleModuleLevels,
+  templateTabActions,
+  templateTabSlugs,
   type SchoolAccessLevel,
   type SchoolModuleAction,
 } from "@/lib/modules/school-modules";
@@ -50,6 +52,8 @@ const roleTemplateByRole: Partial<Record<Role, string>> = {
   CLASS_TEACHER: "Form Master",
   TEACHER: "Subject Teacher",
   SUBJECT_TEACHER: "Subject Teacher",
+  TEACHING_ASSISTANT: "Teaching Assistant",
+  COVER_TEACHER: "Cover / Substitute",
   SCHOOL_NURSE: "School Nurse",
   NURSE: "School Nurse",
   GUIDANCE_COUNSELOR: "Counsellor",
@@ -122,13 +126,14 @@ export function moduleActionsForRole(
 export function schoolPermissionsForRole(role: Role): string[] {
   if (!isSchoolStaffRole(role)) return [];
 
+  const template = roleTemplateFor(role);
   return schoolModules.flatMap((module) => {
     const actions = moduleActionsForRole(role, module.code);
-    return module.tabs.flatMap((tab) =>
-      schoolModuleActions
-        .filter((action) => actions[action])
-        .map((action) => schoolPermissionKey(module.slug, tab.slug, action)),
-    );
+    const only = template ? templateTabSlugs(template, module.code) : null;
+    return module.tabs.filter((tab) => !only || only.includes(tab.slug)).flatMap((tab) => {
+      const here = template ? templateTabActions(template, module.code, tab.slug, actions) : actions;
+      return schoolModuleActions.filter((action) => here[action]).map((action) => schoolPermissionKey(module.slug, tab.slug, action));
+    });
   });
 }
 

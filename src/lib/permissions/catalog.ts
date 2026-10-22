@@ -984,6 +984,8 @@ export const systemRoleLabels: Partial<Record<Role, { name: string; description:
   TEACHER: { name: "Teacher", description: "Default teaching workspace access for classwork, attendance, and results." },
   CLASS_TEACHER: { name: "Class Teacher", description: "Class-level student, attendance, result, and communication access." },
   SUBJECT_TEACHER: { name: "Subject Teacher", description: "Subject-level student, score-entry, and timetable access." },
+  TEACHING_ASSISTANT: { name: "Teaching Assistant", description: "The register and class list of the class they assist — nothing else." },
+  COVER_TEACHER: { name: "Cover / Substitute", description: "Register and score entry for the classes they are covering, until the cover ends." },
   BURSAR: { name: "Bursar", description: "School finance officer for fees, expenses, salaries, and finance reports." },
   ACCOUNTANT: { name: "Bursar / Accountant", description: "Fee collection, finance reports, waivers, and student balance visibility." },
   ACCOUNT_OFFICER: { name: "Account Officer", description: "Finance support role for fees, expenses, and basic finance reporting." },

@@ -110,7 +110,7 @@ export class CorrectionsService {
     if (!to) throw new BadRequestException("That is not a mark.");
     const room = await prisma.classRoom.findFirst({ where: { id: input.classId, schoolId, deletedAt: null }, select: { id: true, name: true, arm: true, classTeacherId: true, assistantClassTeacherId: true } });
     if (!room) throw new NotFoundException("That arm is not in this school.");
-    this.access.assertMarker(session, { name: armName(room), classTeacherId: room.classTeacherId, assistantClassTeacherId: room.assistantClassTeacherId });
+    await this.access.assertMarker(session, { id: room.id, name: armName(room), classTeacherId: room.classTeacherId, assistantClassTeacherId: room.assistantClassTeacherId });
     const row = await prisma.studentAttendance.findFirst({ where: { schoolId, classId: input.classId, studentId: input.student, date, subjectId: null } });
     if (!row) throw new BadRequestException("That child has no mark on that day's register, so there is nothing to correct.");
     if (row.status === to) throw new BadRequestException(`They are already marked ${MARK_LABEL[to].toLowerCase()}.`);
@@ -191,7 +191,7 @@ export class CorrectionsService {
     const date = dayOf(input.date);
     const room = await prisma.classRoom.findFirst({ where: { id: input.classId, schoolId, deletedAt: null }, select: { id: true, name: true, arm: true, classTeacherId: true, assistantClassTeacherId: true } });
     if (!room) throw new NotFoundException("That arm is not in this school.");
-    this.access.assertMarker(session, { name: armName(room), classTeacherId: room.classTeacherId, assistantClassTeacherId: room.assistantClassTeacherId });
+    await this.access.assertMarker(session, { id: room.id, name: armName(room), classTeacherId: room.classTeacherId, assistantClassTeacherId: room.assistantClassTeacherId });
     const rows = await prisma.studentAttendance.findMany({ where: { schoolId, classId: input.classId, date, subjectId: null, studentId: { in: input.students } } });
     const absences = rows.filter((row) => row.status === "ABSENT" || row.status === "EXCUSED" || row.status === "LATE");
     if (!absences.length) throw new BadRequestException("None of those children is marked absent, late or excused on that day.");

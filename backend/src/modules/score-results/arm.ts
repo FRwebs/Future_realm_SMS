@@ -41,6 +41,8 @@ export type SubjectView = {
   teacherId: string | null;
   teacher: string | null;
   assistantId: string | null;
+  /** People holding this subject-arm on cover today — they enter its scores exactly as its teacher would. */
+  coverIds: string[];
   passMark: number;
   counts: boolean;
   state: SheetState;
@@ -109,13 +111,15 @@ export async function loadArm(schoolId: string, term: Term, classId: string, sha
   const room = await prisma.classRoom.findFirst({ where: { id: classId, schoolId, deletedAt: null }, include: { classLevel: { select: { id: true, name: true, schoolSection: true } } } });
   if (!room) return null;
   const section = room.classLevel.schoolSection && SECTIONS.has(room.classLevel.schoolSection) ? (room.classLevel.schoolSection as SectionName) : null;
-  const [students, classSubjects, sheets, bandInfo, entryMap, live] = await Promise.all([
+  const todayLagos = (() => { const local = new Date(Date.now() + 3_600_000); return new Date(Date.UTC(local.getUTCFullYear(), local.getUTCMonth(), local.getUTCDate())); })();
+  const [students, classSubjects, sheets, bandInfo, entryMap, live, covers] = await Promise.all([
     prisma.student.findMany({ where: { schoolId, currentClassId: classId, status: "ACTIVE" }, select: { id: true, firstName: true, lastName: true, admissionNumber: true }, orderBy: [{ lastName: "asc" }, { firstName: "asc" }] }),
     prisma.classSubject.findMany({ where: { schoolId, classId, isActive: true, subject: { deletedAt: null, isActive: true } }, include: { subject: { select: { id: true, name: true, code: true, sortOrder: true, subjectCategory: { select: { name: true } }, isCore: true } } } }),
     prisma.scoreSheet.findMany({ where: { schoolId, termId: term.id, classId } }),
     shared?.bands ?? loadBands(schoolId),
     shared?.entries ?? loadEntries(schoolId, term.id, [classId]),
-    liveFramework(schoolId, term.id, section)
+    liveFramework(schoolId, term.id, section),
+    prisma.coverAssignment.findMany({ where: { schoolId, classId, endedAt: null, scope: "REGISTER_AND_SCORES", startsOn: { lte: todayLagos }, endsOn: { gte: todayLagos } }, select: { coverUserId: true, subjectId: true } })
   ]);
   const names = shared?.names ?? (await loadStaffNames(schoolId, classSubjects.flatMap((entry) => [entry.teacherId ?? "", entry.assistantTeacherId ?? ""])));
   const sheetOf = new Map(sheets.map((sheet) => [sheet.subjectId, sheet]));
@@ -160,7 +164,7 @@ export async function loadArm(schoolId: string, term: Term, classId: string, sha
       const teacher = entry.teacherId ? names.get(entry.teacherId) ?? null : null;
       return {
         csId: entry.id, subjectId: entry.subjectId, name: entry.subject.name, code: entry.subject.code, category: entry.subject.subjectCategory?.name ?? (entry.subject.isCore ? "Core" : "Elective"),
-        teacherId: entry.teacherId, teacher, assistantId: entry.assistantTeacherId, passMark: entry.passMark, counts: entry.countsToAverage, state, sheet, columns, pinned: pinned.length > 0, rows,
+        teacherId: entry.teacherId, teacher, assistantId: entry.assistantTeacherId, coverIds: covers.filter((cover) => cover.subjectId === entry.subjectId).map((cover) => cover.coverUserId), passMark: entry.passMark, counts: entry.countsToAverage, state, sheet, columns, pinned: pinned.length > 0, rows,
         scored: scoredRows.length, roll: rows.length, mean: average === null ? null : round1(average),
         high: sorted[0] ? { name: sorted[0].name, total: sorted[0].total as number } : null,
         low: sorted.length ? { name: sorted[sorted.length - 1].name, total: sorted[sorted.length - 1].total as number } : null,

@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { assertClassReadable, assertSheetReadable, assertStudentArmReadable, refuseTeaching } from "../../common/teaching-scope";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -37,6 +38,8 @@ export class ResultsService {
   }
 
   async overview(session: SessionPayload) {
+    // The whole school's results have no teacher-shaped version here: a teaching person reads theirs in Scores → Results.
+    await refuseTeaching(session, "Scores → Results");
     const term = await this.term(session.schoolId);
     const arms = await loadAll(session.schoolId, term);
     const names = await loadStaffNames(session.schoolId, arms.map((arm) => arm.room.classTeacherId ?? ""));
@@ -76,6 +79,7 @@ export class ResultsService {
   }
 
   async armBroadsheet(session: SessionPayload, classId: string) {
+    await assertClassReadable(session, classId, "that arm");
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");
@@ -96,6 +100,7 @@ export class ResultsService {
 
   /** One child's result, every subject and every component — the page a family would be shown. */
   async studentPage(session: SessionPayload, classId: string, studentId: string) {
+    await assertStudentArmReadable(session, classId);
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");
@@ -148,6 +153,8 @@ export class ResultsService {
 
   /** The trace behind one number — read from what was stored, so it cannot drift from what a parent holds. */
   async explain(session: SessionPayload, classId: string, studentId: string, subjectId?: string) {
+    if (subjectId) await assertSheetReadable(session, classId, subjectId);
+    else await assertClassReadable(session, classId, "that arm");
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");

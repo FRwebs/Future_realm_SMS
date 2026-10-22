@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -151,6 +152,8 @@ export class FamiliesService {
   }
 
   async overview(session: SessionPayload) {
+    // Every family, with what each owes, is the office's. A teacher's are the families of their own class.
+    await refuseTeaching(session, "Guardians");
     const schoolId = session.schoolId;
     const { rows } = await this.load(schoolId);
     const phoneGroups = new Map<string, FamilyRow[]>();
@@ -216,6 +219,7 @@ export class FamiliesService {
 
   /** One family: every child, what they owe, what has been sent, and where consent stands. */
   async family(session: SessionPayload, id: string) {
+    await refuseTeaching(session, "Guardians");
     const schoolId = session.schoolId;
     const guardian = await prisma.guardian.findFirst({
       where: { id, schoolId },

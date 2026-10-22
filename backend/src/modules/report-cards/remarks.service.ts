@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertClassReadable, classScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -56,7 +57,9 @@ export class RemarksService {
   async overview(session: SessionPayload, query: { level?: string; arm?: string }) {
     const schoolId = session.schoolId;
     const term = await this.cards.term(schoolId);
-    const arms = await loadAll(schoolId, term);
+    // A teaching person reads the remarks of the arms they are form master of, and nobody else's.
+    const only = await classScope(session);
+    const arms = await loadAll(schoolId, term, only ?? undefined);
     const levels = Array.from(new Set(arms.map((arm) => arm.room.levelName)));
     const level = query.level && levels.includes(query.level) ? query.level : null;
     const inScope = arms.filter((arm) => (!level || arm.room.levelName === level) && (!query.arm || arm.room.id === query.arm));
@@ -85,7 +88,7 @@ export class RemarksService {
     const waiting = students.filter((student) => student.teacher === "Submitted" && !student.reviewed);
     return {
       term: { id: term.id, name: term.name, session: term.session }, levels, level, arms: arms.map((arm) => ({ id: arm.room.id, name: arm.room.name, level: arm.room.levelName })), arm: query.arm ?? null,
-      label: query.arm ? arms.find((arm) => arm.room.id === query.arm)?.room.name ?? "One arm" : level ?? "the whole school",
+      label: query.arm ? arms.find((arm) => arm.room.id === query.arm)?.room.name ?? "One arm" : level ?? (only ? arms.map((arm) => arm.room.name).join(" and ") || "no arm" : "the whole school"),
       students, tracker,
       kpis: { students: students.length, teacherIn: students.filter((student) => student.teacher === "Submitted").length, waiting: waiting.length, reviewed: students.filter((student) => student.reviewed).length, firstWaiting: waiting[0] ? { classId: waiting[0].classId, id: waiting[0].id } : null, first: students[0] ? { classId: students[0].classId, id: students[0].id } : null },
       publishDate: await this.publishDate(schoolId, term.id), bands: BANDS, unavailable: arms.length === 0, school: await this.schoolName(schoolId),
@@ -95,6 +98,7 @@ export class RemarksService {
 
   /** One child's review page: the result, what the form master wrote, the box for the Principal's own, and the history behind both. */
   async student(session: SessionPayload, classId: string, studentId: string) {
+    await assertClassReadable(session, classId);
     const schoolId = session.schoolId;
     const term = await this.cards.term(schoolId);
     const arm = await loadArm(schoolId, term, classId);

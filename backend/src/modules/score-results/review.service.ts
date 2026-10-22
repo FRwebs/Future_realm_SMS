@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertSheetReadable, refuseTeaching, teachingScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -51,7 +52,10 @@ export class ReviewService {
 
   async overview(session: SessionPayload) {
     const term = await this.term(session.schoolId);
-    const arms = await loadAll(session.schoolId, term);
+    // A head of department reviews their own department's sheets, and nothing outside it.
+    const scope = await teachingScope(session);
+    const arms = await loadAll(session.schoolId, term, scope ? [...new Set([...scope.department].map((key) => key.split(":")[0]!))] : undefined);
+    if (scope) for (const arm of arms) arm.subjects = arm.subjects.filter((subject) => scope.department.has(`${arm.room.id}:${subject.subjectId}`));
     const windows = await prisma.assessmentWindow.findMany({ where: { schoolId: session.schoolId, termId: term.id }, include: { component: { select: { name: true } } }, orderBy: { closesAt: "asc" } });
     const staff = await loadStaffNames(session.schoolId, arms.map((arm) => arm.room.classTeacherId ?? ""));
     const school = await prisma.school.findUnique({ where: { id: session.schoolId }, select: { name: true } });
@@ -125,6 +129,7 @@ export class ReviewService {
   /* ───────────────────────── one arm ───────────────────────── */
 
   async armReview(session: SessionPayload, classId: string) {
+    await refuseTeaching(session, "Scores → Review, one sheet at a time");
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");
@@ -156,6 +161,7 @@ export class ReviewService {
   /* ───────────────────────── one sheet ───────────────────────── */
 
   async sheetPage(session: SessionPayload, classId: string, subjectId: string) {
+    await assertSheetReadable(session, classId, subjectId);
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");
@@ -186,6 +192,7 @@ export class ReviewService {
   /* ───────────────────────── deciding ───────────────────────── */
 
   async decide(session: SessionPayload, classId: string, subjectId: string, body: unknown) {
+    await assertSheetReadable(session, classId, subjectId);
     const input = decideSchema.parse(body);
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
@@ -221,6 +228,7 @@ export class ReviewService {
   }
 
   async reverse(session: SessionPayload, classId: string, subjectId: string, body: unknown) {
+    await assertSheetReadable(session, classId, subjectId);
     const input = reverseSchema.parse(body);
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);

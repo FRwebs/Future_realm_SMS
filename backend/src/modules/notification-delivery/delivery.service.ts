@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from "@nestjs/common";
 import type { Prisma } from "@prisma/client";
 
+import { plansFeatures } from "../plans-features/plans-features.service";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { platformPolicy } from "../platform-policy/policy.service";
 import { inQuietHours } from "../platform-policy/policy.shared";
@@ -119,6 +120,15 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           await this.mark(row.id, meta, "HELD", { held: `Daily cap of ${policy.dailyCapPerRecipient} reached for this recipient` });
           result.held++;
           continue;
+        }
+        // A plan without WhatsApp does not get it sent — the entitlement is read at the moment of sending, so a downgrade stops it at once.
+        if (row.channel === "WHATSAPP") {
+          const allowed = await plansFeatures.entitled(row.schoolId, "communications.whatsapp");
+          if (!allowed.allowed) {
+            await this.mark(row.id, meta, "FAILED", { error: `WhatsApp is not part of this school's plan. ${allowed.why}` });
+            result.failed++;
+            continue;
+          }
         }
         const platformBilled = meta.billing === "PLATFORM";
         const credited = row.channel === "SMS" || row.channel === "WHATSAPP";

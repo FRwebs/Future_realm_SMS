@@ -613,3 +613,29 @@ export function requestDocumentsDrawer(a: Pick<Applicant, "id" | "name" | "ref" 
 }
 
 export const dayOf = dayLong;
+
+/** Write or revise a child's learning support plan: the strategies every teacher reads, and the background only its writers hold. */
+export function supportPlanDrawer(d: Pick<Dossier, "id" | "name" | "support">): DrawerSpec {
+  const plan = d.support?.plan ?? null;
+  const today = new Date().toISOString().slice(0, 10);
+  const inThreeMonths = new Date(Date.now() + 92 * 86_400_000).toISOString().slice(0, 10);
+  return {
+    mode: "form", kicker: d.name, title: plan ? "Revise the learning support plan" : "Write a learning support plan", sub: "Strategies are what every teacher of this child reads and applies. The background is held by you and the leadership — a teacher never sees it.",
+    commitLabel: "Save the plan", commitDone: "Plan saved", commitDoneBody: "Every teacher of this child sees the strategies on their record from now on.", reviewNote: "The audit log notes that a plan was written or revised, never what it says.",
+    fields: [
+      area("Strategies — one per line", { span: 2, required: true, value: (plan?.strategies ?? []).map((entry) => `${entry.area}: ${entry.strategy}`).join("\n"), placeholder: "Seating: Front of the room, away from the window\nWritten work: Allow 25% additional time in class assessments\nInstructions: Give one at a time, and check back", hint: "Write each as “Area: what the teacher must do”. Say what to do, not what the child cannot." }),
+      text("Last reviewed", { type: "date", required: true, value: plan?.reviewedOn.slice(0, 10) ?? today }),
+      text("Next review", { type: "date", required: true, value: plan?.nextReviewOn.slice(0, 10) ?? inThreeMonths }),
+      area("Background — held by the plan’s writers only", { span: 2, optional: true, value: plan?.confidentialNote ?? "", hint: "The reasons, and any assessment or diagnosis. It is never sent to a teacher, and it is never printed." }),
+    ],
+    submit: { endpoint: `${SR}/students/${d.id}/support-plan`, method: "POST", map: { "Strategies — one per line": "strategies", "Last reviewed": "reviewedOn", "Next review": "nextReviewOn", "Background — held by the plan’s writers only": "confidentialNote" } },
+  };
+}
+
+export function endSupportPlanDrawer(d: Pick<Dossier, "id" | "name">): DrawerSpec {
+  return {
+    mode: "commit", kicker: d.name, title: "End the learning support plan", sub: "Teachers stop seeing the strategies. The plan stays on the record as ended, with your reason.",
+    commitLabel: "End the plan", commitDone: "Plan ended", commitDoneBody: "It is no longer on any teacher’s view of this child.",
+    submit: { endpoint: `${SR}/students/${d.id}/support-plan/end`, method: "POST", reasonKey: "reason", reasonRequired: true, reasonLabel: "Why the child no longer needs it" },
+  };
+}

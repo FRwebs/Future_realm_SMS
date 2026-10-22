@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api/server";
+import { integrationsTab } from "@/lib/modules/live/m15-integrations";
 import {
   name as nameCell,
   pill,
@@ -889,6 +890,8 @@ export async function auditSecurityLiveTab(
     if (!feed) return undefined;
     return auditTab(feed);
   }
+
+  if (tabSlug === "integrations") return integrationsTab();
 
   if (tabSlug === "monitoring") {
     const [payload, integrity] = await Promise.all([

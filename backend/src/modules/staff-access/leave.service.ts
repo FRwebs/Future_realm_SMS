@@ -342,6 +342,104 @@ export class LeaveService {
     return { id: created.id };
   }
 
+  /* ───────────────────────── a person's own leave ───────────────────────── */
+
+  /** The leave types a person may ask for, their balance on each this session, their requests, and where each one is. */
+  async mine(session: SessionPayload) {
+    const schoolId = session.schoolId;
+    const profile = await prisma.staffProfile.findUnique({ where: { userId: session.userId }, include: { user: true, department: { select: { id: true, name: true } } } });
+    if (!profile) throw new NotFoundException("This account has no staff record, so there is no leave to ask for.");
+    const [types, stages, requests, sessionRow] = await Promise.all([
+      this.types(schoolId),
+      this.flows.stages(schoolId, "leave"),
+      prisma.leaveRequest.findMany({ where: { schoolId, staffId: profile.id }, orderBy: [{ startDate: "desc" }], take: 60 }),
+      prisma.academicSession.findFirst({ where: { schoolId, isCurrent: true } })
+    ]);
+    const now = new Date();
+    const inSession = (date: Date) => !sessionRow || (date >= sessionRow.startDate && date <= sessionRow.endDate);
+    const usedOf = (name: string) => requests.filter((item) => item.type === name && item.status === "APPROVED" && inSession(item.startDate)).reduce((sum, item) => sum + (item.days ?? this.workingDays(item.startDate, item.endDate)), 0);
+    const rows = requests.map((request) => {
+      const flow = this.applicable(stages, request, types);
+      const current = flow.find((item) => item.name === request.stage) ?? flow[0] ?? null;
+      const status = request.status === "REJECTED" ? "Declined" : request.status === "APPROVED" ? (request.endDate < now ? "Taken" : "Approved") : "Waiting";
+      return {
+        id: request.id, type: request.type, startDate: request.startDate.toISOString(), endDate: request.endDate.toISOString(), dates: this.label(request.startDate, request.endDate),
+        days: request.days ?? this.workingDays(request.startDate, request.endDate), status, with: request.status === "PENDING" ? current?.who ?? null : null,
+        stage: current?.name ?? null, cover: request.cover ?? (request.coverState === "Not needed" ? "Not needed" : "Not arranged"), coverState: request.coverState,
+        reason: request.reason, note: request.decisionNote, createdAt: request.createdAt.toISOString(), source: request.source, position: current ? flow.indexOf(current) : 0,
+        flow: flow.map((stage) => ({ name: stage.name, who: stage.who }))
+      };
+    });
+    const visible = types.filter((item) => item.visible);
+    const reportsTo = profile.supervisorId ? await prisma.user.findUnique({ where: { id: profile.supervisorId }, select: { firstName: true, lastName: true } }) : null;
+    return {
+      session: sessionRow?.name ?? null, department: profile.department?.name ?? null, reportsTo: reportsTo ? fullName(reportsTo) : null,
+      types: visible.map((item) => ({ name: item.name, entitlement: item.entitlement, unit: item.unit, per: item.per, used: usedOf(item.name), pay: item.pay, evidence: item.evidence, notice: item.notice, coverRequired: item.coverRequired, halfDays: item.halfDays, carry: item.carry })),
+      rows
+    };
+  }
+
+  private noticeDays(text: string): number {
+    const match = /(\d+)\s*day/i.exec(text);
+    return match ? Number(match[1]) : /week/i.test(text) ? 7 : 0;
+  }
+
+  async request(session: SessionPayload, body: unknown) {
+    const input = z
+      .object({
+        type: z.string().min(1, "Choose the kind of leave."),
+        from: z.string().min(1, "Give the first day."),
+        to: z.string().min(1, "Give the last day."),
+        reason: z.string().trim().min(5, "Say why, in a sentence — the person deciding reads it."),
+        cover: z.string().trim().optional()
+      })
+      .parse(body);
+    const profile = await prisma.staffProfile.findUnique({ where: { userId: session.userId }, include: { user: true, department: { select: { id: true } } } });
+    if (!profile) throw new ForbiddenException("Only staff can ask for leave.");
+    const [types, stages, sessionRow] = await Promise.all([this.types(session.schoolId), this.flows.stages(session.schoolId, "leave"), prisma.academicSession.findFirst({ where: { schoolId: session.schoolId, isCurrent: true } })]);
+    const policy = types.find((item) => item.name === input.type && item.visible);
+    if (!policy) throw new BadRequestException("That kind of leave is not offered here.");
+    const from = new Date(`${input.from}T00:00:00.000Z`);
+    const to = new Date(`${input.to}T00:00:00.000Z`);
+    if (Number.isNaN(from.getTime()) || Number.isNaN(to.getTime())) throw new BadRequestException("Give real dates.");
+    if (to < from) throw new BadRequestException("The last day cannot come before the first.");
+    const days = this.workingDays(from, to);
+    if (!days) throw new BadRequestException("Those dates are all weekend — there is nothing to take leave for.");
+    const lead = Math.ceil((from.getTime() - Date.now()) / 86_400_000);
+    const need = this.noticeDays(policy.notice);
+    if (lead < need) throw new BadRequestException(`${policy.name} needs ${policy.notice} of notice. Your first day is ${Math.max(0, lead)} day${lead === 1 ? "" : "s"} away.`);
+    const mine = await prisma.leaveRequest.findMany({ where: { schoolId: session.schoolId, staffId: profile.id, status: { not: "REJECTED" } } });
+    if (mine.some((item) => item.startDate <= to && item.endDate >= from)) throw new BadRequestException("You already have leave asked for or approved across some of those days.");
+    if (policy.entitlement !== null && policy.unit === "Working days") {
+      const used = mine.filter((item) => item.type === policy.name && item.status === "APPROVED" && (!sessionRow || (item.startDate >= sessionRow.startDate && item.startDate <= sessionRow.endDate))).reduce((sum, item) => sum + (item.days ?? this.workingDays(item.startDate, item.endDate)), 0);
+      if (used + days > policy.entitlement) throw new BadRequestException(`That is ${days} day${days === 1 ? "" : "s"}, and you have ${Math.max(0, policy.entitlement - used)} of ${policy.entitlement} left on ${policy.name}.`);
+    }
+    const flow = this.applicable(stages, { days, type: policy.name }, types);
+    const created = await prisma.leaveRequest.create({
+      data: {
+        schoolId: session.schoolId, staffId: profile.id, type: policy.name, startDate: from, endDate: to, reason: input.reason, days,
+        cover: input.cover || null, coverState: !policy.coverRequired ? "Not needed" : "Not arranged", stage: flow[0]?.name ?? null, source: "REQUEST"
+      }
+    });
+    const deciders = await prisma.user.findMany({
+      where: { schoolId: session.schoolId, isActive: true, deletedAt: null, id: { not: session.userId }, OR: [{ role: "PRINCIPAL" }, ...(profile.department ? [{ role: "HEAD_OF_DEPARTMENT" as UserRole, staffProfile: { departmentId: profile.department.id } }] : [])] },
+      select: { id: true }
+    });
+    const who = fullName(profile.user);
+    for (const person of deciders) await prisma.notificationLog.create({ data: { schoolId: session.schoolId, userId: person.id, channel: "IN_APP", title: "Leave is waiting for a decision", body: `${who} · ${policy.name} · ${this.label(from, to)} · ${days} day${days === 1 ? "" : "s"}`, status: "QUEUED", sentAt: new Date() } });
+    await this.audit(session, AuditAction.CREATE, "LeaveRequest", created.id, { summary: `Leave requested · ${who} · ${policy.name}`, days });
+    return { id: created.id, days, with: flow[0]?.who ?? null };
+  }
+
+  async withdraw(session: SessionPayload, id: string) {
+    const request = await prisma.leaveRequest.findFirst({ where: { id, schoolId: session.schoolId, staff: { userId: session.userId } } });
+    if (!request) throw new NotFoundException("That request is not yours.");
+    if (request.status !== "PENDING") throw new BadRequestException("Only a request that has not been decided can be withdrawn.");
+    await prisma.leaveRequest.delete({ where: { id } });
+    await this.audit(session, AuditAction.DELETE, "LeaveRequest", id, { summary: `Leave request withdrawn · ${request.type}` });
+    return { id };
+  }
+
   /** A person's own balance on a type, for the decision drawer. */
   balanceFor(rows: RequestRow[], staffId: string, type: string) {
     return rows.filter((row) => row.staffId === staffId && row.type === type && row.status === "APPROVED").reduce((sum, row) => sum + (row.days ?? 0), 0);

@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -130,6 +131,30 @@ export class ScoreResultsController {
   @RequirePermission("score-entry-results.enter.create")
   save(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string, @Body() body: Record<string, unknown>) {
     return ok(this.sheets.save(session, classId, subjectId, body), "Draft saved.");
+  }
+
+  @Get("enter/:classId/:subjectId/template")
+  @RequirePermission("score-entry-results.enter.view")
+  async template(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string, @Res() response: Response) {
+    const file = await this.sheets.template(session, classId, subjectId);
+    response.setHeader("Content-Type", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+    response.setHeader("Content-Disposition", `attachment; filename="${file.fileName}"`);
+    response.setHeader("Cache-Control", "no-store");
+    response.send(file.bytes);
+  }
+
+  @Post("enter/:classId/:subjectId/import/preview")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("score-entry-results.enter.create")
+  importPreview(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string, @Body() body: Record<string, unknown>) {
+    return ok(this.sheets.importPreview(session, classId, subjectId, body));
+  }
+
+  @Post("enter/:classId/:subjectId/import/apply")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("score-entry-results.enter.create")
+  importApply(@CurrentSession() session: SessionPayload, @Param("classId") classId: string, @Param("subjectId") subjectId: string, @Body() body: Record<string, unknown>) {
+    return ok(this.sheets.importApply(session, classId, subjectId, body), "Scores imported as a draft.");
   }
 
   @Post("enter/:classId/:subjectId/submit")

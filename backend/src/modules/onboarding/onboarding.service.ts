@@ -63,17 +63,16 @@ const registerSchoolSchema = z.object({
 });
 
 // The six positions the mockup offers a solo teacher signup don't all have a matching real
-// UserRole — HEAD_OF_DEPARTMENT/CLASS_TEACHER/SUBJECT_TEACHER exist; Year Head, Teaching
-// Assistant and Private Tutor don't, and adding new roles means building out permission
-// handling for them too, which is well beyond an onboarding form. Each label still maps to
-// the nearest real role for permissions; the literal label the person picked is kept as-is
-// in `jobTitle` on their profile, so nothing about their stated title is lost or misrepresented.
-const TEACHER_POSITION_TO_ROLE: Record<string, "SUBJECT_TEACHER" | "CLASS_TEACHER" | "HEAD_OF_DEPARTMENT"> = {
+// UserRole — HEAD_OF_DEPARTMENT/CLASS_TEACHER/SUBJECT_TEACHER/TEACHING_ASSISTANT exist; Year Head
+// and Private Tutor don't. Each label maps to the nearest real role for permissions; the literal
+// label the person picked is kept as-is in `jobTitle` on their profile, so nothing about their
+// stated title is lost or misrepresented.
+const TEACHER_POSITION_TO_ROLE: Record<string, "SUBJECT_TEACHER" | "CLASS_TEACHER" | "HEAD_OF_DEPARTMENT" | "TEACHING_ASSISTANT"> = {
   "Subject Teacher": "SUBJECT_TEACHER",
   "Form Teacher / Class Teacher": "CLASS_TEACHER",
   "Head of Department": "HEAD_OF_DEPARTMENT",
   "Year Head": "HEAD_OF_DEPARTMENT",
-  "Teaching Assistant": "SUBJECT_TEACHER",
+  "Teaching Assistant": "TEACHING_ASSISTANT",
   "Private Tutor": "SUBJECT_TEACHER"
 };
 

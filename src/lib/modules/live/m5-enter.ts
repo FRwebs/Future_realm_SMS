@@ -127,6 +127,7 @@ export function gridPage(g: Grid): { content: TabContent & Crumb } {
       desc: "Absent is not zero, and blank is not zero.",
       primary: { label: "Preview the whole sheet", icon: EYE, href: previewHref(g.arm.id, g.subject.id) },
       launchers: [
+        ...(g.editable ? [{ label: "Import from Excel", href: `/score-entry-results/enter/${g.arm.id}/${g.subject.id}/import` }] : []),
         { label: "Preview this arm's whole entry", href: broadsheetHref(g.arm.id) },
         { label: "Choose a different sheet", href: "/score-entry-results/enter" },
       ],

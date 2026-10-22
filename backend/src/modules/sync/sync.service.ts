@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { TEACHING_ROLES } from "../../common/teaching-scope";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
@@ -79,11 +80,13 @@ export class SyncService {
   async overview(session: SessionPayload) {
     const schoolId = session.schoolId;
     const author = { select: { firstName: true, lastName: true, preferredName: true, role: true } } as const;
+    // A teaching person is asked whether *their* work is saved — not the school's.
+    const own = TEACHING_ROLES.has(session.role) ? { userId: session.userId } : {};
     const [pending, conflicted, synced, lastWrite, mine] = await Promise.all([
-      prisma.syncDraft.findMany({ where: { schoolId, state: { in: ["PENDING", "REJECTED"] } }, orderBy: { createdAt: "asc" }, include: { user: author }, take: 500 }),
-      prisma.syncDraft.findMany({ where: { schoolId, state: "CONFLICT" }, orderBy: { createdAt: "asc" }, include: { user: author }, take: 100 }),
-      prisma.syncDraft.aggregate({ where: { schoolId, state: { in: ["APPLIED", "RESOLVED"] } }, _count: { _all: true }, _max: { syncedAt: true } }),
-      prisma.auditLog.findFirst({ where: { schoolId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
+      prisma.syncDraft.findMany({ where: { schoolId, ...own, state: { in: ["PENDING", "REJECTED"] } }, orderBy: { createdAt: "asc" }, include: { user: author }, take: 500 }),
+      prisma.syncDraft.findMany({ where: { schoolId, ...own, state: "CONFLICT" }, orderBy: { createdAt: "asc" }, include: { user: author }, take: 100 }),
+      prisma.syncDraft.aggregate({ where: { schoolId, ...own, state: { in: ["APPLIED", "RESOLVED"] } }, _count: { _all: true }, _max: { syncedAt: true } }),
+      prisma.auditLog.findFirst({ where: { schoolId, ...(TEACHING_ROLES.has(session.role) ? { actorId: session.userId } : {}) }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
       prisma.auditLog.findFirst({ where: { schoolId, actorId: session.userId }, orderBy: { createdAt: "desc" }, select: { createdAt: true } }),
     ]);
     const key = (row: (typeof pending)[number]) => `${row.type}|${row.state}`;

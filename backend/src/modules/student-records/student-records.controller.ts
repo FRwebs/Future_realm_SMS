@@ -5,11 +5,13 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { AdmissionsBoardService } from "./admissions-board.service";
 import { ChangesService } from "./changes.service";
 import { RecordService } from "./record.service";
+import { SupportPlansService } from "./support-plans.service";
 import { RegistryService } from "./registry.service";
 import { ok } from "./records.shared";
 
@@ -25,7 +27,8 @@ export class StudentRecordsController {
     private readonly registry: RegistryService,
     private readonly record: RecordService,
     private readonly changes: ChangesService,
-    private readonly board: AdmissionsBoardService
+    private readonly board: AdmissionsBoardService,
+    private readonly supportPlans: SupportPlansService
   ) {}
 
   /* registry */
@@ -38,13 +41,15 @@ export class StudentRecordsController {
 
   @Get("registry/enrol-options")
   @RequirePermission("student-records.registry.view")
-  enrolOptions(@CurrentSession() session: SessionPayload) {
+  async enrolOptions(@CurrentSession() session: SessionPayload) {
+    await refuseTeaching(session, "My students");
     return ok(this.registry.enrolOptions(session));
   }
 
   @Get("registry/move-options")
   @RequirePermission("student-records.registry.view")
-  moveOptions(@CurrentSession() session: SessionPayload) {
+  async moveOptions(@CurrentSession() session: SessionPayload) {
+    await refuseTeaching(session, "My students");
     return ok(this.registry.moveOptions(session));
   }
 
@@ -95,6 +100,20 @@ export class StudentRecordsController {
   @RequirePermission("student-records.registry.view")
   reveal(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
     return ok(this.record.reveal(session, id, body));
+  }
+
+  @Post("students/:id/support-plan")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("student-records.registry.view")
+  saveSupportPlan(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return ok(this.supportPlans.save(session, id, body), "Plan saved.");
+  }
+
+  @Post("students/:id/support-plan/end")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("student-records.registry.view")
+  endSupportPlan(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return ok(this.supportPlans.end(session, id, body), "Plan ended.");
   }
 
   @Post("students/:id/collectors")

@@ -5,6 +5,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { ok } from "../student-records/records.shared";
@@ -36,7 +37,8 @@ export class GuardianManagementController {
 
   @Get("guardians/options")
   @RequirePermission("parents-guardians.guardians.view")
-  options(@CurrentSession() session: SessionPayload) {
+  async options(@CurrentSession() session: SessionPayload) {
+    await refuseTeaching(session, "Guardians — your own class’s families");
     return ok(this.families.options(session));
   }
 
@@ -106,7 +108,8 @@ export class GuardianManagementController {
 
   @Get("submissions/options")
   @RequirePermission("parents-guardians.submissions.view")
-  submissionOptions(@CurrentSession() session: SessionPayload) {
+  async submissionOptions(@CurrentSession() session: SessionPayload) {
+    await refuseTeaching(session, "Guardians — what your class’s families send in");
     return ok(this.submissions.options(session));
   }
 

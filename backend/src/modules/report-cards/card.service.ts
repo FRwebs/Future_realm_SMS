@@ -1,4 +1,5 @@
 import { Injectable, NotFoundException } from "@nestjs/common";
+import { assertClassReadable } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -131,6 +132,7 @@ export class CardService {
     const term = await this.term(schoolId, termId);
     const student = await prisma.student.findFirst({ where: { id: studentId, schoolId }, select: { currentClassId: true } });
     if (!student) throw new NotFoundException("That child is not in this school.");
+    if (student.currentClassId) await assertClassReadable(session, student.currentClassId, "that child's arm");
     const sheet = await prisma.resultSheet.findFirst({ where: { schoolId, studentId, termId: term.id }, select: { id: true, classId: true, status: true, publishedAt: true } });
     const classId = student.currentClassId ?? sheet?.classId;
     if (!classId) throw new NotFoundException("That child sits in no arm, so there is no card to show.");

@@ -470,6 +470,7 @@ export async function commandCenterLiveTab(
 ): Promise<TabContent | null | undefined> {
   // A module the Back Office has switched off is left out of the landing page too — no tile, no shortcut into it.
   const session = await getServerSession();
+
   const off = session ? await switchedOffSlugs(session.schoolId) : new Set<string>();
 
   if (tabSlug === "today") {

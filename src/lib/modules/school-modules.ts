@@ -43,6 +43,12 @@ export type SchoolModule = {
   badge: number;
   /** Mockup's "needs attention" dot. */
   dot: boolean;
+  /**
+   * Set on the modules that belong to the teaching workspace (Lesson Notes, My Employment, Training).
+   * They are in the permission grid like any other, so an administrator can grant or take them away,
+   * but they start at no access for every template that is not a teaching one.
+   */
+  workspace?: "teaching";
   tabs: SchoolModuleTab[];
 };
 
@@ -166,6 +172,7 @@ export const schoolModules: SchoolModule[] = [
       { slug: "payroll", label: "Payroll" },
       { slug: "leave", label: "Leave" },
       { slug: "appraisal", label: "Appraisal" },
+      { slug: "learning", label: "Learning" },
       { slug: "activity", label: "Activity" },
     ],
   },
@@ -288,6 +295,7 @@ export const schoolModules: SchoolModule[] = [
       { slug: "audit-log", label: "Audit Log" },
       { slug: "monitoring", label: "Monitoring" },
       { slug: "data-protection", label: "Data Protection" },
+      { slug: "integrations", label: "Integrations" },
     ],
   },
   {
@@ -302,6 +310,56 @@ export const schoolModules: SchoolModule[] = [
     tabs: [
       { slug: "sync", label: "Sync" },
       { slug: "help-support", label: "Help & Support" },
+    ],
+  },
+  {
+    code: "m17",
+    slug: "lesson-notes",
+    name: "Lesson Notes",
+    description: "Your scheme of work and your notes. Plan the term once, then teach from it every week.",
+    section: "Academic Operations",
+    icon: "BookOpen",
+    badge: 0,
+    dot: false,
+    workspace: "teaching",
+    tabs: [
+      { slug: "curriculum", label: "Curriculum" },
+      { slug: "notes", label: "Notes" },
+      { slug: "review", label: "Review" },
+      { slug: "coverage", label: "Coverage" },
+    ],
+  },
+  {
+    code: "m18",
+    slug: "my-employment",
+    name: "My Employment",
+    description: "Leave, your assignments, appraisal and payslips.",
+    section: "People",
+    icon: "UserCircle",
+    badge: 0,
+    dot: false,
+    workspace: "teaching",
+    tabs: [
+      { slug: "leave", label: "Leave" },
+      { slug: "my-assignments", label: "My assignments" },
+      { slug: "appraisal", label: "Appraisal" },
+      { slug: "payslips", label: "Payslips" },
+    ],
+  },
+  {
+    code: "m19",
+    slug: "training",
+    name: "Training",
+    description: "Courses that fit your work, and certificates your school recognises.",
+    section: "People",
+    icon: "GraduationCap",
+    badge: 0,
+    dot: false,
+    workspace: "teaching",
+    tabs: [
+      { slug: "for-you", label: "For you" },
+      { slug: "catalogue", label: "Catalogue" },
+      { slug: "certificates", label: "Certificates" },
     ],
   },
 ];
@@ -362,6 +420,16 @@ export const schoolRoleTemplates: SchoolRoleTemplate[] = [
     canApprove: "Nothing",
   },
   {
+    name: "Teaching Assistant",
+    dataScope: "The class they support: register and class list",
+    canApprove: "Nothing",
+  },
+  {
+    name: "Cover / Substitute",
+    dataScope: "The classes they cover, until the cover ends",
+    canApprove: "Nothing",
+  },
+  {
     name: "School Nurse",
     dataScope: "Health records only",
     canApprove: "Nothing",
@@ -384,9 +452,15 @@ export const schoolRoleTemplates: SchoolRoleTemplate[] = [
  * which is how Proprietor and Principal are expressed.
  */
 export const schoolRoleModuleLevels: Record<string, Partial<Record<string, SchoolAccessLevel>>> = {
-  "Proprietor": {},
+  // Leave, pay and training for a proprietor or principal are handled in Staff & Access; the teaching workspace is not theirs unless granted.
+  "Proprietor": {
+    m18: 0,
+    m19: 0,
+  },
   "Principal": {
     m15: 2,
+    m18: 0,
+    m19: 0,
   },
   "Exam Officer": {
     m1: 2,
@@ -405,6 +479,9 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m14: 1,
     m15: 0,
     m16: 1,
+    m17: 0,
+    m18: 0,
+    m19: 0,
   },
   "Bursar": {
     m1: 2,
@@ -423,6 +500,9 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m14: 1,
     m15: 0,
     m16: 1,
+    m17: 0,
+    m18: 0,
+    m19: 0,
   },
   "Registrar": {
     m1: 2,
@@ -441,24 +521,30 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m14: 1,
     m15: 0,
     m16: 1,
+    m17: 0,
+    m18: 0,
+    m19: 0,
   },
   "Head of Department": {
     m1: 2,
     m2: 1,
     m3: 2,
-    m4: 1,
+    m4: 2,
     m5: 3,
-    m6: 1,
+    m6: 2,
     m7: 0,
     m8: 1,
-    m9: 0,
+    m9: 2,
     m10: 0,
     m11: 0,
     m12: 2,
     m13: 2,
-    m14: 1,
+    m14: 0,
     m15: 0,
     m16: 1,
+    m17: 3,
+    m18: 2,
+    m19: 2,
   },
   "Form Master": {
     m1: 2,
@@ -470,13 +556,16 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m7: 0,
     m8: 1,
     m9: 2,
-    m10: 1,
+    m10: 0,
     m11: 0,
     m12: 2,
     m13: 0,
     m14: 0,
     m15: 0,
     m16: 1,
+    m17: 2,
+    m18: 2,
+    m19: 2,
   },
   "Subject Teacher": {
     m1: 2,
@@ -484,17 +573,20 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m3: 1,
     m4: 2,
     m5: 2,
-    m6: 1,
+    m6: 0,
     m7: 0,
     m8: 0,
     m9: 0,
     m10: 0,
     m11: 0,
-    m12: 1,
+    m12: 0,
     m13: 0,
     m14: 0,
     m15: 0,
     m16: 1,
+    m17: 2,
+    m18: 2,
+    m19: 2,
   },
   "School Nurse": {
     m1: 2,
@@ -513,6 +605,9 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m14: 0,
     m15: 0,
     m16: 1,
+    m17: 0,
+    m18: 0,
+    m19: 0,
   },
   "Counsellor": {
     m1: 2,
@@ -531,6 +626,51 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m14: 0,
     m15: 0,
     m16: 1,
+    m17: 0,
+    m18: 0,
+    m19: 0,
+  },
+  "Teaching Assistant": {
+    m1: 1,
+    m2: 1,
+    m3: 1,
+    m4: 2,
+    m5: 0,
+    m6: 0,
+    m7: 0,
+    m8: 0,
+    m9: 0,
+    m10: 0,
+    m11: 0,
+    m12: 0,
+    m13: 0,
+    m14: 0,
+    m15: 0,
+    m16: 1,
+    m17: 0,
+    m18: 2,
+    m19: 2,
+  },
+  "Cover / Substitute": {
+    m1: 1,
+    m2: 1,
+    m3: 1,
+    m4: 2,
+    m5: 2,
+    m6: 0,
+    m7: 0,
+    m8: 0,
+    m9: 0,
+    m10: 0,
+    m11: 0,
+    m12: 0,
+    m13: 0,
+    m14: 0,
+    m15: 0,
+    m16: 1,
+    m17: 1,
+    m18: 0,
+    m19: 2,
   },
   "ICT Officer": {
     m1: 1,
@@ -549,6 +689,9 @@ export const schoolRoleModuleLevels: Record<string, Partial<Record<string, Schoo
     m14: 0,
     m15: 1,
     m16: 3,
+    m17: 0,
+    m18: 0,
+    m19: 0,
   },
 };
 
@@ -651,15 +794,65 @@ export function schoolModuleActionsFor(
   };
 }
 
+
+/**
+ * The tabs each teaching template opens a module on. A teacher sees a subset of the administrator's tabs — never a tab that does
+ * not exist there — so the template grants only these; anything beyond is an administrator's decision, per person, in Staff &
+ * Access. A template or module absent here grants every tab, as before.
+ */
+const teachingModuleTabs = {
+  m2: ["calendar"],
+  m16: ["sync", "help-support"],
+  m18: ["leave", "my-assignments", "appraisal", "payslips"],
+  m19: ["for-you", "catalogue", "certificates"],
+};
+export const teachingTemplateTabs: Record<string, Partial<Record<string, string[]>>> = {
+  // The school's leadership signs a head of department's notes and reads coverage across the school — never the teacher's own curriculum.
+  "Proprietor": { m17: ["review", "coverage"] },
+  "Principal": { m17: ["review", "coverage"] },
+  "Form Master": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"], m5: ["enter", "results"], m6: ["remarks", "completion", "archive"], m8: ["registry"], m9: ["guardians", "submissions"], m12: ["compose", "sent"], m17: ["curriculum", "notes"] },
+  "Subject Teacher": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"], m5: ["enter", "results"], m17: ["curriculum", "notes"] },
+  "Head of Department": { ...teachingModuleTabs, m1: ["today", "oversight"], m3: ["timetable", "teaching"], m4: ["mark", "register", "compliance"], m5: ["enter", "review", "results"], m6: ["remarks", "completion", "archive"], m8: ["registry"], m9: ["guardians", "submissions"], m12: ["compose", "sent"], m13: ["queue"], m17: ["curriculum", "notes", "review", "coverage"] },
+  "Teaching Assistant": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"] },
+  "Cover / Substitute": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"], m5: ["enter", "results"], m17: ["curriculum", "notes"] },
+};
+
+/**
+ * Of the tabs a teaching template opens, the ones a teacher works in; the rest they only read. A form master writes remarks and
+ * reads the report cards of the class (Completion, Archive); a teacher enters scores and reads their results. A module absent here
+ * gives the template its level on every tab it opens, as before.
+ */
+export const teachingTemplateWork: Record<string, Partial<Record<string, string[]>>> = {
+  "Proprietor": { m17: ["review"] },
+  "Principal": { m17: ["review"] },
+  "Form Master": { m1: [], m3: [], m4: ["mark"], m5: ["enter"], m6: ["remarks"], m8: [], m9: ["submissions"], m12: ["compose"], m2: [] },
+  "Subject Teacher": { m1: [], m3: [], m4: ["mark"], m5: ["enter"], m2: [] },
+  "Head of Department": { m1: [], m3: [], m4: ["mark"], m5: ["enter", "review"], m6: ["remarks"], m8: [], m9: ["submissions"], m12: ["compose"], m2: [] },
+  "Teaching Assistant": { m1: [], m3: [], m4: ["mark"], m2: [] },
+  "Cover / Substitute": { m1: [], m3: [], m4: ["mark"], m5: ["enter"], m17: [], m2: [] },
+};
+
+/** What a template may do on one tab: its module's actions where it works, and View alone where it only reads. */
+export function templateTabActions(roleTemplate: string, moduleCode: string, tabSlug: string, actions: Record<SchoolModuleAction, boolean>): Record<SchoolModuleAction, boolean> {
+  const work = teachingTemplateWork[roleTemplate]?.[moduleCode];
+  if (!work || work.includes(tabSlug)) return actions;
+  return { View: actions.View, Create: false, Edit: false, Approve: false, Export: false, Delete: false };
+}
+
+/** The tabs of a module a template grants, or null when it grants all of them. */
+export function templateTabSlugs(roleTemplate: string, moduleCode: string): string[] | null {
+  return teachingTemplateTabs[roleTemplate]?.[moduleCode] ?? null;
+}
+
 /** The permission keys a role template holds across every module and tab. */
 export function schoolPermissionKeysForRoleTemplate(roleTemplate: string): string[] {
   return schoolModules.flatMap((module) => {
     const actions = schoolModuleActionsFor(roleTemplate, module.code);
-    return module.tabs.flatMap((tab) =>
-      schoolModuleActions
-        .filter((action) => actions[action])
-        .map((action) => schoolPermissionKey(module.slug, tab.slug, action)),
-    );
+    const only = templateTabSlugs(roleTemplate, module.code);
+    return module.tabs.filter((tab) => !only || only.includes(tab.slug)).flatMap((tab) => {
+      const here = templateTabActions(roleTemplate, module.code, tab.slug, actions);
+      return schoolModuleActions.filter((action) => here[action]).map((action) => schoolPermissionKey(module.slug, tab.slug, action));
+    });
   });
 }
 

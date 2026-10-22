@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from "@nestjs/common";
+import { refuseTeaching } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -71,6 +72,8 @@ export class RegistryService {
 
   /** Everything the registry needs, in one read. */
   async overview(session: SessionPayload) {
+    // The whole school's roll, with what each family owes, is not a teacher's. Theirs is My Students.
+    await refuseTeaching(session, "My Students");
     const schoolId = session.schoolId;
     const term = await currentTerm(schoolId);
     const [students, attendance, sheets, invoices, hostel, pendingChanges, school] = await Promise.all([

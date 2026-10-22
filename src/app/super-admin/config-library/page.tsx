@@ -9,6 +9,7 @@ import { ResourceActionDialog } from "@/components/forms/resource-action-dialog"
 import { formatDate } from "@/lib/utils/formatters";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
+import { CatalogueImport } from "@/components/modules/catalogue-import";
 import { CurriculumTemplatesTable, GradingScalesTable, ReportCardsTable } from "./_template-tables";
 
 const calendarOptions = [{ label: "Three-term", value: "THREE_TERM" }, { label: "Two-semester", value: "TWO_SEMESTER" }];
@@ -99,8 +100,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
     { label: "Assessment Frameworks", href: tabHref("assessment-frameworks"), active: tab === "assessment-frameworks" },
     { label: "Grading Scales", href: tabHref("grading"), active: tab === "grading" },
     { label: "Report Cards", href: tabHref("reportcards"), active: tab === "reportcards" },
-    { label: "Country Settings", href: tabHref("country-settings"), active: tab === "country-settings", badge: extras.countrySettings.length }
+    { label: "Country Settings", href: tabHref("country-settings"), active: tab === "country-settings", badge: extras.countrySettings.length },
+    { label: "Topic Catalogue", href: tabHref("topic-catalogue"), active: tab === "topic-catalogue" }
   ];
+  const catalogue = tab === "topic-catalogue" ? await apiGet<Array<{ id: string; curriculum: string; subject: string; stage: string; term: number; source: string | null; topics: number; updatedAt: string }>>("/api/super-admin/curriculum-catalogue").catch(() => []) : [];
 
   return (
     <div className="grid gap-[14px]">
@@ -518,6 +521,27 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             />
           }
         />
+      ) : null}
+
+      {tab === "topic-catalogue" ? (
+        <div className="grid gap-[14px]">
+          <CatalogueImport base="/api/super-admin/curriculum-catalogue" templateHref="/api/super-admin/curriculum-catalogue/template" who="Every school sees what you load here when it plans a scheme of work." />
+          <TableCard
+            title="The catalogue every school sees"
+            description="Subject, stage and term outlines from published curricula. A teacher starts a scheme of work from one; nothing is copied until they choose to. Only what has been imported is here — none of it is written by the product."
+            items={catalogue}
+            getRowKey={(row) => row.id}
+            emptyState="Nothing has been loaded yet. Download the template, fill it from the published curriculum (NERDC, for example), and load it above."
+            columns={[
+              { key: "curriculum", header: "Curriculum", render: (row) => row.curriculum },
+              { key: "subject", header: "Subject", render: (row) => row.subject },
+              { key: "stage", header: "Stage", render: (row) => row.stage },
+              { key: "term", header: "Term", render: (row) => row.term },
+              { key: "topics", header: "Topics", render: (row) => row.topics },
+              { key: "source", header: "Source", render: (row) => row.source ?? "—" }
+            ]}
+          />
+        </div>
       ) : null}
 
       {tab === "country-settings" ? (

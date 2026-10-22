@@ -1,4 +1,5 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { assertClassReadable, assertSheetReadable, teachingScope } from "../../common/teaching-scope";
 import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
@@ -6,6 +7,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { Access, TEACHING_ROLES, currentTerm, iso, notifyStaff } from "../attendance-management/attendance.shared";
 import { type ArmData, type SubjectView, loadAll, loadArm } from "./arm";
+import { readSpreadsheet, writeXlsx, type Cell } from "../../common/xlsx";
 import { ABSENT, type CellValue, type Column, ensureColumns, fullName, liveFramework } from "./scores.shared";
 
 /**
@@ -41,7 +43,7 @@ export class SheetsService {
   /** Whether this person may type into this subject-arm — the subject's own teacher, or an administrator. */
   private mayEnter(session: SessionPayload, subject: SubjectView): string | null {
     if (!subject.teacherId) return `Nobody teaches ${subject.name} in this arm, so nobody can enter a score for it. Name a teacher on Class & Timetable first.`;
-    if (TEACHING_ROLES.has(session.role) && subject.teacherId !== session.userId && subject.assistantId !== session.userId) {
+    if (TEACHING_ROLES.has(session.role) && subject.teacherId !== session.userId && subject.assistantId !== session.userId && !subject.coverIds.includes(session.userId)) {
       return `${subject.name} here is entered by ${subject.teacher ?? "its own teacher"}. Ask a school administrator to enter it for them.`;
     }
     return null;
@@ -57,12 +59,15 @@ export class SheetsService {
 
   async chooser(session: SessionPayload, query: { level?: string; arm?: string }) {
     const term = await this.term(session.schoolId);
-    const arms = await loadAll(session.schoolId, term);
+    // A teaching person chooses among the arms they teach in, and sees only the subject-arms that are theirs.
+    const scope = await teachingScope(session);
+    const arms = await loadAll(session.schoolId, term, scope ? [...scope.subjectArms] : undefined);
     const levels = Array.from(new Set(arms.map((arm) => arm.room.levelName)));
     const level = query.level && levels.includes(query.level) ? query.level : null;
     const visible = arms.filter((arm) => !level || arm.room.levelName === level);
     const picked = arms.find((arm) => arm.room.id === query.arm) ?? null;
-    const mine = (subject: SubjectView) => subject.teacherId === session.userId || subject.assistantId === session.userId;
+    const mine = (subject: SubjectView) => subject.teacherId === session.userId || subject.assistantId === session.userId || subject.coverIds.includes(session.userId);
+    if (scope) for (const arm of arms) arm.subjects = arm.subjects.filter(mine);
 
     const sheetRow = (arm: ArmData, subject: SubjectView) => ({
       classId: arm.room.id, arm: arm.room.name, subjectId: subject.subjectId, subject: subject.name, teacher: subject.teacher, teacherId: subject.teacherId, state: subject.state,
@@ -83,6 +88,7 @@ export class SheetsService {
   /* ───────────────────────── the grid ───────────────────────── */
 
   async grid(session: SessionPayload, classId: string, subjectId: string) {
+    await assertSheetReadable(session, classId, subjectId);
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");
@@ -127,6 +133,107 @@ export class SheetsService {
       const column = columns.find((entry) => entry.id === row.componentId);
       return { component: column?.name ?? "", key: column?.key ?? "", opensAt: row.opensAt.toISOString(), closesAt: row.closesAt.toISOString(), open, late: !open ? now > row.closesAt : false };
     });
+  }
+
+  /* ───────────────────────── Excel ───────────────────────── */
+
+  /** The sheet as the school's own Excel template: admission number, name, and one column per component, with what is already entered. */
+  async template(session: SessionPayload, classId: string, subjectId: string) {
+    const { arm, subject, columns } = await this.importContext(session, classId, subjectId, false);
+    const header: Cell[] = ["Admission no", "Student", ...columns.map((column) => `${column.name} /${column.max}`)];
+    const rows: Cell[][] = subject.rows.map((row) => [row.adm, row.name, ...columns.map((column) => { const value = row.cells[column.key]; return value === ABSENT ? "A" : value ?? null; })]);
+    return { fileName: `${subject.name}-${arm.room.name}-scores.xlsx`.replace(/[^A-Za-z0-9._-]+/g, "-"), bytes: writeXlsx([header, ...rows], subject.name.slice(0, 28), [16, 30, ...columns.map(() => 12)]) };
+  }
+
+  private async importContext(session: SessionPayload, classId: string, subjectId: string, forWriting: boolean) {
+    const term = await this.term(session.schoolId);
+    const arm = await loadArm(session.schoolId, term, classId);
+    if (!arm) throw new NotFoundException("That arm is not in this school.");
+    const subject = arm.subjects.find((entry) => entry.subjectId === subjectId);
+    if (!subject) throw new NotFoundException(`${arm.room.name} does not offer that subject.`);
+    await assertSheetReadable(session, classId, subjectId);
+    const refusal = this.mayEnter(session, subject);
+    if (refusal) throw new ForbiddenException(refusal);
+    if (forWriting) {
+      const lockedWhy = this.locked(subject);
+      if (lockedWhy) throw new BadRequestException(lockedWhy);
+    }
+    const columns = await this.columnsFor(session, term, arm, subject);
+    return { term, arm, subject, columns };
+  }
+
+  private decode(body: unknown) {
+    const input = z.object({ file: z.string().min(10, "Choose the file first."), name: z.string().optional() }).parse(body);
+    const base64 = input.file.includes(",") ? input.file.slice(input.file.indexOf(",") + 1) : input.file;
+    const buffer = Buffer.from(base64, "base64");
+    if (buffer.length > 4_000_000) throw new BadRequestException("That file is larger than 4 MB. A score sheet is far smaller — check it is the right file.");
+    try {
+      return readSpreadsheet(buffer);
+    } catch (error) {
+      throw new BadRequestException(error instanceof Error ? error.message : "That file could not be read.");
+    }
+  }
+
+  /** Reads a filled-in template against the sheet and says what each cell would do. Blank means "leave it", never "clear it". */
+  private async analyse(session: SessionPayload, classId: string, subjectId: string, body: unknown) {
+    const { arm, subject, columns } = await this.importContext(session, classId, subjectId, true);
+    const grid = this.decode(body);
+    const headerAt = grid.findIndex((row) => row.some((cell) => /admission/i.test(String(cell ?? ""))));
+    if (headerAt < 0) throw new BadRequestException("The first row must have an “Admission no” column — use the template from this page.");
+    const header = grid[headerAt]!.map((cell) => String(cell ?? "").trim());
+    const admColumn = header.findIndex((cell) => /admission/i.test(cell));
+    const mapped = columns.map((column) => ({ column, at: header.findIndex((cell) => cell.replace(/\s*\/\s*\d+(\.\d+)?\s*$/, "").trim().toLowerCase() === column.name.trim().toLowerCase()) }));
+    const known = new Set(mapped.filter((entry) => entry.at >= 0).map((entry) => entry.at));
+    const ignored = header.filter((cell, at) => cell && at !== admColumn && !/^student|^name$/i.test(cell) && !known.has(at));
+    const missing = mapped.filter((entry) => entry.at < 0).map((entry) => entry.column.name);
+    if (!known.size) throw new BadRequestException(`None of this sheet’s columns (${columns.map((column) => column.name).join(", ")}) are in the file. Download the template and fill that in.`);
+
+    const byAdm = new Map(subject.rows.map((row) => [row.adm.trim().toUpperCase(), row]));
+    const changes: Array<{ studentId: string; name: string; adm: string; column: string; key: string; from: string; to: string }> = [];
+    const problems: string[] = [];
+    const unmatched: string[] = [];
+    const seen = new Set<string>();
+    let matched = 0;
+    let unchanged = 0;
+    for (const line of grid.slice(headerAt + 1)) {
+      const adm = String(line[admColumn] ?? "").trim();
+      if (!adm) continue;
+      const row = byAdm.get(adm.toUpperCase());
+      if (!row) { unmatched.push(adm); continue; }
+      if (seen.has(row.id)) { problems.push(`${row.name} (${adm}) is in the file twice.`); continue; }
+      seen.add(row.id);
+      matched += 1;
+      for (const { column, at } of mapped) {
+        if (at < 0) continue;
+        const cell = line[at];
+        if (cell === null || cell === undefined || String(cell).trim() === "") continue;
+        const typed = String(cell).trim();
+        const value = this.parse(typed, column);
+        if (value === "ERR") { problems.push(`${row.name} · ${column.name}: “${typed}” is not a mark from 0 to ${column.max}, and not an A for absent.`); continue; }
+        const current = row.cells[column.key];
+        const same = value === current || (typeof value === "number" && typeof current === "number" && Math.abs(value - current) < 1e-9);
+        if (same) { unchanged += 1; continue; }
+        changes.push({ studentId: row.id, name: row.name, adm: row.adm, column: column.name, key: column.key, from: current === ABSENT ? "Absent" : current === null || current === undefined ? "—" : String(current), to: value === ABSENT ? "Absent" : String(value) });
+      }
+    }
+    return { sheet: { arm: arm.room.name, subject: subject.name, roll: subject.rows.length }, matched, unchanged, changes, problems, unmatched, ignoredColumns: ignored, missingColumns: missing };
+  }
+
+  async importPreview(session: SessionPayload, classId: string, subjectId: string, body: unknown) {
+    const found = await this.analyse(session, classId, subjectId, body);
+    return { sheet: found.sheet, matched: found.matched, unchanged: found.unchanged, changes: found.changes.slice(0, 400), changeCount: found.changes.length, problems: found.problems.slice(0, 30), problemCount: found.problems.length, unmatched: found.unmatched.slice(0, 30), unmatchedCount: found.unmatched.length, ignoredColumns: found.ignoredColumns, missingColumns: found.missingColumns, canApply: found.problems.length === 0 && found.changes.length > 0 };
+  }
+
+  /** Applies exactly what the preview showed, through the same save a typed entry goes through — so every rule and window still applies. */
+  async importApply(session: SessionPayload, classId: string, subjectId: string, body: unknown) {
+    const found = await this.analyse(session, classId, subjectId, body);
+    if (found.problems.length) throw new BadRequestException(`${found.problems.length} cell${found.problems.length === 1 ? "" : "s"} cannot be imported. Fix the file and preview it again — nothing was written.`);
+    if (!found.changes.length) throw new BadRequestException("Nothing in the file differs from what is already on the sheet.");
+    const rows = new Map<string, Record<string, string>>();
+    for (const change of found.changes) rows.set(change.studentId, { ...(rows.get(change.studentId) ?? {}), [change.key]: change.to === "Absent" ? "A" : change.to });
+    const saved = await this.save(session, classId, subjectId, { rows: [...rows.entries()].map(([studentId, cells]) => ({ studentId, cells })), note: "Imported from Excel" });
+    await this.audit(session, AuditAction.UPDATE, `${classId}:${subjectId}`, { summary: `Scores imported from Excel · ${found.sheet.subject} · ${found.sheet.arm}`, cells: found.changes.length });
+    return { applied: found.changes.length, children: rows.size, saved };
   }
 
   /* ───────────────────────── writing ───────────────────────── */
@@ -355,6 +462,7 @@ export class SheetsService {
 
   /** What the Enter tab's one-arm broadsheet shows: every child against every subject, including the empty cells. */
   async broadsheet(session: SessionPayload, classId: string) {
+    await assertClassReadable(session, classId, "that arm");
     const term = await this.term(session.schoolId);
     const arm = await loadArm(session.schoolId, term, classId);
     if (!arm) throw new NotFoundException("That arm is not in this school.");

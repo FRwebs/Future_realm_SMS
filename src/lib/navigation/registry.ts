@@ -1,6 +1,6 @@
 import type { Role } from "@/lib/domain/types";
 import { isSchoolStaffRole, schoolPermissionsForRole } from "@/lib/modules/school-access";
-import { getSchoolModule } from "@/lib/modules/school-modules";
+import { getSchoolModule, schoolPermissionKey } from "@/lib/modules/school-modules";
 import { systemRolePermissionKeys } from "@/lib/permissions/catalog";
 
 export type PortalType = "school" | "super_admin";
@@ -147,6 +147,8 @@ const platformPermissionByRole: Record<Role, string[]> = {
   HEAD_OF_DEPARTMENT: [],
   CLASS_TEACHER: [],
   SUBJECT_TEACHER: [],
+  TEACHING_ASSISTANT: [],
+  COVER_TEACHER: [],
   BURSAR: [],
   ACCOUNTANT: [],
   ACCOUNT_OFFICER: [],
@@ -365,6 +367,36 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     portalType: "school",
     group: "System",
     order: 16,
+  },
+  {
+    id: "m17_lesson_notes",
+    label: "Lesson Notes",
+    icon: "BookOpen",
+    path: "/lesson-notes/curriculum",
+    requiredPermissions: ["lesson-notes.curriculum.view"],
+    portalType: "school",
+    group: "Academic Operations",
+    order: 17,
+  },
+  {
+    id: "m18_my_employment",
+    label: "My Employment",
+    icon: "UserCircle",
+    path: "/my-employment/leave",
+    requiredPermissions: ["my-employment.leave.view"],
+    portalType: "school",
+    group: "People",
+    order: 18,
+  },
+  {
+    id: "m19_training",
+    label: "Training",
+    icon: "GraduationCap",
+    path: "/training/for-you",
+    requiredPermissions: ["training.for-you.view"],
+    portalType: "school",
+    group: "People",
+    order: 19,
   },
   {
     id: "sa_dashboard",
@@ -745,6 +777,19 @@ export const NAV_REGISTRY: NavigationRegistryItem[] = [
     order: 125,
   },
 ];
+
+/**
+ * A module is reachable when any one of its tabs is. Its sidebar entry points at its first tab, but a teacher's template grants
+ * only some of a module's tabs (Timetable and Teaching, never Classes), and a module whose first tab is not theirs is still theirs.
+ */
+for (const item of NAV_REGISTRY) {
+  if (item.portalType !== "school" || !/^m\d+_/.test(item.id)) continue;
+  const slug = item.path.split("/")[1];
+  const module = slug ? getSchoolModule(slug) : undefined;
+  if (!module) continue;
+  item.requiredPermissions = module.tabs.map((tab) => schoolPermissionKey(module.slug, tab.slug, "View"));
+  item.requireAny = true;
+}
 
 /**
  * Staff no longer have portals of their own.

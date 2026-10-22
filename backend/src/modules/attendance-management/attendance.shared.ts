@@ -2,6 +2,7 @@ import { ForbiddenException, Injectable } from "@nestjs/common";
 import { Prisma } from "@prisma/client";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { activeCovers } from "../../common/teaching-scope";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { RolesManagementService } from "../roles-management/roles-management.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
@@ -21,7 +22,7 @@ export const CORRECTION_REASONS = ["Marked in error", "Child arrived after the r
 export const CASE_OUTCOMES = ["Guardian met and a plan agreed", "Medical — excused", "Transferred or withdrawn", "Improved — back above the threshold", "Referred to welfare", "Referred to the Principal", "Other — described"];
 
 /** Teachers mark their own arms; everyone else with the permission may mark any. */
-export const TEACHING_ROLES = new Set(["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"]);
+export const TEACHING_ROLES = new Set(["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER", "HEAD_OF_DEPARTMENT", "TEACHING_ASSISTANT", "COVER_TEACHER"]);
 export const LEADER_ROLES = new Set(["SCHOOL_OWNER", "PROPRIETOR", "SUPER_ADMIN", "PRINCIPAL", "VICE_PRINCIPAL_ACADEMICS", "VICE_PRINCIPAL_ADMINISTRATION", "VICE_PRINCIPAL_SPECIAL_DUTIES", "HEAD_TEACHER", "ADMINISTRATOR"]);
 
 export const DAY_MS = 86_400_000;
@@ -231,9 +232,11 @@ export class Access {
   }
 
   /** A teacher marks only the arms they are named on. */
-  assertMarker(session: SessionPayload, arm: { name: string; classTeacherId: string | null; assistantClassTeacherId: string | null }) {
+  async assertMarker(session: SessionPayload, arm: { id?: string; name: string; classTeacherId: string | null; assistantClassTeacherId: string | null }) {
     if (!TEACHING_ROLES.has(session.role)) return;
     if (arm.classTeacherId === session.userId || arm.assistantClassTeacherId === session.userId) return;
+    // Cover holds the register for the days it is stated, and not a day more.
+    if (arm.id && (await activeCovers(session.schoolId, session.userId)).some((cover) => cover.classId === arm.id)) return;
     throw new ForbiddenException(`${arm.name}'s register is taken by its own form master. Ask a school administrator to mark it.`);
   }
 }

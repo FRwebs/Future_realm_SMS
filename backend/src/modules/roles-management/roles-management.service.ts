@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
+import { BadRequestException, ForbiddenException, Injectable, Logger, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { AuditAction, PermissionOverrideType, Prisma, UserRole } from "@prisma/client";
 import { z } from "zod";
 
@@ -7,7 +7,7 @@ import { canAssignRole, canManageRole, isOwnerRole, isPlatformRole, isSchoolStaf
 import { withoutSwitchedOff } from "../platform-sync/availability";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { roleTemplateFor, schoolPermissionsForRole } from "../../../../src/lib/modules/school-access";
-import { allGrantablePermissionKeys, allPermissionKeys, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
+import { allGrantablePermissionKeys, allPermissionKeys, grantablePermissionCatalog, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
 
 const roleSchema = z.object({
   name: z.string().trim().min(2),
@@ -46,8 +46,25 @@ function userName(user: { firstName: string; lastName: string }) {
 }
 
 @Injectable()
-export class RolesManagementService {
+export class RolesManagementService implements OnModuleInit {
   private static permissionCache = new Map<string, string[]>();
+
+  /**
+   * The permission rows come from the catalogue, but only the seed used to write them — so a module added to the catalogue
+   * (the teaching workspace's Lesson Notes, My Employment and Training) could be granted to nobody until someone re-seeded.
+   * Every start adds whatever is missing; rows that exist are left exactly as they are.
+   */
+  async onModuleInit() {
+    try {
+      const created = await prisma.permission.createMany({
+        data: grantablePermissionCatalog.map((item) => ({ key: item.key, module: item.module, label: item.label, description: item.description })),
+        skipDuplicates: true
+      });
+      if (created.count) new Logger("Permissions").log(`${created.count} permission(s) added to the catalogue`);
+    } catch (error) {
+      new Logger("Permissions").warn(`catalogue sync skipped: ${error instanceof Error ? error.message : error}`);
+    }
+  }
 
   invalidatePermissionCache(userId?: string, schoolId?: string) {
     if (!userId || !schoolId) {

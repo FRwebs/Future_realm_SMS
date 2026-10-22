@@ -66,14 +66,56 @@ export function kpiTitle(moduleCode: string, tabLabel: string): string {
   return KPI_TITLES[`${moduleCode}:${tabLabel}`] ?? "Summary";
 }
 
+/**
+ * What a teaching person's card rows count — the same tabs, in the teacher's own words: "Your sheets", not "Entering scores".
+ * `arm` is the arm they answer for, when they answer for one.
+ */
+export function teacherKpiTitle(moduleCode: string, tabLabel: string, ctx: { earlyYears: boolean; arm: string | null; department: string | null }): string | undefined {
+  const arm = ctx.arm;
+  const dept = ctx.department ?? "Your department";
+  const titles: Record<string, string> = {
+    "m1:Today": "What you owe today",
+    "m1:Oversight": `What ${dept} owes`,
+    "m2:Calendar": "This term",
+    "m3:Timetable": "Your week",
+    "m3:Teaching": "What you are assigned to",
+    "m4:Mark": "Your registers today",
+    "m4:Register": arm ? `${arm} this term` : "Your registers this term",
+    "m4:Compliance": `${dept} registers today`,
+    "m5:Enter": ctx.earlyYears ? "Your observations" : "Your sheets",
+    "m5:Review": dept,
+    "m5:Results": ctx.earlyYears ? (arm ? `${arm} by learning area` : "By learning area") : "Your subjects",
+    "m6:Remarks": arm ? `${arm} remarks` : "Your remarks",
+    "m6:Completion": "Report cards you can read",
+    "m6:Archive": "Cards you are accountable for",
+    "m8:Registry": arm ?? "Your students",
+    "m9:Guardians": arm ? `The families of ${arm}` : "Your families",
+    "m9:Submissions": "What families have sent in",
+    "m12:Compose": "Before you send",
+    "m12:Sent": "What you have sent",
+    "m13:Queue": "Routed to you",
+    "m16:Sync": "Is my work saved",
+    "m16:Help & Support": "Getting help",
+    "m17:Curriculum": "Your scheme of work",
+    "m17:Notes": "Your notes this term",
+    "m17:Coverage": `${dept} coverage`,
+    "m17:Review": "Notes submitted to you",
+    "m19:For you": "Your learning",
+    "m19:Catalogue": "Every course",
+    "m19:Certificates": "Your certificates",
+    "m18:Leave": "Your leave",
+    "m18:My assignments": "What you hold and cover",
+    "m18:Appraisal": "This cycle",
+    "m18:Payslips": "This session",
+  };
+  return titles[`${moduleCode}:${tabLabel}`];
+}
+
 /** Gives every untitled card row in a tab its heading. */
-export function withKpiTitles(rows: PanelRow[], moduleCode: string, tabLabel: string): PanelRow[] {
+export function withKpiTitles(rows: PanelRow[], moduleCode: string, tabLabel: string, override?: (moduleCode: string, tabLabel: string) => string | undefined): PanelRow[] {
+  const title = override?.(moduleCode, tabLabel) ?? kpiTitle(moduleCode, tabLabel);
   return rows.map((panelRow) => ({
     ...panelRow,
-    panels: panelRow.panels.map((panel) =>
-      panel.type === "kpi" && !panel.title
-        ? { ...panel, title: kpiTitle(moduleCode, tabLabel) }
-        : panel,
-    ),
+    panels: panelRow.panels.map((panel) => (panel.type === "kpi" && !panel.title ? { ...panel, title } : panel)),
   }));
 }

@@ -20,20 +20,22 @@ export function creditsTab(c: Credits): TabContent {
   const low = paid.filter((channel) => channel.balance < c.settings.warnAt);
   const topped = c.topUps.reduce((sum, row) => sum + row.amount, 0);
 
-  const cards: KpiCard[] = c.channels.map((channel) => channel.paid
+  const cards: KpiCard[] = c.channels.map((channel) => channel.entitled === false
+    ? { label: channel.name, value: "Not in plan", sub: channel.why ?? "Not part of this school’s plan", tone: "neutral" }
+    : channel.paid
     ? { label: channel.name, value: channel.balance.toLocaleString("en-NG"), unit: "left", sub: `${channel.base.toLocaleString("en-NG")} base · ${channel.topped.toLocaleString("en-NG")} topped up`, tone: level(channel.balance, c.settings.warnAt), link: "Top up", drawer: topUpDrawer(c, channel.name === "WhatsApp" ? "WhatsApp" : "SMS") }
     : { label: channel.name, value: "Free", sub: `${channel.used.toLocaleString("en-NG")} sent this term`, tone: "positive" });
 
   const channelRows: TableRow[] = c.channels.map((channel) => ({
     cells: [
       text(channel.name, { strong: true }),
-      channel.paid ? text(channel.base.toLocaleString("en-NG"), { mono: true }) : text("Included"),
+      channel.entitled === false ? text("—") : channel.paid ? text(channel.base.toLocaleString("en-NG"), { mono: true }) : text("Included"),
       channel.paid ? text(channel.topped.toLocaleString("en-NG"), { mono: true }) : text("—"),
       text(channel.used.toLocaleString("en-NG"), { mono: true }),
       channel.paid ? text(channel.balance.toLocaleString("en-NG"), { mono: true, strong: true, tone: level(channel.balance, c.settings.warnAt) }) : pill("Unlimited", "positive"),
       channel.paid ? text(`${rate2(channel.rate)} each`, { mono: true }) : text("Free"),
       channel.paid ? text(naira(Math.round(channel.balance * channel.rate)), { mono: true }) : text("—"),
-      channel.paid ? { kind: "action" as const, label: "Top up", drawer: topUpDrawer(c, channel.name === "WhatsApp" ? "WhatsApp" : "SMS") } : text("—"),
+      channel.entitled === false ? pill("Not in your plan", "neutral") : channel.paid ? { kind: "action" as const, label: "Top up", drawer: topUpDrawer(c, channel.name === "WhatsApp" ? "WhatsApp" : "SMS") } : text("—"),
     ],
   }));
 

@@ -15,6 +15,7 @@ import { useTheme } from "@/components/theme/theme-provider";
 import type { PlatformSyncView, SessionUser } from "@/lib/domain/types";
 import { getDefaultPathForRole } from "@/lib/auth/roles";
 import type { PortalType } from "@/lib/navigation/registry";
+import type { TeacherRail } from "@/lib/navigation/workflows";
 import { canAccessPathWithPermissions } from "@/lib/navigation/registry";
 
 import { Sidebar } from "@/components/layout/sidebar";
@@ -32,6 +33,7 @@ export function DashboardShell({
   navBadges,
   hiddenNavIds,
   platformSync,
+  teacherRail,
   children,
 }: {
   session: SessionUser;
@@ -49,6 +51,8 @@ export function DashboardShell({
   hiddenNavIds?: string[];
   /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
   platformSync?: PlatformSyncView | null;
+  /** The teaching workspace's rail, when the signed-in person is a teacher. */
+  teacherRail?: TeacherRail | null;
   children: React.ReactNode;
 }) {
   const [collapsed, setCollapsed] = useState(false);
@@ -119,6 +123,7 @@ export function DashboardShell({
           theme={theme}
           navBadges={navBadges}
           hiddenNavIds={hiddenNavIds}
+          teacherRail={teacherRail}
         />
 
         <div className="flex min-w-0 flex-1 flex-col overflow-hidden">

@@ -11,6 +11,10 @@ import { enrolDrawer } from "@/lib/modules/live/m8-forms";
 import { loadEnrolOptions, loadMoveOptions } from "@/lib/modules/live/m8-registry";
 import { SECTIONS, studentRecordPage, type RecordSection } from "@/lib/modules/live/m8-record";
 import { apiGet } from "@/lib/api/server";
+import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
+import { loadMyStudents, changeDrawer, incidentDrawer, concernDrawer, teacherWellbeing, type TeacherSupportPlan } from "@/lib/modules/live/t8-students";
+import { loadDossier } from "@/lib/modules/live/m8-record";
+import { scrubStudentRecord } from "@/lib/modules/live/teacher-scrub";
 
 /**
  * The pages Student Records opens from its tabs. Each is a server view: it checks the module is
@@ -39,6 +43,30 @@ export async function StudentRecordView({ id, section, termId, from, arm }: { id
   if (!ok) return <AccessDenied backHref="/command-center/today" />;
   const known = SECTIONS.find((entry) => entry.path === (section ? `/${section}` : ""));
   if (!known) notFound();
+
+  // A teacher reads a child as a teacher holds it: the class they answer for or teach, with fees, files and records left out.
+  const session = await getServerSession();
+  const teacher = session ? await getTeacherWorkspace(session.role, session.schoolId) : null;
+  if (teacher) {
+    if (!["overview", "academic", "report-cards", "attendance", "wellbeing", "family"].includes(known.section)) notFound();
+    const [page, dossier, mine] = await Promise.all([studentRecordPage(id, known.section as RecordSection, { termId, from: { label: "Back to My students", href: "/student-records/registry" } }), loadDossier(id).catch(() => null), loadMyStudents().catch(() => null)]);
+    if (!page || !dossier) notFound();
+    const pre = { id };
+    const roster = mine?.rows ?? [];
+    const formWord = teacher.persona === "early-years" ? "class teacher" : "form master";
+    const raw = known.section === "wellbeing" ? { ...teacherWellbeing(dossier.name, dossier.arm?.name ?? "No arm", dossier.adm, Boolean((dossier.wellbeing.health as { alert?: boolean } | null)?.alert), formWord, ((dossier as { support?: { plan: TeacherSupportPlan } }).support?.plan ?? null)), crumb: page.content.crumb } : page.content;
+    const content = scrubStudentRecord(raw as AdmissionPage["content"]);
+    const actions = roster.length
+      ? { primary: { label: "Report an incident", icon: "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z", drawer: incidentDrawer(roster, pre) }, launchers: [...(content.launchers ?? []), { label: "Request a record change", drawer: changeDrawer(roster, pre) }, { label: "Raise a safeguarding concern", drawer: concernDrawer(roster, pre) }] }
+      : {};
+    const allowedTabs = page.tabs.filter((tab) => !/fees|records$/.test(tab.href) && !/\/(fees|records)$/.test(tab.href));
+    return (
+      <Shell content={{ ...content, ...(content.primary ? {} : actions.primary ? { primary: actions.primary } : {}), launchers: actions.launchers ?? content.launchers } as AdmissionPage["content"]}>
+        <TabBar items={allowedTabs} ariaLabel={`${page.name}'s record`} />
+      </Shell>
+    );
+  }
+
   let crumb: { label: string; href: string } | undefined;
   if (from === "arm" && arm) {
     const found = await apiGet<{ name: string }>(`/api/v1/class-structure/arms/${encodeURIComponent(arm)}`).catch(() => null);

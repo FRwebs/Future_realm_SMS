@@ -15,6 +15,6 @@ import { StaffAccessService } from "./staff-access.service";
   imports: [RolesManagementModule, ClassStructureModule],
   controllers: [StaffAccessController],
   providers: [AccessService, StaffAccessService, PayrollService, LeaveService, AppraisalService, FlowsService, PermissionsGuard],
-  exports: [AccessService, StaffAccessService, LeaveService]
+  exports: [AccessService, StaffAccessService, LeaveService, AppraisalService]
 })
 export class StaffAccessModule {}
