@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { PermissionsGuard } from "../../auth/permissions.guard";
+import { CommunicationsModule } from "../communications/communications.module";
 import { AttendanceManagementModule } from "../attendance-management/attendance-management.module";
 import { FeeManagementModule } from "../fee-management/fee-management.module";
 import { OnboardingModule } from "../onboarding/onboarding.module";
@@ -14,7 +15,7 @@ import { ApprovalsService } from "./approvals.service";
 import { HubService } from "./hub.service";
 
 @Module({
-  imports: [RolesManagementModule, OnboardingModule, ScoreResultsModule, AttendanceManagementModule, FeeManagementModule, StudentRecordsModule, StaffAccessModule],
+  imports: [CommunicationsModule, RolesManagementModule, OnboardingModule, ScoreResultsModule, AttendanceManagementModule, FeeManagementModule, StudentRecordsModule, StaffAccessModule],
   controllers: [ApprovalsController, HubController],
   providers: [ApprovalsService, HubService, PermissionsGuard],
   exports: [ApprovalsService]

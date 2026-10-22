@@ -8,6 +8,7 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { currentTerm, daysSince, fullName } from "../student-records/records.shared";
 import { notifyGuardian } from "./guardians.shared";
+import { openSubmission, submissionTypes } from "./submission-intake";
 
 /**
  * Everything families have sent in, with an owner, a state and an age. Which submissions a
@@ -18,6 +19,7 @@ export type SubmissionType = { name: string; target: number; reviewer: string; a
 
 export const SUBMISSION_DEFAULTS: SubmissionType[] = [
   { name: "Absence explanation", target: 2, reviewer: "Form master", accepted: true },
+  { name: "Collection change", target: 1, reviewer: "Form master", accepted: true },
   { name: "Contact update", target: 3, reviewer: "Registrar", accepted: true },
   { name: "Record correction", target: 5, reviewer: "Registrar", accepted: true },
   { name: "Result query", target: 3, reviewer: "Exam Officer", accepted: true },
@@ -26,14 +28,6 @@ export const SUBMISSION_DEFAULTS: SubmissionType[] = [
   { name: "Consent action", target: 0, reviewer: "Handled in person", accepted: false },
   { name: "Withdrawal notice", target: 0, reviewer: "Handled in person", accepted: false }
 ];
-
-const REVIEWER_ROLES: Record<string, string[]> = {
-  Registrar: ["ADMIN_OFFICER", "ADMISSIONS_OFFICER"],
-  Bursar: ["BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"],
-  "Exam Officer": ["EXAM_OFFICER", "EXAMINATION_OFFICER"],
-  Principal: ["PRINCIPAL"],
-  "Form master": ["CLASS_TEACHER"]
-};
 
 const logSchema = z.object({
   guardian: z.union([z.string(), z.array(z.string())]).transform((value) => (Array.isArray(value) ? value[0] : value)),
@@ -54,9 +48,8 @@ export class SubmissionsService {
     return new ConfigStore(schoolId, "submission-types");
   }
 
-  private async typeList(schoolId: string): Promise<SubmissionType[]> {
-    const rows = await this.types(schoolId).list<SubmissionType>();
-    return rows.length ? rows.map((row) => ({ ...row.data, name: row.name })) : SUBMISSION_DEFAULTS;
+  private typeList(schoolId: string): Promise<SubmissionType[]> {
+    return submissionTypes(schoolId);
   }
 
   private async audit(session: SessionPayload, action: AuditAction, entityId: string, metadata?: Prisma.InputJsonValue) {
@@ -120,28 +113,9 @@ export class SubmissionsService {
   /** Staff log what a family told them in person or on the phone, so it has an owner and a clock like any other. */
   async log(session: SessionPayload, body: unknown) {
     const input = logSchema.parse(body);
-    const schoolId = session.schoolId;
-    const types = await this.typeList(schoolId);
-    const type = types.find((entry) => entry.name === input.type);
-    if (!type) throw new BadRequestException("That is not a type of submission.");
-    if (!type.accepted) throw new BadRequestException(`${type.name} is not accepted here — it is handled in person.`);
-    const guardian = await prisma.guardian.findFirst({ where: { id: input.guardian, schoolId } });
-    if (!guardian) throw new BadRequestException("That family is not in this school.");
-    let owner = input.owner ? await prisma.user.findFirst({ where: { schoolId, id: input.owner }, select: { id: true, firstName: true, lastName: true, role: true } }) : null;
-    if (!owner) {
-      const roles = REVIEWER_ROLES[type.reviewer] ?? [];
-      if (type.reviewer === "Form master" && input.child) {
-        const child = await prisma.student.findFirst({ where: { id: input.child, schoolId }, select: { currentClass: { select: { classTeacherId: true } } } });
-        const teacher = child?.currentClass?.classTeacherId;
-        if (teacher) owner = await prisma.user.findFirst({ where: { id: teacher }, select: { id: true, firstName: true, lastName: true, role: true } });
-      }
-      if (!owner && roles.length) owner = await prisma.user.findFirst({ where: { schoolId, isActive: true, role: { in: roles as never[] } }, select: { id: true, firstName: true, lastName: true, role: true } });
-    }
-    const created = await prisma.guardianSubmission.create({
-      data: { schoolId, guardianId: guardian.id, studentId: input.child || null, type: type.name, detail: input.detail, state: owner ? "ASSIGNED" : "NEW", ownerUserId: owner?.id, ownerName: owner ? fullName(owner) : null, ownerRole: type.reviewer, channel: input.channel }
-    });
-    await this.audit(session, AuditAction.CREATE, created.id, { summary: `Submission logged · ${type.name}` });
-    return { id: created.id, owner: owner ? fullName(owner) : null };
+    const made = await openSubmission(session.schoolId, { guardianId: input.guardian, childId: input.child, type: input.type, detail: input.detail, channel: input.channel, owner: input.owner });
+    await this.audit(session, AuditAction.CREATE, made.id, { summary: `Submission logged · ${made.type}` });
+    return { id: made.id, owner: made.owner };
   }
 
   async resolve(session: SessionPayload, id: string, body: unknown) {

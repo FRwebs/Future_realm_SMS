@@ -1,11 +1,13 @@
-import { Controller, Get, Param, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
+import { FamilyInboxService } from "./family-inbox.service";
 import { ParentPortalService } from "./parent-portal.service";
 
 @ApiTags("parent-portal")
@@ -13,7 +15,7 @@ import { ParentPortalService } from "./parent-portal.service";
 @UseGuards(SessionGuard, RolesGuard)
 @Roles("PARENT")
 export class ParentPortalController {
-  constructor(private readonly parentPortalService: ParentPortalService) {}
+  constructor(private readonly parentPortalService: ParentPortalService, private readonly inbox: FamilyInboxService) {}
 
   @Get("dashboard")
   async dashboard(@CurrentSession() session: SessionPayload) {
@@ -77,5 +79,46 @@ export class ParentPortalController {
   @Get("profile")
   async profile(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.parentPortalService.getParentProfile(session) };
+  }
+
+  /** What the school has sent this family, newest first, with what has been read, acknowledged and answered. */
+  @Get("messages")
+  async messages(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.inbox.messages(session) };
+  }
+
+  @Post("messages/:id/read")
+  @UseGuards(CsrfGuard)
+  async readMessage(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return { ok: true, data: await this.inbox.read(session, id) };
+  }
+
+  @Post("messages/:id/acknowledge")
+  @UseGuards(CsrfGuard)
+  async acknowledgeMessage(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return { ok: true, data: await this.inbox.acknowledge(session, id), message: "Thank you — the school can see you have read it." };
+  }
+
+  @Post("messages/:id/reply")
+  @UseGuards(CsrfGuard)
+  async replyToMessage(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return { ok: true, data: await this.inbox.reply(session, id, body), message: "Your reply has gone to the school office." };
+  }
+
+  /** What this family has sent the school, and where each stands. */
+  @Get("submissions")
+  async submissions(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.inbox.submissions(session) };
+  }
+
+  @Get("submissions/options")
+  async submissionOptions(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.inbox.options(session) };
+  }
+
+  @Post("submissions")
+  @UseGuards(CsrfGuard)
+  async submit(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return { ok: true, data: await this.inbox.submit(session, body), message: "Sent. The school has it and a person now owns it." };
   }
 }

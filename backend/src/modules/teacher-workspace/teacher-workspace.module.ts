@@ -5,6 +5,7 @@ import { RolesManagementModule } from "../roles-management/roles-management.modu
 import { StudentRecordsModule } from "../student-records/student-records.module";
 import { StaffAccessModule } from "../staff-access/staff-access.module";
 import { AttendanceManagementModule } from "../attendance-management/attendance-management.module";
+import { CommunicationsModule } from "../communications/communications.module";
 
 import { TeacherCalendarService } from "./calendar.service";
 import { MyDayService } from "./day.service";
@@ -29,7 +30,7 @@ import { TeacherWorkspaceService } from "./workspace.service";
 
 @Global()
 @Module({
-  imports: [AttendanceManagementModule, StaffAccessModule, RolesManagementModule, StudentRecordsModule],
+  imports: [CommunicationsModule, AttendanceManagementModule, StaffAccessModule, RolesManagementModule, StudentRecordsModule],
   controllers: [TeacherWorkspaceController, LearningManageController, LearningPublicController],
   providers: [TeacherWorkspaceService, MyDayService, TeacherTimetableService, TeacherQuestionsService, TeacherCalendarService, PeriodRegistersService, RegisterHistoryService, TeacherScoresService, TeacherRemarksService, TeacherStudentsService, TeacherConcernsService, TeacherFamiliesService, TeacherMessagesService, TeacherSchemeService, TeacherNotesService, TeacherEmploymentService, LearningService, PermissionsGuard, TeacherObservationsService],
   exports: [TeacherWorkspaceService, MyDayService, TeacherTimetableService, TeacherQuestionsService, TeacherCalendarService, PeriodRegistersService, RegisterHistoryService, TeacherScoresService, TeacherRemarksService, TeacherStudentsService, TeacherConcernsService, TeacherFamiliesService, TeacherSchemeService, TeacherNotesService]

@@ -5,6 +5,7 @@ import { plansFeatures } from "../plans-features/plans-features.service";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { platformPolicy } from "../platform-policy/policy.service";
 import { inQuietHours } from "../platform-policy/policy.shared";
+import { reflectCarrierAnswer } from "../communications/delivery-sync";
 import { CARRIERS } from "./providers";
 
 /**
@@ -113,6 +114,10 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
         const to = row.channel === "EMAIL" ? String(meta.email ?? user?.email ?? "") : String(meta.phone ?? user?.phone ?? "");
         if (!to) {
           await this.mark(row.id, meta, "FAILED", { error: "No address to send to" });
+          if (meta.prepaid === true) {
+            await this.refund(row.schoolId, "SMS", row.title, Number(meta.credits ?? 1));
+            await reflectCarrierAnswer(row.id, "FAILED", "No address to send to");
+          }
           result.failed++;
           continue;
         }
@@ -131,8 +136,10 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           }
         }
         const platformBilled = meta.billing === "PLATFORM";
+        // A school message already took its credits when it was sent (one per part of a long SMS); the carrier is not asked to take them again.
+        const prepaid = meta.prepaid === true;
         const credited = row.channel === "SMS" || row.channel === "WHATSAPP";
-        if (credited && !platformBilled && !(await this.spend(row.schoolId, row.channel as "SMS" | "WHATSAPP", row.title))) {
+        if (credited && !platformBilled && !prepaid && !(await this.spend(row.schoolId, row.channel as "SMS" | "WHATSAPP", row.title))) {
           await this.mark(row.id, meta, "HELD", { held: `The school has no ${row.channel === "SMS" ? "SMS" : "WhatsApp"} credits left` });
           result.held++;
           continue;
@@ -141,15 +148,23 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
         const outcome = await carrier.send(to, row.title, row.body, row.channel === "EMAIL" && publicApi ? { openPixelUrl: `${publicApi}/api/v1/track/open/${row.id}.gif` } : row.channel === "WHATSAPP" ? { template: meta.template as { name: string; language?: string; params: string[] } | undefined } : undefined);
         if (outcome.ok) {
           await this.mark(row.id, meta, "SENT", { to, provider: carrier.provider, ref: outcome.ref, deliveredAt: new Date().toISOString(), held: undefined });
+          if (prepaid) await reflectCarrierAnswer(row.id, "SENT");
           result.sent++;
           continue;
         }
         // The credit was taken before the attempt; a refused message gives it back.
-        if (credited && !platformBilled) await this.refund(row.schoolId, row.channel as "SMS" | "WHATSAPP", row.title);
+        if (credited && !platformBilled && !prepaid) await this.refund(row.schoolId, row.channel as "SMS" | "WHATSAPP", row.title);
         const attempts = Number(meta.attempts ?? 0) + 1;
         const final = !outcome.retry || attempts >= policy.maxAttempts;
         await this.mark(row.id, meta, final ? "FAILED" : "QUEUED", { attempts, error: outcome.error, provider: carrier.provider });
-        if (final) result.failed++;
+        if (final) {
+          result.failed++;
+          // A prepaid message that was never delivered gives its credits back, and its recipient's row says it failed.
+          if (prepaid) {
+            await this.refund(row.schoolId, "SMS", row.title, Number(meta.credits ?? 1));
+            await reflectCarrierAnswer(row.id, "FAILED", outcome.error);
+          }
+        }
       }
     } finally {
       this.running = false;
@@ -180,9 +195,9 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
     return true;
   }
 
-  private async refund(schoolId: string, channel: "SMS" | "WHATSAPP", title: string) {
+  private async refund(schoolId: string, channel: "SMS" | "WHATSAPP", title: string, credits = 1) {
     const field = channel === "SMS" ? "smsBalance" : "whatsappBalance";
-    await prisma.notificationWallet.updateMany({ where: { schoolId }, data: { [field]: { increment: 1 } } });
-    await prisma.creditLedger.create({ data: { schoolId, channel, kind: "REFUND", credits: 1, note: `Not accepted by the carrier · ${title.slice(0, 90)}` } });
+    await prisma.notificationWallet.updateMany({ where: { schoolId }, data: { [field]: { increment: credits } } });
+    await prisma.creditLedger.create({ data: { schoolId, channel, kind: "REFUND", credits, note: `Not accepted by the carrier · ${title.slice(0, 90)}` } });
   }
 }

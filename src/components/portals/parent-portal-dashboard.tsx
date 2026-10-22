@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useEffect, useMemo, useState } from "react";
-import { Bell, CreditCard, GraduationCap, Megaphone, Sparkles, Users } from "lucide-react";
+import { Bell, CreditCard, GraduationCap, Megaphone, MessageSquareText, Send, Sparkles, Users } from "lucide-react";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { ActionMenu, ActionMenuButton, ActionMenuLink } from "@/components/ui/action-menu";
@@ -138,6 +138,8 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
       <section className="flex flex-wrap gap-2">
         {[
           { label: "Children", href: "/portals/parent/children", icon: Users },
+          { label: "Messages", href: "/portals/parent/messages", icon: MessageSquareText },
+          { label: "Tell the school", href: "/portals/parent/tell-the-school", icon: Send },
           { label: "Announcements", href: "/portals/parent/announcements", icon: Megaphone },
           { label: "Fees", href: selectedChild ? `/portals/parent/children/${selectedChild.studentId}/fees` : "/portals/parent/children", icon: CreditCard },
           { label: "Results", href: selectedChild ? `/portals/parent/children/${selectedChild.studentId}/results` : "/portals/parent/children", icon: GraduationCap },

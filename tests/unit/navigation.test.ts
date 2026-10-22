@@ -59,6 +59,8 @@ describe("role-aware navigation and route access", () => {
     expect(subjectTeacher).toContain("Attendance");
     expect(subjectTeacher).not.toContain("Student Records");
     expect(subjectTeacher).not.toContain("Approvals & Workflow");
+    expect(subjectTeacher).not.toContain("Parents & Guardians");
+    expect(subjectTeacher).not.toContain("Communication Center");
     expect(subjectTeacher.length).toBeLessThan(bursar.length);
   });
 

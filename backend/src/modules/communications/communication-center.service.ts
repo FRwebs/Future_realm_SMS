@@ -11,6 +11,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { FamilyDispatchService } from "./family-dispatch.service";
 
 /**
  * M12 Communication Center.
@@ -199,6 +200,8 @@ export type AudienceSnapshot = {
 
 @Injectable()
 export class CommunicationCenterService {
+  constructor(private readonly dispatcher: FamilyDispatchService) {}
+
   ok<T>(data: Promise<T> | T, message = "Request completed") {
     return Promise.resolve(data).then((resolved) => ({
       ok: true,
@@ -374,9 +377,14 @@ export class CommunicationCenterService {
       );
     }
 
+    if (audienceKey === "One person" || audienceKey === "Selected people") {
+      throw new BadRequestException("Pick the families this goes to first — a message to named people is sent from a guardian's row or a form master's Compose, where the people are chosen.");
+    }
     const threshold = await this.threshold(session.schoolId);
     const needsApproval = snapshot.reach > threshold;
+    const toStaff = audienceKey === "Staff";
 
+    // Written as a draft first: it is only "sent" once the dispatcher has taken the credits and written a row for each family.
     const campaign = await prisma.messageCampaign.create({
       data: {
         schoolId: session.schoolId,
@@ -389,96 +397,40 @@ export class CommunicationCenterService {
           ? MessageCampaignStatus.AWAITING_APPROVAL
           : parsed.scheduledAt
             ? MessageCampaignStatus.SCHEDULED
-            : MessageCampaignStatus.SENT,
+            : MessageCampaignStatus.DRAFT,
         thresholdAt: Number.isFinite(threshold) ? threshold : null,
         scheduledAt: parsed.scheduledAt ? new Date(parsed.scheduledAt) : null,
-        sentAt: needsApproval || parsed.scheduledAt ? null : new Date(),
         recipientCount: snapshot.reach,
-        // Credits are only spent once it actually goes.
-        creditsUsed: needsApproval || parsed.scheduledAt ? 0 : snapshot.reach,
         createdById: session.userId,
       },
     });
 
-    if (campaign.status === MessageCampaignStatus.SENT) {
-      await this.writeDeliveries(session.schoolId, campaign.id, audienceKey);
+    let credits = 0;
+    let status: MessageCampaignStatus = campaign.status;
+    if (campaign.status === MessageCampaignStatus.DRAFT) {
+      try {
+        if (toStaff) {
+          credits = (await this.dispatcher.dispatchStaff(campaign.id)).credits;
+        } else {
+          credits = (await this.dispatcher.dispatch(campaign.id)).credits;
+          if (audienceKey === "Everyone") credits += (await this.dispatcher.dispatchStaff(campaign.id)).credits;
+        }
+        status = MessageCampaignStatus.SENT;
+      } catch (error) {
+        await prisma.messageCampaign.delete({ where: { id: campaign.id } });
+        throw error;
+      }
     }
 
     return {
       id: campaign.id,
-      status: campaign.status,
+      status,
       reach: snapshot.reach,
       unreachable: snapshot.unreachable,
-      credits: campaign.creditsUsed,
+      credits,
       threshold: Number.isFinite(threshold) ? threshold : null,
       needsApproval,
     };
-  }
-
-  /**
-   * Write one row per recipient so a failure can be chased to the record that
-   * fixes it. A guardian with no number is recorded as EXCLUDED rather than
-   * FAILED — they were never sent to, and counting them as a failure would
-   * blame the gateway for a missing phone number.
-   */
-  private async writeDeliveries(schoolId: string, campaignId: string, audienceKey: string) {
-    if (audienceKey === "Staff") {
-      const staff = await prisma.staffProfile.findMany({
-        where: { schoolId },
-        take: 500,
-        include: { user: { select: { firstName: true, lastName: true, phone: true, accountStatus: true } } },
-      });
-      await prisma.messageDelivery.createMany({
-        data: staff.map((person) => ({
-          schoolId,
-          campaignId,
-          recipientName: `${person.user.firstName} ${person.user.lastName}`.trim(),
-          destination: person.user.phone,
-          status:
-            person.user.accountStatus === "ACTIVE"
-              ? MessageDeliveryStatus.DELIVERED
-              : MessageDeliveryStatus.EXCLUDED,
-          failureReason:
-            person.user.accountStatus === "ACTIVE" ? null : "Account is not active, so nothing was sent.",
-          deliveredAt: person.user.accountStatus === "ACTIVE" ? new Date() : null,
-        })),
-      });
-    } else {
-      const guardians = await prisma.guardian.findMany({
-        where: { schoolId },
-        take: 1000,
-        select: { id: true, firstName: true, lastName: true, phone: true },
-      });
-      await prisma.messageDelivery.createMany({
-        data: guardians.map((guardian) => {
-          const digits = guardian.phone.trim();
-          const reachable = digits.length > 0 && digits !== UNREACHABLE_PHONE;
-          return {
-            schoolId,
-            campaignId,
-            guardianId: guardian.id,
-            recipientName: `${guardian.firstName} ${guardian.lastName}`.trim(),
-            destination: guardian.phone,
-            status: reachable ? MessageDeliveryStatus.DELIVERED : MessageDeliveryStatus.EXCLUDED,
-            failureReason: reachable ? null : "No phone number on file — nothing was sent.",
-            deliveredAt: reachable ? new Date() : null,
-          };
-        }),
-      });
-    }
-
-    const counts = await prisma.messageDelivery.groupBy({
-      by: ["status"],
-      where: { campaignId },
-      _count: { _all: true },
-    });
-    const delivered = counts.find((row) => row.status === MessageDeliveryStatus.DELIVERED)?._count._all ?? 0;
-    const failed = counts.find((row) => row.status === MessageDeliveryStatus.FAILED)?._count._all ?? 0;
-
-    await prisma.messageCampaign.update({
-      where: { id: campaignId },
-      data: { deliveredCount: delivered, failedCount: failed },
-    });
   }
 
   /** Approve, return or cancel a send that is waiting on a decision. */
@@ -500,17 +452,15 @@ export class CommunicationCenterService {
     }
 
     if (parsed.action === "APPROVE") {
-      const updated = await prisma.messageCampaign.update({
-        where: { id },
-        data: {
-          status: MessageCampaignStatus.SENT,
-          approvedById: session.userId,
-          sentAt: new Date(),
-          creditsUsed: campaign.recipientCount,
-          decisionNote: parsed.note,
-        },
-      });
-      await this.writeDeliveries(session.schoolId, id, campaign.audienceLabel);
+      // Approving sends it — to the families it was written for (a form master's class, not the whole school), at their own cost.
+      const audience = (campaign.audience ?? {}) as { key?: string };
+      if (audience.key === "Staff") await this.dispatcher.dispatchStaff(id, session.userId);
+      else {
+        await this.dispatcher.dispatch(id, session.userId);
+        if (audience.key === "Everyone") await this.dispatcher.dispatchStaff(id);
+      }
+      if (parsed.note) await prisma.messageCampaign.update({ where: { id }, data: { decisionNote: parsed.note } });
+      const updated = await prisma.messageCampaign.findUniqueOrThrow({ where: { id } });
       return { id: updated.id, status: updated.status };
     }
 

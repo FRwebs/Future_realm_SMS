@@ -298,7 +298,8 @@ export type PanelAction = {
   export?: boolean;
   /**
    * On a table's bulk bar: the drawer acts on the ticked rows. Their `id`s are sent
-   * under `key`, and the drawer says how many rows it applies to.
+   * under `key`, and the drawer says how many rows it applies to. On an action that
+   * goes to a page (`href`) the ids travel on its query, comma-separated, under `key`.
    */
   selection?: { key: string; noun: string };
 } & Trigger;

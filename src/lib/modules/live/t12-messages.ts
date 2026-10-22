@@ -1,8 +1,7 @@
 import { apiGet } from "@/lib/api/server";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
-import { area, fixed, toggle } from "@/lib/modules/live/m7-forms";
-import type { DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
-import { pill, row, text } from "@/lib/modules/panels";
+import type { DrawerSpec, PanelFact, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import { row } from "@/lib/modules/panels";
 
 /**
  * M12 for a teaching person: Messages — the families of their own class and nobody else's, with the cost shown before it goes. A family
@@ -11,108 +10,104 @@ import { pill, row, text } from "@/lib/modules/panels";
 
 type ComposeInfo = {
   arms: Array<{ id: string; name: string; roll: number }>;
-  families: Array<{ id: string; name: string; phone: string; children: string[]; reachable: boolean }>;
+  families: Array<{ id: string; name: string; phone: string; email: string; children: string[]; arms: string[]; canSms: boolean; canEmail: boolean; portal: string; language: string }>;
   wallet: { sms: number };
   threshold: number | null;
   sender: string;
   smsNaira: number;
+  drafts: Array<{ id: string; body: string; channel: string; audience: string; families: string[]; acknowledge: boolean; savedAt: string }>;
 };
+type SentRow = { id: string; name: string; audience: string; channel: string; status: string; recipients: number; credits: number; delivered: number; failed: number; pending: number; read: number; asked: number; acknowledged: number; body: string; at: string; note: string | null };
 type SentView = {
-  rows: Array<{ id: string; name: string; audience: string; channel: string; status: string; recipients: number; credits: number; delivered: number; failed: number; body: string; at: string; note: string | null }>;
+  rows: SentRow[];
   totals: { sent: number; credits: number; deliveredRate: number | null; failures: number; held: number };
 };
+type SentDetail = { recipients: Array<{ id: string; name: string; children: string[]; status: string; reason: string | null; text: string | null; readAt: string | null; acknowledgeAsked: boolean; acknowledgedAt: string | null; replies: Array<{ text: string; at: string }> }> };
 
 const API = "/api/v1/teacher-workspace";
-const SEND = "M4.5 12.5 19.5 5l-4 15-4.2-5.3z";
 const PLUS = "M12 5.5v13M5.5 12h13";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
-const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
-const CHANNELS: Array<{ label: string; code: "IN_APP" | "SMS" | "EMAIL"; sub: string }> = [
-  { label: "In-app", code: "IN_APP", sub: "Free" },
-  { label: "SMS", code: "SMS", sub: "1 credit each" },
-  { label: "Email", code: "EMAIL", sub: "Free" },
-];
-const AUDIENCES = ["all", "selected", "one"] as const;
-type Audience = (typeof AUDIENCES)[number];
 const stamp = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso));
-const statusTone = (status: string): PanelTone => (status === "SENT" ? "positive" : status === "AWAITING_APPROVAL" ? "attention" : status === "CANCELLED" || status === "RETURNED" ? "negative" : "neutral");
-const statusLabel = (status: string) => (status === "SENT" ? "Delivered" : status === "AWAITING_APPROVAL" ? "Held for approval" : status === "RETURNED" ? "Returned" : status === "CANCELLED" ? "Cancelled" : status);
+const clock = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const channelName = (code: string) => (code === "IN_APP" ? "In-app" : code === "SMS" ? "SMS" : "Email");
+
+/** What became of a send, in one word and a tone: it is only "delivered" once every family that could be reached has been. */
+function outcome(message: SentRow): { label: string; tone: PanelTone } {
+  if (message.status === "AWAITING_APPROVAL") return { label: "Held for approval", tone: "attention" };
+  if (message.status === "RETURNED") return { label: "Returned", tone: "negative" };
+  if (message.status === "CANCELLED") return { label: "Cancelled", tone: "negative" };
+  if (message.failed) return { label: `${message.failed} failed`, tone: "attention" };
+  if (message.pending) return { label: "Sending", tone: "progress" };
+  return { label: "Delivered", tone: "positive" };
+}
 
 export async function teacherMessagesTab(tabSlug: string, me: TeacherWorkspaceView, query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
-  if (tabSlug === "compose") return composeTab(await apiGet<ComposeInfo>(`${API}/messages/compose`), me, query);
-  if (tabSlug === "sent") return sentTab(await apiGet<SentView>(`${API}/messages/sent`), me);
+  if (tabSlug === "compose") return composeTab(await apiGet<ComposeInfo>(`${API}/messages/compose`), query);
+  if (tabSlug === "sent") {
+    const view = await apiGet<SentView>(`${API}/messages/sent`);
+    // The most recent sends open with every recipient: what happened to each, who read it, who answered.
+    const details = new Map<string, SentDetail>();
+    await Promise.all(view.rows.slice(0, 20).filter((entry) => entry.status === "SENT").map(async (entry) => {
+      try { details.set(entry.id, await apiGet<SentDetail>(`${API}/messages/sent/${entry.id}`)); } catch { /* the drawer falls back to the summary */ }
+    }));
+    return sentTab(view, me, details);
+  }
   return undefined;
 }
 
 function noClass(title: string, desc: string): TabContent {
-  return { title, desc, rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You hold no form class this term", body: "A teacher messages the families of their own class. When the school gives you a class, its families appear here." }])] };
+  return { title, desc, rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You hold no form class this term", body: "A teacher messages the families of their own class. When the school gives you a class, its families appear here — and only they do." }])] };
 }
 
-function composeTab(info: ComposeInfo, me: TeacherWorkspaceView, query: Record<string, string | undefined>): TabContent {
+function composeTab(info: ComposeInfo, query: Record<string, string | undefined>): TabContent {
   const arm = info.arms[0];
   if (!arm) return noClass("Compose", "Your class’s families, and nobody else’s.");
-  const to: Audience = (AUDIENCES as readonly string[]).includes(query.to ?? "") ? (query.to as Audience) : "all";
-  const channel = CHANNELS.find((entry) => entry.code === query.ch) ?? CHANNELS[0]!;
-  const sms = channel.code === "SMS";
-  const total = info.families.length;
-  const reachable = info.families.filter((family) => family.reachable).length;
-  const reach = to === "all" ? (sms ? reachable : total) : to === "one" ? 1 : Math.min(6, total);
-  const cost = sms ? reach : 0;
-  const href = (nextTo: string, nextCh: string) => `/communication-center/compose?to=${nextTo}&ch=${nextCh}`;
-  const label = (key: Audience) => (key === "all" ? `Every ${info.arms.map((entry) => entry.name).join(" and ")} family` : key === "selected" ? "Selected families" : "One family");
-  const options = info.families.map((family) => ({ value: family.id, label: family.name, sub: family.children.join(", ") }));
-  const fields: FormField[] = [
-    fixed("To", label(to), { hint: to === "all" ? `${reach} famil${reach === 1 ? "y" : "ies"}${sms && total !== reachable ? ` · ${total - reachable} without a phone number are left out` : ""}` : "Pick the families below" }),
-    ...(to === "all" ? [] : [{ label: to === "one" ? "Family" : "Families", kind: "picker", options, checked: [], span: 2, required: true, placeholder: "Search by guardian or child", noun: "family", nounPlural: "families" } as FormField]),
-    fixed("Channel", channel.label, { hint: sms ? "1 credit each" : "Free" }),
-    area("Message", { span: 2, required: true, placeholder: "Dear parent, …", hint: "Families see this from the school, and replies reach the office." }),
-    toggle("Ask families to acknowledge", false, "A reply is asked for", "No reply needed", { span: 2 }),
-  ];
-  const sendDrawer: DrawerSpec = {
-    mode: "form", kicker: "Messages", title: `Send to ${to === "all" ? reach : to === "one" ? 1 : "the selected"} famil${reach === 1 && to !== "selected" ? "y" : "ies"}`, sub: "The cost is shown before it leaves, and it is charged to the school.",
-    commitLabel: "Send it", commitDone: "Message sent", commitDoneBody: `It is on its way as ${info.sender}. It also appears in the school’s Outbound Review.`,
-    reviewNote: `${channel.label} · ${sms ? `${reach} credit${reach === 1 ? "" : "s"} (₦${(reach * info.smsNaira).toFixed(2)})` : "free"}. ${info.threshold !== null ? `A send to more than ${info.threshold} families routes to the Principal first.` : ""}`,
-    fields,
-    submit: { endpoint: `${API}/messages`, method: "POST", body: { audience: to, channel: channel.code }, map: { Families: "families", Family: "families", Message: "body", "Ask families to acknowledge": "acknowledge" } },
-  };
-  const before: PanelFact[] = [
-    ["Recipients", String(reach), label(to)],
-    ["Channel", channel.label, sms ? "1 credit each" : "Free"],
-    ["Cost", `${cost} credit${cost === 1 ? "" : "s"}`, sms ? `School balance ${info.wallet.sms.toLocaleString("en-NG")} → ${(info.wallet.sms - cost).toLocaleString("en-NG")}` : "Nothing is charged"],
-    ["Your audience limit", `${info.arms.map((entry) => entry.name).join(" and ")} families only`, "Set on your account, not by this screen"],
-    ["Above the threshold", info.threshold === null ? "Never routes for approval" : `${info.threshold} recipients`, info.threshold === null ? "" : reach > info.threshold ? "This send will wait for the Principal" : "Below it — this sends now"],
-    ["Needs a connection", "Yes", "A cost cannot be shown truthfully against a stale balance"],
-  ];
+  const armNames = info.arms.map((entry) => entry.name);
+  // A draft the teacher came back to, or families ticked in Guardians and carried over here.
+  const draft = query.draft ? info.drafts.find((entry) => entry.id === query.draft) : undefined;
+  const ids = (query.ids ?? "").split(",").map((entry) => entry.trim()).filter((entry) => info.families.some((family) => family.id === entry));
+  const prefill = draft
+    ? { audience: draft.audience, families: draft.families, channel: draft.channel, body: draft.body, draftId: draft.id, acknowledge: draft.acknowledge }
+    : ids.length ? { audience: ids.length === 1 ? "one" : "selected", families: ids, channel: query.ch } : query.ch || query.to ? { audience: query.to, channel: query.ch } : undefined;
   return {
-    title: "Compose", desc: `${info.arms.map((entry) => entry.name).join(" and ")}’s families, and nobody else’s.`,
-    primary: { label: "Preview and send", icon: SEND, drawer: sendDrawer },
-    rows: ([
-      row("1fr", [{
-        type: "tiles", title: "Who it goes to", tag: `${reach} recipient${reach === 1 ? "" : "s"}`, tagTone: "progress", per: 3,
-        tiles: AUDIENCES.map((key) => ({ label: label(key), sub: key === to ? "Selected" : key === "all" ? `${total} ${total === 1 ? "family" : "families"}` : key === "selected" ? "Pick the ones you mean" : "A single family", tone: (key === to ? "positive" : "neutral") as PanelTone, href: href(key, channel.code) })),
-      }]),
-      row("1fr", [{ type: "tiles", title: "How it reaches them", sub: "The cost is shown before every send, whatever the channel.", per: 3, tiles: CHANNELS.map((entry) => ({ label: entry.label, sub: entry.code === channel.code ? `Selected · ${entry.sub}` : entry.sub, tone: (entry.code === channel.code ? "positive" : "neutral") as PanelTone, href: href(to, entry.code) })) }]),
-      row("1fr", [{ type: "facts", title: "Before it leaves", tag: `${cost} credits`, tagTone: cost ? "attention" : "positive", per: 2, sub: "The cost is shown before every send, whatever the audience.", facts: before }]),
-      row("1fr", [{ type: "note", tone: "neutral", icon: WARN, title: "Families see the school, not you", body: `Every message is sent as ${info.sender}. Replies reach the office, not your phone.` }]),
-    ] as PanelRow[]),
+    title: "Compose", desc: armNames.length > 3 ? "The families of the classes you teach, and nobody else’s." : `${armNames.join(" and ")}’s families, and nobody else’s.`,
+    rows: [row("1fr", [{
+      type: "embed", component: "message-composer",
+      props: { arms: armNames, families: info.families, wallet: info.wallet.sms, threshold: info.threshold, sender: info.sender, smsNaira: info.smsNaira, drafts: info.drafts, prefill, base: API, sentHref: "/communication-center/sent" },
+    }])],
   };
 }
 
-function sentTab(v: SentView, me: TeacherWorkspaceView): TabContent {
-  const rows: TableRow[] = v.rows.map((message) => ({
-    keywords: `${message.name} ${message.channel} ${message.status}`,
-    cells: [
-      text(message.name.split(" · ").slice(1).join(" · ") || message.name, { strong: true }), text(stamp(message.at)), text(String(message.recipients), { mono: true }), text(message.channel === "IN_APP" ? "In-app" : message.channel === "SMS" ? "SMS" : "Email"),
-      text(message.credits ? `${message.credits} credits` : "Free"), pill(statusLabel(message.status), statusTone(message.status)),
-      {
-        kind: "action", label: "Open",
-        drawer: {
-          mode: "view", readOnly: true, kicker: `Sent · ${stamp(message.at)}`, title: message.name.split(" · ").slice(1).join(" · ") || message.name,
-          facts: [["Audience", message.audience, `${message.recipients} recipients`], ["Channel", message.channel === "IN_APP" ? "In-app" : message.channel, message.credits ? `${message.credits} credits` : "Free"], ["What was said", message.body, ""], ["State", statusLabel(message.status), message.note ?? ""], ["Also visible to", "The school’s Outbound Review", "Reaching a family on the school’s credit is an accountable act"]],
-        } as DrawerSpec,
-      },
-    ] as TableCellKind[],
-  }));
+function sentTab(v: SentView, me: TeacherWorkspaceView, details: Map<string, SentDetail>): TabContent {
+  const rows: TableRow[] = v.rows.map((message) => {
+    const title = message.name.split(" · ").slice(1).join(" · ") || message.name;
+    const state = outcome(message);
+    const detail = details.get(message.id);
+    const facts: PanelFact[] = [
+      ["Audience", message.audience, `${message.recipients} recipients`],
+      ["Channel", channelName(message.channel), message.credits ? `${message.credits} credit${message.credits === 1 ? "" : "s"}` : "Free"],
+      ["Sender shown as", "The school", "Never your own name, never the platform’s"],
+      ["What was said", message.body.length > 240 ? `${message.body.slice(0, 237)}…` : message.body, "Each family read it with their own name and child"],
+      ["Delivered", `${message.delivered} of ${message.recipients}`, message.failed ? `${message.failed} failed` : message.pending ? `${message.pending} still with the carrier` : "No failures"],
+      ["Read", `${message.read} of ${message.recipients}`, message.channel === "IN_APP" ? "Counted when a family opens it in their portal" : "Counted when a family opens it in their portal, if they do"],
+      ...(message.asked ? ([["Acknowledged", `${message.acknowledged} of ${message.asked}`, message.acknowledged === message.asked ? "Everyone who was asked has" : `${message.asked - message.acknowledged} still to`]] as PanelFact[]) : []),
+      ...(message.note ? ([["The Principal wrote", message.note, ""]] as PanelFact[]) : []),
+      ["Also visible to", "The school’s Outbound Review", "Reaching a family on the school’s credit is an accountable act"],
+    ];
+    if (detail) {
+      const answered = detail.recipients.filter((entry) => entry.replies.length);
+      for (const entry of answered.slice(0, 6)) facts.push([`${entry.name} replied`, entry.replies[entry.replies.length - 1]!.text, `${clock(entry.replies[entry.replies.length - 1]!.at)} · it went to the office`]);
+      for (const entry of detail.recipients.filter((person) => person.status === "FAILED" || person.status === "EXCLUDED").slice(0, 8)) facts.push([entry.name, entry.status === "FAILED" ? "Failed" : "Left out", entry.reason ?? ""]);
+    }
+    return {
+      keywords: `${message.name} ${channelName(message.channel)} ${state.label}`,
+      cells: [
+        { kind: "text", text: title, strong: true }, { kind: "text", text: stamp(message.at) }, { kind: "text", text: String(message.recipients), mono: true }, { kind: "text", text: channelName(message.channel) },
+        { kind: "text", text: message.credits ? `${message.credits} credit${message.credits === 1 ? "" : "s"}` : "Free" }, { kind: "pill", label: state.label, tone: state.tone },
+        { kind: "action", label: "Open", drawer: { mode: "view", readOnly: true, kicker: `Sent · ${stamp(message.at)}`, title, facts } as DrawerSpec },
+      ] as TableCellKind[],
+    };
+  });
   const t = v.totals;
   return {
     title: "Sent", desc: "Your own messages. Nobody else’s.",
@@ -129,7 +124,12 @@ function sentTab(v: SentView, me: TeacherWorkspaceView): TabContent {
       }]),
       row("1fr", [{
         type: "table", title: "What you have sent", sub: "With its cost and what happened to it.", meta: `${v.rows.length} message${v.rows.length === 1 ? "" : "s"} · this term`, noun: "message", nounPlural: "messages",
-        search: "Find a message", head: ["Message", "Sent", "To", "Channel", "Cost", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have not sent a message yet.", foot: "A send above the school’s threshold is held for approval before it leaves.",
+        search: "Find a message",
+        filters: [
+          { label: "Channel", value: "All", options: ["All", "In-app", "SMS", "Email"], column: 3 },
+          { label: "State", value: "All", options: ["All", "Delivered", "Sending", "Held for approval", "Returned"], column: 5 },
+        ],
+        head: ["Message", "Sent", "To", "Channel", "Cost", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have not sent a message yet.", foot: "A send above the school’s threshold is held for approval before it leaves.",
       }]),
     ],
   };

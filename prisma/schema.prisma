@@ -5759,6 +5759,14 @@ model GuardianSubmission {
   ownerRole   String?
   outcome     String?
   channel     String?
+  /// What the family says backs it up — "Hospital card photographed". Their words, not a file.
+  evidence    String?
+  /// The days an absence explanation covers, as the family named them (YYYY-MM-DD).
+  dates       String[]  @default([])
+  /// What a type needs beyond words — a collection change names who will collect, and when.
+  payload     Json?
+  /// The school message this answers, when a family replies to one.
+  deliveryId  String?
   createdAt   DateTime  @default(now())
   resolvedAt  DateTime?
   school      School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
@@ -5766,6 +5774,7 @@ model GuardianSubmission {
   student     Student?  @relation(fields: [studentId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, state, createdAt])
+  @@index([deliveryId])
 }
 
 /// A consent is recorded against the family, never the child — one guardian answers once.
@@ -6146,22 +6155,33 @@ model MessageCampaign {
 /// One recipient's outcome. The failures table is read from here, with the
 /// reason attached to the row that fixes it rather than to the campaign.
 model MessageDelivery {
-  id            String                @id @default(cuid())
-  schoolId      String
-  campaignId    String
-  guardianId    String?
-  recipientName String
-  destination   String?
-  status        MessageDeliveryStatus @default(PENDING)
+  id               String                @id @default(cuid())
+  schoolId         String
+  campaignId       String
+  guardianId       String?
+  recipientName    String
+  destination      String?
+  status           MessageDeliveryStatus @default(PENDING)
   /// Why it failed, in words somebody can act on.
-  failureReason String?
-  deliveredAt   DateTime?
-  createdAt     DateTime              @default(now())
-  school        School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  campaign      MessageCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  failureReason    String?
+  deliveredAt      DateTime?
+  createdAt        DateTime              @default(now())
+  /// The words this recipient was sent, merge fields resolved — what the family's inbox shows.
+  body             String?
+  channel          NotificationChannel?
+  /// What this one recipient cost, in credits: a long SMS is more than one.
+  credits          Int                   @default(0)
+  readAt           DateTime?
+  acknowledgeAsked Boolean               @default(false)
+  acknowledgedAt   DateTime?
+  /// The queued carrier message that takes it out of the building, so the carrier's answer can come back here.
+  logId            String?
+  school           School                @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  campaign         MessageCampaign       @relation(fields: [campaignId], references: [id], onDelete: Cascade)
 
   @@index([schoolId, status])
   @@index([campaignId, status])
+  @@index([guardianId, createdAt])
 }
 
 /// A school's own message wording, versioned so a sent message always renders

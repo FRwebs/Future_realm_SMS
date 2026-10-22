@@ -7,6 +7,7 @@ import { canAssignRole, canManageRole, isOwnerRole, isPlatformRole, isSchoolStaf
 import { withoutSwitchedOff } from "../platform-sync/availability";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { roleTemplateFor, schoolPermissionsForRole } from "../../../../src/lib/modules/school-access";
+import { schoolPermissionKeysForRoleTemplate } from "../../../../src/lib/modules/school-modules";
 import { allGrantablePermissionKeys, allPermissionKeys, grantablePermissionCatalog, groupPermissions, permissionModules, schoolModulePermissionModules, systemRolePermissionKeys } from "../../../../src/lib/permissions/catalog";
 
 const roleSchema = z.object({
@@ -218,6 +219,13 @@ export class RolesManagementService implements OnModuleInit {
       const data = (row?.data ?? null) as { grant?: string[]; revoke?: string[] } | null;
       for (const key of data?.grant ?? []) resolved.add(key);
       for (const key of data?.revoke ?? []) resolved.delete(key);
+    }
+
+    // A person is judged by what they answer for. A teacher hired as a subject teacher who the school then names form master of an arm holds the
+    // form master's grid as well — its Submissions, Report Cards and My Students — without an administrator having to remember to say so.
+    if (userId && (role === "TEACHER" || role === "SUBJECT_TEACHER")) {
+      const formArms = await prisma.classRoom.count({ where: { schoolId, classTeacherId: userId } });
+      if (formArms) for (const key of schoolPermissionKeysForRoleTemplate("Form Master")) resolved.add(key);
     }
 
     if (userId) {
