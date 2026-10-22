@@ -709,10 +709,13 @@ function TablePanel({
   // A dense table fits its panel: cells sit closer, headings wrap, and nothing asks for a slider.
   const dense = Boolean(panel.dense);
   const gap = dense ? "5px" : "9px";
+  // A dense table is one asked to fit its panel, so it gives the outer edges back some of
+  // their padding on a narrow screen — 18px on each end of a four-column table is a tenth
+  // of a phone's width, and spending it on margin is what pushes the table into a slider.
   const edge = (index: number) =>
     cn(
-      index === 0 && !panel.selectable ? "pl-[18px]" : dense ? "pl-[5px]" : "pl-[9px]",
-      index === lastIndex ? "pr-[18px]" : dense ? "pr-[5px]" : "pr-[9px]",
+      index === 0 && !panel.selectable ? (dense ? "pl-[10px] sm:pl-[18px]" : "pl-[18px]") : dense ? "pl-[5px]" : "pl-[9px]",
+      index === lastIndex ? (dense ? "pr-[10px] sm:pr-[18px]" : "pr-[18px]") : dense ? "pr-[5px]" : "pr-[9px]",
     );
   void gap;
   // The meta line asserts a count; the pager states the truth below it. Where the two disagree the
