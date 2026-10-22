@@ -20,8 +20,12 @@ export type Hat = { role: string; scope: string; detail: string };
  */
 @Injectable()
 export class TeacherWorkspaceService {
-  async me(session: SessionPayload) {
-    if (!isTeachingRole(session.role)) throw new ForbiddenException("The teaching workspace is for teaching staff.");
+  /**
+   * `anyStaff` is for the modules every employee has — their own leave, pay, learning and the day they are away — which a bursar or a
+   * registrar who has been given them uses exactly as a teacher does. Everything about classes stays teaching-only.
+   */
+  async me(session: SessionPayload, options: { anyStaff?: boolean } = {}) {
+    if (!options.anyStaff && !isTeachingRole(session.role)) throw new ForbiddenException("The teaching workspace is for teaching staff.");
     const user = await prisma.user.findFirst({
       where: { id: session.userId, schoolId: session.schoolId, deletedAt: null },
       include: { staffProfile: { include: { department: true } } }

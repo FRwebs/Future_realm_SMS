@@ -1,5 +1,5 @@
 import { admissionsTab, loadAdmissionOptions, loadBoard } from "@/lib/modules/live/m8-admissions";
-import { changesTab, loadChanges } from "@/lib/modules/live/m8-changes";
+import { changesTab, loadChanges, safeguardingRows } from "@/lib/modules/live/m8-changes";
 import { loadMoveOptions, loadRegistry, registryTab } from "@/lib/modules/live/m8-registry";
 import type { TabContent } from "@/lib/modules/panels";
 
@@ -20,8 +20,9 @@ export async function studentRecordsLiveTab(tabSlug: string): Promise<TabContent
     return admissionsTab(board, options);
   }
   if (tabSlug === "changes") {
-    const [data, registry] = await Promise.all([loadChanges(), loadRegistry().catch(() => null)]);
-    return changesTab(data, registry);
+    const [data, registry, concerns] = await Promise.all([loadChanges(), loadRegistry().catch(() => null), safeguardingRows()]);
+    const content = changesTab(data, registry);
+    return concerns.length ? { ...content, rows: [...content.rows, ...concerns] } : content;
   }
   return undefined;
 }

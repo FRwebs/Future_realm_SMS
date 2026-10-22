@@ -6,6 +6,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { assertStudentArmReadable } from "../../common/teaching-scope";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { fullName } from "../fee-management/fees.shared";
+import { SafeguardingService } from "../student-records/safeguarding.service";
 
 const incidentSchema = z.object({
   studentId: z.string().min(1, "Choose the child."),
@@ -26,7 +27,6 @@ const changeSchema = z.object({
   reason: z.string().trim().min(8, "Say why — the Principal reads it."),
 });
 
-const LEAD_ROLES = ["GUIDANCE_COUNSELOR", "GUIDANCE_COUNSELLOR"] as const;
 
 /**
  * The three things a teacher may raise about a child without ever being allowed to read what happens next: an incident (it goes to the
@@ -35,6 +35,8 @@ const LEAD_ROLES = ["GUIDANCE_COUNSELOR", "GUIDANCE_COUNSELLOR"] as const;
  */
 @Injectable()
 export class TeacherConcernsService {
+  constructor(private readonly safeguarding: SafeguardingService) {}
+
   private async child(session: SessionPayload, studentId: string) {
     const student = await prisma.student.findFirst({ where: { id: studentId, schoolId: session.schoolId }, select: { id: true, firstName: true, lastName: true, currentClassId: true } });
     if (!student) throw new NotFoundException("That child is not in this school.");
@@ -61,10 +63,11 @@ export class TeacherConcernsService {
   async concern(session: SessionPayload, body: unknown) {
     const input = concernSchema.parse(body);
     const student = await this.child(session, input.studentId);
-    const leads = await prisma.user.findMany({ where: { schoolId: session.schoolId, role: { in: [...LEAD_ROLES] }, isActive: true, deletedAt: null }, select: { id: true } });
+    const leadIds = await this.safeguarding.leads(session.schoolId);
+    const leads = leadIds.map((id) => ({ id }));
     const row = await prisma.safeguardingConcern.create({ data: { schoolId: session.schoolId, studentId: student.id, raisedById: session.userId, summary: input.summary, urgent: input.urgent, leadId: leads[0]?.id ?? null } });
     // The notification names nobody and says nothing of what was seen — only that there is something to read.
-    await this.notify(session.schoolId, leads.map((lead) => lead.id), input.urgent ? "An urgent safeguarding concern has been raised" : "A safeguarding concern has been raised", "Open Student Records to read it. It is visible to you alone.");
+    await this.notify(session.schoolId, leads.map((lead) => lead.id), input.urgent ? "An urgent safeguarding concern has been raised" : "A safeguarding concern has been raised", "Open Student Records → Changes to read it. It is visible to you alone.");
     // A separate audit stream: this action is recorded under its own entity, never against the child's ordinary record.
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.CREATE, entityType: "SafeguardingConcern", entityId: row.id, metadata: { summary: "A safeguarding concern was raised", urgent: input.urgent } } });
     return { id: row.id, told: leads.length };

@@ -11,6 +11,7 @@ import { SessionGuard } from "../../auth/session.guard";
 import { AdmissionsBoardService } from "./admissions-board.service";
 import { ChangesService } from "./changes.service";
 import { RecordService } from "./record.service";
+import { SafeguardingService } from "./safeguarding.service";
 import { SupportPlansService } from "./support-plans.service";
 import { RegistryService } from "./registry.service";
 import { ok } from "./records.shared";
@@ -28,7 +29,8 @@ export class StudentRecordsController {
     private readonly record: RecordService,
     private readonly changes: ChangesService,
     private readonly board: AdmissionsBoardService,
-    private readonly supportPlans: SupportPlansService
+    private readonly supportPlans: SupportPlansService,
+    private readonly safeguarding: SafeguardingService
   ) {}
 
   /* registry */
@@ -100,6 +102,19 @@ export class StudentRecordsController {
   @RequirePermission("student-records.registry.view")
   reveal(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
     return ok(this.record.reveal(session, id, body));
+  }
+
+  @Get("safeguarding")
+  @RequirePermission("student-records.changes.view")
+  safeguardingList(@CurrentSession() session: SessionPayload) {
+    return ok(this.safeguarding.list(session));
+  }
+
+  @Post("safeguarding/:id/decide")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("student-records.changes.view")
+  safeguardingDecide(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return ok(this.safeguarding.decide(session, id, body), "Recorded.");
   }
 
   @Post("students/:id/support-plan")

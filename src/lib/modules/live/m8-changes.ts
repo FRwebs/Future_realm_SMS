@@ -59,3 +59,26 @@ export function changesTab(data: Changes, registry: Registry | null): TabContent
     ],
   };
 }
+
+type Concerns = { canRead: boolean; open: number; urgent: number; rows: Array<{ id: string; studentId: string; child: string; adm: string; arm: string; raisedBy: string; role: string; summary: string; urgent: boolean; status: string; note: string | null; at: string; decidedAt: string | null }> };
+
+/** The safeguarding lead's list. Anyone else gets nothing back, so the panel is never drawn for them. */
+export async function safeguardingRows(): Promise<import("@/lib/modules/panels").PanelRow[]> {
+  const v = await apiGet<Concerns>(`${SR}/safeguarding`).catch(() => null);
+  if (!v || !v.canRead) return [];
+  const decide = (row: Concerns["rows"][number]): import("@/lib/modules/panels").DrawerSpec => ({
+    mode: "form", kicker: `${row.child} · ${row.arm}`, title: "Record what was done", sub: "Visible to the safeguarding lead alone. The person who raised it is told it was received — never what you decide.",
+    facts: [["Raised by", `${row.raisedBy}`, dayLabel(row.at)], ["What they said", row.summary, row.urgent ? "Marked urgent: someone may be in immediate danger" : ""]],
+    commitLabel: "Record it", commitDone: "Recorded", commitDoneBody: "It is on the separate safeguarding audit stream.",
+    fields: [
+      { label: "Where it stands", kind: "select", options: ["Acknowledged", "Action taken", "Closed"], value: "Acknowledged" },
+      { label: "What was done", kind: "area", required: true, span: 2 },
+    ],
+    submit: { endpoint: `${SR}/safeguarding/${row.id}/decide`, method: "POST", map: { "Where it stands": "status", "What was done": "note" }, encode: { "Where it stands": { Acknowledged: "ACKNOWLEDGED", "Action taken": "ACTION_TAKEN", Closed: "CLOSED" } } },
+  });
+  const rows: TableRow[] = v.rows.map((row) => ({
+    keywords: `${row.child} ${row.adm} ${row.status}`,
+    cells: [nameCell(row.child, `${row.arm} · ${row.adm}`), text(row.summary), text(`${row.raisedBy}`), text(dayLabel(row.at)), pill(row.urgent && row.status === "OPEN" ? "Urgent" : row.status === "OPEN" ? "Open" : row.status === "ACKNOWLEDGED" ? "Acknowledged" : row.status === "ACTION_TAKEN" ? "Action taken" : "Closed", row.urgent && row.status === "OPEN" ? "negative" : row.status === "OPEN" ? "attention" : "positive"), row.status === "CLOSED" ? text("") : { kind: "action" as const, label: "Record", drawer: decide(row) }],
+  }));
+  return [{ cols: "1fr", panels: [{ type: "table", title: "Safeguarding concerns", tag: `${v.open} open${v.urgent ? ` · ${v.urgent} urgent` : ""}`, tagTone: v.urgent ? "negative" : v.open ? "attention" : "positive", sub: "Raised by the staff who work with the child. You hold these alone; they are on a separate audit stream.", meta: `${v.rows.length} on record`, noun: "concern", nounPlural: "concerns", head: ["Child", "What was said", "Raised by", "When", "State", ""], rows, per: 8, noRowOpen: true, empty: "No concern has been raised." }] }];
+}

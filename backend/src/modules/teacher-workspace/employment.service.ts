@@ -47,7 +47,7 @@ export class TeacherEmploymentService {
   /* ───────────────────────── what they hold and cover ───────────────────────── */
 
   async assignments(session: SessionPayload) {
-    const me = await this.workspace.me(session);
+    const me = await this.workspace.me(session, { anyStaff: true });
     const schoolId = session.schoolId;
     const now = today();
     const termStart = me.term ? dayOf(me.term.startsOn) : addDays(now, -120);
@@ -87,7 +87,7 @@ export class TeacherEmploymentService {
   /** "I will not be in today." The school is told at once, and what they hold is listed until cover is named. */
   async reportAbsence(session: SessionPayload, body: unknown) {
     const input = absenceSchema.parse(body);
-    const me = await this.workspace.me(session);
+    const me = await this.workspace.me(session, { anyStaff: true });
     const day = today();
     const existing = await prisma.staffAbsence.findUnique({ where: { userId_day: { userId: session.userId, day } } });
     if (existing) throw new BadRequestException("You have already told the school you are absent today.");

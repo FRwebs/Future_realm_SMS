@@ -108,7 +108,7 @@ const TEACHER_POSITION_TO_ROLE: Record<string, string> = {
   "Form Teacher / Class Teacher": "CLASS_TEACHER",
   "Head of Department": "HEAD_OF_DEPARTMENT",
   "Year Head": "HEAD_OF_DEPARTMENT",
-  "Teaching Assistant": "SUBJECT_TEACHER",
+  "Teaching Assistant": "TEACHING_ASSISTANT",
   "Private Tutor": "SUBJECT_TEACHER"
 };
 

@@ -34,7 +34,26 @@ export const API_PREFIXES_BY_MODULE: Array<[string, string]> = [
   ["/api/v1/communication-center", "communication-center"],
   ["/api/v1/analytics-reports", "analytics-reports"],
   ["/api/v1/class-structure", "class-timetable"],
-  ["/api/v1/timetable", "class-timetable"]
+  ["/api/v1/timetable", "class-timetable"],
+  // A teacher reaches the same modules through their own endpoints. Those close with the module they belong to, or switching a module off
+  // would hide it from the sidebar and leave the teacher's door open.
+  ["/api/v1/teacher-workspace/registers", "attendance"],
+  ["/api/v1/teacher-workspace/register-history", "attendance"],
+  ["/api/v1/teacher-workspace/period-registers", "attendance"],
+  ["/api/v1/teacher-workspace/sheets", "score-entry-results"],
+  ["/api/v1/teacher-workspace/results", "score-entry-results"],
+  ["/api/v1/teacher-workspace/oversight", "score-entry-results"],
+  ["/api/v1/teacher-workspace/observations", "score-entry-results"],
+  ["/api/v1/teacher-workspace/remarks", "report-cards"],
+  ["/api/v1/teacher-workspace/students", "student-records"],
+  ["/api/v1/teacher-workspace/incidents", "student-records"],
+  ["/api/v1/teacher-workspace/concerns", "student-records"],
+  ["/api/v1/teacher-workspace/record-changes", "student-records"],
+  ["/api/v1/teacher-workspace/guardians", "parents-guardians"],
+  ["/api/v1/teacher-workspace/submissions", "parents-guardians"],
+  ["/api/v1/teacher-workspace/messages", "communication-center"],
+  ["/api/v1/teacher-workspace/timetable", "class-timetable"],
+  ["/api/v1/teacher-workspace/teaching", "class-timetable"]
 ];
 
 export type SwitchedOff = { slug: string; name: string; scope: "platform" | "school"; reason: string };

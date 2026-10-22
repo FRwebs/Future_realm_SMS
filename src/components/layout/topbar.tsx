@@ -170,9 +170,8 @@ function notificationsEndpoint(session: SessionUser, portalType: PortalType) {
   if (portalType === "super_admin") return null;
   if (session.role === "PARENT") return "/api/v1/parent-portal/notifications";
   if (session.role === "STUDENT") return "/api/v1/student-portal/notifications";
-  if (["TEACHER", "CLASS_TEACHER", "SUBJECT_TEACHER"].includes(session.role))
-    return "/api/v1/teacher-portal/notifications";
-  return null;
+  // Every other member of staff — a teacher, a head of department, a principal, a counsellor — reads the same personal feed.
+  return "/api/v1/notifications/mine";
 }
 
 export function dropdownItemsFor(
@@ -329,12 +328,21 @@ function NotificationBell({
   if (!endpoint && portalType === "super_admin") return null;
 
   const count = notifications.filter((item) => item.status !== "READ").length;
+  const staffFeed = endpoint === "/api/v1/notifications/mine";
+
+  function markRead() {
+    if (!staffFeed || !count) return;
+    const token = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1];
+    void fetch("/api/v1/notifications/read", { method: "POST", credentials: "include", headers: { "x-csrf-token": token ?? "" } })
+      .then(() => setNotifications((current) => current.map((item) => ({ ...item, status: "READ" }))))
+      .catch(() => undefined);
+  }
 
   return (
     <div ref={bellRef} className="relative">
       <button
         type="button"
-        onClick={() => setOpen((value) => !value)}
+        onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
         className="relative flex flex-none items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-[var(--color-bg-surface)] px-[10px] py-[6.5px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
         aria-label={`${count} unread notifications`}
         aria-expanded={open}
@@ -361,19 +369,29 @@ function NotificationBell({
 
           <div className="max-h-72 overflow-y-auto p-2">
             {notifications.length ? (
-              notifications.slice(0, 6).map((notification) => (
-                <div
-                  key={notification.id}
-                  className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-[var(--color-bg-subtle)]"
-                >
-                  <p className="text-xs font-semibold text-[var(--color-text-primary)]">
-                    {notification.title}
-                  </p>
-                  <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
-                    {notification.body}
-                  </p>
-                </div>
-              ))
+              notifications.slice(0, 8).map((notification) => {
+                const href = (notification as { href?: string | null }).href;
+                const body = (
+                  <>
+                    <p className="text-xs font-semibold text-[var(--color-text-primary)]">
+                      {notification.status !== "READ" ? <span aria-hidden className="mr-[6px] inline-block h-[6px] w-[6px] rounded-full bg-[#12796A]" /> : null}
+                      {notification.title}
+                    </p>
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                      {notification.body}
+                    </p>
+                  </>
+                );
+                return href ? (
+                  <Link key={notification.id} href={href as never} onClick={() => { setOpen(false); markRead(); }} className="block rounded-2xl px-3 py-2.5 text-left transition hover:bg-[var(--color-bg-subtle)]">
+                    {body}
+                  </Link>
+                ) : (
+                  <div key={notification.id} className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-[var(--color-bg-subtle)]">
+                    {body}
+                  </div>
+                );
+              })
             ) : (
               <div className="px-3 py-6 text-center">
                 <p className="text-xs text-[var(--color-text-secondary)]">
