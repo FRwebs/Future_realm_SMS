@@ -450,6 +450,22 @@ export type FormSubmit = {
   clearOnSuccess?: string[];
 };
 
+export type CourseCard = {
+  title: string;
+  meta: string;
+  /** SVG path for the icon chip. */
+  icon?: string;
+  pill: string;
+  tone: PanelTone;
+  /** "Why this is for you" — said in a green strip under the title. */
+  why?: string;
+  /** 0–100. Omit for a course that has not been opened. */
+  pct?: number;
+  progress?: string;
+  cta: string;
+  href: string;
+};
+
 export type StepItem = {
   label: string;
   sub?: string;
@@ -909,6 +925,8 @@ export type Panel =
    * The server names the component and hands it its data; the component is looked up in the embed registry on the client.
    */
   | { type: "embed"; component: string; props: Record<string, unknown> }
+  /** Courses as cards: what it is, where it stands, how far through, and — for a recommendation — why it was chosen. */
+  | { type: "courses"; title: string; sub?: string; cards: CourseCard[] }
   | GridPanel
   | FlowPanel
   | QuotesPanel

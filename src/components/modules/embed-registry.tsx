@@ -2,6 +2,8 @@
 
 import type { DrawerSpec } from "@/lib/modules/panels";
 import { AddSubject } from "@/components/modules/lesson-notes/add-subject";
+import { TrainingCheckout } from "@/components/modules/training-checkout";
+import { LessonPlayer } from "@/components/modules/lesson-player";
 import { NoteDocument, NoteReader } from "@/components/modules/lesson-notes/note-document";
 import { SchemeWorkspace } from "@/components/modules/lesson-notes/scheme-workspace";
 import { StudentWorking } from "@/components/modules/subject-comment";
@@ -20,6 +22,8 @@ const registry: Record<string, React.ComponentType<never>> = {
   "note-reader": NoteReader as React.ComponentType<never>,
   "teacher-sheet": TeacherSheet as React.ComponentType<never>,
   "student-working": StudentWorking as React.ComponentType<never>,
+  "lesson-player": LessonPlayer as React.ComponentType<never>,
+  "training-checkout": TrainingCheckout as React.ComponentType<never>,
 };
 
 export function EmbeddedPanel({ component, props, openDrawer }: { component: string; props: Record<string, unknown>; openDrawer?: (spec: DrawerSpec) => void }) {

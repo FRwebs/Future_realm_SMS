@@ -84,6 +84,13 @@ export class LearningManageController {
     return ok(this.learning.setPublished(session, id, state));
   }
 
+  @Post("funding/:id/decide")
+  @UseGuards(CsrfGuard)
+  @RequirePermission("staff-access.learning.approve")
+  decideFunding(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.learning.decideFunding(session, id, body), "Decision recorded");
+  }
+
   @Post("certificates/:id/decide")
   @UseGuards(CsrfGuard)
   @RequirePermission("staff-access.learning.approve")

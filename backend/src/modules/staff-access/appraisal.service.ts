@@ -222,6 +222,7 @@ export class AppraisalService {
       const reviewerId = profile.supervisorId && profile.supervisorId !== row.userId ? profile.supervisorId : principal?.id !== row.userId ? principal?.id ?? session.userId : session.userId;
       const kpis = (await this.set(schoolId, setName)).kpis;
       const activityRow = metric.get(row.userId);
+      const cpd = kpis.some((item) => /Training/.test(item.source)) ? await this.cpd(schoolId, row.userId) : undefined;
       await prisma.staffAppraisal.create({
         data: {
           schoolId,
@@ -229,7 +230,7 @@ export class AppraisalService {
           reviewerId,
           termId: cycle.term?.id ?? null,
           cycle: cycle.name,
-          ratings: { create: kpis.map((kpi) => ({ criterion: kpi.name, score: 0, weight: kpi.weight, autoScore: this.autoScore(kpi, activityRow) })) }
+          ratings: { create: kpis.map((kpi) => ({ criterion: kpi.name, score: 0, weight: kpi.weight, autoScore: this.autoScore(kpi, activityRow, cpd) })) }
         }
       });
       created += 1;
@@ -243,7 +244,17 @@ export class AppraisalService {
   }
 
   /** What the product itself says about a KPI, on the scale of five, where it holds the figure. */
-  private autoScore(kpi: KpiDefinition, row: Awaited<ReturnType<StaffAccessService["activity"]>>["rows"][number] | undefined): number | null {
+  /** The hours of professional development a person has earned this session, with the yearly expectation the school has set — what a "Training · automatic" KPI reads. */
+  private async cpd(schoolId: string, userId: string) {
+    const sessionRow = await prisma.academicSession.findFirst({ where: { schoolId, isCurrent: true }, select: { startDate: true, endDate: true } });
+    const from = sessionRow?.startDate ?? new Date(Date.now() - 365 * 86_400_000);
+    const certs = await prisma.trainingCertificate.findMany({ where: { schoolId, userId, state: "VALID", issuedAt: { gte: from } }, select: { hours: true } });
+    const policy = await store(schoolId, "learning-policy").get<{ cpdTarget?: number | null }>("policy");
+    return { hours: certs.reduce((sum, cert) => sum + cert.hours, 0), target: policy?.data.cpdTarget ?? null };
+  }
+
+  private autoScore(kpi: KpiDefinition, row: Awaited<ReturnType<StaffAccessService["activity"]>>["rows"][number] | undefined, cpd?: { hours: number; target: number | null }): number | null {
+    if (/Training/.test(kpi.source)) return cpd && cpd.target ? Math.round(Math.min(1, cpd.hours / cpd.target) * 5 * 10) / 10 : null;
     if (!row || !isAutomaticSource(kpi.source)) return null;
     const five = (done: number, of: number) => (of > 0 ? Math.round(Math.min(1, done / of) * 5 * 10) / 10 : null);
     if (/Attendance/.test(kpi.source)) return row.registers ? five(row.registers.marked, row.registers.of) : null;

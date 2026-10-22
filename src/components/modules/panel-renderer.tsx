@@ -405,8 +405,8 @@ function Cell({
     const swatch = toneOf(cell.avatarTone);
 
     return (
-      <div className="flex min-w-0 items-center gap-[9px]">
-        {cell.avatar === false ? null : (
+      <div className={cn("flex min-w-0 items-center gap-[9px]", dense && "max-w-[190px]")}>
+        {cell.avatar === false || dense ? null : (
           <span
             aria-hidden="true"
             className="flex h-[24px] w-[24px] flex-none items-center justify-center rounded-full border text-[9.5px] font-bold"
@@ -449,7 +449,7 @@ function Cell({
         {cell.label}
       </>
     );
-    const base = "inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold";
+    const base = cn("inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold", dense && "gap-[4px] px-[7px] text-[10px]");
     // A pill that is also the control — the payment status you click to change.
     if (cell.href || cell.drawer) {
       return (
@@ -708,7 +708,6 @@ function TablePanel({
   const lastIndex = panel.head.length - 1;
   // A dense table fits its panel: cells sit closer, headings wrap, and nothing asks for a slider.
   const dense = Boolean(panel.dense);
-  const gap = dense ? "5px" : "9px";
   // A dense table is one asked to fit its panel, so it gives the outer edges back some of
   // their padding on a narrow screen — 18px on each end of a four-column table is a tenth
   // of a phone's width, and spending it on margin is what pushes the table into a slider.
@@ -717,7 +716,6 @@ function TablePanel({
       index === 0 && !panel.selectable ? (dense ? "pl-[10px] sm:pl-[18px]" : "pl-[18px]") : dense ? "pl-[5px]" : "pl-[9px]",
       index === lastIndex ? (dense ? "pr-[10px] sm:pr-[18px]" : "pr-[18px]") : dense ? "pr-[5px]" : "pr-[9px]",
     );
-  void gap;
   // The meta line asserts a count; the pager states the truth below it. Where the two disagree the
   // line says which it is, appended — so an authored figure can never contradict the rows.
   const claimed = panel.meta?.match(/^([\d,]+)\s+(\S+)/);
@@ -1750,6 +1748,50 @@ export function PanelView({
           {panel.note ? <span className="hidden flex-none whitespace-nowrap pr-[4px] text-[10.5px] font-semibold md:block" style={{ color: "rgba(255,255,255,0.62)" }}>{panel.note}</span> : null}
         </div>
         {panel.foot ? <p className="px-[16px] pb-[12px] text-[10.5px]" style={{ color: "rgba(255,255,255,0.55)" }}>{panel.foot}</p> : null}
+      </section>
+    );
+  }
+
+  if (panel.type === "courses") {
+    return (
+      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+        <PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} />
+        <div className="-mx-[2px] grid gap-[11px] pb-[6px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))" }}>
+          {panel.cards.map((card) => {
+            const swatch = toneOf(card.tone);
+            return (
+              <Link key={`${card.title}-${card.href}`} href={card.href as Route} className="flex min-w-0 flex-col gap-[9px] rounded-[13px] border bg-white px-[15px] py-[14px] transition hover:-translate-y-px hover:border-[#BFDCD1]" style={{ borderColor: CARD_BORDER }}>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[9px]" style={{ background: swatch.bg, color: swatch.fg }}>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={card.icon ?? "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5"} /></svg>
+                  </span>
+                  <span className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold" style={tonePillStyle(card.tone)}>
+                    <span className="h-[5px] w-[5px] rounded-full" style={{ background: swatch.dot }} />
+                    {card.pill}
+                  </span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-pretty text-[12.5px] font-bold leading-[1.35]" style={{ color: INK }}>{card.title}</p>
+                  <p className="mt-[3px] text-[10.5px] leading-[1.4]" style={{ color: MUTED }}>{card.meta}</p>
+                </div>
+                {card.why ? (
+                  <p className="text-pretty rounded-[9px] border px-[9px] py-[7px] text-[10.5px] leading-[1.45]" style={{ color: "#17604F", background: "#F1F8F4", borderColor: "#DCEEE5" }}>{card.why}</p>
+                ) : null}
+                <div className="mt-auto flex items-center justify-between gap-3 pt-[2px]">
+                  <div className="min-w-0 flex-1">
+                    {card.pct !== undefined ? (
+                      <>
+                        <div className="h-[4px] overflow-hidden rounded-full" style={{ background: "#E6EEE9" }}><div className="h-full rounded-full" style={{ width: `${card.pct}%`, background: card.pct >= 100 ? "#22A06B" : "#4A83CE" }} /></div>
+                        <p className="mt-[5px] text-[10px] tabular-nums" style={{ color: MUTED }}>{card.progress}</p>
+                      </>
+                    ) : null}
+                  </div>
+                  <span className="flex-none text-[10.5px] font-semibold" style={{ color: "#12796A" }}>{card.cta} →</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </section>
     );
   }
