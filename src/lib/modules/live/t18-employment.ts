@@ -1,7 +1,7 @@
 import { apiGet } from "@/lib/api/server";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, fixed, select, text } from "@/lib/modules/live/m7-forms";
-import type { DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, StepItem, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, FormField, Panel, PanelFact, PanelRow, PanelTone, StepItem, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
 
 /**
@@ -119,6 +119,15 @@ function leaveTab(v: Leave): TabContent {
       }]),
       row("1fr", [{
         type: "table", title: "Your requests", sub: "Every request, and where it is now.", meta: `${v.rows.length} this session`, noun: "request", nounPlural: "requests", search: "Find a request",
+        // Narrowed by the two things a person actually looks for: what kind of leave it
+        // was, and whether it has been decided. Both are built from the requests on
+        // record rather than a fixed list, so neither offers a filter that finds nothing.
+        filters: v.rows.length > 1
+          ? [
+              { label: "Type", value: "All", options: ["All", ...new Set(v.rows.map((entry) => entry.type))] },
+              { label: "State", value: "All", options: ["All", ...new Set(v.rows.map((entry) => entry.status))] },
+            ]
+          : undefined,
         head: ["Type", "Dates", "Days", "With", "State", "Cover", ""], rows, per: 10, noRowOpen: true, empty: "You have not asked for leave this session.", foot: "A decision reaches you in-app, whatever the outcome.",
       }]),
       steps ? row("1fr", [{ type: "steps", title: `Where your ${latest!.type.toLowerCase()} request is`, steps }]) : null,
@@ -173,9 +182,11 @@ function assignmentsTab(v: Assignments, gaps: Gaps | null): TabContent {
         ],
       }]),
       row("1fr", [{ type: "table", title: "What you hold", sub: "Your classes and subjects, from the school’s class structure.", meta: `${v.holding.length}`, noun: "assignment", nounPlural: "assignments", head: ["What", "Where", "Load", "Kind"], rows: holdRows, per: 12, noRowOpen: true, empty: "You are not named on a class or subject yet." }]),
-      v.covering.length ? row("1fr", [{ type: "table", title: "Your cover assignments", sub: "What each one grants, and when it ends.", meta: `${v.covering.length} this term`, noun: "assignment", nounPlural: "assignments", head: ["What", "Arm", "For whom", "Grants", "Ends", "Attribution", ""], rows: coverRows, per: 10, noRowOpen: true, foot: "A cover teacher never inherits the owner’s remarks, family conversations or historic reach." }]) : null,
+      // Shown whether or not there is cover to show. "You are not covering for anyone"
+      // is an answer; an absent panel is a question about whether the page is finished.
+      row("1fr", [{ type: "table", title: "Your cover assignments", sub: "What each one grants, and when it ends.", meta: `${v.covering.length} this term`, noun: "assignment", nounPlural: "assignments", head: ["What", "Arm", "For whom", "Grants", "Ends", "Attribution", ""], rows: coverRows, per: 10, noRowOpen: true, empty: "You are not covering for anyone. Cover is arranged by a head of department or a school leader, and always carries an end date.", foot: "A cover teacher never inherits the owner’s remarks, family conversations or historic reach." }]),
       live.length ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `Your access to ${live[0]!.arm} ends on ${live[0]!.endsLabel}, without anyone remembering`, body: "The register returns to its owner. Nothing you did on cover is lost: every mark stays on the record under your name." }]) : null,
-      v.absences.length ? row("1fr", [{ type: "table", title: "Covered for you", sub: "Days you were away, and who held your work.", meta: `${v.absences.length} this term`, noun: "day", nounPlural: "days", head: ["Date", "Reason", "Covered by", "What they held"], rows: coveredForRows, per: 10, noRowOpen: true, foot: "Their marks are on your registers under their name, with yours alongside." }]) : null,
+      row("1fr", [{ type: "table", title: "Covered for you", sub: "Days you were away, and who held your work.", meta: `${v.absences.length} this term`, noun: "day", nounPlural: "days", head: ["Date", "Reason", "Covered by", "What they held"], rows: coveredForRows, per: 10, noRowOpen: true, empty: "Nobody has covered for you this term.", foot: "Their marks are on your registers under their name, with yours alongside." }]),
       gaps ? row("1fr", [{ type: "table", title: "Gaps to fill today", sub: `Staff in ${gaps.scope === "department" ? "your department" : "the school"} who have said they are away, and what nobody holds yet.`, meta: `${gaps.gaps.length} away`, noun: "gap", nounPlural: "gaps", head: ["Who is away", "What", "Arm", "Cover", ""], rows: gapRows, per: 12, noRowOpen: true, empty: "Nobody in your department has reported an absence today.", foot: "Cover you assign always has an end date, and stops by itself on it." }]) : null,
     ].filter(Boolean) as PanelRow[]),
   };
@@ -204,19 +215,36 @@ export function coverDrawer(gap: Gaps["gaps"][number], hold: Gaps["gaps"][number
 /* ───────────────────────── Appraisal ───────────────────────── */
 
 function appraisalTab(v: Appraisal): TabContent {
+  // How the process works does not depend on a cycle being open, and it is most worth
+  // reading before one is — so the same panel serves both states rather than appearing
+  // only once the cycle it explains has already started.
+  const howItWorks: Panel = {
+    type: "facts", title: "How this cycle works", per: 1,
+    facts: [
+      ["Self-assessment", "Yours alone until you submit", "Your reviewer cannot see a draft"],
+      ["Manager review", v.reviewer?.name ?? "Your reviewer", v.reviewer?.title ?? ""],
+      ["Moderation", "A panel, once every review is in", "It can change a score, and it records why"],
+      ["Shared with you", "Before it is final", "You may add a written response"],
+      ["Effect on pay or access", "Not decided", "The school has not settled this — an open question, not a hidden one"],
+    ] as PanelFact[],
+  };
+  const stageLabels = ["KPIs published", "Self-assessment", "Manager review", "Moderation", "Shared with you"];
+
   if (!v.published) {
     return {
       title: "Appraisal", desc: "This cycle, and what it is measured on.",
       rows: [
+        // The stages are shown before the cycle opens too, all still to come: what is
+        // ahead of you is part of knowing where you stand.
+        row("1fr", [{ type: "steps", title: `${v.cycle} · not opened yet`, steps: stageLabels.map((label): StepItem => ({ label, state: "todo" })) }]),
         row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: `No appraisal has been published to you for ${v.cycle}`, body: "When the school publishes the cycle, your self-assessment opens here with the deadline. Until then this is what a teacher at this school is measured on." }]),
-        row("1fr", [kpiTable(v)]),
+        row("1.25fr 1fr", [kpiTable(v), howItWorks]),
       ],
     };
   }
   const submitted = Boolean(v.selfSubmittedAt);
   const stage = v.shared ? 4 : submitted ? 2 : 1;
-  const labels = ["KPIs published", "Self-assessment", "Manager review", "Moderation", "Shared with you"];
-  const steps: StepItem[] = labels.map((label, index) => ({ label, state: index < stage ? "done" : index === stage ? "current" : "todo" }));
+  const steps: StepItem[] = stageLabels.map((label, index): StepItem => ({ label, state: index < stage ? "done" : index === stage ? "current" : "todo" }));
   const selfDrawer = (submit: boolean): DrawerSpec => {
     const fields: FormField[] = [];
     const scores: Record<string, [string, string]> = {};
@@ -258,16 +286,7 @@ function appraisalTab(v: Appraisal): TabContent {
       }]),
       row("1.25fr 1fr", [
         kpiTable(v),
-        {
-          type: "facts", title: "How this cycle works", per: 1,
-          facts: [
-            ["Self-assessment", "Yours alone until you submit", "Your reviewer cannot see a draft"],
-            ["Manager review", v.reviewer?.name ?? "Your reviewer", v.reviewer?.title ?? ""],
-            ["Moderation", "A panel, once every review is in", "It can change a score, and it records why"],
-            ["Shared with you", "Before it is final", "You may add a written response"],
-            ["Effect on pay or access", "Not decided", "The school has not settled this — an open question, not a hidden one"],
-          ] as PanelFact[],
-        },
+        howItWorks,
       ]),
       ...(v.shared ? [row("1fr", [{ type: "quotes", title: "What your reviewer wrote", sub: v.sharedAt ? `Shared ${long(v.sharedAt)}` : "", quotes: [{ label: "Review", text: v.reviewerComment ?? "", by: v.reviewer?.name ?? "Your reviewer", emptyText: "No comment was left." }, ...(v.strengths ? [{ label: "Strengths", text: v.strengths, by: v.reviewer?.name ?? "" }] : []), ...(v.improvements ? [{ label: "To improve", text: v.improvements, by: v.reviewer?.name ?? "" }] : [])] }])] : []),
       ...(v.staffComment ? [row("1fr", [{ type: "quotes", title: "Your response", quotes: [{ label: "You wrote", text: v.staffComment, by: "You" }] }])] : []),
@@ -284,7 +303,9 @@ function kpiTable(v: Appraisal): PanelRow["panels"][number] {
       pill(kpi.reviewer !== null ? `${kpi.reviewer} of 5` : kpi.automatic ? "Computed" : "Manager rating", kpi.reviewer !== null ? "positive" : "neutral"),
     ] as TableCellKind[],
   }));
-  return { type: "table", title: "What you are measured on", sub: "Where each figure comes from, and what it is worth.", meta: `${v.kpis.length} KPIs`, noun: "KPI", nounPlural: "KPIs", head: ["KPI", "Measured by", "Weight", "Target", "Your figure", "Reviewer"], rows, per: 12, noRowOpen: true, foot: "You are appraised against what happened, not against recollection." };
+  // Dense: it sits in the narrower half of a two-up, and the measured-by column needs
+  // the room that padding would otherwise take.
+  return { type: "table", dense: true, title: "What you are measured on", sub: "Where each figure comes from, and what it is worth.", meta: `${v.kpis.length} KPIs`, noun: "KPI", nounPlural: "KPIs", head: ["KPI", "Measured by", "Weight", "Target", "Your figure", "Reviewer"], rows, per: 12, noRowOpen: true, foot: "You are appraised against what happened, not against recollection." };
 }
 
 /* ───────────────────────── Payslips ───────────────────────── */
@@ -320,6 +341,29 @@ function payslipsTab(v: Payslips): TabContent {
   };
   const attention = v.documents.find((document) => document.expiry === "Expired" || document.expiry === "Expiring");
   const docRows: PanelFact[] = v.documents.map((document): PanelFact => [document.title, `${document.expiresLabel ? `${document.expiry === "Expired" ? "Expired" : "Expires"} ${document.expiresLabel}` : "No expiry"}`, document.verification]);
+
+  /**
+   * The three credentials a teaching post is conditional on, each stated whether or not
+   * it is there.
+   *
+   * Listing only the documents that happen to be filed makes a missing one invisible —
+   * and a teaching certificate nobody has filed is precisely the thing this panel exists
+   * to surface. Each row is matched from the record by type or title; where nothing
+   * matches it says so rather than going quiet.
+   */
+  const credential = (label: string, match: RegExp): PanelFact => {
+    const found = v.documents.find((document) => match.test(document.type ?? "") || match.test(document.title));
+    if (!found) return [label, "Not on file", "The office has nothing recorded"];
+    const when = found.expiresLabel
+      ? found.expiry === "Expired" ? `Expired ${found.expiresLabel}` : `Expires ${found.expiresLabel}`
+      : "No expiry date on file";
+    return [label, when, found.verification];
+  };
+  const credentialRows: PanelFact[] = [
+    credential("Teaching certificate", /trcn|teach(ing)?[ _-]?cert/i),
+    credential("Safeguarding clearance", /safeguard|police|dbs|clearance/i),
+    credential("Right to work", /right[ _-]?to[ _-]?work|work[ _-]?permit|visa/i),
+  ];
   return {
     title: "Payslips", desc: "What you were paid, what it was made of, and the documents on your record.",
     primary: latest ? { label: `View ${latest.label}`, icon: EYE, drawer: slipDrawer(latest) } : undefined,
@@ -339,7 +383,7 @@ function payslipsTab(v: Payslips): TabContent {
         { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, empty: "No payslip yet.", foot: "A payslip appears when the school approves the month’s run." },
         {
           type: "facts", title: "Your employment record", per: 1,
-          facts: [["Started", long(v.record.started), ""], ["Employment", v.record.employment, ""], ["Reports to", v.record.reportsTo ? v.record.reportsTo.name : "—", v.record.reportsTo?.title ?? ""], ...docRows] as PanelFact[],
+          facts: [["Started", long(v.record.started), ""], ["Employment", v.record.employment, ""], ["Reports to", v.record.reportsTo ? v.record.reportsTo.name : "—", v.record.reportsTo?.title ?? ""], ...credentialRows, ...docRows.filter((fact) => !credentialRows.some((row) => row[0] === fact[0]))] as PanelFact[],
           acts: [{ label: "File a document", drawer: upload }],
         },
       ]),
