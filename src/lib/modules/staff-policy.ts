@@ -190,6 +190,7 @@ export const KPI_SOURCES = [
   "Fee Management · automatic",
   "Compliance · automatic",
   "Appraisal · automatic",
+  "Training · automatic",
   "Manager rating",
   "The staff member’s own evidence",
 ];

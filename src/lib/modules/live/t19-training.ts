@@ -1,11 +1,13 @@
 import { apiGet } from "@/lib/api/server";
-import { area, choice, text } from "@/lib/modules/live/m7-forms";
-import type { DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
+import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
+import { area, text } from "@/lib/modules/live/m7-forms";
+import type { CourseCard, DocumentSpec, DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
 
 /**
- * M19 for a teaching person: Training. Courses written by their school, fitted to the work they do; each lesson ends in one question,
- * and the certificate at the end is theirs — with a code anyone can check. The school sees that a course was finished, never the answers.
+ * M19 for a teaching person: Training. Courses written by their school, fitted to the work they do — some free, some bought from an outside
+ * provider by the teacher or the school. Each lesson ends in one question; the certificate at the end is theirs, with a code anyone can
+ * check. The school sees that a course was finished, never the answers.
  */
 
 const API = "/api/v1/teacher-workspace";
@@ -14,33 +16,88 @@ const PLUS = "M12 5.5v13M5.5 12h13";
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const CHECK = "m4.5 12.5 4.5 4.5 9-10";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
+const CART = "M4 5h2l1.6 9.5h9.8L19.5 8H7M10 19.2h.01M16 19.2h.01";
+const SECTION_ICON: Record<string, string> = {
+  "School courses": "M3.5 19.5h17M6 19.5v-8h12v8M9 11.5V8a3 3 0 0 1 6 0v3.5",
+  "Safeguarding and welfare": "M12 3.5 5 6.5v5c0 4.3 3 7.6 7 9 4-1.4 7-4.7 7-9v-5z",
+  "Teaching practice": "M5 4.5h9.5A2.5 2.5 0 0 1 17 7v12.5H7.5A2.5 2.5 0 0 1 5 17zM9 8.5h5M9 12h5",
+  "Subject knowledge": "M9 3.5v6L4.5 18a1.8 1.8 0 0 0 1.6 2.5h11.8a1.8 1.8 0 0 0 1.6-2.5L15 9.5v-6M8 3.5h8",
+  Assessment: "M6 3.5h12v17H6zM9.5 8.5h5M9.5 12.5h5M9.5 16.5h3",
+  "Digital skills": "M4 5.5h16v10H4zM9 19.5h6M12 15.5v4",
+  Leadership: "M12 4 3.5 8 12 12l8.5-4zM6 10.5v4.8c0 1.7 2.7 3.2 6 3.2s6-1.5 6-3.2v-4.8",
+};
 
-export type Course = { id: string; title: string; summary: string | null; section: string; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; pathway: string | null; lessons: number; done: number; completed: boolean; state: string; required: boolean; requiredBy: string | null; requiredNote: string | null; dueDays: number | null; outcomes: string[] };
+export type Course = { id: string; title: string; summary: string | null; section: string; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; pathway: string | null; lessons: number; done: number; completed: boolean; state: string; price?: number | null; priceLabel?: string; free?: boolean; owned?: boolean; purchase?: { state: string; payer: string; decision: string | null } | null; required: boolean; requiredBy: string | null; requiredNote: string | null; dueDays: number | null; outcomes: string[] };
 type Cert = { id: string; name: string; by: string; issued: string; issuedAt: string; expires: string; expiresAt: string | null; days: number | null; hours: number; code: string; state: string; external: boolean; courseId: string | null; note: string | null };
 type Home = { persona: string; cpd: { hours: number; target: number | null }; required: Course[]; inProgress: Course[]; recommended: Array<{ course: Course; why: string }>; pathways: Array<{ name: string; total: number; done: number; titles: string[] }>; certificates: number; expiring: Cert | null; total: number; completed: number };
 type Catalogue = { sections: string[]; courses: Course[] };
-type Certificates = { cpd: { hours: number; target: number | null }; holder: string; school: string; certificates: Cert[] };
-export type CoursePage = { id: string; title: string; summary: string | null; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; outcomes: string[]; task: string | null; required: { by: string | null; note: string | null } | null; lessons: Array<{ position: number; title: string; minutes: number; summary: string; done: boolean }>; done: number; completed: boolean; certificate: Cert | null };
-export type LessonPage = { course: { id: string; title: string; hours: number; certificateName: string; provider: string; required: { by: string | null; note: string | null } | null; lessonsTotal: number; done: number }; outline: Array<{ position: number; title: string; minutes: number; done: boolean }>; lesson: { position: number; title: string; minutes: number; body: string; question: string; options: string[]; done: boolean } };
+export type Basket = {
+  basket: Array<{ id: string; courseId: string; title: string; provider: string; hours: number; price: number; priceLabel: string }>;
+  total: number; totalLabel: string;
+  history: Array<{ id: string; courseId: string; title: string; provider: string; state: string; payer: string; priceLabel: string; decision: string | null; requestedAt: string | null; decidedAt: string | null }>;
+};
+type Certificates = { cpd: { hours: number; target: number | null }; holder: string; holderRole: string; school: string; letterhead: { name: string; place?: string; contact?: string }; signatory: { name: string; role: string } | null; certificates: Cert[] };
+export type CoursePage = {
+  id: string; title: string; summary: string | null; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; outcomes: string[]; task: string | null;
+  owned: boolean; price: number | null; priceLabel: string; purchase: { state: string; payer: string; decision: string | null } | null; why: string | null;
+  required: { by: string | null; note: string | null } | null; lessons: Array<{ position: number; title: string; minutes: number; summary: string; done: boolean }>; done: number; completed: boolean; certificate: Cert | null;
+};
+export type LessonPage = { course: { id: string; title: string; task: string | null; hours: number; certificateName: string; provider: string; required: { by: string | null; note: string | null } | null; lessonsTotal: number; done: number }; outline: Array<{ position: number; title: string; minutes: number; done: boolean }>; lesson: { position: number; title: string; minutes: number; body: string; question: string; options: string[]; done: boolean } };
 
 const length = (hours: number) => (hours < 1 ? `${Math.round(hours * 60)} min` : Number.isInteger(hours) ? `${hours} ${hours === 1 ? "hour" : "hours"}` : `${Math.floor(hours)} h ${Math.round((hours % 1) * 60)} min`);
 const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "");
 const stateTone = (state: string, required: boolean): PanelTone => (state === "Completed" ? "positive" : required || state === "Required" ? "attention" : state === "In progress" ? "progress" : "neutral");
+/** Prices arrive in kobo; nothing here ever holds money as a float. */
+const naira = (kobo: number) => `₦${(kobo / 100).toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;
+const embed = (component: string, props: Record<string, unknown>): PanelRow => row("1fr", [{ type: "embed", component, props }]);
 
 export const courseHref = (id: string) => `/training/catalogue/${id}`;
 export const lessonHref = (id: string, position: number) => `/training/catalogue/${id}/lessons/${position}`;
+export const checkoutHref = "/training/catalogue/checkout";
 export const loadCourse = (id: string) => apiGet<CoursePage>(`${API}/learning/courses/${id}`);
 export const loadLesson = (id: string, position: string) => apiGet<LessonPage>(`${API}/learning/courses/${id}/lessons/${position}`);
+export const loadBasket = () => apiGet<Basket>(`${API}/learning/basket`);
 
-export async function teacherTrainingTab(tabSlug: string, query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
+export async function teacherTrainingTab(tabSlug: string, query: Record<string, string | undefined>, me?: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
+  void me;
   if (tabSlug === "for-you") return forYouTab(await apiGet<Home>(`${API}/learning/home`));
-  if (tabSlug === "catalogue") return catalogueTab(await apiGet<Catalogue>(`${API}/learning/catalogue`), query);
+  if (tabSlug === "catalogue") {
+    const [cat, basket] = await Promise.all([
+      apiGet<Catalogue>(`${API}/learning/catalogue`),
+      loadBasket().catch(() => ({ basket: [], total: 0, totalLabel: "₦0", history: [] } as Basket)),
+    ]);
+    return catalogueTab(cat, basket, query);
+  }
   if (tabSlug === "certificates") return certificatesTab(await apiGet<Certificates>(`${API}/learning/certificates`));
   return undefined;
 }
 
+/* ───────────────────────── drawers ───────────────────────── */
+
+/** Putting a paid course in the basket: the price is what the person is agreeing to, so it is shown back before anything is recorded. */
+const addToBasket = (course: { id: string; title: string; certificateName: string; provider: string; hours: number; priceLabel?: string }): DrawerSpec => ({
+  mode: "commit", kicker: "Catalogue", title: `Add ${course.title} to your basket`,
+  sub: "Nothing is bought yet. You settle the basket in one go, either by asking the school to fund it or by recording a payment you made to the provider yourself.",
+  facts: [
+    ["Course", course.title, course.certificateName],
+    ["Provider", course.provider, length(course.hours)],
+    ["Price", course.priceLabel ?? "—", "Held at this figure even if the provider changes it later"],
+  ],
+  commitLabel: "Add to basket", commitDone: "In your basket", commitDoneBody: "Settle it from the basket when you are ready.",
+  next: { label: "Go to the basket", href: checkoutHref },
+  submit: { endpoint: `${API}/learning/basket/${course.id}`, method: "POST" },
+});
+
+const addManyToBasket: DrawerSpec = {
+  mode: "commit", kicker: "Catalogue", title: "Add the selected courses to your basket",
+  sub: "Free courses in the selection are left out — they open straight from the catalogue. Nothing is bought yet.",
+  commitLabel: "Add to basket", commitDone: "In your basket", commitDoneBody: "Settle it from the basket when you are ready.",
+  next: { label: "Go to the basket", href: checkoutHref },
+  submit: { endpoint: `${API}/learning/basket`, method: "POST" },
+};
+
 const suggest: DrawerSpec = {
-  mode: "form", kicker: "Training", title: "Suggest a course", sub: "It goes to the staff development lead. If enough colleagues ask for the same thing, it is written.",
+  mode: "form", kicker: "Training", title: "Suggest a course", sub: "It goes to the staff development lead. If enough colleagues ask for the same thing, it is commissioned.",
   commitLabel: "Send the suggestion", commitDone: "Suggestion sent", commitDoneBody: "Thank you — it is on the list the school reads when it plans training.",
   fields: [text("What you want to learn", { required: true, span: 2, placeholder: "e.g. Teaching phonics to older readers" }), area("Why it would help your teaching", { span: 2, optional: true })] as FormField[],
   submit: { endpoint: `${API}/learning/suggestions`, method: "POST", map: { "What you want to learn": "topic", "Why it would help your teaching": "why" } },
@@ -50,22 +107,26 @@ function noCourses(title: string, desc: string): TabContent {
   return { title, desc, launchers: [{ label: "Suggest a course", drawer: suggest }], rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "Your school has not published a course for your work yet", body: "Courses are written by the school and fitted to the work its staff do. When one is published for you, it appears here with what it earns. You can suggest one now." }])] };
 }
 
-function courseList(title: string, sub: string, courses: Course[], why?: Map<string, string>) {
+/* ───────────────────────── For you ───────────────────────── */
+
+const cardOf = (course: Course, why?: string): CourseCard => {
+  const owned = course.owned !== false;
+  const total = course.lessons;
+  const pct = owned && total ? Math.round((course.done / total) * 100) : undefined;
   return {
-    type: "list" as const, title, sub,
-    items: courses.map((course) => ({
-      label: course.title, sub: `${course.provider} · ${length(course.hours)} · ${course.format}${course.required && !course.completed && course.requiredBy ? ` · due ${day(course.requiredBy)}` : ""}${why?.get(course.id) ? ` — ${why.get(course.id)}` : ""}`,
-      pill: course.required && !course.completed ? "Required" : course.state, tone: stateTone(course.state, course.required), viewLabel: course.completed ? "Review" : course.done ? "Continue" : "Start", href: courseHref(course.id),
-    })),
+    title: course.title, meta: `${course.provider} · ${length(course.hours)} · ${course.format}${course.required && !course.completed && course.requiredBy ? ` · due ${day(course.requiredBy)}` : ""}`,
+    icon: SECTION_ICON[course.section], pill: course.required && !course.completed ? "Required" : course.state, tone: owned ? stateTone(course.state, course.required) : course.purchase?.state === "DECLINED" ? "negative" : course.purchase ? "progress" : "neutral",
+    why, pct, progress: owned ? (course.completed ? "Certificate issued" : `${course.done} of ${total} lessons`) : course.free === false ? `${course.priceLabel ?? ""} · opens once it is paid for` : undefined,
+    cta: !owned ? "Open" : course.completed ? "Review" : course.done ? "Continue" : "Start", href: courseHref(course.id),
   };
-}
+};
 
 function forYouTab(v: Home): TabContent {
   if (!v.total) return noCourses("Training", "Courses that fit the work you already do, and certificates your school recognises.");
   const next = v.required[0] ?? v.inProgress[0] ?? v.recommended[0]?.course ?? null;
   const due = v.required[0] ?? null;
-  const why = new Map(v.recommended.map((entry) => [entry.course.id, entry.why]));
   const L = v.cpd.target;
+  const going = [...v.required, ...v.inProgress.filter((course) => !v.required.some((entry) => entry.id === course.id))];
   return {
     title: "Training", desc: "Courses that fit the work you already do, and certificates your school recognises.",
     primary: next ? { label: `${next.done ? "Continue" : "Start"} ${next.title}`.slice(0, 48), icon: ARROW, href: courseHref(next.id) } : undefined,
@@ -77,12 +138,12 @@ function forYouTab(v: Home): TabContent {
           { label: "CPD this year", value: String(v.cpd.hours), unit: L !== null ? `of ${L} hours` : "hours", sub: L !== null ? "The school’s yearly expectation · counts in your appraisal" : "The school has not set a yearly expectation", tone: L !== null && v.cpd.hours >= L ? "positive" : "progress" },
           { label: "Required by your school", value: String(v.required.length), sub: v.required.length ? v.required.map((course) => `${course.title}${course.requiredBy ? ` · due ${day(course.requiredBy)}` : ""}`).join("; ") : "Everything required is done", tone: v.required.length ? "attention" : "positive" },
           { label: "In progress", value: String(v.inProgress.length + v.required.filter((course) => course.done).length), sub: "Pick up exactly where you stopped" },
-          { label: "Certificates", value: String(v.certificates), sub: v.expiring ? `${v.expiring.name} ${v.expiring.state === "Expired" ? "has expired" : `expires ${v.expiring.expires}`}` : "All current", tone: v.expiring ? "attention" : "positive", ...({ link: "View them", href: "/training/certificates" } as object) },
+          { label: "Certificates", value: String(v.certificates), sub: v.expiring ? `${v.expiring.name} ${v.expiring.state === "Expired" ? "has expired" : `expires ${v.expiring.expires}`}` : "All current", tone: v.expiring ? "attention" : "positive", link: "View them", href: "/training/certificates" },
         ],
       }]),
       due ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${due.title} is required${due.requiredBy ? ` by ${day(due.requiredBy)}` : ""}${due.dueDays !== null ? ` · ${due.dueDays < 0 ? `${-due.dueDays} days overdue` : `${due.dueDays} days`}` : ""}`, body: `${due.requiredNote ? `${due.requiredNote} ` : "Set by your school. "}${length(due.hours)}, ${due.format.toLowerCase()} — stop whenever you like and carry on from the same lesson. The school sees that you finished, not your answers.`, acts: [{ label: due.done ? "Continue it" : "Start it", href: courseHref(due.id) }] }]) : null,
-      v.required.length || v.inProgress.length ? row("1fr", [courseList("Continue where you left off", "Required first, then what you started.", [...v.required, ...v.inProgress])]) : null,
-      v.recommended.length ? row("1fr", [courseList("Recommended for you", "Chosen from your own subjects, deadlines and certificates — each one says why.", v.recommended.map((entry) => entry.course), why)]) : null,
+      going.length ? row("1fr", [{ type: "courses", title: "Continue where you left off", sub: "Required first, then what you started.", cards: going.map((course) => cardOf(course)) }]) : null,
+      v.recommended.length ? row("1fr", [{ type: "courses", title: "Recommended for you", sub: "Chosen from your own classes, results and deadlines — each one says why.", cards: v.recommended.map((entry) => cardOf(entry.course, entry.why)) }]) : null,
       row("1.15fr 1fr", [
         v.pathways.length
           ? { type: "list", title: "Pathways your school sets out", sub: "Each level is a set of courses; finish them all and you have completed it.", items: v.pathways.map((pathway) => ({ label: pathway.name, sub: `${pathway.done} of ${pathway.total} courses · ${pathway.titles.join(", ")}`, pill: pathway.done === pathway.total ? "Complete" : pathway.done ? "In progress" : "Not started", tone: (pathway.done === pathway.total ? "positive" : pathway.done ? "progress" : "neutral") as PanelTone, viewLabel: "Open", href: "/training/catalogue" })) }
@@ -101,32 +162,108 @@ function forYouTab(v: Home): TabContent {
   };
 }
 
-function catalogueTab(v: Catalogue, query: Record<string, string | undefined>): TabContent {
+/* ───────────────────────── Catalogue ───────────────────────── */
+
+const bandOf = (hours: number) => (hours < 2 ? "Under 2 hours" : hours <= 3 ? "2 – 3 hours" : "4 hours or more");
+
+function catalogueTab(v: Catalogue, b: Basket, query: Record<string, string | undefined>): TabContent {
   if (!v.courses.length) return noCourses("Catalogue", "Pick a section, then a course.");
   const sec = v.sections.includes(query.sec ?? "") ? (query.sec as string) : "All";
   const list = v.courses.filter((course) => sec === "All" || course.section === sec);
-  const cards = [{ name: "All", sub: "Every course open to you", count: v.courses.length }, ...v.sections.map((name) => ({ name, sub: v.courses.filter((course) => course.section === name).length ? "Written for you" : "None for your role yet", count: v.courses.filter((course) => course.section === name).length }))].filter((card) => card.name === "All" || card.count > 0);
+  const isFree = (course: Course) => course.free !== false;
+  const owns = (course: Course) => course.owned !== false;
+  const from = (members: Course[]) => {
+    const paid = members.filter((course) => !isFree(course) && typeof course.price === "number").map((course) => course.price as number);
+    if (!members.length) return "None for your role yet";
+    if (!paid.length) return "Free";
+    return paid.length === members.length ? `From ${naira(Math.min(...paid))}` : `Free, or from ${naira(Math.min(...paid))}`;
+  };
+  const cards = [{ name: "All", sub: "Every course open to you", members: v.courses }, ...v.sections.map((name) => ({ name, sub: "", members: v.courses.filter((course) => course.section === name) }))]
+    .filter((card) => card.name === "All" || card.members.length > 0)
+    .map((card) => ({
+      label: card.name, value: String(card.members.length), unit: card.members.length === 1 ? "course" : "courses", sub: card.name === "All" ? card.sub : from(card.members),
+      tone: card.name === sec ? ("progress" as PanelTone) : undefined, link: card.name === sec ? "Showing" : "Show", href: `/training/catalogue?sec=${encodeURIComponent(card.name)}`,
+    }));
+  const priceBand = (course: Course) => (isFree(course) ? "Free" : "Paid");
   const rows: TableRow[] = list.map((course) => ({
-    keywords: `${course.title} ${course.provider} ${course.section}`, href: courseHref(course.id),
+    id: course.id, keywords: `${course.title} ${course.provider} ${course.section} len:${bandOf(course.hours)}| fmt:${course.format}| price:${priceBand(course)}| st:${course.state}|`, href: courseHref(course.id),
     cells: [
-      { kind: "name", name: course.title, sub: `${course.certificateName}${course.required && !course.completed ? ` · required${course.requiredBy ? ` by ${day(course.requiredBy)}` : ""}` : ""}`, avatar: false }, cell(course.provider), cell(length(course.hours)), cell(course.format), pill(course.state, stateTone(course.state, course.required)),
-      { kind: "action", label: course.completed ? "Review" : course.done ? "Continue" : "Start", href: courseHref(course.id) },
+      { kind: "name", name: course.title, sub: `${course.certificateName}${course.required && !course.completed ? ` · required${course.requiredBy ? ` by ${day(course.requiredBy)}` : ""}` : ""}`, avatar: false },
+      cell(course.provider), cell(length(course.hours)), cell(course.format),
+      isFree(course) ? pill("Free", "positive") : cell(course.priceLabel ?? "—", { mono: true }),
+      pill(course.state, owns(course) ? stateTone(course.state, course.required) : course.purchase?.state === "DECLINED" ? "negative" : course.purchase ? "progress" : "neutral"),
+      owns(course)
+        ? { kind: "action", label: course.completed ? "Review" : course.done ? "Continue" : "Start", href: courseHref(course.id) }
+        : course.purchase?.state === "BASKET"
+          ? { kind: "action", label: "In your basket", href: checkoutHref }
+          : course.purchase?.state === "REQUESTED"
+            ? cell("Waiting on the school", { tone: "neutral" })
+            : { kind: "action", label: "Add to basket", drawer: addToBasket({ id: course.id, title: course.title, certificateName: course.certificateName, provider: course.provider, hours: course.hours, priceLabel: course.priceLabel }) },
     ] as TableCellKind[],
   }));
+  const states = [...new Set(list.map((course) => course.state))];
+  const formats = [...new Set(list.map((course) => course.format))];
+  const settled = query.settled === "SCHOOL" ? { tone: "positive" as PanelTone, title: "Sent to the school", body: "Whoever manages staff development will decide it, and you will be told either way. The courses open if it is approved." } : query.settled === "SELF" ? { tone: "positive" as PanelTone, title: "Payment recorded", body: "The courses are open, and the reference is on your record for the office to check." } : null;
   return {
-    title: "Catalogue", desc: "Pick a section, then a course. Every course here was written by your school.", launchers: [{ label: "Suggest a course", drawer: suggest }],
+    title: "Catalogue", desc: "Pick a section, then a course. Your school’s own courses are free; the rest are paid by you or by the school.",
+    primary: b.basket.length ? { label: `Checkout · ${b.basket.length} ${b.basket.length === 1 ? "course" : "courses"}`, icon: CART, href: checkoutHref } : undefined,
+    launchers: [{ label: "Suggest a course", drawer: suggest }],
     rows: [
-      row("1fr", [{ type: "tiles", title: "Sections", per: 4, tiles: cards.map((card) => ({ label: card.name, sub: `${card.count} ${card.count === 1 ? "course" : "courses"} · ${card.sub}`, tone: (card.name === sec ? "positive" : "neutral") as PanelTone, href: `/training/catalogue?sec=${encodeURIComponent(card.name)}` })) }]),
-      row("1fr", [{ type: "table", title: sec === "All" ? "Every course" : sec, sub: "Required first, then the ones that fit your work.", meta: `${list.length} course${list.length === 1 ? "" : "s"}`, noun: "course", nounPlural: "courses", search: "Find a course, a provider or a topic", head: ["Course", "Provider", "Length", "Format", "State", ""], rows, per: 12, noRowOpen: false, empty: "Nothing in this section.", foot: "Paid courses from outside providers are not offered here yet." }]),
+      ...(settled ? [row("1fr", [{ type: "note" as const, tone: settled.tone, icon: CHECK, title: settled.title, body: settled.body }])] : []),
+      row("1fr", [{ type: "kpi", title: "Sections", per: 6, cards }]),
+      row("1fr", [{
+        type: "table", title: sec === "All" ? "Every course" : sec, tag: `${list.length} ${list.length === 1 ? "course" : "courses"}`, tagTone: "neutral", sub: "Required first, then the ones that fit your work.", meta: `${list.length} course${list.length === 1 ? "" : "s"}`,
+        noun: "course", nounPlural: "courses", search: "Find a course, a provider or a topic",
+        filters: [
+          { label: "Length", value: "All", options: ["All", "Under 2 hours", "2 – 3 hours", "4 hours or more"], match: Object.fromEntries(["Under 2 hours", "2 – 3 hours", "4 hours or more"].map((value) => [value, `len:${value}|`])) },
+          { label: "Format", value: "All", options: ["All", ...formats], match: Object.fromEntries(formats.map((value) => [value, `fmt:${value}|`])) },
+          { label: "Price", value: "All", options: ["All", "Free", "Paid"], match: { Free: "price:Free|", Paid: "price:Paid|" } },
+          { label: "State", value: "All", options: ["All", ...states], match: Object.fromEntries(states.map((value) => [value, `st:${value}|`])) },
+        ],
+        selectable: true, bulkActs: [{ label: "Add to basket", primary: true, drawer: addManyToBasket, selection: { key: "courseIds", noun: "course" } }],
+        head: ["Course", "Provider", "Length", "Format", "Price", "State", ""], rows, per: 12, noRowOpen: false, empty: "Nothing in this section.",
+        foot: "Your school’s own courses are free. A course from an outside provider is paid for by you or by the school, and opens once it is settled.",
+      }]),
+      ...(b.history.length
+        ? [row("1fr", [{
+            type: "table" as const, title: "What you have asked for", sub: "Every request and purchase, and where each one got to.", meta: `${b.history.length}`, noun: "request", nounPlural: "requests",
+            head: ["Course", "Provider", "Who pays", "Price", "State", "What was said"],
+            rows: b.history.map((entry) => ({
+              cells: [
+                { kind: "name", name: entry.title, sub: entry.requestedAt ? day(entry.requestedAt) : "", avatar: false },
+                cell(entry.provider), cell(entry.payer === "SELF" ? "You" : "The school"), cell(entry.priceLabel, { mono: true }),
+                pill(entry.state === "REQUESTED" ? "Waiting" : entry.state === "APPROVED" ? "Approved" : entry.state === "DECLINED" ? "Not approved" : "Paid", entry.state === "DECLINED" ? "negative" : entry.state === "REQUESTED" ? "progress" : "positive"),
+                cell(entry.decision ?? "—", { tone: "neutral" }),
+              ] as TableCellKind[],
+            })),
+            per: 0, noRowOpen: true,
+          }])]
+        : []),
     ],
   };
 }
+
+/** The basket, settled: what is in it, and who pays. */
+export function checkoutPage(b: Basket, email: string): TabContent & { crumb: { label: string; href: string } } {
+  return {
+    crumb: { label: "Back to the catalogue", href: "/training/catalogue" },
+    title: "Checkout", desc: b.basket.length ? `${b.basket.length} ${b.basket.length === 1 ? "course" : "courses"} · ask the school to pay from its training budget, or record a payment you made yourself.` : "Your basket is empty.",
+    rows: [embed("training-checkout", {
+      basket: b.basket.map((entry) => ({ courseId: entry.courseId, title: entry.title, provider: entry.provider, hours: length(entry.hours), priceLabel: entry.priceLabel })),
+      totalLabel: b.totalLabel, email, base: `${API}/learning`, back: "/training/catalogue",
+    })],
+  };
+}
+
+/* ───────────────────────── Certificates ───────────────────────── */
+
+const certTone = (state: string): PanelTone => (state === "Valid" ? "positive" : state === "Pending" ? "progress" : "attention");
 
 function certificatesTab(v: Certificates): TabContent {
   const exp = v.certificates.filter((cert) => cert.state === "Expiring" || cert.state === "Expired");
   const addExt: DrawerSpec = {
     mode: "form", kicker: "Training", title: "Add a certificate from elsewhere", sub: "A qualification you earned outside this school. The office verifies it before it counts.",
-    commitLabel: "Send for verification", commitDone: "Sent for verification", commitDoneBody: "The office checks it. It appears here as Pending until then.", reviewNote: "This goes to the school office to verify against the photo you attach.",
+    commitLabel: "Send for verification", commitDone: "Sent for verification", commitDoneBody: "The office checks it, usually within two working days. It appears here as Pending until then.", reviewNote: "This goes to the school office to verify against the photo you attach.",
     fields: [
       text("Certificate", { required: true, span: 2, placeholder: "e.g. Postgraduate Diploma in Education" }), text("Issued by", { required: true, placeholder: "The awarding body" }), text("Issued on", { type: "date", required: true }),
       text("Expires", { type: "date", optional: true, hint: "Leave blank if it does not expire." }), text("CPD hours", { optional: true, placeholder: "e.g. 12" }),
@@ -134,14 +271,38 @@ function certificatesTab(v: Certificates): TabContent {
     ],
     submit: { endpoint: `${API}/learning/certificates`, method: "POST", map: { Certificate: "name", "Issued by": "issuedBy", "Issued on": "issuedOn", Expires: "expiresOn", "CPD hours": "hours", "Photo of the certificate": "evidence" } },
   };
-  const viewOf = (cert: Cert): DrawerSpec => ({
-    mode: "view", readOnly: true, kicker: cert.external ? "Certificate · from elsewhere" : "Certificate", title: cert.name,
-    facts: [["Held by", v.holder, v.school], ["Issued by", cert.by, cert.issued], ["Valid until", cert.expires, cert.state === "Expiring" ? "Renew it before it lapses" : ""], ["CPD", length(cert.hours), "Counts towards this year’s hours while valid"], ["Verification code", cert.code, "Anyone can check it at /api/v1/learning/verify/" + cert.code], ["State", cert.state, cert.note ?? (cert.state === "Pending" ? "Waiting for the office to verify it" : "")]],
+  /** The certificate as a paper — the one a person prints, or shows. */
+  const paper = (cert: Certificate): DrawerSpec => ({
+    mode: "document", kicker: "Certificate", title: cert.name,
+    doc: {
+      heading: "Certificate", state: { label: cert.state, tone: certTone(cert.state) }, meta: `${v.holder} · ${cert.name}`, letterhead: v.letterhead, kicker: "CERTIFICATE", title: cert.name, ref: `Certificate ${cert.code}`,
+      idents: [["Awarded to", v.holder], ["Role", `${v.holderRole}, ${v.school}`], ["Awarded by", cert.by], ["Issued", cert.issued], ["Valid until", cert.expires], ["CPD", length(cert.hours)]],
+      blocks: [{ label: "This certifies that", body: `${v.holder} has completed ${cert.name}, ${length(cert.hours)} of professional development${cert.external ? ", awarded by " + cert.by + " and verified by " + v.school : ""}.`, by: v.signatory ? `${v.signatory.name}, ${v.signatory.role}` : undefined }],
+      footNote: `Verify at /verify/${cert.code} — anyone with the code can confirm it is genuine.`, footRef: cert.code,
+      acts: [{ label: "Print", print: true, primary: true }],
+    } satisfies DocumentSpec,
   });
+  const renew = (cert: Certificate): DrawerSpec | null => cert.courseId
+    ? {
+        mode: "commit", kicker: "Training", title: `Renew ${cert.name}`, sub: "You take the course again. The new certificate replaces this one on your record the moment you finish it; this one stays valid until then.",
+        facts: [["Certificate", cert.name, cert.by], ["Now", cert.state === "Expired" ? "Expired" : `Expires ${cert.expires}`, ""], ["What it takes", "The course again, lesson by lesson", "Your earlier answers are not carried over"]],
+        commitLabel: "Start the renewal", commitDone: "Renewal started", commitDoneBody: "The course is open from lesson 1.", next: { label: "Open the course", href: courseHref(cert.courseId) },
+        submit: { endpoint: `${API}/learning/courses/${cert.courseId}/renew`, method: "POST" },
+      }
+    : null;
   const rows: TableRow[] = v.certificates.map((cert) => ({
-    keywords: `${cert.name} ${cert.by}`,
-    cells: [{ kind: "name", name: cert.name, sub: `${length(cert.hours)} of CPD`, avatar: false }, cell(cert.by), cell(cert.issued), cell(cert.expires), cell(cert.code, { mono: true }), pill(cert.state, cert.state === "Valid" ? "positive" : cert.state === "Pending" ? "progress" : "attention"), { kind: "action", label: cert.state === "Pending" ? "Details" : "View", drawer: viewOf(cert) }] as TableCellKind[],
+    keywords: `${cert.name} ${cert.by} st:${cert.state}| by:${cert.by}|`,
+    cells: [
+      { kind: "name", name: cert.name, sub: `${length(cert.hours)} of CPD${cert.external ? " · from elsewhere" : ""}`, avatar: false }, cell(cert.by), cell(cert.issued), cell(cert.expires), cell(cert.code, { mono: true }), pill(cert.state, certTone(cert.state)),
+      cert.state === "Pending"
+        ? { kind: "action", label: "Details", drawer: { mode: "view", readOnly: true, kicker: "Certificate", title: cert.name, facts: [["Issued by", cert.by, cert.issued], ["State", "Waiting for the office to verify", "It counts towards your CPD once it is verified"]] } as DrawerSpec }
+        : cert.state === "Not accepted"
+          ? { kind: "action", label: "Why not?", drawer: { mode: "view", readOnly: true, kicker: "Certificate", title: cert.name, facts: [["State", "Not accepted by the office", cert.note ?? "No reason was recorded."]] } as DrawerSpec }
+          : { kind: "action", label: "View", drawer: paper(cert) },
+    ] as TableCellKind[],
   }));
+  const first = exp[0];
+  const firstRenew = first ? renew(first) : null;
   return {
     title: "Certificates", desc: "Everything you have earned, with a code anyone can verify. Each one is on your staff record and stays yours.",
     primary: { label: "Add a certificate from elsewhere", icon: PLUS, drawer: addExt },
@@ -150,70 +311,90 @@ function certificatesTab(v: Certificates): TabContent {
         type: "kpi", per: 4,
         cards: [
           { label: "Certificates", value: String(v.certificates.length), sub: `${v.certificates.filter((cert) => !cert.external).length} from your school · ${v.certificates.filter((cert) => cert.external).length} from elsewhere` },
-          { label: "Expiring soon", value: String(exp.length), sub: exp.length ? `${exp[0]!.name} · ${exp[0]!.expires}` : "Nothing to renew", tone: exp.length ? "attention" : "positive" },
+          { label: "Expiring soon", value: String(exp.length), sub: exp.length ? `${first!.name} · ${first!.expires}` : "Nothing to renew", tone: exp.length ? "attention" : "positive" },
           { label: "CPD this year", value: String(v.cpd.hours), unit: "hours", sub: v.cpd.target !== null ? `Of the school’s ${v.cpd.target}` : "The school has not set an expectation" },
           { label: "On your staff record", value: "All", sub: "Valid certificates are seen by the school office", tone: "positive" },
         ],
       }]),
-      exp.length ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${exp[0]!.name} ${exp[0]!.state === "Expired" ? "has expired" : `expires on ${exp[0]!.expires}`}`, body: "Renew it before it lapses and the new certificate replaces this one on your record." }]) : null,
-      row("1fr", [{ type: "table", title: "Your certificates", sub: "Open one for its code, which anyone can check.", noun: "certificate", nounPlural: "certificates", search: v.certificates.length > 4 ? "Find a certificate" : undefined, head: ["Certificate", "Issued by", "Issued", "Expires", "Code", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have no certificate yet. Finish a course, or add one you earned elsewhere.", foot: "Certificates are yours — they stay with you if you leave." }]),
+      first ? row("1fr", [{
+        type: "note", tone: "attention", icon: WARN, title: `${first.name} ${first.state === "Expired" ? "has expired" : `expires on ${first.expires}`}`,
+        body: firstRenew ? "Renew it before it lapses and the new certificate replaces this one on your record." : "Renew it with the awarding body, then add the new certificate here — it replaces this one once the office has verified it.",
+        acts: firstRenew ? [{ label: "Renew it", drawer: firstRenew }] : [{ label: "Add the new certificate", drawer: addExt }],
+      }]) : null,
+      row("1fr", [{
+        type: "table", title: "Your certificates", sub: "Open one to print it, or to share its code, which anyone can check.", noun: "certificate", nounPlural: "certificates", search: v.certificates.length > 4 ? "Find a certificate" : undefined,
+        filters: v.certificates.length > 2 ? [{ label: "State", value: "All", options: ["All", ...new Set(v.certificates.map((cert) => cert.state))], match: Object.fromEntries([...new Set(v.certificates.map((cert) => cert.state))].map((state) => [state, `st:${state}|`])) }, { label: "Issued by", value: "All", options: ["All", ...new Set(v.certificates.map((cert) => cert.by))], match: Object.fromEntries([...new Set(v.certificates.map((cert) => cert.by))].map((by) => [by, `by:${by}|`])) }] : undefined,
+        head: ["Certificate", "Issued by", "Issued", "Expires", "Code", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have no certificate yet. Finish a course and it appears here, with a code anyone can verify.", foot: "Certificates are yours. They stay with you if you leave.",
+      }]),
     ].filter(Boolean) as PanelRow[]),
   };
 }
 
+type Certificate = Cert;
+
 /* ───────────────────────── a course, and a lesson in it ───────────────────────── */
 
 export function coursePage(c: CoursePage): TabContent & { crumb: { label: string; href: string } } {
-  const nextLesson = c.lessons.find((lesson) => !lesson.done);
+  const nextLesson = c.owned ? c.lessons.find((lesson) => !lesson.done) : undefined;
   const rows: TableRow[] = c.lessons.map((lesson) => ({
     keywords: lesson.title,
-    cells: [cell(String(lesson.position), { mono: true }), { kind: "name", name: lesson.title, sub: lesson.summary, avatar: false }, cell(`${lesson.minutes} min`), pill(lesson.done ? "Done" : lesson === nextLesson ? "Next" : "Not started", lesson.done ? "positive" : lesson === nextLesson ? "progress" : "neutral"), lesson.done || lesson === nextLesson ? { kind: "action", label: lesson.done ? "Review" : "Open", href: lessonHref(c.id, lesson.position) } : cell("")] as TableCellKind[],
+    cells: [
+      cell(String(lesson.position), { mono: true }), { kind: "name", name: lesson.title, sub: lesson.summary, avatar: false }, cell(`${lesson.minutes} min`),
+      pill(!c.owned ? "Locked" : lesson.done ? "Done" : lesson === nextLesson ? "Next" : "Not started", !c.owned ? "neutral" : lesson.done ? "positive" : lesson === nextLesson ? "progress" : "neutral"),
+      c.owned && (lesson.done || lesson === nextLesson) ? { kind: "action", label: lesson.done ? "Review" : "Open", href: lessonHref(c.id, lesson.position) } : cell(""),
+    ] as TableCellKind[],
   }));
+  const cert = c.certificate;
+  const renewable = cert && c.completed && (cert.state === "Expiring" || cert.state === "Expired");
+  const buy: DrawerSpec = addToBasket({ id: c.id, title: c.title, certificateName: c.certificateName, provider: c.provider, hours: c.hours, priceLabel: c.priceLabel });
+  const renew: DrawerSpec | null = renewable ? {
+    mode: "commit", kicker: "Training", title: `Renew ${cert!.name}`, sub: "You take the course again. The new certificate replaces this one on your record the moment you finish it.",
+    commitLabel: "Start the renewal", commitDone: "Renewal started", commitDoneBody: "The course is open from lesson 1.", next: { label: "Open the course", href: courseHref(c.id) },
+    submit: { endpoint: `${API}/learning/courses/${c.id}/renew`, method: "POST" },
+  } : null;
+  const primary = !c.owned
+    ? c.purchase?.state === "BASKET" ? { label: "Go to the basket", icon: CART, href: checkoutHref } : c.purchase?.state === "REQUESTED" ? undefined : { label: `Add to basket · ${c.priceLabel}`, icon: CART, drawer: buy }
+    : renew ? { label: "Renew this certificate", icon: ARROW, drawer: renew }
+    : c.completed && c.certificate ? { label: "View the certificate", icon: EYE, href: "/training/certificates" }
+    : nextLesson ? { label: `${c.done ? "Continue" : "Start"} · lesson ${nextLesson.position}`, icon: ARROW, href: lessonHref(c.id, nextLesson.position) } : undefined;
   return {
     crumb: { label: "Back to Training", href: "/training/for-you" },
-    title: c.title, desc: `${c.provider} · ${length(c.hours)} · ${c.format} · ${c.lessons.length} lessons, each with a short check`,
-    primary: c.completed && c.certificate ? { label: "View the certificate", icon: EYE, href: "/training/certificates" } : nextLesson ? { label: `${c.done ? "Continue" : "Start"} · lesson ${nextLesson.position}`, icon: ARROW, href: lessonHref(c.id, nextLesson.position) } : undefined,
+    title: c.title, desc: `${c.provider} · ${length(c.hours)} · ${c.format} · ${c.lessons.length} lessons, each with a short check`, primary,
     rows: ([
       row("1fr", [{
         type: "kpi", per: 4,
         cards: [
-          { label: "Progress", value: `${c.done} of ${c.lessons.length}`, unit: "lessons", sub: c.completed ? "Finished" : nextLesson ? `Next: ${nextLesson.title}` : "", tone: c.completed ? "positive" : "progress" },
+          c.owned
+            ? { label: "Progress", value: `${c.done} of ${c.lessons.length}`, unit: "lessons", sub: c.completed ? "Finished" : nextLesson ? `Next: ${nextLesson.title}` : "", tone: c.completed ? "positive" : "progress" }
+            : { label: "Price", value: c.priceLabel, sub: c.purchase?.state === "REQUESTED" ? "Waiting on the school’s decision" : c.purchase?.state === "DECLINED" ? "The school did not approve it" : c.purchase?.state === "BASKET" ? "In your basket" : "Opens once it is paid for", tone: c.purchase?.state === "DECLINED" ? "negative" : "attention" },
           { label: "Time", value: length(c.hours), sub: c.format === "Self-paced" ? "At your own pace, on any device" : c.format },
           { label: "Earns", value: c.certificateName, sub: `${c.validMonths ? `Valid ${c.validMonths} months` : "Does not expire"} · ${length(c.hours)} of CPD`, tone: "positive" },
-          c.required ? { label: "Required by", value: c.required.by ? day(c.required.by) : "Your school", sub: c.required.note ?? "Set by your school", tone: c.completed ? "positive" : "attention" } : { label: "Offered by", value: c.provider, sub: "Written by your school" },
+          c.required ? { label: "Required by", value: c.required.by ? day(c.required.by) : "Your school", sub: c.required.note ?? "Set by your school", tone: c.completed ? "positive" : "attention" } : { label: "Offered by", value: c.provider, sub: c.provider ? "Open to staff whose work it is written for" : "Written by your school" },
         ],
       }]),
-      c.completed && c.certificate ? row("1fr", [{ type: "note", tone: "positive", icon: CHECK, title: `Certificate issued · ${c.certificate.code}`, body: `${c.certificate.name}, issued ${c.certificate.issued}. It is on your staff record and in Certificates.` }]) : null,
+      !c.owned && c.purchase?.state === "DECLINED" ? row("1fr", [{ type: "note", tone: "negative", icon: WARN, title: "The school did not approve this one", body: c.purchase.decision ?? "No reason was recorded.", acts: [{ label: "Ask again", drawer: buy }] }]) : null,
+      c.why ? row("1fr", [{ type: "note", tone: "progress", icon: EYE, title: "Why this is recommended for you", body: c.why }]) : null,
+      c.summary ? row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "What it is about", body: c.summary }]) : null,
+      renewable ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${cert!.name} ${cert!.state === "Expired" ? "has expired" : `expires on ${cert!.expires}`}`, body: "Renew it before it lapses and the new certificate replaces this one on your record.", acts: [{ label: "Renew it", drawer: renew! }] }]) : null,
+      c.completed && cert && !renewable ? row("1fr", [{ type: "note", tone: "positive", icon: CHECK, title: `Certificate issued · ${cert.code}`, body: `${cert.name}, issued ${cert.issued}. It is on your staff record and in Certificates.` }]) : null,
       row("1.4fr 1fr", [
-        { type: "table", title: "Lessons", sub: "Each ends with one question. Answer it correctly to finish the lesson — as many tries as you like.", noun: "lesson", nounPlural: "lessons", head: ["#", "Lesson", "Time", "State", ""], rows, per: 0, noRowOpen: true },
+        { type: "table", title: "Lessons", sub: c.owned ? "Each ends with one question. Answer it correctly to finish the lesson — as many tries as you like." : "The lessons open once the course is paid for.", noun: "lesson", nounPlural: "lessons", head: ["#", "Lesson", "Time", "State", ""], rows, per: 0, noRowOpen: true, dense: true },
         { type: "facts", title: "You will be able to", per: 1, facts: (c.outcomes.length ? c.outcomes : ["The school has not listed outcomes for this course."]).map((outcome, index): PanelFact => [`Outcome ${index + 1}`, outcome, ""]) },
       ]),
-      c.task ? row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "Try it in your own classroom", body: c.task }]) : null,
     ].filter(Boolean) as PanelRow[]),
   };
 }
 
 export function lessonPage(p: LessonPage): TabContent & { crumb: { label: string; href: string } } {
   const { course, lesson, outline } = p;
-  const answer: DrawerSpec = {
-    mode: "form", kicker: `Lesson ${lesson.position} of ${course.lessonsTotal}`, title: "Check your understanding", sub: lesson.question,
-    commitLabel: "Check my answer", commitDone: lesson.position === course.lessonsTotal ? "Correct — course complete" : "Correct", commitDoneBody: lesson.position === course.lessonsTotal ? "Your certificate is on your staff record and in Certificates." : "The lesson is marked done. Carry on to the next one.",
-    fields: [choice("Your answer", lesson.options, { span: 2, required: true, value: "" })] as FormField[],
-    submit: { endpoint: `${API}/learning/courses/${course.id}/lessons/${lesson.position}/answer`, method: "POST", map: { "Your answer": "choice" }, encode: { "Your answer": Object.fromEntries(lesson.options.map((option, index) => [option, String(index)])) } },
-  };
-  const next = outline.find((entry) => !entry.done && entry.position !== lesson.position);
+  const required = course.required ? `${course.required.by ? day(course.required.by) : "Your school"}${course.required.note ? ` · ${course.required.note}` : ""}` : "Not required";
   return {
     crumb: { label: "Back to the course", href: courseHref(course.id) },
     title: `Lesson ${lesson.position} · ${lesson.title}`, desc: `${course.title} · ${lesson.minutes} minutes`,
-    primary: lesson.done ? (lesson.position < course.lessonsTotal ? { label: "Next lesson", icon: ARROW, href: lessonHref(course.id, lesson.position + 1) } : { label: "Back to the course", icon: ARROW, href: courseHref(course.id) }) : { label: "Check my answer", icon: CHECK, drawer: answer },
-    launchers: lesson.done ? [] : next ? [{ label: "Save and leave", href: courseHref(course.id) }] : [{ label: "Save and leave", href: courseHref(course.id) }],
-    rows: [
-      row("1fr", [{ type: "note", tone: lesson.done ? "positive" : "neutral", icon: lesson.done ? CHECK : EYE, title: lesson.title, body: lesson.body }]),
-      row("1.3fr 1fr", [
-        { type: "facts", title: "The question", per: 1, sub: lesson.done ? "You have answered this correctly." : "Answer it correctly to finish the lesson — as many tries as you like.", facts: [["Question", lesson.question, ""], ...lesson.options.map((option, index): PanelFact => [String.fromCharCode(65 + index), option, ""])] },
-        { type: "list", title: "In this course", sub: `${course.done} of ${course.lessonsTotal} lessons · ${length(course.hours * course.done / Math.max(1, course.lessonsTotal))} of CPD so far`, items: outline.map((entry) => ({ label: `${entry.position}. ${entry.title}`, sub: `${entry.minutes} min`, pill: entry.done ? "Done" : entry.position === lesson.position ? "Now" : "", tone: (entry.done ? "positive" : "progress") as PanelTone, ...(entry.done || entry.position === lesson.position ? { href: lessonHref(course.id, entry.position), viewLabel: "Open" } : {}) })) },
-      ]),
-      row("1fr", [{ type: "facts", title: "About this course", per: 3, facts: [["Earns", course.certificateName, `${course.provider}`], ["Required by", course.required ? (course.required.by ? day(course.required.by) : "Your school") : "Not required", ""], ["Your school sees", "That you finished", "Not your answers"]] as PanelFact[] }]),
-    ],
+    rows: [embed("lesson-player", {
+      course, outline, lesson, progressLabel: `${length((course.hours * course.done) / Math.max(1, course.lessonsTotal))} of CPD so far`, requiredLabel: required,
+      endpoint: `${API}/learning/courses/${course.id}/lessons/${lesson.position}/answer`,
+      hrefs: { course: courseHref(course.id), lessons: `/training/catalogue/${course.id}/lessons`, certificates: "/training/certificates" },
+    })],
   };
 }

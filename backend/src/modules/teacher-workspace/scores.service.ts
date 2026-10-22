@@ -150,6 +150,19 @@ export class TeacherScoresService {
     });
   }
 
+  /** The component, across a teacher's own sheets, where the class gives away most of the marks available — the thing a course on assessment would be about. */
+  async weakestComponent(session: SessionPayload) {
+    const { sheets } = await this.mine(session);
+    let worst: { subject: string; arm: string; name: string; exam: boolean; pct: number } | null = null;
+    for (const { arm, subject } of sheets) {
+      if (!subject.rows.some((row) => row.total !== null)) continue;
+      for (const part of this.columnMeans(subject)) {
+        if (part.pct !== null && (!worst || part.pct < worst.pct)) worst = { subject: subject.name, arm: arm.room.name, name: part.name, exam: part.exam, pct: part.pct };
+      }
+    }
+    return worst && worst.pct < 70 ? worst : null;
+  }
+
   /** One subject-arm: every child, ranked, with the components behind each total — and how each stands against last term, the class and its own comment. */
   async result(session: SessionPayload, classId: string, subjectId: string) {
     const { me, term, arm, subject, own } = await this.owned(session, classId, subjectId);

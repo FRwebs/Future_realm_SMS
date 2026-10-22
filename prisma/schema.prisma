@@ -896,6 +896,7 @@ model School {
   trainingCourses               TrainingCourse[]
   trainingEnrolments            TrainingEnrolment[]
   trainingCertificates          TrainingCertificate[]
+  trainingPurchases             TrainingPurchase[]
   trainingSuggestions           TrainingSuggestion[]
   childObservations             ChildObservation[]
   learningSupportPlans          LearningSupportPlan[]
@@ -7110,12 +7111,18 @@ model TrainingCourse {
   validMonths     Int?
   /// A pathway level this course counts towards, e.g. "Foundation".
   pathway         String?
+  /// What it costs, in kobo. Null is free — which is what a school's own courses are.
+  priceKobo       Int?
+  currency        String              @default("NGN")
   outcomes        String[]            @default([])
   task            String?
   /// Who it fits: persona slugs, or empty for everyone.
   personas        String[]            @default([])
   /// Subject words a teacher's own subjects are matched against.
   subjects        String[]            @default([])
+  /// What it is about, in the words the work itself raises: "assessment", "reporting", "planning", "large classes", "inclusion". A course is
+  /// recommended to a teacher when their own classes, results or deadlines raise one of its topics.
+  topics          String[]            @default([])
   /// Personas who must finish it, and by when.
   requiredFor     String[]            @default([])
   requiredBy      DateTime?
@@ -7128,8 +7135,38 @@ model TrainingCourse {
   school          School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   lessons         TrainingLesson[]
   enrolments      TrainingEnrolment[]
+  purchases       TrainingPurchase[]
 
   @@index([schoolId, archivedAt])
+}
+
+/// A paid course a member of staff has put in their basket, asked the school to fund, or paid for.
+model TrainingPurchase {
+  id          String         @id @default(cuid())
+  schoolId    String
+  userId      String
+  courseId    String
+  /// The price when it went in the basket, so a later change never moves a settled figure.
+  priceKobo   Int
+  currency    String         @default("NGN")
+  /// SELF or SCHOOL — who is paying.
+  payer       String         @default("SCHOOL")
+  /// BASKET, REQUESTED (waiting on the school), APPROVED, DECLINED or PAID.
+  state       String         @default("BASKET")
+  /// Why it is wanted; the school reads this when it decides.
+  reason      String?
+  /// The school's answer, whichever way it went.
+  decision    String?
+  reference   String?
+  addedAt     DateTime       @default(now())
+  requestedAt DateTime?
+  decidedAt   DateTime?
+  decidedById String?
+  school      School         @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  course      TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([courseId, userId])
+  @@index([schoolId, state])
 }
 
 model TrainingLesson {

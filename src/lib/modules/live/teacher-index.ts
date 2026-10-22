@@ -43,7 +43,7 @@ const builders: Record<string, TeacherTabBuilder> = {
   m16: (tab, me) => teacherSyncSupportTab(tab, me),
   m17: (tab, me, _permissions, query) => teacherLessonNotesTab(tab, me, query),
   m18: (tab, me, permissions) => teacherEmploymentTab(tab, me, permissions),
-  m19: (tab, _me, _permissions, query) => teacherTrainingTab(tab, query),
+  m19: (tab, me, _permissions, query) => teacherTrainingTab(tab, query, me),
 };
 
 export async function getTeacherTabContent(code: string, tabSlug: string, query: Record<string, string | undefined> = {}): Promise<TabContent | null | undefined> {

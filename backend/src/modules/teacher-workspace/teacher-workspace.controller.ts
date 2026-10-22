@@ -472,6 +472,36 @@ export class TeacherWorkspaceController {
     return ok(this.learning.home(session));
   }
 
+  @Get("learning/basket")
+  learningBasket(@CurrentSession() session: SessionPayload) {
+    return ok(this.learning.basket(session));
+  }
+
+  @Post("learning/basket")
+  @UseGuards(SessionGuard, CsrfGuard)
+  learningAddMany(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.learning.addManyToBasket(session, body), "Added to your basket");
+  }
+
+  @Post("learning/basket/checkout")
+  @UseGuards(SessionGuard, CsrfGuard)
+  learningCheckout(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.learning.checkout(session, body), "Sent");
+  }
+
+  @Post("learning/basket/:courseId")
+  @UseGuards(SessionGuard, CsrfGuard)
+  learningAddToBasket(@CurrentSession() session: SessionPayload, @Param("courseId") courseId: string) {
+    return ok(this.learning.addToBasket(session, courseId), "Added to your basket");
+  }
+
+  @Delete("learning/basket/:courseId")
+  @UseGuards(SessionGuard, CsrfGuard)
+  learningRemoveFromBasket(@CurrentSession() session: SessionPayload, @Param("courseId") courseId: string) {
+    return ok(this.learning.removeFromBasket(session, courseId), "Taken out of your basket");
+  }
+
+
   @Get("learning/catalogue")
   learningCatalogue(@CurrentSession() session: SessionPayload) {
     return ok(this.learning.catalogue(session));
@@ -496,6 +526,12 @@ export class TeacherWorkspaceController {
   @UseGuards(CsrfGuard)
   learningAnswer(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Param("position", ParseIntPipe) position: number, @Body() body: unknown) {
     return ok(this.learning.answer(session, id, position, body));
+  }
+
+  @Post("learning/courses/:id/renew")
+  @UseGuards(CsrfGuard)
+  learningRenew(@CurrentSession() session: SessionPayload, @Param("id") id: string) {
+    return ok(this.learning.renew(session, id), "Renewal started");
   }
 
   @Post("learning/certificates")

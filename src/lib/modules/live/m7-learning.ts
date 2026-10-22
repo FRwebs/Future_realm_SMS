@@ -13,13 +13,14 @@ const PLUS = "M12 5.5v13M5.5 12h13";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
 
 type Manage = {
-  staff: number; cpdTarget: number | null; sections: string[]; personas: string[]; formats: string[];
+  staff: number; cpdTarget: number | null; sections: string[]; personas: string[]; formats: string[]; topics: string[];
+  funding: Array<{ id: string; who: string; course: string; provider: string; hours: number; priceLabel: string; price: number; reason: string | null; asked: string }>; fundingTotal: string;
   courses: Array<{ id: string; title: string; section: string; hours: number; format: string; certificateName: string; lessons: number; published: boolean; archived: boolean; required: boolean; requiredBy: string | null; requiredFor: string[]; started: number; finished: number }>;
   pending: Array<{ id: string; who: string; name: string; issuedBy: string; issued: string; hours: number; hasFile: boolean; filed: string }>;
   suggestions: Array<{ id: string; who: string; topic: string; why: string | null; at: string }>;
 };
 export type ManagedCourse = {
-  id: string; title: string; summary: string | null; section: string; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; pathway: string | null; outcomes: string[]; task: string | null; personas: string[]; subjects: string[]; requiredFor: string[]; requiredBy: string | null; requiredNote: string | null;
+  id: string; title: string; summary: string | null; section: string; provider: string; hours: number; format: string; certificateName: string; validMonths: number | null; pathway: string | null; outcomes: string[]; task: string | null; personas: string[]; subjects: string[]; topics: string[]; topicOptions: string[]; price: number | null; requiredFor: string[]; requiredBy: string | null; requiredNote: string | null;
   published: boolean; archived: boolean; started: number; finished: number; sections: string[]; personaOptions: string[]; formats: string[];
   lessons: Array<{ position: number; title: string; minutes: number; body: string; question: string; options: string[]; correct: number; explanation: string | null }>;
 };
@@ -31,7 +32,7 @@ const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { da
 
 export const loadManagedCourse = (id: string) => apiGet<ManagedCourse>(`${API}/courses/${id}`);
 
-function courseFields(course: ManagedCourse | null, o: { sections: string[]; formats: string[]; personas: string[] }): FormField[] {
+function courseFields(course: ManagedCourse | null, o: { sections: string[]; formats: string[]; personas: string[]; topics?: string[] }): FormField[] {
   const personaLabels = o.personas.map(labelOf);
   return [
     text("Title", { required: true, span: 2, value: course?.title ?? "", placeholder: "e.g. Safeguarding children — the basics" }),
@@ -42,9 +43,11 @@ function courseFields(course: ManagedCourse | null, o: { sections: string[]; for
     text("Provider", { optional: true, value: course?.provider ?? "", hint: "Leave blank to use the school’s name." }),
     text("Certificate it earns", { required: true, value: course?.certificateName ?? "", placeholder: "e.g. Safeguarding — Level 1" }),
     text("Valid for (months)", { optional: true, value: course?.validMonths ? String(course.validMonths) : "", hint: "Leave blank if the certificate does not expire." }),
+    text("Price (₦)", { optional: true, value: course && course.price ? String(course.price) : "", hint: "Leave blank for a free course. A paid course opens for a teacher once the school funds it or they record paying for it." }),
     text("Pathway level", { optional: true, value: course?.pathway ?? "", hint: "e.g. Foundation — courses with the same level are grouped." }),
     area("You will be able to", { span: 2, optional: true, value: (course?.outcomes ?? []).join("\n"), hint: "One outcome per line." }),
     area("Try it in the classroom", { span: 2, optional: true, value: course?.task ?? "" }),
+    checks("About", o.topics ?? [], course?.topics ?? [], { span: 2, hint: "When a teacher’s own classes, results or deadlines raise one of these, this course is recommended to them, with the reason." }),
     checks("Written for", personaLabels, (course?.personas ?? []).map(labelOf), { span: 2, hint: "Leave all unticked to offer it to every teacher." }),
     area("Subjects it fits", { span: 2, optional: true, value: (course?.subjects ?? []).join("\n"), hint: "One word per line, matched against the subjects a teacher takes. Blank means every subject." }),
     checks("Required of", ["Everyone", ...personaLabels], (course?.requiredFor ?? []).map((slug) => (slug === "all" ? "Everyone" : labelOf(slug))), { span: 2, hint: "Leave all unticked if it is optional." }),
@@ -52,12 +55,12 @@ function courseFields(course: ManagedCourse | null, o: { sections: string[]; for
     area("Why it is required", { span: 2, optional: true, value: course?.requiredNote ?? "", placeholder: "e.g. Set for every member of staff by the Principal." }),
   ] as FormField[];
 }
-const courseMap = { Title: "title", "What it is about": "summary", Section: "section", Format: "format", "Hours it takes": "hours", Provider: "provider", "Certificate it earns": "certificateName", "Valid for (months)": "validMonths", "Pathway level": "pathway", "You will be able to": "outcomes", "Try it in the classroom": "task", "Written for": "personas", "Subjects it fits": "subjects", "Required of": "requiredFor", "Required by": "requiredBy", "Why it is required": "requiredNote" };
+const courseMap = { Title: "title", "What it is about": "summary", Section: "section", Format: "format", "Hours it takes": "hours", Provider: "provider", "Certificate it earns": "certificateName", "Valid for (months)": "validMonths", "Pathway level": "pathway", "Price (₦)": "price", About: "topics", "You will be able to": "outcomes", "Try it in the classroom": "task", "Written for": "personas", "Subjects it fits": "subjects", "Required of": "requiredFor", "Required by": "requiredBy", "Why it is required": "requiredNote" };
 const courseEncode = { "Written for": slugOf, "Required of": { Everyone: "all", ...slugOf } };
 
 export async function learningTab(): Promise<TabContent> {
   const v = await apiGet<Manage>(API);
-  const o = { sections: v.sections, formats: v.formats, personas: v.personas };
+  const o = { sections: v.sections, formats: v.formats, personas: v.personas, topics: v.topics };
   const create: DrawerSpec = {
     mode: "form", kicker: "Learning", title: "Write a course", sub: "It starts as a draft. Add its lessons, then publish it to the staff it is written for.",
     commitLabel: "Create the course", commitDone: "Course created", commitDoneBody: "Open it from the list to add lessons.", fields: courseFields(null, o),
@@ -82,6 +85,18 @@ export async function learningTab(): Promise<TabContent> {
     keywords: `${item.who} ${item.name}`,
     cells: [{ kind: "name", name: item.name, sub: item.who, avatar: false }, cell(item.issuedBy), cell(item.issued), cell(item.hasFile ? "Photo attached" : "No photo"), { kind: "action", label: "Verify", drawer: verify(item, "verify") }, { kind: "action", label: "Decline", drawer: verify(item, "reject") }] as TableCellKind[],
   }));
+  const settle = (item: Manage["funding"][number], decision: "APPROVED" | "DECLINED"): DrawerSpec => ({
+    mode: decision === "APPROVED" ? "commit" : "form", kicker: "Training funding", title: decision === "APPROVED" ? `Fund ${item.course} for ${item.who}` : `Do not fund ${item.course}`,
+    sub: `${item.who} asked the school to pay ${item.priceLabel}. ${item.reason ? `Their reason: “${item.reason}”` : ""}`,
+    facts: [["Course", item.course, item.provider], ["Price", item.priceLabel, `${item.hours} hours`], ["Asked", item.asked, ""], ["If approved", "The course opens for them now", "They are told"]],
+    commitLabel: decision === "APPROVED" ? "Approve it" : "Do not approve it", commitDone: decision === "APPROVED" ? "Funding approved" : "Not approved", commitDoneBody: "They are told.",
+    ...(decision === "DECLINED" ? { fields: [area("Why not — they read this", { required: true, span: 2 })] as FormField[] } : {}),
+    submit: { endpoint: `${API}/funding/${item.id}/decide`, method: "POST", body: { decision }, ...(decision === "DECLINED" ? { map: { "Why not — they read this": "note" } } : {}) },
+  });
+  const funding: TableRow[] = v.funding.map((item) => ({
+    keywords: `${item.who} ${item.course}`,
+    cells: [{ kind: "name", name: item.course, sub: `${item.who} · asked ${item.asked}`, avatar: false }, cell(item.provider), cell(item.priceLabel, { mono: true }), cell(item.reason ?? "—"), { kind: "action", label: "Approve", drawer: settle(item, "APPROVED") }, { kind: "action", label: "Decline", drawer: settle(item, "DECLINED") }] as TableCellKind[],
+  }));
   const policy: DrawerSpec = {
     mode: "form", kicker: "Learning", title: "Yearly CPD expectation", sub: "Hours of professional development the school expects of each teacher in a session. It shows beside each teacher’s own hours.",
     commitLabel: "Save", commitDone: "Saved", commitDoneBody: "Teachers see it on their Training page.", fields: [text("Hours a session", { value: v.cpdTarget === null ? "" : String(v.cpdTarget), optional: true, hint: "Leave blank to set no expectation." })] as FormField[],
@@ -98,11 +113,12 @@ export async function learningTab(): Promise<TabContent> {
         cards: [
           { label: "Published courses", value: String(published.length), sub: `${v.courses.filter((course) => !course.published && !course.archived).length} in draft`, tone: published.length ? "positive" : "neutral" },
           { label: "Required courses", value: String(requiredOpen.length), sub: requiredOpen.length ? `${requiredOpen.reduce((sum, course) => sum + course.finished, 0)} completions so far across ${v.staff} teachers` : "None set", tone: requiredOpen.length ? "progress" : "neutral" },
-          { label: "Waiting to be verified", value: String(v.pending.length), sub: v.pending.length ? "Certificates staff filed from elsewhere" : "Nothing waiting", tone: v.pending.length ? "attention" : "positive" },
+          { label: "Waiting to be verified", value: String(v.pending.length), sub: v.pending.length ? "Certificates staff filed from elsewhere" : v.funding.length ? `${v.funding.length} funding request${v.funding.length === 1 ? "" : "s"} waiting · ${v.fundingTotal}` : "Nothing waiting", tone: v.pending.length || v.funding.length ? "attention" : "positive" },
           { label: "Suggestions", value: String(v.suggestions.length), sub: v.cpdTarget === null ? "No yearly CPD expectation is set" : `Yearly expectation: ${v.cpdTarget} hours` },
         ],
       }]),
       row("1fr", [{ type: "table", title: "Courses", sub: "Open one to write its lessons, choose who it is for, and publish it.", meta: `${v.courses.length}`, noun: "course", nounPlural: "courses", search: "Find a course", head: ["Course", "Section", "Lessons", "State", "Finished", ""], rows, per: 10, empty: "No course has been written yet. Write one, add its lessons, and publish it.", foot: "This school writes its own courses. There is no platform course library in this build." }]),
+      v.funding.length ? row("1fr", [{ type: "table", title: "Funding requests", tag: v.fundingTotal, tagTone: "attention", sub: "Staff asked the school to pay for these. Approving one opens the course for them; declining says why.", meta: `${v.funding.length}`, noun: "request", nounPlural: "requests", head: ["Course", "Provider", "Price", "Their reason", "", ""], rows: funding, noRowOpen: true, per: 8 }]) : null,
       v.pending.length ? row("1fr", [{ type: "table", title: "Certificates to verify", sub: "Staff filed these from outside the school. They count only once you have checked them.", meta: `${v.pending.length} waiting`, noun: "certificate", nounPlural: "certificates", head: ["Certificate", "Issued by", "Issued", "Evidence", "", ""], rows: pending, per: 10, noRowOpen: true }]) : null,
       v.suggestions.length ? row("1fr", [{ type: "list", title: "What staff have asked to learn", sub: "If enough colleagues ask for the same thing, it is worth writing.", items: v.suggestions.map((item) => ({ label: item.topic, sub: `${item.who} · ${item.at}${item.why ? ` — ${item.why}` : ""}` })) }]) : null,
     ].filter(Boolean) as PanelRow[]),
@@ -110,7 +126,7 @@ export async function learningTab(): Promise<TabContent> {
 }
 
 export function courseEditorPage(c: ManagedCourse): TabContent & { crumb: { label: string; href: string } } {
-  const o = { sections: c.sections, formats: c.formats, personas: c.personaOptions };
+  const o = { sections: c.sections, formats: c.formats, personas: c.personaOptions, topics: c.topicOptions };
   const lessonFields = (lesson: ManagedCourse["lessons"][number] | null): FormField[] => [
     text("Lesson title", { required: true, span: 2, value: lesson?.title ?? "" }),
     text("Minutes", { value: String(lesson?.minutes ?? 10) }),
@@ -156,7 +172,7 @@ export function courseEditorPage(c: ManagedCourse): TabContent & { crumb: { labe
       row("1fr", [{ type: "table", title: "Lessons", sub: "In the order a person takes them.", meta: `${c.lessons.length}`, noun: "lesson", nounPlural: "lessons", head: ["#", "Lesson", "Time", "Question", "", ""], rows: lessonRows, per: 0, noRowOpen: true, empty: "No lessons yet. Add the first one." }]),
       row("1fr 1fr", [
         { type: "facts", title: "Who it is for", per: 1, facts: [["Written for", c.personas.length ? c.personas.map(labelOf).join(", ") : "Every teacher", ""], ["Subjects", c.subjects.length ? c.subjects.join(", ") : "Every subject", ""], ["Required of", c.requiredFor.length ? c.requiredFor.map((slug) => (slug === "all" ? "Everyone" : labelOf(slug))).join(", ") : "Nobody — optional", c.requiredBy ? `By ${day(c.requiredBy)}` : ""], ["Pathway", c.pathway ?? "None", ""]] as PanelFact[] },
-        { type: "facts", title: "What it earns", per: 1, facts: [["Certificate", c.certificateName, ""], ["Valid for", c.validMonths ? `${c.validMonths} months` : "Does not expire", ""], ["Provider", c.provider, ""]] as PanelFact[] },
+        { type: "facts", title: "What it earns", per: 1, facts: [["Certificate", c.certificateName, ""], ["Valid for", c.validMonths ? `${c.validMonths} months` : "Does not expire", ""], ["Provider", c.provider, ""], ["Price", c.price ? `₦${c.price.toLocaleString("en-NG")}` : "Free to staff", ""]] as PanelFact[] },
       ]),
       ...(c.published && c.started ? [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "People have started this course", body: "A lesson cannot be taken out from under them. To change it, archive this course and write a new one." }])] : []),
     ] as PanelRow[],

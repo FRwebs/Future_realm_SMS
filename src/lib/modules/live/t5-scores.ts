@@ -569,12 +569,17 @@ export function studentWorkingPage(st: StudentResult): Content {
     foot: "An absence is excluded from the average and from positions.",
   };
   void cell;
-  const window = st.peers.slice(Math.max(0, at - 4), Math.max(0, at - 4) + 10);
+  const from = Math.max(0, Math.min(at - 4, st.peers.length - 10));
+  const window = st.peers.slice(from, from + 10);
   return {
     crumb: back, title: st.student.name, desc: `${st.arm.name} · ${st.student.adm} · ${st.subject.name} · ${st.term.name} ${st.term.session}.`,
     launchers: st.isFormArm ? [{ label: `Open ${first}’s full record`, href: `/student-records/registry/${st.student.id}` }] : [],
     rows: [
-      row("1fr", [{ type: "days", title: `${at + 1} of ${st.student.of} · ${st.subject.name} ${st.arm.name}`, sub: "Walk the class without going back to the list.", days: window.map((peer) => ({ label: peer.name.split(" ")[0] ?? peer.name, sub: peer.written ? "Comment written" : undefined, href: studentHref(st.arm.id, st.subject.id, peer.id), state: peer.id === st.student.id ? ("now" as const) : peer.written ? ("done" as const) : ("plain" as const) })) }]),
+      row("1fr", [{
+        type: "steps", prevTitle: "Previous student", nextTitle: "Next student", note: `${at + 1} of ${st.student.of} · ${st.subject.name} ${st.arm.name}`,
+        prevHref: at > 0 ? studentHref(st.arm.id, st.subject.id, st.peers[at - 1]!.id) : undefined, nextHref: next ? studentHref(st.arm.id, st.subject.id, next.id) : undefined,
+        steps: window.map((peer) => { const parts = peer.name.split(" "); return { n: peer.index + 1, label: `${parts[0]}${parts[1] ? ` ${parts[1].slice(0, 1)}.` : ""}`, href: studentHref(st.arm.id, st.subject.id, peer.id), state: peer.id === st.student.id ? ("current" as const) : peer.written ? ("done" as const) : ("todo" as const) }; }),
+      }]),
       row("1fr", [{
         type: "kpi", per: 5, title: `This term in ${st.subject.name}`,
         cards: [

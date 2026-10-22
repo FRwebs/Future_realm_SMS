@@ -4,7 +4,8 @@ import { AccessDenied } from "@/components/feedback/access-denied";
 import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { canOpenModule } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
-import { coursePage, lessonPage, loadCourse, loadLesson } from "@/lib/modules/live/t19-training";
+import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
+import { checkoutPage, coursePage, lessonPage, loadBasket, loadCourse, loadLesson } from "@/lib/modules/live/t19-training";
 import type { TabContent } from "@/lib/modules/panels";
 
 /** The pages Training opens from its tabs: a course, and a lesson in it. */
@@ -28,6 +29,16 @@ export async function CourseView({ courseId }: { courseId: string }) {
   const course = await loadCourse(courseId).catch(() => null);
   if (!course) notFound();
   return <Workspace content={coursePage(course)} />;
+}
+
+/** The basket, settled — by the school, or recorded as paid by the teacher. */
+export async function CheckoutView() {
+  const access = await gate();
+  if (!access.ok) return access.denied;
+  const session = await getServerSession();
+  const [basket, me] = await Promise.all([loadBasket().catch(() => null), session ? getTeacherWorkspace(session.role, session.schoolId) : null]);
+  if (!basket) notFound();
+  return <Workspace content={checkoutPage(basket, me?.person.email ?? "")} />;
 }
 
 export async function LessonView({ courseId, position }: { courseId: string; position: string }) {
