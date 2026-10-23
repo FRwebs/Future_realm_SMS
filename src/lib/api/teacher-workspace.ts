@@ -1,6 +1,8 @@
 import { cache } from "react";
 
 import { apiGet } from "@/lib/api/server";
+import { ttlCached } from "@/lib/cache/ttl";
+import { getServerSession } from "@/lib/auth/session";
 import { isTeachingRole, type TeachingPersona } from "@/lib/modules/teacher-workspace";
 
 export type TeacherWorkspaceView = {
@@ -21,10 +23,12 @@ export type TeacherWorkspaceView = {
  * ask. Null for anyone who is not teaching staff (they use the administrator's workspace) or when the API cannot say.
  */
 export const getTeacherWorkspace = cache(async (role: string, schoolId: string): Promise<TeacherWorkspaceView | null> => {
-  void schoolId;
   if (!isTeachingRole(role)) return null;
   try {
-    return await apiGet<TeacherWorkspaceView>("/api/v1/teacher-workspace/me");
+    const session = await getServerSession();
+    const read = () => apiGet<TeacherWorkspaceView>("/api/v1/teacher-workspace/me");
+    // Who a teacher is changes when the office reassigns a class, not between two clicks: a few seconds' memory saves a round trip on each page.
+    return session ? await ttlCached(`tw:${schoolId}:${session.userId}`, 20_000, read) : await read();
   } catch {
     return null;
   }

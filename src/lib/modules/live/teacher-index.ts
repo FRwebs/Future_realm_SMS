@@ -51,10 +51,11 @@ export async function getTeacherTabContent(code: string, tabSlug: string, query:
   if (!builder) return undefined;
   const session = await getServerSession();
   if (!session) return undefined;
-  const me = await getTeacherWorkspace(session.role, session.schoolId);
+  // Who they are and what they may do are asked together; both are usually already remembered from the layout.
+  const [me, permissions] = await Promise.all([getTeacherWorkspace(session.role, session.schoolId), getServerPermissions(session).catch(() => [] as string[])]);
   if (!me) return undefined;
   try {
-    return await builder(tabSlug, me, await getServerPermissions(session), query);
+    return await builder(tabSlug, me, permissions, query);
   } catch (error) {
     return {
       rows: [{ cols: "1fr", panels: [{ type: "note", tone: "attention", title: "This page could not be loaded", body: `${error instanceof Error ? error.message : "The request failed."} Nothing here has been replaced with example figures — try again, and if it keeps failing, raise it in Sync & Support.` }] }],

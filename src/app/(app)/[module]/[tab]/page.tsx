@@ -57,7 +57,13 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
   // A module the holder cannot reach is absent from their navigation entirely;
   // reaching it by URL is refused rather than quietly shown empty. A tab is the same:
   // what Permissions took away from this person is honoured here, not only the module.
-  const held = isSchoolStaffRole(session.role) ? new Set(await getServerPermissions(session)) : null;
+  // What this person may do and who they are as a teacher are asked together, not one after the other — and the tab's own data is asked for as
+  // soon as they are known, rather than after the access checks have finished.
+  const [granted, teacherView] = await Promise.all([
+    isSchoolStaffRole(session.role) ? getServerPermissions(session) : Promise.resolve(null),
+    getTeacherWorkspace(session.role, session.schoolId),
+  ]);
+  const held = granted ? new Set(granted) : null;
   const canViewTab = (slug: string) => !held || held.has(schoolPermissionKey(module.slug, slug, "View"));
   if (!(await canOpenModule(session, module.code)) || !canViewTab(tab.slug)) {
     return <AccessDenied backHref="/command-center/today" />;
@@ -72,7 +78,7 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
   let visibleTabSlugs = module.tabs.filter((moduleTab) => canViewTab(moduleTab.slug)).map((moduleTab) => moduleTab.slug);
 
   // A teacher meets the same module in their own words and their own order of tabs.
-  const teacher = await getTeacherWorkspace(session.role, session.schoolId);
+  const teacher = teacherView;
   const teaching = teacher && teacherModuleByCode[module.code] ? teacher : null;
   if (teaching) visibleTabSlugs = orderTeacherTabs(module.code, visibleTabSlugs);
   const moduleName = teaching ? (teacherModuleLabel(module.code, teaching.persona) ?? module.name) : module.name;
