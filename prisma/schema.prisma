@@ -620,6 +620,8 @@ model School {
   id                            String                         @id @default(cuid())
   name                          String
   slug                          String                         @unique
+  /// The platform's own home row, where the back-office logins live because a user must belong to a school. It is the owner of the product, not a customer: every list, count and total of schools leaves it out.
+  isPlatform                    Boolean                        @default(false)
   /// What the school calls itself in short — used in SMS, where characters cost money.
   shortName                     String?
   motto                         String?

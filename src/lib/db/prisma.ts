@@ -2,6 +2,7 @@ import { PrismaClient } from "@prisma/client";
 
 declare global {
   var __prisma__: PrismaClient | undefined;
+  var __prismaPlatformFilter__: boolean | undefined;
 }
 
 function normalizePrismaRuntimeUrl(rawUrl?: string) {
@@ -90,6 +91,23 @@ export const prisma =
       : {}),
     log: process.env.NODE_ENV === "development" ? ["error", "warn"] : ["error"]
   });
+
+/**
+ * The platform is the owner of this product, not one of its schools. Its back-office logins sit on a school row only because a user must
+ * belong to one, so every question asked of the list of schools — which, how many, how much — is answered without it. Reading it by id (to
+ * sign a platform user in, for instance) is not a list and is left alone.
+ */
+const SCHOOL_LISTS = new Set(["findMany", "count", "groupBy", "aggregate"]);
+if (!global.__prismaPlatformFilter__) {
+  global.__prismaPlatformFilter__ = true;
+  prisma.$use(async (params, next) => {
+    if (params.model === "School" && SCHOOL_LISTS.has(params.action)) {
+      const args = (params.args ?? {}) as { where?: Record<string, unknown> };
+      params.args = { ...args, where: args.where ? { AND: [args.where, { isPlatform: false }] } : { isPlatform: false } };
+    }
+    return next(params);
+  });
+}
 
 if (process.env.NODE_ENV !== "production") {
   global.__prisma__ = prisma;
