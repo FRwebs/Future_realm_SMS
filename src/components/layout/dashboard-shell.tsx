@@ -156,7 +156,7 @@ export function DashboardShell({
             {/* No `key={pathname}` here on purpose: keying this on the route forces React to
                 tear the whole subtree down and rebuild it on every navigation, which discards
                 the Suspense boundary Next.js already wraps `children` in — so instead of
-                showing the previous page until the next one is
+                showing the previous page until the next one (or its loading.tsx fallback) is
                 ready, the screen goes blank for a beat first. That read as a flicker/refresh.
                 Leaving the wrapper's identity stable lets Suspense do its normal swap; the
                 incoming content is still a freshly-inserted child each time, so it still gets
