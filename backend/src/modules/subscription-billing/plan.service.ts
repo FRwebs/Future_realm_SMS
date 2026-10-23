@@ -17,6 +17,8 @@ import {
   naira,
   nextInvoiceNo,
   nextTerm,
+  billingTarget,
+  termLabelOf,
   num,
   rateOf,
   rollCount,
@@ -38,6 +40,8 @@ const renewSchema = z.object({
   students: z.coerce.number().int().positive("Say how many students you expect."),
   estimateFrom: z.string().optional(),
   renewFor: z.string().default("Next term only"),
+  /** The plan to be on, chosen when paying from a trial — it applies from today. */
+  plan: z.string().optional(),
   payBy: z.string().default("Card · now"),
   autoRenew: z.coerce.boolean().default(false),
   remind: z.string().default("14 days before"),
@@ -66,29 +70,36 @@ export class PlanService {
     await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.BILLING_UPDATE, entityType: "PlatformInvoice", entityId, metadata: json(metadata) } });
   }
 
-  /** What a renewal is for, and the figures a school should estimate from. */
+  /** What a payment is for, and the figures a school should estimate from. On a trial, that is the term the school is in; otherwise the next one. */
   async renewalFacts(schoolId: string) {
     const school = await schoolOf(schoolId);
-    const { current, next } = await nextTerm(schoolId);
+    const onTrial = school.billingStatus === "TRIAL";
+    const { term: target, startsNow, current, next } = await billingTarget(schoolId, onTrial);
     const [roll, accepted, top] = await Promise.all([
       rollCount(schoolId),
       prisma.admissionApplication.count({ where: { schoolId, status: { in: ["ACCEPTED", "FINANCIALLY_CLEARED"] } } }),
       prisma.classLevel.findFirst({ where: { schoolId, isActive: true }, orderBy: { order: "desc" }, select: { id: true, name: true } })
     ]);
-    const leavers = top ? await prisma.student.count({ where: { schoolId, status: "ACTIVE", currentClass: { classLevelId: top.id } } }) : 0;
-    const pendingDue = school.schoolSubscription?.pendingTier && school.schoolSubscription.pendingFrom && next && school.schoolSubscription.pendingFrom <= next.startDate;
+    const leavers = top && !startsNow ? await prisma.student.count({ where: { schoolId, status: "ACTIVE", currentClass: { classLevelId: top.id } } }) : 0;
+    const pendingDue = !startsNow && school.schoolSubscription?.pendingTier && school.schoolSubscription.pendingFrom && target && school.schoolSubscription.pendingFrom <= target.startDate;
     const tier = (pendingDue ? school.schoolSubscription?.pendingTier : tierOf(school)) as TierKey;
     const rate = pendingDue ? TIERS[tier].rate : rateOf(school);
-    const terms = next ? await prisma.term.findMany({ where: { schoolId, academicSessionId: next.academicSessionId, startDate: { gte: next.startDate } }, orderBy: { startDate: "asc" } }) : [];
+    const terms = target ? await prisma.term.findMany({ where: { schoolId, academicSessionId: target.academicSessionId, startDate: { gte: target.startDate } }, orderBy: { startDate: "asc" } }) : [];
+    // A payment made today for the term the school is in begins today, not on a date already past.
+    const begins = target ? (startsNow ? new Date() : target.startDate) : null;
     return {
-      current: current ? `${current.name} ${current.academicSession?.name ?? ""}`.trim() : null,
-      next: next ? { id: next.id, label: `${next.name} ${next.academicSession?.name ?? ""}`.trim(), start: next.startDate.toISOString(), end: next.endDate.toISOString() } : null,
+      current: current ? termLabelOf(current) : null,
+      next: next ? { id: next.id, label: termLabelOf(next), start: next.startDate.toISOString(), end: next.endDate.toISOString() } : null,
+      target: target && begins ? { id: target.id, label: termLabelOf(target), start: begins.toISOString(), end: target.endDate.toISOString() } : null,
+      startsNow,
+      tiers: (Object.keys(TIERS) as TierKey[]).map((key) => ({ key, name: TIERS[key].name, rate: TIERS[key].rate })),
       restOfSession: terms.length,
       roll,
-      accepted,
+      // On a trial the roll is what is being billed: nobody is "expected" for a term already running.
+      accepted: startsNow ? 0 : accepted,
       leavers,
-      leaversLevel: top?.name ?? null,
-      suggest: Math.max(0, roll + accepted - leavers),
+      leaversLevel: startsNow ? null : top?.name ?? null,
+      suggest: Math.max(0, roll + (startsNow ? 0 : accepted) - leavers),
       rate,
       tier,
       tierName: TIERS[tier].name,
@@ -195,16 +206,27 @@ export class PlanService {
     const facts = await this.renewalFacts(schoolId);
     const terms = input.renewFor.startsWith("A full") ? 3 : input.renewFor.startsWith("The rest") ? Math.max(1, facts.restOfSession) : 1;
     const discount = input.renewFor.startsWith("A full") ? 0.05 : 0;
-    const label = facts.next?.label ?? "Next term";
-    const gross = round2(input.students * facts.rate * terms);
+    // From a trial the school chooses its plan as it pays, and it applies from today. Everyone else changes plan through a switch, which never lands mid-term.
+    const chosen = facts.startsNow && input.plan ? (Object.keys(TIERS) as TierKey[]).find((key) => input.plan!.startsWith(TIERS[key].name)) : undefined;
+    if (input.plan && facts.startsNow && !chosen) throw new BadRequestException("That is not a plan.");
+    const tierKey = chosen ?? facts.tier;
+    const rate = chosen ? TIERS[chosen].rate : facts.rate;
+    const tierName = TIERS[tierKey].name;
+    const label = facts.target?.label ?? "Next term";
+    const gross = round2(input.students * rate * terms);
     const amount = round2(inSchoolCurrency(gross * (1 - discount), school.currency));
     const tax = round2(amount * (await taxRate(school.country)));
     const description = `${label}${terms > 1 ? ` + ${terms - 1} more` : ""} · ${input.students.toLocaleString("en-NG")} students`;
     const open = await prisma.platformInvoice.findFirst({ where: { schoolId, status: { not: "PAID" }, metadata: { path: ["termLabel"], equals: label } } });
     const paid = await prisma.platformInvoice.findFirst({ where: { schoolId, status: "PAID", metadata: { path: ["termLabel"], equals: label } } });
     if (paid) throw new BadRequestException(`${label} is already paid for (${paid.invoiceNo}).`);
-    const meta = { kind: "TERMLY", description, termLabel: label, units: input.students, rate: facts.rate, tier: facts.tierName, terms, discount, invoiceTo: input.invoiceTo ?? null, estimatedFrom: input.estimateFrom ?? null, starts: facts.next?.start ?? null };
-    const dueAt = facts.next ? new Date(new Date(facts.next.start).getTime() - 7 * 86_400_000) : (await platformPolicy.invoiceTerms(0)).dueAt;
+    // Where what is bought runs out: the end of the last term it covers (as many as there are left in the session). The account is billed again from there.
+    const targetTerm = facts.target ? await prisma.term.findUnique({ where: { id: facts.target.id }, select: { academicSessionId: true, startDate: true } }) : null;
+    const coveredTerms = targetTerm ? await prisma.term.findMany({ where: { schoolId, academicSessionId: targetTerm.academicSessionId, startDate: { gte: targetTerm.startDate } }, orderBy: { startDate: "asc" }, select: { endDate: true } }) : [];
+    const coversUntil = coveredTerms[Math.min(terms, coveredTerms.length) - 1]?.endDate ?? (facts.target ? new Date(facts.target.end) : null);
+    const meta = { kind: "TERMLY", description, termLabel: label, units: input.students, rate, tier: tierName, tierKey, terms, discount, invoiceTo: input.invoiceTo ?? null, estimatedFrom: input.estimateFrom ?? null, starts: facts.target?.start ?? null, startsNow: facts.startsNow, coversUntil: coversUntil?.toISOString() ?? null };
+    // Paying from a trial is for a term already running, so the invoice is due on receipt (three days' grace), not seven days before a term that has begun.
+    const dueAt = facts.startsNow ? new Date(Date.now() + 3 * 86_400_000) : facts.target ? new Date(new Date(facts.target.start).getTime() - 7 * 86_400_000) : (await platformPolicy.invoiceTerms(0)).dueAt;
     const invoice = open
       ? await prisma.platformInvoice.update({ where: { id: open.id }, data: { amount, taxAmount: tax, dueAt, metadata: json(meta) } })
       : await prisma.platformInvoice.create({ data: { schoolId, invoiceNo: await nextInvoiceNo(), amount, taxAmount: tax, currency: school.currency, status: "PENDING", dueAt, metadata: json(meta) } });
