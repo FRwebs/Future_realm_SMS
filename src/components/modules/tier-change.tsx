@@ -78,6 +78,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
+  const [showSmaller, setShowSmaller] = useState(false);
 
   const load = useCallback(
     async (tier: string) => {
@@ -153,7 +154,20 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
     }
   }
 
+  /**
+   * Going up is an offer; going down is not.
+   *
+   * An upgrade is something the product can reasonably put in front of a
+   * school. A downgrade is a decision the school arrives at on its own, and
+   * putting a button for it beside the upgrade either nags a school that was
+   * not thinking about it or flatters one that was. So it is kept behind a
+   * plain line of text — one click away for somebody looking for it, and
+   * invisible to everybody else. It is never hidden, and never pre-emptively
+   * offered.
+   */
   const others = panel.tiers.filter((tier) => tier.key !== panel.currentTier.key);
+  const upgrades = others.filter((tier) => tier.rate > panel.currentTier.rate);
+  const downgrades = others.filter((tier) => tier.rate < panel.currentTier.rate);
 
   return (
     <section className={cn(CARD, "px-[18px] py-[15px]")}>
@@ -216,8 +230,8 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
       ) : null}
 
       <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]">
-        {others.map((tier) => {
-          const dearer = tier.rate > panel.currentTier.rate;
+        {upgrades.map((tier) => {
+          const dearer = true;
           return (
             <div key={tier.key} className="rounded-[12px] border border-[#E4EDE8] px-[13px] py-[12px]">
               <div className="flex items-baseline justify-between gap-2">
@@ -252,6 +266,58 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
           );
         })}
       </div>
+
+      {!upgrades.length ? (
+        <p className="text-[11.5px]" style={{ color: MUTED }}>
+          {panel.currentTier.name} is the highest plan, so there is nothing to move up to.
+        </p>
+      ) : null}
+
+      {downgrades.length ? (
+        <div className={cn(upgrades.length && "mt-[13px] border-t border-[#EDF3EF] pt-[11px]")}>
+          <button
+            type="button"
+            onClick={() => setShowSmaller((current) => !current)}
+            aria-expanded={showSmaller}
+            className="text-[11px] underline underline-offset-2 transition hover:opacity-70"
+            style={{ color: MUTED }}
+          >
+            {showSmaller ? "Never mind" : "Looking for a smaller plan?"}
+          </button>
+
+          {showSmaller ? (
+            <div className="mt-[11px] grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]">
+              {downgrades.map((tier) => (
+                <div key={tier.key} className="rounded-[12px] border border-[#EDF3EF] px-[13px] py-[12px]">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-[12.5px] font-semibold" style={{ color: INK }}>
+                      {tier.name}
+                    </span>
+                    <span className="text-[10.5px]" style={{ color: MUTED }}>
+                      {naira(tier.rate)} per student
+                    </span>
+                  </div>
+                  <p className="mt-[4px] text-pretty text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>
+                    {naira(Math.max(0, (panel.headcount ?? 0) * (panel.currentTier.rate - tier.rate)))} less a
+                    term, from the start of next term.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setDone(null);
+                      setOpen(tier.key);
+                    }}
+                    className="mt-[9px] text-[11px] font-semibold underline underline-offset-2 transition hover:opacity-70"
+                    style={{ color: MUTED }}
+                  >
+                    See when it starts
+                  </button>
+                </div>
+              ))}
+            </div>
+          ) : null}
+        </div>
+      ) : null}
 
       {open ? (
         <div
