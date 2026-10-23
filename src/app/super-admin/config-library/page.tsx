@@ -95,6 +95,9 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
     extras = { countrySettings: [], assessmentFrameworkStats: { totalComponents: 0, totalSectionComponents: 0, schoolsWithFrameworks: 0 }, weightPatterns: [] };
   }
 
+  const nerdc = data.curricula.find((c) => c.layers?.default) ?? data.curricula.find((c) => c.layers) ?? null;
+  const layers = nerdc?.layers ?? null;
+
   const tabs = [
     { label: "Templates", href: tabHref("curricula"), active: tab === "curricula", badge: data.curricula.length },
     { label: "Assessment Frameworks", href: tabHref("assessment-frameworks"), active: tab === "assessment-frameworks" },
@@ -150,11 +153,11 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           description="A fully layered model would let a school swap each of these independently, and read its own choice from live configuration rather than hard-coded assumptions. Each layer is rated against what the platform does today."
           items={[
             { layer: "1", name: "Education System", governs: "Calendar shape, term/semester count, currency, language, phone format, promotion policy", state: "Partly — a country profile (Country Settings tab) now holds currency, phone format, authorities, consent age and channel as data, and the template names its calendar. A school's own term dates are still set on the school, and its currency still defaults to NGN in finance code.", tone: "warn" },
-            { layer: "2", name: "Level Structure", governs: "The stages and classes a school may operate, and which are examination/transition points", state: "Not built — every school creates its own class-level rows directly; there's no master \"stages\" record to select from, and nothing in the schema links a class to a curriculum template.", tone: "bad" },
+            { layer: "2", name: "Level Structure", governs: "The stages and classes a school may operate, and which are examination/transition points", state: "Authored on the template — the stages, classes and examination points of the default Nigerian template are on file (Assessment Frameworks tab). A school's own class ladder is still drawn from the levels it picks at setup, so the template describes it rather than drives it.", tone: "warn" },
             { layer: "3", name: "Subject Framework", governs: "Subject catalogue, core/elective/compulsory-choice rules, minimum and maximum subject counts", state: "A versioned reference list — subjects are kept per version and mapped from one version to the next. A new school's subjects still come from the platform's built-in catalogue, not from this list.", tone: "warn" },
-            { layer: "4", name: "Assessment Framework", governs: "The components that make up a subject score, their weights, term and session aggregation", state: "Confirmed not a master template — every school builds its own CA/exam weighting from scratch, with no platform preset (see Assessment Frameworks tab). This is the one layer with no library at all, by design of the current schema.", tone: "bad" },
+            { layer: "4", name: "Assessment Framework", governs: "The components that make up a subject score, their weights, term and session aggregation", state: "Master presets are on file — four ready-made frameworks with the Nigerian defaults (Assessment Frameworks tab). A school still confirms or builds its own weighting at setup; the result engine reads the school's copy, never the preset.", tone: "warn" },
             { layer: "5", name: "Grading Scale", governs: "Bands, boundaries, labels, remarks, pass mark", state: "Real and connected — a published scale is validated (0–100, no gap or overlap), copied into each new school in a country whose curriculum names it, and the version taken is recorded. Without one, the platform default from Settings applies.", tone: "good" },
-            { layer: "6", name: "Report Card Template", governs: "Layout, which fields are displayed, position/ranking display rules", state: "A single free-text layout name, not structured section data — there's no field for position display, cumulative columns, or behavioural domains. Also unlinked to any school.", tone: "warn" }
+            { layer: "6", name: "Report Card Template", governs: "Layout, which fields are displayed, position/ranking display rules", state: "A library of structured layouts, each with the audience it suits, the tiers it is open to and what it shows (Report Cards tab). Not yet linked to a school, so no layout is applied automatically.", tone: "warn" }
           ]}
           getRowKey={(row) => row.layer}
           columns={[
@@ -367,8 +370,22 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
 
       {tab === "assessment-frameworks" ? (
         <div className="grid gap-[14px]">
+          {layers?.assessment?.frameworks?.length ? (
+            <TableCard
+              title="Ready-made assessment frameworks"
+              description="A school selects one during setup, or builds its own. Weights must total exactly 100 — the system refuses to save a framework that does not."
+              items={layers.assessment.frameworks}
+              getRowKey={(row) => row.name}
+              columns={[
+                { key: "name", header: "Framework", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.name}</span> },
+                { key: "components", header: "Components", render: (row) => row.components },
+                { key: "weights", header: "Weights", render: (row) => <span className="font-[var(--font-mono)] font-bold">{row.weights}</span> },
+                { key: "typical", header: "Typical user", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.typicalUser}</span> }
+              ]}
+            />
+          ) : null}
           <TableCard
-            title="Ready-made assessment frameworks"
+            title="Frameworks in use across schools"
             description="Frameworks in use across schools, grouped by weight pattern, most common first. Weights must total exactly 100 — the system refuses to save a framework that does not."
             items={extras.weightPatterns}
             getRowKey={(row) => row.pattern}
@@ -417,66 +434,83 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             ]}
           />
 
-          <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white">
-            <div className="border-b border-[#E6EEE9] px-5 py-4">
-              <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Nigerian National (NERDC 2025) — not configured yet</p>
-              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">
-                No stage or subject structure has been entered for this template yet. Each table below fills from the template once a Product Lead adds it; until then it is empty rather than assumed.</p>
-            </div>
-          </section>
-          <ReferenceList
-            title="Nigerian template defaults"
-            sub="Shipped configuration — the school confirms or changes it during setup"
-            items={[
-              { label: "Seven components", detail: "Assignment, classwork, two tests, project and practical at 10 each, and a terminal exam at 40", tone: "teal" },
-              { label: "Term aggregation: weighted sum to a score out of 100", detail: "The only rule that exists; each term stands alone", tone: "teal" },
-              { label: "Position: computed within class, and arm where used", detail: "Never platform-wide", tone: "teal" },
-              { label: "Ties: equal position, next position skipped", detail: "Not configurable per school", tone: "teal" },
-              { label: "Absent: recorded as absent, never as zero", detail: "A distinct flag, separate from a numeric score", tone: "teal" },
-              { label: "Rounding: two decimals", detail: "Applied to every computed total and average; not configurable", tone: "teal" }
-            ]}
-          />
-
-          <TableCard
-            title="Level structure — Nigerian National (NERDC 2025)"
-            items={data.curricula.filter((c) => c.country.toLowerCase() === "nigeria")}
-            getRowKey={(item) => item.id}
-            columns={[
-              { key: "name", header: "Template", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
-              { key: "subjects", header: "Subjects recorded", render: (item) => (item.subjectCount > 0 ? item.subjectCount : <span className="text-[var(--color-text-muted)]">None recorded</span>) },
-              { key: "calendar", header: "Calendar", render: (item) => item.calendarType.replaceAll("_", " ") },
-              { key: "status", header: "Status", render: (item) => <StatusBadge status={item.isActive ? "ACTIVE" : "INACTIVE"} tone={item.isActive ? "success" : "neutral"} /> }
-            ]}
-            emptyState="No curriculum template is on file for Nigeria — every real school on this platform builds its own class and subject structure directly, with no template behind it."
-          />
-          <div className="grid items-start gap-[14px] lg:grid-cols-2">
-            <TableCard
-              title="Junior secondary subject framework"
-              items={[]}
-              columns={[{ key: "subject", header: "Subject", render: () => null }, { key: "category", header: "Category", render: () => null }]}
-              emptyState="No subject-framework record exists for junior secondary — a school enters its own subjects directly."
-            />
-            <TableCard
-              title="Senior secondary subject framework"
-              items={[]}
-              columns={[{ key: "subject", header: "Compulsory core", render: () => null }, { key: "applies", header: "Applies", render: () => null }]}
-              emptyState="No subject-framework record exists for senior secondary — a school enters its own subjects directly."
-            />
-          </div>
-          <div className="grid items-start gap-[14px] lg:grid-cols-2">
-            <TableCard
-              title="Trade subjects — one is compulsory"
-              items={[]}
-              columns={[{ key: "a", header: "Trade subject", render: () => null }, { key: "b", header: "Trade subject", render: () => null }]}
-              emptyState="No trade-subject record exists in this system."
-            />
-            <TableCard
-              title="Primary subject sets"
-              items={[]}
-              columns={[{ key: "lower", header: "Primary 1–3", render: () => null }, { key: "upper", header: "Primary 4–6", render: () => null }]}
-              emptyState="No primary-level subject-set record exists — lower and upper primary are not distinguished yet."
-            />
-          </div>
+          {nerdc ? (
+            <>
+              <ReferenceList
+                title="Nigerian template defaults"
+                sub="Shipped configuration — the school confirms or changes it during setup"
+                items={[
+                  ...(layers?.assessment?.components ?? []).map((c) => ({ label: `${c.name} — out of ${c.max}, weight ${c.weight}`, tone: "teal" as const })),
+                  { label: `Term aggregation: ${layers?.assessment?.termAggregation ?? "weighted sum"}`, tone: "good" as const },
+                  { label: `Session aggregation: ${layers?.assessment?.sessionAggregation ?? "average of terms"}`, tone: "good" as const },
+                  { label: `Position: ${layers?.assessment?.position ?? "within arm and class"}`, tone: "good" as const },
+                  { label: `Ties: ${layers?.assessment?.ties ?? "equal position, next skipped"}`, tone: "warn" as const },
+                  { label: `Absent: ${layers?.assessment?.absent ?? "recorded as absent, never as zero"}`, tone: "bad" as const }
+                ]}
+              />
+              <TableCard
+                title={`Level structure — ${nerdc.name}`}
+                description="The default template for the beachhead market, and therefore the one that must be exactly right."
+                items={layers?.levels ?? []}
+                getRowKey={(row) => row.stage}
+                columns={[
+                  { key: "stage", header: "Stage", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.stage}</span> },
+                  { key: "classes", header: "Classes", render: (row) => row.classes },
+                  { key: "exam", header: "Terminal examination", render: (row) => (row.exam === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.exam}</span>) },
+                  { key: "notes", header: "Notes", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.notes}</span> }
+                ]}
+                footnote={layers?.levelsFootnote}
+              />
+              <div className="grid items-start gap-[14px] lg:grid-cols-2">
+                <TableCard
+                  title="Junior secondary subject framework"
+                  description={layers?.junior?.range}
+                  items={layers?.junior?.subjects ?? []}
+                  getRowKey={(row) => row.name}
+                  columns={[
+                    { key: "subject", header: "Subject", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.name}</span> },
+                    { key: "category", header: "Category", render: (row) => (row.note ? <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.note}</span> : <span className="inline-flex rounded-full bg-[var(--color-surface-muted)] px-[9px] py-[3px] text-[11px] font-bold">{row.category}</span>) }
+                  ]}
+                />
+                <TableCard
+                  title="Senior secondary"
+                  description={layers?.senior?.sub}
+                  items={[
+                    ...(layers?.senior?.core ?? []).map((row) => ({ key: row.name, a: row.name, b: row.applies, stream: false })),
+                    ...(layers?.senior?.streams ?? []).map((row) => ({ key: row.stream, a: row.stream, b: row.subjects, stream: true }))
+                  ]}
+                  getRowKey={(row) => row.key}
+                  columns={[
+                    { key: "a", header: "Compulsory core", render: (row) => <span className={row.stream ? "inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]" : "font-semibold text-[var(--color-text-primary)]"}>{row.a}</span> },
+                    { key: "b", header: "Applies", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.b}</span> }
+                  ]}
+                  footnote={layers?.senior?.footnote}
+                />
+              </div>
+              <div className="grid items-start gap-[14px] lg:grid-cols-2">
+                <TableCard
+                  title="Trade subjects — one is compulsory"
+                  description={layers?.trade?.sub}
+                  items={(layers?.trade?.subjects ?? []).map((name, index, all) => ({ key: name, a: name, b: all[index + Math.ceil(all.length / 2)] ?? "" })).slice(0, Math.ceil((layers?.trade?.subjects.length ?? 0) / 2))}
+                  getRowKey={(row) => row.key}
+                  columns={[{ key: "a", header: "Trade subject", render: (row) => row.a }, { key: "b", header: "Trade subject", render: (row) => row.b }]}
+                  footnote={layers?.trade?.footnote}
+                />
+                <TableCard
+                  title="Primary subject sets"
+                  description="Lower and upper primary carry different lists"
+                  items={Array.from({ length: Math.max(layers?.primary?.lower.length ?? 0, layers?.primary?.upper.length ?? 0) }, (_, index) => ({ key: String(index), lower: layers?.primary?.lower[index] ?? "—", upper: layers?.primary?.upper[index] ?? "—" }))}
+                  getRowKey={(row) => row.key}
+                  columns={[{ key: "lower", header: `Primary 1–3 (${layers?.primary?.lower.length ?? 0})`, render: (row) => row.lower }, { key: "upper", header: `Primary 4–6 (${layers?.primary?.upper.length ?? 0})`, render: (row) => row.upper }]}
+                />
+              </div>
+            </>
+          ) : (
+            <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white px-5 py-4">
+              <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">No Nigerian default template is on file</p>
+              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Run the library seed, or publish a Nigerian template with its layers, and the level structure and subject framework appear here.</p>
+            </section>
+          )}
         </div>
       ) : null}
 

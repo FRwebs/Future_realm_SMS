@@ -255,7 +255,7 @@ export class TemplatesService {
     const used = new Map(adoptions.map((row) => [row.templateId, row._count._all]));
     const byId = new Map(curricula.map((row) => [row.id, row]));
     return {
-      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjects: c.subjects, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive, lifecycle: c.lifecycle, owner: c.owner, effectiveFrom: c.effectiveFrom?.toISOString() ?? null, language: c.language, basedOn: c.baseOnId ? (byId.get(c.baseOnId) ? `${byId.get(c.baseOnId)!.name} ${byId.get(c.baseOnId)!.version}` : "A removed template") : null, validatedAt: c.validatedAt?.toISOString() ?? null, schools: used.get(c.id) ?? 0 })),
+      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjects: c.subjects, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive, lifecycle: c.lifecycle, owner: c.owner, effectiveFrom: c.effectiveFrom?.toISOString() ?? null, language: c.language, layers: c.layers ?? null, basedOn: c.baseOnId ? (byId.get(c.baseOnId) ? `${byId.get(c.baseOnId)!.name} ${byId.get(c.baseOnId)!.version}` : "A removed template") : null, validatedAt: c.validatedAt?.toISOString() ?? null, schools: used.get(c.id) ?? 0 })),
       gradingScales: grading.map((g) => ({ id: g.id, name: g.name, version: g.version, lifecycle: g.lifecycle, gradeBands: g.gradeBands, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive, schools: used.get(g.id) ?? 0, problems: (() => { try { return checkBands(z.array(bandSchema).parse(g.gradeBands), g.passMark); } catch { return ["The bands are not in a readable form."]; } })() })),
       reportCards: reportCards.map((r) => ({ id: r.id, name: r.name, layout: (r.layoutConfig as { layout?: string } | null)?.layout ?? "", applicableCurricula: r.applicableCurricula, availableToTiers: r.availableToTiers, isActive: r.isActive })),
       mappings: mappings.map((m) => ({ id: m.id, template: byId.get(m.fromTemplateId)?.name ?? "A removed template", fromVersion: byId.get(m.fromTemplateId)?.version ?? "?", toVersion: byId.get(m.toTemplateId)?.version ?? "?", fromSubject: m.fromSubject, toSubject: m.toSubject, relationship: m.relationship, at: m.createdAt.toISOString() })),
@@ -267,7 +267,10 @@ export class TemplatesService {
 
   /** What a new school in a country is given: the active curriculum, and the active scale made for it. Null when nothing has been published. */
   async forCountry(country: string) {
-    const curriculum = await prisma.curriculumTemplate.findFirst({ where: { country: { equals: country, mode: "insensitive" }, lifecycle: "ACTIVE" }, orderBy: { updatedAt: "desc" } });
+    // Several curricula can be live in one country (a British or American variant beside the national one). A new school is given the
+    // one the library marks as the country's default; with none marked, the most recently changed.
+    const live = await prisma.curriculumTemplate.findMany({ where: { country: { equals: country, mode: "insensitive" }, lifecycle: "ACTIVE" }, orderBy: { updatedAt: "desc" } });
+    const curriculum = live.find((row) => (row.layers as { default?: boolean } | null)?.default) ?? live[0];
     if (!curriculum) return { curriculum: null, grading: null };
     const grading = await prisma.gradingScaleTemplate.findFirst({ where: { lifecycle: "ACTIVE", applicableCurricula: { has: curriculum.name } }, orderBy: { updatedAt: "desc" } });
     return { curriculum, grading };
