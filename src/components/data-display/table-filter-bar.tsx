@@ -32,15 +32,15 @@ interface TableFilterBarProps {
  */
 export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-2 border-b border-[#EDF3EF] bg-[#FCFDFC] px-5 py-3.5">
+    <div className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
       {search ? (
-        <div className="flex min-w-[220px] items-center gap-2 rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2">
+        <div className="flex min-w-[236px] items-center gap-2 rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[7px]">
           <Search className="h-3.5 w-3.5 shrink-0 text-[#9FB8A7]" />
           <input
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
             placeholder={search.placeholder}
-            className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
+            className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
           />
           {search.value ? (
             <button
@@ -59,7 +59,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
         filter.options && filter.onChange ? (
           <label
             key={filter.label}
-            className="relative flex items-center gap-1.5 rounded-[9px] border border-[#DEE8E2] bg-white px-2.5 py-2 text-[12px] text-[#0D2315]"
+            className="relative flex items-center gap-[6.5px] rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] text-[#0D2315]"
           >
             <span className="text-[#8C9A92]">{filter.label}</span>
             <select
@@ -78,7 +78,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
         ) : (
           <div
             key={filter.label}
-            className="flex items-center gap-1.5 rounded-[9px] border border-[#DEE8E2] bg-white px-2.5 py-2 text-[12px] text-[#0D2315]"
+            className="flex items-center gap-[6.5px] rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] text-[#0D2315]"
           >
             <span className="text-[#8C9A92]">{filter.label}</span>
             <span className="font-semibold">{filter.value}</span>
@@ -86,7 +86,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
         )
       )}
 
-      {note ? <div className="ml-auto text-[11.5px] text-[#8C9A92]">{note}</div> : null}
+      {note ? <div className="ml-auto text-[10.5px] text-[#8C9A92]">{note}</div> : null}
     </div>
   );
 }

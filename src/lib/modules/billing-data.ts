@@ -2,7 +2,7 @@ import { armRows } from "@/lib/modules/school-data";
 import { registryStudents } from "@/lib/modules/students-data";
 
 /**
- * What Nooria costs this school, and what is left on the channels that cost
+ * What FutureRealm costs this school, and what is left on the channels that cost
  * money.
  *
  * The plan is billed per student per term, counted at term start, so the

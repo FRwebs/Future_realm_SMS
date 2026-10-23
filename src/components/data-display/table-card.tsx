@@ -29,6 +29,8 @@ export interface TableColumn<TItem> {
 interface TableCardProps<TItem> {
   title: string;
   description?: ReactNode;
+  /** Small text beside the actions: who may change this, or how many are open. */
+  meta?: ReactNode;
   columns: TableColumn<TItem>[];
   items: TItem[];
   emptyState?: string;
@@ -90,6 +92,7 @@ function resolveSortValue<TItem>(item: TItem, column: TableColumn<TItem>): strin
 export function TableCard<TItem>({
   title,
   description,
+  meta,
   columns,
   items,
   emptyState = "No records found.",
@@ -145,6 +148,7 @@ export function TableCard<TItem>({
     <TableCardBody
       title={title}
       description={description}
+      meta={meta}
       emptyState={emptyState}
       actions={actions}
       filterBar={filterBar}

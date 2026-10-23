@@ -741,6 +741,12 @@ export class SuperAdminController {
     return this.superAdminService.approveCampaign(session, campaignId);
   }
 
+  /** Sends the draft as written to the person composing it, and nobody else. Declared before the `:campaignId` routes. */
+  @Post("communications/campaigns/test")
+  testCampaign(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.superAdminService.testCampaign(session, body);
+  }
+
   @Post("communications/campaigns/:campaignId/send")
   sendCampaign(@CurrentSession() session: SessionPayload, @Param("campaignId") campaignId: string) {
     return this.superAdminService.sendCampaign(session, campaignId);

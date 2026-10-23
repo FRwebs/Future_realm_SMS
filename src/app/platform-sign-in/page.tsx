@@ -3,8 +3,8 @@ import type { Metadata } from "next";
 import { PlatformSignInForm } from "@/components/super-admin/platform-sign-in-form";
 
 export const metadata: Metadata = {
-  title: "Internal sign-in · Nooria Platform Admin",
-  description: "Nooria team accounts only. Schools sign in at their own workspace.",
+  title: "Internal sign-in · FutureRealm Platform Admin",
+  description: "FutureRealm team accounts only. Schools sign in at their own workspace.",
   robots: { index: false, follow: false },
 };
 
@@ -89,7 +89,7 @@ export default async function PlatformSignInPage() {
             <span
               className="font-[family-name:var(--font-heading)] text-[17px] font-extrabold tracking-[-0.02em] text-white"
             >
-              Nooria
+              FutureRealm
             </span>
             <span
               className="flex items-center gap-[5.5px] rounded-full px-[9px] py-[3.5px]"

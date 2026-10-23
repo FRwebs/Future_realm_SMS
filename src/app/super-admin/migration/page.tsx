@@ -316,7 +316,7 @@ async function InvitationsTab({ params }: { params: Record<string, string | unde
     <div className="grid gap-[14px]">
       <TableCard
         title="Invitation operations"
-        description="Back-office controls for accounts Nooria creates after a closed deal — resend limits are enforced by the system at five per account per 24 hours."
+        description="Back-office controls for accounts FutureRealm creates after a closed deal — resend limits are enforced by the system at five per account per 24 hours."
         items={data.rows}
         getRowKey={(row) => row.userId}
         emptyState="No invitation matches this view. Every invited account has signed in."

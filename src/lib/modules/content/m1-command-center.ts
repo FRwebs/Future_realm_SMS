@@ -276,7 +276,7 @@ export const commandCenterContent: ModuleContent = {
                 ["What", "9 payments recorded", "7 bank transfers, 2 cash"],
                 ["Effect", "₦1,240,000 collected", "4 families cleared their balance in full"],
                 ["When", "Today, 07:25", "41 minutes ago"],
-                ["Where from", "Nooria mobile · Android", "Recorded offline, synced at 07:31"],
+                ["Where from", "FutureRealm mobile · Android", "Recorded offline, synced at 07:31"],
                 ["Reversible", "Each payment individually", "A reversal needs a reason and is logged"],
               ],
             },
@@ -823,7 +823,7 @@ export const commandCenterContent: ModuleContent = {
               cells: [
                 text("Invalid phone number format"),
                 text("4", { mono: true }),
-                text("Fails at the network, not at Nooria."),
+                text("Fails at the network, not at FutureRealm."),
                 action("Fix", "/parents-guardians/guardians"),
               ],
             },

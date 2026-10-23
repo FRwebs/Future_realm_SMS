@@ -8,13 +8,13 @@ import {
   UserCheck,
   UsersRound
 } from "lucide-react";
+import Link from "next/link";
 import { CaseReviewBoard, type CaseRecord, type CaseSignal, type CaseTypeFilter } from "@/components/data-display/case-review-board";
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { FlowSteps } from "@/components/data-display/flow-steps";
 import { ReferenceList } from "@/components/data-display/reference-list";
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { StatCard } from "@/components/data-display/stat-card";
-import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { FilterToolbar } from "@/components/filters/filter-toolbar";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -30,6 +30,7 @@ import type {
   SuperAdminUserRow,
   SuperAdminUserStats
 } from "@/lib/domain/types";
+import { deviceLabel } from "@/lib/utils/device";
 import { formatDate } from "@/lib/utils/formatters";
 
 function caseInitials(name: string) {
@@ -162,9 +163,20 @@ export default async function SuperAdminUsersPage({ searchParams }: { searchPara
   );
 }
 
+/** "Today, 08:12", "Yesterday", "3 days ago" — how the registry says when somebody last signed in. */
+function loginAgo(value?: string): string {
+  if (!value) return "Never";
+  const at = new Date(value);
+  const days = Math.floor((Date.now() - at.getTime()) / 86_400_000);
+  const sameDay = at.toDateString() === new Date().toDateString();
+  if (sameDay) return `Today, ${at.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`;
+  if (days <= 1) return "Yesterday";
+  return `${days} days ago`;
+}
+
 async function DirectoryTab({ params }: { params: Record<string, string | undefined> }) {
   const query = new URLSearchParams();
-  for (const key of ["search", "role", "schoolId", "status", "lastLogin", "page"]) {
+  for (const key of ["search", "role", "schoolId", "status", "lastLogin", "device", "page"]) {
     if (params[key]) query.set(key, params[key] as string);
   }
   const [envelope, schoolsEnvelope, statsEnvelope] = await Promise.all([
@@ -191,14 +203,15 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
 
       <TableCard
         title="Global user registry"
-        description="Searchable by name, email, role, school or account status."
+        description="Searchable by name, email, phone, role, school or account status"
+        meta="Support Agent and above"
         items={users}
         filterBar={
           <FilterToolbar
             action="/super-admin/users"
             resultCount={envelope.pagination?.total}
             controls={[
-              { name: "search", label: "Global search", type: "search", placeholder: "Name or email", defaultValue: params.search },
+              { name: "search", label: "Global search", type: "search", placeholder: "Search name, email or phone across all schools", defaultValue: params.search },
               { name: "role", label: "Role", type: "select", defaultValue: params.role, options: roleTabs.map((roleTab) => ({ label: roleTab.label, value: roleTab.value })) },
               { name: "schoolId", label: "School", type: "select", defaultValue: params.schoolId ?? "", options: schoolOptions },
               { name: "status", label: "Status", type: "select", defaultValue: params.status, options: [
@@ -212,6 +225,11 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
                 { label: "This week", value: "WEEK" },
                 { label: "Last 30 days", value: "30D" },
                 { label: "Never", value: "NEVER" }
+              ] },
+              { name: "device", label: "Device", type: "select", defaultValue: params.device ?? "", options: [
+                { label: "Any", value: "" },
+                { label: "Mobile", value: "MOBILE" },
+                { label: "Desktop", value: "DESKTOP" }
               ] }
             ]}
           />
@@ -221,22 +239,31 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
             key: "name",
             header: "User",
             render: (item) => (
-              <div>
-                <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{item.email}</p>
-              </div>
+              <Link href={`/super-admin/users/${item.id}`} className="group block min-w-0">
+                <p className="truncate text-[11.5px] font-semibold text-[#0D2315] group-hover:text-[#12796A]">{item.name}</p>
+                <p className="mt-0.5 truncate text-[10.5px] text-[#8C9A92]">{item.email || item.phone || "—"}</p>
+              </Link>
             )
           },
           { key: "role", header: "Role", render: (item) => roleLabel(item.role) },
           { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
-          { key: "lastDevice", header: "Device (last used)", render: (item) => item.lastDevice ?? "Not recorded" },
+          { key: "lastLogin", header: "Last login", render: (item) => <span className="text-[#77857C]">{loginAgo(item.lastLoginAt)}</span> },
+          {
+            key: "status",
+            header: "Status",
+            render: (item) => {
+              const pill = item.status === "SUSPENDED" ? { label: "Suspended", bg: "#FDF3F3", fg: "#B23B3B" } : item.pendingActivation ? { label: "Pending activation", bg: "#FDF6E7", fg: "#8A6410" } : { label: "Active", bg: "#EAF6F0", fg: "#17714F" };
+              return <span className="inline-block whitespace-nowrap rounded-full px-2 py-[2.5px] text-[10px] font-bold" style={{ background: pill.bg, color: pill.fg }}>{pill.label}</span>;
+            }
+          },
+          { key: "lastDevice", header: "Device (last used)", render: (item) => <span className="text-[#77857C]">{deviceLabel(item.lastDevice)}</span> },
           {
             key: "actions",
-            header: "Actions",
+            header: "",
             render: (item) => (
-              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+              <div className="flex items-center justify-end gap-2">
+              <Link href={`/super-admin/users/${item.id}`} className="text-[11px] font-semibold text-[#12796A] hover:underline">Open</Link>
+              <ActionMenu compact triggerLabel={`Actions for ${item.name}`}>
                 <ActionMenuLink href={`/super-admin/users/${item.id}`}>View profile</ActionMenuLink>
                 <ResourceActionDialog
                   triggerLabel="Reset Password"
@@ -302,9 +329,11 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
                   fields={[]}
                 />
               </ActionMenu>
+              </div>
             )
           }
         ]}
+        footnote="Clicking any user opens their full profile — personal details, last 10 login sessions, role-specific activity and linked accounts."
         emptyState="No users match the current filters."
       />
 
@@ -813,7 +842,7 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
 
       <TableCard
         title="Individual teachers"
-        description={`Teachers using Nooria on their own. Their school is not a customer — which makes each of them a way in. ${view.counts.accounts} accounts · ${view.counts.schoolsNamed} schools named · ${view.counts.whatsapp} opted in to WhatsApp · ${view.counts.neverContacted} never contacted.`}
+        description={`Teachers using FutureRealm on their own. Their school is not a customer — which makes each of them a way in. ${view.counts.accounts} accounts · ${view.counts.schoolsNamed} schools named · ${view.counts.whatsapp} opted in to WhatsApp · ${view.counts.neverContacted} never contacted.`}
         items={teachers}
         getRowKey={(row) => row.id}
         pageSize={8}
@@ -843,7 +872,7 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
         title="How we use this list"
         sub="A teacher is not a lead to be harvested. They are a colleague who already chose us, and the approach has to read that way."
         items={[
-          { label: "A cluster is the argument, not the individual", detail: "Seven teachers at one school using Nooria unprompted is a sentence a Proprietor cannot ignore. One teacher is not.", pill: "Approach", tone: "good" },
+          { label: "A cluster is the argument, not the individual", detail: "Seven teachers at one school using FutureRealm unprompted is a sentence a Proprietor cannot ignore. One teacher is not.", pill: "Approach", tone: "good" },
           { label: "Message the teacher, never the school, from here", detail: "Writing to a Principal about a teacher's private account would break the trust that made this list exist", pill: "Rule", tone: "bad" },
           { label: "WhatsApp only where they opted in", detail: "A teacher who has not opted in cannot be written to on WhatsApp — there is no override. (WhatsApp itself is not connected yet.)", pill: "Consent", tone: "bad" },
           { label: "Ask before you introduce", detail: "Every message ends with a question, not a booking. A teacher who feels used stops using the product", pill: "Tone", tone: "warn" },

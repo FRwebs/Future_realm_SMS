@@ -188,7 +188,7 @@ const profileTab: TabContent = {
               facts: [
                 ["Version 3", "In force from 4 January 2026", "Current crest and colours"],
                 ["Version 2", "11 March 2024 to 3 January 2026", "1,204 cards printed under it"],
-                ["Version 1", "From the school's first term on Nooria", "Archived"],
+                ["Version 1", "From the school's first term on FutureRealm", "Archived"],
               ],
             } satisfies DrawerSpec,
           },
@@ -215,7 +215,7 @@ const profileTab: TabContent = {
           ["Brand colours", "#0D2315 and #12796A"],
           ["Principal's signature", "On file · signed 4 January 2026"],
           ["School stamp", "On file"],
-          ["Web address", "graceacademy.nooria.app", "Issued 11 March 2024"],
+          ["Web address", "graceacademy.futurerealm.app", "Issued 11 March 2024"],
           ["Change of address", "By request only", "Old links keep working for 12 months"],
         ],
       },
@@ -735,9 +735,9 @@ function curriculumDrawer(entry: (typeof curricula)[number]): DrawerSpec {
     kicker: `${entry.origin} · ${entry.basis}`,
     title: entry.name,
     sub: entry.sub,
-    readOnly: entry.origin === "Nooria library",
+    readOnly: entry.origin === "FutureRealm library",
     readOnlyNote:
-      entry.origin === "Nooria library"
+      entry.origin === "FutureRealm library"
         ? "This is the library version, and it stays the library version. Adopt it, or tweak it into your own."
         : undefined,
     facts: [
@@ -776,7 +776,7 @@ const curriculumTab: TabContent = {
         ["Sections", "7", "Name, then the six layers, then rollout"],
         ["Order", "Any", "Each layer saves on its own"],
         ["In force", "Not until you say so", "A draft affects no register, sheet or card"],
-        ["Copy instead", "The Nooria standard can be copied as a starting point"],
+        ["Copy instead", "The FutureRealm standard can be copied as a starting point"],
       ],
       commitLabel: "Start building",
       commitDone: "Draft curriculum created",
@@ -785,7 +785,7 @@ const curriculumTab: TabContent = {
   },
   launchers: [
     { label: "Open the one in force", drawer: curriculumDrawer(inForce) },
-    { label: "Preview the Nooria standard", drawer: curriculumDrawer(curricula[0]!) },
+    { label: "Preview the FutureRealm standard", drawer: curriculumDrawer(curricula[0]!) },
   ],
   rows: [
     row("1fr", [
@@ -794,7 +794,7 @@ const curriculumTab: TabContent = {
         per: 4,
         cards: [
           { label: "In force", value: "1", sub: "Grace International · all 42 arms", tone: "positive" as PanelTone },
-          { label: "Available to adopt", value: "3", sub: "From the Nooria library", tone: "neutral" as PanelTone },
+          { label: "Available to adopt", value: "3", sub: "From the FutureRealm library", tone: "neutral" as PanelTone },
           { label: "Your own drafts", value: "1", sub: "Not in force", tone: "progress" as PanelTone },
           {
             label: "Layers needing attention",
@@ -813,15 +813,15 @@ const curriculumTab: TabContent = {
         title: "All curricula",
         tag: "1 in force",
         tagTone: "positive" as PanelTone,
-        sub: "Number 1 is the standard Nooria ships. Open any to see its six layers, or build your own.",
+        sub: "Number 1 is the standard FutureRealm ships. Open any to see its six layers, or build your own.",
         meta: "5 curricula · 1 in force",
         search: "Find a curriculum by name, origin or region",
         filters: [
-          { label: "Origin", value: "All", options: ["All", "Nooria library", "This school"], column: 2 },
+          { label: "Origin", value: "All", options: ["All", "FutureRealm library", "This school"], column: 2 },
           { label: "State", value: "All", options: ["All", "In force", "Available", "Draft", "Archived"], column: 5 },
         ],
         acts: [
-          { label: "Preview the Nooria standard", drawer: curriculumDrawer(curricula[0]!) },
+          { label: "Preview the FutureRealm standard", drawer: curriculumDrawer(curricula[0]!) },
           {
             label: "Build a curriculum",
             primary: true,
@@ -1523,7 +1523,7 @@ function policyRows(policies: Policy[]): TableRow[] {
 
 const policiesTab: TabContent = {
   title: "Policies",
-  desc: "The rules that make Nooria behave like this school.",
+  desc: "The rules that make FutureRealm behave like this school.",
   primary: {
     label: "Save policies",
     drawer: {

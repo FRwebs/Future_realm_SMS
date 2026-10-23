@@ -33,7 +33,7 @@ export const policySchema = z.object({
     quietHoursOn: z.boolean(),
     dailyCapPerRecipient: z.number().int().min(0).max(100),
     maxAttempts: z.number().int().min(1).max(10),
-    /** What the provider charges Nooria per message, in naira. 0 means it has not been entered yet — no margin is shown. */
+    /** What the provider charges FutureRealm per message, in naira. 0 means it has not been entered yet — no margin is shown. */
     providerCostSms: z.number().min(0).max(1000),
     providerCostSmsInternational: z.number().min(0).max(1000),
     providerCostWhatsapp: z.number().min(0).max(1000),

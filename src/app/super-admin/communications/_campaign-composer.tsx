@@ -10,9 +10,11 @@ type Option = { label: string; value: string };
 interface CampaignComposerProps {
   templateOptions: Option[];
   planFilterOptions: Option[];
+  /** What the platform calls itself — the sender every recipient sees. */
+  platformName: string;
 }
 
-type AudiencePreview = { recipientCount: number; sample: Array<{ name: string; email: string; role: string; school: string }> };
+type AudiencePreview = { recipientCount: number; schoolCount: number; sample: Array<{ name: string; email: string; role: string; school: string }> };
 
 const channelDefs = [
   { key: "EMAIL", label: "Email", dot: "#2B5F8F" },
@@ -27,7 +29,10 @@ function getCookie(name: string) {
     ?.split("=")[1];
 }
 
-export function CampaignComposer({ templateOptions, planFilterOptions }: CampaignComposerProps) {
+/** The fields a campaign may use; each is filled in for every person it reaches, on every channel. */
+const MERGE_FIELDS = ["school_name", "first_name", "last_name", "admin_name"] as const;
+
+export function CampaignComposer({ templateOptions, planFilterOptions, platformName }: CampaignComposerProps) {
   const router = useRouter();
   const { showToast } = useToast();
 
@@ -48,6 +53,8 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
   const [preview, setPreview] = useState<AudiencePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pending, setPending] = useState(false);
+  const [testing, setTesting] = useState(false);
+  const smsPrefix = `${platformName}: `;
 
   useEffect(() => {
     const filters: Record<string, unknown> = {};
@@ -86,8 +93,8 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
       showToast({ variant: "error", title: "Missing required fields", description: "Campaign name and message body are required." });
       return;
     }
-    if (channel === "SMS" && body.length > 160) {
-      showToast({ variant: "error", title: "SMS is limited to 160 characters", description: `Current message is ${body.length} characters.` });
+    if (channel === "SMS" && smsPrefix.length + body.length > 160) {
+      showToast({ variant: "error", title: "SMS is limited to 160 characters", description: `It opens with “${platformName}”, which makes this ${smsPrefix.length + body.length}.` });
       return;
     }
     setPending(true);
@@ -122,6 +129,29 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
     }
   }
 
+  async function handleTest() {
+    if (!body.trim()) {
+      showToast({ variant: "error", title: "Write the message first", description: "A test is sent exactly as written." });
+      return;
+    }
+    setTesting(true);
+    try {
+      const response = await fetch("/api/super-admin/communications/campaigns/test", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json", "x-csrf-token": getCookie("fr_csrf") ?? "" },
+        body: JSON.stringify({ channel, subject: subject.trim() || undefined, body })
+      });
+      const json = (await response.json()) as { ok?: boolean; error?: string; message?: string; data?: { note?: string | null } };
+      if (!response.ok || json.ok === false) throw new Error(json.error ?? "The test could not be sent.");
+      showToast({ variant: "success", title: json.message ?? "Test sent", description: json.data?.note ?? "Check how it reads before you schedule it." });
+    } catch (error) {
+      showToast({ variant: "error", title: "The test did not go", description: error instanceof Error ? error.message : "Try again." });
+    } finally {
+      setTesting(false);
+    }
+  }
+
   const audienceFilters = [
     { label: "Role", node: <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. SCHOOL_ADMIN, PARENT" style={fieldInputStyle} /> },
     {
@@ -142,8 +172,8 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
     }
   ];
 
-  const smsCount = `${body.length} / 160 characters`;
-  const overLimit = channel === "SMS" && body.length > 160;
+  const smsCount = `${smsPrefix.length + body.length} / 160 characters`;
+  const overLimit = channel === "SMS" && smsPrefix.length + body.length > 160;
 
   const approvalNote =
     type === "PROMOTIONAL"
@@ -195,7 +225,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
             {previewLoading ? "…" : (preview?.recipientCount ?? 0).toLocaleString()}
           </p>
           <p className="mt-1.5 text-[10.5px] text-white/65">
-            Live count from the real audience filter · recomputed at save time too
+            {(preview?.schoolCount ?? 0).toLocaleString()} school{(preview?.schoolCount ?? 0) === 1 ? "" : "s"} · {type === "PROMOTIONAL" ? "opted-in recipients only" : "everyone the audience matches"}
           </p>
         </div>
       </section>
@@ -203,9 +233,9 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
       <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
         <div className="mb-3.5 flex items-center justify-between">
           <p className="text-[12.5px] font-semibold text-[#0D2315]">Message composer</p>
-          <p className="text-[10.5px] text-[#8C9A92]">Campaign name is internal — recipients never see it</p>
+          <p className="text-[10.5px] text-[#8C9A92]">Sender is always “{platformName}”</p>
         </div>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name *" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
+        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name * — internal, recipients never see it" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
 
         <div className="mb-4 flex gap-1.5">
           {channelDefs.map((c) => {
@@ -244,7 +274,11 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
           style={{ width: "100%", fontSize: 13, lineHeight: 1.6, color: "#2F3B34", minHeight: 118, background: "#F7FAF8", border: `1px solid ${overLimit ? "#DB5555" : "#E1EBE5"}`, borderRadius: 9, padding: 13, outline: "none", resize: "vertical" }}
         />
         <div className="mt-2 flex items-center justify-between">
-          <span className="text-[10px] font-semibold text-[#12796A]">{"{{school_name}}"}</span>
+          <span className="flex flex-wrap gap-1.5">
+            {MERGE_FIELDS.map((field) => (
+              <button key={field} type="button" onClick={() => setBody((current) => `${current}${current && !current.endsWith(" ") ? " " : ""}{{${field}}}`)} className="rounded-[6px] bg-[#E4F1EC] px-[7px] py-[3.5px] text-[10px] font-semibold text-[#12796A] hover:bg-[#D5EBE2]">{`{{${field}}}`}</button>
+            ))}
+          </span>
           <span className="text-[10.5px] font-semibold" style={{ color: channel === "SMS" ? (overLimit ? "#DB5555" : "#8A6410") : "#8C9A92" }}>
             {channel === "SMS" ? smsCount : `${body.length} characters`}
           </span>
@@ -266,13 +300,15 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
             </label>
           </div>
         </div>
-        <div className="mt-4 flex items-center gap-2.5">
-          <button type="button" onClick={handleSave} disabled={pending} className="btn-primary px-5">
-            {pending ? "Saving..." : "Save draft"}
+        <div className="mt-4 flex flex-wrap items-center gap-2">
+          <button type="button" onClick={handleSave} disabled={pending} className="whitespace-nowrap rounded-[10px] bg-[#0D2315] px-4 py-2.5 text-[11.5px] font-semibold text-white transition hover:bg-[#17402A] disabled:opacity-60">
+            {pending ? "Saving..." : scheduledAt ? "Schedule campaign" : "Save draft"}
           </button>
-          <button type="button" onClick={closeComposer} className="btn-secondary px-5">
-            Cancel
+          <button type="button" onClick={handleTest} disabled={testing} className="whitespace-nowrap rounded-[10px] border border-[#DEE8E2] px-3.5 py-2.5 text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#EFF6F2] disabled:opacity-60">
+            {testing ? "Sending…" : "Send test"}
           </button>
+          <button type="button" onClick={closeComposer} className="rounded-[10px] px-3 py-2.5 text-[11.5px] font-semibold text-[#8C9A92] hover:text-[#0D2315]">Cancel</button>
+          <span className="w-full text-[11px] text-[#8C9A92]">Nothing sends until it is approved</span>
         </div>
       </section>
 
@@ -281,15 +317,15 @@ export function CampaignComposer({ templateOptions, planFilterOptions }: Campaig
           <p className="mb-3.5 text-[12.5px] font-semibold text-[#0D2315]">Live preview</p>
           <div className="rounded-[14px] bg-[#F2F7F4] p-3.5">
             <div className="mb-2.5 flex items-center gap-2">
-              <div className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-[7px] bg-[#0D2315] font-[var(--font-display)] text-[9px] font-bold text-white">N</div>
+              <div className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-[8px] bg-[#0D2315] font-[var(--font-display)] text-[9px] font-bold text-white">{platformName.charAt(0).toUpperCase()}</div>
               <div>
-                <div className="text-[11px] font-semibold">Nooria</div>
+                <div className="text-[11px] font-semibold">{platformName}</div>
                 <div className="text-[9.5px] text-[#8C9A92]">{channel === "EMAIL" ? "Email · inbox preview" : channel === "SMS" ? "SMS · Termii gateway" : "WhatsApp Business"}</div>
               </div>
             </div>
             <div className="rounded-[10px] bg-white p-3.5 text-[11.5px] leading-relaxed text-[#2F3B34]">
               {subject && channel === "EMAIL" ? <p className="mb-1.5 font-semibold">{subject}</p> : null}
-              {body ? body : <span className="text-[#B4C4BB]">Nothing written yet — start typing in the message composer.</span>}
+              {body ? (channel === "SMS" ? `${smsPrefix}${body}` : body) : <span className="text-[#B4C4BB]">Nothing written yet — start typing in the message composer.</span>}
             </div>
           </div>
         </section>

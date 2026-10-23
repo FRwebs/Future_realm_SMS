@@ -106,7 +106,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
       </h2>
       <p className="mb-[27px] text-[12px] text-[#77857C]">
         {stage === "credentials"
-          ? "Nooria team accounts only. Schools sign in at their own workspace."
+          ? "FutureRealm team accounts only. Schools sign in at their own workspace."
           : "Enter the six-digit code from your authenticator."}
       </p>
 
@@ -127,7 +127,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
                 autoComplete="username"
                 required
                 className={input}
-                placeholder="name@nooria.ng"
+                placeholder="name@futurerealm.sms"
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
               />

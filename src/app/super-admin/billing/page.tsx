@@ -975,14 +975,14 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
       <div className="grid items-start gap-[14px] xl:grid-cols-[1.4fr_1fr]">
         <TableCard
           title="Provider rate card"
-          description="What Nooria pays the provider against what the school pays. The only figure on this tab a school must never see. Super Admin only."
+          description="What FutureRealm pays the provider against what the school pays. The only figure on this tab a school must never see. Super Admin only."
           items={view.rate}
           getRowKey={(item) => item.channel}
           pageSize={false}
           actions={
             <ResourceActionDialog
               triggerLabel="Enter provider costs"
-              title="What the provider charges Nooria"
+              title="What the provider charges FutureRealm"
               description="Per message, in naira. The margin on this card is worked out from these — leave a channel at 0 until you know its cost."
               endpoint="/api/super-admin/platform-policy"
               method="PUT"
@@ -999,14 +999,14 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
           footnote="Email is included in every tier, so it never draws on a wallet. Only SMS and WhatsApp spend credit."
           columns={[
             { key: "channel", header: "Channel", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.channel}</span> },
-            { key: "cost", header: "Cost to Nooria", render: (item) => item.cost },
+            { key: "cost", header: "Cost to FutureRealm", render: (item) => item.cost },
             { key: "price", header: "Price to school", render: (item) => item.price },
             { key: "margin", header: "Margin", render: (item) => pill(item.margin.text, item.margin.tone) }
           ]}
         />
         <ReferenceList
           title="When a balance runs low"
-          sub="The sequence is automatic and the school is told at each step — nobody at Nooria has to notice first."
+          sub="The sequence is automatic and the school is told at each step — nobody at FutureRealm has to notice first."
           items={[
             { label: "Balance reaches the school’s floor", detail: "In-app notice and an email to the school’s owner, once a week while it stays low", pill: "Step 1", tone: "good" },
             { label: "Automatic charge attempted", detail: "If the school turned automatic top-up on, an invoice for its chosen quantity is issued daily — up to three, then it stops rather than retrying forever", pill: "Step 2", tone: "good" },

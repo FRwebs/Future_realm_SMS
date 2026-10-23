@@ -60,7 +60,7 @@ export class PlatformAuthService {
   ): Promise<void> {
     if (!isPlatformRole(user.role)) {
       throw new ForbiddenException(
-        "This sign-in is for Nooria team accounts. Schools sign in at their own workspace.",
+        "This sign-in is for FutureRealm team accounts. Schools sign in at their own workspace.",
       );
     }
     if (!(await this.ipAllowed(ip))) {

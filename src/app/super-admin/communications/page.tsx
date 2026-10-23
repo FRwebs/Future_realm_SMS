@@ -62,6 +62,8 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
   const { tab = "campaigns", compose, campaign: campaignFocus, status: statusFilter, tgroup, tchannel, tstatus } = searchParams ? await searchParams : {};
 
   const campaigns = (await apiGet<SuperAdminCampaignRow[]>("/api/super-admin/communications/campaigns")) ?? [];
+  const identity = await apiGet<{ identity: { platformName: string } }>("/api/super-admin/platform-policy").catch(() => null);
+  const platformName = identity?.identity?.platformName ?? "FutureRealm";
   const sentCampaigns = campaigns.filter((c) => c.status === "SENT" || c.status === "SENDING");
   const recentDeliveryFailures = sentCampaigns.reduce((sum, c) => sum + c.failedCount, 0);
   const templates = (await apiGet<SuperAdminMessageTemplateRow[]>("/api/super-admin/communications/templates")) ?? [];
@@ -97,7 +99,7 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
 
       {tab === "campaigns" ? (
         compose === "1" ? (
-          <CampaignComposer templateOptions={templateOptions} planFilterOptions={planFilterOptions} />
+          <CampaignComposer templateOptions={templateOptions} planFilterOptions={planFilterOptions} platformName={platformName} />
         ) : (
           <CampaignsTab campaigns={campaigns} />
         )
@@ -112,26 +114,49 @@ export default async function SuperAdminCommunicationsPage({ searchParams }: { s
 }
 
 
-function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
+/** The mockup's status words, read from what the campaign has actually done. */
+function campaignState(item: SuperAdminCampaignRow): { label: string; bg: string; fg: string } {
+  const failedAll = (item.status === "SENT" || item.status === "SENDING") && item.recipientCount > 0 && item.deliveredCount === 0 && item.queuedCount === 0 && item.failedCount >= item.recipientCount;
+  if (failedAll) return { label: "Failed", bg: "#FDF3F3", fg: "#B23B3B" };
+  if (item.status === "SENT" || item.status === "SENDING") return { label: item.status === "SENDING" ? "Sending" : "Sent", bg: "#EAF6F0", fg: "#17714F" };
+  if (item.status === "SCHEDULED" || item.status === "APPROVED") return { label: item.scheduledAt ? "Scheduled" : "Approved", bg: "#E7F1FB", fg: "#2B5F8F" };
+  // A draft that was given a date is waiting for someone to approve it; one with no date is still being written.
+  if (item.status === "DRAFT" && item.scheduledAt) return { label: "Awaiting approval", bg: "#FDF6E7", fg: "#8A6410" };
+  return { label: "Draft", bg: "#F1F4F2", fg: "#5C6A62" };
+}
+
+const CHANNEL_LABEL: Record<string, string> = { EMAIL: "Email", SMS: "SMS", WHATSAPP: "WhatsApp", PUSH: "Push", IN_APP: "In-app" };
+
+async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
   const recurring = campaigns.filter((c) => c.recurrence && c.recurrence !== "NONE" && c.status !== "DRAFT");
+  const policy = await apiGet<{ messaging: { disabledTriggers: string[] } }>("/api/super-admin/platform-policy").catch(() => null);
+  const disabled = new Set(policy?.messaging?.disabledTriggers ?? []);
+  const custom = (await apiGet<CustomRule[]>("/api/super-admin/communications/trigger-rules").catch(() => [] as CustomRule[])) ?? [];
+  const rules = [
+    ...TRIGGERS.map((trigger) => ({ name: trigger.label, rule: triggerTiming[trigger.key] ?? "Fires when the event happens", on: !disabled.has(trigger.key) })),
+    ...custom.map((rule) => ({ name: rule.event, rule: rule.condition, on: rule.enabled })),
+    ...recurring.map((c) => ({ name: c.name, rule: `${c.scheduledAt ? `Next ${formatDate(c.scheduledAt)}` : "No date set"} · ${c.recurrence === "WEEKLY" ? "every week" : "every month"}`, on: Boolean(c.approvedBy) }))
+  ];
+  const shown = rules.slice(0, 6);
   return (
-    <div className="grid gap-[14px]">
+    <div className="grid items-start gap-[12.5px] xl:grid-cols-[1.8fr_1fr]">
       <TableCard
         title="Campaigns"
         description="Draft → approve → send. Promotional sends honour opt-outs automatically."
         items={campaigns}
+        pageSize={false}
         emptyState="No campaigns yet — use New campaign above to draft one."
         columns={[
-          { key: "name", header: "Campaign", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11.5px] text-[#8C9A92]">{item.scheduledAt ? `${item.status === "SENT" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.status === "DRAFT" ? "Draft" : formatDate(item.createdAt)}</p></div> },
-          { key: "type", header: "Type", render: (item) => item.type },
-          { key: "channel", header: "Channel", render: (item) => item.channel },
+          { key: "name", header: "Campaign", render: (item) => <div><p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10.5px] text-[#8C9A92]">{item.scheduledAt ? `${item.status === "SENT" || item.status === "SENDING" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.sentAt ? `Sent ${formatDate(item.sentAt)}` : "Draft"}</p></div> },
+          { key: "type", header: "Type", render: (item) => <StatusPill bg={item.type === "PROMOTIONAL" ? "#FDF6E7" : "#E4F1EC"} fg={item.type === "PROMOTIONAL" ? "#8A6410" : "#17604F"} label={item.type === "PROMOTIONAL" ? "Promotional" : "Operational"} /> },
+          { key: "channel", header: "Channel", render: (item) => CHANNEL_LABEL[item.channel] ?? item.channel },
           { key: "audience", header: "Audience", render: (item) => item.recipientCount.toLocaleString() },
-          { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} /> },
+          { key: "status", header: "Status", render: (item) => { const state = campaignState(item); return <StatusPill bg={state.bg} fg={state.fg} label={state.label} />; } },
           {
             key: "actions",
-            header: "Actions",
+            header: "",
             render: (item) => (
-              <ActionMenu triggerLabel={`Actions for ${item.name}`}>
+              <ActionMenu compact triggerLabel={`Actions for ${item.name}`}>
                 {item.status === "DRAFT" ? (
                   <ResourceActionDialog
                     triggerLabel="Approve"
@@ -164,23 +189,33 @@ function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] }) {
         ]}
       />
 
-      <ReferenceList
-        title="Recurring rules"
-        sub="Checked every minute. A scheduled campaign that has not been approved does not send."
-        emptyText="Nothing recurs. In New campaign, set Schedule for and Repeat to make a campaign recur; once approved, the platform sends it by itself and lines up the next run."
-        items={recurring.map((c) => ({
-          label: c.name,
-          detail: `${c.scheduledAt ? `Next ${formatDate(c.scheduledAt)}` : "No date set"} · ${c.recurrence === "WEEKLY" ? "every week" : "every month"}${c.approvedBy ? ` · approved by ${c.approvedBy}` : " · waiting for approval"}`,
-          tone: "teal" as const
-        }))}
-      />
+      <div className="grid gap-[12.5px]">
+        <section className="rounded-[14px] border border-[#DEE8E2] bg-white p-[18px]">
+          <div className="mb-[11px] flex items-center justify-between gap-3">
+            <p className="text-[12.5px] font-semibold text-[#0D2315]">Recurring rules</p>
+            <Link href="/super-admin/communications?tab=triggers" className="text-[11px] font-semibold text-[#12796A] hover:underline">Manage</Link>
+          </div>
+          {shown.length ? shown.map((rule) => (
+            <div key={rule.name} className="flex items-center gap-[10px] border-b border-[#F2F7F4] py-[10px] last:border-b-0">
+              <span aria-label={rule.on ? "On" : "Off"} className="h-[17px] w-[30.5px] flex-none rounded-full p-[2px]" style={{ background: rule.on ? "#12796A" : "#D5E0DA" }}>
+                <span className="block h-[13.5px] w-[13.5px] rounded-full bg-white" style={{ marginLeft: rule.on ? 13.5 : 0 }} />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-[11.5px] font-semibold text-[#0D2315]">{rule.name}</p>
+                <p className="text-[10.5px] text-[#8C9A92]">{rule.rule}</p>
+              </div>
+            </div>
+          )) : <p className="text-[11px] text-[#8C9A92]">Nothing recurs yet.</p>}
+          {rules.length > shown.length ? <p className="mt-2 text-[10.5px] text-[#8C9A92]">{rules.length - shown.length} more under Triggers</p> : null}
+        </section>
 
-      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
-        <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Approval path</h3>
-        <p className="mt-1 text-pretty text-[12.5px] leading-[1.6] text-[#435048]">
-          Operational campaigns require a platform administrator to approve. Promotional campaigns need Super Admin or Marketing Lead sign-off, from someone other than the person who wrote them, and are never sent to students or to anyone who opted out. There is no third-party commercial campaign type in this build — a send to parents on behalf of another organisation isn&apos;t possible in any form.
-        </p>
-      </section>
+        <section className="rounded-[14px] border border-[#E6EEE9] bg-[#F7FAF8] p-[18px]">
+          <h3 className="mb-[7px] text-[11.5px] font-semibold text-[#0D2315]">Approval path</h3>
+          <p className="text-pretty text-[11.5px] leading-[1.6] text-[#435048]">
+            Operational campaigns require Department Lead approval. Promotional campaigns to school staff require Marketing Lead sign-off, from someone other than the person who wrote them. Third-party commercial campaigns to parents cannot be scheduled at all in version 1.0 — the audience builder returns zero recipients for them.
+          </p>
+        </section>
+      </div>
     </div>
   );
 }
