@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, ShieldCheck, UserRound } from "lucide-react";
 
 import { useToast } from "@/components/ui/toast-provider";
+import { wakeApi, useApiState } from "@/lib/api/wake";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 
 function resolveLandingPath(role: string) {
@@ -16,6 +17,7 @@ function resolveLandingPath(role: string) {
 export function LoginForm() {
   const router = useRouter();
   const { showToast } = useToast();
+  const apiState = useApiState();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
@@ -27,11 +29,14 @@ export function LoginForm() {
   /** Where the one-time code went, when it was emailed; null means the authenticator app. */
   const [codeSentTo, setCodeSentTo] = useState<string | null>(null);
 
-  async function attemptLogin(code?: string) {
+  async function attemptLogin(code?: string, retried = false) {
     setPending(true);
     setError(null);
 
     try {
+      // A sign-in sent while the API is still starting would look like a failure. Wait for it to answer (the page has been asking since it
+      // opened), then send it.
+      if (apiState !== "ready") await wakeApi();
       const response = await fetch("/api/v1/auth/login", {
         method: "POST",
         credentials: "include",
@@ -86,6 +91,8 @@ export function LoginForm() {
         router.refresh();
       }, 250);
     } catch {
+      // The connection dropped while the server was waking: ask it to wake once more and send the same sign-in again, once.
+      if (!retried && (await wakeApi()) === "ready") return attemptLogin(code, true);
       const nextError =
         "Unable to reach the server. Please make sure the app is running and try again.";
       setError(nextError);
@@ -237,12 +244,20 @@ export function LoginForm() {
         <span className="text-[12.5px] text-[#435048]">Trust this device for 30 days</span>
       </label>
 
+      {apiState === "waking" || apiState === "unreachable" ? (
+        <p className="mb-3 rounded-[10px] px-[13px] py-[10px] text-[11.5px] leading-[1.5]" role="status" style={{ background: "var(--color-gold-dim)", color: "#6f510c" }}>
+          {apiState === "waking"
+            ? "The server is starting up after a quiet spell — this can take up to a minute. You can sign in now; it will go through as soon as the server is ready."
+            : "The server has not answered yet. You can still try to sign in; if it fails, wait a moment and try again."}
+        </p>
+      ) : null}
+
       <button
         type="submit"
         disabled={pending}
         className="flex h-[46px] w-full items-center justify-center rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
       >
-        {pending ? "Signing in..." : "Sign in"}
+        {pending ? (apiState === "waking" ? "Waiting for the server..." : "Signing in...") : "Sign in"}
       </button>
 
       <div className="my-[22px] flex items-center gap-[10px]">

@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 
+import { WarmApi } from "@/components/layout/warm-api";
 import { ThemeProvider } from "@/components/theme/theme-provider";
 import { ToastProvider } from "@/components/ui/toast-provider";
 
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body className="app-body min-h-screen antialiased">
         <ThemeProvider>
           <ToastProvider>
+            <WarmApi />
             {children}
           </ToastProvider>
         </ThemeProvider>
