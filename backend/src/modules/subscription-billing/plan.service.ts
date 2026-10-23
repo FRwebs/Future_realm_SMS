@@ -52,6 +52,10 @@ const switchSchema = z.object({
   keepCredits: z.coerce.boolean().default(true)
 });
 
+/** A scheduled move to a cheaper tier is a pending downgrade; anything else is not. */
+const statusFor = (from: TierKey, to: TierKey) =>
+  TIERS[to].rate < TIERS[from].rate ? "PENDING_DOWNGRADE" : "ACTIVE";
+
 const KIND = (meta: ReturnType<typeof metaOf>): InvoiceKind => (meta.kind as InvoiceKind) ?? "ONE_OFF";
 
 @Injectable()
@@ -238,8 +242,11 @@ export class PlanService {
     }
     await prisma.schoolSubscription.upsert({
       where: { schoolId },
-      update: { pendingTier: to, pendingFrom: from, switchReason: input.reason, keepCredits: input.keepCredits },
-      create: { schoolId, tier: tierOf(school), pendingTier: to, pendingFrom: from, switchReason: input.reason, keepCredits: input.keepCredits }
+      // `status` has to move with the schedule, or the subscription claims a
+      // pending downgrade it no longer has — the midterm service and the
+      // rollover worker both read it.
+      update: { pendingTier: to, pendingFrom: from, switchReason: input.reason, keepCredits: input.keepCredits, status: statusFor(tierOf(school), to) },
+      create: { schoolId, tier: tierOf(school), pendingTier: to, pendingFrom: from, switchReason: input.reason, keepCredits: input.keepCredits, status: statusFor(tierOf(school), to) }
     });
     await this.audit(session, schoolId, { summary: `Plan switch scheduled · ${TIERS[tierOf(school)].name} to ${TIERS[to].name}`, from: from.toISOString(), reason: input.reason });
     const roll = await rollCount(schoolId);
@@ -247,7 +254,7 @@ export class PlanService {
   }
 
   async cancelSwitch(session: SessionPayload) {
-    await prisma.schoolSubscription.updateMany({ where: { schoolId: session.schoolId }, data: { pendingTier: null, pendingFrom: null, switchReason: null } });
+    await prisma.schoolSubscription.updateMany({ where: { schoolId: session.schoolId }, data: { pendingTier: null, pendingFrom: null, switchReason: null, status: "ACTIVE" } });
     await this.audit(session, session.schoolId, { summary: "Plan switch withdrawn" });
     return {};
   }
