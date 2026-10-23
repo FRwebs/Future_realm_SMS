@@ -2772,7 +2772,7 @@ export interface SuperAdminComputationMonitoring {
 }
 
 export interface SuperAdminConfigLibrary {
-  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean; lifecycle: string; owner: string | null; effectiveFrom: string | null; language: string | null; basedOn: string | null; validatedAt: string | null; schools: number }>;
+  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean; lifecycle: string; owner: string | null; effectiveFrom: string | null; language: string | null; layers: CurriculumLayers | null; basedOn: string | null; validatedAt: string | null; schools: number }>;
   gradingScales: Array<{ id: string; name: string; version: string; lifecycle: string; gradeBands: unknown; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean; schools: number; problems: string[] }>;
   reportCards: Array<{ id: string; name: string; layout: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean }>;
   mappings: Array<{ id: string; template: string; fromVersion: string; toVersion: string; fromSubject: string; toSubject: string; relationship: string; at: string }>;
@@ -2910,3 +2910,20 @@ export interface SuperAdminPartnerCommissionSummaryRow {
   totalCommissionPending: number;
   statements: SuperAdminPartnerCommissionStatement[];
 }
+
+/** Layers 2, 4 and 6 of a curriculum template, as authored in the Back Office library. */
+export type CurriculumLayers = {
+  default?: boolean;
+  levels?: Array<{ stage: string; classes: string; exam: string; notes: string }>;
+  levelsFootnote?: string;
+  junior?: { range: string; subjects: Array<{ name: string; category: string; note?: string }> };
+  senior?: { sub: string; core: Array<{ name: string; applies: string }>; streams: Array<{ stream: string; subjects: string }>; footnote?: string };
+  trade?: { sub: string; subjects: string[]; footnote?: string };
+  primary?: { lower: string[]; upper: string[] };
+  assessment?: {
+    components: Array<{ code: string; name: string; max: number; weight: number }>;
+    termAggregation: string; sessionAggregation: string; position: string; ties: string; absent: string;
+    frameworks: Array<{ name: string; components: string; weights: string; typicalUser: string }>;
+  };
+  reportCard?: { layout: string };
+};
