@@ -68,6 +68,14 @@ export class TeacherEmploymentService {
       daysLeft: Math.max(0, Math.round((row.endsOn.getTime() - now.getTime()) / 86_400_000)), reason: row.reason
     });
     const absentToday = absences.some((row) => iso(row.day) === iso(now));
+    /* the registers this person has marked on cover: a day's register for an arm, or a period of a subject — each counted once */
+    const dailyWindows = mine.filter((row) => !row.subjectId).map((row) => ({ classId: row.classId, date: { gte: row.startsOn, lte: row.endsOn } }));
+    const periodWindows = mine.filter((row) => row.subjectId).map((row) => ({ classId: row.classId, subjectId: row.subjectId as string, date: { gte: row.startsOn, lte: row.endsOn } }));
+    const [dailyMarks, periodMarks] = await Promise.all([
+      dailyWindows.length ? prisma.studentAttendance.findMany({ where: { schoolId, markedById: session.userId, subjectId: null, OR: dailyWindows }, select: { classId: true, date: true } }) : Promise.resolve([]),
+      periodWindows.length ? prisma.periodRegister.findMany({ where: { schoolId, markedById: session.userId, OR: periodWindows }, select: { classId: true, date: true, periodNumber: true } }) : Promise.resolve([])
+    ]);
+    const registersOnCover = new Set(dailyMarks.map((mark) => `d:${mark.classId}:${iso(mark.date)}`)).size + new Set(periodMarks.map((mark) => `p:${mark.classId}:${iso(mark.date)}:${mark.periodNumber}`)).size;
     /* what stops being owned the moment they are away */
     const registers = me.formArms.map((arm) => arm.name);
     const periodsToCome = await prisma.timetableEntry.count({ where: { schoolId, teacherId: session.userId, termId: me.term?.id ?? "-", dayOfWeek: new Date(now).getUTCDay(), isPublished: true } });
@@ -80,7 +88,7 @@ export class TeacherEmploymentService {
       covering: mine.map(shape),
       coveredFor: owned.map(shape),
       absences: absences.map((row) => ({ day: iso(row.day), label: dateLabel(row.day), reason: row.reason, covers: owned.filter((cover) => cover.startsOn <= row.day && cover.endsOn >= row.day).map((cover) => ({ by: nameOf.get(cover.coverUserId) ?? "", what: cover.subjectId ? subjectOf.get(cover.subjectId) ?? "" : "Daily register", arm: armOf.get(cover.classId) ?? "" })) })),
-      absentToday, today: { label: dateLabel(now), periods: periodsToCome, registers }
+      absentToday, registersOnCover, today: { label: dateLabel(now), periods: periodsToCome, registers }
     };
   }
 
@@ -215,6 +223,34 @@ export class TeacherEmploymentService {
       }),
       docTypes: DOC_TYPES
     };
+  }
+
+  /**
+   * Send the chosen payslips to the person's own address. Only their own can be named, and only to the email on their own record — a payslip
+   * is not something to forward on request. It goes as the plain lines of the payslip (the platform makes no PDF of one), queued like any
+   * other email the school sends.
+   */
+  async emailPayslips(session: SessionPayload, body: unknown) {
+    const input = z.object({ ids: z.union([z.string(), z.array(z.string())]).transform((value) => (Array.isArray(value) ? value : [value])).refine((value) => value.length > 0 && value.length <= 24, "Choose between one and twenty-four payslips.") }).parse(body);
+    const view = await this.payslips(session);
+    const chosen = view.slips.filter((slip) => input.ids.includes(slip.id));
+    if (chosen.length !== new Set(input.ids).size) throw new ForbiddenException("One of those is not a payslip of yours.");
+    const money = (value: number) => `₦${value.toLocaleString("en-NG", { maximumFractionDigits: 2 })}`;
+    const text = chosen.map((slip) => [
+      `${slip.label} — ${view.person.name} (${view.person.employeeNo})`,
+      `Gross ${money(slip.gross)}`,
+      ...slip.allowances.map((line) => `  + ${line.name} ${money(line.amount)}`),
+      ...slip.deductions.map((line) => `  − ${line.name} ${money(line.amount)}`),
+      `Net pay ${money(slip.net)}${slip.status === "PAID" ? "" : " (approved, not yet paid)"}`
+    ].join("\n")).join("\n\n");
+    await prisma.notificationLog.create({
+      data: {
+        schoolId: session.schoolId, userId: session.userId, channel: "EMAIL", status: "QUEUED", sentAt: new Date(), title: `${view.school} · ${chosen.length === 1 ? `Payslip for ${chosen[0]!.label}` : `${chosen.length} payslips`}`,
+        body: `${text}\n\nThis is a record of what you were paid, not a payment instruction.`, metadata: { email: view.person.email, kind: "PAYSLIP" }
+      }
+    });
+    await prisma.auditLog.create({ data: { schoolId: session.schoolId, actorId: session.userId, action: AuditAction.EXPORT, entityType: "PayrollItem", entityId: chosen[0]!.id, metadata: { summary: `Payslips emailed to self · ${chosen.length}` } } });
+    return { sent: chosen.length, to: view.person.email };
   }
 
   async addDocument(session: SessionPayload, body: unknown) {

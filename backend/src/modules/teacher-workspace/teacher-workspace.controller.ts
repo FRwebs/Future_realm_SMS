@@ -485,6 +485,12 @@ export class TeacherWorkspaceController {
     return ok(this.employment.payslips(session));
   }
 
+  @Post("employment/payslips/email")
+  @UseGuards(CsrfGuard)
+  emailPayslips(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return ok(this.employment.emailPayslips(session, body), "Payslips queued for your inbox");
+  }
+
   @Post("employment/documents")
   @UseGuards(CsrfGuard)
   addDocument(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
