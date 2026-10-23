@@ -521,6 +521,32 @@ export type RosterStudent = {
   status: "PRESENT" | "ABSENT" | "LATE" | "EXCUSED" | null;
 };
 
+/**
+ * Changing tier part-way through a term.
+ *
+ * A panel rather than a drawer because the figure moves as the school picks a
+ * tier: the headcount, the days left and the prorated difference are read back
+ * from the server for the tier under the cursor, and a drawer carries authored
+ * data that cannot be recomputed. The school should see the number it will be
+ * charged before it agrees to it.
+ */
+export type TierChangePanel = {
+  type: "tierChange";
+  title: string;
+  sub?: string;
+  meta?: string;
+  /** The tier the school is on now. */
+  currentTier: { key: string; name: string; rate: number };
+  /** Everything it could move to, dearest and cheapest alike. */
+  tiers: Array<{ key: string; name: string; rate: number }>;
+  /** Where a preview is read from, and where a change is posted. */
+  previewEndpoint: string;
+  changeEndpoint: string;
+  /** A change already scheduled, which a new choice replaces. */
+  pending?: { tier: string; from: string | null } | null;
+  cancelEndpoint?: string;
+};
+
 export type RosterPanel = {
   type: "roster";
   title: string;
@@ -897,6 +923,7 @@ export type Panel =
     }
   | RosterPanel
   | ScoreSheetPanel
+  | TierChangePanel
   | MarkerPanel
   | DayStripPanel
   | SheetEntryPanel

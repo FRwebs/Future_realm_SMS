@@ -47,6 +47,8 @@ const SheetEntry = dynamic(() => import("@/components/modules/sheet-entry").then
 const RegisterMarker = dynamic(() => import("@/components/modules/register-marker").then((loaded) => loaded.RegisterMarker));
 const ScoreGrid = dynamic(() => import("@/components/modules/score-grid").then((loaded) => loaded.ScoreGrid));
 
+const TierChange = dynamic(() => import("@/components/modules/tier-change").then((loaded) => loaded.TierChange));
+
 /** Opens whatever a trigger points at: a route, or a drawer over this page. */
 type OpenDrawer = (spec: DrawerSpec) => void;
 
@@ -2144,6 +2146,10 @@ function FormPanel({
 
   if (panel.type === "roster") {
     return <AttendanceGrid panel={panel} />;
+  }
+
+  if (panel.type === "tierChange") {
+    return <TierChange panel={panel} />;
   }
 
   if (panel.type === "scores") {

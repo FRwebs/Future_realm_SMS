@@ -883,6 +883,7 @@ model School {
   studentChangeRequests         StudentChangeRequest[]
   schoolSubscription            SchoolSubscription?
   creditLedger                  CreditLedger[]
+  billingLedger                 BillingLedger[]
   fullExports                   FullExport[]
   closureRequests               AccountClosureRequest[]
   authorisedCollectors          AuthorisedCollector[]
@@ -1024,6 +1025,7 @@ model Term {
   staffAppraisals               StaffAppraisal[]
 
   @@unique([academicSessionId, order])
+  billingLedger        BillingLedger[]
 }
 
 model Department {
@@ -5860,9 +5862,47 @@ model SchoolSubscription {
   dpoEmail           String?
   hosting            String?
   retentionDays      Int?
+  /// ACTIVE, PENDING_DOWNGRADE or CANCELLED. A downgrade is scheduled rather than
+  /// applied, so the subscription says so for the rest of the paid term.
+  status             String    @default("ACTIVE")
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
   school             School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  ledger             BillingLedger[]
+}
+
+/// Why a school was charged what it was charged.
+///
+/// A per-head termly bill is arithmetic, but a mid-term upgrade is arithmetic
+/// against a roll that moves — so the count and the part-term ratio used are
+/// frozen here at the moment of the calculation. Without that an invoice cannot
+/// be explained six months later, only recomputed against a roll that has since
+/// changed.
+model BillingLedger {
+  id             String    @id @default(cuid())
+  schoolId       String
+  subscriptionId String?
+  /// The term the charge belongs to. Null only if the school has no term yet.
+  termId         String?
+  /// INITIAL_BILL, MIDTERM_UPGRADE_CHARGE or MIDTERM_DOWNGRADE_CREDIT.
+  type           String
+  amount         Decimal   @db.Decimal(12, 2)
+  /// The active roll at the instant of calculation, never recounted afterwards.
+  studentCountSnapshot Int
+  /// The part of the term that was still unused, as a fraction. 1 for a full term.
+  prorationRatio Decimal   @default(1) @db.Decimal(6, 5)
+  fromTier       String?
+  toTier         String?
+  description    String
+  invoiceId      String?
+  createdById    String?
+  createdAt      DateTime  @default(now())
+  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subscription   SchoolSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  term           Term?     @relation(fields: [termId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, termId])
+  @@index([schoolId, createdAt])
 }
 
 /// Every credit that came onto, or went off, the messaging wallet — so a balance can be explained.

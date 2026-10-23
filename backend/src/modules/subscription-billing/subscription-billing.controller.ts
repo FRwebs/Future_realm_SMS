@@ -11,6 +11,7 @@ import { SessionGuard } from "../../auth/session.guard";
 import { AccountService } from "./account.service";
 import { ok } from "./billing.shared";
 import { CreditsService } from "./credits.service";
+import { MidtermService } from "./midterm.service";
 import { PaymentsService } from "./payments.service";
 import { PlanService } from "./plan.service";
 
@@ -26,7 +27,8 @@ export class SubscriptionBillingController {
     private readonly plan: PlanService,
     private readonly credits: CreditsService,
     private readonly account: AccountService,
-    private readonly payments: PaymentsService
+    private readonly payments: PaymentsService,
+    private readonly midterm: MidtermService
   ) {}
 
   /* plan */
@@ -49,6 +51,34 @@ export class SubscriptionBillingController {
   @RequirePermission("subscription-billing.plan.edit")
   switchPlan(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     return ok(this.plan.switchPlan(session, body), "Plan switch scheduled.");
+  }
+
+  /* mid-term tier changes — an upgrade lands now, a downgrade lands next term */
+
+  @Get("plan/midterm/preview")
+  @RequirePermission("subscription-billing.plan.view")
+  previewMidterm(@CurrentSession() session: SessionPayload, @Query("tier") tier: string) {
+    return ok(this.midterm.preview(session, tier ?? ""));
+  }
+
+  @Post("plan/midterm/change")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subscription-billing.plan.edit")
+  changeMidterm(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
+    return ok(this.midterm.execute(session, body), "Plan change recorded.");
+  }
+
+  @Post("plan/midterm/cancel-downgrade")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("subscription-billing.plan.edit")
+  cancelDowngrade(@CurrentSession() session: SessionPayload) {
+    return ok(this.midterm.cancelPendingDowngrade(session), "Scheduled change withdrawn.");
+  }
+
+  @Get("plan/ledger")
+  @RequirePermission("subscription-billing.plan.view")
+  billingLedger(@CurrentSession() session: SessionPayload) {
+    return ok(this.midterm.ledger(session));
   }
 
   @Post("plan/switch/cancel")
