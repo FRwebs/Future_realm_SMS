@@ -5,12 +5,14 @@ import { RolesManagementModule } from "../roles-management/roles-management.modu
 import { AccountService } from "./account.service";
 import { CreditsService } from "./credits.service";
 import { PaymentsService } from "./payments.service";
+import { MidtermService } from "./midterm.service";
 import { PlanService } from "./plan.service";
+import { TermRolloverService } from "./rollover.service";
 import { SubscriptionBillingController } from "./subscription-billing.controller";
 
 @Module({
   imports: [RolesManagementModule],
   controllers: [SubscriptionBillingController],
-  providers: [PlanService, CreditsService, AccountService, PaymentsService, PermissionsGuard]
+  providers: [PlanService, CreditsService, AccountService, PaymentsService, MidtermService, TermRolloverService, PermissionsGuard]
 })
 export class SubscriptionBillingModule {}

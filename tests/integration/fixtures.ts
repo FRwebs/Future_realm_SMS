@@ -44,7 +44,14 @@ async function userByRole(schoolId: string, role: string) {
 export async function seededFixtures(): Promise<SeededFixtures> {
   if (cached) return cached;
 
-  const school = await prisma.school.findFirst({ select: { id: true } });
+  // The oldest school is the seeded one. Without an order this picked whichever
+  // row the scan happened to return first, and the platform's own tenant row
+  // (`futurerealm-platform`, no principal) made the whole suite fail depending
+  // on unrelated writes.
+  const school = await prisma.school.findFirst({
+    select: { id: true },
+    orderBy: { createdAt: "asc" },
+  });
   if (!school) throw new Error("The database has no school. Run `npm run prisma:seed`.");
 
   const term = await prisma.term.findFirst({

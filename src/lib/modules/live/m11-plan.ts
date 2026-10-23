@@ -75,6 +75,22 @@ export function planTab(p: Plan, credits: Credits): TabContent {
       ...(open.some((invoice) => invoice.state === "Overdue") ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "An invoice is overdue", body: `${plural(open.filter((invoice) => invoice.state === "Overdue").length, "invoice")} past its due date. Pay it to keep the account current.`, acts: payNow ? [{ label: "Pay by card", drawer: payNow }] : [] }] }] : []),
       { cols: "1fr", panels: [{ type: "kpi", title: p.term?.label ?? "This term", per: 6, cards }] },
       { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: p.next ? `Renew for ${p.next.label.split(" ").slice(0, 2).join(" ")}` : "Renew for next term", primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, foot: "A plan is billed per student per term, counted at term start. A child who joins mid-term is billed at the next renewal, never retrospectively." }] },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "tierChange" as const,
+            title: "Change plan",
+            sub: "Moving up takes effect at once and is charged only for the rest of this term. Moving down waits for next term, because this one is paid for.",
+            currentTier: { key: p.tier, name: p.tierName, rate: p.rate },
+            tiers: p.comparison.tiers.map((tier) => ({ key: tier.key, name: tier.name, rate: tier.rate })),
+            previewEndpoint: `${SB}/plan/midterm/preview`,
+            changeEndpoint: `${SB}/plan/midterm/change`,
+            cancelEndpoint: `${SB}/plan/midterm/cancel-downgrade`,
+            pending: p.pending ? { tier: p.pending.tier, from: p.pending.from } : null,
+          },
+        ],
+      },
       { cols: "1fr", panels: [{ type: "facts", title: "Value this session", tag: "Presented without spin", tagTone: "neutral", sub: "What the school actually got for what it pays each term, read off the work done.", meta: "This session · to date", per: 5, facts: p.value }] },
       {
         cols: "1.05fr 1fr",
