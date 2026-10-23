@@ -101,6 +101,7 @@ function sentTab(v: SentView, me: TeacherWorkspaceView, details: Map<string, Sen
     }
     return {
       keywords: `${message.name} ${channelName(message.channel)} ${state.label}`,
+      at: message.at,
       cells: [
         { kind: "text", text: title, strong: true }, { kind: "text", text: stamp(message.at) }, { kind: "text", text: String(message.recipients), mono: true }, { kind: "text", text: channelName(message.channel) },
         { kind: "text", text: message.credits ? `${message.credits} credit${message.credits === 1 ? "" : "s"}` : "Free" }, { kind: "pill", label: state.label, tone: state.tone },
@@ -128,6 +129,7 @@ function sentTab(v: SentView, me: TeacherWorkspaceView, details: Map<string, Sen
         filters: [
           { label: "Channel", value: "All", options: ["All", "In-app", "SMS", "Email"], column: 3 },
           { label: "State", value: "All", options: ["All", "Delivered", "Sending", "Held for approval", "Returned"], column: 5 },
+          { label: "Sent", value: "Any date", options: ["Any date", "Last 24 hours", "Last 7 days", "Last 30 days"], since: { "Last 24 hours": 24, "Last 7 days": 168, "Last 30 days": 720 } },
         ],
         head: ["Message", "Sent", "To", "Channel", "Cost", "State", ""], rows, per: 10, noRowOpen: true, empty: "You have not sent a message yet.", foot: "A send above the school’s threshold is held for approval before it leaves.",
       }]),

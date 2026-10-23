@@ -6,7 +6,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { apiGet } from "@/lib/api/server";
 import { ttlCached } from "@/lib/cache/ttl";
 import { getPlatformSync } from "@/lib/api/platform-sync";
-import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
+import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { teacherNavigation } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
@@ -39,11 +39,12 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [permissions, schoolContext, platformSync, teacher] = await Promise.all([
+  const [permissions, schoolContext, platformSync, teacher, navBadges] = await Promise.all([
     getServerPermissions(session).catch(() => getDefaultPermissionsForRole(session.role)),
     getCachedSchoolContext(session.schoolId),
     getPlatformSync(session.schoolId),
     getTeacherWorkspace(session.role, session.schoolId),
+    getTeacherBadges(session.role, session.schoolId),
   ]);
 
   // A teacher's rail: the teacher modules their permissions reach, in the teacher's order, then anything more the school has granted.
@@ -59,6 +60,7 @@ export default async function AppLayout({
       currentTermName={schoolContext?.currentTerm}
       platformSync={platformSync}
       teacherRail={teacherRail}
+      navBadges={teacherRail ? navBadges : undefined}
     >
       {children}
     </DashboardShell>

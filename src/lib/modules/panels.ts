@@ -270,6 +270,8 @@ export type TableRow = {
   href?: string;
   /** Free text the table's search box matches against, beyond the visible cells. */
   keywords?: string;
+  /** When this row happened (an ISO time), for a filter that narrows by how recent it is. */
+  at?: string;
 };
 
 /**
@@ -302,6 +304,11 @@ export type TableFilter = {
    * "Assigned" is inside "Unassigned". The row's `keywords` carry the token.
    */
   match?: Record<string, string>;
+  /**
+   * Option → hours. Choosing one keeps the rows whose `at` falls within that many hours of now: "Last 7 days". The first option ("Any date")
+   * is the "all" one and never narrows.
+   */
+  since?: Record<string, number>;
   /** Option → page. Choosing one goes there instead of narrowing the rows: a switcher between arms or subjects. */
   go?: Record<string, string>;
 };

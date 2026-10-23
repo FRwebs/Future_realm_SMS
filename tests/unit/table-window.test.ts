@@ -85,4 +85,19 @@ describe("a long table is sent one page at a time", () => {
     expect(csv[1]).toBe('"Child 000 (ADM0)","JSS 2","Never activated"');
     expect(narrowed.window.exportUrl).toContain("/table-export?m=student-records&t=registry&r=0&p=1");
   });
+
+  it("narrows by how recent a row is, and leaves a row with no time out of any recent window", () => {
+    const hoursAgo = (hours: number) => new Date(Date.now() - hours * 3_600_000).toISOString();
+    const rows: TableRow[] = [
+      { id: "now", at: hoursAgo(1), cells: [{ kind: "text", text: "a" }] },
+      { id: "week", at: hoursAgo(100), cells: [{ kind: "text", text: "b" }] },
+      { id: "old", at: hoursAgo(2000), cells: [{ kind: "text", text: "c" }] },
+      { id: "undated", cells: [{ kind: "text", text: "d" }] },
+    ];
+    const filters = [{ label: "Sent", value: "Any date", options: ["Any date", "Last 24 hours", "Last 7 days"], since: { "Last 24 hours": 24, "Last 7 days": 168 } }];
+    const ids = (chosen: string) => narrowRows(rows, filters, "", { Sent: chosen }).map((row) => row.id);
+    expect(ids("Any date")).toEqual(["now", "week", "old", "undated"]);
+    expect(ids("Last 24 hours")).toEqual(["now"]);
+    expect(ids("Last 7 days")).toEqual(["now", "week"]);
+  });
 });

@@ -208,6 +208,12 @@ export class TeacherWorkspaceController {
     return ok(this.families.logCall(session, id, body));
   }
 
+  /** The counts the teacher's rail shows beside a module. */
+  @Get("badges")
+  badges(@CurrentSession() session: SessionPayload) {
+    return ok(this.families.waiting(session));
+  }
+
   /** What the families of the class have sent in. */
   @Get("submissions")
   mySubmissions(@CurrentSession() session: SessionPayload) {
