@@ -115,7 +115,7 @@ const downloadInvoiceDrawer: DrawerSpec = {
 
 const planTab: TabContent = {
   title: "Plan",
-  desc: "What Nooria costs at your current roll, and how to change it.",
+  desc: "What FutureRealm costs at your current roll, and how to change it.",
   primary: { label: "Renew for next term", drawer: renewDrawer },
   launchers: [
     { label: "Switch plan", drawer: switchPlanDrawer },
@@ -129,7 +129,7 @@ const planTab: TabContent = {
           ["Outstanding", naira(planRenewal.outstanding), `Settled ${planRenewal.settled}`],
           ["Next due", planRenewal.date, `${planRenewal.term}`],
           ["Cards on file", "Mastercard ·4417 · Verve ·2210"],
-          ["Where details are entered", "On the payment page", "Nooria never holds a card number"],
+          ["Where details are entered", "On the payment page", "FutureRealm never holds a card number"],
         ],
       },
     },
@@ -615,7 +615,7 @@ const accountTab: TabContent = {
           ["School contact", "Adaeze Nwosu · Principal"],
           ["Account Manager", "Tobi Aluko · Future Realm"],
           ["Future Realm communications", "Product and billing only", "Marketing declined"],
-          ["Web address", "graceacademy.nooria.app", "Issued 11 March 2024"],
+          ["Web address", "graceacademy.futurerealm.app", "Issued 11 March 2024"],
           ["Change of address", "By request", "Old links keep working for 12 months"],
         ],
       },
@@ -659,7 +659,7 @@ const accountTab: TabContent = {
               mode: "commit",
               kicker: "F11 · full export",
               title: "Generate a full-school export",
-              sub: "Everything this school holds, in a format it can read without Nooria.",
+              sub: "Everything this school holds, in a format it can read without FutureRealm.",
               facts: [
                 ["What is in it", "Students, staff, attendance, scores, cards, fees, messages, audit"],
                 ["Format", "CSV per table, plus PDFs of every issued report card"],

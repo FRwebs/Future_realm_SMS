@@ -374,7 +374,7 @@ async function RegistrationsTab({ partnerOptions }: { partnerOptions: Array<{ la
         toolbar={
           <ResourceActionDialog triggerLabel="Log a dispute" title="Log an attribution dispute" description="Two parties claiming one school. It is decided against the registration record by a Super Admin." endpoint="/api/super-admin/partners/disputes" method="POST" variant="secondary" submitLabel="Log dispute" fields={[
           { name: "schoolId", label: "School in dispute", type: "select", required: true, options: schoolOptions },
-          { name: "raisedBy", label: "Raised by", required: true, placeholder: "Partner or Nooria direct" },
+          { name: "raisedBy", label: "Raised by", required: true, placeholder: "Partner or FutureRealm direct" },
           { name: "counterparty", label: "Counterparty", required: true },
           { name: "grounds", label: "Grounds as stated", type: "textarea", required: true },
           { name: "evidence", label: "Evidence references", type: "textarea" }

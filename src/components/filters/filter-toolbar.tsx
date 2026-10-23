@@ -67,42 +67,25 @@ export function FilterToolbar({
   const otherControls = controls.filter((control) => control !== searchControl);
 
   return (
-    <form ref={formRef} action={action} className="flex flex-wrap items-center gap-2 border-b border-[#EDF3EF] bg-[#FCFDFC] px-5 py-[14px]">
+    <form ref={formRef} action={action} className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
       {Object.entries(hidden ?? {}).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
       {searchControl ? (
-        <div className="flex w-full items-center gap-[9px] rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 sm:min-w-[262px] sm:w-auto">
-          <Search className="h-[14px] w-[14px] shrink-0 text-[#9FB8A7]" />
+        <div className="flex w-full items-center gap-2 rounded-[10px] border border-[#DEE8E2] bg-white px-[11px] py-2 sm:w-auto sm:min-w-[236px]">
+          <Search className="h-[12.5px] w-[12.5px] shrink-0 text-[#9FB8A7]" strokeWidth={1.9} />
           <input
             name={searchControl.name}
             type="search"
             placeholder={searchControl.type === "search" ? searchControl.placeholder : undefined}
             defaultValue={searchControl.defaultValue}
             onChange={submitDebounced}
-            className="w-full min-w-0 bg-transparent text-[12.5px] text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
+            className="w-full min-w-0 bg-transparent text-[11.5px] text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
           />
         </div>
       ) : null}
 
       {otherControls.map((control) => {
         if (control.type === "select") {
-          return (
-            <div key={control.name} className="relative">
-              <select
-                name={control.name}
-                defaultValue={control.defaultValue ?? ""}
-                onChange={submitNow}
-                aria-label={control.label}
-                className="peer appearance-none rounded-[9px] border border-[#DEE8E2] bg-white py-2 pl-[11px] pr-8 text-[12px] font-semibold text-[#0D2315] focus:outline-none"
-              >
-                {control.options.map((option) => (
-                  <option key={option.value} value={option.value}>
-                    {control.label}: {option.label}
-                  </option>
-                ))}
-              </select>
-              <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-[13px] w-[13px] -translate-y-1/2 text-[#9FB8A7] peer-focus:text-[#12796A]" />
-            </div>
-          );
+          return <FilterPill key={control.name} control={control} onChange={submitNow} />;
         }
 
         if (control.type === "date") {
@@ -114,7 +97,7 @@ export function FilterToolbar({
               aria-label={control.label}
               defaultValue={control.defaultValue}
               onChange={submitNow}
-              className="rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] text-[12.5px] font-semibold text-[#0D2315] focus:outline-none"
+              className="rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] focus:outline-none"
             />
           );
         }
@@ -127,7 +110,7 @@ export function FilterToolbar({
             placeholder={control.placeholder ?? control.label}
             defaultValue={control.defaultValue}
             onChange={submitDebounced}
-            className="w-36 rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] text-[12.5px] font-semibold text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
+            className="w-36 rounded-[9px] border border-[#DEE8E2] bg-white px-[10px] py-[7px] text-[11px] font-semibold text-[#0D2315] placeholder:text-[#9FB8A7] focus:outline-none"
           />
         );
       })}
@@ -135,7 +118,7 @@ export function FilterToolbar({
       <div className="ml-auto flex flex-wrap items-center gap-2">
         <SavedViews action={action} />
         {typeof resultCount === "number" ? (
-          <span className="text-[11.5px] text-[#8C9A92]">
+          <span className="text-[10.5px] text-[#8C9A92]">
             {resultCount.toLocaleString()} shown
           </span>
         ) : null}
@@ -216,11 +199,11 @@ function SavedViews({ action }: { action: Route | string }) {
       <button
         type="button"
         onClick={() => setOpen((value) => !value)}
-        className="inline-flex items-center gap-[7px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[9px] text-[12.5px] font-semibold text-[#435048]"
+        className="inline-flex items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[6.5px] text-[11px] font-semibold text-[#435048] transition hover:border-[#BFDCD1] hover:bg-[#EFF6F2]"
         aria-haspopup="true"
         aria-expanded={open}
       >
-        <Filter className="h-3.5 w-3.5" />
+        <Filter className="h-[12px] w-[12px] text-[#12796A]" strokeWidth={2} />
         Saved views
         {views.length ? (
           <span className="ml-0.5 rounded-full bg-[var(--color-bg-subtle)] px-[6px] text-[10.5px] font-bold text-[#435048]">{views.length}</span>
@@ -279,6 +262,33 @@ function SavedViews({ action }: { action: Route | string }) {
           </div>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/**
+ * The mockup's filter chip: the label in grey, the chosen value in bold, a chevron — one pill, not a select box that repeats its own
+ * label in every option. A real native select sits invisibly over it, so keyboard and touch work as they always did.
+ */
+function FilterPill({ control, onChange }: { control: Extract<FilterControl, { type: "select" }>; onChange: () => void }) {
+  const [value, setValue] = useState(control.defaultValue ?? "");
+  const shown = control.options.find((option) => option.value === value)?.label ?? control.options[0]?.label ?? "";
+  return (
+    <div className="relative flex items-center gap-[6.5px] rounded-[10px] border border-[#DEE8E2] bg-white px-[11px] py-2 text-[11.5px] text-[#0D2315] transition hover:border-[#BFDCD1] hover:bg-[#F8FCFA]">
+      <span className="text-[#8C9A92]">{control.label}</span>
+      <span className="font-semibold">{shown}</span>
+      <ChevronDown className="h-[11px] w-[11px] shrink-0 text-[#9FB8A7]" strokeWidth={2.4} />
+      <select
+        name={control.name}
+        value={value}
+        onChange={(event) => { setValue(event.target.value); onChange(); }}
+        aria-label={control.label}
+        className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+      >
+        {control.options.map((option) => (
+          <option key={option.value} value={option.value}>{option.label}</option>
+        ))}
+      </select>
     </div>
   );
 }

@@ -299,7 +299,7 @@ export class PartnerEngineService {
 
   private async reattribute(session: SessionPayload, schoolId: string, toPartnerId: string | null, toDirect: boolean) {
     const deal = await prisma.partnerDeal.findFirst({ where: { schoolId, status: { in: ["CONVERTED", "COMMISSION_PAID"] } } });
-    if (!toPartnerId && !toDirect) throw new BadRequestException("Say who the school belongs to: another partner, or Nooria direct.");
+    if (!toPartnerId && !toDirect) throw new BadRequestException("Say who the school belongs to: another partner, or FutureRealm direct.");
     const voided = await prisma.partnerAccrual.updateMany({ where: { schoolId, statementId: null, voidedAt: null }, data: { voidedAt: new Date(), voidReason: "Attribution disputed and upheld" } });
     const settled = await prisma.partnerAccrual.findMany({ where: { schoolId, voidedAt: null, kind: "ACCRUAL", statement: { status: "SETTLED" } } });
     let adjusted = 0;
@@ -320,7 +320,7 @@ export class PartnerEngineService {
         if (result.accrued) accrued += 1;
       }
     }
-    return { voided: voided.count, adjusted, reaccrued: accrued, to: toDirect ? "Nooria direct" : toPartnerId };
+    return { voided: voided.count, adjusted, reaccrued: accrued, to: toDirect ? "FutureRealm direct" : toPartnerId };
   }
 
   /* ───────────────────────── performance ───────────────────────── */

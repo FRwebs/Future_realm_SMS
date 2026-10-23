@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
-import { Download, Send, Shuffle, User, X } from "lucide-react";
+import { Columns3, Download, Send, Shuffle, User, X } from "lucide-react";
 
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { Modal } from "@/components/ui/modal";
@@ -39,6 +39,19 @@ function initials(name: string) {
     .toUpperCase();
   return letters || "—";
 }
+
+/** The columns a person can switch off, in the order the table draws them. School and the row menu are always there. */
+const COLUMNS = [
+  { key: "school", label: "School", fixed: true },
+  { key: "tier", label: "Tier" },
+  { key: "status", label: "Status" },
+  { key: "risk", label: "Risk assessment" },
+  { key: "students", label: "Students" },
+  { key: "login", label: "Last login" },
+  { key: "renewal", label: "Trial / renewal" },
+  { key: "churn", label: "Churn risk" },
+  { key: "actions", label: "", fixed: true }
+] as const;
 
 function riskColor(value: number) {
   if (value >= 60) return "var(--color-danger)";
@@ -135,6 +148,17 @@ function downloadCsv(schools: SuperAdminSchoolRow[]) {
 export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { schools: SuperAdminSchoolRow[]; filterBar?: ReactNode; paginationFooter?: ReactNode }) {
   const { showToast } = useToast();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [columnsOpen, setColumnsOpen] = useState(false);
+  useEffect(() => {
+    try { setHidden(JSON.parse(window.localStorage.getItem("fr:schools:hidden") ?? "[]") as string[]); } catch { /* storage may be blocked */ }
+  }, []);
+  const hide = (key: string) => (hidden.includes(key) ? "hidden" : "");
+  const toggleColumn = (key: string) => {
+    const next = hidden.includes(key) ? hidden.filter((item) => item !== key) : [...hidden, key];
+    setHidden(next);
+    try { window.localStorage.setItem("fr:schools:hidden", JSON.stringify(next)); } catch { /* best effort */ }
+  };
   const [statusDialogOpen, setStatusDialogOpen] = useState(false);
   const [managerDialogOpen, setManagerDialogOpen] = useState(false);
   const [notifyDialogOpen, setNotifyDialogOpen] = useState(false);
@@ -376,6 +400,23 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             </div>
 
             <div className="hidden md:block">
+              <div className="relative flex justify-end border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[9px]">
+                <button type="button" onClick={() => setColumnsOpen((open) => !open)} aria-haspopup="true" aria-expanded={columnsOpen} className="inline-flex items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[6.5px] text-[11px] font-semibold text-[#435048] transition hover:border-[#BFDCD1] hover:bg-[#EFF6F2]">
+                  <Columns3 className="h-[12px] w-[12px] text-[#12796A]" strokeWidth={2} />
+                  Columns{hidden.length ? ` · ${COLUMNS.filter((column) => !("fixed" in column)).length - hidden.length} of ${COLUMNS.filter((column) => !("fixed" in column)).length}` : ""}
+                </button>
+                {columnsOpen ? (
+                  <div className="absolute right-[18px] top-[calc(100%-2px)] z-20 w-[210px] rounded-[12px] border border-[#DEE8E2] bg-white p-2 shadow-[0_18px_40px_-18px_rgba(13,35,21,0.45)]">
+                    {COLUMNS.filter((column) => !("fixed" in column)).map((column) => (
+                      <label key={column.key} className="flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-[7px] text-[11.5px] text-[#435048] hover:bg-[#F1F8F4]">
+                        <input type="checkbox" checked={!hidden.includes(column.key)} onChange={() => toggleColumn(column.key)} className="h-[13px] w-[13px] accent-[#0D2315]" />
+                        {column.label}
+                      </label>
+                    ))}
+                    <p className="px-2 pb-1 pt-1.5 text-[10px] text-[#9FB8A7]">Remembered on this device</p>
+                  </div>
+                ) : null}
+              </div>
               <div className="overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="min-w-full border-separate border-spacing-0">
@@ -399,12 +440,12 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             ) : null}
                           </button>
                         </th>
-                        {["School", "Tier", "Status", "Risk assessment", "Students", "Last login", "Trial / renewal", "Churn risk", ""].map((header) => (
+                        {COLUMNS.map(({ key, label }) => (
                           <th
-                            key={header}
-                            className="border-b border-[#E6EEE9] px-[16px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]"
+                            key={key}
+                            className={`border-b border-[#E6EEE9] px-[16px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92] ${hide(key)}`}
                           >
-                            {header}
+                            {label}
                           </th>
                         ))}
                       </tr>
@@ -437,50 +478,48 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <Link href={`/super-admin/schools/${school.id}`} className="group flex items-center gap-3">
-                                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[9px] bg-[#F0F5F2] font-[var(--font-heading)] text-[11px] font-bold text-[#0D2315]">
+                                <span className="flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-[var(--font-heading)] text-[11px] font-bold text-[#0D2315]">
                                   {initials(school.name)}
                                 </span>
                                 <span className="min-w-0">
-                                  <span className="block truncate font-semibold text-[#0D2315] group-hover:text-[#12796A]">
+                                  <span className="block truncate text-[11.5px] font-semibold text-[#0D2315] group-hover:text-[#12796A]">
                                     {school.name}
                                   </span>
-                                  <span className="block truncate text-[10px] text-[#77857C]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</span>
+                                  <span className="block truncate text-[10.5px] text-[#8C9A92]">{[school.city, school.state].filter(Boolean).join(", ") || "—"}</span>
                                 </span>
                               </Link>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">{planLabel(school.plan)}</td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("tier")}`}>{planLabel(school.plan)}</td>
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("status")}`}>
                               <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>
                                 {tone.label}
                               </span>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("risk")}`}>
                               <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                                 {verification.label}
                               </span>
-                              <div className="mt-[2.5px] max-w-[160px] truncate text-[9.5px] text-[#9fb8a7]">{verification.note}</div>
+                              <div className="mt-[2.5px] max-w-[160px] truncate text-[9.5px] text-[#9FB8A7]">{verification.note}</div>
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top font-[var(--font-mono)]">{school.totalStudents.toLocaleString()}</td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("students")}`}>{school.totalStudents.toLocaleString()}</td>
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("login")}`}>
                               {school.lastSuccessfulLoginAt ? (
                                 formatDate(school.lastSuccessfulLoginAt)
                               ) : (
                                 <span className="font-semibold text-[#B23B3B]">Never</span>
                               )}
                             </td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">{renewalText(school)}</td>
-                            <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
-                              <div className="w-16">
-                                <span className="text-[11.5px] font-bold font-[var(--font-mono)]" style={{ color: riskColor(risk) }}>
-                                  {risk}%
-                                </span>
-                                <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-[#EDF3EF]">
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("renewal")}`}>{renewalText(school)}</td>
+                            <td className={`border-b border-[#F2F7F4] px-[16px] py-3 align-top ${hide("churn")}`}>
+                              <div className="flex items-center gap-[7px]">
+                                <div className="h-[4px] w-[26px] flex-none overflow-hidden rounded-full bg-[#EDF3EF]">
                                   <div className="h-full rounded-full" style={{ width: `${risk}%`, background: riskColor(risk) }} />
                                 </div>
+                                <span className="text-[11px] font-semibold" style={{ color: riskColor(risk) }}>{risk}</span>
                               </div>
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
-                              <ActionMenu triggerLabel={`Actions for ${school.name}`}>
+                              <ActionMenu compact triggerLabel={`Actions for ${school.name}`}>
                                 <ActionMenuLink href="/super-admin/schools?tab=approval-queue">Review verification</ActionMenuLink>
                                 <ActionMenuLink href={`/super-admin/schools/${school.id}`}>Open school profile</ActionMenuLink>
                                 <button

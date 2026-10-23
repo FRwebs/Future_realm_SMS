@@ -275,7 +275,7 @@ const syncTab: TabContent = {
               title: "Granting persistent storage",
               sub: "So the browser cannot clear work that has not synced yet.",
               readOnly: true,
-              readOnlyNote: "This is a browser setting. Nooria cannot grant it for you.",
+              readOnlyNote: "This is a browser setting. FutureRealm cannot grant it for you.",
               facts: [
                 ["Holding now", "42 MB of 120 MB available", "Comfortable"],
                 [

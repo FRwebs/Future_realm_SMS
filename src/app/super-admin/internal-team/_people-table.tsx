@@ -193,7 +193,7 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
               { label: "Level", value: profile?.level ?? "Not set" },
               { label: "Data scope", value: profile?.scopeStates.length ? `${profile.scopeStates.join(", ")} — School Accounts shows only these states` : "The whole platform" },
               { label: "Employment", value: profile?.isExternal ? "External" : "Employee" },
-              { label: "Joined Nooria", value: formatDate(member.createdAt) },
+              { label: "Joined FutureRealm", value: formatDate(member.createdAt) },
               { label: "Last sign-in", value: member.lastLoginAt ? formatDate(member.lastLoginAt) : "Never" }
             ]}
           />
@@ -205,7 +205,7 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
               { label: "Sessions", value: "See the Security Settings tab for this account's active sessions" },
               { label: "What they currently own", value: owns ? `${owns.openTickets} open ticket${owns.openTickets === 1 ? "" : "s"} · ${owns.schools} school${owns.schools === 1 ? "" : "s"} managed · ${owns.openFlags} open flag${owns.openFlags === 1 ? "" : "s"}` : "Loading…" },
               { label: "Known devices", value: devices ? (devices.length ? devices.map((d) => `${d.device.slice(0, 60)} — ${d.count} sign-in${d.count === 1 ? "" : "s"}, last ${formatDate(d.last)}`).join(" · ") : "None on record") : "Loading…" },
-              { label: "Password", value: "Set by them — nobody at Nooria can read it", bold: true }
+              { label: "Password", value: "Set by them — nobody at FutureRealm can read it", bold: true }
             ]}
           />
 

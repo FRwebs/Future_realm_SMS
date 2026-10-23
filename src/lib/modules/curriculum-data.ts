@@ -4,7 +4,7 @@ import type { PanelFact } from "@/lib/modules/panels";
  * Curricula, and the six layers each one is made of.
  *
  * A curriculum is a thing a school owns, so the module lists them. Number 1 is
- * the one Nooria ships from the back office; the school can adopt it, copy it,
+ * the one FutureRealm ships from the back office; the school can adopt it, copy it,
  * or build its own. The six layers are the inside of a curriculum — they belong
  * in the builder that opens when you create or edit one, never on the list.
  */
@@ -13,7 +13,7 @@ export type CurriculumState = "In force" | "Available" | "Draft" | "Archived";
 
 export type Curriculum = {
   name: string;
-  origin: "Nooria library" | "This school";
+  origin: "FutureRealm library" | "This school";
   sub: string;
   basis: string;
   state: CurriculumState;
@@ -24,8 +24,8 @@ export type Curriculum = {
 
 export const curricula: Curriculum[] = [
   {
-    name: "Nooria Standard · Nigerian Secondary",
-    origin: "Nooria library",
+    name: "FutureRealm Standard · Nigerian Secondary",
+    origin: "FutureRealm library",
     sub: "Shipped and maintained by Future Realm",
     basis: "Nigeria · WAEC / NECO",
     state: "Available",
@@ -35,15 +35,15 @@ export const curricula: Curriculum[] = [
   {
     name: "Grace International · Senior & Junior",
     origin: "This school",
-    sub: "Copied from the Nooria standard, then adjusted",
+    sub: "Copied from the FutureRealm standard, then adjusted",
     basis: "Nigeria · WAEC-aligned",
     state: "In force",
     arms: "42",
     layers: "6",
   },
   {
-    name: "Nooria Standard · Nigerian Primary",
-    origin: "Nooria library",
+    name: "FutureRealm Standard · Nigerian Primary",
+    origin: "FutureRealm library",
     sub: "For Nursery and Primary stages",
     basis: "Nigeria · UBE",
     state: "Available",
@@ -52,7 +52,7 @@ export const curricula: Curriculum[] = [
   },
   {
     name: "Cambridge Lower Secondary",
-    origin: "Nooria library",
+    origin: "FutureRealm library",
     sub: "International curriculum",
     basis: "International · Cambridge",
     state: "Available",

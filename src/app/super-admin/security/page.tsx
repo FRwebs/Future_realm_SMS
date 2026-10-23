@@ -839,7 +839,7 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
     <div className="grid gap-[14px]">
       <TableCard
         title="Data subject request routes"
-        description="The school is the controller for its own students and guardians; Nooria is the processor. Erasure is never executed unilaterally, without the controller's instruction."
+        description="The school is the controller for its own students and guardians; FutureRealm is the processor. Erasure is never executed unilaterally, without the controller's instruction."
         items={[
           { type: "Access", route: "Through the school", role: "We assist the school in producing it; the school responds." },
           { type: "Correction", route: "Through the school", role: "Handled through the school's own record-correction tools, with its own authorisation." },
@@ -941,7 +941,7 @@ function RequestsTab({ privacy, schools }: { privacy: PrivacyRequest[]; schools:
           }
         ]}
         emptyState="No data privacy requests recorded."
-        footnote="A request created here is tracked to completion with a real day-count — but nothing automatically acknowledges or routes a request that arrives directly at Nooria; a Super Admin has to create the record by hand."
+        footnote="A request created here is tracked to completion with a real day-count — but nothing automatically acknowledges or routes a request that arrives directly at FutureRealm; a Super Admin has to create the record by hand."
       />
     </div>
   );

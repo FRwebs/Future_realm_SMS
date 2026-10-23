@@ -253,7 +253,7 @@ const insightsTab: TabContent = {
               [
                 "Expense",
                 "Entered by the school",
-                "Nooria does not see a supplier invoice, so it never pretends to compute one",
+                "FutureRealm does not see a supplier invoice, so it never pretends to compute one",
               ],
               ["What this view is", "The two placed side by side", "It is not an accounting system"],
             ],
@@ -323,7 +323,7 @@ const fullExportDrawer: DrawerSpec = {
   mode: "commit",
   kicker: "F11 · full export",
   title: "Full-school export",
-  sub: "Everything this school holds, in a format it can read without Nooria.",
+  sub: "Everything this school holds, in a format it can read without FutureRealm.",
   facts: [
     ["Datasets", String(datasets.length), datasets.map((entry) => entry.name).join(" · ")],
     ["Format", "Excel and CSV", "Never PDF as a data export"],
@@ -834,7 +834,7 @@ const complianceTab: TabContent = {
           ["Redaction", "Names replaced with admission numbers where allowed", "Switchable per return"],
           ["Archived", "Every generated copy is kept", "With who generated it, when, and from what data"],
           ["Amendment", "A refiling is versioned", "The original is never overwritten"],
-          ["Local rules", "Set per country and per body", "Nooria ships templates for each jurisdiction it operates in"],
+          ["Local rules", "Set per country and per body", "FutureRealm ships templates for each jurisdiction it operates in"],
           ["Reminders", "At 60, 30 and 7 days", "To the responsible officer and the Principal"],
           ["Evidence pack", "One indexed PDF of everything", "For an inspection visit"],
         ],

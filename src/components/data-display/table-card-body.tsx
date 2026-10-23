@@ -51,6 +51,8 @@ export interface PreparedRow {
 interface TableCardBodyProps {
   title: string;
   description?: ReactNode;
+  /** Who may change it, or a count — small text to the right of the actions. */
+  meta?: ReactNode;
   emptyState: string;
   actions?: ReactNode;
   /** Optional filter/search toolbar rendered between the header and the table body. */
@@ -468,7 +470,7 @@ function StandardTableCardBody({
 export function TableCardBody(props: TableCardBodyProps) {
   const portal = usePortalType();
   if (portal === "super_admin") {
-    return <BackOfficeTable title={props.title} description={props.description} emptyState={props.emptyState} actions={props.actions} filterBar={props.filterBar} footnote={props.footnote} columns={props.columns} rows={props.rows} pageSize={props.pageSize} selection={props.selection} />;
+    return <BackOfficeTable title={props.title} description={props.description} meta={props.meta} emptyState={props.emptyState} actions={props.actions} filterBar={props.filterBar} footnote={props.footnote} columns={props.columns} rows={props.rows} pageSize={props.pageSize} selection={props.selection} />;
   }
   return <StandardTableCardBody {...props} />;
 }

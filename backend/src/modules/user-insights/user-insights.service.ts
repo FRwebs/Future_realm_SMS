@@ -58,7 +58,7 @@ export class UserInsightsService {
     };
   }
 
-  /* ───────────────────────── teachers using Nooria on their own ───────────────────────── */
+  /* ───────────────────────── teachers using FutureRealm on their own ───────────────────────── */
 
   private async independents() {
     const workspaces = await prisma.school.findMany({ where: { isPersonalWorkspace: true, deletedAt: null }, select: { id: true, createdAt: true, users: { where: { deletedAt: null }, select: { id: true, firstName: true, lastName: true, email: true, phone: true, city: true, country: true, jobTitle: true, role: true, lastLoginAt: true } } } });

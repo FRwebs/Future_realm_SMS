@@ -1261,3 +1261,35 @@ a:focus-visible,
     background: #fff !important;
   }
 }
+
+
+/* The Back Office draws every status pill the way its mockup does: 10px, bold, 2.5px by 8px. Pills are made in many places as
+   rounded-full + font-bold + 11px, so the rule reads that shape rather than needing each one to be touched. */
+[data-portal="super_admin"] [class*="rounded-full"][class*="font-bold"][class*="text-[11px]"] {
+  font-size: 10px;
+  padding: 2.5px 8px;
+}
+
+
+/* The Back Office row menu: 11.5px items, 8px by 10px, a pale hover — the mockup's menu, whatever the item is made of
+   (a link, a button, or a dialog trigger). */
+.fr-rowmenu a,
+.fr-rowmenu button {
+  padding: 8px 10px;
+  border-radius: 9px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #435048;
+}
+.fr-rowmenu a:hover,
+.fr-rowmenu button:hover {
+  background: #F4F8F6;
+  color: #0D2315;
+}
+.fr-rowmenu [class*="text-[var(--color-danger)]"] {
+  color: #B23B3B;
+}
+.fr-rowmenu [class*="text-[var(--color-danger)]"]:hover {
+  background: #FDF3F3;
+  color: #B23B3B;
+}

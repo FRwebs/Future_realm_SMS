@@ -29,7 +29,7 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
   return (
     <nav
       aria-label={ariaLabel}
-      className="-mx-1 flex items-center gap-[3px] overflow-x-auto border-b border-[var(--color-border-default)] px-1"
+      className="-mx-1 flex items-center gap-[3px] overflow-x-auto border-b border-[#DEE8E2] px-1"
     >
       {items.map((item) => {
         const active = pathname === item.href;
@@ -40,10 +40,10 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
             href={item.href as Route}
             aria-current={active ? "page" : undefined}
             className={cn(
-              "group flex flex-none items-center gap-[7px] whitespace-nowrap border-b-2 px-[13px] py-[9px] text-[11.5px] transition-[color,border-color] duration-150",
+              "group -mb-px flex flex-none items-center gap-[7px] whitespace-nowrap border-b-2 px-[13px] py-[9px] text-[11.5px] transition-[color,border-color] duration-150 hover:border-b-[#BFDCD1] hover:text-[#0D2315]",
               active
-                ? "border-b-[var(--color-accent-primary)] font-semibold text-[var(--color-text-primary)]"
-                : "border-b-transparent font-medium text-[var(--color-text-muted)] hover:border-b-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]",
+                ? "border-b-[#12796A] font-semibold text-[#0D2315]"
+                : "border-b-transparent font-medium text-[#67766D]",
             )}
           >
             <span>{item.label}</span>
@@ -51,9 +51,7 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
               <span
                 className={cn(
                   "rounded-full px-[6px] py-[1.5px] text-[9.5px] font-bold leading-[1.2]",
-                  active
-                    ? "bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]"
-                    : "bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]",
+                  active ? "bg-[#E4F1EC] text-[#17604F]" : "bg-[#F1F4F2] text-[#5C6A62]",
                 )}
               >
                 {item.count}

@@ -26,6 +26,7 @@ import { z } from "zod";
 
 import { hashPassword } from "../../../../src/lib/auth/password";
 import { createSessionToken, SessionPayload } from "../../../../src/lib/auth/session-core";
+import { platformIdentity } from "../../../../src/lib/platform-identity";
 import { prisma } from "../../../../src/lib/db/prisma";
 import type { Role } from "../../../../src/lib/domain/types";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
@@ -51,7 +52,8 @@ const pageSchema = z.object({
   action: z.string().trim().optional(),
   dateFrom: z.coerce.date().optional(),
   dateTo: z.coerce.date().optional(),
-  lastLogin: z.string().trim().optional()
+  lastLogin: z.string().trim().optional(),
+  device: z.string().trim().optional()
 });
 
 const planSchema = z.nativeEnum(SubscriptionPlan);
@@ -405,6 +407,9 @@ const npsSchema = z.object({
 const reportCardTemplateSchema = z.object({
   name: z.string().trim().min(2),
   layout: z.string().trim().min(2),
+  bestFor: z.string().trim().optional(),
+  /** A layout is a draft until it is made live; a draft is not offered to any school. */
+  isActive: z.preprocess((v) => (v === undefined ? undefined : v === true || v === "true"), z.boolean().optional()),
   applicableCurricula: z.array(z.string()).default([]),
   availableToTiers: z.array(z.string()).default([])
 });
@@ -661,7 +666,19 @@ function fillName(key: string, who: { first: string; last: string; school: strin
   if (k === "first_name" || k === "name" || k === "firstname") return who.first;
   if (k === "last_name" || k === "lastname") return who.last;
   if (k === "school" || k === "school_name") return who.school;
+  if (k === "admin_name" || k === "full_name") return `${who.first} ${who.last}`.trim();
   return "";
+}
+
+/** The merge fields a campaign may use — each one is filled in per person at send time, on every channel. */
+export const CAMPAIGN_FIELDS = ["school_name", "first_name", "last_name", "admin_name"] as const;
+
+/** What the sender is called ahead of an SMS, which has no From line of its own. */
+const smsPrefix = () => `${platformIdentity().platformName}: `;
+
+function unknownCampaignFields(body: string): string[] {
+  const found = Array.from(body.matchAll(/{{\s*(\w+)\s*}}/g)).map((m) => m[1]);
+  return Array.from(new Set(found.filter((key) => !(CAMPAIGN_FIELDS as readonly string[]).includes(key.toLowerCase()))));
 }
 
 @Injectable()
@@ -1409,8 +1426,11 @@ export class SuperAdminService {
     status?: string;
     lastLogin?: string;
     search?: string;
+    device?: string;
   }): Prisma.UserWhereInput {
     const roleIn = this.roleFilter(parsed.role);
+    // A device is what a session recorded, so "mobile" and "desktop" are read from those words — any session the person has had.
+    const deviceWords = parsed.device === "MOBILE" ? ["Android", "iOS", "iPhone", "iPad", "Mobile", "tablet"] : parsed.device === "DESKTOP" ? ["Windows", "Mac", "Linux", "Chrome OS"] : [];
     return {
       deletedAt: null,
       school: { deletedAt: null },
@@ -1418,12 +1438,14 @@ export class SuperAdminService {
       ...(parsed.schoolId ? { schoolId: parsed.schoolId } : {}),
       ...(parsed.status ? { isActive: parsed.status.toUpperCase() !== "SUSPENDED" } : {}),
       ...this.lastLoginFilter(parsed.lastLogin),
+      ...(deviceWords.length ? { platformSessions: { some: { OR: deviceWords.map((word) => ({ device: { contains: word, mode: "insensitive" as const } })) } } } : {}),
       ...(parsed.search
         ? {
             OR: [
               { firstName: { contains: parsed.search, mode: "insensitive" } },
               { lastName: { contains: parsed.search, mode: "insensitive" } },
-              { email: { contains: parsed.search, mode: "insensitive" } }
+              { email: { contains: parsed.search, mode: "insensitive" } },
+              { phone: { contains: parsed.search.replace(/\s+/g, ""), mode: "insensitive" } }
             ]
           }
         : {})
@@ -1457,6 +1479,8 @@ export class SuperAdminService {
         schoolName: user.school.name,
         schoolStatus: user.school.status,
         status: user.isActive ? "ACTIVE" : "SUSPENDED",
+        phone: user.phone ?? null,
+        pendingActivation: user.isActive && !user.lastLoginAt,
         lastLoginAt: user.lastLoginAt?.toISOString(),
         createdAt: user.createdAt.toISOString(),
         lastDevice: user.platformSessions[0]?.device ?? null
@@ -3943,12 +3967,14 @@ export class SuperAdminService {
     assertSuperAdmin(session);
     const filter = audienceFilterSchema.parse(payload);
     const where = this.buildAudienceWhere(filter);
-    const [count, sample] = await Promise.all([
+    const [count, sample, schools] = await Promise.all([
       prisma.user.count({ where }),
-      prisma.user.findMany({ where, select: { id: true, firstName: true, lastName: true, email: true, role: true, school: { select: { name: true } } }, take: 10 })
+      prisma.user.findMany({ where, select: { id: true, firstName: true, lastName: true, email: true, role: true, school: { select: { name: true } } }, take: 10 }),
+      prisma.user.findMany({ where, select: { schoolId: true }, distinct: ["schoolId"] })
     ]);
     return this.response({
       recipientCount: count,
+      schoolCount: schools.length,
       sample: sample.map((u) => ({ name: `${u.firstName} ${u.lastName}`, email: u.email, role: u.role, school: u.school.name }))
     });
   }
@@ -3975,7 +4001,11 @@ export class SuperAdminService {
   async createCampaign(session: SessionPayload, payload: unknown) {
     assertSuperAdmin(session);
     const parsed = campaignSchema.parse(payload);
-    if (parsed.channel === "SMS" && parsed.body.length > 160) throw new BadRequestException("SMS messages are limited to 160 characters.");
+    if (parsed.channel === "SMS" && smsPrefix().length + parsed.body.length > 160) throw new BadRequestException(`An SMS is limited to 160 characters, and it opens with “${smsPrefix().trim()}” — ${smsPrefix().length + parsed.body.length} as written.`);
+    if (parsed.channel !== "WHATSAPP") {
+      const unknown = unknownCampaignFields(`${parsed.subject ?? ""} ${parsed.body}`);
+      if (unknown.length) throw new BadRequestException(`${unknown.map((key) => `{{${key}}}`).join(", ")} ${unknown.length === 1 ? "is not a field" : "are not fields"} a campaign can fill in. Use ${CAMPAIGN_FIELDS.map((key) => `{{${key}}}`).join(", ")}.`);
+    }
     if (parsed.channel === "WHATSAPP" && !parsed.templateId) throw new BadRequestException("A WhatsApp campaign is sent from a template Meta has approved. Choose one.");
     if (parsed.templateId) {
       const template = await prisma.messageTemplate.findUnique({ where: { id: parsed.templateId } });
@@ -4009,6 +4039,33 @@ export class SuperAdminService {
     });
     await this.audit(session, "CREATE", "Campaign", campaign.id, { name: parsed.name, type: parsed.type, channel: parsed.channel }, null);
     return this.response({ id: campaign.id, recipientCount }, "Campaign drafted");
+  }
+
+  /**
+   * A test goes to the person composing and to nobody else — their own inbox, their own phone, and their own notifications — so the
+   * words and the merge fields can be read as a recipient would read them before anything is approved.
+   */
+  async testCampaign(session: SessionPayload, payload: unknown) {
+    assertSuperAdmin(session);
+    const input = z.object({ channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]), subject: z.string().trim().optional(), body: z.string().trim().min(3, "Write the message first.") }).parse(payload);
+    const me = await prisma.user.findFirst({ where: { OR: [{ id: session.userId }, { email: session.email }] }, select: { id: true, schoolId: true, email: true, phone: true, firstName: true, lastName: true, school: { select: { name: true } } } });
+    if (!me) throw new NotFoundException("Your account could not be found.");
+    const merge = (text: string) => text.replace(/{{\s*(\w+)\s*}}/g, (_m, key: string) => fillName(key, { first: me.firstName, last: me.lastName, school: me.school.name }));
+    const title = `[Test] ${merge(input.subject?.trim() || "Campaign test")}`;
+    const text = merge(input.body);
+    const sender = platformIdentity().platformName;
+    const now = new Date();
+    const reached: string[] = ["your notifications"];
+    await prisma.notificationLog.create({ data: { schoolId: me.schoolId, userId: me.id, channel: "IN_APP", title, body: text, status: "SENT", sentAt: now, metadata: { from: sender, kind: "CAMPAIGN_TEST" } as Prisma.InputJsonValue } });
+    if (input.channel === "EMAIL" && me.email) {
+      await prisma.notificationLog.create({ data: { schoolId: me.schoolId, userId: me.id, channel: "EMAIL", title, body: text, status: "QUEUED", sentAt: now, metadata: { billing: "PLATFORM", email: me.email, test: true } as Prisma.InputJsonValue } });
+      reached.push(me.email);
+    } else if (input.channel === "SMS" && me.phone) {
+      await prisma.notificationLog.create({ data: { schoolId: me.schoolId, userId: me.id, channel: "SMS", title, body: `${smsPrefix()}${text}`, status: "QUEUED", sentAt: now, metadata: { billing: "PLATFORM", phone: me.phone, test: true } as Prisma.InputJsonValue } });
+      reached.push(me.phone);
+    }
+    const missing = input.channel === "WHATSAPP" ? "A WhatsApp test is not sent — it needs an approved template — so this one went to your notifications only." : (input.channel === "EMAIL" ? !me.email : !me.phone) ? `There is no ${input.channel === "EMAIL" ? "email address" : "phone number"} on your account, so this one went to your notifications only.` : null;
+    return this.response({ reached, note: missing }, `Test sent to ${reached.join(" and ")}`);
   }
 
   async approveCampaign(session: SessionPayload, campaignId: string) {
@@ -4071,11 +4128,25 @@ export class SuperAdminService {
 
     const now = new Date();
     const title = campaign.subject?.trim() || campaign.name;
+    // Every message is personal: the fields in it are filled in for each person, whatever the channel.
+    if (names.size === 0) {
+      const people = await prisma.user.findMany({ where: { id: { in: recipients.map((r) => r.id) } }, select: { id: true, firstName: true, lastName: true, school: { select: { name: true } } } });
+      for (const person of people) names.set(person.id, { first: person.firstName, last: person.lastName, school: person.school.name });
+    }
+    const merge = (text: string, userId: string) => text.replace(/{{\s*(\w+)\s*}}/g, (_m, key: string) => fillName(key, names.get(userId)));
+    const sender = platformIdentity().platformName;
     const rows: Prisma.NotificationLogCreateManyInput[] = recipients.map((user) => {
       const address = campaign.channel === "EMAIL" ? user.email : user.phone;
-      return { schoolId: user.schoolId, userId: user.id, channel: campaign.channel as "EMAIL" | "SMS" | "WHATSAPP", title, body: whatsappTemplate ? whatsappTemplate.body.replace(/{{\s*(\w+)\s*}}/g, (_m, key: string) => fillName(key, names.get(user.id))) : campaign.body, status: address ? "QUEUED" : "FAILED", sentAt: now, metadata: { campaignId, billing: "PLATFORM", ...(whatsappTemplate ? { template: { name: whatsappTemplate.name, language: whatsappTemplate.language, params: whatsappTemplate.placeholders.map((key) => fillName(key, names.get(user.id))) } } : {}), ...(campaign.channel === "EMAIL" ? { email: user.email } : { phone: user.phone }), ...(address ? {} : { error: `No ${campaign.channel === "EMAIL" ? "email address" : "phone number"} on file` }) } as Prisma.InputJsonValue };
+      const text = whatsappTemplate ? merge(whatsappTemplate.body, user.id) : merge(campaign.body, user.id);
+      const body = campaign.channel === "SMS" ? `${smsPrefix()}${text}` : text;
+      return { schoolId: user.schoolId, userId: user.id, channel: campaign.channel as "EMAIL" | "SMS" | "WHATSAPP", title: merge(title, user.id), body, status: address ? "QUEUED" : "FAILED", sentAt: now, metadata: { campaignId, billing: "PLATFORM", ...(whatsappTemplate ? { template: { name: whatsappTemplate.name, language: whatsappTemplate.language, params: whatsappTemplate.placeholders.map((key) => fillName(key, names.get(user.id))) } } : {}), ...(campaign.channel === "EMAIL" ? { email: user.email } : { phone: user.phone }), ...(address ? {} : { error: `No ${campaign.channel === "EMAIL" ? "email address" : "phone number"} on file` }) } as Prisma.InputJsonValue };
     });
     for (let at = 0; at < rows.length; at += 1000) await prisma.notificationLog.createMany({ data: rows.slice(at, at + 1000) });
+
+    // The same message waits in the person's own notifications, so a school that missed the email or SMS still finds it in the app.
+    // It is not counted as a delivery: the channel's own row is what the delivery log and the campaign's figures read.
+    const inApp: Prisma.NotificationLogCreateManyInput[] = recipients.map((user) => ({ schoolId: user.schoolId, userId: user.id, channel: "IN_APP" as const, title: merge(title, user.id), body: merge(campaign.body, user.id), status: "SENT", sentAt: now, metadata: { from: sender, platformCampaign: campaign.name, kind: "PLATFORM_CAMPAIGN" } as Prisma.InputJsonValue }));
+    for (let at = 0; at < inApp.length; at += 1000) await prisma.notificationLog.createMany({ data: inApp.slice(at, at + 1000) });
 
     await prisma.campaign.update({ where: { id: campaignId }, data: { status: "SENT", sentAt: now, lastRunAt: now, recipientCount: recipients.length, deliveredCount: 0, failedCount: rows.filter((row) => row.status === "FAILED").length, openedCount: 0 } });
     if (campaign.recurrence) {
@@ -4850,8 +4921,8 @@ export class SuperAdminService {
     const parsed = reportCardTemplateSchema.parse(payload);
     const template = await prisma.reportCardTemplate.upsert({
       where: { name: parsed.name },
-      create: { name: parsed.name, layoutConfig: { layout: parsed.layout }, applicableCurricula: parsed.applicableCurricula, availableToTiers: parsed.availableToTiers },
-      update: { layoutConfig: { layout: parsed.layout }, applicableCurricula: parsed.applicableCurricula, availableToTiers: parsed.availableToTiers }
+      create: { name: parsed.name, layoutConfig: { layout: parsed.layout, ...(parsed.bestFor ? { bestFor: parsed.bestFor } : {}) }, applicableCurricula: parsed.applicableCurricula, availableToTiers: parsed.availableToTiers, isActive: parsed.isActive ?? false },
+      update: { layoutConfig: { layout: parsed.layout, ...(parsed.bestFor !== undefined ? { bestFor: parsed.bestFor } : {}) }, applicableCurricula: parsed.applicableCurricula, availableToTiers: parsed.availableToTiers, ...(parsed.isActive === undefined ? {} : { isActive: parsed.isActive }) }
     });
     await this.audit(session, "UPDATE", "ReportCardTemplate", template.id, { name: parsed.name }, null);
     return this.response({ id: template.id }, "Report card template saved");

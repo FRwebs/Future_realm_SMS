@@ -82,7 +82,7 @@ function TableCardSkeleton() {
     when the skeleton is replaced by real content. */
 function DetailTabsSkeleton() {
   return (
-    <nav className="flex flex-wrap items-center gap-1 border-b border-[var(--color-border-default)]" aria-hidden>
+    <nav className="mb-[6px] flex items-center gap-[3.5px] overflow-hidden border-b border-[#DEE8E2]" aria-hidden>
       {[
         { width: "w-16", badge: false, active: true },
         { width: "w-28", badge: true, active: false },
@@ -91,9 +91,9 @@ function DetailTabsSkeleton() {
       ].map((tab, index) => (
         <div
           key={index}
-          className={`-mb-px flex items-center gap-2 border-b-2 px-3.5 py-3 ${tab.active ? "border-[var(--color-border-strong)]" : "border-transparent"}`}
+          className={`-mb-px flex flex-none items-center gap-[7px] border-b-2 px-[12.5px] py-[11px] ${tab.active ? "border-[#0D2315]" : "border-transparent"}`}
         >
-          <SkeletonBlock className={`h-[13px] ${tab.width} rounded-full`} />
+          <SkeletonBlock className={`h-[11.5px] ${tab.width} rounded-full`} />
           {tab.badge ? <SkeletonBlock className="h-[15px] w-5 shrink-0 rounded-full" /> : null}
         </div>
       ))}
@@ -147,7 +147,7 @@ function ModuleHeadSkeleton({ label }: { label: string }) {
 function ModuleTabsSkeleton() {
   return (
     <nav
-      className="-mx-1 flex items-center gap-[3px] overflow-hidden border-b border-[var(--color-border-default)] px-1"
+      className="-mx-1 flex items-center gap-[3px] overflow-hidden border-b border-[#DEE8E2] px-1"
       aria-hidden
     >
       {["w-14", "w-24", "w-20", "w-16"].map((width, index) => (
@@ -155,7 +155,7 @@ function ModuleTabsSkeleton() {
           key={width}
           className={`flex flex-none items-center border-b-2 px-[13px] py-[9px] ${
             index === 0
-              ? "border-b-[var(--color-accent-primary)]"
+              ? "border-b-[#12796A]"
               : "border-b-transparent"
           }`}
         >
