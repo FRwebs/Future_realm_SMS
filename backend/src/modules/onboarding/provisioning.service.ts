@@ -128,6 +128,9 @@ export class ProvisioningService implements OnApplicationBootstrap, OnModuleDest
     const fromLibrary = await this.libraryScale(o.country);
     const grading = fromLibrary?.scale ?? (await this.gradingScale(o.country));
     if (fromLibrary) await templates.recordAdoption(schoolId, [{ kind: "GRADING", templateId: fromLibrary.grading.id, templateName: fromLibrary.grading.name, version: fromLibrary.grading.version }, ...(fromLibrary.curriculum ? [{ kind: "CURRICULUM" as const, templateId: fromLibrary.curriculum.id, templateName: fromLibrary.curriculum.name, version: fromLibrary.curriculum.version }] : [])]);
+    // The report card layout offered at setup is the library's live default; the school is recorded against it so the library can say who uses what.
+    const layout = await prisma.reportCardTemplate.findFirst({ where: { status: "LIVE", isActive: true }, orderBy: { createdAt: "asc" }, select: { id: true, name: true, version: true } });
+    if (layout) await templates.recordAdoption(schoolId, [{ kind: "REPORT_CARD", templateId: layout.id, templateName: layout.name, version: String(layout.version) }]);
     await prisma.gradingScheme.create({ data: { schoolId, academicSessionId: session.id, name: grading.name, description: grading.description, isActive: true, passMark: grading.passMark, bands: { create: grading.bands.map((band, index) => ({ schoolId, label: band.label, minScore: band.min, maxScore: band.max, remark: band.remark, order: index + 1 })) } } });
 
     const ladder = ladderFor(o.levels);

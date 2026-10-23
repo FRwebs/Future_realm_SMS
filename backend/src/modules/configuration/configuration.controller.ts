@@ -6,12 +6,13 @@ import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { ConfigurationService } from "./configuration.service";
+import { LibraryAdoptionService } from "./library-adoption.service";
 
 @ApiTags("configuration")
 @Controller("v1/configuration")
 @UseGuards(SessionGuard)
 export class ConfigurationController {
-  constructor(private readonly configurationService: ConfigurationService) {}
+  constructor(private readonly configurationService: ConfigurationService, private readonly libraryAdoption: LibraryAdoptionService) {}
 
   @Get()
   overview(@CurrentSession() session: SessionPayload) {
@@ -23,6 +24,19 @@ export class ConfigurationController {
   @Get("branding-versions")
   brandingVersions(@CurrentSession() session: SessionPayload) {
     return this.configurationService.ok(this.configurationService.brandingVersions(session));
+  }
+
+  /** What this school can adopt from the platform library, for its own country. Declared before `:resource`. */
+  @Get("library")
+  library(@CurrentSession() session: SessionPayload) {
+    return this.configurationService.ok(this.libraryAdoption.available(session));
+  }
+
+  /** Takes a library curriculum — and the grading scale, assessment framework and report card layout the school picks with it. */
+  @Post("library/adopt")
+  @UseGuards(SessionGuard, CsrfGuard)
+  adopt(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
+    return this.configurationService.ok(this.libraryAdoption.adopt(session, body), "Adopted from the library.");
   }
 
   @Get(":resource")

@@ -1023,9 +1023,9 @@ model Term {
   invoices                      Invoice[]
   feeAssignments                FeeAssignment[]
   staffAppraisals               StaffAppraisal[]
+  billingLedger                 BillingLedger[]
 
   @@unique([academicSessionId, order])
-  billingLedger        BillingLedger[]
 }
 
 model Department {
@@ -4881,6 +4881,8 @@ model CurriculumTemplate {
   isActive       Boolean   @default(true)
   /// DRAFT → VALIDATED → ACTIVE → SUPERSEDED (or ARCHIVED). Only ACTIVE is offered to schools.
   lifecycle      String    @default("ACTIVE")
+  /// The day a version stops being the one offered; set when a newer version is published.
+  effectiveTo    DateTime?
   owner          String?
   effectiveFrom  DateTime?
   language       String?
@@ -4898,6 +4900,13 @@ model GradingScaleTemplate {
   name                String
   gradeBands          Json
   passMark            Float     @default(40)
+  /// PERCENTAGE, LETTER, POINTS or DESCRIPTIVE — what the bands measure.
+  scaleType           String    @default("PERCENTAGE")
+  /// The scale new schools are shown first. Only one scale is the default for a given curriculum.
+  isDefault           Boolean   @default(false)
+  creditGrade         String?
+  distinctionGrade    String?
+  failingGrade        String?
   applicableCurricula String[]  @default([])
   isActive            Boolean   @default(true)
   version             String    @default("1.0")
@@ -4911,14 +4920,25 @@ model GradingScaleTemplate {
 }
 
 model ReportCardTemplate {
-  id                  String   @id @default(cuid())
-  name                String   @unique
+  id                  String    @id @default(cuid())
+  name                String    @unique
   layoutConfig        Json?
-  applicableCurricula String[] @default([])
-  availableToTiers    String[] @default([])
-  isActive            Boolean  @default(true)
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  /// DRAFT → IN_REVIEW → LIVE. Nobody publishes their own layout: the reviewer is never the author.
+  status              String    @default("LIVE")
+  /// Which sections print, in print order, and the rules that make this layout different: { sections: {key: boolean}, positionRule, averaging, gradingDisplay, reissue, paper, sides }.
+  spec                Json?
+  version             Int       @default(1)
+  baseOnId            String?
+  authorId            String?
+  reviewerId          String?
+  reviewedAt          DateTime?
+  reviewNotes         String?
+  targetRelease       String?
+  applicableCurricula String[]  @default([])
+  availableToTiers    String[]  @default([])
+  isActive            Boolean   @default(true)
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
 }
 
 model InternalDepartment {
@@ -5833,41 +5853,41 @@ model GuardianContact {
 
 /// How this school is billed: its tier, what it expects to pay, and how it wants to be told. Rows are made when the school first changes something; until then the tier is read from the school's plan.
 model SchoolSubscription {
-  id                 String    @id @default(cuid())
+  id                 String          @id @default(cuid())
   /// A price this school keeps until the date, whatever the plan's price becomes meanwhile.
-  lockedMonthlyPrice Decimal?  @db.Decimal(12, 2)
+  lockedMonthlyPrice Decimal?        @db.Decimal(12, 2)
   priceLockedUntil   DateTime?
   priceLockReason    String?
-  schoolId           String    @unique
-  tier               String    @default("STANDARD")
-  ratePerStudent     Decimal?  @db.Decimal(12, 2)
+  schoolId           String          @unique
+  tier               String          @default("STANDARD")
+  ratePerStudent     Decimal?        @db.Decimal(12, 2)
   baseSms            Int?
   baseWhatsapp       Int?
-  autoRenew          Boolean   @default(false)
-  remindDays         Int       @default(14)
+  autoRenew          Boolean         @default(false)
+  remindDays         Int             @default(14)
   invoiceTo          String?
   receiptEmail       String?
   pendingTier        String?
   pendingFrom        DateTime?
   switchReason       String?
-  keepCredits        Boolean   @default(true)
+  keepCredits        Boolean         @default(true)
   autoTopup          Json?
-  warnAt             Int       @default(2000)
-  warnWho            String    @default("The Bursar")
+  warnAt             Int             @default(2000)
+  warnWho            String          @default("The Bursar")
   billingContact     String?
   billingEmail       String?
   schoolContact      String?
-  productOnly        Boolean   @default(true)
+  productOnly        Boolean         @default(true)
   dpoName            String?
   dpoEmail           String?
   hosting            String?
   retentionDays      Int?
   /// ACTIVE, PENDING_DOWNGRADE or CANCELLED. A downgrade is scheduled rather than
   /// applied, so the subscription says so for the rest of the paid term.
-  status             String    @default("ACTIVE")
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  school             School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  status             String          @default("ACTIVE")
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  school             School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
   ledger             BillingLedger[]
 }
 
@@ -5879,27 +5899,27 @@ model SchoolSubscription {
 /// be explained six months later, only recomputed against a roll that has since
 /// changed.
 model BillingLedger {
-  id             String    @id @default(cuid())
-  schoolId       String
-  subscriptionId String?
+  id                   String              @id @default(cuid())
+  schoolId             String
+  subscriptionId       String?
   /// The term the charge belongs to. Null only if the school has no term yet.
-  termId         String?
+  termId               String?
   /// INITIAL_BILL, MIDTERM_UPGRADE_CHARGE or MIDTERM_DOWNGRADE_CREDIT.
-  type           String
-  amount         Decimal   @db.Decimal(12, 2)
+  type                 String
+  amount               Decimal             @db.Decimal(12, 2)
   /// The active roll at the instant of calculation, never recounted afterwards.
   studentCountSnapshot Int
   /// The part of the term that was still unused, as a fraction. 1 for a full term.
-  prorationRatio Decimal   @default(1) @db.Decimal(6, 5)
-  fromTier       String?
-  toTier         String?
-  description    String
-  invoiceId      String?
-  createdById    String?
-  createdAt      DateTime  @default(now())
-  school         School    @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-  subscription   SchoolSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
-  term           Term?     @relation(fields: [termId], references: [id], onDelete: SetNull)
+  prorationRatio       Decimal             @default(1) @db.Decimal(6, 5)
+  fromTier             String?
+  toTier               String?
+  description          String
+  invoiceId            String?
+  createdById          String?
+  createdAt            DateTime            @default(now())
+  school               School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  subscription         SchoolSubscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  term                 Term?               @relation(fields: [termId], references: [id], onDelete: SetNull)
 
   @@index([schoolId, termId])
   @@index([schoolId, createdAt])
@@ -7423,4 +7443,33 @@ model SubjectComment {
 
   @@unique([termId, subjectId, studentId])
   @@index([schoolId, termId, classId, subjectId])
+}
+
+/// A ready-made assessment framework a school may pick at setup: named components, each with a maximum raw score and a weight that together total 100.
+model AssessmentFrameworkTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  /// [{ code, name, max, weight }]
+  components  Json
+  typicalUser String?
+  isCustom    Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  position    Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+/// One run of the portability tests against a master — what was checked, what each test found, and who ran it.
+model PortabilityRun {
+  id         String   @id @default(cuid())
+  kind       String
+  targetId   String
+  targetName String
+  /// [{ test, state: PASS | PARTIAL | FAIL, note }]
+  results    Json
+  passed     Boolean
+  ranById    String?
+  ranAt      DateTime @default(now())
+
+  @@index([kind, targetId])
 }

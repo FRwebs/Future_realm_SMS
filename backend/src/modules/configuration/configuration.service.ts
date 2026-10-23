@@ -239,7 +239,7 @@ export class ConfigurationService {
     return new Set(await this.rolesManagementService.resolveUserPermissions(session.userId, session.schoolId, session));
   }
 
-  private async assertPermission(session: SessionPayload, resource: string, action: ConfigAction) {
+  async assertPermission(session: SessionPayload, resource: string, action: ConfigAction) {
     const permissions = await this.permissions(session);
     const required = permissionKey(resource, action);
     const manage = permissionKey(resource, "manage");
