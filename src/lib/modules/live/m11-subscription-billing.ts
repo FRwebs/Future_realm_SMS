@@ -1,6 +1,6 @@
 import { accountTab, loadAccount } from "@/lib/modules/live/m11-account";
 import { creditsTab, loadCredits } from "@/lib/modules/live/m11-credits";
-import { loadPlan, planTab } from "@/lib/modules/live/m11-plan";
+import { loadLedger, loadPlan, planTab } from "@/lib/modules/live/m11-plan";
 import type { TabContent } from "@/lib/modules/panels";
 
 /**
@@ -11,8 +11,8 @@ import type { TabContent } from "@/lib/modules/panels";
  */
 export async function subscriptionBillingLiveTab(tabSlug: string): Promise<TabContent | undefined> {
   if (tabSlug === "plan") {
-    const [plan, credits] = await Promise.all([loadPlan(), loadCredits()]);
-    return planTab(plan, credits);
+    const [plan, credits, ledger] = await Promise.all([loadPlan(), loadCredits(), loadLedger()]);
+    return planTab(plan, credits, ledger);
   }
   if (tabSlug === "credits") return creditsTab(await loadCredits());
   if (tabSlug === "account") return accountTab(await loadAccount());

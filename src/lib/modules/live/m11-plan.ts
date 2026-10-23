@@ -3,7 +3,7 @@ import { apiGet } from "@/lib/api/server";
 import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { SB, cancelSwitchDrawer, invoiceDrawer, naira, payOneDrawer, renewDrawer, switchDrawer, topUpDrawer } from "@/lib/modules/live/m11-forms";
 import type { Credits, InvoiceDoc, InvoiceRow, Plan } from "@/lib/modules/live/m11-types";
-import { pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 
 /**
  * Plan: what Future Realm costs at the school's current roll, and how to change it. Priced per
@@ -11,13 +11,39 @@ import { pill, text, type KpiCard, type PanelTone, type TabContent, type TableRo
  */
 
 export const loadPlan = () => apiGet<Plan>(`${SB}/plan`);
+
+/** Why the school was charged what it was charged, and the term it is read against. */
+export type BillingLedger = {
+  term: { label: string; startDate: string; endDate: string } | null;
+  entries: Array<{
+    id: string;
+    type: string;
+    amount: number;
+    studentCountSnapshot: number;
+    prorationRatio: number;
+    fromTier: string | null;
+    toTier: string | null;
+    description: string;
+    term: string | null;
+    createdAt: string;
+  }>;
+};
+export const loadLedger = () =>
+  apiGet<BillingLedger>(`${SB}/plan/ledger`).catch(() => ({ term: null, entries: [] }) as BillingLedger);
 export const loadCreditsForTopUp = () => apiGet<Credits>(`${SB}/credits`);
 export const loadInvoice = (id: string) => apiGet<InvoiceDoc>(`${SB}/invoices/${encodeURIComponent(id)}`);
+
+/** What each ledger row is, in the words a school would use. */
+const LEDGER_KIND: Record<string, string> = {
+  INITIAL_BILL: "Termly plan",
+  MIDTERM_UPGRADE_CHARGE: "Mid-term upgrade",
+  MIDTERM_DOWNGRADE_CREDIT: "Mid-term credit",
+};
 
 export const STATE_TONE: Record<string, PanelTone> = { Paid: "positive", Outstanding: "attention", Overdue: "negative", Active: "positive", Low: "attention", "No wallet": "negative", "Not included": "neutral", Completed: "neutral", ACTIVE: "positive", TRIAL: "attention" };
 const accountTone = (state: string): PanelTone => (state === "Paid and current" ? "positive" : state === "Overdue" ? "negative" : "attention");
 
-export function planTab(p: Plan, credits: Credits): TabContent {
+export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabContent {
   const renew = renewDrawer(p);
   const open = p.invoices.filter((invoice) => invoice.state !== "Paid");
   const latest = p.invoices[0];
@@ -88,9 +114,44 @@ export function planTab(p: Plan, credits: Credits): TabContent {
             changeEndpoint: `${SB}/plan/midterm/change`,
             cancelEndpoint: `${SB}/plan/midterm/cancel-downgrade`,
             pending: p.pending ? { tier: p.pending.tier, from: p.pending.from } : null,
+            term: ledger?.term ?? null,
+            headcount: p.roll,
           },
         ],
       },
+
+      ...(ledger?.entries.length
+        ? [
+            {
+              cols: "1fr",
+              panels: [
+                {
+                  type: "table" as const,
+                  title: "Why you were charged what you were charged",
+                  sub: "Every plan charge, with the roll and the part-term it was worked out from — frozen when the charge was made, never recounted since.",
+                  meta: `${ledger.entries.length} ${ledger.entries.length === 1 ? "entry" : "entries"}`,
+                  head: ["What", "Plan", "Students", "Part of term", "Amount", "When"],
+                  noun: "entry",
+                  nounPlural: "entries",
+                  noRowOpen: true,
+                  per: 8,
+                  rows: ledger.entries.map((entry) => ({
+                    cells: [
+                      nameCell(LEDGER_KIND[entry.type] ?? entry.type, entry.term ?? undefined),
+                      text(entry.fromTier && entry.toTier ? `${entry.fromTier} \u2192 ${entry.toTier}` : (entry.toTier ?? "\u2014")),
+                      text(entry.studentCountSnapshot.toLocaleString("en-NG"), { mono: true }),
+                      text(entry.prorationRatio >= 1 ? "Whole term" : `${Math.round(entry.prorationRatio * 100)}%`, { mono: true }),
+                      text(naira(entry.amount), { strong: true }),
+                      text(dayLong(entry.createdAt)),
+                    ],
+                    keywords: `${entry.description} ${entry.type}`,
+                  })),
+                  foot: "A mid-term upgrade is charged only for the part of the term that was left. The figures here are the ones used at the time.",
+                },
+              ],
+            },
+          ]
+        : []),
       { cols: "1fr", panels: [{ type: "facts", title: "Value this session", tag: "Presented without spin", tagTone: "neutral", sub: "What the school actually got for what it pays each term, read off the work done.", meta: "This session · to date", per: 5, facts: p.value }] },
       {
         cols: "1.05fr 1fr",

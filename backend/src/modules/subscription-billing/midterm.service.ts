@@ -341,8 +341,15 @@ export class MidtermService {
     };
   }
 
-  /** What the school was charged and why — the ledger, newest first. */
+  /**
+   * What the school was charged and why — the ledger, newest first, with the
+   * window it is being read against.
+   *
+   * The term comes back with it because every figure here is "per term": a
+   * ledger without the dates it covers is a list of numbers.
+   */
   async ledger(session: SessionPayload) {
+    const term = await currentTerm(session.schoolId);
     const rows = await prisma.billingLedger.findMany({
       where: { schoolId: session.schoolId },
       orderBy: { createdAt: "desc" },
@@ -350,7 +357,7 @@ export class MidtermService {
       include: { term: { include: { academicSession: true } } },
     });
 
-    return rows.map((row) => ({
+    const entries = rows.map((row) => ({
       id: row.id,
       type: row.type,
       amount: Number(row.amount),
@@ -363,5 +370,16 @@ export class MidtermService {
       invoiceId: row.invoiceId,
       createdAt: row.createdAt.toISOString(),
     }));
+
+    return {
+      term: term
+        ? {
+            label: termLabel(term),
+            startDate: term.startDate.toISOString(),
+            endDate: term.endDate.toISOString(),
+          }
+        : null,
+      entries,
+    };
   }
 }
