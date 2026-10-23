@@ -102,14 +102,14 @@ export class FamilyInboxService {
   async options(session: SessionPayload) {
     const guardian = await this.guardian(session);
     const [types, term] = await Promise.all([submissionTypes(session.schoolId), currentTerm(session.schoolId)]);
-    const children = [];
-    for (const link of guardian.students) {
-      const absent = term ? await prisma.studentAttendance.findMany({ where: { schoolId: session.schoolId, studentId: link.studentId, termId: term.id, subjectId: null, status: "ABSENT" }, orderBy: { date: "desc" }, take: 20, select: { date: true } }) : [];
-      children.push({
-        id: link.studentId, name: fullName(link.student), arm: link.student.currentClass ? armName(link.student.currentClass) : "",
-        absences: absent.map((entry) => ({ date: entry.date.toISOString().slice(0, 10), label: new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(entry.date) })),
-      });
-    }
+    // Every child's absent days in one query, not one per child.
+    const absent = term && guardian.students.length
+      ? await prisma.studentAttendance.findMany({ where: { schoolId: session.schoolId, studentId: { in: guardian.students.map((link) => link.studentId) }, termId: term.id, subjectId: null, status: "ABSENT" }, orderBy: { date: "desc" }, select: { studentId: true, date: true } })
+      : [];
+    const children = guardian.students.map((link) => ({
+      id: link.studentId, name: fullName(link.student), arm: link.student.currentClass ? armName(link.student.currentClass) : "",
+      absences: absent.filter((entry) => entry.studentId === link.studentId).slice(0, 20).map((entry) => ({ date: entry.date.toISOString().slice(0, 10), label: new Intl.DateTimeFormat("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }).format(entry.date) })),
+    }));
     return { children, types: types.filter((type) => type.accepted && FAMILY_TYPES.includes(type.name)).map((type) => ({ name: type.name, target: type.target })) };
   }
 

@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from "@nestjs/common";
 import { NestFactory } from "@nestjs/core";
 import { ExpressAdapter } from "@nestjs/platform-express";
 import { DocumentBuilder, SwaggerModule } from "@nestjs/swagger";
+import compression from "compression";
 import cookieParser from "cookie-parser";
 import express, { Express } from "express";
 
@@ -35,6 +36,16 @@ async function configureNestApp(app: INestApplication) {
     origin: buildAllowedOrigins(),
     credentials: true,
   });
+  // JSON compresses to a fifth of its size, and a page's permissions alone are ~19 KB. Vercel compresses what it serves itself, so it is left
+  // to; anywhere else (Render, Docker) the API does it. Server-sent streams are left alone so they are not held back to fill a buffer.
+  if (process.env.VERCEL !== "1") {
+    app.use(
+      compression({
+        threshold: 1024,
+        filter: (request, response) => (String(response.getHeader("Content-Type") ?? "").includes("text/event-stream") ? false : compression.filter(request, response)),
+      }),
+    );
+  }
   app.use(cookieParser());
   app.setGlobalPrefix("api");
   app.useGlobalPipes(

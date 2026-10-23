@@ -1,31 +1,27 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import type { DrawerSpec } from "@/lib/modules/panels";
-import { AddSubject } from "@/components/modules/lesson-notes/add-subject";
-import { MessageComposer } from "@/components/modules/message-composer";
-import { TrainingCheckout } from "@/components/modules/training-checkout";
-import { LessonPlayer } from "@/components/modules/lesson-player";
-import { NoteDocument, NoteReader } from "@/components/modules/lesson-notes/note-document";
-import { SchemeWorkspace } from "@/components/modules/lesson-notes/scheme-workspace";
-import { StudentWorking } from "@/components/modules/subject-comment";
-import { TeacherSheet } from "@/components/modules/teacher-sheet";
-import { SubjectNotes } from "@/components/modules/lesson-notes/subject-notes";
 
 /**
  * The bespoke surfaces a tab can embed (see the `embed` panel). A component is named on the server, by a string, because a tab's
  * content is data; the name is looked up here.
+ *
+ * Each is its own piece of the page: a tab that embeds the lesson player does not make every other tab carry the lesson player, the
+ * scheme workspace, the sheet and the composer. They still render on the server, so the page arrives whole.
  */
 const registry: Record<string, React.ComponentType<never>> = {
-  "scheme-workspace": SchemeWorkspace as React.ComponentType<never>,
-  "add-subject": AddSubject as React.ComponentType<never>,
-  "subject-notes": SubjectNotes as React.ComponentType<never>,
-  "note-document": NoteDocument as React.ComponentType<never>,
-  "note-reader": NoteReader as React.ComponentType<never>,
-  "teacher-sheet": TeacherSheet as React.ComponentType<never>,
-  "student-working": StudentWorking as React.ComponentType<never>,
-  "lesson-player": LessonPlayer as React.ComponentType<never>,
-  "training-checkout": TrainingCheckout as React.ComponentType<never>,
-  "message-composer": MessageComposer as React.ComponentType<never>,
+  "scheme-workspace": dynamic(() => import("@/components/modules/lesson-notes/scheme-workspace").then((loaded) => loaded.SchemeWorkspace as React.ComponentType<never>)) as React.ComponentType<never>,
+  "add-subject": dynamic(() => import("@/components/modules/lesson-notes/add-subject").then((loaded) => loaded.AddSubject as React.ComponentType<never>)) as React.ComponentType<never>,
+  "subject-notes": dynamic(() => import("@/components/modules/lesson-notes/subject-notes").then((loaded) => loaded.SubjectNotes as React.ComponentType<never>)) as React.ComponentType<never>,
+  "note-document": dynamic(() => import("@/components/modules/lesson-notes/note-document").then((loaded) => loaded.NoteDocument as React.ComponentType<never>)) as React.ComponentType<never>,
+  "note-reader": dynamic(() => import("@/components/modules/lesson-notes/note-document").then((loaded) => loaded.NoteReader as React.ComponentType<never>)) as React.ComponentType<never>,
+  "teacher-sheet": dynamic(() => import("@/components/modules/teacher-sheet").then((loaded) => loaded.TeacherSheet as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-working": dynamic(() => import("@/components/modules/subject-comment").then((loaded) => loaded.StudentWorking as React.ComponentType<never>)) as React.ComponentType<never>,
+  "lesson-player": dynamic(() => import("@/components/modules/lesson-player").then((loaded) => loaded.LessonPlayer as React.ComponentType<never>)) as React.ComponentType<never>,
+  "training-checkout": dynamic(() => import("@/components/modules/training-checkout").then((loaded) => loaded.TrainingCheckout as React.ComponentType<never>)) as React.ComponentType<never>,
+  "message-composer": dynamic(() => import("@/components/modules/message-composer").then((loaded) => loaded.MessageComposer as React.ComponentType<never>)) as React.ComponentType<never>,
 };
 
 export function EmbeddedPanel({ component, props, openDrawer }: { component: string; props: Record<string, unknown>; openDrawer?: (spec: DrawerSpec) => void }) {

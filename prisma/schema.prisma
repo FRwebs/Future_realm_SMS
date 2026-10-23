@@ -1421,6 +1421,10 @@ model User {
   generatedReports                 GeneratedReport[]             @relation("GeneratedReportBy")
   auditExports                     AuditExport[]
   AdminTrustedDevice               AdminTrustedDevice[]
+
+  /// A school's staff by role, and who is active.
+  @@index([schoolId, role])
+  @@index([schoolId, isActive])
 }
 
 model ProfileDocument {
@@ -1681,6 +1685,8 @@ model StudentGuardian {
   guardian   Guardian @relation(fields: [guardianId], references: [id], onDelete: Cascade)
 
   @@id([studentId, guardianId])
+  /// Finding a guardian's children — the primary key only leads with the child.
+  @@index([guardianId])
 }
 
 model MedicalRecord {
@@ -2809,6 +2815,9 @@ model StudentAttendance {
   evidence   Boolean          @default(false)
 
   @@unique([studentId, termId, date, subjectId])
+  /// A register is read by arm and day, and a term's tallies by status: both were scans of the table.
+  @@index([classId, date])
+  @@index([schoolId, termId, status])
 }
 
 model PeriodDefinition {
@@ -3720,6 +3729,10 @@ model NotificationLog {
   metadata Json?
   sentAt   DateTime?
   school   School              @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  /// A person's notifications, newest first; and the carrier worker's queue (what is waiting, on which channel, since when).
+  @@index([schoolId, userId, sentAt])
+  @@index([status, channel, sentAt])
 }
 
 model Campaign {
@@ -5777,6 +5790,8 @@ model GuardianSubmission {
 
   @@index([schoolId, state, createdAt])
   @@index([deliveryId])
+  @@index([guardianId, createdAt])
+  @@index([studentId, state])
 }
 
 /// A consent is recorded against the family, never the child — one guardian answers once.
@@ -6184,6 +6199,7 @@ model MessageDelivery {
   @@index([schoolId, status])
   @@index([campaignId, status])
   @@index([guardianId, createdAt])
+  @@index([logId])
 }
 
 /// A school's own message wording, versioned so a sent message always renders

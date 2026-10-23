@@ -1,7 +1,10 @@
 "use client";
 
+import dynamic from "next/dynamic";
+
 import { EmbeddedPanel } from "@/components/modules/embed-registry";
 import { DevicePanel } from "@/components/modules/device-panel";
+import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modules/panel-extras";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -16,14 +19,8 @@ import {
   X,
 } from "lucide-react";
 
-import { AttendanceGrid } from "@/components/modules/attendance-grid";
-import { DayStrip } from "@/components/modules/day-strip";
-import { SheetEntry } from "@/components/modules/sheet-entry";
-import { RegisterMarker } from "@/components/modules/register-marker";
-import { ScoreGrid } from "@/components/modules/score-grid";
-import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modules/panel-extras";
 import { Field, initialValue } from "@/components/modules/field";
-import { ModuleDrawer } from "@/components/modules/module-drawer";
+import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
   DrawerSpec,
   Panel,
@@ -38,6 +35,16 @@ import type {
 import { readCookie, readableError } from "@/lib/modules/submit";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
+
+/*
+ * The large interactive panels only some tabs draw are fetched when a tab draws one, not with every page: a register marker or a score grid is not part of
+ * what a guardians list waits for. Each still renders on the server, so the page arrives whole.
+ */
+const AttendanceGrid = dynamic(() => import("@/components/modules/attendance-grid").then((loaded) => loaded.AttendanceGrid));
+const DayStrip = dynamic(() => import("@/components/modules/day-strip").then((loaded) => loaded.DayStrip));
+const SheetEntry = dynamic(() => import("@/components/modules/sheet-entry").then((loaded) => loaded.SheetEntry));
+const RegisterMarker = dynamic(() => import("@/components/modules/register-marker").then((loaded) => loaded.RegisterMarker));
+const ScoreGrid = dynamic(() => import("@/components/modules/score-grid").then((loaded) => loaded.ScoreGrid));
 
 /** Opens whatever a trigger points at: a route, or a drawer over this page. */
 type OpenDrawer = (spec: DrawerSpec) => void;

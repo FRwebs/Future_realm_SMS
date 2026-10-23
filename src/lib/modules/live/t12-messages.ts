@@ -45,9 +45,9 @@ export async function teacherMessagesTab(tabSlug: string, me: TeacherWorkspaceVi
   if (tabSlug === "compose") return composeTab(await apiGet<ComposeInfo>(`${API}/messages/compose`), query);
   if (tabSlug === "sent") {
     const view = await apiGet<SentView>(`${API}/messages/sent`);
-    // The most recent sends open with every recipient: what happened to each, who read it, who answered.
+    // The most recent sends open with every recipient (the rest show their summary: eight is what a person looks at): what happened to each, who read it, who answered.
     const details = new Map<string, SentDetail>();
-    await Promise.all(view.rows.slice(0, 20).filter((entry) => entry.status === "SENT").map(async (entry) => {
+    await Promise.all(view.rows.slice(0, 8).filter((entry) => entry.status === "SENT").map(async (entry) => {
       try { details.set(entry.id, await apiGet<SentDetail>(`${API}/messages/sent/${entry.id}`)); } catch { /* the drawer falls back to the summary */ }
     }));
     return sentTab(view, me, details);

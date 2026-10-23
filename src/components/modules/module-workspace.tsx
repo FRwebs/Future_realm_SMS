@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useState } from "react";
 
-import { ModuleDrawer } from "@/components/modules/module-drawer";
+import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
 import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
 import { cn } from "@/lib/utils/cn";
