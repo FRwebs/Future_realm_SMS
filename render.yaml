@@ -98,10 +98,10 @@ services:
     # override here, since a plain string field turned out to be an unreliable way
     # to hand Render a shell command with `&&` in it. If you move this service to a
     # paid plan later, preDeployCommand is the cleaner place for this step.
-    # No health-check route exists yet (everything sits behind app.setGlobalPrefix("api")
-    # with no unauthenticated endpoint) — Render falls back to a plain TCP check on the
-    # port, which is fine. Add a real GET /api/health controller later and set
-    # healthCheckPath here once it exists.
+    # GET /api/health answers without signing in and without touching the database, so a
+    # database blip does not make Render restart a healthy API. (GET /api/health/db also
+    # asks the database one question — for a person or a monitor, not for this setting.)
+    healthCheckPath: /api/health
 
   - type: web
     name: futurerealm-web

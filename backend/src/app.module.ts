@@ -1,6 +1,7 @@
 import { Module } from "@nestjs/common";
 
 import { AuthModule } from "./auth/auth.module";
+import { HealthController } from "./common/health.controller";
 import { AcademicsModule } from "./modules/academics/academics.module";
 import { AdmissionsModule } from "./modules/admissions/admissions.module";
 import { AttendanceModule } from "./modules/attendance/attendance.module";
@@ -80,6 +81,7 @@ import { UserCaseContextModule } from "./modules/user-case-context/user-case-con
 import { WebAddressRegistryModule } from "./modules/web-address-registry/web-address-registry.module";
 
 @Module({
+  controllers: [HealthController],
   imports: [
     AuthModule,
     AuthFeatureModule,
