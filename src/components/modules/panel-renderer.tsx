@@ -8,7 +8,7 @@ import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modu
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import {
   ArrowRight,
   ChevronDown,
@@ -33,6 +33,7 @@ import type {
   Trigger,
 } from "@/lib/modules/panels";
 import { readCookie, readableError } from "@/lib/modules/submit";
+import { narrowRows, tableCsv, csvFileName } from "@/lib/modules/table-query";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
@@ -536,19 +537,17 @@ function Cell({
   );
 }
 
-/** Text a row exposes to the search box and the column filters. */
-function rowText(tableRow: TableRow): string[] {
-  const cells = tableRow.cells.map((cell) => {
-    if (cell.kind === "name") return `${cell.name} ${cell.sub ?? ""}`;
-    if (cell.kind === "pill") return cell.label;
-    if (cell.kind === "bar") return cell.label;
-    if (cell.kind === "action") return "";
-    // A tick is searchable as the word, so "included" narrows a comparison table.
-    if (cell.kind === "mark") return cell.ok ? "Included" : "Not included";
-    if (cell.kind === "node") return cell.plain ?? "";
-    return cell.text;
+/** Which page buttons to draw: all of them while there are few, otherwise the ends and the neighbours of the current one, with gaps. */
+function pageNumbers(count: number, current: number): Array<number | null> {
+  if (count <= 9) return Array.from({ length: count }, (_, index) => index);
+  const wanted = new Set([0, 1, count - 2, count - 1, current - 1, current, current + 1]);
+  const sorted = [...wanted].filter((index) => index >= 0 && index < count).sort((a, b) => a - b);
+  const out: Array<number | null> = [];
+  sorted.forEach((index, position) => {
+    if (position > 0 && index - sorted[position - 1]! > 1) out.push(null);
+    out.push(index);
   });
-  return [...cells, tableRow.keywords ?? ""];
+  return out;
 }
 
 /**
@@ -563,58 +562,49 @@ function TablePanel({
   panel: Extract<Panel, { type: "table" }>;
   openDrawer: OpenDrawer;
 }) {
-  const [query, setQuery] = useState("");
+  // A long table arrives as one page of a longer list (`panel.window`): its search, filters and page live in the address, and the server
+  // does the narrowing. A short table narrows its own rows here, as it always has.
+  const served = panel.window;
+  const [query, setQuery] = useState(served?.q ?? "");
   const [filterValues, setFilterValues] = useState<Record<string, string>>(() =>
-    Object.fromEntries(
+    served?.filters ?? Object.fromEntries(
       (panel.filters ?? []).map((filter) => [filter.label, filter.value]),
     ),
   );
   const [selected, setSelected] = useState<Set<TableRow>>(new Set());
   const [page, setPage] = useState(0);
   const router = useRouter();
+  const [navigating, startNavigation] = useTransition();
+  const typing = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /** Ask the server for a different page, search or filter: the address changes, the page is drawn again. */
+  function ask(patch: Record<string, string | null>) {
+    if (!served) return;
+    // Read from the address bar at the moment of asking: it is what the person is looking at, and it keeps every other control's choice.
+    const next = new URLSearchParams(window.location.search);
+    for (const [key, value] of Object.entries(patch)) {
+      if (value === null || value === "") next.delete(`${served.key}_${key}`);
+      else next.set(`${served.key}_${key}`, value);
+    }
+    setSelected(new Set());
+    startNavigation(() => router.replace(`${window.location.pathname}${next.toString() ? `?${next.toString()}` : ""}` as Route, { scroll: false }));
+  }
+  useEffect(() => () => { if (typing.current) clearTimeout(typing.current); }, []);
 
   const noun = panel.noun ?? "row";
   const nounPlural = panel.nounPlural ?? `${noun}s`;
 
-  const filtered = useMemo(() => {
-    const needle = query.trim().toLowerCase();
-
-    return panel.rows.filter((tableRow) => {
-      const texts = rowText(tableRow);
-
-      if (
-        needle &&
-        !texts.some((value) => value.toLowerCase().includes(needle))
-      ) {
-        return false;
-      }
-
-      for (const filter of panel.filters ?? []) {
-        const chosen = filterValues[filter.label];
-        // The first option is the "all" one and never narrows anything; a switcher between pages never narrows this one.
-        if (!chosen || chosen === filter.options[0] || filter.go) continue;
-
-        const haystack =
-          filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
-        const wanted = (filter.match?.[chosen] ?? chosen).toLowerCase();
-        if (!haystack.some((value) => value.toLowerCase().includes(wanted))) {
-          return false;
-        }
-      }
-
-      return true;
-    });
-  }, [panel.rows, panel.filters, query, filterValues]);
+  const filtered = useMemo(() => (served ? panel.rows : narrowRows(panel.rows, panel.filters, query, filterValues)), [served, panel.rows, panel.filters, query, filterValues]);
 
   // Any list long enough to need it is paged, without each page asking for it.
-  const perPage = panel.per ?? (filtered.length > 12 ? 12 : filtered.length);
-  const pageCount =
-    perPage > 0 ? Math.max(1, Math.ceil(filtered.length / perPage)) : 1;
-  const safePage = Math.min(page, pageCount - 1);
-  const visible =
-    perPage > 0
-      ? filtered.slice(safePage * perPage, safePage * perPage + perPage)
-      : filtered;
+  const perPage = served ? served.size : panel.per ?? (filtered.length > 12 ? 12 : filtered.length);
+  const pageCount = served
+    ? Math.max(1, Math.ceil(served.matched / served.size))
+    : perPage > 0 ? Math.max(1, Math.ceil(filtered.length / perPage)) : 1;
+  const safePage = served ? served.page - 1 : Math.min(page, pageCount - 1);
+  const visible = served || perPage <= 0 ? filtered : filtered.slice(safePage * perPage, safePage * perPage + perPage);
+  const shownTotal = served ? served.matched : filtered.length;
+  const turnTo = (index: number) => (served ? ask({ p: index === 0 ? null : String(index + 1) }) : setPage(index));
 
   const hasControls = Boolean(panel.search || panel.filters?.length);
   const allVisibleSelected = visible.length > 0 && visible.every((row) => selected.has(row));
@@ -641,30 +631,18 @@ function TablePanel({
     });
   }
 
-  /** The ticked rows, or every row that passes the filters when none is ticked. */
+  /** The ticked rows, or every row that passes the filters when none is ticked. On a long table "every row" is the server's to say. */
   function exportRows(onlySelected: boolean) {
+    if (served && !onlySelected) {
+      window.location.assign(served.exportUrl);
+      return;
+    }
     const rows = onlySelected ? panel.rows.filter((row) => selected.has(row)) : filtered;
-    const keep = panel.head.map((heading, index) => (heading.trim() ? index : -1)).filter((index) => index >= 0);
-    const cell = (value: TableCellKind | undefined) => {
-      if (!value) return "";
-      if (value.kind === "name") return value.sub ? `${value.name} (${value.sub})` : value.name;
-      if (value.kind === "pill") return value.label;
-      if (value.kind === "bar") return value.label;
-      if (value.kind === "mark") return value.ok ? "Yes" : "No";
-      if (value.kind === "action") return "";
-      if (value.kind === "node") return value.plain ?? "";
-      return value.text;
-    };
-    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
-    const lines = [
-      keep.map((index) => escape(panel.head[index])).join(","),
-      ...rows.map((row) => keep.map((index) => escape(cell(row.cells[index]))).join(",")),
-    ];
-    const blob = new Blob([`\uFEFF${lines.join("\n")}`], { type: "text/csv;charset=utf-8" });
+    const blob = new Blob([`\uFEFF${tableCsv(panel.head, rows)}`], { type: "text/csv;charset=utf-8" });
     const url = URL.createObjectURL(blob);
     const link = document.createElement("a");
     link.href = url;
-    link.download = `${panel.title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "export"}.csv`;
+    link.download = csvFileName(panel.title);
     link.click();
     URL.revokeObjectURL(url);
   }
@@ -726,18 +704,20 @@ function TablePanel({
   // The meta line asserts a count; the pager states the truth below it. Where the two disagree the
   // line says which it is, appended — so an authored figure can never contradict the rows.
   const claimed = panel.meta?.match(/^([\d,]+)\s+(\S+)/);
+  const everyRow = served ? served.total : panel.rows.length;
   const metaLine =
-    panel.meta && claimed && claimed[2].toLowerCase().replace(/[^a-z]/g, "") === nounPlural.toLowerCase().replace(/[^a-z]/g, "") && Number(claimed[1].replace(/,/g, "")) !== filtered.length
-      ? `${panel.meta} · showing ${filtered.length.toLocaleString("en-NG")}`
+    panel.meta && claimed && claimed[2].toLowerCase().replace(/[^a-z]/g, "") === nounPlural.toLowerCase().replace(/[^a-z]/g, "") && Number(claimed[1].replace(/,/g, "")) !== shownTotal
+      ? `${panel.meta} · showing ${shownTotal.toLocaleString("en-NG")}`
       : panel.meta;
   const filterNote =
-    filtered.length === panel.rows.length
-      ? `${panel.rows.length.toLocaleString("en-NG")} ${panel.rows.length === 1 ? noun : nounPlural}`
-      : `${filtered.length.toLocaleString("en-NG")} of ${panel.rows.length.toLocaleString("en-NG")} ${nounPlural}`;
+    shownTotal === everyRow
+      ? `${everyRow.toLocaleString("en-NG")} ${everyRow === 1 ? noun : nounPlural}`
+      : `${shownTotal.toLocaleString("en-NG")} of ${everyRow.toLocaleString("en-NG")} ${nounPlural}`;
 
   return (
     <section
-      className={cn(PANEL_SHELL, "pb-0")}
+      className={cn(PANEL_SHELL, "pb-0", navigating && "opacity-60 transition-opacity")}
+      aria-busy={navigating}
       style={{ borderColor: CARD_BORDER }}
     >
       <PanelHeader
@@ -771,8 +751,13 @@ function TablePanel({
                 type="search"
                 value={query}
                 onChange={(event) => {
-                  setQuery(event.target.value);
+                  const text = event.target.value;
+                  setQuery(text);
                   setPage(0);
+                  if (served) {
+                    if (typing.current) clearTimeout(typing.current);
+                    typing.current = setTimeout(() => ask({ q: text.trim() || null, p: null }), 350);
+                  }
                 }}
                 placeholder={panel.search}
                 aria-label={panel.search}
@@ -785,6 +770,8 @@ function TablePanel({
                   onClick={() => {
                     setQuery("");
                     setPage(0);
+                    if (typing.current) clearTimeout(typing.current);
+                    ask({ q: null, p: null });
                   }}
                   aria-label="Clear search"
                   className="flex flex-none"
@@ -819,6 +806,7 @@ function TablePanel({
                     [filter.label]: event.target.value,
                   }));
                   setPage(0);
+                  if (served) ask({ [`f${(panel.filters ?? []).indexOf(filter)}`]: event.target.value === filter.options[0] ? null : event.target.value, p: null });
                 }}
                 className="cursor-pointer appearance-none border-none bg-transparent font-semibold outline-none"
               >
@@ -910,7 +898,7 @@ function TablePanel({
             className="mb-1 text-[12px] font-semibold"
             style={{ color: "#435048" }}
           >
-            {panel.rows.length === 0
+            {everyRow === 0
               ? (panel.emptyTitle ?? "Nothing here yet")
               : `No ${nounPlural} match that`}
           </p>
@@ -918,7 +906,7 @@ function TablePanel({
             className="mx-auto max-w-[420px] text-[11px] leading-[1.55]"
             style={{ color: MUTED }}
           >
-            {panel.rows.length === 0
+            {everyRow === 0
               ? (panel.emptyBody ?? panel.empty ?? "Records will appear here as they are created.")
               : "Clear the search or widen a filter to see more."}
           </p>
@@ -1050,12 +1038,12 @@ function TablePanel({
           style={{ background: "#FCFDFC", borderColor: "#EDF3EF" }}
         >
           <p className="text-[10.5px]" style={{ color: MUTED }}>
-            {`Showing ${safePage * perPage + 1}–${Math.min(filtered.length, safePage * perPage + perPage)} of ${filtered.length} ${filtered.length === 1 ? noun : nounPlural}`}
+            {`Showing ${safePage * perPage + 1}–${Math.min(shownTotal, safePage * perPage + perPage)} of ${shownTotal.toLocaleString("en-NG")} ${shownTotal === 1 ? noun : nounPlural}`}
           </p>
           <div className="flex flex-none items-center gap-[5px]">
             <button
               type="button"
-              onClick={() => setPage(Math.max(0, safePage - 1))}
+              onClick={() => turnTo(Math.max(0, safePage - 1))}
               disabled={safePage === 0}
               aria-label="Previous page"
               className={pagerClass(false)}
@@ -1065,20 +1053,24 @@ function TablePanel({
                 strokeWidth={2.4}
               />
             </button>
-            {Array.from({ length: pageCount }, (_, number) => (
-              <button
-                key={number}
-                type="button"
-                onClick={() => setPage(number)}
-                aria-current={number === safePage ? "page" : undefined}
-                className={pagerClass(number === safePage)}
-              >
-                {number + 1}
-              </button>
-            ))}
+            {pageNumbers(pageCount, safePage).map((number, position) =>
+              number === null ? (
+                <span key={`gap-${position}`} className="px-[3px] text-[11px]" style={{ color: MUTED }}>…</span>
+              ) : (
+                <button
+                  key={number}
+                  type="button"
+                  onClick={() => turnTo(number)}
+                  aria-current={number === safePage ? "page" : undefined}
+                  className={pagerClass(number === safePage)}
+                >
+                  {number + 1}
+                </button>
+              ),
+            )}
             <button
               type="button"
-              onClick={() => setPage(Math.min(pageCount - 1, safePage + 1))}
+              onClick={() => turnTo(Math.min(pageCount - 1, safePage + 1))}
               disabled={safePage >= pageCount - 1}
               aria-label="Next page"
               className={pagerClass(false)}

@@ -272,6 +272,23 @@ export type TableRow = {
   keywords?: string;
 };
 
+/**
+ * A long table is sent one page at a time. The page the server drew, how many rows matched what was searched and chosen, and the address
+ * that downloads all of them — so the table asks the server for the next page instead of holding every row.
+ */
+export type TableWindow = {
+  /** What this table's controls are called in the address: `t0_1` is the second panel of the first row. */
+  key: string;
+  page: number;
+  size: number;
+  matched: number;
+  total: number;
+  q: string;
+  /** The choice made on each filter, by its label. */
+  filters: Record<string, string>;
+  exportUrl: string;
+};
+
 /** A named dropdown over one column, e.g. ["State", "All", ["All","Marked","Unmarked"]]. */
 export type TableFilter = {
   label: string;
@@ -802,6 +819,8 @@ export type Panel =
       /** Placeholder for the table's own search box. */
       search?: string;
       filters?: TableFilter[];
+      /** Set by the server on a long table: `rows` is one page of a longer list. */
+      window?: TableWindow;
       /** Rows can be ticked, which reveals the bulk actions. */
       selectable?: boolean;
       bulkActs?: PanelAction[];
