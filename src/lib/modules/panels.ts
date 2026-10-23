@@ -545,6 +545,10 @@ export type TierChangePanel = {
   /** A change already scheduled, which a new choice replaces. */
   pending?: { tier: string; from: string | null } | null;
   cancelEndpoint?: string;
+  /** The term every figure on this panel is "per", and the dates it covers. */
+  term?: { label: string; startDate: string; endDate: string } | null;
+  /** The roll the next bill is counted from. */
+  headcount?: number;
 };
 
 export type RosterPanel = {

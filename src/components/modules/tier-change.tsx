@@ -166,6 +166,29 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
             {panel.sub}
           </p>
         ) : null}
+        {/* What the school is on, counted over what, for how long — the three
+            facts every figure below is relative to. */}
+        <p className="mt-[7px] text-[11px]" style={{ color: MUTED }}>
+          <span className="font-semibold" style={{ color: INK }}>
+            {panel.currentTier.name}
+          </span>{" "}
+          at {naira(panel.currentTier.rate)} per student
+          {typeof panel.headcount === "number" ? (
+            <>
+              {" \u00b7 "}
+              <span className="font-semibold" style={{ color: INK }}>
+                {panel.headcount.toLocaleString("en-NG")}
+              </span>{" "}
+              on the roll
+            </>
+          ) : null}
+          {panel.term ? (
+            <>
+              {" \u00b7 "}
+              {panel.term.label}, {day(panel.term.startDate)} to {day(panel.term.endDate)}
+            </>
+          ) : null}
+        </p>
       </div>
 
       {panel.pending ? (
