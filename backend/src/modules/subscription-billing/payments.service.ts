@@ -5,7 +5,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { getPaymentGateway } from "../../../../src/lib/integrations/payment-gateways";
-import { gatewayMode, json, metaOf, num, round2 } from "./billing.shared";
+import { gatewayMode, json, metaOf, num, round2, TIERS } from "./billing.shared";
 
 /**
  * Paying Future Realm. A payment is started against one invoice, finished when the gateway says it
@@ -149,7 +149,14 @@ export class PaymentsService {
       return `${meta.credits.toLocaleString("en-NG")} ${meta.channel} credits are on the wallet`;
     }
     if (meta.kind === "TERMLY") {
-      await db.school.update({ where: { id: schoolId }, data: { billingStatus: "ACTIVE" } });
+      // Paying ends the trial: the school is a paying school from today (not from a term ahead), is billed again where what it bought runs out,
+      // and — if it chose a plan as it paid — is on that plan now.
+      const coversUntil = typeof meta.coversUntil === "string" ? new Date(meta.coversUntil) : null;
+      await db.school.update({ where: { id: schoolId }, data: { billingStatus: "ACTIVE", ...(coversUntil && !Number.isNaN(coversUntil.getTime()) ? { nextBillingAt: coversUntil } : {}) } });
+      await db.school.updateMany({ where: { id: schoolId, status: "TRIAL" }, data: { status: "ACTIVE", statusReason: null, lifecycleNote: "Paid — the trial became a paid plan" } });
+      if (typeof meta.tierKey === "string" && meta.tierKey in TIERS) {
+        await db.schoolSubscription.upsert({ where: { schoolId }, update: { tier: meta.tierKey, pendingTier: null, pendingFrom: null, switchReason: null }, create: { schoolId, tier: meta.tierKey } });
+      }
       // A school made read-only when its trial ended is switched back on by paying.
       await db.school.updateMany({ where: { id: schoolId, status: "GRACE_PERIOD", statusReason: { startsWith: "Trial ended" } }, data: { status: "ACTIVE", statusReason: null, lifecycleNote: "Paid — editing restored" } });
       return `${meta.termLabel ?? "The term"} is paid for`;

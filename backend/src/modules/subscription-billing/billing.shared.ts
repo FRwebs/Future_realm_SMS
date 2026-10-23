@@ -133,6 +133,24 @@ export async function nextTerm(schoolId: string) {
   return { current, next: after };
 }
 
+export const termLabelOf = (term: { name: string; academicSession?: { name: string } | null }) => `${term.name} ${term.academicSession?.name ?? ""}`.trim();
+
+/**
+ * The term a payment made today is for.
+ *
+ * A school that is on its free trial is, today, in a term it has not paid for — so paying and upgrading now buys the term it is in, starting
+ * today, not the next one (which would leave this term free and book the school a term ahead of itself). Every other school renews the term
+ * after the one running now, as it always has. If the trial school's current term is already paid, the next term is the one that is left.
+ */
+export async function billingTarget(schoolId: string, onTrial: boolean) {
+  const { current, next } = await nextTerm(schoolId);
+  if (onTrial && current) {
+    const paid = await prisma.platformInvoice.findFirst({ where: { schoolId, status: "PAID", metadata: { path: ["termLabel"], equals: termLabelOf(current) } } });
+    if (!paid) return { term: current, startsNow: true, current, next };
+  }
+  return { term: next, startsNow: false, current, next };
+}
+
 export async function taxRate(country: string | null | undefined): Promise<number> {
   const row = await prisma.taxRate.findFirst({ where: { country: country ?? "Nigeria", isActive: true }, orderBy: { createdAt: "desc" } });
   return row ? row.rate / 100 : 0.075;
