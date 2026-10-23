@@ -26,7 +26,7 @@ type Assignments = {
   holding: Array<{ what: string; where: string; load: string; kind: "form" | "subject" }>;
   covering: CoverRow[]; coveredFor: CoverRow[];
   absences: Array<{ day: string; label: string; reason: string; covers: Array<{ by: string; what: string; arm: string }> }>;
-  absentToday: boolean; today: { label: string; periods: number; registers: string[] };
+  absentToday: boolean; registersOnCover: number; today: { label: string; periods: number; registers: string[] };
 };
 export type Gaps = { day: string; scope: string; gaps: Array<{ userId: string; name: string; reason: string; holds: Array<{ classId: string; subjectId: string | null; what: string; arm: string; covered: boolean }> }>; candidates: Array<{ id: string; name: string }> };
 type Appraisal = {
@@ -107,6 +107,8 @@ function leaveTab(v: Leave): TabContent {
   return {
     title: "Leave", desc: `${v.session ?? "This session"}. Your balance, your requests, and where each one is.`,
     primary: { label: "Request leave", icon: PLUS, drawer: request },
+    // The mockup sends a person to My assignments to report it: that is where who holds their classes is shown.
+    launchers: [{ label: "Report an absence today", href: "/my-employment/my-assignments" }],
     rows: ([
       row("1fr", [{
         type: "kpi", sub: `${v.session ?? ""} · entitlements are set by the school${v.reportsTo ? `, and ${v.reportsTo} is who you report to` : ""}.`, per: 4,
@@ -178,7 +180,7 @@ function assignmentsTab(v: Assignments, gaps: Gaps | null): TabContent {
         cards: [
           { label: "You are covering", value: String(live.length), unit: live.length === 1 ? "assignment" : "assignments", sub: live.map((entry) => `${entry.arm} · until ${entry.endsLabel}`).join(" · ") || "Nobody at the moment", tone: live.length ? "attention" : "neutral" },
           { label: "Covered for you", value: String(v.absences.length), unit: v.absences.length === 1 ? "day" : "days", sub: "This term" },
-          { label: "Absent today", value: v.absentToday ? "Yes" : "No", sub: v.absentToday ? "The school has been told" : v.today.label, tone: v.absentToday ? "attention" : "neutral" },
+          { label: "Registers marked on cover", value: String(v.registersOnCover), unit: v.registersOnCover === 1 ? "register" : "registers", sub: "Attributed to you, with the owner named alongside" },
         ],
       }]),
       row("1fr", [{ type: "table", title: "What you hold", sub: "Your classes and subjects, from the school’s class structure.", meta: `${v.holding.length}`, noun: "assignment", nounPlural: "assignments", head: ["What", "Where", "Load", "Kind"], rows: holdRows, per: 12, noRowOpen: true, empty: "You are not named on a class or subject yet." }]),
@@ -322,8 +324,14 @@ function payslipsTab(v: Payslips): TabContent {
       ...(slip.reference ? [["Bank reference", slip.reference, ""] as PanelFact] : []),
     ],
   });
+  const emailThem: DrawerSpec = {
+    mode: "commit", kicker: "Payslips", title: "Email the chosen payslips to yourself", sub: "A payslip goes only to the address on your own staff record — it is never sent anywhere else.",
+    facts: [["It goes to", v.person.email, "The address on your staff record"], ["What it contains", "The lines of the payslip", "Gross, each allowance and deduction, and net pay — as an email, not a PDF"], ["Who else sees it", "Nobody", "It is not copied to the office"]],
+    commitLabel: "Email them", commitDone: "Payslips on their way", commitDoneBody: `They are queued for ${v.person.email}.`,
+    submit: { endpoint: `${API}/employment/payslips/email`, method: "POST" },
+  };
   const rows: TableRow[] = v.slips.map((slip) => ({
-    keywords: slip.label, drawer: slipDrawer(slip),
+    id: slip.id, keywords: slip.label, drawer: slipDrawer(slip),
     cells: [cell(slip.label, { strong: true }), cell(ngn(slip.gross), { mono: true }), cell(ngn(slip.allowTotal), { mono: true }), cell(ngn(slip.deductTotal), { mono: true }), cell(ngn(slip.net), { mono: true, strong: true }), pill(slip.status === "PAID" ? "Paid" : "Approved", slip.status === "PAID" ? "positive" : "progress"), { kind: "action", label: "View", drawer: slipDrawer(slip) }] as TableCellKind[],
   }));
   const upload: DrawerSpec = {
@@ -380,7 +388,7 @@ function payslipsTab(v: Payslips): TabContent {
         ],
       }]),
       row("1.1fr 1fr", [
-        { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, empty: "No payslip yet.", foot: "A payslip appears when the school approves the month’s run." },
+        { type: "table", title: "Your payslips", sub: "Open one for the breakdown.", meta: `${v.slips.length} most recent`, noun: "payslip", nounPlural: "payslips", head: ["Month", "Gross", "Allowances", "Deductions", "Net", "State", ""], rows, per: 12, noRowOpen: false, selectable: true, bulkActs: [{ label: "Email them to me", drawer: emailThem, selection: { key: "ids", noun: "payslip" } }, { label: "Download selected", primary: true, export: true }], empty: "No payslip yet.", foot: "A payslip appears when the school approves the month’s run." },
         {
           type: "facts", title: "Your employment record", per: 1,
           facts: [["Started", long(v.record.started), ""], ["Employment", v.record.employment, ""], ["Reports to", v.record.reportsTo ? v.record.reportsTo.name : "—", v.record.reportsTo?.title ?? ""], ...credentialRows, ...docRows.filter((fact) => !credentialRows.some((row) => row[0] === fact[0]))] as PanelFact[],
