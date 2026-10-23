@@ -118,6 +118,23 @@ export class CasesService {
     return rows.map((row) => ({ date: iso(dayOf(row.date)), label: longDay(dayOf(row.date)), reason: row.reason }));
   }
 
+  /** The same as `openAbsences`, for many children at once: one query, not one per child. */
+  async openAbsencesMany(session: SessionPayload, studentIds: string[]) {
+    const out = new Map<string, Array<{ date: string; label: string; reason: string | null }>>(studentIds.map((id) => [id, []]));
+    const term = studentIds.length ? await currentTerm(session.schoolId) : null;
+    if (!term) return out;
+    const rows = await prisma.studentAttendance.findMany({
+      where: { schoolId: session.schoolId, studentId: { in: studentIds }, termId: term.id, subjectId: null, status: "ABSENT" },
+      orderBy: { date: "desc" },
+      select: { studentId: true, date: true, reason: true }
+    });
+    for (const row of rows) {
+      const list = out.get(row.studentId);
+      if (list && list.length < 20) list.push({ date: iso(dayOf(row.date)), label: longDay(dayOf(row.date)), reason: row.reason });
+    }
+    return out;
+  }
+
   async explanation(session: SessionPayload, id: string) {
     const [row] = (await this.explanations(session)).filter((entry) => entry.id === id);
     if (!row) throw new NotFoundException("That explanation is not in this school.");

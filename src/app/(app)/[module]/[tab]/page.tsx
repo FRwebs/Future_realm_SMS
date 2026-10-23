@@ -7,6 +7,7 @@ import { ModuleWorkspace } from "@/components/modules/module-workspace";
 import { getTabContent } from "@/lib/modules/content";
 import { getLiveTabContent } from "@/lib/modules/live";
 import { teacherKpiTitle, withKpiTitles } from "@/lib/modules/kpi-titles";
+import { slimRows } from "@/lib/modules/slim";
 import { canOpenModule, getServerPermissions } from "@/lib/auth/server-access";
 import { isSchoolStaffRole } from "@/lib/modules/school-access";
 import {
@@ -94,7 +95,8 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
       rows={
         content?.rows
           ? withKpiTitles(
-              content.rows,
+              // A long table keeps only the first rows' drawers in the page; the rest are fetched when opened.
+              slimRows(content.rows, { module: module.slug, tab: tab.slug, query }),
               module.code,
               tab.label,
               teacher

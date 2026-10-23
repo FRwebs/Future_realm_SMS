@@ -92,11 +92,14 @@ export class TeacherFamiliesService {
     });
     const term = await prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, select: { startDate: true } });
     const items = [];
+    // The days each child is down as absent, read for every child with an open explanation in one go.
+    const asking = [...new Set(rows.filter((row) => row.studentId && row.type === "Absence explanation" && row.state !== "RESOLVED" && row.state !== "DECLINED").map((row) => row.studentId as string))];
+    const absent = await this.cases.openAbsencesMany(session, asking);
     for (const row of rows) {
       const open = row.state !== "RESOLVED" && row.state !== "DECLINED";
       const absence = row.type === "Absence explanation";
       const collection = row.type === "Collection change";
-      const absences = open && absence && row.studentId ? await this.cases.openAbsences(session, row.studentId) : [];
+      const absences = open && absence && row.studentId ? absent.get(row.studentId) ?? [] : [];
       const claimed = absences.filter((entry) => row.dates.includes(entry.date));
       const who = (row.payload ?? {}) as { name?: string; relation?: string; phone?: string; date?: string };
       items.push({
