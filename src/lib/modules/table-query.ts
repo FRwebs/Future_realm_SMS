@@ -29,6 +29,13 @@ export function narrowRows(rows: TableRow[], filters: TableFilter[] | undefined,
       const chosen = values[filter.label];
       // The first option is the "all" one and never narrows anything; a switcher between pages never narrows this one.
       if (!chosen || chosen === filter.options[0] || filter.go) continue;
+      if (filter.since) {
+        const hours = filter.since[chosen];
+        if (hours === undefined) continue;
+        const happened = tableRow.at ? Date.parse(tableRow.at) : NaN;
+        if (Number.isNaN(happened) || happened < Date.now() - hours * 3_600_000) return false;
+        continue;
+      }
       const haystack = filter.column !== undefined ? [texts[filter.column] ?? ""] : texts;
       const wanted = (filter.match?.[chosen] ?? chosen).toLowerCase();
       if (!haystack.some((value) => value.toLowerCase().includes(wanted))) return false;

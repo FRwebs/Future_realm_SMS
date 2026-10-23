@@ -33,3 +33,19 @@ export const getTeacherWorkspace = cache(async (role: string, schoolId: string):
     return null;
   }
 });
+
+/**
+ * What the teacher's rail counts beside a module — today, the families waiting on their form teacher. It is a number someone is waiting
+ * to see move, so it is remembered for seconds only, and for nobody who is not teaching staff.
+ */
+export const getTeacherBadges = cache(async (role: string, schoolId: string): Promise<Record<string, number>> => {
+  if (!isTeachingRole(role)) return {};
+  try {
+    const session = await getServerSession();
+    if (!session) return {};
+    const counts = await ttlCached(`badge:${schoolId}:${session.userId}`, 20_000, () => apiGet<{ families: number }>("/api/v1/teacher-workspace/badges"));
+    return counts.families > 0 ? { t_m9: counts.families } : {};
+  } catch {
+    return {};
+  }
+});

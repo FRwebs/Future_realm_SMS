@@ -82,6 +82,16 @@ export class TeacherFamiliesService {
     return { id: made.id, child, outcome: input.outcome };
   }
 
+  /** How many things the families of this person's own class are waiting on them for: what the Guardians item in their rail counts. */
+  async waiting(session: SessionPayload) {
+    const { ids } = await this.classes(session);
+    if (!ids.length) return { families: 0 };
+    const families = await prisma.guardianSubmission.count({
+      where: { schoolId: session.schoolId, state: { in: ["NEW", "ASSIGNED", "IN_PROGRESS"] }, type: { in: ["Absence explanation", "Collection change"] }, student: { currentClassId: { in: ids } } }
+    });
+    return { families };
+  }
+
   async submissions(session: SessionPayload) {
     const { me, ids } = await this.classes(session);
     if (!ids.length) return { arms: [], items: [], kpis: { waiting: 0, decided: 0, median: null, withoutEvidence: 0, collections: 0 }, oldest: 0 };
