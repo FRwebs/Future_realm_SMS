@@ -27,8 +27,8 @@ export const getTeacherWorkspace = cache(async (role: string, schoolId: string):
   try {
     const session = await getServerSession();
     const read = () => apiGet<TeacherWorkspaceView>("/api/v1/teacher-workspace/me");
-    // Who a teacher is changes when the office reassigns a class, not between two clicks: a few seconds' memory saves a round trip on each page.
-    return session ? await ttlCached(`tw:${schoolId}:${session.userId}`, 20_000, read) : await read();
+    // Who a teacher is changes when the office reassigns a class (the API's context stamp moves when it does), not between two clicks.
+    return session ? await ttlCached(`tw:${schoolId}:${session.userId}`, 600_000, read, { stamped: true }) : await read();
   } catch {
     return null;
   }

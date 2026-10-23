@@ -1,8 +1,11 @@
 import { PrismaClient } from "@prisma/client";
 
+import { bumpCtxVersion, changesWhoSomeoneIs } from "../cache/ctx-version";
+
 declare global {
   var __prisma__: PrismaClient | undefined;
   var __prismaPlatformFilter__: boolean | undefined;
+  var __prismaCtxStamp__: boolean | undefined;
 }
 
 function normalizePrismaRuntimeUrl(rawUrl?: string) {
@@ -106,6 +109,19 @@ if (!global.__prismaPlatformFilter__) {
       params.args = { ...args, where: args.where ? { AND: [args.where, { isPlatform: false }] } : { isPlatform: false } };
     }
     return next(params);
+  });
+}
+
+/**
+ * Anything written that can change who a person is allowed to be moves the context stamp the API puts on every answer (see
+ * lib/cache/ctx-version), so what the web server remembers about people is dropped the moment it could be wrong.
+ */
+if (!global.__prismaCtxStamp__) {
+  global.__prismaCtxStamp__ = true;
+  prisma.$use(async (params, next) => {
+    const result = await next(params);
+    if (changesWhoSomeoneIs(params.model, params.action, params.args)) bumpCtxVersion();
+    return result;
   });
 }
 

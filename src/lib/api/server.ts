@@ -3,6 +3,8 @@ import { redirect } from "next/navigation";
 import { cache } from "react";
 
 import { resolveDirectApiGet } from "@/lib/api/direct";
+import { CTX_HEADER } from "@/lib/cache/ctx-version";
+import { noteCtx } from "@/lib/cache/ttl";
 import { env } from "@/lib/utils/env";
 
 async function getAppBaseUrl() {
@@ -55,6 +57,8 @@ const cachedApiEnvelopeRequest = cache(
     }
   });
 
+  // Every answer says whether who-people-are has changed since the last one; what the web server remembers about people is believed accordingly.
+  noteCtx(response.headers.get(CTX_HEADER));
   let body: ApiEnvelope<T> = {};
   if (perfLog) console.info(`[api] ${path.split("?")[0]} ${response.status} ${Math.round(performance.now() - startedAt)}ms (started +${Math.round(startedAt)}ms)`);
 
