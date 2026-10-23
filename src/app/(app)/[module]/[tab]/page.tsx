@@ -9,7 +9,8 @@ import { getLiveTabContent } from "@/lib/modules/live";
 import { teacherKpiTitle, withKpiTitles } from "@/lib/modules/kpi-titles";
 import { slimRows } from "@/lib/modules/slim";
 import { windowRows } from "@/lib/modules/window";
-import { canOpenModule, getServerPermissions } from "@/lib/auth/server-access";
+import { canOpenModule, getServerPermissions, refreshServerPermissions } from "@/lib/auth/server-access";
+import { currentCtx } from "@/lib/cache/ttl";
 import { isSchoolStaffRole } from "@/lib/modules/school-access";
 import {
   getSchoolModule,
@@ -59,22 +60,37 @@ export default async function SchoolModuleTabPage({ params, searchParams }: Page
   // A module the holder cannot reach is absent from their navigation entirely;
   // reaching it by URL is refused rather than quietly shown empty. A tab is the same:
   // what Permissions took away from this person is honoured here, not only the module.
+  // The tab's own data does not wait for the access checks: it is asked for now, alongside them, and thrown away if they say no (the API
+  // refuses what is not theirs in any case). On a cold page that is one trip instead of two.
+  const stampWhenAsked = currentCtx();
+  const contentAsked = getLiveTabContent(module.code, tab.slug, query);
+  contentAsked.catch(() => undefined);
+
   // What this person may do and who they are as a teacher are asked together, not one after the other — and the tab's own data is asked for as
   // soon as they are known, rather than after the access checks have finished.
   const [granted, teacherView] = await Promise.all([
     isSchoolStaffRole(session.role) ? getServerPermissions(session) : Promise.resolve(null),
     getTeacherWorkspace(session.role, session.schoolId),
   ]);
-  const held = granted ? new Set(granted) : null;
+  let held = granted ? new Set(granted) : null;
   const canViewTab = (slug: string) => !held || held.has(schoolPermissionKey(module.slug, slug, "View"));
   if (!(await canOpenModule(session, module.code)) || !canViewTab(tab.slug)) {
-    return <AccessDenied backHref="/command-center/today" />;
+    // On a remembered answer, "no" is asked once more afresh: somebody who has just been given access should not be told no for a while.
+    if (!held) return <AccessDenied backHref="/command-center/today" />;
+    held = new Set(await refreshServerPermissions(session));
+    if (!module.tabs.some((moduleTab) => canViewTab(moduleTab.slug)) || !canViewTab(tab.slug)) return <AccessDenied backHref="/command-center/today" />;
   }
 
   // A module that has graduated to the API builds its tab from this school's
   // own records; one that has not keeps rendering the authored content.
-  const content =
-    (await getLiveTabContent(module.code, tab.slug, query)) ?? getTabContent(module.code, tab.slug);
+  const content = (await contentAsked) ?? getTabContent(module.code, tab.slug);
+
+  // The API's answer carries its context stamp. If the stamp moved while this page was being drawn — a role, an assignment, a switch — the
+  // access it was decided on may be out of date, so it is decided again on fresh permissions before anything is shown.
+  if (held && currentCtx() !== stampWhenAsked) {
+    const fresh = new Set(await refreshServerPermissions(session));
+    if (!fresh.has(schoolPermissionKey(module.slug, tab.slug, "View"))) return <AccessDenied backHref="/command-center/today" />;
+  }
 
   // The tabs of this module they can open — one they cannot is absent from the strip.
   let visibleTabSlugs = module.tabs.filter((moduleTab) => canViewTab(moduleTab.slug)).map((moduleTab) => moduleTab.slug);

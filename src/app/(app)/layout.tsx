@@ -21,8 +21,8 @@ const getCachedSchoolContext = cache(async (schoolId: string) => {
   try {
     const session = await getServerSession();
     const read = () => apiGet<SchoolContextView>("/api/v1/dashboard/context");
-    // The school's name, session and term barely move: a minute's memory per person saves a round trip on every page.
-    return session ? await ttlCached(`ctx:${schoolId}:${session.userId}`, 60_000, read) : await read();
+    // The school's name, session and term barely move, and the context stamp ends this the moment they do.
+    return session ? await ttlCached(`ctx:${schoolId}:${session.userId}`, 600_000, read, { stamped: true }) : await read();
   } catch {
     return null;
   }

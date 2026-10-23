@@ -11,7 +11,7 @@ import "server-only";
  * It is never the authority: the API still checks permissions on every call it serves. This only decides how often a page asks the same
  * question about the same person while they click around. `FR_NO_SERVER_CACHE=1` switches it off.
  */
-type Entry<T> = { value?: T; expires: number; pending?: Promise<T> };
+type Entry<T> = { value?: T; expires: number; pending?: Promise<T>; ctx?: string };
 
 const MAX_ENTRIES = 2000;
 const store = new Map<string, Entry<unknown>>();
@@ -20,7 +20,18 @@ let misses = 0;
 
 const disabled = () => process.env.FR_NO_SERVER_CACHE === "1";
 
-export async function ttlCached<T>(key: string, ttlMs: number, load: () => Promise<T>): Promise<T> {
+/**
+ * The context stamp the API last put on an answer (see lib/cache/ctx-version). An entry kept with `{ stamped: true }` is only believed while
+ * the stamp is the one it was read under: the first answer from the API that carries a different one — something changed who someone is —
+ * ends it, whatever time it had left. Which is what lets such an entry live for minutes rather than seconds.
+ */
+let latestCtx: string | undefined;
+export const noteCtx = (stamp: string | null | undefined) => {
+  if (stamp) latestCtx = stamp;
+};
+export const currentCtx = () => latestCtx;
+
+export async function ttlCached<T>(key: string, ttlMs: number, load: () => Promise<T>, options: { stamped?: boolean } = {}): Promise<T> {
   if (disabled()) return load();
   const now = Date.now();
   const found = store.get(key) as Entry<T> | undefined;
@@ -29,7 +40,7 @@ export async function ttlCached<T>(key: string, ttlMs: number, load: () => Promi
       hits += 1;
       return found.pending;
     }
-    if (found.expires > now && found.value !== undefined) {
+    if (found.expires > now && found.value !== undefined && (!options.stamped || found.ctx === latestCtx)) {
       hits += 1;
       return found.value;
     }
@@ -37,7 +48,8 @@ export async function ttlCached<T>(key: string, ttlMs: number, load: () => Promi
   misses += 1;
   const pending = load().then(
     (value) => {
-      store.set(key, { value, expires: Date.now() + ttlMs });
+      // The stamp is read now, after the load: the load's own answer is what carried it.
+      store.set(key, { value, expires: Date.now() + ttlMs, ctx: latestCtx });
       return value;
     },
     (error) => {

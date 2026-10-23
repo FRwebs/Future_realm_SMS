@@ -1,7 +1,7 @@
 import { cache } from "react";
 
 import { apiGet } from "@/lib/api/server";
-import { ttlCached } from "@/lib/cache/ttl";
+import { forgetFor, ttlCached } from "@/lib/cache/ttl";
 import type { SessionUser, MyPermissionsView } from "@/lib/domain/types";
 import { isSchoolStaffRole, moduleLevelForRole, schoolPermissionsForRole } from "@/lib/modules/school-access";
 import { schoolModules, schoolPermissionKey } from "@/lib/modules/school-modules";
@@ -15,12 +15,12 @@ import { canAccessPathWithPermissions, getDefaultPermissionsForRole } from "@/li
  * merged in either way — without it a signed-in member of staff would resolve to
  * the legacy domain keys alone and be locked out of every module.
  */
-const getResolvedPermissions = cache(async (schoolId: string, userId: string, role: SessionUser["role"]) => {
+async function loadPermissions(schoolId: string, userId: string, role: SessionUser["role"]) {
   const modulePermissions = schoolPermissionsForRole(role);
 
   try {
-    // Kept for a few seconds: a page asks for this on every click, and what a person may do does not change that fast. The API still checks every call it serves.
-    const payload = await ttlCached(`perm:${schoolId}:${userId}:${role}`, 15_000, () => apiGet<MyPermissionsView>(`/api/v1/school/${schoolId}/roles-management/permissions/my`));
+    // Kept while nothing that could change it has changed (the API's context stamp), and ten minutes at most: a page asks for this on every click. The API still checks every call it serves.
+    const payload = await ttlCached(`perm:${schoolId}:${userId}:${role}`, 600_000, () => apiGet<MyPermissionsView>(`/api/v1/school/${schoolId}/roles-management/permissions/my`), { stamped: true });
     // What the server resolved is the whole answer for school staff: it already carries the
     // role template, and it also carries what the school took away from this person. Merging
     // the static grid back in would quietly give every revoked action back.
@@ -29,7 +29,18 @@ const getResolvedPermissions = cache(async (schoolId: string, userId: string, ro
   } catch {
     return getDefaultPermissionsForRole(role);
   }
-});
+}
+
+const getResolvedPermissions = cache(loadPermissions);
+
+/**
+ * What this person may do, asked for afresh — for the moment a page finds out, from an answer the API has just given, that something which
+ * could change it has changed since it was remembered. A page that decided access on the memory checks again on this before it shows anything.
+ */
+export async function refreshServerPermissions(session: SessionUser) {
+  forgetFor(`perm:${session.schoolId}:${session.userId}:`);
+  return loadPermissions(session.schoolId, session.userId, session.role);
+}
 
 export async function getServerPermissions(session: SessionUser) {
   return getResolvedPermissions(session.schoolId, session.userId, session.role);

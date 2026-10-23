@@ -9,6 +9,7 @@ import express, { Express } from "express";
 import { env } from "../../../src/lib/utils/env";
 import { AppModule } from "../app.module";
 import { ApiExceptionFilter } from "../common/api-exception.filter";
+import { CtxStampInterceptor } from "../common/ctx-stamp.interceptor";
 import { enrichOpenApiDocument } from "../common/openapi-docs";
 
 function buildAllowedOrigins() {
@@ -55,6 +56,7 @@ async function configureNestApp(app: INestApplication) {
     }),
   );
   app.useGlobalFilters(new ApiExceptionFilter());
+  app.useGlobalInterceptors(new CtxStampInterceptor());
 
   const config = new DocumentBuilder()
     .setTitle("FutureRealm SMS API")

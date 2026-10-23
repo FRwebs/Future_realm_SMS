@@ -2,7 +2,7 @@ import { vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
 
-import { cacheStats, forgetFor, ttlCached } from "@/lib/cache/ttl";
+import { cacheStats, forgetFor, noteCtx, ttlCached } from "@/lib/cache/ttl";
 
 describe("the short memory a page keeps of who someone is", () => {
   afterEach(() => {
@@ -53,5 +53,28 @@ describe("the short memory a page keeps of who someone is", () => {
     forgetFor("t:five");
     await ttlCached("t:five", 1000, load);
     expect(load).toHaveBeenCalledTimes(4);
+  });
+
+  it("believes a stamped entry until the API's context stamp moves, however much time is left", async () => {
+    noteCtx("boot.1");
+    const load = vi.fn().mockResolvedValueOnce(["view"]).mockResolvedValueOnce(["view", "edit"]);
+    expect(await ttlCached("perm:s:carol", 600_000, load, { stamped: true })).toEqual(["view"]);
+    expect(await ttlCached("perm:s:carol", 600_000, load, { stamped: true })).toEqual(["view"]);
+    expect(load).toHaveBeenCalledTimes(1);
+    // Something changed who people are: the next answer from the API carries a different stamp.
+    noteCtx("boot.2");
+    expect(await ttlCached("perm:s:carol", 600_000, load, { stamped: true })).toEqual(["view", "edit"]);
+    expect(load).toHaveBeenCalledTimes(2);
+    expect(await ttlCached("perm:s:carol", 600_000, load, { stamped: true })).toEqual(["view", "edit"]);
+    expect(load).toHaveBeenCalledTimes(2);
+  });
+
+  it("does not let an unstamped entry be ended by the stamp: it keeps to its own clock", async () => {
+    noteCtx("boot.3");
+    const load = vi.fn(async () => 1);
+    await ttlCached("t:six", 600_000, load);
+    noteCtx("boot.4");
+    await ttlCached("t:six", 600_000, load);
+    expect(load).toHaveBeenCalledTimes(1);
   });
 });

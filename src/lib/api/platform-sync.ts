@@ -13,8 +13,8 @@ export const getPlatformSync = cache(async (schoolId: string): Promise<PlatformS
   try {
     const session = await getServerSession();
     const read = () => apiGet<PlatformSyncView>("/api/v1/platform-sync");
-    // Ten seconds: a module switched off or a maintenance window shows within moments, without every click asking again.
-    return session ? await ttlCached(`sync:${schoolId}:${session.userId}`, 10_000, read) : await read();
+    // Thirty seconds at most, and sooner if the stamp moves: a module switched off shows within moments. A window that merely starts on the clock is why it is not longer.
+    return session ? await ttlCached(`sync:${schoolId}:${session.userId}`, 30_000, read, { stamped: true }) : await read();
   } catch {
     return null;
   }
