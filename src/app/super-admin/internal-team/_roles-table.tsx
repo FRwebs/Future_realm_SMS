@@ -51,7 +51,8 @@ function DuplicateRole({ copyFrom, label }: { copyFrom: string; label: string })
       fields={[
         { name: "name", label: "Name", required: true, placeholder: `e.g. ${label} (read-only)`, section: "The new role" },
         { name: "description", label: "What it is for", placeholder: "One line, shown beside the role", section: "The new role", full: true },
-        { name: "copyFrom", label: "Copied from", type: "static", placeholder: label, section: "The new role" },
+        { name: "copyFromDisplay", label: "Copied from", type: "static", placeholder: label, section: "The new role" },
+        { name: "copyFrom", label: "Copied from", type: "hidden", defaultValue: copyFrom },
         { name: "baseRole", label: "Signs in as", type: "select", defaultValue: "PLATFORM_ADMIN", section: "The new role", options: [{ label: "Platform Admin", value: "PLATFORM_ADMIN" }, { label: "Developer", value: "DEVELOPER" }], note: "The platform role it authenticates as. Module access comes from the grid, not from this." }
       ]}
       impact={{
