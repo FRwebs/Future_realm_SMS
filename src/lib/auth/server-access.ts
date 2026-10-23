@@ -1,6 +1,7 @@
 import { cache } from "react";
 
 import { apiGet } from "@/lib/api/server";
+import { ttlCached } from "@/lib/cache/ttl";
 import type { SessionUser, MyPermissionsView } from "@/lib/domain/types";
 import { isSchoolStaffRole, moduleLevelForRole, schoolPermissionsForRole } from "@/lib/modules/school-access";
 import { schoolModules, schoolPermissionKey } from "@/lib/modules/school-modules";
@@ -18,7 +19,8 @@ const getResolvedPermissions = cache(async (schoolId: string, userId: string, ro
   const modulePermissions = schoolPermissionsForRole(role);
 
   try {
-    const payload = await apiGet<MyPermissionsView>(`/api/v1/school/${schoolId}/roles-management/permissions/my`);
+    // Kept for a few seconds: a page asks for this on every click, and what a person may do does not change that fast. The API still checks every call it serves.
+    const payload = await ttlCached(`perm:${schoolId}:${userId}:${role}`, 15_000, () => apiGet<MyPermissionsView>(`/api/v1/school/${schoolId}/roles-management/permissions/my`));
     // What the server resolved is the whole answer for school staff: it already carries the
     // role template, and it also carries what the school took away from this person. Merging
     // the static grid back in would quietly give every revoked action back.

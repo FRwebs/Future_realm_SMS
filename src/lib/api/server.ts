@@ -31,6 +31,9 @@ export interface ApiEnvelope<T> {
   };
 }
 
+/** `PERF_LOG=1` prints every server-side call to the API with how long it took, so a slow page can be traced to the call that made it slow. */
+const perfLog = process.env.PERF_LOG === "1";
+
 const cachedApiEnvelopeRequest = cache(
   async <T>(baseUrl: string, path: string, cookieHeader: string, authorization: string) => {
   const directData = await resolveDirectApiGet<T>(path);
@@ -41,6 +44,7 @@ const cachedApiEnvelopeRequest = cache(
     } satisfies ApiEnvelope<T>;
   }
 
+  const startedAt = perfLog ? performance.now() : 0;
   const response = await fetch(`${baseUrl}${path}`, {
     method: "GET",
     cache: "no-store",
@@ -52,6 +56,7 @@ const cachedApiEnvelopeRequest = cache(
   });
 
   let body: ApiEnvelope<T> = {};
+  if (perfLog) console.info(`[api] ${path.split("?")[0]} ${response.status} ${Math.round(performance.now() - startedAt)}ms (started +${Math.round(startedAt)}ms)`);
 
   try {
     body = await response.json();

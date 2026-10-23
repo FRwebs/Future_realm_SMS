@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 
 import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { apiGet } from "@/lib/api/server";
+import { ttlCached } from "@/lib/cache/ttl";
 import { getPlatformSync } from "@/lib/api/platform-sync";
 import { getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { teacherNavigation } from "@/lib/modules/teacher-workspace";
@@ -17,9 +18,11 @@ export const metadata: Metadata = {
 };
 
 const getCachedSchoolContext = cache(async (schoolId: string) => {
-  void schoolId;
   try {
-    return await apiGet<SchoolContextView>("/api/v1/dashboard/context");
+    const session = await getServerSession();
+    const read = () => apiGet<SchoolContextView>("/api/v1/dashboard/context");
+    // The school's name, session and term barely move: a minute's memory per person saves a round trip on every page.
+    return session ? await ttlCached(`ctx:${schoolId}:${session.userId}`, 60_000, read) : await read();
   } catch {
     return null;
   }
