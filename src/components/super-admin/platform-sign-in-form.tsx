@@ -1,5 +1,6 @@
 "use client";
 
+import { wakeApi } from "@/lib/api/wake";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -37,6 +38,8 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
     setError(null);
 
     try {
+      // The API may still be starting after a quiet spell (see lib/api/wake): wait for it rather than sending a sign-in into the wait.
+      await wakeApi();
       const response = await fetch("/api/v1/auth/login", {
         method: "POST",
         credentials: "include",

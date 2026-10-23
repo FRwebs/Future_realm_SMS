@@ -15,6 +15,9 @@ Moving the database: take a dump (`pg_dump -Fc`, version 18 client for a Render 
 Render's **free** web services stop after about 15 minutes without a request and take 30–60 seconds to wake — the first person of the morning waits
 that long. The blueprint has both services (and the database) on `plan: free`. Use **Starter** (always on) for the API and the web app. The free
 database also **expires** (30 days, then a 14-day grace period): check what plan the production database is actually on before anything else.
+Until that is done, the code softens it: every page asks the API's `/api/health` as soon as it opens (at most every four minutes per tab), so by the time
+someone has typed a password the API is usually awake, and the sign-in forms wait for it — with a "server is starting up" note — instead of failing.
+The **web** service sleeping cannot be softened from code: the login page itself has to come from it.
 Pinging a free service to keep it awake does not work for two services: the free allowance (750 hours a month) is shared, and two always-on
 services need about 1,440.
 
