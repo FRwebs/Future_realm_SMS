@@ -788,7 +788,7 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: S
                 "Web address",
                 school.subdomain ? `${school.subdomain}.futurerealm.school` : school.slug,
               ],
-              ["Change of address", "By request only", "Handled by Nooria, not edited here"],
+              ["Change of address", "By request only", "Handled by FutureRealm, not edited here"],
             ],
           },
         ],
@@ -2101,6 +2101,87 @@ function curriculumLayers(
   ];
 }
 
+/** What the platform library offers this school, for its own country (GET /configuration/library). */
+type LibraryView = {
+  country: string;
+  countryKnown: boolean;
+  tier: string;
+  hasScores: boolean;
+  inForce: { id: string; name: string } | null;
+  layoutInUse: { name: string; version: number } | null;
+  curricula: Array<{
+    id: string; name: string; version: string; market: string; characteristics: string; isDefault: boolean; language: string | null; calendar: string; subjectCount: number;
+    structure: Array<{ layer: string; holds: string; detail: string }>;
+    scales: Array<{ id: string; name: string; version: string; isDefault: boolean; passMark: number; bands: string; recommended: boolean }>;
+    frameworks: Array<{ id: string; name: string; components: string; recommended: boolean }>;
+    adopted: { version: string; at: string; recordId: string | null; inForce: boolean } | null;
+    newerVersion: boolean;
+  }>;
+  layouts: Array<{ id: string; name: string; version: number; bestFor: string; rules: string; locked: boolean; availableTo: string; current: boolean }>;
+};
+
+const KEEP_GRADING = "Keep my school’s own grading";
+const KEEP_ASSESSMENT = "Keep my school’s own components";
+const KEEP_CARDS = "Keep my school’s report cards as they are";
+const START_NEXT = "From next term";
+const START_NOW = "Now — only possible before any score is entered";
+const START_DRAFT = "Keep it as a draft while I look it over";
+
+/**
+ * The adopt drawer for one library curriculum.
+ *
+ * It opens on what the library recommends for the school’s country — the scale made for the curriculum, the matching framework —
+ * and every one of those is a choice, including keeping what the school already has. Adopting copies; it never links, so the school
+ * owns what it takes and a later change to the master reaches it only as a notice.
+ */
+function adoptDrawer(entry: LibraryView["curricula"][number], library: LibraryView): DrawerSpec {
+  const scaleLabel = (scale: LibraryView["curricula"][number]["scales"][number]) => `${scale.name}${scale.recommended ? " — recommended" : ""} (v${scale.version})`;
+  const frameworkLabel = (framework: LibraryView["curricula"][number]["frameworks"][number]) => `${framework.name}${framework.recommended ? " — recommended" : ""} · ${framework.components}`;
+  const open = library.layouts.filter((layout) => !layout.locked);
+  const layoutLabel = (layout: LibraryView["layouts"][number]) => `${layout.name} — ${layout.bestFor || layout.rules}`;
+  const scaleOptions = [...entry.scales.map(scaleLabel), KEEP_GRADING];
+  const frameworkOptions = [...entry.frameworks.map(frameworkLabel), KEEP_ASSESSMENT];
+  const layoutOptions = [...open.map(layoutLabel), KEEP_CARDS];
+  const preferredScale = entry.scales.find((scale) => scale.recommended && scale.isDefault) ?? entry.scales.find((scale) => scale.recommended) ?? entry.scales[0];
+  const preferredFramework = entry.frameworks.find((framework) => framework.recommended) ?? entry.frameworks[0];
+  const timing = library.hasScores ? [START_NEXT, START_DRAFT] : [START_NEXT, START_NOW, START_DRAFT];
+  const lockedLayouts = library.layouts.filter((layout) => layout.locked);
+
+  return {
+    mode: "form",
+    kicker: entry.adopted ? "New version in the library" : "From the library",
+    title: `Adopt ${entry.name}`,
+    sub: `Published for ${library.country} schools · version ${entry.version}. You get a copy of your own to keep, change or put in force — the library never edits it afterwards.`,
+    facts: [
+      ["What it is", entry.characteristics],
+      ...entry.structure.map((row) => [row.layer, row.holds, row.detail] as PanelFact),
+    ],
+    fields: [
+      { kind: "select", label: "Grading scale", value: scaleLabel(preferredScale ?? entry.scales[0]), options: scaleOptions, hint: entry.scales.length ? `The bands and pass mark your results are graded against. ${preferredScale ? preferredScale.bands : ""}` : "The library has no scale for this curriculum — your own is kept.", span: 2 },
+      { kind: "select", label: "Assessment framework", value: preferredFramework ? frameworkLabel(preferredFramework) : KEEP_ASSESSMENT, options: frameworkOptions, hint: "The components a subject score is made of, and their weights — they must total 100.", span: 2 },
+      { kind: "select", label: "Report card layout", value: KEEP_CARDS, options: layoutOptions, hint: lockedLayouts.length ? `${lockedLayouts.map((layout) => layout.name).join(", ")} ${lockedLayouts.length === 1 ? "is" : "are"} part of a higher plan.` : "What a parent holds at the end of a term. Positions and averages appear only if the layout shows them.", span: 2 },
+      { kind: "toggle", label: "Add the subjects it lists that I do not teach yet", on: false, onLabel: "Add them", offLabel: "Leave my subjects as they are", hint: `${entry.subjectCount} subjects are listed. Ones you already teach are never duplicated.`, span: 2 },
+      { kind: "choice", label: "When should it start?", value: START_NEXT, options: timing, hint: library.hasScores ? "Scores are already entered this term, so a swap cannot happen now — results already issued keep the framework they were issued under." : "Nothing live changes until it starts.", span: 2 },
+    ],
+    commitLabel: "Adopt",
+    commitDone: `${entry.name} adopted`,
+    commitDoneBody: "It is in your curricula now. If you chose to keep it as a draft, open it there and put it in force when you are ready.",
+    submit: {
+      endpoint: `${CONFIG}/library/adopt`,
+      method: "POST",
+      body: { curriculumId: entry.id },
+      map: { "Grading scale": "gradingScaleId", "Assessment framework": "frameworkId", "Report card layout": "layoutId", "Add the subjects it lists that I do not teach yet": "addSubjects", "When should it start?": "effectiveFrom" },
+      encode: {
+        "Grading scale": { ...Object.fromEntries(entry.scales.map((scale) => [scaleLabel(scale), scale.id])), [KEEP_GRADING]: "keep" },
+        "Assessment framework": { ...Object.fromEntries(entry.frameworks.map((framework) => [frameworkLabel(framework), framework.id])), [KEEP_ASSESSMENT]: "keep" },
+        "Report card layout": { ...Object.fromEntries(open.map((layout) => [layoutLabel(layout), layout.id])), [KEEP_CARDS]: "none" },
+        "When should it start?": { [START_NEXT]: "NEXT_TERM", [START_NOW]: "NOW", [START_DRAFT]: "DRAFT" },
+      },
+    },
+    next: { label: "See my curricula", href: "/school-configuration/curriculum" },
+  };
+}
+
 /**
  * M02 · Curriculum, in the mockup's shape: the standing figures, the one
  * curriculum in force, the rule that stops it being swapped, then the six
@@ -2113,6 +2194,7 @@ function curriculumTab(
   schemes: GradingScheme[],
   components: SectionComponent[],
   built: CurriculumRecord[],
+  library: LibraryView | null,
 ): TabContent {
   const scheme = schemes.find((item) => item.isActive) ?? schemes[0];
   const bands = (scheme?.bands ?? []).slice().sort((a, b) => a.order - b.order);
@@ -2132,6 +2214,8 @@ function curriculumTab(
   const layers = curriculumLayers(subjects, levels, scheme, componentsBySection);
   const layersSet = layers.filter((layer) => layer.set).length;
   const layersShort = layers.filter((layer) => !layer.set);
+  /** Library curricula this school has not taken yet — or has taken an older version of. */
+  const offered = (library?.curricula ?? []).filter((entry) => !entry.adopted || entry.newerVersion);
 
   const basis = school.curriculumPreference ?? "Nigerian national curriculum";
   const inForce = layersSet > 0;
@@ -2273,9 +2357,15 @@ function curriculumTab(
               },
               {
                 label: "Available to adopt",
-                value: "0",
-                sub: "No shared library in this build",
-                tone: "neutral",
+                value: String(offered.length),
+                sub: library
+                  ? offered.length
+                    ? `Published for ${library.country} schools`
+                    : library.curricula.length
+                      ? "You have taken everything on offer"
+                      : `Nothing published for ${library.country} yet`
+                  : "The library could not be reached",
+                tone: offered.length ? "positive" : "neutral",
               },
               {
                 label: "Your own drafts",
@@ -2295,6 +2385,63 @@ function curriculumTab(
           },
         ],
       },
+      ...(library && library.curricula.length
+        ? [
+            {
+              cols: "1fr",
+              panels: [
+                {
+                  type: "table" as const,
+                  title: `From the Future Realm library · ${library.country}`,
+                  tag: `${offered.length} to adopt`,
+                  tagTone: offered.length ? ("positive" as const) : ("neutral" as const),
+                  sub: `Curricula published for ${library.country}, each with the grading scale and assessment framework made for it. Adopt one and it becomes your own copy — change anything, or keep it as it is.`,
+                  meta: library.layoutInUse ? `Report cards use ${library.layoutInUse.name}` : "Report cards use your own layout",
+                  head: ["Curriculum", "What it is", "Grading scale", "Assessment", "State", ""],
+                  noun: "curriculum",
+                  nounPlural: "curricula",
+                  per: 8,
+                  rows: library.curricula.map((entry) => {
+                    const scale = entry.scales.find((item) => item.recommended && item.isDefault) ?? entry.scales.find((item) => item.recommended);
+                    const framework = entry.frameworks.find((item) => item.recommended);
+                    const taken = entry.adopted && !entry.newerVersion;
+                    return {
+                      cells: [
+                        nameCell(entry.name, `${entry.market} · v${entry.version}${entry.isDefault ? " · default" : ""}`),
+                        text(entry.characteristics),
+                        text(scale ? scale.name : "Your own"),
+                        text(framework ? framework.name : "Your own"),
+                        pill(
+                          taken ? (entry.adopted?.inForce ? "In force" : "Adopted") : entry.newerVersion ? `New version ${entry.version}` : "Available",
+                          taken ? "neutral" : entry.newerVersion ? "attention" : "positive",
+                        ),
+                        taken
+                          ? { kind: "action" as const, label: "Open", href: entry.adopted?.recordId ? "/school-configuration/curriculum" : "/school-configuration/curriculum" }
+                          : { kind: "action" as const, label: entry.newerVersion ? `Adopt v${entry.version}` : "Adopt", drawer: adoptDrawer(entry, library) },
+                      ],
+                      keywords: `${entry.name} ${entry.market} library ${library.country}`,
+                    };
+                  }),
+                  foot: `Only curricula published for ${library.country} are offered. Adopting copies it into your school — it never changes what you already run until you put it in force, and never mid-term once scores are in.`,
+                },
+              ],
+            },
+          ]
+        : library && library.countryKnown
+          ? [
+              {
+                cols: "1fr",
+                panels: [
+                  {
+                    type: "note" as const,
+                    tone: "neutral" as const,
+                    title: `Nothing is published for ${library.country} yet`,
+                    body: "When Future Realm publishes a curriculum for your country it appears here, ready to adopt. Until then, build your own below.",
+                  },
+                ],
+              },
+            ]
+          : []),
       {
         cols: "1fr",
         panels: [
@@ -2305,7 +2452,7 @@ function curriculumTab(
             tagTone: inForce ? "positive" : "attention",
             sub: built.length
               ? "Number 1 is the configuration in force. The rest were built here and are yours to finish, or put in force."
-              : "This school keeps one. No shared library is available to adopt from in this build.",
+              : "This school keeps one. Curricula adopted from the library appear here beside any you build.",
             meta: `${built.length + 1} curricul${built.length ? "a" : "um"} · ${
               inForce ? "1 in force" : "none in force"
             }`,
@@ -2348,13 +2495,14 @@ function curriculumTab(
                   assessment?: { components?: unknown[] };
                   grading?: { bands?: unknown[] };
                   sectionsComplete?: number;
+                  source?: { origin?: string; version?: string };
                 };
                 const draft = record.status !== "ACTIVE";
                 return {
                   cells: [
                     text(String(index + 2), { strong: true }),
                     nameCell(record.name, record.code ?? record.description ?? undefined),
-                    text("This school"),
+                    text(detail.source?.origin === "LIBRARY" ? `Library · v${detail.source.version}` : "This school"),
                     text(detail.identity?.["Region or awarding basis"] ?? "\u2014"),
                     text(`${detail.sectionsComplete ?? 0} of 7`, {
                       tone: (detail.sectionsComplete ?? 0) === 7 ? "positive" : "attention",
@@ -3746,7 +3894,7 @@ function policiesTab(saved: PolicyItem[], country: string | null): TabContent {
 
   return {
     title: "Policies",
-    desc: "The rules that make Nooria behave like this school.",
+    desc: "The rules that make FutureRealm behave like this school.",
     rows: [
       {
         cols: "1fr",
@@ -3847,6 +3995,7 @@ export async function schoolConfigurationLiveTab(
     const built = await apiGet<{ records: CurriculumRecord[] }>(`${CONFIG}/curricula`).catch(
       () => ({ records: [] as CurriculumRecord[] }),
     );
+    const library = await apiGet<LibraryView>(`${CONFIG}/library`).catch(() => null);
     return curriculumTab(
       school.record,
       subjects?.records ?? [],
@@ -3854,6 +4003,7 @@ export async function schoolConfigurationLiveTab(
       schemes ?? [],
       components ?? [],
       built?.records ?? [],
+      library ?? null,
     );
   }
 

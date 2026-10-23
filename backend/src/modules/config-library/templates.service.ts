@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { library } from "./library.service";
 
 const bandSchema = z.object({ grade: z.string().trim().min(1), min: z.coerce.number(), max: z.coerce.number(), remark: z.string().trim().optional() });
 export type Band = z.infer<typeof bandSchema>;
@@ -26,7 +27,12 @@ const gradingSchema = z.object({
   gradeBands: z.array(bandSchema).min(1),
   passMark: z.coerce.number().min(0).max(100).default(40),
   applicableCurricula: csvList.default([]),
-  version: z.string().trim().min(1).default("1.0")
+  /** Left blank, the next whole version is taken: v3 becomes v4. */
+  version: z.string().trim().optional().transform((v) => v || undefined),
+  scaleType: z.enum(["PERCENTAGE", "LETTER", "POINTS", "DESCRIPTIVE"]).default("PERCENTAGE"),
+  creditGrade: z.string().trim().optional().transform((v) => v || undefined),
+  distinctionGrade: z.string().trim().optional().transform((v) => v || undefined),
+  failingGrade: z.string().trim().optional().transform((v) => v || undefined)
 });
 const mappingSchema = z.object({
   fromTemplateId: z.string().min(1),
@@ -126,6 +132,9 @@ export class TemplatesService {
     const profile = await prisma.countryProfile.findUnique({ where: { country: row.country } });
     if (!profile) problems.push(`${row.country} has no country profile — add one under Country Settings first.`);
     if (problems.length) throw new BadRequestException(problems.join(" "));
+    // The gate is technical: a template that fails one of the eight portability tests is not validated, whoever asks.
+    const run = await library.runPortability(session, "CURRICULUM", id);
+    if (!run.passed) throw new BadRequestException(`It does not pass the portability tests — ${run.results.filter((result) => result.state === "FAIL").map((result) => `${result.test}: ${result.note}`).join(" ")}`);
     await prisma.curriculumTemplate.update({ where: { id }, data: { lifecycle: "VALIDATED", validatedAt: new Date() } });
     await this.audit(session, AuditAction.UPDATE, "CurriculumTemplate", id, { validated: true });
     return { id };
@@ -138,11 +147,12 @@ export class TemplatesService {
     if (row.lifecycle !== "VALIDATED") throw new BadRequestException("Validate the template before publishing it.");
     const when = row.effectiveFrom && row.effectiveFrom > new Date() ? row.effectiveFrom : new Date();
     await prisma.$transaction([
-      prisma.curriculumTemplate.updateMany({ where: { name: row.name, country: row.country, lifecycle: "ACTIVE", id: { not: id } }, data: { lifecycle: "SUPERSEDED", isActive: false, supersededAt: new Date() } }),
-      prisma.curriculumTemplate.update({ where: { id }, data: { lifecycle: "ACTIVE", isActive: true, effectiveFrom: row.effectiveFrom ?? when } })
+      prisma.curriculumTemplate.updateMany({ where: { name: row.name, country: row.country, lifecycle: "ACTIVE", id: { not: id } }, data: { lifecycle: "SUPERSEDED", isActive: false, supersededAt: new Date(), effectiveTo: when } }),
+      prisma.curriculumTemplate.update({ where: { id }, data: { lifecycle: "ACTIVE", isActive: true, effectiveFrom: row.effectiveFrom ?? when, effectiveTo: null } })
     ]);
-    await this.audit(session, AuditAction.APPROVE, "CurriculumTemplate", id, { published: true, version: row.version });
-    return { id };
+    const told = await library.tellSchools(await library.schoolsThatTook("CURRICULUM", row.name), `${row.name} has a new version`, `Future Realm published version ${row.version} of ${row.name}, effective ${when.toISOString().slice(0, 10)}. Nothing is applied automatically — your school keeps the version it took, and your classes carry on as they are until you choose otherwise.`);
+    await this.audit(session, AuditAction.APPROVE, "CurriculumTemplate", id, { published: true, version: row.version, schoolsTold: told });
+    return { id, schoolsTold: told };
   }
 
   async archiveCurriculum(session: SessionPayload, id: string) {
@@ -158,14 +168,19 @@ export class TemplatesService {
 
   async saveGrading(session: SessionPayload, body: unknown) {
     const input = gradingSchema.parse(body);
-    const existing = await prisma.gradingScaleTemplate.findUnique({ where: { name_version: { name: input.name, version: input.version } } });
-    if (existing && existing.lifecycle !== "DRAFT") throw new BadRequestException(`${input.name} ${input.version} is ${existing.lifecycle.toLowerCase()} and can no longer be edited. Save it under a new version.`);
-    const data = { gradeBands: input.gradeBands as Prisma.InputJsonValue, passMark: input.passMark, applicableCurricula: input.applicableCurricula };
+    const version = input.version ?? (await library.nextGradingVersion(input.name));
+    const known = new Set(input.gradeBands.map((band) => band.grade));
+    for (const [label, grade] of [["credit", input.creditGrade], ["distinction", input.distinctionGrade], ["failing", input.failingGrade]] as const) {
+      if (grade && !known.has(grade)) throw new BadRequestException(`The ${label} band “${grade}” is not one of the bands.`);
+    }
+    const existing = await prisma.gradingScaleTemplate.findUnique({ where: { name_version: { name: input.name, version } } });
+    if (existing && existing.lifecycle !== "DRAFT") throw new BadRequestException(`${input.name} ${version} is ${existing.lifecycle.toLowerCase()} and can no longer be edited. Save it under a new version.`);
+    const data = { gradeBands: input.gradeBands as Prisma.InputJsonValue, passMark: input.passMark, applicableCurricula: input.applicableCurricula, scaleType: input.scaleType, creditGrade: input.creditGrade ?? null, distinctionGrade: input.distinctionGrade ?? null, failingGrade: input.failingGrade ?? null };
     const row = existing
       ? await prisma.gradingScaleTemplate.update({ where: { id: existing.id }, data: { ...data, validatedAt: null } })
-      : await prisma.gradingScaleTemplate.create({ data: { name: input.name, version: input.version, lifecycle: "DRAFT", isActive: false, ...data } });
+      : await prisma.gradingScaleTemplate.create({ data: { name: input.name, version, lifecycle: "DRAFT", isActive: false, ...data } });
     await this.audit(session, AuditAction.UPDATE, "GradingScaleTemplate", row.id, { name: row.name, version: row.version });
-    return { id: row.id, problems: checkBands(input.gradeBands, input.passMark) };
+    return { id: row.id, version: row.version, problems: checkBands(input.gradeBands, input.passMark) };
   }
 
   async validateGrading(session: SessionPayload, id: string) {
@@ -183,12 +198,16 @@ export class TemplatesService {
     const row = await prisma.gradingScaleTemplate.findUnique({ where: { id } });
     if (!row) throw new NotFoundException("Scale not found.");
     if (row.lifecycle !== "VALIDATED") throw new BadRequestException("Validate the scale before publishing it.");
+    const before = await prisma.gradingScaleTemplate.findMany({ where: { name: row.name, lifecycle: "ACTIVE", id: { not: id } } });
+    const wasDefault = before.some((scale) => scale.isDefault);
     await prisma.$transaction([
-      prisma.gradingScaleTemplate.updateMany({ where: { name: row.name, lifecycle: "ACTIVE", id: { not: id } }, data: { lifecycle: "SUPERSEDED", isActive: false, supersededAt: new Date() } }),
-      prisma.gradingScaleTemplate.update({ where: { id }, data: { lifecycle: "ACTIVE", isActive: true } })
+      prisma.gradingScaleTemplate.updateMany({ where: { name: row.name, lifecycle: "ACTIVE", id: { not: id } }, data: { lifecycle: "SUPERSEDED", isActive: false, supersededAt: new Date(), isDefault: false } }),
+      prisma.gradingScaleTemplate.update({ where: { id }, data: { lifecycle: "ACTIVE", isActive: true, ...(wasDefault ? { isDefault: true } : {}) } })
     ]);
-    await this.audit(session, AuditAction.APPROVE, "GradingScaleTemplate", id, { published: true, version: row.version });
-    return { id };
+    // A school keeps the copy it took, so a new version changes nothing for it — but it is told that one exists.
+    const told = await library.tellSchools(await library.schoolsThatTook("GRADING", row.name), `The ${row.name} grading scale has a new version`, `Future Realm published version ${row.version} of the ${row.name} scale. Your school keeps its own scale exactly as it is — nothing has changed in your account, and you can compare it with the new version whenever you like.`);
+    await this.audit(session, AuditAction.APPROVE, "GradingScaleTemplate", id, { published: true, version: row.version, schoolsTold: told });
+    return { id, schoolsTold: told };
   }
 
   async archiveGrading(session: SessionPayload, id: string) {
@@ -241,10 +260,11 @@ export class TemplatesService {
   /* ───────────────────────── the read side ───────────────────────── */
 
   async overview() {
-    const [curricula, grading, reportCards, mappings, profiles, adoptions, schoolsByCountry, recent] = await Promise.all([
+    const [cards, frameworks, runs] = await Promise.all([library.cards(), library.frameworks(), library.latestRuns()]);
+    const [curricula, grading, , mappings, profiles, adoptions, schoolsByCountry, recent] = await Promise.all([
       prisma.curriculumTemplate.findMany({ orderBy: [{ name: "asc" }, { createdAt: "desc" }] }),
-      prisma.gradingScaleTemplate.findMany({ orderBy: [{ name: "asc" }, { createdAt: "desc" }] }),
-      prisma.reportCardTemplate.findMany({ orderBy: { name: "asc" } }),
+      prisma.gradingScaleTemplate.findMany({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] }),
+      prisma.reportCardTemplate.findMany({ orderBy: [{ createdAt: "asc" }, { id: "asc" }] }),
       prisma.templateSubjectMapping.findMany({ orderBy: { createdAt: "desc" }, take: 100 }),
       prisma.countryProfile.findMany({ orderBy: { country: "asc" } }),
       prisma.templateAdoption.groupBy({ by: ["templateId"], _count: { _all: true } }),
@@ -255,14 +275,22 @@ export class TemplatesService {
     const used = new Map(adoptions.map((row) => [row.templateId, row._count._all]));
     const byId = new Map(curricula.map((row) => [row.id, row]));
     return {
-      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjects: c.subjects, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive, lifecycle: c.lifecycle, owner: c.owner, effectiveFrom: c.effectiveFrom?.toISOString() ?? null, language: c.language, layers: c.layers ?? null, basedOn: c.baseOnId ? (byId.get(c.baseOnId) ? `${byId.get(c.baseOnId)!.name} ${byId.get(c.baseOnId)!.version}` : "A removed template") : null, validatedAt: c.validatedAt?.toISOString() ?? null, schools: used.get(c.id) ?? 0 })),
-      gradingScales: grading.map((g) => ({ id: g.id, name: g.name, version: g.version, lifecycle: g.lifecycle, gradeBands: g.gradeBands, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive, schools: used.get(g.id) ?? 0, problems: (() => { try { return checkBands(z.array(bandSchema).parse(g.gradeBands), g.passMark); } catch { return ["The bands are not in a readable form."]; } })() })),
-      reportCards: reportCards.map((r) => ({ id: r.id, name: r.name, layout: (r.layoutConfig as { layout?: string } | null)?.layout ?? "", applicableCurricula: r.applicableCurricula, availableToTiers: r.availableToTiers, isActive: r.isActive })),
+      curricula: curricula.map((c) => ({ id: c.id, name: c.name, country: c.country, subjects: c.subjects, subjectCount: c.subjects.length, calendarType: c.calendarType, version: c.version, isActive: c.isActive, lifecycle: c.lifecycle, owner: c.owner, effectiveFrom: c.effectiveFrom?.toISOString() ?? null, effectiveTo: c.effectiveTo?.toISOString() ?? null, language: c.language, layers: c.layers ?? null, basedOn: c.baseOnId ? (byId.get(c.baseOnId) ? `${byId.get(c.baseOnId)!.name} ${byId.get(c.baseOnId)!.version}` : "A removed template") : null, validatedAt: c.validatedAt?.toISOString() ?? null, schools: used.get(c.id) ?? 0 })),
+      gradingScales: grading.map((g) => ({ id: g.id, name: g.name, version: g.version, scaleType: g.scaleType, isDefault: g.isDefault, creditGrade: g.creditGrade, distinctionGrade: g.distinctionGrade, failingGrade: g.failingGrade, lifecycle: g.lifecycle, gradeBands: g.gradeBands, bandCount: Array.isArray(g.gradeBands) ? (g.gradeBands as unknown[]).length : 0, passMark: g.passMark, applicableCurricula: g.applicableCurricula, isActive: g.isActive, schools: used.get(g.id) ?? 0, problems: (() => { try { return checkBands(z.array(bandSchema).parse(g.gradeBands), g.passMark); } catch { return ["The bands are not in a readable form."]; } })() })),
+      reportCards: cards,
+      frameworks,
+      portabilityRuns: runs,
       mappings: mappings.map((m) => ({ id: m.id, template: byId.get(m.fromTemplateId)?.name ?? "A removed template", fromVersion: byId.get(m.fromTemplateId)?.version ?? "?", toVersion: byId.get(m.toTemplateId)?.version ?? "?", fromSubject: m.fromSubject, toSubject: m.toSubject, relationship: m.relationship, at: m.createdAt.toISOString() })),
       profiles: profiles.map((p) => ({ ...p, createdAt: undefined, updatedAt: p.updatedAt.toISOString(), schools: schoolsByCountry.find((row) => row.country === p.country)?._count._all ?? 0 })),
       adoptions: recent.map((row) => ({ id: row.id, school: schoolNames.get(row.schoolId) ?? "A removed school", kind: row.kind, template: row.templateName, version: row.version, at: row.adoptedAt.toISOString() })),
       unprofiled: schoolsByCountry.filter((row) => !profiles.some((p) => p.country === row.country)).map((row) => ({ country: row.country, schools: row._count._all }))
     };
+  }
+
+  async gradingName(id: string): Promise<string> {
+    const row = await prisma.gradingScaleTemplate.findUnique({ where: { id }, select: { name: true } });
+    if (!row) throw new NotFoundException("Scale not found.");
+    return row.name;
   }
 
   /** What a new school in a country is given: the active curriculum, and the active scale made for it. Null when nothing has been published. */
@@ -272,11 +300,11 @@ export class TemplatesService {
     const live = await prisma.curriculumTemplate.findMany({ where: { country: { equals: country, mode: "insensitive" }, lifecycle: "ACTIVE" }, orderBy: { updatedAt: "desc" } });
     const curriculum = live.find((row) => (row.layers as { default?: boolean } | null)?.default) ?? live[0];
     if (!curriculum) return { curriculum: null, grading: null };
-    const grading = await prisma.gradingScaleTemplate.findFirst({ where: { lifecycle: "ACTIVE", applicableCurricula: { has: curriculum.name } }, orderBy: { updatedAt: "desc" } });
+    const grading = await prisma.gradingScaleTemplate.findFirst({ where: { lifecycle: "ACTIVE", applicableCurricula: { has: curriculum.name } }, orderBy: [{ isDefault: "desc" }, { updatedAt: "desc" }] });
     return { curriculum, grading };
   }
 
-  async recordAdoption(schoolId: string, rows: Array<{ kind: "GRADING" | "CURRICULUM"; templateId: string; templateName: string; version: string }>) {
+  async recordAdoption(schoolId: string, rows: Array<{ kind: "GRADING" | "CURRICULUM" | "REPORT_CARD"; templateId: string; templateName: string; version: string }>) {
     if (rows.length) await prisma.templateAdoption.createMany({ data: rows.map((row) => ({ schoolId, ...row })) });
   }
 

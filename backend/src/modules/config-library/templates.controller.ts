@@ -8,6 +8,7 @@ import { Roles } from "../../auth/roles.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { SessionGuard } from "../../auth/session.guard";
 import { ok } from "../student-records/records.shared";
+import { CARD_SECTIONS, LibraryService } from "./library.service";
 import { TemplatesService } from "./templates.service";
 
 const editRoles = ["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"] as const;
@@ -17,7 +18,93 @@ const editRoles = ["PLATFORM_OWNER", "DEVELOPER", "SUPER_ADMIN"] as const;
 @UseGuards(SessionGuard, CsrfGuard, RolesGuard)
 @Roles(...editRoles)
 export class TemplatesController {
-  constructor(private readonly templates: TemplatesService) {}
+  constructor(private readonly templates: TemplatesService, private readonly library: LibraryService) {}
+
+  @Get("curricula/:id/history")
+  history(@Param("id") id: string) {
+    return ok(this.library.history(id), "Version history loaded");
+  }
+
+  @Post("curricula/:id/layers")
+  saveLayers(@CurrentSession() s: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.library.saveLayers(s, id, body), "Layers saved");
+  }
+
+  @Post("portability/run-all")
+  portabilityAll(@CurrentSession() s: SessionPayload) {
+    return ok(this.library.runAllPortability(s), "Portability tests run");
+  }
+
+  @Post("curricula/:id/portability")
+  portability(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
+    return ok(this.library.runPortability(s, "CURRICULUM", id), "Portability tests run");
+  }
+
+  @Post("grading-scales/:id/default")
+  makeDefault(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
+    return ok(this.library.makeDefault(s, id), "Default grading scale changed");
+  }
+
+  @Post("grading-scales/:id/duplicate")
+  duplicateGrading(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
+    return ok(this.library.duplicateGrading(s, id), "Copied as a custom draft");
+  }
+
+  @Get("grading-scales/:id/schools")
+  async schoolsOnScale(@Param("id") id: string) {
+    const scale = await this.templates.gradingName(id);
+    return ok(this.library.schoolsOnScale(scale), "Schools on this scale");
+  }
+
+  @Post("assessment-frameworks")
+  saveFramework(@CurrentSession() s: SessionPayload, @Body() body: unknown) {
+    return ok(this.library.saveFramework(s, body), "Framework saved");
+  }
+
+  @Post("assessment-frameworks/:id/toggle")
+  toggleFramework(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
+    return ok(this.library.archiveFramework(s, id), "Framework updated");
+  }
+
+  @Post("report-card-layouts")
+  saveCard(@CurrentSession() s: SessionPayload, @Body() body: unknown) {
+    return ok(this.library.saveCard(s, body), "Layout saved as a draft");
+  }
+
+  @Post("report-card-layouts/:id/duplicate")
+  duplicateCard(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
+    return ok(this.library.duplicateCard(s, id), "Copied as a new draft");
+  }
+
+  @Post("report-card-layouts/:id/submit")
+  submitCard(@CurrentSession() s: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.library.submitCard(s, id, body), "Sent for review");
+  }
+
+  @Post("report-card-layouts/:id/return")
+  returnCard(@CurrentSession() s: SessionPayload, @Param("id") id: string, @Body() body: unknown) {
+    return ok(this.library.returnCard(s, id, body), "Sent back to its author");
+  }
+
+  @Post("report-card-layouts/:id/approve")
+  approveCard(@CurrentSession() s: SessionPayload, @Param("id") id: string) {
+    return ok(this.library.approveCard(s, id), "Layout published");
+  }
+
+  @Get("report-card-layouts/:id/preview")
+  previewCard(@Param("id") id: string) {
+    return ok(this.library.previewCard(id), "Sample card built");
+  }
+
+  @Get("report-card-layouts/:id/schools")
+  schoolsUsingCard(@Param("id") id: string) {
+    return ok(this.library.schoolsUsingCard(id), "Schools using this layout");
+  }
+
+  @Get("sections")
+  sections() {
+    return ok(Promise.resolve(CARD_SECTIONS), "Sections loaded");
+  }
 
   @Post("curricula/:id/version")
   version(@CurrentSession() s: SessionPayload, @Param("id") id: string, @Body() body: unknown) {

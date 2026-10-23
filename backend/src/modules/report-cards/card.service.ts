@@ -9,6 +9,8 @@ import { notifyGuardian } from "../guardian-management/guardians.shared";
 import { type ArmData, loadArm, studentResults } from "../score-results/arm";
 import { CREDIT_MARK, fullName, gradeOf, round2 } from "../score-results/scores.shared";
 import { type RemarkRow, cardReference, remarkState } from "./cards.shared";
+import { ConfigStore } from "../staff-access/staff-access.shared";
+import { type AdoptedLayout, REPORT_LAYOUT } from "../configuration/report-layout";
 
 /**
  * The card itself. A published card is a snapshot — what the family holds — so a score changing later
@@ -69,6 +71,28 @@ export class CardService {
 
   /** Builds the card for one child from the arm's sheets. `approvedOnly` is what is published; a draft preview reads what is entered. */
   async build(schoolId: string, term: Term, arm: ArmData, studentId: string, approvedOnly: boolean): Promise<CardData> {
+    return this.withLayout(schoolId, await this.buildCard(schoolId, term, arm, studentId, approvedOnly));
+  }
+
+  /**
+   * The layout the school adopted from the library decides what the card shows: a no-ranking layout prints no position or class average,
+   * a layout without behavioural domains prints none. A school that adopted none sees the card exactly as before.
+   */
+  private async withLayout(schoolId: string, card: CardData): Promise<CardData> {
+    const adopted = await new ConfigStore(schoolId, REPORT_LAYOUT.resource).get<AdoptedLayout>(REPORT_LAYOUT.code);
+    const spec = adopted?.data.spec;
+    if (!spec) return card;
+    const unranked = spec.positionRule === "NONE" || spec.sections?.position === false;
+    const unaveraged = spec.averaging === "NONE" || spec.sections?.average === false;
+    return {
+      ...card,
+      position: unranked ? null : card.position,
+      subjects: card.subjects.map((subject) => ({ ...subject, pos: unranked ? null : subject.pos, classAvg: unaveraged ? null : subject.classAvg })),
+      traits: spec.sections?.domains === false ? [] : card.traits
+    };
+  }
+
+  private async buildCard(schoolId: string, term: Term, arm: ArmData, studentId: string, approvedOnly: boolean): Promise<CardData> {
     const student = await prisma.student.findFirst({ where: { id: studentId, schoolId }, select: { id: true, firstName: true, middleName: true, lastName: true, admissionNumber: true, gender: true, dateOfBirth: true } });
     if (!student) throw new NotFoundException("That child is not in this school.");
     const results = studentResults(arm, approvedOnly);

@@ -576,6 +576,9 @@ export interface SuperAdminUserRow {
   schoolName: string;
   schoolStatus: TenantStatus;
   status: "ACTIVE" | "SUSPENDED";
+  phone?: string | null;
+  /** Active, but has never signed in — the account is made and waiting. */
+  pendingActivation?: boolean;
   lastLoginAt?: string;
   createdAt: string;
   lastDevice: string | null;
@@ -2772,9 +2775,11 @@ export interface SuperAdminComputationMonitoring {
 }
 
 export interface SuperAdminConfigLibrary {
-  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean; lifecycle: string; owner: string | null; effectiveFrom: string | null; language: string | null; layers: CurriculumLayers | null; basedOn: string | null; validatedAt: string | null; schools: number }>;
-  gradingScales: Array<{ id: string; name: string; version: string; lifecycle: string; gradeBands: unknown; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean; schools: number; problems: string[] }>;
-  reportCards: Array<{ id: string; name: string; layout: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean }>;
+  curricula: Array<{ id: string; name: string; country: string; subjects: string[]; subjectCount: number; calendarType: string; version: string; isActive: boolean; lifecycle: string; owner: string | null; effectiveFrom: string | null; effectiveTo: string | null; language: string | null; layers: CurriculumLayers | null; basedOn: string | null; validatedAt: string | null; schools: number }>;
+  gradingScales: Array<{ id: string; name: string; version: string; scaleType: string; isDefault: boolean; creditGrade: string | null; distinctionGrade: string | null; failingGrade: string | null; lifecycle: string; gradeBands: unknown; bandCount: number; passMark: number; applicableCurricula: string[]; isActive: boolean; schools: number; problems: string[] }>;
+  reportCards: Array<{ id: string; name: string; layout: string; bestFor: string; status: string; applicableCurricula: string[]; availableToTiers: string[]; isActive: boolean; schools: number; author: string | null; reviewer: string | null; reviewedAt: string | null; reviewNotes: string | null; targetRelease: string | null; spec: CardSpecView | null; portability: PortabilityRunView | null }>;
+  frameworks: Array<{ id: string; name: string; components: Array<{ code: string; name: string; max: number; weight: number }>; typicalUser: string | null; isCustom: boolean; isActive: boolean; schools: number }>;
+  portabilityRuns: PortabilityRunView[];
   mappings: Array<{ id: string; template: string; fromVersion: string; toVersion: string; fromSubject: string; toSubject: string; relationship: string; at: string }>;
   profiles: Array<{ id: string; country: string; currency: string; phonePattern: string | null; phonePrefixes: string[]; educationAuthority: string | null; registrationAuthority: string | null; defaultChannel: string | null; consentAge: number | null; dataProtectionRegime: string | null; verificationSources: string[]; isLive: boolean; schools: number; updatedAt: string }>;
   adoptions: Array<{ id: string; school: string; kind: string; template: string; version: string; at: string }>;
@@ -2914,6 +2919,12 @@ export interface SuperAdminPartnerCommissionSummaryRow {
 /** Layers 2, 4 and 6 of a curriculum template, as authored in the Back Office library. */
 export type CurriculumLayers = {
   default?: boolean;
+  order?: number;
+  characteristics?: string;
+  market?: string;
+  phase?: string;
+  portability?: string;
+  structure?: Array<{ layer: string; holds: string; detail: string }>;
   levels?: Array<{ stage: string; classes: string; exam: string; notes: string }>;
   levelsFootnote?: string;
   junior?: { range: string; subjects: Array<{ name: string; category: string; note?: string }> };
@@ -2927,3 +2938,7 @@ export type CurriculumLayers = {
   };
   reportCard?: { layout: string };
 };
+
+export type PortabilityFinding = { test: string; state: "PASS" | "PARTIAL" | "FAIL"; note: string };
+export type PortabilityRunView = { id: string; kind: string; targetId: string; targetName: string; passed: boolean; results: PortabilityFinding[]; ranAt: string };
+export type CardSpecView = { sections: Record<string, boolean>; positionRule: string; averaging: string; gradingDisplay: string; reissue: string; paper: string; sides: string };

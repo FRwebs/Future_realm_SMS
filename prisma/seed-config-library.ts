@@ -172,6 +172,107 @@ const mappings: Array<[string, string, "RENAMED" | "MERGED"]> = [
   ["Home Economics", "Pre-Vocational Studies", "MERGED"]
 ];
 
+
+/* ───────────────────────── what the library table and the structure sheet say about each template ───────────────────────── */
+
+const SIX = (rows: Array<[string, string, string]>) => rows.map(([layer, holds, detail]) => ({ layer, holds, detail }));
+const PORTABILITY = "All eight portability tests are checked before a template is published";
+const descriptors: Record<string, { characteristics: string; phase?: string; market: string; structure?: ReturnType<typeof SIX>; portability?: string }> = {
+  [NERDC]: { market: "Nigeria", characteristics: "Three terms, September start, JSS and SSS structure, nine-band examination scale, compulsory trade subject, streaming from SSS 1", portability: PORTABILITY,
+    structure: SIX([
+      ["1 · Calendar", "Three terms · September start", "Term 1 Sep–Dec, Term 2 Jan–Apr, Term 3 Apr–Jul"],
+      ["2 · Levels and classes", "Nursery 1–3, Primary 1–6, JSS 1–3, SSS 1–3", "Arms per class, named by the school (A, B, Gold, Silver)"],
+      ["3 · Subjects", "JSS and SSS frameworks · one trade subject compulsory", "Streaming from SSS 1 — Science, Humanities, Business"],
+      ["4 · Assessment", "First CA 10% · Second CA 30% · Examination 60%", "Weights must total 100 or results cannot be computed"],
+      ["5 · Grading", "Nigerian examination 9-band · A1 to F9", "Pass at 40, credit at C6 (50)"],
+      ["6 · Report card", "Standard portrait A4 · position shown", "Behavioural domains, class teacher and principal signature blocks"]]) },
+  [PRE_2025]: { market: "Nigeria", characteristics: "The superseded structure, retained for cohorts completing under it — required for the transition" },
+  [BRITISH]: { market: "Nigeria · international", characteristics: "IGCSE grading, British subject naming, three terms retained to match the local calendar", portability: PORTABILITY,
+    structure: SIX([
+      ["1 · Calendar", "Three terms · September start", "Kept local so the school year matches Nigerian schools around it"],
+      ["2 · Levels and classes", "Early Years, Year 1–11, Sixth Form", "British year naming throughout"],
+      ["3 · Subjects", "IGCSE option groups", "Choice groups at Year 10"],
+      ["4 · Assessment", "Coursework 20% · Mock 20% · Examination 60%", "Per-subject override allowed"],
+      ["5 · Grading", "IGCSE · A* to U", "Pass at Grade E, credit at Grade C"],
+      ["6 · Report card", "British layout · no class position", "Effort and attainment shown separately"]]) },
+  [AMERICAN]: { market: "Nigeria · international", characteristics: "Grade levels, grade-point scale, semester option" },
+  "International Baccalaureate": { market: "Nigeria · international", phase: "Phase 2", characteristics: "Seven-point scale, IB subject groups, two-semester structure" },
+  "Ghanaian National": { market: "Ghana", phase: "Phase 2", characteristics: "Three terms, Ghanaian subject list, national examination alignment — a configuration record, not a build" },
+  "Kenyan Competency-Based": { market: "Kenya", phase: "Phase 3", characteristics: "Competency-based assessment, descriptive bands, three terms" },
+  "South African National": { market: "South Africa", phase: "Phase 3", characteristics: "January session start, seven-level achievement scale, four terms" }
+};
+
+/** The order the library lists them in. */
+const ORDER = [NERDC, PRE_2025, BRITISH, AMERICAN, "International Baccalaureate", "Ghanaian National", "Kenyan Competency-Based", "South African National"];
+
+/** Adds the descriptive fields to a template that is already in the library, without touching anything else on it. */
+async function describeTemplates() {
+  let patched = 0;
+  for (const [name, d] of Object.entries(descriptors)) {
+    const row = await prisma.curriculumTemplate.findFirst({ where: { name } });
+    if (!row) continue;
+    const layers = (row.layers ?? {}) as Record<string, unknown>;
+    if (layers.characteristics && layers.order) continue;
+    await prisma.curriculumTemplate.update({ where: { id: row.id }, data: { layers: { ...layers, order: ORDER.indexOf(name) + 1, characteristics: d.characteristics, market: d.market, ...(d.phase ? { phase: d.phase } : {}), ...(d.structure ? { structure: d.structure } : {}), ...(d.portability ? { portability: d.portability } : {}) } } });
+    patched += 1;
+  }
+  return patched;
+}
+
+
+/* ───────────────────────── what the library tracks beyond the rows themselves ───────────────────────── */
+
+const frameworkRows = [
+  { name: "Balanced (40:60)", typicalUser: "The most common configuration among mid-sized private schools", components: [{ code: "CA1", name: "First CA", max: 20, weight: 10 }, { code: "CA2", name: "Second CA", max: 20, weight: 30 }, { code: "EXAM", name: "Examination", max: 100, weight: 60 }] },
+  { name: "Examination-weighted (30:70)", typicalUser: "Schools oriented tightly around external examination preparation", components: [{ code: "CA1", name: "First CA", max: 20, weight: 10 }, { code: "CA2", name: "Second CA", max: 20, weight: 20 }, { code: "EXAM", name: "Examination", max: 100, weight: 70 }] },
+  { name: "Examination-dominant (20:80)", typicalUser: "More traditional schools, and some senior secondary streams", components: [{ code: "CA", name: "Continuous Assessment", max: 40, weight: 20 }, { code: "EXAM", name: "Examination", max: 100, weight: 80 }] },
+  { name: "Custom", typicalUser: "Schools with project work, practical marks or homework as separate components", isCustom: true, components: [] as Array<{ code: string; name: string; max: number; weight: number }> }
+];
+
+const scaleFacts: Record<string, { scaleType: string; isDefault?: boolean; creditGrade?: string; distinctionGrade?: string; failingGrade?: string }> = {
+  "Nigerian examination (9-band)": { scaleType: "PERCENTAGE", isDefault: true, creditGrade: "C6", distinctionGrade: "B3", failingGrade: "F9" },
+  "Primary / JSS (5-band)": { scaleType: "PERCENTAGE", failingGrade: "F" },
+  IGCSE: { scaleType: "LETTER", creditGrade: "C", failingGrade: "U" },
+  "Grade point (4.0)": { scaleType: "POINTS", failingGrade: "F" },
+  "Descriptive bands only": { scaleType: "DESCRIPTIVE", failingGrade: "Below" }
+};
+
+const ALL_ON = { header: true, identity: true, subjectTable: true, average: true, position: true, cumulative: true, domains: true, comments: true, feeBalance: false, signatures: true };
+const cardSpecs: Record<string, { status: "LIVE" | "DRAFT"; spec: object }> = {
+  "Standard portrait A4": { status: "LIVE", spec: { sections: ALL_ON, positionRule: "SHOWN", averaging: "ARM", gradingDisplay: "GRADE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } },
+  "Combined primary + secondary": { status: "LIVE", spec: { sections: ALL_ON, positionRule: "FROM_LEVEL", averaging: "ARM", gradingDisplay: "GRADE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } },
+  "British curriculum layout": { status: "LIVE", spec: { sections: { ...ALL_ON, average: false, position: false, cumulative: false, domains: false }, positionRule: "NONE", averaging: "NONE", gradingDisplay: "GRADE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } },
+  "Compact layout": { status: "LIVE", spec: { sections: ALL_ON, positionRule: "SHOWN", averaging: "ARM", gradingDisplay: "GRADE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } },
+  "No-ranking layout": { status: "LIVE", spec: { sections: { ...ALL_ON, average: false, position: false, cumulative: false }, positionRule: "NONE", averaging: "NONE", gradingDisplay: "GRADE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } },
+  "Branded layout": { status: "LIVE", spec: { sections: ALL_ON, positionRule: "SHOWN", averaging: "ARM", gradingDisplay: "GRADE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } },
+  "Competency-based layout": { status: "DRAFT", spec: { sections: { ...ALL_ON, average: false, position: false, cumulative: false }, positionRule: "NONE", averaging: "NONE", gradingDisplay: "DESCRIPTIVE", reissue: "VERSIONED", paper: "A4 portrait", sides: "One" } }
+};
+
+async function trackLibrary() {
+  let frameworks = 0, scalesPatched = 0, cardsPatched = 0, supersededDated = 0;
+  for (const [index, row] of frameworkRows.entries()) {
+    if (await prisma.assessmentFrameworkTemplate.findUnique({ where: { name: row.name } })) continue;
+    await prisma.assessmentFrameworkTemplate.create({ data: { name: row.name, typicalUser: row.typicalUser, components: row.components, isCustom: row.isCustom ?? false, position: index + 1 } });
+    frameworks += 1;
+  }
+  for (const [name, facts] of Object.entries(scaleFacts)) {
+    const rows = await prisma.gradingScaleTemplate.findMany({ where: { name, creditGrade: null, failingGrade: null } });
+    for (const row of rows) {
+      await prisma.gradingScaleTemplate.update({ where: { id: row.id }, data: { scaleType: facts.scaleType, isDefault: facts.isDefault ?? false, creditGrade: facts.creditGrade ?? null, distinctionGrade: facts.distinctionGrade ?? null, failingGrade: facts.failingGrade ?? null } });
+      scalesPatched += 1;
+    }
+  }
+  for (const [name, card] of Object.entries(cardSpecs)) {
+    const row = await prisma.reportCardTemplate.findUnique({ where: { name } });
+    if (!row || row.spec) continue;
+    await prisma.reportCardTemplate.update({ where: { id: row.id }, data: { spec: card.spec, status: card.status, isActive: card.status === "LIVE" } });
+    cardsPatched += 1;
+  }
+  const old = await prisma.curriculumTemplate.findFirst({ where: { name: PRE_2025, effectiveTo: null, lifecycle: "SUPERSEDED" } });
+  if (old) { await prisma.curriculumTemplate.update({ where: { id: old.id }, data: { effectiveTo: new Date("2025-09-01") } }); supersededDated += 1; }
+  return { frameworks, scalesPatched, cardsPatched, supersededDated };
+}
+
 async function main() {
   const made = { curricula: 0, scales: 0, layouts: 0, countries: 0, mappings: 0 };
 
@@ -226,7 +327,9 @@ async function main() {
     }
   }
 
-  console.log("Config library seeded:", made);
+  const described = await describeTemplates();
+  const tracked = await trackLibrary();
+  console.log("Config library seeded:", made, { described }, tracked);
 }
 
 main().finally(() => prisma.$disconnect());

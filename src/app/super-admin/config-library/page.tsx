@@ -2,14 +2,16 @@ import { Globe2 } from "lucide-react";
 
 import { DetailTabs } from "@/components/data-display/detail-tabs";
 import { ModuleHero } from "@/components/data-display/module-hero";
+import { FlowSteps } from "@/components/data-display/flow-steps";
 import { ReferenceList } from "@/components/data-display/reference-list";
-import { StatusBadge } from "@/components/data-display/status-badge";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { formatDate } from "@/lib/utils/formatters";
 import { apiGet, apiGetEnvelope } from "@/lib/api/server";
 import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
 import { CatalogueImport } from "@/components/modules/catalogue-import";
+import { CARD_STEPS, cardFields } from "./_card-form";
+import { RunPortability } from "./_library-sheets";
 import { CurriculumTemplatesTable, GradingScalesTable, ReportCardsTable } from "./_template-tables";
 
 const calendarOptions = [{ label: "Three-term", value: "THREE_TERM" }, { label: "Two-semester", value: "TWO_SEMESTER" }];
@@ -95,6 +97,29 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
     extras = { countrySettings: [], assessmentFrameworkStats: { totalComponents: 0, totalSectionComponents: 0, schoolsWithFrameworks: 0 }, weightPatterns: [] };
   }
 
+  const defaultScale = data.gradingScales.find((scale) => scale.lifecycle === "ACTIVE" && scale.isDefault);
+  const fixedPatterns = new Set(data.frameworks.filter((f) => !f.isCustom).map((f) => f.components.map((c) => c.weight).join("/")));
+  const customSchools = extras.weightPatterns.filter((p) => !fixedPatterns.has(p.pattern.replace(/\s/g, ""))).reduce((sum, p) => sum + p.schoolCount, 0);
+  const TESTS: Array<[string, string, string]> = [
+    ["T1", "Does it work with a different currency, calendar, script or grading system?", "A fee field formatted with a Naira symbol in code; a date parser assuming day-month-year"],
+    ["T2", "Does it assume a three-term year?", "A results table with three fixed columns; a session average dividing by three"],
+    ["T3", "Does it assume examination-band grading?", "A grade lookup returning A1 to F9; a report card column headed WAEC Grade"],
+    ["T4", "Does it assume a numeric score exists at all?", "A position computation that cannot run against descriptive bands"],
+    ["T5", "Does it assume WhatsApp is the parent channel?", "A notification path with no channel fallback; copy that says WhatsApp rather than the configured channel"],
+    ["T6", "Does it assume a single-campus, owner-operated school?", "No path for a group or trust; a single owner with no delegation model"],
+    ["T7", "Would it survive scrutiny under a stricter regime than Nigeria’s?", "Children’s data with no consent record; no route to erasure; no processing record"],
+    ["T8", "Can a new country launch by adding configuration records?", "Any answer that includes writing code"]
+  ];
+  const inPlay = new Map(data.curricula.filter((c) => c.lifecycle !== "ARCHIVED" && c.lifecycle !== "SUPERSEDED").map((c) => [c.id, c.name]));
+  const curriculumRuns = data.portabilityRuns.filter((run) => run.kind === "CURRICULUM" && inPlay.has(run.targetId));
+  const portabilityRows = TESTS.map(([test, question, failure]) => {
+    const results = curriculumRuns.map((run) => ({ run, result: run.results.find((r) => r.test === test) })).filter((entry): entry is { run: (typeof curriculumRuns)[number]; result: NonNullable<typeof entry.result> } => Boolean(entry.result));
+    const state: "PASS" | "PARTIAL" | "FAIL" | "NONE" = results.length === 0 ? "NONE" : results.some((e) => e.result.state === "FAIL") ? "FAIL" : results.some((e) => e.result.state === "PARTIAL") ? "PARTIAL" : "PASS";
+    return { test, question, failure, state, of: results.length, passing: results.filter((e) => e.result.state === "PASS").length };
+  });
+  const portabilityFindings = curriculumRuns.flatMap((run) => run.results.filter((r) => r.state !== "PASS").map((r) => `${r.test} · ${run.targetName} — ${r.note}`));
+  const firstMapping = data.mappings[0];
+  const mappingTitle = firstMapping ? `Subject mapping — ${firstMapping.template} v${firstMapping.fromVersion} to v${firstMapping.toVersion}` : "Subject mapping between template versions";
   const nerdc = data.curricula.find((c) => c.layers?.default) ?? data.curricula.find((c) => c.layers) ?? null;
   const layers = nerdc?.layers ?? null;
 
@@ -118,11 +143,11 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           <ResourceActionDialog
             triggerLabel="New template"
             title="New master template"
-            description="Starts a draft. It becomes available to new schools only once it is validated and published — and a published version is never edited again, a new version is made instead."
+            description="FutureRealm owns and publishes masters. A school customises a copy, and we never edit that copy."
             endpoint="/api/super-admin/config-library/curricula"
-            submitLabel="Save draft"
+            submitLabel="Create draft"
             variant="heroWhite"
-            note="No template reaches a school until it is validated and published, and a published version is never edited again." fields={[
+            note="No template reaches a school without passing preview, validation and the eight portability tests." fields={[
               { name: "name", label: "Template name", required: true, placeholder: "e.g. Nigerian Standard (NERDC)", section: "Identity" },
               { name: "country", label: "Country", type: "select", required: true, options: data.profiles.map((profile) => ({ label: profile.country, value: profile.country })), note: "A country needs a profile (Country Settings) before a template can be validated.", section: "Identity" },
               { name: "version", label: "Version", required: true, defaultValue: "1.0", section: "Identity" },
@@ -131,11 +156,12 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               { name: "baseOnId", label: "Base on", type: "select", defaultValue: "", options: [{ label: "Start blank", value: "" }, ...data.curricula.map((c) => ({ label: `${c.name} v${c.version}`, value: c.id }))], note: "Copies the subjects and language from an existing template.", section: "Starting point" },
               { name: "calendarType", label: "Layer 1 · calendar", type: "select", options: calendarOptions, section: "Starting point" },
               { name: "language", label: "Language of instruction", placeholder: "e.g. English", section: "Starting point" },
-              { name: "layer2", label: "2 · Levels and classes", type: "toggle", disabled: true, note: "Not authored here — a school's class ladder comes from the levels it chooses at setup.", section: "Layers to author" },
-              { name: "layer3", label: "3 · Subjects", type: "toggle", section: "Layers to author" },
-              { name: "layer4", label: "4 · Assessment", type: "toggle", disabled: true, note: "Each school sets its own CA/exam weights; there is no platform preset.", section: "Layers to author" },
-              { name: "layer5", label: "5 · Grading", type: "toggle", note: "Authored as a grading scale in its own tab, then named under Applicable curricula.", section: "Layers to author" },
-              { name: "layer6", label: "6 · Report card", type: "toggle", disabled: true, section: "Layers to author" },
+              { name: "layer2", label: "2 · Levels and classes", type: "switch", on: true, note: "Stages, classes, arms", section: "Layers to author" },
+              { name: "layer3", label: "3 · Subjects", type: "switch", on: true, note: "Catalogue, choice groups, level rules", section: "Layers to author" },
+              { name: "layer4", label: "4 · Assessment", type: "switch", on: true, note: "Components and weights", section: "Layers to author" },
+              { name: "layer5", label: "5 · Grading", type: "switch", on: true, note: "Bands or competency levels", section: "Layers to author" },
+              { name: "layer6", label: "6 · Report card", type: "switch", on: true, note: "Sections and position rule", section: "Layers to author" },
+              { name: "inheritLayer1", label: "Inherit Layer 1 from country", type: "switch", on: true, note: "Calendar, currency, channel", section: "Layers to author" },
               { name: "subjects", label: "Subjects (comma-separated)", type: "textarea", parse: "csv", placeholder: "Mathematics, English, Basic Science", section: "Configuration" }
             ]}
           />
@@ -146,63 +172,113 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
 
       {tab === "curricula" ? (
         <div className="grid gap-[14px]">
-        <CurriculumTemplatesTable items={data.curricula} />
+        <CurriculumTemplatesTable items={data.curricula} runs={data.portabilityRuns} />
 
         <TableCard
-          title="The six-layer curriculum configuration model — what's real today"
-          description="A fully layered model would let a school swap each of these independently, and read its own choice from live configuration rather than hard-coded assumptions. Each layer is rated against what the platform does today."
+          title="The six-layer curriculum configuration model"
+          description="Each layer is independently replaceable — which is what makes hybrid cases possible, such as a Nigerian school running a British curriculum on a Nigerian calendar"
+            meta="A school selects a Layer 1 template at signup; layers 2–6 are pre-populated and can each be replaced independently"
           items={[
-            { layer: "1", name: "Education System", governs: "Calendar shape, term/semester count, currency, language, phone format, promotion policy", state: "Partly — a country profile (Country Settings tab) now holds currency, phone format, authorities, consent age and channel as data, and the template names its calendar. A school's own term dates are still set on the school, and its currency still defaults to NGN in finance code.", tone: "warn" },
-            { layer: "2", name: "Level Structure", governs: "The stages and classes a school may operate, and which are examination/transition points", state: "Authored on the template — the stages, classes and examination points of the default Nigerian template are on file (Assessment Frameworks tab). A school's own class ladder is still drawn from the levels it picks at setup, so the template describes it rather than drives it.", tone: "warn" },
-            { layer: "3", name: "Subject Framework", governs: "Subject catalogue, core/elective/compulsory-choice rules, minimum and maximum subject counts", state: "A versioned reference list — subjects are kept per version and mapped from one version to the next. A new school's subjects still come from the platform's built-in catalogue, not from this list.", tone: "warn" },
-            { layer: "4", name: "Assessment Framework", governs: "The components that make up a subject score, their weights, term and session aggregation", state: "Master presets are on file — four ready-made frameworks with the Nigerian defaults (Assessment Frameworks tab). A school still confirms or builds its own weighting at setup; the result engine reads the school's copy, never the preset.", tone: "warn" },
-            { layer: "5", name: "Grading Scale", governs: "Bands, boundaries, labels, remarks, pass mark", state: "Real and connected — a published scale is validated (0–100, no gap or overlap), copied into each new school in a country whose curriculum names it, and the version taken is recorded. Without one, the platform default from Settings applies.", tone: "good" },
-            { layer: "6", name: "Report Card Template", governs: "Layout, which fields are displayed, position/ranking display rules", state: "A library of structured layouts, each with the audience it suits, the tiers it is open to and what it shows (Report Cards tab). Not yet linked to a school, so no layout is applied automatically.", tone: "warn" }
+            { layer: "1", name: "Education System", governs: "Calendar shape, term or semester count, week start, currency, language, date format, phone format, promotion policy, the national qualification the system leads towards", readBy: "Country level" },
+            { layer: "2", name: "Level Structure", governs: "The stages and classes a school may operate, their order, and which stage boundaries are examination or transition points", readBy: "Enrolment, promotion" },
+            { layer: "3", name: "Subject Framework", governs: "Subject catalogue, per-level offering rules, core versus elective versus compulsory-choice, stream rules, minimum and maximum subject counts", readBy: "Subject assignment" },
+            { layer: "4", name: "Assessment Framework", governs: "The components that make up a subject score, their weights, how they aggregate to a term score, and how terms aggregate to a session score", readBy: "Result engine", emphasis: true },
+            { layer: "5", name: "Grading Scale", governs: "Bands, boundaries, labels, remarks, pass mark, and whether the scale is percentage, letter, points or descriptive only", readBy: "Result engine" },
+            { layer: "6", name: "Report Card Template", governs: "Layout, which of the above is displayed, position and ranking display rules, behavioural domains, signatures", readBy: "Publishing" }
           ]}
           getRowKey={(row) => row.layer}
+          pageSize={false}
           columns={[
             { key: "layer", header: "Layer", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.layer}</span> },
-            { key: "name", header: "Name", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.name}</span> },
-            { key: "governs", header: "What it would govern", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.governs}</span> },
-            {
-              key: "state",
-              header: "Real state today",
-              render: (row) => {
-                const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)" } }[row.tone as "good" | "warn" | "bad"];
-                return <span className="inline-block rounded-[7px] px-2.5 py-2 text-[11px] leading-5" style={{ background: tone.bg, color: tone.fg }}>{row.state}</span>;
-              }
-            }
+            { key: "name", header: "Name", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+            { key: "governs", header: "What it governs", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.governs}</span> },
+            { key: "readBy", header: "Read by", render: (row) => (row.emphasis ? <span className="inline-flex rounded-full bg-[var(--color-danger-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-danger)]">{row.readBy}</span> : row.readBy) }
           ]}
         />
 
-        <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white">
-          <div className="border-b border-[#E6EEE9] px-5 py-4">
-            <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">Three hard constraints on every other module</p>
-            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Each follows directly from the governing principle — each one checked against how the platform actually behaves.</p>
-          </div>
-          <div className="grid gap-3 p-5">
-            {[
-              { label: "No module may contain a literal reference to a Nigerian grade band, subject name, term count or class level", detail: "Partly met — signup takes a country, and grade bands can come from a published template. But finance code still falls back to NGN, the signup phone check is the Nigerian pattern, and a school's level structure is drawn from a fixed platform enum rather than configuration.", tone: "bad" },
-              { label: "The result engine takes the assessment framework as an input, never as an assumption", detail: "Met — component weights, tie-handling, and absent-handling are all read from each school's own AssessmentComponent configuration (see Assessment Frameworks), not hard-coded.", tone: "good" },
-              { label: "Master templates are owned by Nooria; the copy a school customises is owned by that school", detail: "Met for grading — setup copies the published scale into the school's own grading scheme and records the version (see “Schools and the version they took”). Later versions never change a school that already has one.", tone: "good" }
-            ].map((item) => {
-              const dot = { good: "var(--color-success)", bad: "var(--color-danger)", mute: "var(--color-text-muted)" }[item.tone];
-              return (
-                <div key={item.label} className="flex items-start gap-3 border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full" style={{ background: dot }} />
-                  <div>
-                    <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.label}</p>
-                    <p className="mt-0.5 text-[10.5px] leading-relaxed text-[var(--color-text-muted)]">{item.detail}</p>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </section>
+        <ReferenceList
+          title="Three hard constraints on every other module"
+          sub="Each follows directly from the governing principle"
+          items={[
+            { label: "No module may contain a literal reference to a Nigerian grade band, subject name, term count or class level", detail: "Where one is needed, it is read from the school’s active curriculum configuration", tone: "bad" },
+            { label: "The result engine takes the assessment framework as an input, never as an assumption", detail: "It must produce correct results for a two-semester grade-point system with the same code path it uses for a three-term percentage system", tone: "bad" },
+            { label: "Master templates are owned by FutureRealm; the copy a school customises is owned by that school", detail: "A change to a master template never reaches back into a school’s live configuration", tone: "bad" }
+          ]}
+        />
 
         <TableCard
-          title="Classes pinned to a version"
-          description="A class running a named template version of its own, rather than whatever its school adopted. This is what lets a leaving year finish on the syllabus it was taught."
+          title="Versioning requirements"
+          description="The single most valuable capability in this module"
+          items={[
+            { requirement: "Templates are versioned", spec: "Every template carries a version, an effective-from date and an effective-to date. Versions are never edited in place; a change creates a new version.", state: "good" },
+            { requirement: "Assignment is per class", spec: "A school assigns a curriculum version to a class or cohort. JSS 1 may run the 2025 structure while SSS 3 runs the 2024 structure, simultaneously, within one school.", state: "good" },
+            { requirement: "Historical results are immutable", spec: "A result computed under one version always renders under that version. Reissuing a report card from two years ago produces the document originally issued.", state: "warn" },
+            { requirement: "Migration path is explicit", spec: "Where a subject is merged or renamed between versions, the template records the mapping. A student’s history shows Basic Science and Basic Technology in earlier years and Intermediate Science later.", state: "good" },
+            { requirement: "Schools are notified, not forced", spec: "When a new version is published, affected schools are told and shown what changed. Nothing is applied automatically.", state: "good" }
+          ]}
+          getRowKey={(row) => row.requirement}
+          pageSize={false}
+          columns={[
+            { key: "requirement", header: "Requirement", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.requirement}</span> },
+            { key: "spec", header: "Specification", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
+            {
+              key: "state",
+              header: "State",
+              render: (row) => row.state === "good"
+                ? <span className="inline-flex rounded-full bg-[var(--color-success-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-success)]">Enforced</span>
+                : <span className="inline-flex rounded-full bg-[var(--color-warning-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-warning)]">Partial</span>
+            }
+          ]}
+          footnote="Partial means the platform does not yet do all of it: a score record carries no curriculum-version tag of its own, so a past report card is rebuilt from the school’s own copy rather than from a stored version. Publishing a new version tells the owner and principal of every school that took the old one; nothing is applied to them."
+        />
+
+        <FlowSteps
+          title="Curriculum template lifecycle"
+          sub="Archived is not deleted, because a result computed in 2026 must still be explainable in 2032"
+          steps={[
+            { label: "Drafted", note: "Product Lead creates or revises a version" },
+            { label: "Previewed", note: "Rendered against sample data — subjects, a full term of scores, a computed result, a report card" },
+            { label: "Validated", note: "Bands contiguous, weights total 100, choice groups satisfiable, counts in range", tone: "warn" },
+            { label: "Published", note: "Version and effective dates fixed; affected schools notified", tone: "good" },
+            { label: "Superseded", note: "Remains fully usable for classes already assigned to it" },
+            { label: "Archived", note: "Not selectable for new assignment, but never deleted", tone: "ink" }
+          ]}
+        />
+
+        <div className="grid items-start gap-[14px] lg:grid-cols-[1.1fr_1fr]">
+          <TableCard
+            title={mappingTitle}
+            description="Recorded rather than rewriting earlier records"
+            items={data.mappings}
+            getRowKey={(row) => row.id}
+            actions={
+              <ResourceActionDialog
+                triggerLabel="Add mapping"
+                title="Map a subject between two versions"
+                description="Both versions must be of the same template, and each subject must exist in its version."
+                endpoint="/api/super-admin/config-library/mappings"
+                submitLabel="Save mapping"
+                variant="secondary"
+                fields={[
+                  { name: "fromTemplateId", label: "From version", type: "select", required: true, options: data.curricula.map((c) => ({ label: `${c.name} v${c.version}`, value: c.id })) },
+                  { name: "toTemplateId", label: "To version", type: "select", required: true, options: data.curricula.map((c) => ({ label: `${c.name} v${c.version}`, value: c.id })) },
+                  { name: "fromSubject", label: "Subject in the old version", required: true },
+                  { name: "toSubject", label: "Subject in the new version", required: true },
+                  { name: "relationship", label: "Relationship", type: "select", defaultValue: "RENAMED", options: [{ label: "Renamed", value: "RENAMED" }, { label: "Merged (several old into one)", value: "MERGED" }, { label: "Split (one old into several)", value: "SPLIT" }] }
+                ]}
+              />
+            }
+            columns={[
+              { key: "from", header: "From", render: (row) => row.fromSubject },
+              { key: "to", header: "To", render: (row) => row.toSubject },
+              { key: "relationship", header: "Relationship", render: (row) => <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.relationship.charAt(0) + row.relationship.slice(1).toLowerCase()}</span> },
+              { key: "x", header: "", render: (row) => <ResourceActionDialog triggerLabel="Remove" title="Remove this mapping" description={`${row.fromSubject} → ${row.toSubject}`} endpoint={`/api/super-admin/config-library/mappings/${row.id}`} method="DELETE" variant="textActionDanger" submitLabel="Remove" confirmLabel="Confirm" fields={[]} /> }
+            ]}
+            emptyState="No subject has been mapped between versions yet — it matters once a template has a second version."
+          />
+                  <TableCard
+          title="Version assignment in a transitioning school"
+          description="One class can run a different curriculum version from the rest of its school — which is what lets a leaving year finish on the syllabus it was taught while the intake below it starts on the new one."
           items={classAssignments}
           pageSize={false}
           getRowKey={(row) => row.id}
@@ -233,8 +309,8 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
           columns={[
             { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
             { key: "class", header: "Class", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.className}</span> },
-            { key: "template", header: "Running", render: (row) => <span className="text-[var(--color-text-primary)]">{row.template} <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{row.version}</span></span> },
-            { key: "at", header: "Pinned", render: (row) => <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(row.assignedAt)}</span>, sortValue: (row) => row.assignedAt },
+            { key: "template", header: "Curriculum version", render: (row) => <span className="text-[var(--color-text-primary)]">{row.template} <span className="font-[var(--font-mono)] text-[var(--color-text-muted)]">{row.version}</span></span> },
+            { key: "at", header: "Assigned", render: (row) => <span className="text-[11px] text-[var(--color-text-muted)]">{formatDate(row.assignedAt)}</span>, sortValue: (row) => row.assignedAt },
             {
               key: "clear",
               header: "",
@@ -261,129 +337,194 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               )
             }
           ]}
+                  footnote="One school, two live curriculum versions, both computing correctly — and both explainable to a parent from the calculation trace."
         />
 
-        <TableCard
-          title="Versioning requirements"
-          description="Checked against the real template-update code, not the aspiration."
-          items={[
-            { requirement: "Templates are versioned", spec: "Enforced — a template is a name plus a version. Publishing a new version supersedes the Active one; a validated or published version cannot be edited, only copied into a new draft. Effective-from is kept.", state: "good" },
-            { requirement: "Assignment is per class", spec: "Enforced — a class can be pinned to a named template version of its own, so a leaving year can finish on the syllabus it was taught while the intake below it starts on the new one. A class with no pin runs whatever its school adopted, and a draft cannot be pinned to anything.", state: "good" },
-            { requirement: "Historical results are immutable", spec: "Partly — a school owns its copy, so publishing a new version cannot change a school's past results. A score record still carries no curriculum-version tag of its own.", state: "warn" },
-            { requirement: "Migration path is explicit", spec: "Enforced as data — subject mappings (renamed, merged, split) are recorded between versions of the same template and checked against both subject lists.", state: "good" },
-            { requirement: "Schools are notified, not forced", spec: "Partly — schools are never forced: they keep their copy. They are not notified of a new version either; nothing tells a school one exists.", state: "warn" }
-          ]}
-          getRowKey={(row) => row.requirement}
-          columns={[
-            { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-            { key: "spec", header: "What actually happens", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.spec}</span> },
-            {
-              key: "state",
-              header: "State",
-              render: (row) => {
-                const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "N/A" } }[row.state as "good" | "warn" | "bad" | "mute"];
-                return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
-              }
-            }
-          ]}
-        />
-
-        <CurriculumLifecycleFlow />
-
-        <div className="grid items-start gap-[14px] lg:grid-cols-2">
-          <TableCard
-            title="Subject mapping between template versions"
-            description="How a subject is renamed, merged or split when a template changes, so a student's history stays explainable years later."
-            items={data.mappings}
-            getRowKey={(row) => row.id}
-            actions={
-              <ResourceActionDialog
-                triggerLabel="Add mapping"
-                title="Map a subject between two versions"
-                description="Both versions must be of the same template, and each subject must exist in its version."
-                endpoint="/api/super-admin/config-library/mappings"
-                submitLabel="Save mapping"
-                variant="secondary"
-                fields={[
-                  { name: "fromTemplateId", label: "From version", type: "select", required: true, options: data.curricula.map((c) => ({ label: `${c.name} v${c.version}`, value: c.id })) },
-                  { name: "toTemplateId", label: "To version", type: "select", required: true, options: data.curricula.map((c) => ({ label: `${c.name} v${c.version}`, value: c.id })) },
-                  { name: "fromSubject", label: "Subject in the old version", required: true },
-                  { name: "toSubject", label: "Subject in the new version", required: true },
-                  { name: "relationship", label: "Relationship", type: "select", defaultValue: "RENAMED", options: [{ label: "Renamed", value: "RENAMED" }, { label: "Merged (several old into one)", value: "MERGED" }, { label: "Split (one old into several)", value: "SPLIT" }] }
-                ]}
-              />
-            }
-            columns={[
-              { key: "from", header: "From", render: (row) => <span>{row.fromSubject} <span className="text-[11px] text-[var(--color-text-muted)]">v{row.fromVersion}</span></span> },
-              { key: "to", header: "To", render: (row) => <span>{row.toSubject} <span className="text-[11px] text-[var(--color-text-muted)]">v{row.toVersion}</span></span> },
-              { key: "relationship", header: "Relationship", render: (row) => row.relationship.toLowerCase() },
-              { key: "x", header: "", render: (row) => <ResourceActionDialog triggerLabel="Remove" title="Remove this mapping" description={`${row.fromSubject} → ${row.toSubject}`} endpoint={`/api/super-admin/config-library/mappings/${row.id}`} method="DELETE" variant="textActionDanger" submitLabel="Remove" confirmLabel="Confirm" fields={[]} /> }
-            ]}
-            emptyState="No subject has been mapped between versions yet — it matters once a template has a second version."
-          />
-          <TableCard
-            title="Version assignment in a transitioning school"
-            description="The copy each new school's setup took from the library. This is the school's own adoption; a class that needs a different version is pinned to one above, and its pin outranks this."
-            items={data.adoptions}
-            getRowKey={(row) => row.id}
-            columns={[
-              { key: "school", header: "School", render: (row) => row.school },
-              { key: "kind", header: "Copied", render: (row) => row.kind === "GRADING" ? "Grading scale" : "Curriculum" },
-              { key: "template", header: "Template", render: (row) => `${row.template} v${row.version}` },
-              { key: "at", header: "When", render: (row) => row.at.slice(0, 10) }
-            ]}
-            emptyState="No school has taken a template yet. When a scale is published for a country, the next school set up there is given a copy and listed here."
-          />
         </div>
 
         <TableCard
           title="Portability tests every template must pass"
-          description="Tests any curriculum-facing feature would need to pass to launch a new country by configuration alone rather than a code change. Checked against real code, not asserted as passing by default."
-          items={[
-            { test: "T1", question: "Does it work with a different currency, calendar, script or grading system?", failureLooksLike: "A fee field hardcoded to Naira; a country hardcoded at signup", state: "warn", verdict: "Partly — signup takes a country and the country profile holds currency, but \"NGN\" is still the fallback across pricing/finance code." },
-            { test: "T2", question: "Does it assume a three-term year?", failureLooksLike: "A results table with three fixed columns; a session average dividing by three", state: "mute", verdict: "Not exercised — a school's real term structure comes from its own Term/AcademicSession records, entirely decoupled from the curriculum template's calendarType field, which nothing else reads." },
-            { test: "T3", question: "Does it assume examination-band grading?", failureLooksLike: "A grade lookup returning A1 to F9; a report card column headed WAEC Grade", state: "mute", verdict: "Not exercised — grading-scale templates store arbitrary bands, but (per Layer 5 above) no school is linked to one, so this is untested by real use." },
-            { test: "T4", question: "Does it assume a numeric score exists at all?", failureLooksLike: "A position computation that cannot run against descriptive bands", state: "bad", verdict: "Fails as built — a score is a mandatory number on every score record; there is no descriptive-band-only scoring path anywhere in this system." },
-            { test: "T5", question: "Does it assume WhatsApp is the parent channel?", failureLooksLike: "A notification path with no channel fallback; copy that says WhatsApp rather than the configured channel", state: "good", verdict: "Passes, trivially — WhatsApp isn't wired as a real send channel at all yet (see Settings → Notifications), so nothing depends on it being the default." },
-            { test: "T6", question: "Does it assume a single-campus, owner-operated school?", failureLooksLike: "No path for a group or trust; a single owner with no delegation model", state: "good", verdict: "Passes — a school can be marked as a group with its own Campus records; multi-campus is a real, modeled structure." },
-            { test: "T7", question: "Would it survive scrutiny under a stricter regime than Nigeria's?", failureLooksLike: "Children's data with no consent record; no route to erasure; no processing record", state: "mute", verdict: "Not reviewed here — see Security & Compliance for the platform's actual data-retention and deletion posture." },
-            { test: "T8", question: "Can a new country launch by adding configuration records alone?", failureLooksLike: "Any answer that includes writing code", state: "warn", verdict: "Partly — a country profile, a curriculum and a grading scale can be added as data and a new school there is given them. The level ladder, signup phone check and finance defaults still need code." }
-          ]}
+          description="Checked before any template is published, and before any feature touching curriculum, assessment, grading, notification or identity is merged."
+            meta="Section 9.6 · applied as a merge gate"
+          actions={<RunPortability label="Run the tests" />}
+          items={portabilityRows}
           getRowKey={(row) => row.test}
+          pageSize={false}
           columns={[
             { key: "test", header: "#", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.test}</span> },
-            { key: "question", header: "Test", render: (row) => <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{row.question}</span> },
-            { key: "failureLooksLike", header: "Failure looks like", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.failureLooksLike}</span> },
-            { key: "verdict", header: "What's actually true here", render: (row) => <span className="text-[11px] text-[var(--color-text-secondary)]">{row.verdict}</span> },
+            { key: "question", header: "Test", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.question}</span> },
+            { key: "failure", header: "Failure looks like", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.failure}</span> },
             {
               key: "state",
               header: "State",
               render: (row) => {
-                const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Passing" }, warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Fails" }, mute: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not reviewed" } }[row.state as "good" | "warn" | "bad" | "mute"];
-                return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
+                const tone = { PASS: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Passing" }, PARTIAL: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", label: "Partial" }, FAIL: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Fails" }, NONE: { bg: "var(--color-bg-subtle)", fg: "var(--color-text-muted)", label: "Not run" } }[row.state];
+                return <span className="inline-flex whitespace-nowrap rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}{row.of > 0 ? ` · ${row.passing} of ${row.of} pass` : ""}</span>;
               }
             }
           ]}
+          footnote={portabilityFindings.length ? `Findings: ${portabilityFindings.join(" ")}` : data.portabilityRuns.length ? "Every master checked passes every test." : "The tests have not been run yet. They run whenever a template is validated, or from the button above."}
         />
+
+        <TableCard
+          title="Version assignment in a transitioning school"
+          description="The copy each new school's setup took from the library. This is the school's own adoption; a class that needs a different version is pinned to one above, and its pin outranks this."
+          items={data.adoptions}
+          getRowKey={(row) => row.id}
+          columns={[
+            { key: "school", header: "School", render: (row) => row.school },
+            { key: "kind", header: "Copied", render: (row) => row.kind === "GRADING" ? "Grading scale" : "Curriculum" },
+            { key: "template", header: "Template", render: (row) => `${row.template} v${row.version}` },
+            { key: "at", header: "When", render: (row) => row.at.slice(0, 10) }
+          ]}
+          emptyState="No school has taken a template yet. When a scale is published for a country, the next school set up there is given a copy and listed here."
+          />
         </div>
       ) : null}
 
       {tab === "assessment-frameworks" ? (
         <div className="grid gap-[14px]">
-          {layers?.assessment?.frameworks?.length ? (
+          <TableCard
+            title="Ready-made assessment frameworks"
+            description="A school selects one during setup, or builds its own. The setup wizard makes this a required step for exactly this reason."
+            meta="Weights must total exactly 100 — the system refuses to save a framework that does not"
+            items={data.frameworks}
+            getRowKey={(row) => row.id}
+            pageSize={false}
+            emptyState="No ready-made framework is on file — add one."
+            actions={
+              <ResourceActionDialog
+                triggerLabel="New framework"
+                title="New assessment framework"
+                description="A set of components, each marked out of a maximum and carrying a weight. The weights must total exactly 100."
+                endpoint="/api/super-admin/config-library/assessment-frameworks"
+                variant="secondary"
+                submitLabel="Save framework"
+                note="A framework that does not total exactly 100 produces quietly wrong results, so the system refuses to save it."
+                fields={[
+                  { name: "name", label: "Framework name", required: true, placeholder: "e.g. Project-weighted (10:20:70)", section: "The framework" },
+                  { name: "typicalUser", label: "Typical user", placeholder: "Who this suits", section: "The framework" },
+                  { name: "components", label: "Components — one per line", type: "textarea", required: true, defaultValue: "CA1 | First CA | 20 | 10\nCA2 | Second CA | 20 | 30\nEXAM | Examination | 100 | 60", note: "Write each as: code | name | marked out of | weight. The weights must total 100.", section: "Components" }
+                ]}
+              />
+            }
+            columns={[
+              { key: "name", header: "Framework", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}{row.isActive ? null : <span className="ml-2 text-[10.5px] font-normal text-[var(--color-text-muted)]">switched off</span>}</span> },
+              { key: "components", header: "Components", render: (row) => (row.isCustom ? "Any components the school defines" : row.components.map((c) => c.name).join(", ")) },
+              { key: "weights", header: "Weights", render: (row) => (row.isCustom ? "Must total 100" : row.components.map((c) => c.weight).join(" / ")) },
+              { key: "typical", header: "Typical user", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.typicalUser ?? "—"}</span> },
+              { key: "schools", header: "Schools", render: (row) => (row.isCustom ? (customSchools > 0 ? customSchools : "—") : row.schools > 0 ? row.schools : "—") },
+              { key: "toggle", header: "", sortable: false, render: (row) => (row.isCustom ? null : <ResourceActionDialog triggerLabel={row.isActive ? "Switch off" : "Switch on"} title={`${row.isActive ? "Switch off" : "Switch on"} ${row.name}`} description={row.isActive ? "It is no longer offered at setup. Schools already using it are not changed." : "It is offered at setup again."} endpoint={`/api/super-admin/config-library/assessment-frameworks/${row.id}/toggle`} variant="textAction" submitLabel={row.isActive ? "Switch off" : "Switch on"} fields={[]} />) }
+            ]}
+          />
+          <div className="grid items-start gap-[14px] lg:grid-cols-[1.2fr_1fr]">
             <TableCard
-              title="Ready-made assessment frameworks"
-              description="A school selects one during setup, or builds its own. Weights must total exactly 100 — the system refuses to save a framework that does not."
-              items={layers.assessment.frameworks}
-              getRowKey={(row) => row.name}
+              title="Layer 4 fields and their constraints"
+              description="This is the layer where an error becomes a wrong result on a child’s report card, so it is specified more tightly than the others"
+              items={[
+                { field: "components[]", meaning: "The named parts of a subject score", constraint: "Each has a code, display name, maximum raw score and weight" },
+                { field: "weight", meaning: "The proportion each contributes", constraint: "Must total exactly 100 — a framework summing to 98 produces quietly wrong results for a whole term" },
+                { field: "max_raw_score", meaning: "The score the component is marked out of", constraint: "Entry above the maximum is rejected at entry, not at computation" },
+                { field: "term_aggregation", meaning: "How components combine into a term score", constraint: "Weighted sum by default; other rules are configuration" },
+                { field: "session_aggregation", meaning: "How term scores combine", constraint: "Average of terms, weighted terms, or final term only — all three are in real use" },
+                { field: "cumulative_display", meaning: "Running cumulative alongside the term score", constraint: "Common and expected in Nigeria" },
+                { field: "rounding", meaning: "Where and how rounding occurs", constraint: "Fixed platform-wide: half up, two decimals, at final total only. Deliberately not configurable." },
+                { field: "position_basis", meaning: "Position within arm, class, or both", constraint: "Both computable; which is displayed is a report card setting" },
+                { field: "tie_handling", meaning: "Two students with identical totals", constraint: "Equal position with the next skipped, by default. An unspecified tie rule is a guaranteed parent complaint." },
+                { field: "absent_handling", meaning: "How an absent component is treated", constraint: "Distinct from a zero, always. A student absent for a test has not scored nothing." }
+              ]}
+              getRowKey={(row) => row.field}
+              pageSize={false}
               columns={[
-                { key: "name", header: "Framework", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.name}</span> },
-                { key: "components", header: "Components", render: (row) => row.components },
-                { key: "weights", header: "Weights", render: (row) => <span className="font-[var(--font-mono)] font-bold">{row.weights}</span> },
-                { key: "typical", header: "Typical user", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.typicalUser}</span> }
+                { key: "field", header: "Field", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.field}</span> },
+                { key: "meaning", header: "Meaning", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.meaning}</span> },
+                { key: "constraint", header: "Constraint", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.constraint}</span> }
               ]}
             />
-          ) : null}
+            <ReferenceList
+              title="Nigerian template defaults"
+              sub="Shipped configuration — the school confirms or changes it during setup"
+              emptyText="No default template is on file."
+              items={nerdc ? [
+                ...(layers?.assessment?.components ?? []).map((c) => ({ label: `${c.name} — out of ${c.max}, weight ${c.weight}`, tone: "teal" as const })),
+                { label: "Term aggregation: weighted sum to a score out of 100", tone: "good" as const },
+                { label: "Session aggregation: average of three terms", detail: "With a running cumulative on second and third term reports", tone: "good" as const },
+                { label: "Position: computed within arm and class", detail: "Arm position displayed by default", tone: "good" as const },
+                { label: "Ties: equal position, next position skipped", tone: "warn" as const },
+                { label: "Absent: recorded as absent, never as zero", detail: "Excluded from the component average, shown explicitly on the report card", tone: "bad" as const }
+              ] : []}
+            />
+          </div>
+          {nerdc ? (
+            <>
+              <TableCard
+                title={`Level structure — ${nerdc.name}`}
+                description="The default template for the beachhead market, and therefore the one that must be exactly right"
+                items={layers?.levels ?? []}
+                getRowKey={(row) => row.stage}
+                pageSize={false}
+                columns={[
+                  { key: "stage", header: "Stage", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.stage}</span> },
+                  { key: "classes", header: "Classes", render: (row) => row.classes },
+                  { key: "exam", header: "Terminal examination", render: (row) => (row.exam === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.exam}</span>) },
+                  { key: "notes", header: "Notes", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.notes}</span> }
+                ]}
+                footnote={layers?.levelsFootnote}
+              />
+              <div className="grid items-start gap-[14px] lg:grid-cols-2">
+                <TableCard
+                  title="Junior secondary subject framework"
+                  description={layers?.junior?.range}
+                  items={layers?.junior?.subjects ?? []}
+                  getRowKey={(row) => row.name}
+                  pageSize={false}
+                  columns={[
+                    { key: "subject", header: "Subject", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+                    { key: "category", header: "Category", render: (row) => (row.note ? <span className="text-[var(--color-text-secondary)]">{row.note}</span> : <span className={`inline-flex rounded-full px-[9px] py-[3px] text-[11px] font-bold ${row.category === "Core" ? "bg-[var(--color-info-dim)] text-[var(--color-info)]" : row.category === "Compulsory choice" ? "bg-[var(--color-warning-dim)] text-[var(--color-warning)]" : "bg-[var(--color-bg-subtle)] text-[var(--color-text-muted)]"}`}>{row.category}</span>) }
+                  ]}
+                />
+                <TableCard
+                  title="Senior secondary"
+                  description={layers?.senior?.sub}
+                  items={[
+                    ...(layers?.senior?.core ?? []).map((row) => ({ key: row.name, a: row.name, b: row.applies, stream: false })),
+                    ...(layers?.senior?.streams ?? []).map((row) => ({ key: row.stream, a: row.stream, b: row.subjects, stream: true }))
+                  ]}
+                  getRowKey={(row) => row.key}
+                  pageSize={false}
+                  columns={[
+                    { key: "a", header: "Compulsory core", render: (row) => (row.stream ? <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.a}</span> : <span className="font-bold text-[var(--color-text-primary)]">{row.a}</span>) },
+                    { key: "b", header: "Applies", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.b}</span> }
+                  ]}
+                  footnote={layers?.senior?.footnote}
+                />
+              </div>
+              <div className="grid items-start gap-[14px] lg:grid-cols-[1.1fr_1fr]">
+                <TableCard
+                  title="Trade subjects — one is compulsory"
+                  description={layers?.trade?.sub}
+                  items={Array.from({ length: Math.ceil((layers?.trade?.subjects.length ?? 0) / 2) }, (_, index) => ({ key: String(index), a: layers?.trade?.subjects[index * 2] ?? "", b: layers?.trade?.subjects[index * 2 + 1] ?? "" }))}
+                  getRowKey={(row) => row.key}
+                  pageSize={false}
+                  columns={[{ key: "a", header: "Trade subject", render: (row) => row.a }, { key: "b", header: "Trade subject", render: (row) => row.b }]}
+                  footnote={layers?.trade?.footnote}
+                />
+                <TableCard
+                  title="Primary subject sets"
+                  description="Lower and upper primary carry different lists"
+                  items={Array.from({ length: Math.max(layers?.primary?.lower.length ?? 0, layers?.primary?.upper.length ?? 0) }, (_, index) => ({ key: String(index), lower: layers?.primary?.lower[index] ?? "—", upper: layers?.primary?.upper[index] ?? "—" }))}
+                  getRowKey={(row) => row.key}
+                  pageSize={false}
+                  columns={[{ key: "lower", header: "Primary 1–3 (9–10)", render: (row) => (row.lower === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : row.lower) }, { key: "upper", header: "Primary 4–6 (11–13)", render: (row) => (row.upper === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : row.upper) }]}
+                />
+              </div>
+            </>
+          ) : (
+            <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white px-5 py-4">
+              <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">No Nigerian default template is on file</p>
+              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Run the library seed, or publish a Nigerian template with its layers, and the level structure and subject framework appear here.</p>
+            </section>
+          )}
           <TableCard
             title="Frameworks in use across schools"
             description="Frameworks in use across schools, grouped by weight pattern, most common first. Weights must total exactly 100 — the system refuses to save a framework that does not."
@@ -403,114 +544,6 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               </>
             }
           />
-          <TableCard
-            title="Layer 4 fields and their constraints"
-            description="The layer where an error becomes a wrong result on a child's report card. Each field checked against the real scoring code, not stated as intent."
-            items={[
-              { field: "components[]", meaning: "The named parts of a subject score", constraint: "Each has a code, display name, maximum raw score and weight — real, on AssessmentComponent.", state: "good" },
-              { field: "weight", meaning: "The proportion each contributes", constraint: "Must total exactly 100 — enforced at save; a section summing to 98 is rejected outright.", state: "good" },
-              { field: "max_raw_score", meaning: "The score the component is marked out of", constraint: "Entry above the maximum is rejected at entry, not at computation — enforced.", state: "good" },
-              { field: "term_aggregation", meaning: "How components combine into a term score", constraint: "Weighted sum by default — real, and the only rule that exists; nothing else is configurable.", state: "good" },
-              { field: "session_aggregation", meaning: "How term scores combine", constraint: "Real — a school chooses one of four rules on its grading scheme: each term alone (the default), the average of the terms, the final term only, or weighted by term with the weights totalling 100. Only approved sheets count, so a session figure never moves because a draft changed.", state: "good" },
-              { field: "cumulative_display", meaning: "Running cumulative alongside the term score", constraint: "Real — switched on per school. A figure taken before every term is scored is marked as running rather than final, and a weighted rule re-weights across the terms scored so far instead of counting the missing ones as zero.", state: "good" },
-              { field: "rounding", meaning: "Where and how rounding occurs", constraint: "Every computed total and average is rounded to two decimals — real, and not configurable per school.", state: "good" },
-              { field: "position_basis", meaning: "Position within arm, class, or both", constraint: "Rankings are scoped to the student's class (and arm, where used) — real; never platform-wide.", state: "good" },
-              { field: "tie_handling", meaning: "Two students with identical totals", constraint: "Equal position with the next skipped, by default — real, and not configurable per school.", state: "good" },
-              { field: "absent_handling", meaning: "How an absent component is treated", constraint: "A distinct ABSENT score flag exists, separate from a numeric zero — real.", state: "good" }
-            ]}
-            getRowKey={(row) => row.field}
-            columns={[
-              { key: "field", header: "Field", render: (row) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-primary)]">{row.field}</span> },
-              { key: "meaning", header: "Meaning", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.meaning}</span> },
-              { key: "constraint", header: "Constraint", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.constraint}</span> },
-              {
-                key: "state",
-                header: "State",
-                render: (row) => {
-                  const tone = { good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", label: "Enforced" }, bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", label: "Not built" } }[row.state as "good" | "bad"];
-                  return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>;
-                }
-              }
-            ]}
-          />
-
-          {nerdc ? (
-            <>
-              <ReferenceList
-                title="Nigerian template defaults"
-                sub="Shipped configuration — the school confirms or changes it during setup"
-                items={[
-                  ...(layers?.assessment?.components ?? []).map((c) => ({ label: `${c.name} — out of ${c.max}, weight ${c.weight}`, tone: "teal" as const })),
-                  { label: `Term aggregation: ${layers?.assessment?.termAggregation ?? "weighted sum"}`, tone: "good" as const },
-                  { label: `Session aggregation: ${layers?.assessment?.sessionAggregation ?? "average of terms"}`, tone: "good" as const },
-                  { label: `Position: ${layers?.assessment?.position ?? "within arm and class"}`, tone: "good" as const },
-                  { label: `Ties: ${layers?.assessment?.ties ?? "equal position, next skipped"}`, tone: "warn" as const },
-                  { label: `Absent: ${layers?.assessment?.absent ?? "recorded as absent, never as zero"}`, tone: "bad" as const }
-                ]}
-              />
-              <TableCard
-                title={`Level structure — ${nerdc.name}`}
-                description="The default template for the beachhead market, and therefore the one that must be exactly right."
-                items={layers?.levels ?? []}
-                getRowKey={(row) => row.stage}
-                columns={[
-                  { key: "stage", header: "Stage", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.stage}</span> },
-                  { key: "classes", header: "Classes", render: (row) => row.classes },
-                  { key: "exam", header: "Terminal examination", render: (row) => (row.exam === "—" ? <span className="text-[var(--color-text-muted)]">—</span> : <span className="inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]">{row.exam}</span>) },
-                  { key: "notes", header: "Notes", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.notes}</span> }
-                ]}
-                footnote={layers?.levelsFootnote}
-              />
-              <div className="grid items-start gap-[14px] lg:grid-cols-2">
-                <TableCard
-                  title="Junior secondary subject framework"
-                  description={layers?.junior?.range}
-                  items={layers?.junior?.subjects ?? []}
-                  getRowKey={(row) => row.name}
-                  columns={[
-                    { key: "subject", header: "Subject", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.name}</span> },
-                    { key: "category", header: "Category", render: (row) => (row.note ? <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.note}</span> : <span className="inline-flex rounded-full bg-[var(--color-surface-muted)] px-[9px] py-[3px] text-[11px] font-bold">{row.category}</span>) }
-                  ]}
-                />
-                <TableCard
-                  title="Senior secondary"
-                  description={layers?.senior?.sub}
-                  items={[
-                    ...(layers?.senior?.core ?? []).map((row) => ({ key: row.name, a: row.name, b: row.applies, stream: false })),
-                    ...(layers?.senior?.streams ?? []).map((row) => ({ key: row.stream, a: row.stream, b: row.subjects, stream: true }))
-                  ]}
-                  getRowKey={(row) => row.key}
-                  columns={[
-                    { key: "a", header: "Compulsory core", render: (row) => <span className={row.stream ? "inline-flex rounded-full bg-[var(--color-info-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-info)]" : "font-semibold text-[var(--color-text-primary)]"}>{row.a}</span> },
-                    { key: "b", header: "Applies", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{row.b}</span> }
-                  ]}
-                  footnote={layers?.senior?.footnote}
-                />
-              </div>
-              <div className="grid items-start gap-[14px] lg:grid-cols-2">
-                <TableCard
-                  title="Trade subjects — one is compulsory"
-                  description={layers?.trade?.sub}
-                  items={(layers?.trade?.subjects ?? []).map((name, index, all) => ({ key: name, a: name, b: all[index + Math.ceil(all.length / 2)] ?? "" })).slice(0, Math.ceil((layers?.trade?.subjects.length ?? 0) / 2))}
-                  getRowKey={(row) => row.key}
-                  columns={[{ key: "a", header: "Trade subject", render: (row) => row.a }, { key: "b", header: "Trade subject", render: (row) => row.b }]}
-                  footnote={layers?.trade?.footnote}
-                />
-                <TableCard
-                  title="Primary subject sets"
-                  description="Lower and upper primary carry different lists"
-                  items={Array.from({ length: Math.max(layers?.primary?.lower.length ?? 0, layers?.primary?.upper.length ?? 0) }, (_, index) => ({ key: String(index), lower: layers?.primary?.lower[index] ?? "—", upper: layers?.primary?.upper[index] ?? "—" }))}
-                  getRowKey={(row) => row.key}
-                  columns={[{ key: "lower", header: `Primary 1–3 (${layers?.primary?.lower.length ?? 0})`, render: (row) => row.lower }, { key: "upper", header: `Primary 4–6 (${layers?.primary?.upper.length ?? 0})`, render: (row) => row.upper }]}
-                />
-              </div>
-            </>
-          ) : (
-            <section className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-white px-5 py-4">
-              <p className="text-[14px] font-semibold text-[var(--color-text-primary)]">No Nigerian default template is on file</p>
-              <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Run the library seed, or publish a Nigerian template with its layers, and the level structure and subject framework appear here.</p>
-            </section>
-          )}
         </div>
       ) : null}
 
@@ -518,8 +551,10 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
         <GradingScalesTable
           items={data.gradingScales}
           actions={
+            <>
             <ResourceActionDialog
               triggerLabel="New scale"
+              variant="secondary"
               title="New grading scale"
               description="Provide grade bands as JSON, e.g. [{&quot;grade&quot;:&quot;A1&quot;,&quot;min&quot;:75,&quot;max&quot;:100,&quot;remark&quot;:&quot;Excellent&quot;}]. It is saved as a draft: validate it, then publish."
               endpoint="/api/super-admin/config-library/grading-scales"
@@ -532,6 +567,25 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
                 { name: "gradeBands", label: "Grade bands — one per line", type: "textarea", parse: "bands", required: true, defaultValue: "A1 | 75-100 | Excellent", note: "Write each band as: grade | from-to | remark. The bands must cover 0 to 100 with no gap or overlap before the scale can be validated.", section: "Configuration" }
               ]}
             />
+            {defaultScale ? (
+              <ResourceActionDialog
+                triggerLabel="Edit the default scale"
+                title="Edit the default grading scale"
+                description="What a new school sees before it has decided anything. Getting it wrong makes results uncomputable across hundreds of schools."
+                endpoint="/api/super-admin/config-library/grading-scales"
+                submitLabel="Save scale"
+                note="Bands must be contiguous and must not overlap. The system refuses to save a gap — but it cannot refuse a boundary that is legal and simply wrong."
+                fields={[
+                  { name: "name", label: "Scale", required: true, defaultValue: defaultScale.name, section: "Which scale" },
+                  { name: "version", label: "Version", required: true, defaultValue: "", placeholder: `Currently ${defaultScale.version} — saving under a new number makes a new draft`, section: "Which scale" },
+                  { name: "gradeBands", label: "The bands, highest first", type: "textarea", parse: "bands", required: true, defaultValue: (Array.isArray(defaultScale.gradeBands) ? (defaultScale.gradeBands as Array<{ grade: string; min: number; max: number; remark?: string }>) : []).map((band) => `${band.grade} | ${band.min}-${band.max} | ${band.remark ?? ""}`).join("\n"), note: "Write each band as: grade | from-to | remark. The bands must cover 0 to 100 with no gap or overlap.", section: "The bands, highest first" },
+                  { name: "passMark", label: "Pass mark", type: "number", defaultValue: defaultScale.passMark, min: 0, max: 100, section: "Thresholds" },
+                  { name: "applicableCurricula", label: "Applies to (curriculum names)", parse: "csv", defaultValue: defaultScale.applicableCurricula.join(", "), note: "Existing schools keep their own scale — their configuration is theirs", section: "Which scale" }
+                ]}
+                impact={{ label: "On saving", rows: [["Becomes a new version", "The current version stays readable, and every result already computed under it is unchanged"], ["New schools only", "Schools already set up keep the scale they are on"], ["Results already published", "Never recomputed. A grade a parent has seen does not change underneath them."]] }}
+              />
+            ) : null}
+            </>
           }
         />
       ) : null}
@@ -543,15 +597,13 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
             <ResourceActionDialog
               triggerLabel="New layout"
               title="New report card layout"
-              description="Define a base layout and which curricula/tiers it applies to. Re-using an existing name updates that layout instead of creating a new one."
-              endpoint="/api/super-admin/config-library/report-cards"
-              submitLabel="Save template"
-              fields={[
-                { name: "name", label: "Template name", required: true, placeholder: "e.g. Standard portrait A4", section: "Identity" },
-                { name: "layout", label: "Layout", required: true, placeholder: "portrait_a4", section: "Identity" },
-                { name: "applicableCurricula", label: "Applicable curricula (comma-separated)", parse: "csv", section: "Availability" },
-                { name: "availableToTiers", label: "Available to tiers (comma-separated)", parse: "csv", placeholder: "STANDARD, ELITE", section: "Availability" }
-              ]}
+              description="Layer 6. What a parent physically holds at the end of a term."
+              endpoint="/api/super-admin/config-library/report-card-layouts"
+              submitLabel="Save as draft"
+              steps={CARD_STEPS}
+              note="A layout cannot be offered to a school until it has been previewed with real data and reviewed by someone other than its author."
+              fields={cardFields(data.reportCards)}
+              impact={{ label: "On saving", rows: [["Saved as a draft", "Not assignable to any school, and not visible outside this screen"], ["Sent for review", "The Layer 6 tests run, then a second person sees it with your name against it"], ["Once published", "Offered at setup to every school in the availability band chosen"]] }}
             />
           }
         />
@@ -582,9 +634,33 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
         <div className="grid gap-[14px]">
           <TableCard
             title="Country configuration records"
-            description="Everything the platform knows about a country, held as data. A country needs a profile before a template for it can be validated."
+            description="Several Nigeria-specific behaviours were scattered through v3.0 as prose rather than data."
+            meta="Edit: Product Lead and Super Admin"
+            items={[
+              { field: "registration_authority", purpose: "Name and number format of the business registration body", consumedBy: "M2.9 risk signals, signup labels" },
+              { field: "education_authority", purpose: "Name and approval number format of the education regulator", consumedBy: "M2.9, signup form" },
+              { field: "phone_format", purpose: "Valid patterns and recognised network prefixes", consumedBy: "M2.9, M4 delivery, all validation" },
+              { field: "blocked_address_terms[]", purpose: "Reserved words, examination and regulatory body names, competitor names, offensive terms", consumedBy: "M2.10" },
+              { field: "default_channel", purpose: "Dominant parent notification channel", consumedBy: "M4, School Admin defaults" },
+              { field: "working_hours / holidays[]", purpose: "Support service level calculation", consumedBy: "M6.3" },
+              { field: "currency / locale", purpose: "Formatting, invoicing, reporting", consumedBy: "M3, M7" },
+              { field: "data_protection_regime", purpose: "Which framework applies, retention defaults, consent age", consumedBy: "M10" },
+              { field: "verification_sources[]", purpose: "Which public checks a reviewer can actually perform in this country", consumedBy: "M2.9.2 review workflow" }
+            ]}
+            getRowKey={(row) => row.field}
+            pageSize={false}
+            columns={[
+              { key: "field", header: "Field", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.field}</span> },
+              { key: "purpose", header: "Purpose", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.purpose}</span> },
+              { key: "consumedBy", header: "Consumed by", render: (row) => row.consumedBy }
+            ]}
+          />
+          <TableCard
+            title="Country records on file"
+            description="Only Nigeria is live — the others exist so that a launch is a data change rather than a sprint"
             items={data.profiles}
             getRowKey={(row) => row.id}
+            pageSize={false}
             actions={
               <ResourceActionDialog
                 triggerLabel="Add a country"
@@ -596,18 +672,24 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
               />
             }
             columns={[
-              { key: "country", header: "Country", render: (row) => <span className="inline-flex items-center gap-2 font-semibold text-[var(--color-text-primary)]"><Globe2 className="h-[13.5px] w-[13.5px] text-[var(--color-text-muted)]" />{row.country}</span> },
-              { key: "regime", header: "Data protection", render: (row) => row.dataProtectionRegime ?? <span className="text-[var(--color-text-muted)]">Not set</span> },
-              { key: "channel", header: "Channel", render: (row) => row.defaultChannel ?? <span className="text-[var(--color-text-muted)]">Not set</span> },
+              { key: "country", header: "Country", render: (row) => <span className="inline-flex items-center gap-2 font-bold text-[var(--color-text-primary)]"><Globe2 className="h-[13.5px] w-[13.5px] text-[var(--color-text-muted)]" />{row.country}</span> },
+              { key: "regime", header: "Regime", render: (row) => row.dataProtectionRegime ?? "—" },
+              { key: "channel", header: "Channel", render: (row) => ({ WHATSAPP: "WhatsApp", SMS: "SMS", EMAIL: "Email" } as Record<string, string>)[row.defaultChannel ?? ""] ?? "—" },
               { key: "currency", header: "Currency", render: (row) => row.currency },
-              { key: "consentAge", header: "Consent age", render: (row) => (row.consentAge === null ? <span className="text-[var(--color-text-muted)]">Not set</span> : row.consentAge) },
-              { key: "authority", header: "Authorities", render: (row) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{[row.educationAuthority, row.registrationAuthority].filter(Boolean).join(" · ") || "Not set"}</span> },
-              { key: "schools", header: "Real schools", render: (row) => row.schools },
-              { key: "state", header: "State", render: (row) => <StatusBadge status={row.isLive ? "LIVE" : "NOT LIVE"} tone={row.isLive ? "success" : "neutral"} /> },
+              { key: "consentAge", header: "Consent age", render: (row) => (row.consentAge === null ? "—" : `Under ${row.consentAge}`) },
+              {
+                key: "state",
+                header: "State",
+                render: (row) => row.isLive
+                  ? <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--color-success-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-success)]">Live</span>
+                  : row.dataProtectionRegime && row.phonePattern
+                    ? <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--color-warning-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-warning)]">Configured — not launched</span>
+                    : <span className="inline-flex whitespace-nowrap rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-muted)]">Draft</span>
+              },
               { key: "edit", header: "", render: (row) => <ResourceActionDialog triggerLabel="Edit" title={`Country profile — ${row.country}`} description="Saves over this country's profile." endpoint="/api/super-admin/config-library/country-profiles" method="PATCH" variant="textAction" submitLabel="Save profile" fields={countryFields(row)} /> }
             ]}
             emptyState="No country has a profile yet."
-            footnote={data.unprofiled.length ? `Schools exist in ${data.unprofiled.map((row) => `${row.country} (${row.schools})`).join(", ")} with no profile — add one.` : "Every country that has a school has a profile."}
+            footnote={`The GAID defines a child as anyone under 18 and requires guardian consent regardless of the purpose of processing.${data.unprofiled.length ? ` Schools exist in ${data.unprofiled.map((row) => `${row.country} (${row.schools})`).join(", ")} with no country record — add one.` : ""}`}
           />
         </div>
       ) : null}
@@ -615,44 +697,3 @@ export default async function SuperAdminConfigLibraryPage({ searchParams }: { se
   );
 }
 
-const flowToneStyle: Record<"good" | "warn" | "bad" | "ink" | "plain", { bg: string; fg: string; bd: string }> = {
-  good: { bg: "var(--color-success-dim)", fg: "var(--color-success)", bd: "#CFE4DB" },
-  warn: { bg: "var(--color-warning-dim)", fg: "var(--color-warning)", bd: "#F2E4C6" },
-  bad: { bg: "var(--color-danger-dim)", fg: "var(--color-danger)", bd: "#F3E0E0" },
-  ink: { bg: "#0D2315", fg: "#fff", bd: "#0D2315" },
-  plain: { bg: "#fff", fg: "var(--color-text-primary)", bd: "var(--color-border-default)" }
-};
-
-function CurriculumLifecycleFlow() {
-  const steps: Array<{ label: string; note: string; tone?: "good" | "warn" | "bad" | "ink" }> = [
-    { label: "Drafted", note: "Real — created as a draft; editable until validated" },
-    { label: "Previewed", note: "Partly — a grading scale previews sample scores; a curriculum has nothing to render", tone: "warn" },
-    { label: "Validated", note: "Real — subjects present, country profile exists; scales must cover 0–100 with no gap or overlap", tone: "good" },
-    { label: "Published", note: "Real — becomes the Active version; the one before it is superseded", tone: "good" },
-    { label: "Superseded", note: "Real — kept, read-only, with the schools that copied it" },
-    { label: "Archived", note: "Real — taken out of use; copies already taken are untouched", tone: "ink" }
-  ];
-
-  return (
-    <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6">
-      <p className="text-[12.5px] font-semibold text-[#0D2315]">Template lifecycle</p>
-      <p className="mt-1.5 max-w-3xl text-[11px] leading-5 text-[var(--color-text-muted)]">
-        A template moves through these stages in one direction only; each is a recorded state, not a flag.
-      </p>
-      <div className="mt-4 flex flex-wrap items-stretch gap-2.5">
-        {steps.map((step, index) => {
-          const tone = flowToneStyle[step.tone ?? "plain"];
-          return (
-            <div key={step.label} className="flex items-center gap-2.5">
-              <div className="min-w-[9.5rem] max-w-[190px] rounded-[10px] border px-3.5 py-2.5" style={{ background: tone.bg, borderColor: tone.bd }}>
-                <p className="text-[11px] font-bold" style={{ color: tone.fg }}>{step.label}</p>
-                <p className="mt-1 text-[9.5px] leading-snug" style={{ color: step.tone === "ink" ? "rgba(255,255,255,0.75)" : "var(--color-text-secondary)" }}>{step.note}</p>
-              </div>
-              {index < steps.length - 1 ? <span className="shrink-0 text-[var(--color-text-muted)]">→</span> : null}
-            </div>
-          );
-        })}
-      </div>
-    </section>
-  );
-}
