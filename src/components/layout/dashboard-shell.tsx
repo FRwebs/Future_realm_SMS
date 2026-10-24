@@ -145,7 +145,7 @@ export function DashboardShell({
             currentThemeMode={activeTheme}
           />
           <ImpersonationBanner session={session} />
-          {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} /> : null}
+          {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT"} /> : null}
           <OutboxSync />
           <PageLoadBeacon />
           <main

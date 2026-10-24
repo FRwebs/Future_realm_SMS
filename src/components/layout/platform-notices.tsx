@@ -39,8 +39,15 @@ function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; ic
  * What the Back Office has decided that this school has to know: the platform being in maintenance or the trial being over (the school
  * is read-only), a maintenance window, a platform message, and announcements aimed at it. Modules switched off for the school are
  * not listed here — they are simply not in the sidebar, and opening one by address says why.
+ *
+ * Most of this is addressed to whoever runs the school: a plan that has not
+ * been chosen, a tier changing next term, "review pending approvals before
+ * publishing reports". None of it is a student's to act on, and a child should
+ * not be handed an operator's notice above their homework. So a student is
+ * shown only what actually reaches them — when the system will be down, and
+ * that it is down now.
  */
-export function PlatformNotices({ sync }: { sync: PlatformSyncView }) {
+export function PlatformNotices({ sync, operational = true }: { sync: PlatformSyncView; operational?: boolean }) {
   const [gone, setGone] = useState<string[]>([]);
   const dismiss = (id: string) => {
     setGone((current) => [...current, id]);
@@ -48,14 +55,17 @@ export function PlatformNotices({ sync }: { sync: PlatformSyncView }) {
   };
 
   const windows = sync.windows;
-  const announcements = sync.announcements.filter((row) => !gone.includes(row.id));
-  if (!sync.readOnly && !sync.platformMessage && !windows.length && !announcements.length && !sync.pendingSwitch) return null;
+  const announcements = operational ? sync.announcements.filter((row) => !gone.includes(row.id)) : [];
+  const readOnly = sync.readOnly && (operational || sync.readOnly.kind === "maintenance") ? sync.readOnly : null;
+  const platformMessage = operational ? sync.platformMessage : null;
+  const pendingSwitch = operational ? sync.pendingSwitch : null;
+  if (!readOnly && !platformMessage && !windows.length && !announcements.length && !pendingSwitch) return null;
 
   return (
     <div className="grid gap-2 px-4 pt-3 md:px-6">
-      {sync.readOnly ? (
-        <Notice tone="warning" icon={AlertTriangle} title={sync.readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"}>
-          {sync.readOnly.reason}
+      {readOnly ? (
+        <Notice tone="warning" icon={AlertTriangle} title={readOnly.kind === "maintenance" ? "FutureRealm is in maintenance — read only" : "Read-only until you choose a plan"}>
+          {readOnly.reason}
         </Notice>
       ) : null}
       {windows.map((window) => (
@@ -63,9 +73,9 @@ export function PlatformNotices({ sync }: { sync: PlatformSyncView }) {
           {window.message}
         </Notice>
       ))}
-      {sync.platformMessage ? (
+      {platformMessage ? (
         <Notice tone="info" icon={Megaphone} title="From FutureRealm">
-          {sync.platformMessage}
+          {platformMessage}
         </Notice>
       ) : null}
       {announcements.map((row) => (
@@ -73,8 +83,8 @@ export function PlatformNotices({ sync }: { sync: PlatformSyncView }) {
           {row.body}
         </Notice>
       ))}
-      {sync.pendingSwitch ? (
-        <Notice tone="info" icon={Info} title={`Moving to ${sync.pendingSwitch.to}${sync.pendingSwitch.from ? ` on ${stamp(sync.pendingSwitch.from)}` : ""}`}>
+      {pendingSwitch ? (
+        <Notice tone="info" icon={Info} title={`Moving to ${pendingSwitch.to}${pendingSwitch.from ? ` on ${stamp(pendingSwitch.from)}` : ""}`}>
           This was scheduled in Subscription & Billing. What the school can use changes on that date.
         </Notice>
       ) : null}
