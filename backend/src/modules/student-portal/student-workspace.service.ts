@@ -118,6 +118,21 @@ export class StudentWorkspaceService {
     const { student, term, school, formMaster } = await this.context(session);
     const guardian = (student.guardians.find((link) => link.isPrimary) ?? student.guardians[0])?.guardian;
     const today = isoDay(new Date());
+    // Whether a child boards is not a field on them — it is whether the school
+    // has given them a bed this term. Reading it from the allocation means the
+    // record cannot say "Boarding" about a child who has no bed.
+    const [bed, collectors] = await Promise.all([
+      prisma.hostelAllocation.findFirst({
+        where: { studentId: student.id, schoolId: session.schoolId, OR: [{ endDate: null }, { endDate: { gte: new Date() } }] },
+        select: { id: true }
+      }),
+      prisma.authorisedCollector.findMany({
+        where: { studentId: student.id, schoolId: session.schoolId, OR: [{ until: null }, { until: { gte: new Date() } }] },
+        select: { name: true, relation: true },
+        orderBy: { createdAt: "asc" },
+        take: 4
+      })
+    ]);
     const start = term ? isoDay(term.startDate) : null;
     const end = term ? isoDay(term.endDate) : null;
     const weeks = term ? Math.max(1, Math.ceil((term.endDate.getTime() - term.startDate.getTime()) / (7 * DAY))) : 0;
@@ -134,6 +149,9 @@ export class StudentWorkspaceService {
       stream: student.currentClass?.stream ?? null,
       room: student.currentClass?.room ?? null,
       gender: student.gender,
+      house: student.houseName ?? null,
+      boarding: bed ? "Boarding" : "Day student",
+      collectors: collectors.map((row) => ({ name: row.name, relation: row.relation })),
       dateOfBirth: student.dateOfBirth.toISOString().slice(0, 10),
       enrolled: student.admissionDate.toISOString().slice(0, 10),
       email: student.user?.email ?? null,

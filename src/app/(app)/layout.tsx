@@ -6,7 +6,7 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { apiGet } from "@/lib/api/server";
 import { ttlCached } from "@/lib/cache/ttl";
 import { getPlatformSync } from "@/lib/api/platform-sync";
-import { getStudentBadges } from "@/lib/api/student-workspace";
+import { getStudentBadges, getStudentChrome } from "@/lib/api/student-workspace";
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
 import { studentNavigation } from "@/lib/modules/student-workspace";
 import { teacherNavigation } from "@/lib/modules/teacher-workspace";
@@ -41,13 +41,14 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges] = await Promise.all([
+  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges, studentChrome] = await Promise.all([
     getServerPermissions(session).catch(() => getDefaultPermissionsForRole(session.role)),
     getCachedSchoolContext(session.schoolId),
     getPlatformSync(session.schoolId),
     getTeacherWorkspace(session.role, session.schoolId),
     getTeacherBadges(session.role, session.schoolId),
     getStudentBadges(session.role),
+    getStudentChrome(session.role),
   ]);
 
   // A teacher's rail: the teacher modules their permissions reach, in the teacher's order, then anything more the school has granted.
@@ -67,6 +68,7 @@ export default async function AppLayout({
       teacherRail={teacherRail}
       navBadges={teacherRail ? navBadges : undefined}
       navBadgeTones={teacherRail ? navBadgeTones : undefined}
+      studentChrome={studentChrome}
     >
       {children}
     </DashboardShell>

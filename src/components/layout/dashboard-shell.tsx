@@ -10,6 +10,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { PermissionProvider } from "@/components/auth/permission-provider";
 import { ImpersonationBanner } from "@/components/layout/impersonation-banner";
 import { PlatformNotices } from "@/components/layout/platform-notices";
+import type { StudentChrome } from "@/lib/api/student-workspace";
 import { NavigationNoticeListener } from "@/components/layout/navigation-notice-listener";
 import { useTheme } from "@/components/theme/theme-provider";
 import type { PlatformSyncView, SessionUser } from "@/lib/domain/types";
@@ -32,6 +33,7 @@ export function DashboardShell({
   platformStats,
   navBadges,
   navBadgeTones,
+  studentChrome,
   hiddenNavIds,
   platformSync,
   teacherRail,
@@ -50,6 +52,8 @@ export function DashboardShell({
   };
   navBadges?: Record<string, number | undefined>;
   navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
+  /** The student portal's own chrome: the lesson running now, and the school block at the foot of the rail. */
+  studentChrome?: StudentChrome | null;
   hiddenNavIds?: string[];
   /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
   platformSync?: PlatformSyncView | null;
@@ -125,6 +129,7 @@ export function DashboardShell({
           theme={theme}
           navBadges={navBadges}
           navBadgeTones={navBadgeTones}
+          studentChrome={studentChrome}
           hiddenNavIds={hiddenNavIds}
           teacherRail={teacherRail}
         />
@@ -143,6 +148,7 @@ export function DashboardShell({
             theme={theme}
             onToggleTheme={toggleTheme}
             currentThemeMode={activeTheme}
+            studentChrome={studentChrome}
           />
           <ImpersonationBanner session={session} />
           {portalType === "school" && platformSync ? <PlatformNotices sync={platformSync} operational={session.role !== "STUDENT"} /> : null}
