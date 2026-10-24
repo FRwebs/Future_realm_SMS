@@ -1,4 +1,7 @@
 import type { CalEvent, Message } from "@/lib/modules/live/student/shared";
+import { headers } from "next/headers";
+
+import { apiGet } from "@/lib/api/server";
 import { SW } from "@/lib/api/student-workspace";
 import { addDays, askDrawer, dShort, loadAskable, loadAssignments, loadAttendance, loadCalendar, loadMe, loadMessages, MONTHS } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
@@ -8,13 +11,39 @@ import { eventItem } from "@/lib/modules/live/student/today";
 
 /* ───────────────────────── calendar ───────────────────────── */
 
+/** The address a phone is given. It is built from the address this page was opened at, so it works wherever the school is hosted. */
+async function absolute(path: string): Promise<string> {
+  try {
+    const list = await headers();
+    const host = list.get("x-forwarded-host") ?? list.get("host");
+    const proto = list.get("x-forwarded-proto") ?? (host?.startsWith("localhost") ? "http" : "https");
+    return host ? `${proto}://${host}${path}` : path;
+  } catch {
+    return path;
+  }
+}
+
 export async function calendarPage(query: Record<string, string | undefined>): Promise<StudentContent> {
-  const [me, cal, work] = await Promise.all([loadMe(), loadCalendar(), loadAssignments()]);
+  const [me, cal, work, link] = await Promise.all([loadMe(), loadCalendar(), loadAssignments(), apiGet<{ path: string }>(`${SW}/calendar-link`).catch(() => null)]);
+  const feed = link ? await absolute(link.path) : null;
+  const phone: DrawerSpec | null = feed ? {
+    kicker: "Calendar", title: "Add to my phone’s calendar", mode: "info", sub: "A private link that keeps your phone’s calendar up to date by itself.",
+    facts: [
+      ["Your link", feed, "Anyone who has it can read your calendar, so keep it to yourself."],
+      ["How to add it", "Subscribe to a calendar from a link", "In Google Calendar: Other calendars → From URL. On an iPhone: Settings → Calendar → Accounts → Add Subscribed Calendar."],
+      ["What it shows", "School events, your tests and examinations, and when each piece of work is due", "New ones appear on their own; your phone refreshes it every few hours."],
+    ],
+  } : null;
+  const replace: DrawerSpec = {
+    kicker: "Calendar", title: "Get a new calendar link", mode: "commit", sub: "The old link stops working at once. Use this if you shared it, or lost the phone it was on.",
+    commitLabel: "Replace the link", commitDone: "New link ready", commitDoneBody: "Open “Add to my phone’s calendar” for the new link, and add it to your phone again.",
+    submit: { endpoint: `${SW}/calendar-link/reset`, method: "POST" },
+  };
   const tabs = [{ label: "Month" }, { label: "List" }];
   const tab = tabs.some((entry) => entry.label === query.tab) ? query.tab! : "Month";
   const dues: CalEvent[] = work.items.filter((item) => item.state === "todo" || item.state === "overdue").map((item) => ({ id: `due-${item.id}`, date: item.due, end: item.due, title: `${item.subject} due · ${item.title}`, cat: "Due", time: "", where: "", note: "" }));
   const all = [...cal.events, ...dues].sort((a, b) => a.date.localeCompare(b.date));
-  const head = { eyebrow: me.term ? `${me.term.name} ${me.term.session}` : me.school, title: "Calendar", desc: "School events, tests and the dates your work is due.", tabs, tab };
+  const head = { eyebrow: me.term ? `${me.term.name} ${me.term.session}` : me.school, title: "Calendar", desc: "School events, tests and the dates your work is due.", tabs, tab, launchers: phone ? [{ label: "Add to my phone’s calendar", drawer: phone }, { label: "Get a new link", drawer: replace }] : [] };
 
   if (tab === "List") {
     const ahead = all.filter((event) => event.end >= me.today);

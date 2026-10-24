@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Param, Post, Put, UseGuards } from "@nestjs/common";
+import { Body, Controller, Get, Param, Post, Put, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -18,6 +19,16 @@ export class StudentWorkspaceController {
   @Get("me")
   async me(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.workspace.me(session) };
+  }
+
+  @Get("calendar-link")
+  async calendarLink(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.calendarLink(session) };
+  }
+
+  @Post("calendar-link/reset")
+  async resetCalendarLink(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.calendarLink(session, true) };
   }
 
   @Get("badges")
@@ -93,5 +104,20 @@ export class StudentWorkspaceController {
   @Get("cards")
   async cards(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.workspace.cards(session) };
+  }
+}
+
+/** The feed a phone's calendar reads. There is no sign-in: the address itself is the secret, and the student can replace it. */
+@ApiTags("student-portal")
+@Controller("v1/student-calendar")
+export class StudentCalendarFeedController {
+  constructor(private readonly workspace: StudentWorkspaceService) {}
+
+  @Get(":file")
+  async feed(@Param("file") file: string, @Res() response: Response) {
+    const text = await this.workspace.feed(file.replace(/\.ics$/, ""));
+    response.setHeader("Content-Type", "text/calendar; charset=utf-8");
+    response.setHeader("Cache-Control", "private, max-age=300");
+    response.send(text);
   }
 }
