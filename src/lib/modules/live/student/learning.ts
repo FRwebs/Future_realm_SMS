@@ -59,8 +59,61 @@ export async function timetablePage(query: Record<string, string | undefined>): 
 const SWATCH: Array<[string, string, string]> = [["#EAF6F0", "#17714F", "#CFE4DB"], ["#EBF1FA", "#2A5A96", "#DCE7F5"], ["#FDF6E7", "#8A6410", "#F2E4C6"], ["#EEEDFA", "#4A44A0", "#E1DFF4"], ["#FBF2EC", "#94553A", "#F0DDD0"], ["#F0F4FC", "#3A4E86", "#DBE3F3"], ["#F5F0FA", "#6B4E9E", "#E7DDF2"]];
 const abbr = (name: string) => { const words = name.split(/\s+/).filter(Boolean); return (words.length > 1 ? words.map((word) => word[0]).join("").slice(0, 3) : name.slice(0, 3)).toUpperCase(); };
 
+const TERM_ORDER = ["First Term", "Second Term", "Third Term"];
+
+/**
+ * The session-then-term chips above Subjects.
+ *
+ * A student's history is not a flat list of terms: it is sessions, each holding
+ * up to three terms, and a term they were not here for has nothing behind it.
+ * Drawing all three and offering only the ones on record says that plainly —
+ * a flat list of whatever exists would hide the gap.
+ */
+function termFilter(me: Me, cards: Card[], selected: { term: string; session: string } | null): Panel {
+  const here = me.term ? { term: me.term.name, session: me.term.session } : null;
+  const known = [...cards.map((card) => ({ term: card.term, session: card.session })), ...(here ? [here] : [])];
+  const chosen = selected ?? here;
+  const sessions = [...new Set(known.map((entry) => entry.session))].sort();
+  const has = (session: string, term: string) => known.some((entry) => entry.session === session && entry.term === term);
+  // Where a chip goes: the term running now is the page's own address, a past
+  // term is the tab the page already answers to.
+  const hrefFor = (session: string, term: string) =>
+    here && here.session === session && here.term === term
+      ? "/portals/student/subjects"
+      : `/portals/student/subjects?tab=${encodeURIComponent(`${term} ${session}`)}`;
+  // Picking a session lands on its latest term on record.
+  const latestIn = (session: string) => [...TERM_ORDER].reverse().find((term) => has(session, term));
+
+  const past = chosen && !(here && chosen.session === here.session && chosen.term === here.term)
+    ? cards.find((card) => card.term === chosen.term && card.session === chosen.session)
+    : undefined;
+  const firstSession = sessions[0];
+
+  return {
+    type: "termFilter",
+    sessions: sessions.map((session) => {
+      const landing = latestIn(session);
+      return { label: session, on: chosen?.session === session, href: landing ? hrefFor(session, landing) : undefined, disabled: !landing };
+    }),
+    terms: TERM_ORDER.map((term) => {
+      const session = chosen?.session ?? firstSession ?? "";
+      const open = Boolean(session) && has(session, term);
+      return {
+        label: `${term}${here && here.session === session && here.term === term ? " · now" : ""}`,
+        on: chosen?.term === term && chosen?.session === session,
+        href: open ? hrefFor(session, term) : undefined,
+        disabled: !open,
+      };
+    }),
+    hint: chosen?.session === firstSession && firstSession && !has(firstSession, "First Term") ? `You joined on ${dLong(me.enrolled)}` : undefined,
+    status: past ? `Final · published ${dLong(past.published)}` : me.term ? `In progress · week ${me.term.week}` : "No term is running",
+    statusTone: past ? "neutral" : "progress",
+    back: past && here ? { label: "Back to this term", href: "/portals/student/subjects" } : undefined,
+  };
+}
+
 /** What a past term's subjects looked like, from the report card the school published for it — every mark final. */
-async function pastSubjects(me: Me, cardId: string, tabs: NonNullable<StudentContent["tabs"]>, tab: string): Promise<StudentContent | null> {
+async function pastSubjects(me: Me, cardId: string): Promise<StudentContent | null> {
   const { cards } = await loadCards();
   const card = cards.find((entry) => entry.id === cardId);
   if (!card) return null;
@@ -72,11 +125,12 @@ async function pastSubjects(me: Me, cardId: string, tabs: NonNullable<StudentCon
   }));
   const best = [...card.subjects].sort((a, b) => b.total - a.total)[0];
   return {
-    eyebrow: `${card.arm} · ${card.term} ${card.session}`, title: "Subjects", tabs, tab,
+    eyebrow: `${card.arm} · ${card.term} ${card.session}`, title: "Subjects",
     desc: `What you studied in ${card.arm} that term. Every mark is final, exactly as published on ${dLong(card.published)}.`,
     rows: [
+      row("1fr", [termFilter(me, cards, { term: card.term, session: card.session })]),
       row("1fr", [{
-        type: "kpi", per: 5,
+        type: "kpi", bare: true, per: 5,
         cards: [
           { label: "Class and arm", value: card.arm, sub: me.formMaster ? `Form master ${me.formMaster.name}` : "", icon: "people" },
           { label: "Subjects that term", value: String(card.subjects.length), sub: "As published", icon: "layers" },
@@ -92,12 +146,9 @@ async function pastSubjects(me: Me, cardId: string, tabs: NonNullable<StudentCon
 
 export async function subjectsPage(query: Record<string, string | undefined> = {}): Promise<StudentContent> {
   const [me, data, tt, past] = await Promise.all([loadMe(), loadSubjects(), loadTimetable(), loadCards()]);
-  const thisTerm = me.term ? `${me.term.name} so far` : "This term";
-  const tabs = [{ label: thisTerm }, ...past.cards.map((card) => ({ label: `${card.term} ${card.session}` }))];
-  const tab = tabs.some((entry) => entry.label === query.tab) ? query.tab! : thisTerm;
-  if (tab !== thisTerm) {
-    const chosen = past.cards.find((card) => `${card.term} ${card.session}` === tab);
-    const built = chosen ? await pastSubjects(me, chosen.id, tabs, tab) : null;
+  const chosen = query.tab ? past.cards.find((card) => `${card.term} ${card.session}` === query.tab) : undefined;
+  if (chosen) {
+    const built = await pastSubjects(me, chosen.id);
     if (built) return built;
   }
   const week = me.term?.week ?? 0;
@@ -126,16 +177,20 @@ export async function subjectsPage(query: Record<string, string | undefined> = {
       id: subject.id, name: subject.name, abbr: abbr(subject.name), teacher: `${subject.teacher || "Teacher not assigned"} · ${subject.periods} ${subject.periods === 1 ? "period" : "periods"} a week`,
       swatch: SWATCH[index % SWATCH.length]!, flag, topic: subject.topic, open: subject.open ? `${subject.open} ${subject.open === 1 ? "task" : "tasks"} open` : "",
       parts: subject.parts.map((part) => ({ name: part.name, value: part.score === null ? "" : num(part.score), max: String(part.max), pending: part.score === null, fill: part.score === null ? "0%" : `${Math.min(100, Math.round((part.score / part.max) * 100))}%` })),
-      foot: got.length ? `${num(sum)} counted so far` : "Nothing counted yet", drawer, scheme: { kicker: "Scheme of work", title: subject.name, mode: "view", readOnly: true, load: `/portals/student/scheme/${subject.id}` } as DrawerSpec,
+      foot: got.length ? `${num(sum)} of ${num(subject.parts.reduce((total, part) => total + part.max, 0))} counted so far` : "Nothing counted yet", drawer, scheme: { kicker: "Scheme of work", title: subject.name, mode: "view", readOnly: true, load: `/portals/student/scheme/${subject.id}` } as DrawerSpec,
     };
   };
 
-  const groups = [{ label: core.length && rest.length ? "Compulsory" : "All subjects", cards: core.map((subject, index) => card(subject, index)) }, { label: "Electives", cards: rest.map((subject, index) => card(subject, index + core.length)) }].filter((group) => group.cards.length);
+  const groups = [
+    { label: core.length && rest.length ? "Compulsory" : "All subjects", cards: core.map((subject, index) => card(subject, index)) },
+    { label: me.stream ? `${me.stream} electives` : "Electives", cards: rest.map((subject, index) => card(subject, index + core.length)) },
+  ].filter((group) => group.cards.length);
   return {
-    eyebrow: `${me.level}${me.stream ? ` · ${me.stream}` : ""}`, title: "Subjects", tabs: tabs.length > 1 ? tabs : undefined, tab: thisTerm, desc: "A mark shows as soon as your teacher releases it; until then it reads Pending. Open a subject for its topics and your work, or its scheme of work.",
+    eyebrow: `${me.level}${me.stream ? ` · ${me.stream}` : ""}`, title: "Subjects", desc: "A mark shows as soon as your teacher releases it; until then it reads Pending. Open a subject for its topics and your work, or its scheme of work.",
     rows: [
+      row("1fr", [termFilter(me, past.cards, null)]),
       row("1fr", [{
-        type: "kpi", per: 5,
+        type: "kpi", bare: true, per: 5,
         cards: [
           { label: "Class and arm", value: me.arm, sub: me.formMaster ? `Form master ${me.formMaster.name}` : "No form master named yet", icon: "people", href: "/portals/student/profile" },
           { label: "Subjects this term", value: String(data.subjects.length), sub: `${core.length} compulsory · ${rest.length} electives`, icon: "layers" },
@@ -206,7 +261,7 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
     launchers: [{ label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment" }) }],
     rows: [
       row("1fr", [{
-        type: "kpi", per: 4,
+        type: "kpi", bare: true, per: 4,
         cards: [
           { label: "To do", value: String(todo.length), sub: todo.length ? `Next: ${dueText(todo.find((item) => item.state === "todo") ?? todo[0]!, today).replace(/^(Today|Tomorrow)/, (word) => word.toLowerCase())}` : "Nothing to hand in", tone: todo.length ? "attention" : "positive", icon: "check" },
           { label: "Late", value: String(late.length), sub: late.length ? `${late[0]!.subject} · ${dueText(late[0]!, today)}` : "Nothing late", tone: late.length ? "negative" : "positive", icon: "hourglass" },
@@ -277,7 +332,7 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
       ...head,
       rows: [
         row("1fr", [{
-          type: "kpi", per: 4,
+          type: "kpi", bare: true, per: 4,
           cards: [
             { label: "Report cards on record", value: String(cards.length), sub: `Since ${oldest.term} ${oldest.session}`, icon: "doc" },
             { label: "Latest average", value: num(latest.average), sub: `${latest.term} ${latest.session}`, tone: "progress", icon: "bars" },
@@ -326,7 +381,7 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
         ],
       }]),
       row("1fr", [{
-        type: "kpi", per: 4,
+        type: "kpi", bare: true, per: 4,
         cards: [
           { label: "Average", value: num(latest.average), sub: `${latest.term} ${latest.session}`, tone: "progress", icon: "bars" },
           { label: "Position", value: latest.position ? `${ord(latest.position)} of ${latest.size}` : "Not ranked", sub: `In ${latest.arm}`, icon: "trophy" },

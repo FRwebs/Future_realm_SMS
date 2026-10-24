@@ -81,7 +81,7 @@ export async function todayPage(): Promise<StudentContent> {
         },
       }]),
       row("1fr", [{
-        type: "kpi", per: 4,
+        type: "kpi", bare: true, per: 4,
         cards: [
           { label: "Attendance this term", value: pctText(pct), sub: termRecords.length ? `${presentDays} of ${termRecords.length} school days` : "No school days yet", tone: attTone(pct), href: "/portals/student/attendance", icon: "calendar" },
           { label: "Due by Friday", value: String(week.length), sub: late.length ? `${late.length} late · ${late[0]!.subject}` : nextTodo ? `Next: ${nextTodo.subject}` : "Nothing to hand in", tone: late.length ? "negative" : week.length ? "attention" : "positive", href: "/portals/student/assignments", icon: "check" },

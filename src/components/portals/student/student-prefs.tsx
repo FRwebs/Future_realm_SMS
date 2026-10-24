@@ -5,7 +5,7 @@ import { useState } from "react";
 import { readCookie } from "@/lib/modules/submit";
 
 export type PrefsProps = {
-  base: string; categories: Array<{ key: string; label: string; sub: string }>; channels: Array<{ key: string; label: string; sub: string; locked?: boolean }>;
+  base: string; categories: Array<{ key: string; label: string; sub: string }>; channels: Array<{ key: string; label: string; sub: string; locked?: boolean; unavailable?: boolean }>;
   matrix: Record<string, boolean>; defaults: Record<string, boolean>; quiet: string; remind: string; quietOptions: string[]; remindOptions: string[]; foot: string;
 };
 
@@ -18,7 +18,11 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
   const [reminder, setReminder] = useState(remind);
   const [error, setError] = useState<string | null>(null);
   const cols = `minmax(0,1.7fr) repeat(${channels.length}, minmax(0,0.62fr))`;
-  const isOn = (category: string, channel: string, locked?: boolean) => locked || (values[`${category}:${channel}`] ?? defaults[`${category}:${channel}`] ?? false);
+  // `locked` is a channel that is always on — the in-app record. `unavailable`
+  // is a channel the school cannot send on yet: it is drawn, off and fixed, so
+  // the column is honest about itself rather than quietly missing.
+  const isOn = (category: string, channel: string, locked?: boolean, unavailable?: boolean) =>
+    unavailable ? false : locked || (values[`${category}:${channel}`] ?? defaults[`${category}:${channel}`] ?? false);
 
   async function save(body: Record<string, unknown>) {
     setError(null);
@@ -51,10 +55,11 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
               <div key={category.key} className="grid items-center gap-[10px] border-b py-[11px]" style={{ gridTemplateColumns: cols, borderColor: "#EDF3EF" }}>
                 <span className="min-w-0"><span className="block text-[12px] font-semibold" style={{ color: "#0D2315" }}>{category.label}</span><span className="block text-[10.5px]" style={{ color: "#67766D" }}>{category.sub}</span></span>
                 {channels.map((channel) => {
-                  const on = isOn(category.key, channel.key, channel.locked);
+                  const on = isOn(category.key, channel.key, channel.locked, channel.unavailable);
+                  const fixed = Boolean(channel.locked || channel.unavailable);
                   return (
                     <span key={channel.key} className="flex justify-center">
-                      <button type="button" role="switch" aria-checked={on} aria-label={`${category.label} by ${channel.label}`} disabled={channel.locked} onClick={() => toggle(category.key, channel.key, !on)} className={SWITCH} style={{ background: on ? "#12796A" : "#CFDDD5", opacity: channel.locked ? 0.55 : 1, cursor: channel.locked ? "not-allowed" : "pointer" }}>
+                      <button type="button" role="switch" aria-checked={on} aria-label={`${category.label} by ${channel.label}`} disabled={fixed} title={channel.locked ? "Always on" : channel.unavailable ? `${channel.label} is not available yet` : on ? "Turn off" : "Turn on"} onClick={() => toggle(category.key, channel.key, !on)} className={SWITCH} style={{ background: on ? "#12796A" : "#CFDDD5", opacity: fixed ? 0.55 : 1, cursor: fixed ? "not-allowed" : "pointer" }}>
                         <span className="absolute top-[2px] h-[16px] w-[16px] rounded-full bg-white transition-[left] duration-150" style={{ left: on ? 16 : 2, boxShadow: "0 1px 3px rgba(13,35,21,0.3)" }} />
                       </button>
                     </span>

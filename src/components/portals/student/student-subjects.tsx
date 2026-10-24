@@ -21,6 +21,7 @@ export function StudentSubjects({ groups, openDrawer }: SubjectsProps) {
           <div className="mb-[9px] flex items-baseline gap-[8px]">
             <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{group.label}</h3>
             <span className="rounded-full px-[7px] py-[1.5px] text-[9.5px] font-bold" style={{ background: "#F1F4F2", color: "#5C6A62" }}>{group.cards.length}</span>
+            <span className="h-px flex-1" style={{ background: "#E4EDE8" }} />
           </div>
           <div className="grid gap-[11px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))" }}>
             {group.cards.map((card) => (

@@ -369,12 +369,17 @@ export function CommitDone({
                   className="rounded-[12px] border px-[13px] py-[11px]"
                   style={{ background: "#EAF6F0", borderColor: "#CFE4DB" }}
                 >
-                  <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
-                    {result?.queued ? "Saved on this device — not yet at the school" : doneTitle}
-                  </p>
+                  {/* The header already carries the title. This panel repeats it
+                      only when there is nothing else to say, and replaces it
+                      when the save has not left the device. */}
+                  {result?.queued || !doneBody ? (
+                    <p className="text-[12px] font-bold" style={{ color: "#17714F" }}>
+                      {result?.queued ? "Saved on this device — not yet at the school" : doneTitle}
+                    </p>
+                  ) : null}
                   {doneBody && !result?.queued ? (
                     <p
-                      className="mt-[5px] text-pretty text-[11px] leading-[1.55]"
+                      className="text-pretty text-[11.5px] leading-[1.55]"
                       style={{ color: "#17604F" }}
                     >
                       {doneBody}

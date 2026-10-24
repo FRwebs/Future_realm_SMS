@@ -26,6 +26,7 @@ import type {
   KpiCard,
   Panel,
   PanelAction,
+  PanelChip,
   PanelFact,
   PanelRow,
   PanelTone,
@@ -374,13 +375,17 @@ function FactList({ facts, per }: { facts: PanelFact[]; per?: number }) {
         gridTemplateColumns: `repeat(auto-fit, minmax(${per === 1 ? 260 : 186}px, 1fr))`,
       }}
     >
-      {facts.map(([label, value, hint], index) => (
+      {facts.map(([label, value, hint, tone], index) => (
         <div key={`${label}-${index}`} className="min-w-0">
           <dt className="mb-1 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#67766D]">
             {label}
           </dt>
           <dd className="min-w-0">
-            <span className="block text-[12.5px] font-semibold leading-[1.35] text-[#0D2315]">
+            {/* A fact that is its own state is coloured like one. */}
+            <span
+              className="block text-[12.5px] font-semibold leading-[1.35]"
+              style={{ color: tone ? toneOf(tone).fg : "#0D2315" }}
+            >
               {value}
             </span>
             {hint ? (
@@ -1332,19 +1337,24 @@ export function PanelView({
               ? 208
               : 240;
 
-    // The row sits inside its own panel, headed by what it counts — the mockup
-    // never lets a run of figures float loose on the page.
+    // The row normally sits inside its own panel, headed by what it counts —
+    // the School Admin mockup never lets a run of figures float loose. A page
+    // that asks to be bare gets the cards alone, which is how the student's own
+    // pages draw them.
+    const bare = panel.bare === true;
     return (
       <section
-        className={cn(PANEL_SHELL, "pb-[15px]")}
-        style={{ borderColor: CARD_BORDER }}
+        className={bare ? "min-w-0" : cn(PANEL_SHELL, "pb-[15px]")}
+        style={bare ? undefined : { borderColor: CARD_BORDER }}
       >
-        <PanelHeader
-          title={panel.title ?? "Summary"}
-          sub={panel.sub}
-          openDrawer={openDrawer}
-          flush
-        />
+        {bare ? null : (
+          <PanelHeader
+            title={panel.title ?? "Summary"}
+            sub={panel.sub}
+            openDrawer={openDrawer}
+            flush
+          />
+        )}
         <div
           className="grid items-stretch gap-[10px]"
           style={{
@@ -1649,6 +1659,66 @@ export function PanelView({
           ))}
         </ul>
         {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
+      </section>
+    );
+  }
+
+  if (panel.type === "termFilter") {
+    const swatch = toneOf(panel.statusTone, "progress");
+    const chip = (entry: PanelChip) =>
+      entry.disabled || !entry.href ? (
+        <span
+          key={entry.label}
+          title={entry.disabled ? "Nothing on record for this term" : undefined}
+          className="cursor-not-allowed whitespace-nowrap rounded-full border px-[12px] py-[6px] text-[11px] font-semibold"
+          style={{ background: "#F4F6F5", color: "#9AA8A0", borderColor: "#E4EDE8" }}
+        >
+          {entry.label}
+        </span>
+      ) : (
+        <Link
+          key={entry.label}
+          href={entry.href as Route}
+          className="whitespace-nowrap rounded-full border px-[12px] py-[6px] text-[11px] font-semibold"
+          style={entry.on ? { background: INK, color: "#fff", borderColor: INK } : { background: "#fff", color: "#22332A", borderColor: CARD_BORDER }}
+        >
+          {entry.label}
+        </Link>
+      );
+    return (
+      <section
+        className="flex min-w-0 flex-wrap items-center gap-x-[18px] gap-y-[10px] rounded-[13px] border bg-[var(--color-bg-surface)] px-[14px] py-[11px]"
+        style={{ borderColor: CARD_BORDER }}
+        aria-label="Pick a term"
+      >
+        <div className="flex min-w-0 flex-wrap items-center gap-[9px]">
+          <span className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>Session</span>
+          <div className="flex flex-wrap gap-[5px]">{panel.sessions.map(chip)}</div>
+        </div>
+        <span className="h-[22px] w-px flex-none" style={{ background: "#E4EDE8" }} />
+        <div className="flex min-w-0 flex-wrap items-center gap-[9px]">
+          <span className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>Term</span>
+          <div className="flex flex-wrap gap-[5px]">{panel.terms.map(chip)}</div>
+        </div>
+        {panel.hint ? <span className="text-[10.5px]" style={{ color: MUTED }}>{panel.hint}</span> : null}
+        <div className="ml-auto flex flex-wrap items-center gap-[8px]">
+          <span
+            className="flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[9px] py-[3px] text-[10.5px] font-semibold"
+            style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}
+          >
+            <span className="h-[6px] w-[6px] rounded-full" style={{ background: swatch.dot }} />
+            {panel.status}
+          </span>
+          {panel.back ? (
+            <Link
+              href={panel.back.href as Route}
+              className="whitespace-nowrap rounded-[9px] border bg-white px-[11px] py-[6px] text-[11px] font-semibold"
+              style={{ borderColor: CARD_BORDER, color: "#435048" }}
+            >
+              {panel.back.label}
+            </Link>
+          ) : null}
+        </div>
       </section>
     );
   }

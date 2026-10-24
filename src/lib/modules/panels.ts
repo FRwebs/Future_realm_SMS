@@ -25,8 +25,15 @@ export type PanelTone =
   | "offline"
   | "vendor";
 
-/** A label/value pair with an optional explanatory third line. */
-export type PanelFact = [label: string, value: string, hint?: string];
+/** One chip in a row of them: lit when you are on it, drawn but not offered when there is nothing behind it. */
+export type PanelChip = { label: string; href?: string; on?: boolean; disabled?: boolean };
+
+/**
+ * A label/value pair with an optional explanatory third line, and an optional
+ * tone that colours the value — the mockup uses it for a fact that is itself a
+ * state, such as two-step sign-in being on.
+ */
+export type PanelFact = [label: string, value: string, hint?: string, tone?: PanelTone | ""];
 
 /**
  * What opens when a trigger is pulled.
@@ -833,6 +840,13 @@ export type Panel =
       /** The line under it: the term the figures are for, or how to read them. */
       sub?: string;
       per?: number;
+      /**
+       * Draw the cards straight onto the page with no panel around them and no
+       * heading. The School Admin mockup heads every run of figures; the
+       * student's own pages let the cards stand on their own, each already a
+       * bordered tile — a panel around them would be a second border.
+       */
+      bare?: boolean;
       cards: KpiCard[];
     }
   | {
@@ -958,6 +972,25 @@ export type Panel =
    * holds, what it costs and who awards it. Each segment goes to its own page, so which one is lit is the server's to say.
    */
   | { type: "tray"; items: TrayItem[] }
+  /**
+   * Two rows of chips that pick a session and then a term inside it, with what
+   * that term's figures are worth beside them — "In progress · week 7", or
+   * "Final · published 14 July". A term the student has no record for is drawn
+   * but not offered, so a gap in their history reads as a gap rather than as a
+   * missing chip. Each chip goes to its own address, so what is lit is the
+   * server's to say.
+   */
+  | {
+      type: "termFilter";
+      sessions: PanelChip[];
+      terms: PanelChip[];
+      /** One line explaining the shape of what is on offer — why a term is not there. */
+      hint?: string;
+      status: string;
+      statusTone?: PanelTone;
+      /** Shown while a past term is being read, to get back to the one running. */
+      back?: { label: string; href: string };
+    }
   | {
       type: "tiles";
       title: string;

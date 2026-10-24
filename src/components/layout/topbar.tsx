@@ -225,7 +225,18 @@ export function dropdownItemsFor(
     },
   ];
 
-  if (session.role === "PARENT" || session.role === "STUDENT") {
+  // A student's menu is the one their mockup draws: the three "Me" pages of
+  // their own rail, so the menu and the rail never disagree about what they
+  // are called. (Sign out sits below this list, for every role.)
+  if (session.role === "STUDENT") {
+    return [
+      { label: "My profile", icon: "User", path: "/portals/student/profile" },
+      { label: "Notifications", icon: "Bell", path: "/portals/student/notifications" },
+      { label: "Account and security", icon: "Shield", path: "/portals/student/account" },
+    ];
+  }
+
+  if (session.role === "PARENT") {
     return common;
   }
 

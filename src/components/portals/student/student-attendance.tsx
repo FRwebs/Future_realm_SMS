@@ -35,6 +35,31 @@ function summary(days: Rec[]) {
   return { n, present, away, late, pct: n ? (present / n) * 100 : null, best, bestEnd };
 }
 
+/** Mon to Fri above a day calendar, so a column is read without counting. */
+function Dow() {
+  return (
+    <div className="mb-[5px] grid grid-cols-5 gap-[6px]">
+      {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => (
+        <span key={day} className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#67766D" }}>{day}</span>
+      ))}
+    </div>
+  );
+}
+
+/** The key under the week chart and the day calendar: what each colour means. */
+function Legend({ keys }: { keys: string[] }) {
+  return (
+    <div className="mt-[10px] flex flex-wrap items-center gap-x-[14px] gap-y-[5px]">
+      {keys.map((key) => (
+        <span key={key} className="flex items-center gap-[5px] text-[9.5px] font-semibold" style={{ color: "#5F6E65" }}>
+          <span className="h-[8px] w-[8px] rounded-full" style={{ background: toneOf(TONE[key] ?? "neutral").dot }} />
+          {key === "ABSENT" ? "Absent, not explained" : key === "EXCUSED" ? "Away, explained" : NAME[key] ?? key}
+        </span>
+      ))}
+    </div>
+  );
+}
+
 export function StudentAttendance({ terms, records, today, current, first, guardian, openDrawer }: StudentAttendanceProps) {
   const past = useMemo(() => records.filter((record) => record.date <= today), [records, today]);
   const termOf = (id: string) => terms.find((term) => term.id === id);
@@ -57,8 +82,31 @@ export function StudentAttendance({ terms, records, today, current, first, guard
   const PS = prevKey ? summary(past.filter(inScope(view, prevKey))) : null;
   const rate = (days: Rec[]) => summary(days).pct;
 
-  const label = view === "Week" ? `Week of ${short(cur)}` : view === "Month" ? `${MONTHS[Number(cur.slice(5)) - 1]} ${cur.slice(0, 4)}` : view === "Term" ? `${termOf(cur)?.name ?? ""} ${termOf(cur)?.session ?? ""}` : view === "Year" ? `Session ${cur}` : `Since ${first}`;
-  const range = view === "Term" && termOf(cur) ? `${termOf(cur)!.arm} · ${short(termOf(cur)!.start)} – ${short(termOf(cur)!.end)}` : view === "Week" ? `${short(cur)} – ${short(addDays(cur, 4))}` : view === "Year" ? `${terms.filter((term) => term.session === cur).length} terms` : view === "All" ? `${terms.length} terms` : "";
+  // Which week of its term a Monday is, counting the term's first Monday as 1.
+  const weekNo = (mondayIso: string, term: Term | undefined) =>
+    term ? Math.floor((dayOf(mondayIso).getTime() - dayOf(monday(term.start)).getTime()) / (7 * 86_400_000)) + 1 : 0;
+  const span = (() => {
+    const from = terms[0]?.arm ?? "";
+    const to = terms[terms.length - 1]?.arm ?? "";
+    return from && to && from !== to ? `${from} to ${to}` : from;
+  })();
+  const plural = (count: number, word: string) => `${count} ${count === 1 ? word : `${word}s`}`;
+  const weekTerm = view === "Week" ? termOf(scope[0]?.term ?? "") : undefined;
+  const monthTerms = view === "Month" ? uniq(scope.map((record) => record.term)).map(termOf).filter((term): term is Term => Boolean(term)) : [];
+
+  const label = view === "Week" ? `Week of ${short(cur)} ${cur.slice(0, 4)}` : view === "Month" ? `${MONTHS[Number(cur.slice(5)) - 1]} ${cur.slice(0, 4)}` : view === "Term" ? `${termOf(cur)?.name ?? ""} ${termOf(cur)?.session ?? ""}` : view === "Year" ? `Session ${cur}` : `Since ${first}`;
+  const range =
+    view === "Week"
+      ? `${short(cur)} – ${short(addDays(cur, 4))}${weekTerm ? ` · ${weekTerm.name} ${weekTerm.session}, week ${weekNo(cur, weekTerm)}` : ""}`
+      : view === "Month"
+        ? `${uniq(monthTerms.map((term) => `${term.name} ${term.session}`)).join(" and ")}${monthTerms.length ? ` · ${monthTerms[monthTerms.length - 1]!.arm}` : ""}`
+        : view === "Term" && termOf(cur)
+          ? `${termOf(cur)!.arm} · ${short(termOf(cur)!.start)} – ${short(termOf(cur)!.end)}${cur === current ? " · in progress" : ""}`
+          : view === "Year"
+            ? `${plural(terms.filter((term) => term.session === cur).length, "term")} · ${uniq(terms.filter((term) => term.session === cur).map((term) => term.arm)).join(", ")}`
+            : view === "All"
+              ? `${plural(terms.length, "term")}${span ? ` · ${span}` : ""}`
+              : "";
 
   const open = (record: Rec | undefined, date: string) => {
     if (!openDrawer) return;
@@ -86,12 +134,59 @@ export function StudentAttendance({ terms, records, today, current, first, guard
   } else if (view === "Month") {
     for (const m of uniq(scope.map((record) => monday(record.date)))) { const r = rate(scope.filter((record) => monday(record.date) === m)); series.push({ label: `w/c ${short(m)}`, v: r, tone: toneFor(r), tip: `Week of ${short(m)} · ${pct(r)}`, go: () => go("Week", m), on: m === now.Week }); }
   } else if (view === "Term") {
-    for (const m of uniq(scope.map((record) => monday(record.date)))) { const r = rate(scope.filter((record) => monday(record.date) === m)); series.push({ label: `${short(m)}`, v: r, tone: toneFor(r), tip: `Week of ${short(m)} · ${pct(r)}`, go: () => go("Week", m), on: m === now.Week }); }
+    // Every week the term holds, not only the weeks already marked — a term in
+    // progress should show the weeks still to come as open bars.
+    const term = termOf(cur);
+    const firstMonday = term ? monday(term.start) : cur;
+    const weeks = term ? Math.floor((dayOf(monday(term.end)).getTime() - dayOf(firstMonday).getTime()) / (7 * 86_400_000)) + 1 : 0;
+    for (let i = 0; i < Math.max(weeks, 1); i += 1) {
+      const m = addDays(firstMonday, i * 7);
+      const r = rate(scope.filter((record) => monday(record.date) === m));
+      // An empty week is either still to come or was never marked. Saying
+      // "Coming up" about a week that has already passed would be untrue.
+      const state = r === null ? (m > today ? "Coming up" : "No register") : pct(r);
+      series.push({ label: `W${i + 1}`, v: r, tone: toneFor(r), tip: `Week ${i + 1} · ${short(m)} – ${short(addDays(m, 4))} · ${state}`, go: r === null ? undefined : () => go("Week", m), on: m === now.Week });
+    }
   } else if (view === "Year") {
     for (const ym of uniq(scope.map((record) => record.date.slice(0, 7)))) { const r = rate(scope.filter((record) => record.date.slice(0, 7) === ym)); series.push({ label: MONTHS[Number(ym.slice(5)) - 1]!.slice(0, 3), v: r, tone: toneFor(r), tip: `${MONTHS[Number(ym.slice(5)) - 1]} ${ym.slice(0, 4)} · ${pct(r)}`, go: () => go("Month", ym), on: ym === now.Month }); }
   } else {
     for (const term of terms) { const r = rate(past.filter(inScope("Term", term.id))); series.push({ label: term.name.replace(/ Term$/, ""), v: r, tone: toneFor(r), tip: `${term.name} ${term.session} · ${pct(r)}`, go: () => go("Term", term.id), on: term.id === current }); }
   }
+
+  // The "since the first term" card reads the first term's figure against the
+  // latest one. With a single term on record there is nothing to compare.
+  const allSub = (() => {
+    if (terms.length < 2) return "Only one term on record so far";
+    const firstTerm = terms[0]!;
+    const lastTerm = terms[terms.length - 1]!;
+    const a = summary(past.filter(inScope("Term", firstTerm.id)));
+    const b = summary(past.filter(inScope("Term", lastTerm.id)));
+    return `${firstTerm.name.replace(/ Term$/, "")} ${pct(a.pct)} → now ${pct(b.pct)}`;
+  })();
+
+  // "2 not explained · 1 excused" — the kinds actually in this period, not a
+  // fixed pair of counts that reads "0 excused" most of the time.
+  const awaySub = (() => {
+    if (!S.away.length) return "None";
+    const kinds: Record<string, number> = {};
+    for (const day of S.away) { const word = day.status === "ABSENT" ? "not explained" : (NAME[day.status] ?? day.status).toLowerCase(); kinds[word] = (kinds[word] ?? 0) + 1; }
+    return Object.entries(kinds).map(([word, count]) => `${count} ${word}`).join(" · ");
+  })();
+
+  // The chart says which period it is drawing, the way the mockup does — "Week
+  // by week · Second Term", not a bare "Week by week".
+  const chartTitle =
+    view === "Week" ? "Day by day"
+      : view === "Month" ? `Week by week in ${MONTHS[Number(cur.slice(5)) - 1]}`
+        : view === "Term" ? `Week by week · ${termOf(cur)?.name ?? ""} ${termOf(cur)?.session ?? ""}`.trimEnd()
+          : view === "Year" ? `Month by month · session ${cur}`
+            : "Term by term";
+  const chartSub =
+    view === "Week" ? "Each school day this week — in school or away. Tap a day to see who marked it."
+      : view === "Month" ? "Share of school days present each week. Tap a week to open it."
+        : view === "Term" ? `Share of school days present each week of the term${cur === current ? "; weeks still to come are left open" : ""}. Tap a week to open it.`
+          : view === "Year" ? "Share of school days present each month. Tap a month to open it."
+            : `Every term on record${span ? `, ${terms.length > 1 ? `from ${span}` : `in ${span}`}` : ""}. Tap a term to open it.`;
 
   const termRows = (subset: Term[]) => subset.map((term) => { const s = summary(past.filter(inScope("Term", term.id))); return { term, s }; });
   const away = scope.filter((record) => record.status !== "PRESENT").slice().reverse();
@@ -121,9 +216,9 @@ export function StudentAttendance({ terms, records, today, current, first, guard
       <section className="grid gap-[10px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))" }}>
         {[
           { label: "Attendance", value: pct(S.pct), sub: `${S.present} of ${S.n} school days`, tone: toneFor(S.pct) },
-          { label: "Days away", value: String(S.away.length), sub: S.away.length ? `${S.away.filter((d) => d.status === "ABSENT").length} absent · ${S.away.filter((d) => d.status === "EXCUSED").length} excused` : "None", tone: S.away.length ? ("attention" as PanelTone) : ("positive" as PanelTone) },
+          { label: "Days away", value: String(S.away.length), sub: awaySub, tone: S.away.some((day) => day.status === "ABSENT") ? ("attention" as PanelTone) : S.away.length ? ("neutral" as PanelTone) : ("positive" as PanelTone) },
           { label: "Late arrivals", value: String(S.late), sub: S.late ? "Still counted as present" : "None", tone: S.late ? ("attention" as PanelTone) : ("positive" as PanelTone) },
-          { label: view === "All" ? "Since the first term" : `Compared with ${prevName}`, value: pts(delta), sub: view === "All" ? "First term to now" : PS && PS.pct !== null ? `${prevName.charAt(0).toUpperCase()}${prevName.slice(1)} was ${pct(PS.pct)}` : "Nothing earlier on record", tone: delta === null ? ("neutral" as PanelTone) : delta >= 0 ? ("positive" as PanelTone) : ("attention" as PanelTone) },
+          { label: view === "All" ? "Since the first term" : `Compared with ${prevName}`, value: view === "All" && terms.length < 2 ? "—" : pts(delta), sub: view === "All" ? allSub : PS && PS.pct !== null ? `${prevName.charAt(0).toUpperCase()}${prevName.slice(1)} was ${pct(PS.pct)}` : "Nothing earlier on record", tone: delta === null ? ("neutral" as PanelTone) : delta >= 0 ? ("positive" as PanelTone) : ("attention" as PanelTone) },
           { label: "Longest run present", value: `${S.best} ${S.best === 1 ? "day" : "days"}`, sub: S.best ? `In a row, up to ${short(S.bestEnd)}` : "No school days yet", tone: "neutral" as PanelTone },
         ].map((card) => (
           <article key={card.label} className="rounded-[14px] border bg-[var(--color-bg-surface)] px-[14px] pb-[14px] pt-[13px]" style={{ borderColor: "#DEE8E2" }}>
@@ -135,8 +230,8 @@ export function StudentAttendance({ terms, records, today, current, first, guard
       </section>
 
       <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[16px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
-        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{view === "Week" ? "Day by day" : view === "Month" ? "Week by week" : view === "Term" ? "Week by week" : view === "Year" ? "Month by month" : "Term by term"}</h3>
-        <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{view === "Week" ? "Each school day this week — in school or away. Tap a day to see who marked it." : "Share of school days present in each period. Tap a bar to open it."}</p>
+        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{chartTitle}</h3>
+        <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{chartSub}</p>
         {series.length ? (
           <div className="mt-[12px] flex h-[140px] items-end gap-[8px] overflow-x-auto">
             {series.map((point) => {
@@ -151,6 +246,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
             })}
           </div>
         ) : <p className="mt-[12px] text-[11.5px]" style={{ color: "#8C9A92" }}>No school days to show yet.</p>}
+        {view === "Week" && series.length ? <Legend keys={["PRESENT", "LATE", "EXCUSED", "ABSENT"]} /> : null}
       </section>
 
       <div className="grid min-w-0 gap-[14px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -189,32 +285,52 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
   termRows: (subset: Term[]) => Array<{ term: Term; s: ReturnType<typeof summary> }>;
 }) {
   const shell = "min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[16px] pb-[14px] pt-[14px]";
-  const cell = (date: string) => {
+  const cell = (date: string, label?: string) => {
     const rec = past.find((record) => record.date === date); const swatch = rec ? toneOf(TONE[rec.status] ?? "neutral") : null;
     return (
       <button key={date} type="button" disabled={!rec} onClick={() => open(rec, date)} className="flex min-h-[62px] min-w-0 flex-col justify-between rounded-[10px] p-[7px] text-left" style={swatch ? { background: swatch.bg, border: `1px solid ${date === today ? "#0D2315" : swatch.bd}` } : { background: "#FBFDFC", border: "1px dashed #E4EDE8" }}>
-        <span className="text-[11.5px] font-bold" style={{ color: rec ? "#0D2315" : "#AAB8B0" }}>{WEEKDAY[dayOf(date).getUTCDay()]!.slice(0, 3)} {dayOf(date).getUTCDate()}</span>
+        <span className="text-[11.5px] font-bold" style={{ color: rec ? "#0D2315" : "#AAB8B0" }}>{label ?? `${WEEKDAY[dayOf(date).getUTCDay()]!.slice(0, 3)} ${dayOf(date).getUTCDate()}`}</span>
         <span className="truncate text-[9.5px] font-bold" style={{ color: swatch?.fg ?? "#AAB8B0" }}>{rec ? `${NAME[rec.status]}${date === today ? " · today" : ""}` : date > today ? "Coming up" : "No register"}</span>
       </button>
     );
   };
-  if (view === "Week") return <section className={shell} style={{ borderColor: "#DEE8E2" }}><h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>The week, day by day</h3><p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Tap a day to see who marked it, and when.</p><div className="grid grid-cols-5 gap-[6px]">{[0, 1, 2, 3, 4].map((i) => cell(addDays(cur, i)))}</div></section>;
+  if (view === "Week") return (
+    <section className={shell} style={{ borderColor: "#DEE8E2" }}>
+      <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>The week, day by day</h3>
+      <p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Tap a day to see who marked it, and when.</p>
+      <Dow />
+      <div className="grid grid-cols-5 gap-[6px]">{[0, 1, 2, 3, 4].map((i) => cell(addDays(cur, i)))}</div>
+      <Legend keys={["PRESENT", "LATE", "ABSENT", "EXCUSED"]} />
+    </section>
+  );
   if (view === "Month") {
     const y = Number(cur.slice(0, 4)); const mo = Number(cur.slice(5)) - 1; const lastDay = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
     const lead = Math.min((new Date(Date.UTC(y, mo, 1)).getUTCDay() + 6) % 7, 5);
     const days: string[] = []; for (let d = 1; d <= lastDay; d += 1) { const date = `${cur}-${String(d).padStart(2, "0")}`; const w = dayOf(date).getUTCDay(); if (w > 0 && w < 6) days.push(date); }
-    return <section className={shell} style={{ borderColor: "#DEE8E2" }}><h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{MONTHS[mo]} {y}</h3><p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Tap a day to see who marked it, and when.</p><div className="grid grid-cols-5 gap-[6px]">{Array.from({ length: lead }, (_, i) => <span key={`g${i}`} />)}{days.map(cell)}</div></section>;
+    return (
+      <section className={shell} style={{ borderColor: "#DEE8E2" }}>
+        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{MONTHS[mo]} {y}</h3>
+        <p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Tap a day to see who marked it, and when.</p>
+        <Dow />
+        <div className="grid grid-cols-5 gap-[6px]">{Array.from({ length: lead }, (_, i) => <span key={`g${i}`} />)}{days.map((date) => cell(date, String(dayOf(date).getUTCDate())))}</div>
+        <Legend keys={["PRESENT", "LATE", "ABSENT", "EXCUSED"]} />
+      </section>
+    );
   }
   const head = "text-[9.5px] font-semibold uppercase tracking-[0.05em]";
   if (view === "Term") {
     const weeks = uniq(scope.map((record) => monday(record.date))).reverse();
+    // Counted from the term's first Monday. Numbering by row position drifts
+    // the moment a week in the middle has no register — a holiday week does.
+    const termStart = terms.find((term) => term.id === cur)?.start;
+    const weekNo = (m: string) => (termStart ? Math.floor((dayOf(m).getTime() - dayOf(monday(termStart)).getTime()) / (7 * 86_400_000)) + 1 : 0);
     return (
       <section className={shell} style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Week by week</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Open a week to see each day.</p>
         <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-left"><thead><tr style={{ color: "#67766D" }}>{["Week", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
           {weeks.map((m, i) => { const s = summary(scope.filter((record) => monday(record.date) === m)); const swatch = toneOf(toneFor(s.pct)); return (
             <tr key={m} className="cursor-pointer border-t hover:bg-[#F1F8F4]" style={{ borderColor: "#F2F7F4" }} onClick={() => go("Week", m)}>
-              <td className="py-[9px] pr-[8px] text-[11.5px] font-bold">W{weeks.length - i}</td><td className="pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(m)} – {short(addDays(m, 4))}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
+              <td className="py-[9px] pr-[8px] text-[11.5px] font-bold">W{weekNo(m) || weeks.length - i}</td><td className="pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(m)} – {short(addDays(m, 4))}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
               <td><span className="rounded-full border px-[8px] py-[2px] text-[10.5px] font-semibold" style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}>{pct(s.pct)}</span></td>
             </tr>
           ); })}
@@ -226,12 +342,14 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
   const rows = termRows(subset);
   return (
     <section className={shell} style={{ borderColor: "#DEE8E2" }}>
-      <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{view === "Year" ? `Terms in ${cur}` : "Every term on record"}</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Open a term to see it week by week.</p>
-      <div className="overflow-x-auto"><table className="w-full min-w-[460px] text-left"><thead><tr style={{ color: "#67766D" }}>{["Term", "Class", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
+      <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{view === "Year" ? `Terms in ${cur}` : "Every term on record"}</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{view === "Year" ? "Open a term to see it week by week." : "Each figure matches the attendance line on that term’s report card."}</p>
+      <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr style={{ color: "#67766D" }}>{["Term", "Class", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
         {rows.map(({ term, s }) => { const swatch = toneOf(toneFor(s.pct)); return (
           <tr key={term.id} className="cursor-pointer border-t hover:bg-[#F1F8F4]" style={{ borderColor: "#F2F7F4", background: term.id === current ? "#F7FAF8" : undefined }} onClick={() => go("Term", term.id)}>
             <td className="py-[9px] pr-[8px]"><span className="block text-[11.5px] font-semibold">{term.name}</span><span className="block text-[10px]" style={{ color: "#67766D" }}>{term.session}{term.id === current ? " · now" : ""}</span></td>
-            <td className="pr-[8px] text-[11.5px]">{term.arm}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
+            <td className="pr-[8px] text-[11.5px]">{term.arm}</td>
+            <td className="whitespace-nowrap pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(term.start)} – {short(term.end)}</td>
+            <td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
             <td><span className="rounded-full border px-[8px] py-[2px] text-[10.5px] font-semibold" style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}>{pct(s.pct)}</span></td>
           </tr>
         ); })}
