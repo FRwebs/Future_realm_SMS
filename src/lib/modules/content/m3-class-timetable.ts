@@ -1485,10 +1485,49 @@ const coverageTab: TabContent = {
   ],
 };
 
+/* ---------------------------------------------------------- Lesson notes */
+
+/** The shape of the page before the school's notes load: nothing is invented, every figure is nil and every table says why it is empty. */
+const lessonNotesTab: TabContent = {
+  title: "Lesson notes",
+  desc: "Every arm’s notes this term — what is signed, what is waiting for review, and what was sent back.",
+  launchers: [
+    { label: "Who teaches what", href: "/class-timetable/teaching" },
+    { label: "Open the timetable", href: "/class-timetable/timetable" },
+  ],
+  rows: [
+    row("1fr", [
+      {
+        type: "kpi",
+        per: 5,
+        cards: [
+          { label: "Signed to date", value: "0%", sub: "No note is due yet", tone: "neutral" },
+          { label: "Waiting for review", value: "0", sub: "Nothing waiting", tone: "positive" },
+          { label: "Sent back for rework", value: "0", sub: "With the teacher", tone: "positive" },
+          { label: "Overdue", value: "0", sub: "Taught weeks with no note", tone: "positive" },
+          { label: "Arms up to date", value: "0", unit: "of 0", sub: "Nothing overdue or sent back", tone: "neutral" },
+        ],
+      },
+    ]),
+    row("1fr", [
+      {
+        type: "table",
+        title: "Waiting for review",
+        sub: "Oldest first. A resubmitted note came back from rework.",
+        head: ["Subject", "Applies to", "Week · topic", "Teacher", "Waiting", ""],
+        rows: [],
+        emptyTitle: "Nothing is waiting for review",
+        emptyBody: "Every submitted note has been signed or sent back.",
+      },
+    ]),
+  ],
+};
+
 export const classTimetableContent: ModuleContent = {
   classes: classesTab,
   subjects: subjectsTab,
   teaching: teachingTab,
   timetable: timetableTab,
+  "lesson-notes": lessonNotesTab,
   coverage: coverageTab,
 };

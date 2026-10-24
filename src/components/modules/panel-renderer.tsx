@@ -23,6 +23,7 @@ import { Field, initialValue } from "@/components/modules/field";
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import type {
   DrawerSpec,
+  KpiCard,
   Panel,
   PanelAction,
   PanelFact,
@@ -34,6 +35,7 @@ import type {
 } from "@/lib/modules/panels";
 import { readCookie, readableError } from "@/lib/modules/submit";
 import { narrowRows, tableCsv, csvFileName } from "@/lib/modules/table-query";
+import { cardIcon } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
@@ -60,19 +62,24 @@ const NOTE_ICON = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
  * label and the number do not already say. Anything longer than a glance is cut
  * back to the clauses that do — the rest belongs on the list the card links to.
  */
-function slimSub(value: string): string {
-  const text = value.trim();
-  if (text.length <= 46) return text;
+function slimSub(value: string, label?: string): string {
+  const text = value.replace(/\s+/g, " ").trim().replace(/\.$/, "");
+  // A line that only says what the label already says is not carried at all.
+  if (!text || (label && text.toLowerCase() === label.toLowerCase())) return "";
+  if (text.length <= 40) return text;
 
-  const parts = text.split(" · ");
-  if (parts.length === 1) return text;
-
-  let out = parts[0]!;
-  for (const part of parts.slice(1)) {
-    if (`${out} · ${part}`.length > 46) break;
-    out += ` · ${part}`;
+  for (const separator of [" · ", " — ", "; ", ", "]) {
+    const parts = text.split(separator);
+    if (parts.length > 1 && parts[0]!.length <= 40) {
+      let out = parts[0]!;
+      for (const part of parts.slice(1)) {
+        if (`${out}${separator}${part}`.length > 40) break;
+        out += `${separator}${part}`;
+      }
+      return out;
+    }
   }
-  return out;
+  return text;
 }
 
 /** Two letters, as the mockup's avatars carry. */
@@ -1278,6 +1285,28 @@ function pagerClass(active: boolean) {
   );
 }
 
+/**
+ * The icon tile at the head of a figure card: 28px, a soft tint and a hairline in the card's tone (a calm green when it has none),
+ * and a drawn icon — the card's own, or the one its label or its figure calls for.
+ */
+function CardTile({ card }: { card: KpiCard }) {
+  const swatch = card.tone && card.tone !== "neutral" ? toneOf(card.tone) : null;
+  const [outline, fill] = cardIcon(card);
+  const stroke = swatch ? swatch.fg : "#12796A";
+  return (
+    <span
+      aria-hidden
+      className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-[8px] border"
+      style={{ background: swatch ? swatch.bg : "#EEF7F3", borderColor: swatch ? swatch.bd : "#D3E8DE" }}
+    >
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke={stroke} strokeWidth={1.75} strokeLinecap="round" strokeLinejoin="round">
+        {fill ? <path d={fill} fill={stroke} fillOpacity={0.16} stroke="none" /> : null}
+        <path d={outline} />
+      </svg>
+    </span>
+  );
+}
+
 export function PanelView({
   panel,
   openDrawer,
@@ -1335,13 +1364,14 @@ export function PanelView({
 
             const body = (
               <>
-                <div className="mb-[10px] flex items-start justify-between gap-[9px]">
+                <div className="mb-[9px] flex items-center justify-between gap-[9px]">
                   <span
                     className="flex min-w-0 items-center gap-[6px] text-[9.5px] font-semibold uppercase leading-[1.35] tracking-[0.05em]"
                     style={{ color: MUTED }}
                   >
                     {card.label}
                   </span>
+                  <CardTile card={card} />
                 </div>
 
                 <div className="flex flex-wrap items-baseline gap-[6px]">
@@ -1358,12 +1388,12 @@ export function PanelView({
                   ) : null}
                 </div>
 
-                {card.sub ? (
+                {slimSub(card.sub ?? "", card.label) ? (
                   <p
                     className="mt-[6px] line-clamp-2 text-pretty text-[10.5px] leading-[1.4]"
                     style={{ color: MUTED }}
                   >
-                    {slimSub(card.sub)}
+                    {slimSub(card.sub ?? "", card.label)}
                   </p>
                 ) : null}
 

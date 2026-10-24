@@ -22,13 +22,15 @@ export type LessonPlayerProps = {
   /** Pre-formatted by the server so the page and the card agree on how a length reads. */
   progressLabel: string;
   requiredLabel: string;
+  /** The free first lesson of a course not yet paid for: it can be read, not answered. */
+  preview?: boolean;
   endpoint: string;
   hrefs: { course: string; lessons: string; certificates: string };
 };
 
 type Answered = { choice: number; correct: boolean; message: string };
 
-export function LessonPlayer({ course, outline, lesson, progressLabel, requiredLabel, endpoint, hrefs }: LessonPlayerProps) {
+export function LessonPlayer({ course, outline, lesson, progressLabel, requiredLabel, endpoint, hrefs, preview }: LessonPlayerProps) {
   const router = useRouter();
   const [chosen, setChosen] = useState<Answered | null>(null);
   const [wrong, setWrong] = useState<number[]>([]);
@@ -80,7 +82,15 @@ export function LessonPlayer({ course, outline, lesson, progressLabel, requiredL
             </div>
           ) : null}
 
-          <div className="mt-[18px] border-t pt-[16px]" style={{ borderColor: "#EDF3EF" }}>
+          {preview ? (
+            <div className="mt-[18px] rounded-[11px] border px-[14px] py-[12px]" style={{ background: "#EEF7F3", borderColor: "#D3E8DE" }}>
+              <p className="text-[12px] font-extrabold" style={{ color: "#17604F" }}>This is the free lesson</p>
+              <p className="mt-[3px] text-pretty text-[11.5px] leading-[1.55]" style={{ color: "#17604F" }}>Buy the course to answer the check, open the other {course.lessonsTotal - 1} lessons and earn the {course.certificateName} certificate.</p>
+              <Link href={hrefs.course as Route} className="mt-[9px] inline-flex rounded-[9px] px-[14px] py-[9px] text-[11.5px] font-semibold text-white" style={{ background: INK }}>Back to the course</Link>
+            </div>
+          ) : null}
+
+          <div className={preview ? "hidden" : "mt-[18px] border-t pt-[16px]"} style={{ borderColor: "#EDF3EF" }}>
             <p className="text-[9px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>Check your understanding</p>
             <p className="mt-[5px] text-pretty text-[13px] font-bold leading-[1.45]" style={{ color: INK }}>{lesson.question}</p>
             <div className="mt-[10px] grid gap-[8px]" role="radiogroup" aria-label={lesson.question}>
@@ -100,7 +110,7 @@ export function LessonPlayer({ course, outline, lesson, progressLabel, requiredL
             ) : null}
           </div>
 
-          <div className="mt-[16px] flex flex-wrap gap-[8px]">
+          <div className={preview ? "hidden" : "mt-[16px] flex flex-wrap gap-[8px]"}>
             {done ? (
               finished || last ? (
                 <Link href={(finished ? hrefs.certificates : hrefs.course) as Route} className="inline-flex rounded-[9px] px-[14px] py-[9.5px] text-[11.5px] font-semibold text-white" style={{ background: INK }}>{finished ? "View the certificate" : "Back to the course"}</Link>

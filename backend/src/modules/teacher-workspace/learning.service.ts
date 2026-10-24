@@ -244,14 +244,16 @@ export class LearningService {
 
   async lesson(session: SessionPayload, id: string, position: number) {
     const course = await this.course(session, id);
-    if (!course.owned) throw new ForbiddenException(course.purchase?.state === "REQUESTED" ? `${course.title} is waiting on the school's decision.` : course.purchase?.state === "DECLINED" ? `The school did not approve ${course.title}.` : `${course.title} has to be paid for before it opens.`);
+    // Lesson 1 is free to read before a course is paid for, so a person can see what they are buying. Nothing else opens, and nothing can be answered.
+    const preview = !course.owned && position === 1 && !(course.purchase?.state === "DECLINED");
+    if (!course.owned && !preview) throw new ForbiddenException(course.purchase?.state === "REQUESTED" ? `${course.title} is waiting on the school's decision.` : course.purchase?.state === "DECLINED" ? `The school did not approve ${course.title}.` : `${course.title} has to be paid for before it opens.`);
     const lesson = await prisma.trainingLesson.findUnique({ where: { courseId_position: { courseId: id, position } } });
     if (!lesson) throw new NotFoundException("That lesson does not exist.");
     // A person cannot skip ahead of what they have finished.
     const firstOpen = course.lessons.find((entry) => !entry.done)?.position ?? course.lessons.length + 1;
-    if (position > firstOpen) throw new BadRequestException("Finish the lessons before this one first.");
+    if (!preview && position > firstOpen) throw new BadRequestException("Finish the lessons before this one first.");
     // The correct answer is never sent to the reader — it is checked on the server.
-    return { course: { id: course.id, title: course.title, task: course.task, hours: course.hours, certificateName: course.certificateName, provider: course.provider, required: course.required, lessonsTotal: course.lessons.length, done: course.done }, outline: course.lessons.map((entry) => ({ position: entry.position, title: entry.title, minutes: entry.minutes, done: entry.done })), lesson: { position, title: lesson.title, minutes: lesson.minutes, body: lesson.body, question: lesson.question, options: lesson.options, done: course.lessons.find((entry) => entry.position === position)?.done ?? false } };
+    return { preview, course: { id: course.id, title: course.title, task: course.task, hours: course.hours, certificateName: course.certificateName, provider: course.provider, required: course.required, lessonsTotal: course.lessons.length, done: course.done }, outline: course.lessons.map((entry) => ({ position: entry.position, title: entry.title, minutes: entry.minutes, done: entry.done })), lesson: { position, title: lesson.title, minutes: lesson.minutes, body: lesson.body, question: lesson.question, options: lesson.options, done: course.lessons.find((entry) => entry.position === position)?.done ?? false } };
   }
 
   async answer(session: SessionPayload, id: string, position: number, body: unknown) {

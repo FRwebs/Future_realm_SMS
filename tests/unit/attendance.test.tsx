@@ -141,7 +141,7 @@ describe("M4 Compliance", () => {
   });
 
   it("is honest that marking time is not measured when no register was timed", () => {
-    expect(markup(complianceTab(compliance(), options))).toContain("none recorded yet");
+    expect(markup(complianceTab(compliance(), options))).toContain("None recorded yet");
   });
 
   it("says what the median is made of when there is one", () => {
