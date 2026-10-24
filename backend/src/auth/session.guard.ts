@@ -18,6 +18,8 @@ import { memberships } from "../modules/memberships/memberships.service";
 
 type AuthenticatedRequest = Request & {
   user?: Awaited<ReturnType<typeof verifySessionToken>>;
+  /** The hash of the token this request arrived with, so a page can say which device is this one. */
+  sessionTokenHash?: string;
 };
 
 function getBearerToken(authorization?: string) {
@@ -100,6 +102,7 @@ export class SessionGuard implements CanActivate {
     if (!standing.ok) throw new UnauthorizedException(standing.reason ?? "Unauthorized");
 
     request.user = session;
+    request.sessionTokenHash = tokenHash;
     // Fire-and-forget so request latency is unaffected; keeps "online now" widgets and
     // session-based suspicious-activity detection working off real activity data.
     prisma.platformSession

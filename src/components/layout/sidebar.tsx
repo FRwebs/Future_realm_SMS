@@ -23,6 +23,8 @@ type SidebarProps = {
   portalType?: PortalType;
   theme?: "default" | "finance-dark" | "finance-light";
   navBadges?: Record<string, number | undefined>;
+  /** A badge that needs its own colour, by item id — the mockup's amber "work to do", red once any of it is late. */
+  navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
   hiddenNavIds?: string[];
   /** The teaching workspace's rail, when the signed-in person is a teacher. */
   teacherRail?: TeacherRail | null;
@@ -60,6 +62,7 @@ function SidebarContent({
   portalType = "school",
   isMobile = false,
   navBadges,
+  navBadgeTones,
   hiddenNavIds,
   teacherRail,
 }: {
@@ -72,6 +75,8 @@ function SidebarContent({
   portalType?: PortalType;
   isMobile?: boolean;
   navBadges?: Record<string, number | undefined>;
+  /** A badge that needs its own colour, by item id — the mockup's amber "work to do", red once any of it is late. */
+  navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
   hiddenNavIds?: string[];
   teacherRail?: TeacherRail | null;
 }) {
@@ -277,6 +282,7 @@ function SidebarContent({
                       navBadges?.[item.id] ??
                       item.badge ??
                       (portalType === "super_admin" ? superAdminBadgeFallbacks[item.id] : undefined);
+                    const badgeTone = navBadgeTones?.[item.id];
 
                     return (
                       <div
@@ -343,7 +349,13 @@ function SidebarContent({
                             <span
                               className={cn(
                                 "relative z-[1] shrink-0 rounded-full px-[6px] py-[1.5px] text-[9px] font-bold leading-[1.2] text-white",
-                                active ? "bg-[#0d2315]" : "bg-[rgba(255,255,255,0.16)]",
+                                badgeTone === "danger"
+                                  ? "bg-[#C93F3F]"
+                                  : badgeTone === "warning"
+                                    ? "bg-[#E0A526] text-[#0d2315]"
+                                    : active
+                                      ? "bg-[#0d2315]"
+                                      : "bg-[rgba(255,255,255,0.16)]",
                               )}
                             >
                               {badgeValue}
@@ -500,6 +512,7 @@ export function Sidebar({
   onCloseMobile,
   portalType = "school",
   navBadges,
+  navBadgeTones,
   hiddenNavIds,
   teacherRail,
 }: SidebarProps) {
@@ -525,6 +538,7 @@ export function Sidebar({
           onCloseMobile={onCloseMobile}
           portalType={portalType}
           navBadges={navBadges}
+          navBadgeTones={navBadgeTones}
           hiddenNavIds={hiddenNavIds}
           teacherRail={teacherRail}
         />
@@ -541,6 +555,7 @@ export function Sidebar({
             onCloseMobile={onCloseMobile}
             portalType={portalType}
             navBadges={navBadges}
+            navBadgeTones={navBadgeTones}
             hiddenNavIds={hiddenNavIds}
             teacherRail={teacherRail}
             isMobile

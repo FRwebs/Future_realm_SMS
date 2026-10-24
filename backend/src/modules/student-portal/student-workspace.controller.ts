@@ -1,5 +1,5 @@
-import { Body, Controller, Get, Param, Post, Put, Res, UseGuards } from "@nestjs/common";
-import type { Response } from "express";
+import { Body, Controller, Get, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
+import type { Request, Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
@@ -24,6 +24,22 @@ export class StudentWorkspaceController {
   @Get("security")
   async security(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.workspace.security(session) };
+  }
+
+  /** The devices this account is signed in on. The hash of the token this request
+      arrived with comes off the request, so the list can say which one is this one. */
+  @Get("sessions")
+  async sessions(@CurrentSession() session: SessionPayload, @Req() request: Request & { sessionTokenHash?: string }) {
+    return { ok: true, data: await this.workspace.sessions(session, request.sessionTokenHash) };
+  }
+
+  @Post("sessions/:id/revoke")
+  async revokeSession(
+    @CurrentSession() session: SessionPayload,
+    @Param("id") id: string,
+    @Req() request: Request & { sessionTokenHash?: string },
+  ) {
+    return { ok: true, data: await this.workspace.revokeSession(session, id, request.sessionTokenHash) };
   }
 
   @Get("calendar-link")

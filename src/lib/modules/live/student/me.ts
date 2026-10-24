@@ -2,7 +2,7 @@ import { SW } from "@/lib/api/student-workspace";
 import { apiGet } from "@/lib/api/server";
 import { askDrawer, dLong, loadAskable, loadMe, loadPrefs } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
-import type { DrawerSpec, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, PanelTone, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
 
 /* ───────────────────────── profile ───────────────────────── */
@@ -51,7 +51,13 @@ const CATEGORIES = [
   { key: "school", label: "School announcements", sub: "Events, closures and reminders" },
   { key: "messages", label: "Messages from teachers", sub: "Replies to your questions" },
 ];
-const CHANNELS = [{ key: "In-app", label: "In-app", sub: "Always on", locked: true }, { key: "Email", label: "Email", sub: "School email" }];
+const CHANNELS = [
+  { key: "In-app", label: "In-app", sub: "Always on", locked: true },
+  { key: "Email", label: "Email", sub: "School email" },
+  // Drawn because the mockup draws it, and fixed off because there is no phone
+  // app to receive a push yet. The footnote below the matrix says so.
+  { key: "Push", label: "Push", sub: "On your phone", unavailable: true },
+];
 
 export async function notificationsPage(): Promise<StudentContent> {
   const [me, prefs] = await Promise.all([loadMe(), loadPrefs()]);
@@ -62,7 +68,7 @@ export async function notificationsPage(): Promise<StudentContent> {
       props: {
         base: SW, categories: CATEGORIES, channels: CHANNELS, matrix: prefs.matrix, defaults: Object.fromEntries(CATEGORIES.map((category) => [`${category.key}:Email`, category.key !== "timetable"])),
         quiet: prefs.quiet, remind: prefs.remind, quietOptions: ["None", "21:00 – 07:00", "22:00 – 06:00"], remindOptions: ["The day before", "Two days before", "No reminder"],
-        foot: `Email goes to ${me.email ?? "your school email"}. Email follows these choices for homework, marks, report cards, school announcements, new timetables and your teachers’ answers.`,
+        foot: `Email goes to ${me.email ?? "your school email"}, and follows these choices for homework, marks, report cards, school announcements, new timetables and your teachers’ answers. Push needs the phone app, which is not out yet — until it is, that column stays off.`,
       },
     }])],
   };
@@ -71,7 +77,12 @@ export async function notificationsPage(): Promise<StudentContent> {
 /* ───────────────────────── account ───────────────────────── */
 
 export async function accountPage(): Promise<StudentContent> {
-  const [me, sec] = await Promise.all([loadMe(), apiGet<{ mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`)]);
+  type Device = { id: string; device: string; where: string; lastActiveAt: string; startedAt: string; current: boolean };
+  const [me, sec, devices] = await Promise.all([
+    loadMe(),
+    apiGet<{ mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`),
+    apiGet<Device[]>(`${SW}/sessions`).catch(() => [] as Device[]),
+  ]);
   const change: DrawerSpec = {
     kicker: "Account", title: "Change your password", mode: "form", sub: "Use at least eight characters. You stay signed in here; other devices are asked to sign in again.",
     fields: [
@@ -82,6 +93,7 @@ export async function accountPage(): Promise<StudentContent> {
     submit: { endpoint: "/api/v1/profile/me/password", method: "PATCH", map: { "Current password": "currentPassword", "New password": "newPassword" } },
   };
   const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+  const lastIn = sec.signIns.find((entry) => entry.success) ?? null;
   const rows: TableRow[] = sec.signIns.map((entry) => ({
     cells: [
       { kind: "name", name: entry.device, sub: entry.where || "Place not known", avatar: false }, { kind: "text", text: when(entry.at) },
@@ -89,18 +101,48 @@ export async function accountPage(): Promise<StudentContent> {
     ],
   }));
   return {
-    eyebrow: "Settings", title: "Account and security", desc: "Your sign-in, your password and two-step sign-in.",
+    eyebrow: "Settings", title: "Account and security", desc: "Your sign-in, your password and the devices you are signed in on.",
     primary: { label: "Change password", drawer: change },
     rows: [
       row("1fr", [{
         type: "facts", title: "Signing in", per: 3,
         facts: [
-          ["User ID", me.admissionNumber], ["School email", me.email ?? "—"], ["Account", "Created by your school", `Enrolled ${dLong(me.enrolled)}`],
+          ["User ID", me.admissionNumber], ["School email", me.email ?? "—"],
+          ["Last sign-in", lastIn ? when(lastIn.at) : "—", lastIn ? lastIn.device : ""],
           ["Password", sec.passwordChangedAt ? `Changed ${dLong(sec.passwordChangedAt.slice(0, 10))}` : "Set by your school", "Change it from the button above"],
-          ["Two-step sign-in", sec.mfaEnabled ? "On" : "Off", sec.mfaEnrolledAt ? `Since ${dLong(sec.mfaEnrolledAt.slice(0, 10))}` : "Not set up"],
+          ["Two-step sign-in", sec.mfaEnabled ? "On" : "Off", sec.mfaEnrolledAt ? `Since ${dLong(sec.mfaEnrolledAt.slice(0, 10))}` : "Not set up", sec.mfaEnabled ? "positive" : ""],
+          ["Account", "Created by your school", `Enrolled ${dLong(me.enrolled)}`],
         ],
       }]),
-      row("1fr", [{ type: "embed", component: "student-two-step", props: { enabled: sec.mfaEnabled, since: sec.mfaEnrolledAt } }]),
+      row("minmax(0,1.2fr) minmax(0,1fr)", [
+        {
+          type: "list",
+          title: "Signed in on",
+          sub: `${devices.length === 1 ? "1 device" : `${devices.length} devices`}. Sign out of any you do not recognise.`,
+          empty: "No other device is signed in.",
+          items: devices.map((device) => ({
+            label: device.device,
+            sub: `${device.where || "Place not known"} · last used ${when(device.lastActiveAt)}`,
+            ...(device.current
+              ? { pill: "This device", tone: "positive" as PanelTone }
+              : {
+                  viewLabel: "Sign out",
+                  drawer: {
+                    mode: "commit" as const,
+                    tone: "attention" as PanelTone,
+                    kicker: "Account",
+                    title: "Sign out of this device?",
+                    sub: `${device.device} is signed out straight away. Anything not yet synced on it is kept until it reconnects.`,
+                    commitLabel: "Sign out",
+                    commitDone: "Signed out",
+                    commitDoneBody: `${device.device} is no longer signed in.`,
+                    submit: { endpoint: `/api/v1/student-portal/ws/sessions/${device.id}/revoke`, method: "POST" as const },
+                  },
+                }),
+          })),
+        },
+        { type: "embed", component: "student-two-step", props: { enabled: sec.mfaEnabled, since: sec.mfaEnrolledAt } },
+      ]),
       row("1fr", [{ type: "table", title: "Recent sign-ins", sub: "The last times this account was signed in to. If one is not you, change your password and tell your form master.", noun: "sign-in", nounPlural: "sign-ins", head: ["Device", "When", "Result"], rows, per: 12, dense: true, noRowOpen: true, empty: "No sign-ins are on record yet." }]),
     ],
   };

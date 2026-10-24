@@ -31,6 +31,7 @@ export function DashboardShell({
   currentTermName,
   platformStats,
   navBadges,
+  navBadgeTones,
   hiddenNavIds,
   platformSync,
   teacherRail,
@@ -48,6 +49,7 @@ export function DashboardShell({
     reviewQueueCount?: number;
   };
   navBadges?: Record<string, number | undefined>;
+  navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
   hiddenNavIds?: string[];
   /** What the Back Office has decided for this school: read-only state, modules switched off, announcements, maintenance. */
   platformSync?: PlatformSyncView | null;
@@ -122,6 +124,7 @@ export function DashboardShell({
           portalType={portalType}
           theme={theme}
           navBadges={navBadges}
+          navBadgeTones={navBadgeTones}
           hiddenNavIds={hiddenNavIds}
           teacherRail={teacherRail}
         />

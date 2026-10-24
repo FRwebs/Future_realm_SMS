@@ -44,6 +44,12 @@ const prefsSchema = z.object({
 
 const PREFS_RESOURCE = "student-prefs";
 
+/** Part of the address is hidden: enough to recognise a network, not enough to place a home. */
+export function hide(address: string | null | undefined): string {
+  if (!address) return "";
+  return address.replace(/(\d+\.\d+)\.\d+\.\d+/, "$1.•.•").replace(/([0-9a-f]+:[0-9a-f]+):.*/i, "$1:•");
+}
+
 /** "Mozilla/5.0 (Macintosh; …) … Chrome/152 …" → "Chrome on Mac". A person recognises a device by its name, not its user-agent string. */
 export function deviceName(agent: string | null | undefined): string {
   if (!agent) return "Unknown device";
@@ -343,12 +349,48 @@ export class StudentWorkspaceService {
     const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null }, select: { mfaEnabled: true, mfaEnrolledAt: true, passwordChangedAt: true, createdAt: true } });
     if (!user) throw new NotFoundException("No account found.");
     const attempts = await prisma.loginAttempt.findMany({ where: { userId: session.userId }, orderBy: { createdAt: "desc" }, take: 12 });
-    // Part of the address is hidden: enough to recognise a network, not enough to place a home.
-    const hide = (address: string | null) => (address ? address.replace(/(\d+\.\d+)\.\d+\.\d+/, "$1.•.•").replace(/([0-9a-f]+:[0-9a-f]+):.*/i, "$1:•") : "");
     return {
       mfaEnabled: user.mfaEnabled, mfaEnrolledAt: user.mfaEnrolledAt?.toISOString() ?? null, passwordChangedAt: user.passwordChangedAt?.toISOString() ?? null, createdAt: user.createdAt.toISOString(),
       signIns: attempts.map((attempt) => ({ id: attempt.id, at: attempt.createdAt.toISOString(), success: attempt.success, device: deviceName(attempt.device), where: attempt.location || hide(attempt.ipAddress), newDevice: attempt.newDevice, reason: attempt.success ? null : attempt.reason }))
     };
+  }
+
+  /**
+   * The devices this account is signed in on, and how to sign one out.
+   *
+   * Every sign-in already records a session — who, from where, on what — and
+   * the session guard already refuses a token whose session has been revoked.
+   * So a student can be shown the list and be given the one control that
+   * matters: signing out of a device they do not recognise.
+   */
+  async sessions(session: SessionPayload, currentTokenHash: string | undefined) {
+    this.assert(session);
+    const rows = await prisma.platformSession.findMany({
+      where: { userId: session.userId, revokedAt: null, expiresAt: { gt: new Date() } },
+      orderBy: { lastActivityAt: "desc" },
+      take: 10,
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      device: deviceName(row.device),
+      where: hide(row.ipAddress),
+      lastActiveAt: row.lastActivityAt.toISOString(),
+      startedAt: row.createdAt.toISOString(),
+      current: Boolean(currentTokenHash) && row.tokenHash === currentTokenHash,
+    }));
+  }
+
+  /** Sign a device out. The one you are reading this on is refused — use Sign out for that. */
+  async revokeSession(session: SessionPayload, id: string, currentTokenHash: string | undefined) {
+    this.assert(session);
+    const row = await prisma.platformSession.findFirst({ where: { id, userId: session.userId } });
+    if (!row) throw new NotFoundException("That device is not signed in.");
+    if (currentTokenHash && row.tokenHash === currentTokenHash) {
+      throw new BadRequestException("This is the device you are using. Use Sign out at the top of the page to leave it.");
+    }
+    if (row.revokedAt) return { device: deviceName(row.device), alreadyOut: true };
+    await prisma.platformSession.update({ where: { id }, data: { revokedAt: new Date() } });
+    return { device: deviceName(row.device), alreadyOut: false };
   }
 
   /* ───────────────────────── the calendar feed ───────────────────────── */

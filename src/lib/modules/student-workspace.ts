@@ -13,9 +13,9 @@ export const studentPages = [
   { slug: "attendance", label: "Attendance", icon: "M4 5.5h16V20H4zM8 3.5v4M16 3.5v4M4 10h16M8.8 14.6l2 2 4.2-4.2" },
   { slug: "calendar", label: "Calendar", icon: "M4 5.5h16V20H4zM8 3.5v4M16 3.5v4M4 10h16M8 14h2M12 14h2M16 14h.5M8 17h2M12 17h2" },
   { slug: "messages", label: "Messages", icon: "M3.5 6h17v12h-17zM4 7l8 6 8-6" },
-  { slug: "profile", label: "Profile", icon: "M3.5 5.5h17v13h-17zM8.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5.8 16c.5-1.5 1.5-2.2 2.7-2.2s2.2.7 2.7 2.2M14 10h4M14 13.5h3" },
+  { slug: "profile", label: "My profile", icon: "M3.5 5.5h17v13h-17zM8.5 12.5a2 2 0 1 0 0-4 2 2 0 0 0 0 4zM5.8 16c.5-1.5 1.5-2.2 2.7-2.2s2.2.7 2.7 2.2M14 10h4M14 13.5h3" },
   { slug: "notifications", label: "Notifications", icon: "M12 3.5A5.5 5.5 0 0 0 6.5 9v3.2L5 15.5h14l-1.5-3.3V9A5.5 5.5 0 0 0 12 3.5zM10 18.5a2 2 0 0 0 4 0" },
-  { slug: "account", label: "Account", icon: "M4.5 10.5h15V20h-15zM8 10.5V7.5a4 4 0 0 1 8 0v3M12 14v2.5" },
+  { slug: "account", label: "Account and security", icon: "M4.5 10.5h15V20h-15zM8 10.5V7.5a4 4 0 0 1 8 0v3M12 14v2.5" },
 ] as const;
 
 export type StudentPageSlug = (typeof studentPages)[number]["slug"];
