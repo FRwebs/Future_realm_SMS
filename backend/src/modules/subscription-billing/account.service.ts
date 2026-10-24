@@ -59,7 +59,11 @@ export class AccountService {
     const schoolId = session.schoolId;
     const school = await schoolOf(schoolId);
     const sub = school.schoolSubscription;
-    const [manager, accepter, principal, transfers, exports, closures, counts] = await Promise.all([
+    // Not `exports`: this file is compiled to CommonJS, where a reference to an
+    // exported const becomes `exports.NAME`. A local called `exports` shadows the
+    // module object, so `DATASETS` silently read as undefined and dropped out of
+    // the response — which crashed the page that maps over it.
+    const [manager, accepter, principal, transfers, exportRows, closures, counts] = await Promise.all([
       school.accountManagerId ? prisma.user.findUnique({ where: { id: school.accountManagerId }, select: { firstName: true, lastName: true, email: true } }) : Promise.resolve(null),
       school.dpaAcceptedById ? prisma.user.findUnique({ where: { id: school.dpaAcceptedById }, select: { firstName: true, lastName: true, role: true } }) : Promise.resolve(null),
       prisma.user.findFirst({ where: { schoolId, role: "PRINCIPAL", isActive: true }, select: { firstName: true, lastName: true } }),
@@ -70,7 +74,7 @@ export class AccountService {
     ]);
     const inForce = await prisma.dpaVersion.findFirst({ where: { isCurrent: true }, select: { version: true } });
     const open = transfers.find((row) => !["EXECUTED", "FROZEN"].includes(row.status)) ?? null;
-    const delivered = exports.find((row) => row.downloadedAt) ?? null;
+    const delivered = exportRows.find((row) => row.downloadedAt) ?? null;
     return {
       school: { name: school.name, ownerName: school.ownerName, ownerEmail: school.ownerEmail, country: school.country },
       agreement: { status: school.dpaStatus, version: school.dpaVersion, current: inForce?.version ?? null, acceptedAt: school.dpaAcceptedAt?.toISOString() ?? null, by: accepter ? `${fullName(accepter)} · ${String(accepter.role).replace(/_/g, " ").toLowerCase()}` : null, hosting: sub?.hosting ?? null, retentionDays: sub?.retentionDays ?? 90, retentionDefault: sub?.retentionDays === null || sub?.retentionDays === undefined, dpo: sub?.dpoName ? { name: sub.dpoName, email: sub.dpoEmail } : null },
@@ -79,7 +83,7 @@ export class AccountService {
       tier: tierOf(school),
       transfer: open ? { id: open.id, status: open.status, createdAt: open.createdAt.toISOString(), holdExpiresAt: open.holdExpiresAt?.toISOString() ?? null } : null,
       transfers: transfers.map((row) => ({ id: row.id, status: row.status, createdAt: row.createdAt.toISOString() })),
-      exports: exports.map((row) => ({ id: row.id, token: row.token, datasets: row.datasets as string[], rows: row.rows, expiresAt: row.expiresAt.toISOString(), downloadedAt: row.downloadedAt?.toISOString() ?? null, expired: row.expiresAt < new Date(), createdAt: row.createdAt.toISOString() })),
+      exports: exportRows.map((row) => ({ id: row.id, token: row.token, datasets: row.datasets as string[], rows: row.rows, expiresAt: row.expiresAt.toISOString(), downloadedAt: row.downloadedAt?.toISOString() ?? null, expired: row.expiresAt < new Date(), createdAt: row.createdAt.toISOString() })),
       exportDelivered: Boolean(delivered),
       closure: closures[0] ? { status: closures[0].status, createdAt: closures[0].createdAt.toISOString(), retentionDays: closures[0].retentionDays } : null,
       counts,
