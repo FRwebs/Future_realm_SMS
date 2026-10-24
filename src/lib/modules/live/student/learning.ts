@@ -2,8 +2,8 @@ import type { CalEvent } from "@/lib/modules/live/student/shared";
 import { addDays, askDrawer, dayOf, dDow, dLong, dShort, dueText, handInDrawer, loadAskable, loadAssignments, loadCalendar, loadCards, loadMe, loadSubjects, loadTimetable, monday, num, ord, workPill } from "@/lib/modules/live/student/shared";
 import type { Card, Me, Subjects, Work } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
-import type { BarRow, DrawerSpec, ListItem, Panel, PanelFact, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
-import { row } from "@/lib/modules/panels";
+import type { DrawerSpec, LinePoint, ListItem, Panel, PanelFact, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
+import { row, termShort } from "@/lib/modules/panels";
 import { eventItem } from "@/lib/modules/live/student/today";
 
 const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
@@ -349,7 +349,7 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
           foot: "A corrected card is issued as a new version. The original is never replaced.",
         }]),
         row(same.length > 1 ? "minmax(0,1fr) minmax(0,1.2fr)" : "1fr", [
-          { type: "bars", title: "Term average over time", sub: "Every report card, oldest first.", rows: [...cards].reverse().map((card): BarRow => ({ label: `${card.term} ${card.session}`, value: card.average, display: num(card.average), tone: card === latest ? "positive" : "progress" })), foot: `${change >= 0 ? "Up" : "Down"} ${num(Math.abs(Math.round(change * 100) / 100))} points across ${cards.length} report cards.` },
+          { type: "line", title: "Term average over time", sub: "Every report card, oldest first.", unit: "", points: [...cards].reverse().map((card): LinePoint => ({ label: termShort(card.term, card.session), v: card.average, tip: `${card.term} ${card.session} · average ${num(card.average)}`, tone: card === latest ? "positive" : "progress", on: card === latest })), foot: `${change >= 0 ? "Up" : "Down"} ${num(Math.abs(Math.round(change * 100) / 100))} points across ${cards.length} report cards.` },
           ...(same.length > 1 ? [{
             type: "table" as const, title: "Subject by subject", sub: `Your last ${same.length} report cards in ${latest.arm}.`, noun: "subject", nounPlural: "subjects", per: 0, dense: true, head: ["Subject", ...same.map((card) => `${card.term.replace(/ Term$/, "")} ${card.session.slice(2, 4)}`), "Change"],
             rows: latest.subjects.map((subject): TableRow => {

@@ -3,6 +3,7 @@
 import dynamic from "next/dynamic";
 
 import { EmbeddedPanel } from "@/components/modules/embed-registry";
+import { LineChart } from "@/components/modules/line-chart";
 import { DevicePanel } from "@/components/modules/device-panel";
 import { FlowPanelView, GridPanelView, QuotesPanelView } from "@/components/modules/panel-extras";
 import Link from "next/link";
@@ -1608,6 +1609,36 @@ export function PanelView({
           openDrawer={openDrawer}
         />
         <FactList facts={panel.facts} per={panel.per} />
+        {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
+      </section>
+    );
+  }
+
+  if (panel.type === "line") {
+    const unit = panel.unit ?? "%";
+    // An empty pair of axes says nothing. A chart with nothing on record says so.
+    const plotted = panel.points.some((point) => point.v !== null);
+    if (!plotted) {
+      return (
+        <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+          <PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} />
+          <p className="px-[18px] py-[28px] text-center text-[11.5px]" style={{ color: MUTED }}>
+            {panel.empty ?? "Nothing has been recorded yet, so there is nothing to chart."}
+          </p>
+        </section>
+      );
+    }
+    return (
+      <section className={PANEL_SHELL} style={{ borderColor: CARD_BORDER }}>
+        <PanelHeader title={panel.title} sub={panel.sub} openDrawer={openDrawer} />
+        <LineChart
+          points={panel.points}
+          ceiling={panel.ceiling}
+          target={panel.target ?? null}
+          keys={panel.keys}
+          format={(value) => `${Math.round(value * 10) / 10}${unit}`}
+          hrefFor={(index) => panel.points[index]?.href}
+        />
         {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
       </section>
     );

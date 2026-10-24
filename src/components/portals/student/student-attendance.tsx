@@ -2,6 +2,8 @@
 
 import { useMemo, useState } from "react";
 
+import { LineChart } from "@/components/modules/line-chart";
+import type { LineKey, LinePoint } from "@/components/modules/line-chart";
 import { toneOf } from "@/lib/modules/tones";
 import type { DrawerSpec, PanelTone } from "@/lib/modules/panels";
 
@@ -26,6 +28,10 @@ const pct = (value: number | null) => (value === null ? "—" : `${Math.round(va
 const toneFor = (value: number | null): PanelTone => (value === null ? "neutral" : value >= 95 ? "positive" : value >= 90 ? "attention" : "negative");
 /** The line the school asks every student to stay above. */
 const TARGET = 95;
+/** What the colours mean when the chart is drawing rates. */
+const BAND_KEYS: LineKey[] = [{ label: "95% or more", tone: "positive" }, { label: "90 to 94.9%", tone: "attention" }, { label: "Below 90%", tone: "negative" }];
+/** What they mean on a single week, where each point is a day's own state. */
+const WEEK_KEYS: LineKey[] = [{ label: "Present", tone: "positive" }, { label: "Late", tone: "attention" }, { label: "Absent, not explained", tone: "negative" }, { label: "Away, explained", tone: "submitted" }];
 const uniq = <T,>(list: T[]) => list.filter((value, index) => list.indexOf(value) === index);
 
 function summary(days: Rec[]) {
@@ -36,165 +42,6 @@ function summary(days: Rec[]) {
   let best = 0; let run = 0; let bestEnd = "";
   for (const day of days) { if (day.status === "PRESENT" || day.status === "LATE") { run += 1; if (run > best) { best = run; bestEnd = day.date; } } else run = 0; }
   return { n, present, away, late, pct: n ? (present / n) * 100 : null, best, bestEnd };
-}
-
-type Point = { label: string; v: number | null; vLabel?: string; tone: PanelTone; tip: string; go?: () => void; on?: boolean };
-
-/**
- * Where the chart's scale starts.
- *
- * A term of attendance lives between about 85% and 100%, and an axis drawn
- * from zero squashes all of it into the top sixth of the panel, where a good
- * term and a poor one look identical. So the floor drops to the round 5% below
- * the lowest point instead — unless something is genuinely near zero, which is
- * how a single day reads (present or not), and then it starts at zero after
- * all. It never climbs above 85, so the 95% target line is always on the chart.
- */
-export function chartFloor(values: number[]): number {
-  const lowest = values.length ? Math.min(...values) : 90;
-  return lowest < 50 ? 0 : Math.max(0, Math.min(85, Math.floor((lowest - 4) / 5) * 5));
-}
-
-/** A value as a percentage down the plot, with room above for a figure and below for the axis. */
-export function chartY(value: number, floor: number): number {
-  return 8 + ((100 - value) / (100 - floor)) * 84;
-}
-
-/** A point's place across the plot. One point sits in the middle rather than against the axis. */
-export function chartX(index: number, count: number): number {
-  return count === 1 ? 50 : 3 + (index / (count - 1)) * 94;
-}
-
-/** The three figures down the side: the top, the floor, and the midpoint between them. */
-export function chartTicks(floor: number): number[] {
-  return floor === 0 ? [100, 50, 0] : [100, Math.round((100 + floor) / 2), floor];
-}
-
-/**
- * A line of attendance rates — one point per day, week, month or term, with the
- * school's 95% line behind it.
- *
- * A rate is a thing that moves, and a line is what shows it moving: bars would
- * invite you to compare their heights, which is the wrong question when every
- * bar is somewhere in the nineties. The scale starts just under the lowest
- * point rather than at zero for the same reason — between 88% and 97% there is
- * a term's worth of difference, and a 0–100 axis flattens it to nothing. It
- * only drops to zero when a point genuinely is near it, which is how a single
- * day reads: present or not.
- *
- * A stretch with no register breaks the line rather than being drawn through,
- * so a gap looks like a gap.
- */
-function LineChart({ points, legend }: { points: Point[]; legend: string[] | null }) {
-  const values = points.map((point) => point.v).filter((value): value is number => value !== null);
-  const n = points.length;
-  const lowest = values.length ? Math.min(...values) : 90;
-  const highest = values.length ? Math.max(...values) : 100;
-  const floor = chartFloor(values);
-  const y = (value: number) => chartY(value, floor);
-  const x = (index: number) => chartX(index, n);
-  const ticks = chartTicks(floor);
-
-  // One path per unbroken run of points, so a gap is not drawn across.
-  let line = "";
-  let area = "";
-  let run: Array<[number, number]> = [];
-  const flush = () => {
-    if (run.length) {
-      line += `${run.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ")} `;
-      area += `M${run[0]![0].toFixed(2)} 100 ${run.map((p) => `L${p[0].toFixed(2)} ${p[1].toFixed(2)}`).join(" ")} L${run[run.length - 1]![0].toFixed(2)} 100 Z `;
-    }
-    run = [];
-  };
-  points.forEach((point, index) => { if (point.v === null) flush(); else run.push([x(index), y(point.v)]); });
-  flush();
-
-  // With many points only the lowest, the highest and the latest carry a
-  // figure, so the line stays readable.
-  const showAll = values.length <= 9;
-  const lastWithValue = points.map((point) => point.v !== null).lastIndexOf(true);
-  const step = Math.max(1, Math.ceil(n / 15));
-  const highestAt = points.findIndex((point) => point.v === highest);
-  const lowestAt = points.findIndex((point) => point.v === lowest);
-
-  return (
-    <>
-      <div className="mt-[12px] flex gap-[8px]">
-        <div className="relative h-[188px] w-[34px] flex-none">
-          {ticks.map((tick) => (
-            <span key={tick} className="absolute right-0 -translate-y-1/2 text-[9.5px] tabular-nums" style={{ top: `${y(tick)}%`, color: "#8A9A92" }}>{tick}%</span>
-          ))}
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="relative h-[188px] border-b" style={{ borderColor: "#DEE8E2" }}>
-            {ticks.map((tick) => (
-              <span key={tick} className="absolute left-0 right-0 border-t" style={{ top: `${y(tick)}%`, borderColor: "#EEF3F0" }} />
-            ))}
-            {floor < TARGET ? (
-              <span className="absolute left-0 right-0 border-t-[1.5px] border-dashed" style={{ top: `${y(TARGET)}%`, borderColor: "#E5C77A" }} />
-            ) : null}
-            <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full overflow-visible" aria-hidden>
-              <path d={area.trim() || "M0 0"} fill="rgba(18,121,106,0.09)" stroke="none" />
-              <path d={line.trim() || "M0 0"} fill="none" stroke="#12796A" strokeWidth={2} vectorEffect="non-scaling-stroke" strokeLinejoin="round" strokeLinecap="round" />
-            </svg>
-            {points.map((point, index) => {
-              if (point.v === null) return null;
-              const swatch = toneOf(point.tone);
-              const style = { left: `${x(index)}%`, top: `${y(point.v)}%`, borderColor: swatch.dot, boxShadow: point.on ? "0 0 0 4px rgba(18,121,106,0.2)" : undefined };
-              const className = "absolute h-[11px] w-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] bg-white box-border transition-transform duration-[120ms] hover:scale-125";
-              return point.go
-                ? <button key={`${point.label}-${index}`} type="button" title={point.tip} onClick={point.go} className={`${className} cursor-pointer`} style={style} />
-                : <span key={`${point.label}-${index}`} title={point.tip} className={className} style={style} />;
-            })}
-            {points.map((point, index) => {
-              if (point.v === null) return null;
-              const show = showAll || index === highestAt || (point.v === lowest && (lowest !== highest || index === lowestAt)) || index === lastWithValue;
-              if (!show) return null;
-              return (
-                <span
-                  key={`v-${point.label}-${index}`}
-                  className="pointer-events-none absolute -translate-x-1/2 whitespace-nowrap text-[9.5px] font-bold"
-                  style={{ left: `${x(index)}%`, top: `calc(${y(point.v)}% - 20px)`, color: toneOf(point.tone).fg }}
-                >
-                  {point.vLabel ?? pct(point.v)}
-                </span>
-              );
-            })}
-          </div>
-          <div className="relative h-[30px]">
-            {points.map((point, index) => {
-              if (!(index % step === 0 || index === n - 1)) return null;
-              const style = { left: `${x(index)}%`, top: 7, color: point.on ? "#0D2315" : point.v === null ? "#AAB8B0" : "#67766D", fontWeight: point.on ? 700 : 500 };
-              return point.go
-                ? <button key={`x-${point.label}-${index}`} type="button" onClick={point.go} className="absolute -translate-x-1/2 cursor-pointer whitespace-nowrap text-[9.5px]" style={style}>{point.label}</button>
-                : <span key={`x-${point.label}-${index}`} className="absolute -translate-x-1/2 whitespace-nowrap text-[9.5px]" style={style}>{point.label}</span>;
-            })}
-          </div>
-        </div>
-      </div>
-      <div className="mt-[4px] flex flex-wrap items-center gap-x-[16px] gap-y-[5px] text-[10.5px]" style={{ color: "#435048" }}>
-        {legend
-          ? legend.map((key) => (
-              <span key={key} className="flex items-center gap-[6px]">
-                <span className="h-[8px] w-[8px] flex-none rounded-full" style={{ background: toneOf(TONE[key] ?? "neutral").dot }} />
-                {key === "ABSENT" ? "Absent, not explained" : key === "EXCUSED" ? "Away, explained" : NAME[key] ?? key}
-              </span>
-            ))
-          : ([["95% or more", "positive"], ["90 to 94.9%", "attention"], ["Below 90%", "negative"]] as Array<[string, PanelTone]>).map(([label, tone]) => (
-              <span key={label} className="flex items-center gap-[6px]">
-                <span className="h-[8px] w-[8px] flex-none rounded-full" style={{ background: toneOf(tone).dot }} />
-                {label}
-              </span>
-            ))}
-        {floor < TARGET ? (
-          <span className="flex items-center gap-[6px]">
-            <span className="h-0 w-[16px] flex-none border-t-[1.5px] border-dashed" style={{ borderColor: "#D9B45A" }} />
-            School target {TARGET}%
-          </span>
-        ) : null}
-      </div>
-    </>
-  );
 }
 
 /** Mon to Fri above a day calendar, so a column is read without counting. */
@@ -287,7 +134,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
   const pts = (value: number | null) => (value === null ? "—" : `${value >= 0 ? "+" : "−"}${Math.abs(Math.round(value * 10) / 10)} pts`);
 
   /* the chart: one point for each day, week, month or term the view is made of */
-  const series: Point[] = [];
+  const series: Array<LinePoint & { go?: () => void }> = [];
   if (view === "Week") {
     for (let i = 0; i < 5; i += 1) {
       const date = addDays(cur, i); const rec = past.find((record) => record.date === date); const lab = `${WEEKDAY[dayOf(date).getUTCDay()]!.slice(0, 3)} ${dayOf(date).getUTCDate()}`;
@@ -395,7 +242,13 @@ export function StudentAttendance({ terms, records, today, current, first, guard
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{chartTitle}</h3>
         <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{chartSub}</p>
         {series.length ? (
-          <LineChart points={series} legend={view === "Week" ? ["PRESENT", "LATE", "ABSENT", "EXCUSED"] : null} />
+          <LineChart
+            points={series}
+            target={{ value: TARGET, label: `School target ${TARGET}%` }}
+            keys={view === "Week" ? WEEK_KEYS : BAND_KEYS}
+            toneFor={(value) => toneFor(value)}
+            onPoint={(index) => series[index]?.go}
+          />
         ) : <p className="mt-[12px] text-[11.5px]" style={{ color: "#8C9A92" }}>No school days to show yet.</p>}
       </section>
 

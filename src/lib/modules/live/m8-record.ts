@@ -5,7 +5,7 @@ import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { attendanceSessionDrawer, collectorDrawer, documentDrawer, endSupportPlanDrawer, mapGuardianDrawer, noteDrawer, requestChangeDrawer, sensitiveDrawer, SR, supportPlanDrawer } from "@/lib/modules/live/m8-forms";
 import { FEE_TONE, STATE_TONE, attTone, gradeTone, loadRegistry, studentHref } from "@/lib/modules/live/m8-registry";
 import type { Dossier, DossierSubject, Registry, TermResult } from "@/lib/modules/live/m8-types";
-import { name as nameCell, pill, text, type KpiCard, type PanelFact, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { name as nameCell, pill, termShort, text, type KpiCard, type PanelFact, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 
 /**
  * One child, in full. Eight sections, one record, reached identically from a class roster and from
@@ -300,7 +300,7 @@ function academic({ d, termResult, wrap }: Body): RecordPage {
       {
         cols: "1fr 1fr",
         panels: [
-          { type: "bars", title: "Term by term", sub: "Term average, oldest first.", rows: history.map((entry) => ({ label: `${entry.term} ${entry.session}`, value: Math.round(entry.avg), display: String(entry.avg), tone: entry.current ? ("progress" as PanelTone) : ("positive" as PanelTone) })) },
+          { type: "line", title: "Term by term", sub: "Term average, oldest first.", unit: "", points: history.map((entry) => ({ label: termShort(entry.term, entry.session), v: entry.avg, tip: `${entry.term} ${entry.session} · average ${entry.avg}`, tone: entry.current ? ("progress" as PanelTone) : ("positive" as PanelTone), on: entry.current })) },
           { type: "facts", title: "Subject registration", tag: registration.fixed ? "Registered" : "With the arm", tagTone: registration.fixed ? "positive" : "neutral", sub: `Against this school's own rules for ${d.arm?.level ?? "the arm"}.`, per: 2, facts: [["Subjects registered", `${registration.count}`], ["Track", registration.track], ["In arm", d.arm?.name ?? "No arm"], ["Pass mark", String(d.academic.passMark)]] },
         ],
       },

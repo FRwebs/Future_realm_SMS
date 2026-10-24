@@ -142,7 +142,16 @@ export function remarkPage(p: RemarkPage, school: string): { content: TabContent
   rows.push({
     cols: "1.05fr 1fr",
     panels: [
-      { type: "bars", title: `How ${p.student.first} has performed before`, sub: "Term average, oldest first — so a review can say whether this is a rise or a fall.", rows: [...p.history.map((entry) => ({ label: entry.term, value: Math.round(entry.average), display: `${entry.average}${entry.pos ? ` · ${entry.pos}` : ""}`, tone: "positive" as PanelTone })), { label: `${p.term.name} · this term`, value: Math.round(s.average ?? 0), display: s.average === null ? "Blocked" : `${s.average}${s.pos ? ` · ${s.pos}` : ""}`, tone: (s.average === null ? "negative" : "progress") as PanelTone }] },
+      {
+        type: "line", title: `How ${p.student.first} has performed before`, sub: "Term average, oldest first — so a review can say whether this is a rise or a fall.", unit: "",
+        points: [
+          ...p.history.map((entry) => ({ label: entry.term.replace(/ Term$/, ""), v: entry.average, tip: `${entry.term} · average ${entry.average}${entry.pos ? ` · ${entry.pos}` : ""}`, tone: "positive" as PanelTone })),
+          // A term whose marks are not released yet is a gap, not a zero — the
+          // line stops rather than diving to the floor.
+          { label: `${p.term.name.replace(/ Term$/, "")} · now`, v: s.average, tip: s.average === null ? "This term is not released yet" : `${p.term.name} · average ${s.average}${s.pos ? ` · ${s.pos}` : ""}`, tone: "progress" as PanelTone, on: true },
+        ],
+        foot: s.average === null ? "This term has no released average yet, so the line stops at the last published one." : undefined,
+      },
       { type: "quotes", title: "What the family was told before", sub: "So two consecutive reviews do not contradict each other.", quotes: p.history.filter((entry) => entry.remark).slice(-2).reverse().map((entry) => ({ label: entry.term, text: entry.remark ?? "", by: "School", role: `${entry.term} · average ${entry.average}`, when: entry.published ? `Published ${dateText(entry.published.slice(0, 10))}` : "", pill: entry.state === "PUBLISHED" ? "Published" : "Not published", tone: (entry.state === "PUBLISHED" ? "positive" : "neutral") as PanelTone })) },
     ],
   });
