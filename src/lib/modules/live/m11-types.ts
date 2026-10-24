@@ -8,6 +8,11 @@ export type InvoiceRow = { id: string; no: string; kind: "TERMLY" | "TOPUP" | "O
 export type RenewalFacts = {
   current: string | null;
   next: { id: string; label: string; start: string; end: string } | null;
+  /** What a payment is for: on a trial, the term the school is in, from today; otherwise the next one. */
+  target: { id: string; label: string; start: string; end: string } | null;
+  /** True for a trial school paying for the term already running. */
+  startsNow: boolean;
+  tiers: Array<{ key: TierKey; name: string; rate: number }>;
   restOfSession: number;
   roll: number;
   accepted: number;

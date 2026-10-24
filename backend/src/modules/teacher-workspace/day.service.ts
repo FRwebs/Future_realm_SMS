@@ -5,6 +5,7 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import { iso, isSchoolDay, lagosClock, longDay, loadPolicy, today } from "../attendance-management/attendance.shared";
 import { loadAll, loadStaffNames } from "../score-results/arm";
 import { armName, fullName } from "../fee-management/fees.shared";
+import { TeacherStudentQuestionsService } from "./student-questions.service";
 import { TeacherWorkspaceService } from "./workspace.service";
 
 const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -21,7 +22,7 @@ export type QueueItem = {
   href: string;
   /** The primary action's words when this is the first item. */
   action: string;
-  kind: "register" | "sheet" | "returned" | "remarks" | "note" | "document" | "review" | "training" | "appraisal" | "cover" | "family";
+  kind: "register" | "sheet" | "returned" | "remarks" | "note" | "document" | "review" | "training" | "appraisal" | "cover" | "family" | "students";
 };
 
 const shortDate = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "short", timeZone: "UTC" });
@@ -33,7 +34,7 @@ const shortDate = (date: Date) => date.toLocaleDateString("en-GB", { day: "numer
  */
 @Injectable()
 export class MyDayService {
-  constructor(private readonly workspace: TeacherWorkspaceService) {}
+  constructor(private readonly workspace: TeacherWorkspaceService, private readonly studentQuestions: TeacherStudentQuestionsService) {}
 
   async day(session: SessionPayload) {
     const me = await this.workspace.me(session);
@@ -132,6 +133,12 @@ export class MyDayService {
         const oldest = Math.max(...waiting.map((row) => Math.floor((now.getTime() - row.createdAt.getTime()) / 86_400_000)));
         queue.push({ work: "Families waiting on you", what: `${waiting.length} submission${waiting.length === 1 ? "" : "s"} from ${me.formArms.map((arm) => arm.name).join(" and ")} families · the oldest is ${oldest} day${oldest === 1 ? "" : "s"} old`, due: oldest > 2 ? "Overdue" : "Today", rank: oldest > 2 ? 4 : 9, urgent: oldest > 2, state: "Waiting on you", href: "/parents-guardians/submissions", action: "Decide the oldest", kind: "family" });
       }
+    }
+    /* students: questions put to this person that nobody has answered yet */
+    const asked = await this.studentQuestions.waiting(session);
+    if (asked.waiting) {
+      const oldest = asked.oldest ? Math.floor((now.getTime() - new Date(asked.oldest).getTime()) / 86_400_000) : 0;
+      queue.push({ work: "Students are asking", what: `${asked.waiting} question${asked.waiting === 1 ? "" : "s"} from students · the oldest is ${oldest} day${oldest === 1 ? "" : "s"} old`, due: oldest > 2 ? "Overdue" : "Today", rank: oldest > 2 ? 5 : 11, urgent: oldest > 2, state: "Waiting on you", href: "/student-questions", action: "Answer them", kind: "students" });
     }
     /* lesson notes: what came back, what this week still owes, and — for a head of department — what is waiting to be signed */
     const ownSubjects = [...new Map(me.teaching.filter((row) => !row.assistant).map((row) => [row.subjectId, row])).values()];

@@ -205,10 +205,20 @@ export function getVisibleWorkflowNavGroups(
 export type TeacherRail = {
   items: Array<{ id: string; href: string; label: string; iconPath: string }>;
   extra: Array<{ id: string; href: string; label: string }>;
+  /** A rail kept in titled sections (a student's: My learning, My school, Me). Used instead of `items` when set. */
+  groups?: Array<{ title: string; items: Array<{ id: string; href: string; label: string; iconPath: string }> }>;
 };
 
 /** The teaching workspace's rail: one flat list in the teacher's order, then whatever more an administrator has granted. */
 export function teacherRailGroups(rail: TeacherRail, badges: Record<string, number | undefined> = {}): WorkflowNavGroup[] {
+  if (rail.groups) {
+    return rail.groups.map((group) => ({
+      title: group.title,
+      eyebrow: group.title,
+      description: group.title || "Your workspace",
+      items: group.items.map((item) => ({ id: item.id, href: item.href as Route, label: item.label, description: "Your student workspace", icon: LayoutDashboard, iconPath: item.iconPath, badge: badges[item.id] ? String(badges[item.id]) : undefined })),
+    }));
+  }
   const groups: WorkflowNavGroup[] = [
     {
       title: "",

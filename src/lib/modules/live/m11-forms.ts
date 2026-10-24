@@ -16,32 +16,37 @@ const TIER_LABEL = (name: string, rate: number) => `${name} · ${naira(rate)} ea
 
 export function renewDrawer(p: Plan): DrawerSpec {
   const f = p.renewal;
-  const label = f.next?.label ?? "the next term";
-  const estimateOptions = [`Today's roll · ${f.roll}`, `Roll plus accepted, less leavers · ${f.suggest}`, "A number I will type"];
+  const now = f.startsNow;
+  const target = f.target ?? f.next;
+  const label = target?.label ?? "the next term";
+  const estimateOptions = now ? [`Today's roll · ${f.roll}`, "A number I will type"] : [`Today's roll · ${f.roll}`, `Roll plus accepted, less leavers · ${f.suggest}`, "A number I will type"];
   const sessionLabel = f.restOfSession > 1 ? `The rest of this session · ${f.restOfSession} terms` : "The rest of this session · 1 term";
+  const planOptions = f.tiers.map((tier) => TIER_LABEL(tier.name, tier.rate));
+  const current = f.tiers.find((tier) => tier.key === f.tier);
+  const onlyLabel = now ? "This term only" : "Next term only";
   return {
     mode: "form",
-    kicker: "Subscription · per student per term",
-    title: `Renew for ${label}`,
-    sub: "You are billed for the number of students you expect, not the number you have today.",
+    kicker: now ? "Subscription · you are on a trial" : "Subscription · per student per term",
+    title: now ? `Pay for ${label}` : `Renew for ${label}`,
+    sub: now ? "You are in this term already, so paying starts it today — you are not booked for the term after." : "You are billed for the number of students you expect, not the number you have today.",
     commitLabel: "Issue the invoice",
-    commitDone: "Renewal invoiced",
-    commitDoneBody: "The invoice is issued. Pay it now, or by bank transfer quoting its number — the term is applied when it is paid.",
+    commitDone: now ? "Invoice issued" : "Renewal invoiced",
+    commitDoneBody: now ? "Pay it now, or by bank transfer quoting its number. The trial ends and the plan you chose starts the moment it is paid." : "The invoice is issued. Pay it now, or by bank transfer quoting its number — the term is applied when it is paid.",
     reviewNote: "The count is trued up at term start, and a difference either way appears on the next invoice. Paying a session in advance is the only discount offered, and it is 5%.",
     fields: [
-      fixed("Renewing", `${f.tierName} · ${label}`, { hint: f.next ? `Runs ${day(f.next.start)} to ${day(f.next.end)}` : "No later term is set up yet" }),
-      fixed("Rate", `${naira(f.rate)} per student, per term`, { hint: f.switching ? `Your scheduled switch to ${f.tierName} applies from this term.` : "Your current rate. Switching plan changes it — do that first if you intend to." }),
-      text("Students you expect next term", { required: true, span: 2, value: String(f.suggest), unit: "students", hint: `You have ${f.roll} on the roll today, ${f.accepted} applicants accepted${f.leavers ? ` and ${f.leavers} leaving from ${f.leaversLevel}` : ""}. A sensible estimate is ${f.suggest}.` }),
-      choice("Estimate from", estimateOptions, { span: 2, value: estimateOptions[1] }),
-      fixed("Estimated cost", naira(f.suggest * f.rate), { hint: `${f.suggest} students × ${naira(f.rate)} per student per term, before VAT` }),
-      choice("Renew for", ["Next term only", sessionLabel, "A full session in advance · 3 terms · 5% off"], { span: 2, value: "Next term only", hint: "Paying a session in advance is the only discount offered, and it is 5%." }),
+      fixed(now ? "Paying for" : "Renewing", `${f.tierName} · ${label}`, { hint: target ? (now ? `Starts today and runs to ${day(target.end)}` : `Runs ${day(target.start)} to ${day(target.end)}`) : "No later term is set up yet" }),
+      ...(now ? [select("Plan", planOptions, { value: current ? TIER_LABEL(current.name, current.rate) : planOptions[0], hint: "Chosen now, and applies from today. You can switch later; a switch never lands mid-term." })] : [fixed("Rate", `${naira(f.rate)} per student, per term`, { hint: f.switching ? `Your scheduled switch to ${f.tierName} applies from this term.` : "Your current rate. Switching plan changes it — do that first if you intend to." })]),
+      text(now ? "Students to bill for" : "Students you expect next term", { required: true, span: 2, value: String(f.suggest), unit: "students", hint: now ? `You have ${f.roll} on the roll today — that is who is billed for a term already running.` : `You have ${f.roll} on the roll today, ${f.accepted} applicants accepted${f.leavers ? ` and ${f.leavers} leaving from ${f.leaversLevel}` : ""}. A sensible estimate is ${f.suggest}.` }),
+      choice("Estimate from", estimateOptions, { span: 2, value: estimateOptions[now ? 0 : 1] }),
+      fixed("Estimated cost", naira(f.suggest * f.rate), { hint: `${f.suggest} students × ${naira(f.rate)} per student per term, before VAT${now ? ", at the plan above" : ""}` }),
+      choice("Renew for", [onlyLabel, sessionLabel, "A full session in advance · 3 terms · 5% off"], { span: 2, value: onlyLabel, hint: "Paying a session in advance is the only discount offered, and it is 5%." }),
       choice("Pay by", ["Card · now", "Bank transfer · invoice issued"], { span: 2, value: "Card · now" }),
       toggle("Renew automatically each term", p.preferences.autoRenew, "Noted — an invoice is raised 14 days before each term", "I will renew each term myself", { span: 2 }),
       select("Remind me before the term starts", ["No reminder", "7 days before", "14 days before", "30 days before"], { value: `${p.preferences.remindDays} days before` }),
       text("Email the receipt to", { value: p.preferences.receiptEmail ?? "", optional: true, placeholder: "bursary@school.ng" }),
       select("Invoice to", ["The Proprietor", "The Principal", "The Bursar"], { value: p.preferences.invoiceTo ?? "The Proprietor" }),
     ],
-    submit: { endpoint: `${SB}/plan/renew`, method: "POST", map: { "Students you expect next term": "students", "Estimate from": "estimateFrom", "Renew for": "renewFor", "Pay by": "payBy", "Renew automatically each term": "autoRenew", "Remind me before the term starts": "remind", "Email the receipt to": "email", "Invoice to": "invoiceTo" } },
+    submit: { endpoint: `${SB}/plan/renew`, method: "POST", map: { "Students you expect next term": "students", "Students to bill for": "students", Plan: "plan", "Estimate from": "estimateFrom", "Renew for": "renewFor", "Pay by": "payBy", "Renew automatically each term": "autoRenew", "Remind me before the term starts": "remind", "Email the receipt to": "email", "Invoice to": "invoiceTo" } },
   };
 }
 

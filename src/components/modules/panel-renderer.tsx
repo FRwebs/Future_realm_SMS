@@ -1479,6 +1479,7 @@ export function PanelView({
           acts={panel.acts}
           openDrawer={openDrawer}
         />
+        {panel.items.length === 0 && panel.empty ? <p className="py-[14px] text-[11.5px]" style={{ color: MUTED }}>{panel.empty}</p> : null}
         <ul>
           {panel.items.map((item, index) => {
             const swatch = toneOf(item.tone);
@@ -1510,10 +1511,21 @@ export function PanelView({
                 style={{ borderColor: "#F2F7F4" }}
                 onClick={rowRead ? (event) => { if ((event.target as HTMLElement).closest("a,button")) return; openDrawer(rowRead); } : undefined}
               >
-                <span
-                  className="mt-[4.5px] h-[7px] w-[7px] flex-none rounded-full"
-                  style={{ background: swatch.dot }}
-                />
+                {item.lead ? (
+                  <span
+                    className="flex h-[38px] w-[38px] flex-none flex-col items-center justify-center rounded-[10px] border leading-none"
+                    style={{ background: toneOf(item.lead.tone ?? item.tone).bg, borderColor: toneOf(item.lead.tone ?? item.tone).bd, color: toneOf(item.lead.tone ?? item.tone).fg }}
+                    aria-hidden
+                  >
+                    {item.lead.top ? <span className="text-[8.5px] font-bold uppercase tracking-[0.06em]">{item.lead.top}</span> : null}
+                    <span className="mt-[2px] text-[14px] font-extrabold tabular-nums">{item.lead.value}</span>
+                  </span>
+                ) : (
+                  <span
+                    className="mt-[4.5px] h-[7px] w-[7px] flex-none rounded-full"
+                    style={{ background: swatch.dot }}
+                  />
+                )}
 
                 <span className="min-w-0 flex-1">
                   <span
@@ -1637,6 +1649,57 @@ export function PanelView({
           ))}
         </ul>
         {panel.foot ? <PanelFoot>{panel.foot}</PanelFoot> : null}
+      </section>
+    );
+  }
+
+  if (panel.type === "tray") {
+    const lit = panel.items.find((item) => item.on) ?? panel.items[0];
+    return (
+      <section className="min-w-0 rounded-[13px] p-[5px]" style={{ background: INK }} aria-label="Browse by section">
+        <div className="flex gap-[3px] overflow-x-auto" style={{ scrollbarWidth: "none" }}>
+          {panel.items.map((item) => (
+            <TriggerControl
+              key={item.label}
+              trigger={item}
+              label={item.label}
+              openDrawer={openDrawer}
+              className={`flex h-[38px] flex-[1_0_auto] items-center justify-center gap-[7px] rounded-[9px] px-[13px] transition-[background,color] duration-150 ${item.on ? "bg-white text-[#0D2315] shadow-[0_6px_16px_-8px_rgba(0,0,0,0.55)]" : "bg-transparent text-white/80 hover:bg-white/10 hover:text-white"}`}
+            >
+              <span className="whitespace-nowrap text-[11.5px] font-semibold" title={item.desc ?? item.label}>{item.label}</span>
+              {item.flag ? <span className="h-[6px] w-[6px] flex-none rounded-full" style={{ background: item.flagTone === "due" ? (item.on ? "#D08A12" : "#F2B84B") : item.on ? "#1A8C78" : "#5FD6B4" }} /> : null}
+              <span className={`flex-none rounded-full px-[6.5px] py-[1.5px] text-[10px] font-bold tabular-nums ${item.on ? "bg-[#0D2315] text-white" : "bg-white/10 text-white/85"}`}>{item.count}</span>
+            </TriggerControl>
+          ))}
+        </div>
+        {lit ? (
+          <div className="flex flex-wrap items-center justify-between gap-x-[18px] gap-y-[8px] px-[9px] pb-[4px] pt-[9px]">
+            <p className="min-w-0 flex-[1_1_260px] text-pretty text-[11px] leading-[1.45] text-white/70">
+              <span className="mr-[8px] text-[12px] font-bold text-white">{lit.label}</span>
+              {lit.desc}
+            </p>
+            <div className="flex min-w-0 flex-[0_1_auto] flex-wrap items-center gap-x-[16px] gap-y-[6px]">
+              {(lit.facts ?? []).map(([name, value, due]) => (
+                <span key={`${name}${value}`} className="flex items-baseline gap-[5px] whitespace-nowrap text-[10.5px]">
+                  {name ? <span className="text-white/60">{name}</span> : null}
+                  <span className="font-semibold" style={{ color: due ? "#F5C76B" : "#fff" }}>{value}</span>
+                </span>
+              ))}
+              {lit.cta ? (
+                <TriggerControl
+                  trigger={lit.cta}
+                  label={lit.cta.label}
+                  openDrawer={openDrawer}
+                  className="flex items-center gap-[6px] rounded-[8px] px-[11px] py-[6.5px] text-[10.5px] font-bold"
+                  style={{ background: "#5FD6B4", color: INK }}
+                >
+                  {lit.cta.label}
+                  <svg width="10.5" height="10.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h13M13 6.5l5.5 5.5L13 17.5" /></svg>
+                </TriggerControl>
+              ) : null}
+            </div>
+          </div>
+        ) : null}
       </section>
     );
   }

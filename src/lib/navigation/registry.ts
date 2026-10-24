@@ -952,12 +952,18 @@ function isOwnAccountPath(path: string) {
   return path === "/account" || path.startsWith("/account/");
 }
 
+/** The questions students have put to a teacher are the teacher's own, like their account: no module grants them, and the page itself checks that the person teaches. */
+function isStudentQuestionsPath(path: string) {
+  return path === "/student-questions";
+}
+
 export function canAccessPathWithPermissions(
   role: Role,
   path: string,
   permissions = getDefaultPermissionsForRole(role),
 ) {
   if (isOwnAccountPath(path)) return isSchoolStaffRole(role);
+  if (isStudentQuestionsPath(path)) return isSchoolStaffRole(role);
 
   const items = getNavigationItemsForPath(path);
   if (!items.length) return false;

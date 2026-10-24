@@ -6,7 +6,9 @@ import { DashboardShell } from "@/components/layout/dashboard-shell";
 import { apiGet } from "@/lib/api/server";
 import { ttlCached } from "@/lib/cache/ttl";
 import { getPlatformSync } from "@/lib/api/platform-sync";
+import { getStudentBadges } from "@/lib/api/student-workspace";
 import { getTeacherBadges, getTeacherWorkspace } from "@/lib/api/teacher-workspace";
+import { studentNavigation } from "@/lib/modules/student-workspace";
 import { teacherNavigation } from "@/lib/modules/teacher-workspace";
 import { getServerPermissions } from "@/lib/auth/server-access";
 import { getServerSession } from "@/lib/auth/session";
@@ -39,16 +41,18 @@ export default async function AppLayout({
     redirect("/login");
   }
 
-  const [permissions, schoolContext, platformSync, teacher, navBadges] = await Promise.all([
+  const [permissions, schoolContext, platformSync, teacher, teacherBadges, studentBadges] = await Promise.all([
     getServerPermissions(session).catch(() => getDefaultPermissionsForRole(session.role)),
     getCachedSchoolContext(session.schoolId),
     getPlatformSync(session.schoolId),
     getTeacherWorkspace(session.role, session.schoolId),
     getTeacherBadges(session.role, session.schoolId),
+    getStudentBadges(session.role),
   ]);
 
   // A teacher's rail: the teacher modules their permissions reach, in the teacher's order, then anything more the school has granted.
-  const teacherRail = teacher ? teacherNavigation(teacher.persona, permissions) : null;
+  const teacherRail = teacher ? teacherNavigation(teacher.persona, permissions) : session.role === "STUDENT" ? studentNavigation() : null;
+  const navBadges = session.role === "STUDENT" ? studentBadges : teacherBadges;
 
   return (
     <DashboardShell
