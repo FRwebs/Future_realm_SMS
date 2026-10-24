@@ -4,7 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { DEFAULT_QUIET_HOURS } from "./student-notify";
+import { DEFAULT_QUIET_HOURS, isForStudents } from "./student-notify";
 import { resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 
@@ -43,6 +43,14 @@ const prefsSchema = z.object({
 });
 
 const PREFS_RESOURCE = "student-prefs";
+
+/** "Mozilla/5.0 (Macintosh; …) … Chrome/152 …" → "Chrome on Mac". A person recognises a device by its name, not its user-agent string. */
+export function deviceName(agent: string | null | undefined): string {
+  if (!agent) return "Unknown device";
+  const browser = /Edg\//.test(agent) ? "Edge" : /OPR\/|Opera/.test(agent) ? "Opera" : /Firefox\//.test(agent) ? "Firefox" : /Chrome\//.test(agent) ? "Chrome" : /Safari\//.test(agent) ? "Safari" : /^curl\//i.test(agent) ? "A script" : null;
+  const system = /Android/.test(agent) ? "Android" : /iPhone|iPad|iOS/.test(agent) ? "iPhone or iPad" : /Windows/.test(agent) ? "Windows" : /Mac OS X|Macintosh/.test(agent) ? "Mac" : /Linux/.test(agent) ? "Linux" : null;
+  return browser && system ? `${browser} on ${system}` : browser ?? system ?? agent.slice(0, 40);
+}
 
 const icsText = (value: string) => value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
 const ymd = (iso: string) => iso.replace(/-/g, "");
@@ -144,7 +152,7 @@ export class StudentWorkspaceService {
     ]);
     const arm = armName(student.currentClass?.name, student.currentClass?.arm).toLowerCase();
     const read = new Set(prefs.readAnnouncements ?? []);
-    const unreadNotices = notices.filter((notice) => { const text = notice.audience.toLowerCase(); return (text.includes("student") || text.includes("learner") || text.includes("all") || text.includes("school") || text.includes(arm)) && !read.has(notice.id); }).length;
+    const unreadNotices = notices.filter((notice) => isForStudents(notice.audience, arm) && !read.has(notice.id)).length;
     return { work: open.length, late: open.filter((row) => row.dueAt.getTime() < Date.now()).length, unread: unreadMessages + unreadNotices };
   }
 
@@ -253,7 +261,7 @@ export class StudentWorkspaceService {
         const state = sub?.gradedAt ? "marked" : sub?.submittedAt ? "handed" : row.dueAt.getTime() < now ? "overdue" : "todo";
         return {
           id: row.id, title: row.title, description: row.description ?? "", subject: row.subject.name, subjectId: row.subjectId, teacher: fullName(row.teacher), teacherId: row.teacher.id,
-          set: isoDay(row.createdAt), due: isoDay(row.dueAt), dueAt: row.dueAt.toISOString(), state, attachmentUrl: row.attachmentUrl ?? null,
+          set: isoDay(row.createdAt), due: isoDay(row.dueAt), dueAt: row.dueAt.toISOString(), state, attachmentUrl: row.attachmentUrl ?? null, out: row.maxScore,
           handedAt: sub?.submittedAt?.toISOString() ?? null, late: sub?.submittedAt ? sub.submittedAt.getTime() > row.dueAt.getTime() : false,
           comment: sub?.comment ?? null, score: sub?.score ?? null, feedback: sub?.feedback ?? null, markedAt: sub?.gradedAt ? isoDay(sub.gradedAt) : null
         };
@@ -314,8 +322,8 @@ export class StudentWorkspaceService {
       term ? prisma.assessmentWindow.findMany({ where: { schoolId: session.schoolId, termId: term.id }, include: { component: true } }) : Promise.resolve([])
     ]);
     const mine = events.filter((event) => {
-      const audience = event.audience.toLowerCase();
-      return event.visibleTo.includes("Students") || audience.includes("student") || audience.includes("all") || audience.includes("school") || audience.includes(arm.toLowerCase());
+      // The school's own "visible to" list is the answer when it has one; the words of the audience only when it does not.
+      return event.visibleTo.length ? event.visibleTo.includes("Students") : isForStudents(event.audience, arm);
     });
     const cat = (type: string) => (/exam/i.test(type) ? "Assessment" : /holiday|closure/i.test(type) ? "Holiday" : "Event");
     return {
@@ -324,6 +332,22 @@ export class StudentWorkspaceService {
         ...exams.map((exam) => ({ id: `x-${exam.id}`, date: isoDay(exam.examDate), end: isoDay(exam.examDate), title: `${exam.subject.name} examination`, cat: "Assessment", time: `${exam.startsAt} – ${exam.endsAt}`, where: exam.venue ?? "", note: "" })),
         ...windows.filter((window) => window.releaseAt).map((window) => ({ id: `r-${window.id}`, date: isoDay(window.releaseAt!), end: isoDay(window.releaseAt!), title: `${window.component.name} results released`, cat: "Results", time: "", where: "", note: "" }))
       ].sort((a, b) => a.date.localeCompare(b.date))
+    };
+  }
+
+  /* ───────────────────────── sign-in and security ───────────────────────── */
+
+  /** How this account is protected, and the last times someone signed in — so a student can spot a sign-in that was not them. */
+  async security(session: SessionPayload) {
+    this.assert(session);
+    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null }, select: { mfaEnabled: true, mfaEnrolledAt: true, passwordChangedAt: true, createdAt: true } });
+    if (!user) throw new NotFoundException("No account found.");
+    const attempts = await prisma.loginAttempt.findMany({ where: { userId: session.userId }, orderBy: { createdAt: "desc" }, take: 12 });
+    // Part of the address is hidden: enough to recognise a network, not enough to place a home.
+    const hide = (address: string | null) => (address ? address.replace(/(\d+\.\d+)\.\d+\.\d+/, "$1.•.•").replace(/([0-9a-f]+:[0-9a-f]+):.*/i, "$1:•") : "");
+    return {
+      mfaEnabled: user.mfaEnabled, mfaEnrolledAt: user.mfaEnrolledAt?.toISOString() ?? null, passwordChangedAt: user.passwordChangedAt?.toISOString() ?? null, createdAt: user.createdAt.toISOString(),
+      signIns: attempts.map((attempt) => ({ id: attempt.id, at: attempt.createdAt.toISOString(), success: attempt.success, device: deviceName(attempt.device), where: attempt.location || hide(attempt.ipAddress), newDevice: attempt.newDevice, reason: attempt.success ? null : attempt.reason }))
     };
   }
 
@@ -364,7 +388,7 @@ export class StudentWorkspaceService {
       this.readPrefs(session)
     ]);
     const readNotices = new Set(prefs.readAnnouncements ?? []);
-    const audience = (value: string) => { const text = value.toLowerCase(); return text.includes("student") || text.includes("learner") || text.includes("all") || text.includes("school") || text.includes(arm.toLowerCase()); };
+    const audience = (value: string) => isForStudents(value, arm);
     return {
       formMaster: formMaster ? { id: formMaster.id, name: fullName(formMaster) } : null,
       items: [
@@ -403,6 +427,9 @@ export class StudentWorkspaceService {
     const { student, formMaster } = await this.context(session);
     const target = parsed.data.to ?? formMaster?.id;
     if (!target) throw new BadRequestException("Choose who to ask.");
+    // A student may ask their own teachers and their form master — not anyone who happens to be at the school.
+    const allowed = await this.askable(session);
+    if (!allowed.people.some((person) => person.id === target)) throw new ForbiddenException("You can ask your form master and the teachers of your own subjects.");
     const recipient = await prisma.user.findFirst({ where: { id: target, schoolId: session.schoolId, isActive: true }, select: { id: true, firstName: true, lastName: true } });
     if (!recipient) throw new NotFoundException("That person is not at your school.");
     const message = await prisma.internalMessage.create({ data: { schoolId: session.schoolId, senderId: session.userId, recipientId: recipient.id, subject: parsed.data.topic, body: parsed.data.text } });

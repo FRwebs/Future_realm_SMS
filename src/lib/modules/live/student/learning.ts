@@ -160,7 +160,7 @@ function workDrawer(work: Work, today: string): DrawerSpec {
       ["Instructions", work.description || "Your teacher gave no written instructions.", work.attachmentUrl ? "A file came with it" : ""],
       ...(work.attachmentUrl ? [["The file", work.attachmentUrl, "Open it from your teacher’s link"] as [string, string, string]] : []),
       ...(work.comment ? [["Your note", work.comment, ""] as [string, string, string]] : []),
-      ...(work.state === "marked" ? [["Your mark", work.score === null ? "Marked, no score" : `${num(work.score)}%`, tone === "positive" ? "Well done" : ""] as [string, string, string], ["Feedback", work.feedback || "Your teacher left no written feedback.", work.teacher] as [string, string, string]] : []),
+      ...(work.state === "marked" ? [["Your mark", work.score === null ? "Marked, no score" : `${num(work.score)} out of ${num(work.out)} · ${Math.round((work.score / work.out) * 100)}%`, tone === "positive" ? "Well done" : ""] as [string, string, string], ["Feedback", work.feedback || "Your teacher left no written feedback.", work.teacher] as [string, string, string]] : []),
     ],
   };
 }
@@ -173,7 +173,8 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
   const marked = data.items.filter((item) => item.state === "marked").sort((a, b) => (b.markedAt ?? "").localeCompare(a.markedAt ?? ""));
   const late = todo.filter((item) => item.state === "overdue");
   const scored = marked.filter((item) => item.score !== null);
-  const avg = scored.length ? Math.round(scored.reduce((sum, item) => sum + (item.score ?? 0), 0) / scored.length) : null;
+  // Each piece counts as a share of its own full mark, so a quiz out of 20 and an essay out of 100 weigh the same.
+  const avg = scored.length ? Math.round((scored.reduce((sum, item) => sum + (item.score ?? 0) / item.out, 0) / scored.length) * 100) : null;
   const tabs = [{ label: "To do", count: todo.length }, { label: "Handed in", count: handed.length }, { label: "Marked", count: marked.length }];
   const tab = tabs.some((entry) => entry.label === query.tab) ? query.tab! : "To do";
   const nameCell = (item: Work): TableCellKind => ({ kind: "name", name: item.title, sub: item.subject, avatar: false });

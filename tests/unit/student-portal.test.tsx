@@ -12,7 +12,7 @@ const ME = {
 };
 const work = (over: Partial<Work>): Work => ({
   id: "a1", title: "Homework 1", description: "", subject: "English Language", subjectId: "sub1", teacher: "Kemi Afolayan", teacherId: "u2", set: "2026-04-01", due: "2026-04-13", dueAt: "2026-04-13T12:00:00Z", state: "overdue",
-  attachmentUrl: null, handedAt: null, late: false, comment: null, score: null, feedback: null, markedAt: null, ...over,
+  attachmentUrl: null, out: 100, handedAt: null, late: false, comment: null, score: null, feedback: null, markedAt: null, ...over,
 });
 const FIXTURE: Record<string, unknown> = {
   me: ME,
@@ -46,7 +46,10 @@ describe("a student’s workspace", () => {
     expect(dueText({ due: "2026-04-14", state: "todo" }, "2026-04-14")).toBe("Today");
     expect(dueText({ due: "2026-04-15", state: "todo" }, "2026-04-14")).toBe("Tomorrow");
     expect(workPill(work({ state: "todo", due: "2026-04-15" }), "2026-04-14")).toEqual(["Due tomorrow", "attention"]);
-    expect(workPill(work({ state: "marked", score: 82 }), "2026-04-14")).toEqual(["82%", "positive"]);
+    expect(workPill(work({ state: "marked", score: 82 }), "2026-04-14")).toEqual(["82 / 100", "positive"]);
+    // A quiz out of 20 is read against its own full mark, not against 100.
+    expect(workPill(work({ state: "marked", score: 18, out: 20 }), "2026-04-14")).toEqual(["18 / 20", "positive"]);
+    expect(workPill(work({ state: "marked", score: 9, out: 20 }), "2026-04-14")).toEqual(["9 / 20", "progress"]);
   });
 
   it("finds the Monday of any day", () => {

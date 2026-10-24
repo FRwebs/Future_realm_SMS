@@ -50,3 +50,13 @@ export async function notifyStudents(schoolId: string, notices: StudentNotice[],
   }
   await prisma.notificationLog.createMany({ data });
 }
+
+/**
+ * Whether an audience written in words ("Students", "All school", "Teachers and staff", "SSS 3 - C") is meant for a student of `arm`.
+ * Words that name someone else — staff, teachers, parents, guardians — win over a loose "all" or "school", so "All staff" is never a student's.
+ */
+export function isForStudents(audience: string, arm?: string): boolean {
+  const text = audience.toLowerCase();
+  if (/staff|teacher|parent|guardian|proprietor|bursar|admin/.test(text) && !/student|learner/.test(text)) return false;
+  return /student|learner|\ball\b|everyone|school/.test(text) || Boolean(arm && text.includes(arm.toLowerCase()));
+}
