@@ -49,6 +49,8 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
   const latest = p.invoices[0];
   const payNow = open[0] ? payOneDrawer(open[0], p) : undefined;
   const trial = p.school.billingStatus === "TRIAL";
+  const shortTerm = (term: { label: string } | null) => (term ? term.label.split(" ").slice(0, 2).join(" ") : "");
+  const renewLabel = p.renewal.startsNow ? `Pay for ${shortTerm(p.renewal.target)}` : p.next ? `Renew for ${shortTerm(p.next)}` : "Renew for next term";
 
   const cards: KpiCard[] = [
     { label: "This term", value: naira(p.thisTerm.amount), sub: `${p.thisTerm.students.toLocaleString("en-NG")} students · ${naira(p.rate)} each${p.thisTerm.billed ? "" : " · estimate"}`, tone: "neutral" },
@@ -89,18 +91,18 @@ export function planTab(p: Plan, credits: Credits, ledger?: BillingLedger): TabC
   return {
     title: "Plan",
     desc: "What Future Realm costs at your current roll, and how to change it.",
-    primary: { label: p.next ? `Renew for ${p.next.label.split(" ").slice(0, 2).join(" ")}` : "Renew for next term", icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3", drawer: renew },
+    primary: { label: renewLabel, icon: "M20 11.5a8 8 0 0 0-13.7-5L4 8.8M4 12.5a8 8 0 0 0 13.7 5l2.3-2.3M4 4.5v4.3h4.3", drawer: renew },
     launchers: [
       { label: "Switch plan", drawer: switchDrawer(p) },
       ...(payNow ? [{ label: "Pay by card", drawer: payNow }] : []),
       ...(latest ? [{ label: "Download an invoice", drawer: invoiceDrawer(latest) }] : []),
     ],
     rows: [
-      ...(trial ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "This account is on a trial", body: p.school.trialEndsAt ? `The trial ends on ${dayLong(p.school.trialEndsAt)}. Renew before then so nothing is interrupted.` : "Renew to move the school onto a paid plan.", acts: [{ label: "Renew now", drawer: renew }] }] }] : []),
+      ...(trial ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "attention" as PanelTone, title: "This account is on a trial", body: p.renewal.startsNow ? `Pay for ${p.renewal.target?.label ?? "this term"} and the school moves onto the plan you choose from today${p.school.trialEndsAt ? `, before the trial ends on ${dayLong(p.school.trialEndsAt)}` : ""}. You are not booked for the next term.` : p.school.trialEndsAt ? `The trial ends on ${dayLong(p.school.trialEndsAt)}. Renew before then so nothing is interrupted.` : "Renew to move the school onto a paid plan.", acts: [{ label: p.renewal.startsNow ? "Pay and upgrade now" : "Renew now", drawer: renew }] }] }] : []),
       ...(p.pending ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "progress" as PanelTone, title: `A switch to ${p.pending.tier} is scheduled`, body: `It takes effect from ${dayLong(p.pending.from)}${p.pending.reason ? ` — you gave “${p.pending.reason.toLowerCase()}” as the reason` : ""}. Nothing changes for the rest of this term.`, acts: [{ label: "Change it", drawer: switchDrawer(p) }, { label: "Withdraw it", drawer: cancelSwitchDrawer(p) }] }] }] : []),
       ...(open.some((invoice) => invoice.state === "Overdue") ? [{ cols: "1fr", panels: [{ type: "note" as const, tone: "negative" as PanelTone, title: "An invoice is overdue", body: `${plural(open.filter((invoice) => invoice.state === "Overdue").length, "invoice")} past its due date. Pay it to keep the account current.`, acts: payNow ? [{ label: "Pay by card", drawer: payNow }] : [] }] }] : []),
       { cols: "1fr", panels: [{ type: "kpi", title: p.term?.label ?? "This term", per: 6, cards }] },
-      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: p.next ? `Renew for ${p.next.label.split(" ").slice(0, 2).join(" ")}` : "Renew for next term", primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, foot: "A plan is billed per student per term, counted at term start. A child who joins mid-term is billed at the next renewal, never retrospectively." }] },
+      { cols: "1fr", panels: [{ type: "table", title: "What is running on this account", tag: `${p.running.filter((item) => item.state === "Active").length} active`, tagTone: "positive", sub: "Everything currently billed to this school, and when each of them renews.", meta: `${p.tierName} · per student per term${p.next ? ` · next renewal ${dayLong(p.next.start)}` : ""}`, acts: [{ label: "Switch plan", drawer: switchDrawer(p) }, { label: renewLabel, primary: true, drawer: renew }], head: ["What is running", "Basis", "Units", "Rate", "This term", "Renews", "State", ""], noun: "item", nounPlural: "items", noRowOpen: true, rows: running, foot: "A plan is billed per student per term, counted at term start. A child who joins mid-term is billed at the next renewal, never retrospectively." }] },
       {
         cols: "1fr",
         panels: [

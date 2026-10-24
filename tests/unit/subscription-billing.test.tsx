@@ -33,7 +33,7 @@ function plan(over: Partial<Plan> = {}): Plan {
     invoices: [{ id: "i-1", no: "FR-INV-2026-0001", kind: "ONE_OFF", kindLabel: "One-off", period: "Plan · monthly", amount: 250000, tax: 18750, total: 268750, issued: "2026-04-01T00:00:00.000Z", due: "2026-04-07T00:00:00.000Z", paidAt: "2026-04-02T00:00:00.000Z", state: "Paid", termLabel: null }],
     comparison: { roll: 185, tiers: [{ key: "STANDARD", name: "Standard", rate: 600, term: 111000, session: 333000 }, { key: "PREMIUM", name: "Premium", rate: 900, term: 166500, session: 499500 }, { key: "ELITE", name: "Elite", rate: 1200, term: 222000, session: 666000 }], capabilities: [{ label: "Guardian portal", standard: false, premium: true, elite: true }] },
     pending: null,
-    renewal: { current: "Second Term 2025/2026", next: { id: "t-3", label: "Third Term 2025/2026", start: "2027-01-02T00:00:00.000Z", end: "2027-04-08T00:00:00.000Z" }, restOfSession: 1, roll: 185, accepted: 3, leavers: 10, leaversLevel: "SSS 3", suggest: 178, rate: 1200, tier: "ELITE", tierName: "Elite", switching: false },
+    renewal: { current: "Second Term 2025/2026", next: { id: "t-3", label: "Third Term 2025/2026", start: "2027-01-02T00:00:00.000Z", end: "2027-04-08T00:00:00.000Z" }, target: { id: "t-3", label: "Third Term 2025/2026", start: "2027-01-02T00:00:00.000Z", end: "2027-04-08T00:00:00.000Z" }, startsNow: false, tiers: [{ key: "STANDARD", name: "Standard", rate: 600 }, { key: "PREMIUM", name: "Premium", rate: 900 }, { key: "ELITE", name: "Elite", rate: 1200 }], restOfSession: 1, roll: 185, accepted: 3, leavers: 10, leaversLevel: "SSS 3", suggest: 178, rate: 1200, tier: "ELITE", tierName: "Elite", switching: false },
     preferences: { autoRenew: false, remindDays: 14, invoiceTo: null, receiptEmail: null },
     gateway: "test",
     ...over,
@@ -98,6 +98,34 @@ describe("M11 Plan", () => {
 
   it("says plainly that a trial is a trial", () => {
     expect(markup(planTab(plan({ school: { name: "G", currency: "NGN", billingStatus: "TRIAL", status: "TRIAL", trialEndsAt: "2026-12-01T00:00:00.000Z" } }), credits()))).toContain("This account is on a trial");
+  });
+});
+
+describe("M11 paying from a trial", () => {
+  const trial = () => plan({
+    school: { name: "G", currency: "NGN", billingStatus: "TRIAL", status: "TRIAL", trialEndsAt: "2026-12-01T00:00:00.000Z" },
+    renewal: { ...plan().renewal, startsNow: true, target: { id: "t-2", label: "Second Term 2025/2026", start: "2026-10-24T00:00:00.000Z", end: "2027-04-08T00:00:00.000Z" }, accepted: 0, leavers: 0, suggest: 185 },
+  });
+
+  it("pays for the term the school is in, rather than booking the next one", () => {
+    const html = markup(planTab(trial(), credits()));
+    expect(html).toContain("Pay for Second Term");
+    expect(html).toContain("You are not booked for the next term");
+    expect(html).not.toContain("Renew for Third Term");
+  });
+
+  it("lets the school choose its plan as it pays, and says it starts today", () => {
+    const spec = renewDrawer(trial());
+    expect(spec.title).toBe("Pay for Second Term 2025/2026");
+    const choose = spec.fields?.find((field) => field.label === "Plan");
+    expect(choose && "options" in choose ? choose.options : []).toEqual(["Standard · ₦600 each", "Premium · ₦900 each", "Elite · ₦1,200 each"]);
+    expect(spec.fields?.some((field) => field.label === "Students to bill for")).toBe(true);
+    expect(spec.submit?.map).toMatchObject({ Plan: "plan", "Students to bill for": "students" });
+  });
+
+  it("keeps a paying school’s renewal exactly as it was", () => {
+    expect(renewDrawer(plan()).title).toBe("Renew for Third Term 2025/2026");
+    expect(renewDrawer(plan()).fields?.some((field) => field.label === "Plan")).toBe(false);
   });
 });
 

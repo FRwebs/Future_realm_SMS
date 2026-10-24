@@ -232,6 +232,21 @@ export type Trigger = {
   run?: () => void;
 };
 
+export type TrayItem = {
+  label: string;
+  /** Said under the shelf when this segment is lit. */
+  desc?: string;
+  count: number;
+  on?: boolean;
+  /** A dot beside the count: something here is due, or recommended. */
+  flag?: boolean;
+  flagTone?: "due" | "rec";
+  /** Name, value and whether the value is something owed — "Due", "2 required · by 12 Jan". */
+  facts?: Array<[string, string, ("due" | undefined)?]>;
+  /** The one thing to do with this section, said at the right of the line beneath. */
+  cta?: { label: string } & Trigger;
+} & Trigger;
+
 export type KpiCard = {
   label: string;
   value: string;
@@ -331,6 +346,8 @@ export type PanelAction = {
 } & Trigger;
 
 export type ListItem = {
+  /** A small date tile (month over day) in place of the state dot — for a list that is read by when. */
+  lead?: { top?: string; value: string; tone?: PanelTone };
   label: string;
   sub?: string;
   pill?: string;
@@ -891,6 +908,8 @@ export type Panel =
       acts?: PanelAction[];
       readOnly?: boolean;
       foot?: string;
+      /** Said when there is nothing in the list, rather than leaving an empty box. */
+      empty?: string;
     }
   | {
       type: "facts";
@@ -934,6 +953,11 @@ export type Panel =
   | DayStripPanel
   | SheetEntryPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
+  /**
+   * A segmented shelf: every section on one line with its count, the one you are on lit, and beneath it one line on what that section
+   * holds, what it costs and who awards it. Each segment goes to its own page, so which one is lit is the server's to say.
+   */
+  | { type: "tray"; items: TrayItem[] }
   | {
       type: "tiles";
       title: string;

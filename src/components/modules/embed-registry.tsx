@@ -21,6 +21,13 @@ const registry: Record<string, React.ComponentType<never>> = {
   "student-working": dynamic(() => import("@/components/modules/subject-comment").then((loaded) => loaded.StudentWorking as React.ComponentType<never>)) as React.ComponentType<never>,
   "lesson-player": dynamic(() => import("@/components/modules/lesson-player").then((loaded) => loaded.LessonPlayer as React.ComponentType<never>)) as React.ComponentType<never>,
   "training-checkout": dynamic(() => import("@/components/modules/training-checkout").then((loaded) => loaded.TrainingCheckout as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-now": dynamic(() => import("@/components/portals/student/student-now").then((loaded) => loaded.StudentNow as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-week": dynamic(() => import("@/components/portals/student/student-week").then((loaded) => loaded.StudentWeek as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-subjects": dynamic(() => import("@/components/portals/student/student-subjects").then((loaded) => loaded.StudentSubjects as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-calendar": dynamic(() => import("@/components/portals/student/student-calendar").then((loaded) => loaded.StudentCalendar as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-inbox": dynamic(() => import("@/components/portals/student/student-inbox").then((loaded) => loaded.StudentInbox as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-prefs": dynamic(() => import("@/components/portals/student/student-prefs").then((loaded) => loaded.StudentPrefs as React.ComponentType<never>)) as React.ComponentType<never>,
+  "student-attendance": dynamic(() => import("@/components/portals/student/student-attendance").then((loaded) => loaded.StudentAttendance as React.ComponentType<never>)) as React.ComponentType<never>,
   "message-composer": dynamic(() => import("@/components/modules/message-composer").then((loaded) => loaded.MessageComposer as React.ComponentType<never>)) as React.ComponentType<never>,
 };
 

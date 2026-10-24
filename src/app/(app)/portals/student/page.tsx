@@ -1,18 +1,10 @@
-import { AccessDenied } from "@/components/feedback/access-denied";
-import { StudentPortalDashboard } from "@/components/portals/student-portal-dashboard";
-import { apiGet } from "@/lib/api/server";
-import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
-import { getServerSession } from "@/lib/auth/session";
-import { StudentPortalView } from "@/lib/domain/types";
+import type { Metadata } from "next";
 
-export default async function StudentPortalPage() {
-  const session = await getServerSession();
-  if (!session) return null;
-  if (!canAccessPath(session.role, "/portals/student")) {
-    return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
-  }
+import { StudentView } from "@/components/portals/student/student-view";
 
-  const portal = await apiGet<StudentPortalView>("/api/v1/student-portal/dashboard");
+export const metadata: Metadata = { title: "Today" };
 
-  return <StudentPortalDashboard portal={portal} />;
+export default async function StudentTodayPage({ searchParams }: { searchParams?: Promise<Record<string, string | string[] | undefined>> }) {
+  const query = Object.fromEntries(Object.entries((await searchParams) ?? {}).map(([key, value]) => [key, Array.isArray(value) ? value[0] : value]));
+  return <StudentView page="today" query={query} />;
 }
