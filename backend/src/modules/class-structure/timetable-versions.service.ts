@@ -16,6 +16,7 @@ import {
   type PeriodInfo
 } from "../../../../src/lib/modules/timetable-periods";
 import { armDisplayName, stageOf } from "./class-structure.service";
+import { notifyStudents } from "../student-portal/student-notify";
 
 export { buildPeriods, clashesIn };
 export type { Cell, Grid, PeriodInfo };
@@ -772,6 +773,11 @@ export class TimetableVersionsService {
             body: `${detail}${parsed.note ? `\n\n${parsed.note}` : ""}`
           }
         });
+        // The students on the arms it covers are told one by one, as each has chosen to be told about timetable changes.
+        if (choice === "students") {
+          const students = await prisma.student.findMany({ where: { schoolId, status: "ACTIVE", userId: { not: null }, currentClassId: { in: classIds } }, select: { userId: true } });
+          await notifyStudents(schoolId, students.map((student) => ({ userId: student.userId!, kind: "timetable" as const, title: `A new timetable is running: ${version.name}`, body: detail, meta: { kind: "TIMETABLE_PUBLISHED", versionId: id } })));
+        }
         announced = true;
       }
     }
