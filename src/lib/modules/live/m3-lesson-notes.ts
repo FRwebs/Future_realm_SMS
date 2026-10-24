@@ -81,7 +81,7 @@ export async function lessonNotesTab(): Promise<TabContent> {
 
   const waitingRows: TableRow[] = waiting.map((entry) => ({
     id: entry.planId ?? entry.id,
-    href: entry.planId ? `/lesson-notes/review/${entry.planId}` : undefined,
+    href: entry.planId ? `/lesson-notes/review/${entry.planId}?from=class-timetable` : undefined,
     keywords: `${entry.subject} ${entry.teacher} ${entry.topic} ${entry.arms.join(" ")}`,
     cells: [
       text(entry.subject, { strong: true }),
@@ -89,7 +89,7 @@ export async function lessonNotesTab(): Promise<TabContent> {
       { kind: "name", name: `Week ${entry.week} · ${entry.topic}`, sub: entry.resubmitted ? "Resubmitted after rework" : "First submission", avatar: false },
       text(entry.teacher),
       text(days(entry.age), entry.age > 5 ? { strong: true, tone: "attention" } : undefined),
-      { kind: "action", label: entry.canSign ? "Review" : "Read", href: entry.planId ? `/lesson-notes/review/${entry.planId}` : undefined }
+      { kind: "action", label: entry.canSign ? "Review" : "Read", href: entry.planId ? `/lesson-notes/review/${entry.planId}?from=class-timetable` : undefined }
     ]
   }));
 
@@ -103,7 +103,7 @@ export async function lessonNotesTab(): Promise<TabContent> {
         type: "kpi", title: `${review.term.name} ${review.term.session} · ${week}`, per: 5,
         cards: [
           { label: "Signed to date", value: `${pct(signed, due.length)}%`, sub: `${signed.toLocaleString()} of ${due.length.toLocaleString()} notes due by now`, tone: pct(signed, due.length) >= 85 ? "positive" : "attention", icon: "check" },
-          { label: "Waiting for review", value: String(waiting.length), sub: waiting.length ? `Oldest ${waiting[0]!.age} ${waiting[0]!.age === 1 ? "day" : "days"}` : "Nothing waiting", tone: waiting.length ? "submitted" : "positive", icon: "inbox", ...(waiting[0]?.planId ? { link: "Review the oldest", href: `/lesson-notes/review/${waiting[0].planId}` } : {}) },
+          { label: "Waiting for review", value: String(waiting.length), sub: waiting.length ? `Oldest ${waiting[0]!.age} ${waiting[0]!.age === 1 ? "day" : "days"}` : "Nothing waiting", tone: waiting.length ? "submitted" : "positive", icon: "inbox", ...(waiting[0]?.planId ? { link: "Review the oldest", href: `/lesson-notes/review/${waiting[0].planId}?from=class-timetable` } : {}) },
           { label: "Sent back for rework", value: String(back.length), sub: "With the teacher", tone: back.length ? "negative" : "positive", icon: "undo" },
           { label: "Overdue", value: String(late.length), sub: "Taught weeks with no note", tone: late.length ? "attention" : "positive", icon: "hourglass" },
           { label: "Arms up to date", value: String(upToDate), unit: `of ${armList.length}`, sub: "Nothing overdue or sent back", tone: armList.length && upToDate === armList.length ? "positive" : "neutral", icon: "board" }

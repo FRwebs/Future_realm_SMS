@@ -6,7 +6,9 @@ import { toneOf } from "@/lib/modules/tones";
 type PartView = { name: string; value: string; max: string; pending: boolean; fill: string };
 export type SubjectCard = {
   id: string; name: string; abbr: string; teacher: string; swatch: [string, string, string]; flag: { label: string; tone: "negative" | "attention" } | null;
-  topic: string | null; open: string; parts: PartView[]; foot: string; drawer: DrawerSpec; scheme: DrawerSpec;
+  topic: string | null; open: string; parts: PartView[]; foot: string; drawer: DrawerSpec; scheme: DrawerSpec | null;
+  /** A past term's total, as published: it replaces the line about this week's topic. */
+  final?: { value: string; sub: string };
 };
 export type SubjectsProps = { groups: Array<{ label: string; cards: SubjectCard[] }>; openDrawer?: (spec: DrawerSpec) => void };
 
@@ -39,10 +41,17 @@ export function StudentSubjects({ groups, openDrawer }: SubjectsProps) {
                   </span>
                   {card.flag ? <span className="flex-none rounded-full border px-[8px] py-[2.5px] text-[10px] font-semibold" style={{ background: toneOf(card.flag.tone).bg, color: toneOf(card.flag.tone).fg, borderColor: toneOf(card.flag.tone).bd }}>{card.flag.label}</span> : null}
                 </div>
-                <div className="flex items-baseline justify-between gap-[8px] rounded-[9px] px-[10px] py-[7px]" style={{ background: "#F7FAF8" }}>
-                  <span className="min-w-0 truncate text-[11px]" style={{ color: card.topic ? "#0D2315" : "#8C9A92" }}>{card.topic ? <><span style={{ color: "#67766D" }}>This week · </span>{card.topic}</> : "No topic posted this week"}</span>
-                  {card.open ? <span className="flex-none text-[10px] font-semibold" style={{ color: "#8A6410" }}>{card.open}</span> : null}
-                </div>
+                {card.final ? (
+                  <div className="flex items-baseline justify-between gap-[8px] rounded-[9px] px-[10px] py-[7px]" style={{ background: "#F7FAF8" }}>
+                    <span className="text-[17px] font-extrabold tabular-nums" style={{ color: "#0D2315" }}>{card.final.value}</span>
+                    <span className="min-w-0 truncate text-[10.5px]" style={{ color: "#67766D" }}>{card.final.sub}</span>
+                  </div>
+                ) : (
+                  <div className="flex items-baseline justify-between gap-[8px] rounded-[9px] px-[10px] py-[7px]" style={{ background: "#F7FAF8" }}>
+                    <span className="min-w-0 truncate text-[11px]" style={{ color: card.topic ? "#0D2315" : "#8C9A92" }}>{card.topic ? <><span style={{ color: "#67766D" }}>This week · </span>{card.topic}</> : "No topic posted this week"}</span>
+                    {card.open ? <span className="flex-none text-[10px] font-semibold" style={{ color: "#8A6410" }}>{card.open}</span> : null}
+                  </div>
+                )}
                 <div className="grid gap-[6px]" style={{ gridTemplateColumns: `repeat(${Math.max(card.parts.length, 1)}, minmax(0, 1fr))` }}>
                   {card.parts.map((part) => (
                     <div key={part.name} className="min-w-0">
@@ -57,7 +66,7 @@ export function StudentSubjects({ groups, openDrawer }: SubjectsProps) {
                 </div>
                 <div className="flex items-center justify-between gap-[8px] border-t pt-[9px]" style={{ borderColor: "#EDF3EF" }}>
                   <span className="text-[10.5px]" style={{ color: "#67766D" }}>{card.foot}</span>
-                  <button type="button" onClick={(event) => { event.stopPropagation(); openDrawer?.(card.scheme); }} className="text-[10.5px] font-semibold hover:underline" style={{ color: "#12796A" }}>Scheme of work</button>
+                  {card.scheme ? <button type="button" onClick={(event) => { event.stopPropagation(); openDrawer?.(card.scheme!); }} className="text-[10.5px] font-semibold hover:underline" style={{ color: "#12796A" }}>Scheme of work</button> : null}
                 </div>
               </article>
             ))}

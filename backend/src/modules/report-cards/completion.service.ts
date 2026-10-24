@@ -14,6 +14,7 @@ import { mean, round1 } from "../score-results/scores.shared";
 import { armState, cardReference, childCards, loadPolicy, owingStudents, sumState } from "./cards.shared";
 import { CardService } from "./card.service";
 import { RemarksService } from "./remarks.service";
+import { notifyStudents, type StudentNotice } from "../student-portal/student-notify";
 
 /**
  * Completion answers "which arms can I send out" — a card is generated for a child but published for an
@@ -140,6 +141,7 @@ export class CompletionService {
     let published = 0;
     const skipped = { blocked: 0, owed: 0, inReview: 0, withheld: 0, already: 0, fees: 0 };
     const cardIds: string[] = [];
+    const studentNotices: StudentNotice[] = [];
     const stamp = new Date();
     for (const arm of arms) {
       await syncResultSheets(schoolId, term, arm.room.id, session.userId);
@@ -171,6 +173,8 @@ export class CompletionService {
             await prisma.resultApproval.create({ data: { schoolId, resultSheetId: sheet.id, actorId: session.userId, action: "PUBLISH", fromStatus: sheet.status, toStatus: "PUBLISHED", note: "Report card published." } });
           }
           for (const link of links) await notifyGuardian(schoolId, link.guardianId, "Report card published", `${data.studentName}'s ${term.name} report card is now in the guardian portal.`, ["In-app"]);
+          const own = await prisma.student.findUnique({ where: { id: child.id }, select: { userId: true } });
+          if (own?.userId) studentNotices.push({ userId: own.userId, kind: "results", title: "Your report card is out", body: `Your ${term.name} report card is ready to read in Results.`, meta: { kind: "REPORT_CARD_PUBLISHED", cardId: card.id } });
           cardIds.push(card.id);
           published += 1;
           armPublished += 1;
@@ -178,6 +182,7 @@ export class CompletionService {
       }
       if (armPublished) await prisma.resultPublication.create({ data: { schoolId, termId: term.id, classId: arm.room.id, publishedById: session.userId, resultCount: armPublished, note: "Report cards published" } });
     }
+    await notifyStudents(schoolId, studentNotices);
     const skippedTotal = Object.values(skipped).reduce((sum, value) => sum + value, 0) - skipped.already;
     if (!published) throw new BadRequestException(skipped.already && !skippedTotal ? "Those cards have all been published already." : `Nothing is ready to publish. ${skipped.blocked ? `${skipped.blocked} blocked on scores · ` : ""}${skipped.owed ? `${skipped.owed} remarks owed · ` : ""}${skipped.inReview ? `${skipped.inReview} awaiting review` : ""}`.replace(/ · $/, ""));
     const label = scope.arms.length === 1 ? arms[0].room.name : scope.level ?? "the whole school";

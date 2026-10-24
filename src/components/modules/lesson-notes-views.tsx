@@ -36,7 +36,7 @@ export const SubjectNotesView = ({ subjectId, term }: { subjectId: string; term?
 export const NoteView = ({ subjectId, week, term }: { subjectId: string; week: string; term?: string }) => open(() => notePage(subjectId, week, term));
 export const HistoryView = ({ subjectId }: { subjectId: string }) => open(() => historyPage(subjectId));
 export const HistoryNoteView = ({ subjectId, planId }: { subjectId: string; planId: string }) => open(() => historyNotePage(subjectId, planId));
-export const ReviewNoteView = ({ planId }: { planId: string }) => open(() => reviewNotePage(planId));
+export const ReviewNoteView = ({ planId, from }: { planId: string; from?: string }) => open(() => reviewNotePage(planId, from));
 
 /** Load a curriculum's outlines for this school from Excel. */
 export async function CatalogueImportView() {

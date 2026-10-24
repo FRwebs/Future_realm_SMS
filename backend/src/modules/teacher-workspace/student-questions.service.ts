@@ -4,6 +4,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
+import { notifyStudents } from "../student-portal/student-notify";
 
 /**
  * What students have asked this person, and what was said back. A student's question is an in-app message to one teacher; the answer is one
@@ -49,9 +50,9 @@ export class TeacherStudentQuestionsService {
     const subject = original.subject.startsWith("Re:") ? original.subject : `Re: ${original.subject}`;
     const [message] = await prisma.$transaction([
       prisma.internalMessage.create({ data: { schoolId: session.schoolId, senderId: session.userId, recipientId: original.senderId, subject, body: parsed.data.text } }),
-      prisma.internalMessage.update({ where: { id: original.id }, data: { readAt: original.readAt ?? new Date() } }),
-      prisma.notificationLog.create({ data: { schoolId: session.schoolId, userId: original.senderId, channel: "IN_APP", title: `Your teacher answered: ${original.subject}`, body: parsed.data.text.slice(0, 240), status: "SENT", sentAt: new Date(), metadata: { kind: "STUDENT_QUESTION_ANSWERED", messageId: original.id } } })
+      prisma.internalMessage.update({ where: { id: original.id }, data: { readAt: original.readAt ?? new Date() } })
     ]);
+    await notifyStudents(session.schoolId, [{ userId: original.senderId, kind: "messages", title: `Your teacher answered: ${original.subject}`, body: parsed.data.text.slice(0, 240), meta: { kind: "STUDENT_QUESTION_ANSWERED", messageId: original.id } }]);
     return { id: message.id };
   }
 

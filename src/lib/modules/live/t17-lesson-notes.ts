@@ -287,10 +287,10 @@ function reviewTab(v: Review): TabContent {
   };
 }
 
-export async function reviewNotePage(planId: string): Promise<Page> {
+export async function reviewNotePage(planId: string, from?: string): Promise<Page> {
   const note = await loadReviewNote(planId);
   return {
-    crumb: { label: "Back to Review", href: "/lesson-notes/review" },
+    crumb: from === "class-timetable" ? { label: "Back to Lesson notes", href: "/class-timetable/lesson-notes" } : { label: "Back to Review", href: "/lesson-notes/review" },
     title: `${note.topic} · week ${note.week}`, desc: `${note.subject} · ${note.arms.join(", ")} · written by ${note.teacher}.`,
     rows: [embed("note-reader", { data: { id: note.id, subject: note.subject, topic: note.topic, week: note.week, term: note.term, version: note.version, arms: note.arms, teacher: note.teacher, state: note.state, sections: note.sections, text: note.text, thread: note.thread, letterhead: note.letterhead, review: { own: note.own, canSign: note.canSign, resubmitReply: note.resubmitReply }, back: { label: "Review", href: "/lesson-notes/review" } } })],
   };

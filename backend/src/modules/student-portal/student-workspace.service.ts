@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { DEFAULT_QUIET_HOURS } from "./student-notify";
 import { resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 
@@ -384,7 +385,7 @@ export class StudentWorkspaceService {
   async prefs(session: SessionPayload) {
     this.assert(session);
     const prefs = await this.readPrefs(session);
-    return { matrix: prefs.matrix ?? {}, quiet: prefs.quiet ?? "21:00 – 07:00", remind: prefs.remind ?? "The day before" };
+    return { matrix: prefs.matrix ?? {}, quiet: prefs.quiet ?? DEFAULT_QUIET_HOURS, remind: prefs.remind ?? "The day before" };
   }
 
   async savePrefs(session: SessionPayload, body: unknown) {

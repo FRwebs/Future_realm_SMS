@@ -59,8 +59,47 @@ export async function timetablePage(query: Record<string, string | undefined>): 
 const SWATCH: Array<[string, string, string]> = [["#EAF6F0", "#17714F", "#CFE4DB"], ["#EBF1FA", "#2A5A96", "#DCE7F5"], ["#FDF6E7", "#8A6410", "#F2E4C6"], ["#EEEDFA", "#4A44A0", "#E1DFF4"], ["#FBF2EC", "#94553A", "#F0DDD0"], ["#F0F4FC", "#3A4E86", "#DBE3F3"], ["#F5F0FA", "#6B4E9E", "#E7DDF2"]];
 const abbr = (name: string) => { const words = name.split(/\s+/).filter(Boolean); return (words.length > 1 ? words.map((word) => word[0]).join("").slice(0, 3) : name.slice(0, 3)).toUpperCase(); };
 
-export async function subjectsPage(): Promise<StudentContent> {
-  const [me, data, tt] = await Promise.all([loadMe(), loadSubjects(), loadTimetable()]);
+/** What a past term's subjects looked like, from the report card the school published for it — every mark final. */
+async function pastSubjects(me: Me, cardId: string, tabs: NonNullable<StudentContent["tabs"]>, tab: string): Promise<StudentContent | null> {
+  const { cards } = await loadCards();
+  const card = cards.find((entry) => entry.id === cardId);
+  if (!card) return null;
+  const subjectCards = card.subjects.map((subject, index) => ({
+    id: subject.id, name: subject.name, abbr: abbr(subject.name), teacher: subject.position ? `${ord(subject.position)} of ${subject.of} in ${card.arm}` : card.arm, swatch: SWATCH[index % SWATCH.length]!,
+    flag: null, topic: null, open: "", final: { value: num(subject.total), sub: `${subject.grade}${subject.classAverage === null ? "" : ` · class average ${num(subject.classAverage)}`}` },
+    parts: subject.parts.map((part) => ({ name: part.name, value: num(part.score), max: String(part.max), pending: false, fill: `${Math.min(100, Math.round((part.score / part.max) * 100))}%` })),
+    foot: `Published ${dLong(card.published)}`, drawer: traceDrawer(card, subject, me), scheme: null,
+  }));
+  const best = [...card.subjects].sort((a, b) => b.total - a.total)[0];
+  return {
+    eyebrow: `${card.arm} · ${card.term} ${card.session}`, title: "Subjects", tabs, tab,
+    desc: `What you studied in ${card.arm} that term. Every mark is final, exactly as published on ${dLong(card.published)}.`,
+    rows: [
+      row("1fr", [{
+        type: "kpi", per: 5,
+        cards: [
+          { label: "Class and arm", value: card.arm, sub: me.formMaster ? `Form master ${me.formMaster.name}` : "", icon: "people" },
+          { label: "Subjects that term", value: String(card.subjects.length), sub: "As published", icon: "layers" },
+          { label: "Term average", value: num(card.average), sub: card.grade ? `Overall grade ${card.grade}` : "", tone: "progress", icon: "bars" },
+          { label: "Position in arm", value: card.position ? `${ord(card.position)} of ${card.size}` : "—", sub: best ? `Best: ${best.name}` : "", tone: "positive", icon: "star" },
+          { label: "Attendance", value: `${card.attendance.present} of ${card.attendance.days}`, sub: "Days present that term", icon: "calendar" },
+        ],
+      }]),
+      row("1fr", [{ type: "embed", component: "student-subjects", props: { groups: [{ label: "All subjects", cards: subjectCards }] } }]),
+    ],
+  };
+}
+
+export async function subjectsPage(query: Record<string, string | undefined> = {}): Promise<StudentContent> {
+  const [me, data, tt, past] = await Promise.all([loadMe(), loadSubjects(), loadTimetable(), loadCards()]);
+  const thisTerm = me.term ? `${me.term.name} so far` : "This term";
+  const tabs = [{ label: thisTerm }, ...past.cards.map((card) => ({ label: `${card.term} ${card.session}` }))];
+  const tab = tabs.some((entry) => entry.label === query.tab) ? query.tab! : thisTerm;
+  if (tab !== thisTerm) {
+    const chosen = past.cards.find((card) => `${card.term} ${card.session}` === tab);
+    const built = chosen ? await pastSubjects(me, chosen.id, tabs, tab) : null;
+    if (built) return built;
+  }
   const week = me.term?.week ?? 0;
   const core = data.subjects.filter((subject) => subject.core);
   const rest = data.subjects.filter((subject) => !subject.core);
@@ -93,7 +132,7 @@ export async function subjectsPage(): Promise<StudentContent> {
 
   const groups = [{ label: core.length && rest.length ? "Compulsory" : "All subjects", cards: core.map((subject, index) => card(subject, index)) }, { label: "Electives", cards: rest.map((subject, index) => card(subject, index + core.length)) }].filter((group) => group.cards.length);
   return {
-    eyebrow: `${me.level}${me.stream ? ` · ${me.stream}` : ""}`, title: "Subjects", desc: "A mark shows as soon as your teacher releases it; until then it reads Pending. Open a subject for its topics and your work, or its scheme of work.",
+    eyebrow: `${me.level}${me.stream ? ` · ${me.stream}` : ""}`, title: "Subjects", tabs: tabs.length > 1 ? tabs : undefined, tab: thisTerm, desc: "A mark shows as soon as your teacher releases it; until then it reads Pending. Open a subject for its topics and your work, or its scheme of work.",
     rows: [
       row("1fr", [{
         type: "kpi", per: 5,
