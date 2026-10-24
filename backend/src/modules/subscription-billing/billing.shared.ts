@@ -144,7 +144,8 @@ export const termLabelOf = (term: { name: string; academicSession?: { name: stri
  */
 export async function billingTarget(schoolId: string, onTrial: boolean) {
   const { current, next } = await nextTerm(schoolId);
-  if (onTrial && current) {
+  // A term that has already ended is not one to start paying for today: a trial school whose "current" term is over is billed for the next one.
+  if (onTrial && current && current.endDate.getTime() >= Date.now()) {
     const paid = await prisma.platformInvoice.findFirst({ where: { schoolId, status: "PAID", metadata: { path: ["termLabel"], equals: termLabelOf(current) } } });
     if (!paid) return { term: current, startsNow: true, current, next };
   }
