@@ -1,7 +1,8 @@
 import { SW } from "@/lib/api/student-workspace";
+import { apiGet } from "@/lib/api/server";
 import { askDrawer, dLong, loadAskable, loadMe, loadPrefs } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
-import type { DrawerSpec } from "@/lib/modules/panels";
+import type { DrawerSpec, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
 
 /* ───────────────────────── profile ───────────────────────── */
@@ -70,7 +71,7 @@ export async function notificationsPage(): Promise<StudentContent> {
 /* ───────────────────────── account ───────────────────────── */
 
 export async function accountPage(): Promise<StudentContent> {
-  const me = await loadMe();
+  const [me, sec] = await Promise.all([loadMe(), apiGet<{ mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`)]);
   const change: DrawerSpec = {
     kicker: "Account", title: "Change your password", mode: "form", sub: "Use at least eight characters. You stay signed in here; other devices are asked to sign in again.",
     fields: [
@@ -80,17 +81,27 @@ export async function accountPage(): Promise<StudentContent> {
     commitLabel: "Update password", commitDone: "Password changed", commitDoneBody: "Use the new one next time you sign in.",
     submit: { endpoint: "/api/v1/profile/me/password", method: "PATCH", map: { "Current password": "currentPassword", "New password": "newPassword" } },
   };
+  const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+  const rows: TableRow[] = sec.signIns.map((entry) => ({
+    cells: [
+      { kind: "name", name: entry.device, sub: entry.where || "Place not known", avatar: false }, { kind: "text", text: when(entry.at) },
+      { kind: "pill", label: entry.success ? (entry.newDevice ? "New device" : "Signed in") : "Did not get in", tone: entry.success ? (entry.newDevice ? "attention" : "positive") : "negative" },
+    ],
+  }));
   return {
-    eyebrow: "Settings", title: "Account and security", desc: "Your sign-in and your password.",
+    eyebrow: "Settings", title: "Account and security", desc: "Your sign-in, your password and two-step sign-in.",
     primary: { label: "Change password", drawer: change },
     rows: [
       row("1fr", [{
         type: "facts", title: "Signing in", per: 3,
         facts: [
           ["User ID", me.admissionNumber], ["School email", me.email ?? "—"], ["Account", "Created by your school", `Enrolled ${dLong(me.enrolled)}`],
+          ["Password", sec.passwordChangedAt ? `Changed ${dLong(sec.passwordChangedAt.slice(0, 10))}` : "Set by your school", "Change it from the button above"],
+          ["Two-step sign-in", sec.mfaEnabled ? "On" : "Off", sec.mfaEnrolledAt ? `Since ${dLong(sec.mfaEnrolledAt.slice(0, 10))}` : "Not set up"],
         ],
       }]),
-      row("1fr", [{ type: "note", tone: "progress", title: "Keep your account yours", body: "Choose a password nobody could guess, never share it, and sign out on a computer that is not yours. If you think someone else knows it, change it here — and tell your form master." }]),
+      row("1fr", [{ type: "embed", component: "student-two-step", props: { enabled: sec.mfaEnabled, since: sec.mfaEnrolledAt } }]),
+      row("1fr", [{ type: "table", title: "Recent sign-ins", sub: "The last times this account was signed in to. If one is not you, change your password and tell your form master.", noun: "sign-in", nounPlural: "sign-ins", head: ["Device", "When", "Result"], rows, per: 12, dense: true, noRowOpen: true, empty: "No sign-ins are on record yet." }]),
     ],
   };
 }

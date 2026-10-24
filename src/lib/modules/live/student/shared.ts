@@ -20,7 +20,7 @@ export type SubjectRow = { id: string; name: string; code: string; core: boolean
 export type Subjects = { components: Array<{ id: string; code: string; name: string; weight: number; max: number }>; subjects: SubjectRow[] };
 export type Work = {
   id: string; title: string; description: string; subject: string; subjectId: string; teacher: string; teacherId: string; set: string; due: string; dueAt: string; state: "todo" | "overdue" | "handed" | "marked";
-  attachmentUrl: string | null; handedAt: string | null; late: boolean; comment: string | null; score: number | null; feedback: string | null; markedAt: string | null;
+  attachmentUrl: string | null; out: number; handedAt: string | null; late: boolean; comment: string | null; score: number | null; feedback: string | null; markedAt: string | null;
 };
 export type Assignments = { items: Work[] };
 export type AttendanceData = {
@@ -79,7 +79,7 @@ export function dueText(work: Pick<Work, "due" | "state">, today: string): strin
   return dDow(work.due);
 }
 export function workPill(work: Work, today: string): [string, PanelTone] {
-  if (work.state === "marked") return [work.score === null ? "Marked" : `${num(work.score)}%`, work.score !== null && work.score >= 75 ? "positive" : "progress"];
+  if (work.state === "marked") return [work.score === null ? "Marked" : `${num(work.score)} / ${num(work.out)}`, work.score !== null && work.score / work.out >= 0.75 ? "positive" : "progress"];
   if (work.state === "handed") return [work.late ? "Handed in late" : "Handed in", "submitted"];
   if (work.state === "overdue") return [dueText(work, today), "negative"];
   const gap = daysBetween(today, work.due);

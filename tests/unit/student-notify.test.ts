@@ -39,3 +39,31 @@ describe("a student’s calendar feed", () => {
     expect(feed).toContain("DTEND;VALUE=DATE:20261107");
   });
 });
+
+import { deviceName } from "../../backend/src/modules/student-portal/student-workspace.service";
+
+describe("a sign-in's device", () => {
+  it("is named the way a person would name it", () => {
+    expect(deviceName("Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/152.0.7977.167 Safari/537.36")).toBe("Chrome on Mac");
+    expect(deviceName("Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 Chrome/126.0 Mobile Safari/537.36")).toBe("Chrome on Android");
+    expect(deviceName("Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 Version/17.0 Mobile/15E148 Safari/604.1")).toBe("Safari on iPhone or iPad");
+    expect(deviceName(null)).toBe("Unknown device");
+  });
+});
+
+import { isForStudents } from "../../backend/src/modules/student-portal/student-notify";
+
+describe("who a notice is for", () => {
+  it("is a student’s when it says students, everyone, the school or their own arm", () => {
+    expect(isForStudents("Students")).toBe(true);
+    expect(isForStudents("All school")).toBe(true);
+    expect(isForStudents("SSS 3 - C", "sss 3 - c")).toBe(true);
+    expect(isForStudents("Students and parents")).toBe(true);
+  });
+  it("is never a student’s when it names someone else", () => {
+    expect(isForStudents("All staff")).toBe(false);
+    expect(isForStudents("Teachers and staff")).toBe(false);
+    expect(isForStudents("Parents and guardians")).toBe(false);
+    expect(isForStudents("The whole school's teachers")).toBe(false);
+  });
+});

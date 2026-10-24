@@ -21,6 +21,11 @@ export class StudentWorkspaceController {
     return { ok: true, data: await this.workspace.me(session) };
   }
 
+  @Get("security")
+  async security(@CurrentSession() session: SessionPayload) {
+    return { ok: true, data: await this.workspace.security(session) };
+  }
+
   @Get("calendar-link")
   async calendarLink(@CurrentSession() session: SessionPayload) {
     return { ok: true, data: await this.workspace.calendarLink(session) };

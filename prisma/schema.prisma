@@ -2993,6 +2993,8 @@ model Assignment {
   description   String?
   dueAt         DateTime
   attachmentUrl String?
+  /// What a full mark is. Homework is marked out of this, never out of an assumed 100.
+  maxScore      Float                  @default(100)
   status        AssignmentStatus       @default(PUBLISHED)
   createdAt     DateTime               @default(now())
   updatedAt     DateTime               @updatedAt
