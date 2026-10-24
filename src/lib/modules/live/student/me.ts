@@ -61,7 +61,7 @@ export async function notificationsPage(): Promise<StudentContent> {
       props: {
         base: SW, categories: CATEGORIES, channels: CHANNELS, matrix: prefs.matrix, defaults: Object.fromEntries(CATEGORIES.map((category) => [`${category.key}:Email`, category.key !== "timetable"])),
         quiet: prefs.quiet, remind: prefs.remind, quietOptions: ["None", "21:00 – 07:00", "22:00 – 06:00"], remindOptions: ["The day before", "Two days before", "No reminder"],
-        foot: `Email goes to ${me.email ?? "your school email"}. Email follows these choices for homework, marks, report cards, school announcements and your teachers’ answers. Timetable changes reach you in-app for now.`,
+        foot: `Email goes to ${me.email ?? "your school email"}. Email follows these choices for homework, marks, report cards, school announcements, new timetables and your teachers’ answers.`,
       },
     }])],
   };
