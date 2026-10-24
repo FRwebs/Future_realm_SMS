@@ -1,7 +1,15 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from "@nestjs/common";
+import type { Response } from "express";
 import { ApiTags } from "@nestjs/swagger";
 
-import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import {
+  CSRF_COOKIE_NAME,
+  SESSION_COOKIE_NAME,
+  createSessionToken,
+  getCookieOptions,
+  verifySessionToken,
+  type SessionPayload,
+} from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
@@ -31,8 +39,29 @@ export class ProfileController {
   @Patch("profile/me/password")
   @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
   @RequirePermission("profiles.change_password_self")
-  changePassword(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
-    return this.profileService.ok(this.profileService.changeMyPassword(session, body), "Password changed.");
+  async changePassword(
+    @CurrentSession() session: SessionPayload,
+    @Body() body: unknown,
+    @Res({ passthrough: true }) response: Response,
+  ) {
+    const result = await this.profileService.changeMyPassword(session, body);
+    // Every device signed in with the old password is turned away from here on,
+    // because the session guard refuses a token minted before the change. This
+    // one made the change, so it is handed a token minted after it — which is
+    // what "you stay signed in here" on the account page means.
+    // A fresh token is minted from who they are, not from the old token's dates.
+    const token = await createSessionToken({
+      userId: session.userId,
+      schoolId: session.schoolId,
+      role: session.role,
+      email: session.email,
+      name: session.name,
+      csrfToken: session.csrfToken,
+    } as Parameters<typeof createSessionToken>[0]);
+    const refreshed = await verifySessionToken(token);
+    response.cookie(SESSION_COOKIE_NAME, token, getCookieOptions(true));
+    if (refreshed) response.cookie(CSRF_COOKIE_NAME, refreshed.csrfToken, getCookieOptions(false));
+    return this.profileService.ok(Promise.resolve(result), "Password changed.");
   }
 
   @Post("profile/me/mfa/setup")
