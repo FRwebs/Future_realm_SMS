@@ -65,6 +65,7 @@ import type {
   StudentPortalNotificationView,
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
+import type { StudentChrome } from "@/lib/api/student-workspace";
 import { cn } from "@/lib/utils/cn";
 
 type TopbarProps = {
@@ -83,6 +84,7 @@ type TopbarProps = {
   theme?: "default" | "finance-dark" | "finance-light";
   onToggleTheme?: () => void;
   currentThemeMode?: "dark" | "light";
+  studentChrome?: StudentChrome | null;
 };
 
 type DropdownItem = {
@@ -425,6 +427,50 @@ function NotificationBell({
   );
 }
 
+/**
+ * The lesson running now, and the one after it.
+ *
+ * This is the student portal's whole top bar on the left: a pill that is lit
+ * while a lesson is running and grey when none is, then the next lesson in
+ * plain text. It is the question a student actually has at any moment of the
+ * school day, and answering it here means they do not open the timetable to
+ * find out.
+ */
+function NowPill({ chrome }: { chrome: StudentChrome }) {
+  const live = chrome.live;
+  const running = live?.tag === "Now";
+  const swatch = running
+    ? { bg: "#EBF1FA", bd: "#DCE7F5", dot: "#22A06B" }
+    : { bg: "#F2F7F4", bd: "#E4EDE8", dot: "#9FB8A7" };
+  if (!live) return null;
+  const tagInk = running ? "#2A5A96" : "#5F6E65";
+  return (
+    <>
+      <Link
+        href="/portals/student/timetable"
+        className="flex min-w-0 max-w-[72%] flex-none items-center gap-[7px] rounded-full border py-[5px] pl-[10px] pr-[12px] transition-colors hover:border-[#BFDCD1]"
+        style={{ background: swatch.bg, borderColor: swatch.bd }}
+      >
+        <span
+          className="h-[7px] w-[7px] flex-none rounded-full"
+          style={{ background: swatch.dot, boxShadow: running ? "0 0 0 3px rgba(34,160,107,0.18)" : undefined }}
+        />
+        <span className="flex-none text-[10px] font-extrabold uppercase tracking-[0.08em]" style={{ color: tagInk }}>
+          {live.tag}
+        </span>
+        <span className="min-w-0 truncate text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>
+          {live.text}
+        </span>
+      </Link>
+      {chrome.next ? (
+        <span className="hidden min-w-0 flex-[1_1_auto] truncate text-[11px] md:block" style={{ color: "#67766D" }}>
+          {chrome.next}
+        </span>
+      ) : null}
+    </>
+  );
+}
+
 /** Only the head of the school may send to every family at once. */
 function canBroadcast(session: SessionUser) {
   return ["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL"].includes(session.role);
@@ -744,6 +790,7 @@ export function Topbar({
   platformStats,
   onToggleTheme,
   currentThemeMode,
+  studentChrome,
 }: TopbarProps) {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -808,12 +855,19 @@ export function Topbar({
             <Menu className="h-4 w-4" />
           </button>
 
+          {/* A student already knows the school's name, its address and the
+              term — all three are at the foot of their rail. What they ask is
+              which lesson is running and what follows it, so the mockup gives
+              the top bar over to that. */}
+          {studentChrome ? <NowPill chrome={studentChrome} /> : null}
+
           {portalType === "super_admin" ? (
             <span className="hidden h-8 w-8 shrink-0 items-center justify-center rounded-[10px] bg-[#0d2315] text-[0.68rem] font-black text-white sm:flex">
               FR
             </span>
           ) : null}
 
+          {studentChrome ? null : (
           <div className="min-w-[96px] max-w-[340px] flex-[0_1_auto]">
             <h1
               className={cn(
@@ -844,10 +898,11 @@ export function Topbar({
                 ))}
             </div>
           </div>
+          )}
 
           {/* The term is the one piece of context every screen is read against,
               so the mockup gives it its own chip rather than a meta clause. */}
-          {portalType !== "super_admin" && termChipLabel ? (
+          {portalType !== "super_admin" && termChipLabel && !studentChrome ? (
             <>
               <span className="hidden h-[22px] w-px flex-none bg-[#E6EEE9] sm:block" />
               <span
@@ -975,15 +1030,20 @@ export function Topbar({
                 aria-expanded={dropdownOpen}
                 className="flex items-center gap-2 rounded-full border border-[#DEE8E2] py-[3.5px] pl-1 pr-[10px] transition-[background,border-color] duration-150 hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
               >
-                <span className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-full bg-[#0D2315] font-[family-name:var(--font-heading)] text-[10px] font-extrabold text-white">
+                <span
+                  className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-full font-[family-name:var(--font-heading)] text-[10px] font-extrabold"
+                  style={studentChrome ? { background: "#EBF1FA", color: "#2A5A96", border: "1px solid #C9DAF0" } : { background: "#0D2315", color: "#fff" }}
+                >
                   {initials(session.name)}
                 </span>
                 <span className="hidden min-w-0 text-left sm:block">
                   <span className="block whitespace-nowrap text-[11px] font-semibold leading-[1.25] text-[var(--color-text-primary)]">
                     {session.name}
                   </span>
+                  {/* A student's class is the half of "who they are" that
+                      actually varies between two people with the same role. */}
                   <span className="block whitespace-nowrap text-[9.5px] leading-[1.25] text-[#67766D]">
-                    {roleLabels[session.role]}
+                    {studentChrome ? studentChrome.who.line : roleLabels[session.role]}
                   </span>
                 </span>
                 <ChevronDown

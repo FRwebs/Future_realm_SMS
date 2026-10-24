@@ -7,6 +7,7 @@ import { createPortal } from "react-dom";
 import { ChevronDown, FileText, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings, User, X } from "lucide-react";
 
 import { roleLabels } from "@/lib/auth/roles";
+import type { StudentChrome } from "@/lib/api/student-workspace";
 import { dropdownItemsFor } from "@/components/layout/topbar";
 import { SessionUser } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
@@ -25,6 +26,7 @@ type SidebarProps = {
   navBadges?: Record<string, number | undefined>;
   /** A badge that needs its own colour, by item id — the mockup's amber "work to do", red once any of it is late. */
   navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
+  studentChrome?: StudentChrome | null;
   hiddenNavIds?: string[];
   /** The teaching workspace's rail, when the signed-in person is a teacher. */
   teacherRail?: TeacherRail | null;
@@ -63,6 +65,7 @@ function SidebarContent({
   isMobile = false,
   navBadges,
   navBadgeTones,
+  studentChrome,
   hiddenNavIds,
   teacherRail,
 }: {
@@ -77,6 +80,7 @@ function SidebarContent({
   navBadges?: Record<string, number | undefined>;
   /** A badge that needs its own colour, by item id — the mockup's amber "work to do", red once any of it is late. */
   navBadgeTones?: Record<string, "warning" | "danger" | undefined>;
+  studentChrome?: StudentChrome | null;
   hiddenNavIds?: string[];
   teacherRail?: TeacherRail | null;
 }) {
@@ -437,6 +441,21 @@ function SidebarContent({
         </div>
       ) : null}
 
+      {/* A student's rail ends with their school, not with themselves — who
+          they are is already the chip in the top corner, and what they need
+          reminding of is which term it is and who their form master is. */}
+      {studentChrome && !collapsed ? (
+        <div className="border-t px-[13px] pb-[14px] pt-[11px]" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
+          <p className="mb-[7px] text-[9px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.55)" }}>
+            Your school
+          </p>
+          <p className="truncate text-[11px] font-semibold text-white">{studentChrome.school.name}</p>
+          <p className="mt-[2px] truncate text-[10px] font-semibold" style={{ color: "#3EE08A" }}>{studentChrome.school.term}</p>
+          <p className="mt-[2px] truncate text-[10px]" style={{ color: "rgba(255,255,255,0.6)" }}>{studentChrome.school.formMaster}</p>
+        </div>
+      ) : null}
+
+      {studentChrome ? null : (
       <div ref={accountMenuRef} className="relative border-t border-[rgba(255,255,255,0.13)] px-4 py-3.5">
         {accountMenuOpen && (
           <div
@@ -499,6 +518,7 @@ function SidebarContent({
           )}
         </button>
       </div>
+      )}
     </div>
   );
 }
@@ -513,6 +533,7 @@ export function Sidebar({
   portalType = "school",
   navBadges,
   navBadgeTones,
+  studentChrome,
   hiddenNavIds,
   teacherRail,
 }: SidebarProps) {
@@ -539,6 +560,7 @@ export function Sidebar({
           portalType={portalType}
           navBadges={navBadges}
           navBadgeTones={navBadgeTones}
+          studentChrome={studentChrome}
           hiddenNavIds={hiddenNavIds}
           teacherRail={teacherRail}
         />
@@ -556,6 +578,7 @@ export function Sidebar({
             portalType={portalType}
             navBadges={navBadges}
             navBadgeTones={navBadgeTones}
+            studentChrome={studentChrome}
             hiddenNavIds={hiddenNavIds}
             teacherRail={teacherRail}
             isMobile

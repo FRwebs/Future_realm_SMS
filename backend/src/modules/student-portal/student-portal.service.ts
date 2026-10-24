@@ -629,7 +629,12 @@ export class StudentPortalService {
     const notifications = await prisma.notificationLog.findMany({
       where: {
         schoolId: session.schoolId,
-        OR: [{ userId: session.userId }, { userId: null }]
+        // Addressed to this student and nobody else. An unaddressed notification
+        // is a school-wide one — in this product those are the admissions
+        // pipeline's, about other families' children, and a student has no
+        // business reading them. What a student is meant to see school-wide
+        // comes through announcements, which are audience-checked.
+        userId: session.userId
       },
       orderBy: { sentAt: "desc" },
       take: 40

@@ -4,7 +4,8 @@ import type { DrawerSpec, FormField, PanelTone, TabContent } from "@/lib/modules
 
 export type Me = {
   id: string; name: string; first: string; admissionNumber: string; arm: string; classId: string | null; level: string; category: string | null; stream: string | null; room: string | null;
-  gender: string; dateOfBirth: string; enrolled: string; email: string | null; formMaster: { id: string; name: string } | null;
+  gender: string; house: string | null; boarding: string; collectors: Array<{ name: string; relation: string }>;
+  dateOfBirth: string; enrolled: string; email: string | null; formMaster: { id: string; name: string } | null;
   guardian: { name: string; relationship: string | null; phone: string | null } | null; school: string;
   term: { id: string; name: string; session: string; start: string | null; end: string | null; week: number; weeks: number; onBreak: boolean } | null;
   today: string; now: string;

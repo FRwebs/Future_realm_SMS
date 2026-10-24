@@ -2,7 +2,7 @@ import { SW } from "@/lib/api/student-workspace";
 import { apiGet } from "@/lib/api/server";
 import { askDrawer, dLong, loadAskable, loadMe, loadPrefs } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
-import type { DrawerSpec, PanelTone, TableRow } from "@/lib/modules/panels";
+import type { DrawerSpec, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
 
 /* ───────────────────────── profile ───────────────────────── */
@@ -10,31 +10,41 @@ import { row } from "@/lib/modules/panels";
 export async function profilePage(): Promise<StudentContent> {
   const [me, askable] = await Promise.all([loadMe(), loadAskable()]);
   const correct = askDrawer(askable.people, { to: me.formMaster?.id, topic: "Something else", text: "Something on my record needs correcting: " });
+  // The line under the name: where they are, which house, whether they board.
+  const place = [me.arm, me.house, me.boarding, me.school].filter(Boolean).join(" · ");
+  const collectors = me.collectors.length
+    ? [me.collectors.map((person) => person.name).join(" or "), "Authorised by your parent; photo ID at the gate"]
+    : ["Nobody is on the list yet", "Your parent can add one through the school office"];
   return {
-    eyebrow: `${me.level} · ${me.admissionNumber}`, title: me.name, desc: `${me.arm}${me.stream ? ` · ${me.stream}` : ""} · ${me.school}`,
+    eyebrow: `${me.level} · ${me.admissionNumber}`, title: me.name, desc: place,
     launchers: me.formMaster ? [{ label: "Something wrong? Tell your form master", drawer: correct }] : [],
     rows: [
       row("1fr", [{
         type: "facts", title: "Your record", sub: "Held by the school registry. Only the school can change it.", per: 3,
         facts: [
           ["Full name", me.name], ["Admission number", me.admissionNumber], ["Class", `${me.arm}${me.stream ? ` · ${me.stream} stream` : ""}`],
-          ["Form master", me.formMaster?.name ?? "Not named yet"], ["Gender", me.gender ? me.gender.charAt(0) + me.gender.slice(1).toLowerCase() : "—"], ["Classroom", me.room ?? "—"],
+          ["Form master", me.formMaster?.name ?? "Not named yet"], ["House", me.house ?? "Not in a house"], ["Attendance", me.boarding],
           ["Date of birth", dLong(me.dateOfBirth)], ["Enrolled", dLong(me.enrolled)], ["School email", me.email ?? "—"],
         ],
       }]),
       row("minmax(0,1fr) minmax(0,1fr)", [
         {
           type: "facts", title: "Your parent or guardian", per: 1,
-          facts: me.guardian ? [[me.guardian.name, `${me.guardian.relationship ?? "Guardian"} · primary contact`, "The school contacts them first, about everything"]] : [["No guardian on record", "The school has no guardian recorded for you", "Ask your form master to add one"]],
+          facts: [
+            me.guardian
+              ? [me.guardian.name, `${me.guardian.relationship ?? "Guardian"} · primary contact`, "The school contacts them first, about everything"] as PanelFact
+              : ["No guardian on record", "The school has no guardian recorded for you", "Ask your form master to add one"] as PanelFact,
+            ["Collected by", collectors[0]!, collectors[1]!] as PanelFact,
+          ],
         },
         {
           type: "list", title: "What your parent sees", sub: "In the Parent Portal, set by the school.",
           items: [
             { label: "Attendance and late arrivals", sub: "Every mark, the day it is made", pill: "Shared", tone: "positive" },
-            { label: "Results and report cards", sub: "When the school publishes them, not before", pill: "Shared", tone: "positive" },
-            { label: "Timetable and this week’s lessons", sub: "The same as you see", pill: "Shared", tone: "positive" },
-            { label: "School fees", sub: "Only your parent sees these — never you", pill: "Parent only", tone: "neutral" },
-            { label: "Your messages to teachers", sub: "Between you and the teacher", pill: "Not shared", tone: "neutral" },
+            { label: "Results and report cards", sub: "When the school releases them, not before", pill: "Shared", tone: "positive" },
+            { label: "Timetable and this week’s topics", sub: "The same as you see", pill: "Shared", tone: "positive" },
+            { label: "Homework and marks", sub: "What is set, and what is late", pill: "Shared", tone: "positive" },
+            { label: "Your messages to teachers", sub: "Between you, the teacher and your form master", pill: "Not shared", tone: "neutral" },
           ],
         },
       ]),
