@@ -1,4 +1,3 @@
-import { getTabContent } from "@/lib/modules/content";
 import type { TabContent } from "@/lib/modules/panels";
 import { classTimetableLiveTab } from "@/lib/modules/live/m3-class-timetable";
 import { reportCardsLiveTab } from "@/lib/modules/live/m6-report-cards";
@@ -59,16 +58,17 @@ const liveModules: Record<string, LiveTabBuilder> = {
 export const liveModuleCodes = Object.keys(liveModules);
 
 /**
- * A tab that says, on the page, that its figures are the authored ones.
+ * A tab that could not read its own figures.
  *
- * Falling back silently is the one thing this must not do. Authored figures
- * look exactly like real ones — that is the point of them — so a page that
- * quietly swapped a live total for a written one would read as a working
- * integration reporting a wrong number.
+ * It shows nothing rather than the authored example. Example figures look
+ * exactly like real ones — that is the point of them — so a page that quietly
+ * swapped a live total for a written one reads as a working integration
+ * reporting a wrong number, and a school cannot tell the difference. Saying
+ * "this did not load" is less useful than real data and far more useful than
+ * plausible fiction.
  */
-function withFallbackNote(authored: TabContent, reason: string): TabContent {
+function couldNotLoad(reason: string): TabContent {
   return {
-    ...authored,
     rows: [
       {
         cols: "1fr",
@@ -76,12 +76,11 @@ function withFallbackNote(authored: TabContent, reason: string): TabContent {
           {
             type: "note",
             tone: "attention",
-            title: "Showing the written figures, not this school's",
-            body: `The live figures could not be loaded, so every number below is the authored example rather than your data. ${reason}`,
+            title: "This page could not be loaded",
+            body: `${reason} Nothing here has been replaced with example figures — try again, and if it keeps failing, raise it in Sync & Support.`,
           },
         ],
       },
-      ...authored.rows,
     ],
   };
 }
@@ -103,9 +102,6 @@ export async function getLiveTabContent(
     // not a failure: the page falls back to the authored tab with no banner.
     return (await builder(tabSlug, query)) ?? undefined;
   } catch (error) {
-    const authored = getTabContent(code, tabSlug);
-    if (!authored) return undefined;
-    const reason = error instanceof Error ? error.message : "The request failed.";
-    return withFallbackNote(authored, reason);
+    return couldNotLoad(error instanceof Error ? error.message : "The request failed.");
   }
 }
