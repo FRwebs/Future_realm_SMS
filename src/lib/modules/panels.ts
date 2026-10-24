@@ -240,6 +240,8 @@ export type KpiCard = {
   tone?: PanelTone;
   /** Text of the card's link through to the list or record behind the figure. */
   link?: string;
+  /** A name from the card icon set; left out, the label (then the shape of the figure) picks one. */
+  icon?: string;
 } & Trigger;
 
 export type TableCellKind =

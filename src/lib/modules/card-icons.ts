@@ -1,0 +1,185 @@
+/**
+ * The card icon set, drawn by the mockup: one hand on a 24-unit grid, a 1.75 stroke, round joins and a soft duotone fill.
+ *
+ * A card may name its icon; otherwise its label picks one, then the shape of the figure (money, a rate, a date, a time) —
+ * so no card in the product goes without. Each entry is [outline path, fill path].
+ */
+export const KI: Record<string, [string, string]> = {
+    people:['M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7zM2.5 20c0-3.6 2.9-6 6.5-6s6.5 2.4 6.5 6M16 4.8a3.3 3.3 0 0 1 0 6.4M18.5 14.4c1.9.7 3 2.6 3 5.6','M9 11.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z'],
+    person:['M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM4.5 21c0-4.1 3.4-7 7.5-7s7.5 2.9 7.5 7','M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+    family:['M8 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM3 20v-3.5A4.5 4.5 0 0 1 7.5 12h1a4.5 4.5 0 0 1 4.5 4.5V20M17 12.5a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5zM15 20v-2.2a2.8 2.8 0 0 1 2.8-2.8h.4a2.8 2.8 0 0 1 2.8 2.8V20','M8 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM17 12.5a2.25 2.25 0 1 0 0-4.5 2.25 2.25 0 0 0 0 4.5z'],
+    userCheck:['M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21c0-4.1 3.1-7 7-7 1.3 0 2.5.3 3.5.9M15.5 18.5l2 2 4-4.5','M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+    userX:['M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21c0-4.1 3.1-7 7-7 1.3 0 2.5.3 3.5.9M16 15.5l5 5M21 15.5l-5 5','M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+    userPlus:['M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21c0-4.1 3.1-7 7-7 1.4 0 2.7.4 3.8 1M18.5 14.5v6M15.5 17.5h6','M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+    userMinus:['M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM3 21c0-4.1 3.1-7 7-7 1.4 0 2.7.4 3.8 1M15.5 17.5h6','M10 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+    register:['M9 3.5h6v3H9zM9 5H6.5A1.5 1.5 0 0 0 5 6.5v13A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 17.5 5H15M8.5 13.5l2.5 2.5 4.5-5','M6.5 5A1.5 1.5 0 0 0 5 6.5v13A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5v-13A1.5 1.5 0 0 0 17.5 5z'],
+    clock:['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5V12l3 2','M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
+    calendar:['M5.5 5h13A1.5 1.5 0 0 1 20 6.5v12a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18.5v-12A1.5 1.5 0 0 1 5.5 5zM4 10h16M8.5 3v4M15.5 3v4M8 13.5h2M14 13.5h2M8 16.5h2','M5.5 5h13A1.5 1.5 0 0 1 20 6.5V10H4V6.5A1.5 1.5 0 0 1 5.5 5z'],
+    banknote:['M4 6.5h16A1.5 1.5 0 0 1 21.5 8v8a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 16V8A1.5 1.5 0 0 1 4 6.5zM12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM6 10v4M18 10v4','M12 14.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z'],
+    wallet:['M5.5 4.5h11A1.5 1.5 0 0 1 18 6v1.5M3.5 6.5v11a2 2 0 0 0 2 2h13a1.5 1.5 0 0 0 1.5-1.5V9a1.5 1.5 0 0 0-1.5-1.5h-13a2 2 0 0 1-2-2 2 2 0 0 1 2-1M15.5 11.5H20v4h-4.5a2 2 0 0 1 0-4z','M15.5 11.5H20v4h-4.5a2 2 0 0 1 0-4z'],
+    receipt:['M6 3.5h12v17l-2.5-1.5-2 1.5-1.5-1.5-1.5 1.5-2-1.5L6 20.5zM9 8h6M9 11.5h6M9 15h3.5','M6 3.5h12v17l-2.5-1.5-2 1.5-1.5-1.5-1.5 1.5-2-1.5L6 20.5z'],
+    coins:['M12 9c4.1 0 7.5-1.3 7.5-3S16.1 3 12 3 4.5 4.3 4.5 6s3.4 3 7.5 3zM4.5 6v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3V6M4.5 12v6c0 1.7 3.4 3 7.5 3s7.5-1.3 7.5-3v-6','M12 9c4.1 0 7.5-1.3 7.5-3S16.1 3 12 3 4.5 4.3 4.5 6s3.4 3 7.5 3z'],
+    tag:['M3.5 12.5V5A1.5 1.5 0 0 1 5 3.5h7.5l8 8a1.5 1.5 0 0 1 0 2.1l-6.4 6.4a1.5 1.5 0 0 1-2.1 0zM8 8.5h.01','M3.5 12.5V5A1.5 1.5 0 0 1 5 3.5h7.5l8 8a1.5 1.5 0 0 1 0 2.1l-6.4 6.4a1.5 1.5 0 0 1-2.1 0z'],
+    card:['M4.5 5h15A1.5 1.5 0 0 1 21 6.5v11a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17.5v-11A1.5 1.5 0 0 1 4.5 5zM3 10h18M6.5 15h4','M4.5 5h15A1.5 1.5 0 0 1 21 6.5V10H3V6.5A1.5 1.5 0 0 1 4.5 5z'],
+    bars:['M5 13h3v7H5zM10.5 8h3v12h-3zM16 4h3v16h-3z','M16 4h3v16h-3z'],
+    gauge:['M3.5 15.5a8.5 8.5 0 1 1 17 0M12 15.5l4-4.5M12 17a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z','M3.5 15.5a8.5 8.5 0 1 1 17 0z'],
+    medal:['M12 15a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11zM8.6 13.8 7 21l5-2.5 5 2.5-1.6-7.2','M12 15a5.5 5.5 0 1 0 0-11 5.5 5.5 0 0 0 0 11z'],
+    trophy:['M7.5 4h9v5a4.5 4.5 0 0 1-9 0zM7.5 6h-3v1.5a3 3 0 0 0 3 3M16.5 6h3v1.5a3 3 0 0 1-3 3M12 13.5V17M8 20.5h8M9.5 20.5c0-1.9 1.1-3.5 2.5-3.5s2.5 1.6 2.5 3.5','M7.5 4h9v5a4.5 4.5 0 0 1-9 0z'],
+    trendUp:['M3.5 17l6-6 4 4 7-7M15 8h5.5v5.5',''],
+    trendDown:['M3.5 7l6 6 4-4 7 7M15 16h5.5v-5.5',''],
+    book:['M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2 1.5-1.5 4-2 8-2v-13c-4 0-6.5.5-8 2zM12 6.5v13','M12 6.5C10.5 5 8 4.5 4 4.5v13c4 0 6.5.5 8 2z'],
+    cap:['M12 4 2.5 8.5 12 13l9.5-4.5zM6 10.8v4.4c0 1.6 2.7 3 6 3s6-1.4 6-3v-4.4M21.5 8.5v5','M12 4 2.5 8.5 12 13l9.5-4.5z'],
+    doc:['M6.5 3.5h7l4.5 4.5v11a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5zM13.5 3.5V8H18M8.5 12.5h7M8.5 16h5','M6.5 3.5h7l4.5 4.5v11a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z'],
+    docChart:['M6.5 3.5h7l4.5 4.5v11a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5zM13.5 3.5V8H18M8.5 17v-2.5M11.5 17v-5M14.5 17v-3.5','M6.5 3.5h7l4.5 4.5v11a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z'],
+    edit:['M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17zM14 8l3 3M13 20h7','M4 20h4l10.5-10.5a2.1 2.1 0 0 0-3-3L5 17z'],
+    message:['M5 4.5h14A1.5 1.5 0 0 1 20.5 6v9a1.5 1.5 0 0 1-1.5 1.5h-9l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5zM8 9h8M8 12h5','M5 4.5h14A1.5 1.5 0 0 1 20.5 6v9a1.5 1.5 0 0 1-1.5 1.5h-9l-4.5 3.5v-3.5H5A1.5 1.5 0 0 1 3.5 15V6A1.5 1.5 0 0 1 5 4.5z'],
+    send:['M20.5 3.5 10 14M20.5 3.5 14 20.5l-4-6.5-6.5-4z','M20.5 3.5 14 20.5l-4-6.5-6.5-4z'],
+    megaphone:['M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1zM16.5 9a4 4 0 0 1 0 6M19 6.5a7.5 7.5 0 0 1 0 11','M4 10v4a1 1 0 0 0 1 1h2l6 4V5L7 9H5a1 1 0 0 0-1 1z'],
+    bell:['M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15zM10 20.5a2 2 0 0 0 4 0','M6 16.5V11a6 6 0 0 1 12 0v5.5l1.5 2h-15z'],
+    warning:['M10.3 4.3 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0zM12 9.5v4.5M12 17h.01','M10.3 4.3 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.3a2 2 0 0 0-3.4 0z'],
+    alert:['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 7.5v5.5M12 16.5h.01','M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
+    flag:['M5 21V4.5M5 4.5h11.5l-2 4 2 4H5','M5 4.5h11.5l-2 4 2 4H5z'],
+    check:['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM8 12.5l2.7 2.7L16 9.8','M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18z'],
+    hourglass:['M7 3.5h10M7 20.5h10M8 3.5v3a4 4 0 0 0 1.6 3.2L12 12l2.4-2.3A4 4 0 0 0 16 6.5v-3M8 20.5v-3a4 4 0 0 1 1.6-3.2L12 12l2.4 2.3a4 4 0 0 1 1.6 3.2v3','M9.2 18l2.8-2.4 2.8 2.4v2.5H9.2z'],
+    inbox:['M3.5 13.5 6 5.5h12l2.5 8v5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5zM3.5 13.5H8l1.5 2.5h5l1.5-2.5h4.5','M3.5 13.5H8l1.5 2.5h5l1.5-2.5h4.5v5a1.5 1.5 0 0 1-1.5 1.5H5a1.5 1.5 0 0 1-1.5-1.5z'],
+    undo:['M9 14 4.5 9.5 9 5M4.5 9.5h10a5 5 0 0 1 0 10H11',''],
+    swap:['M7 4.5 3.5 8 7 11.5M3.5 8h13M17 12.5l3.5 3.5-3.5 3.5M20.5 16h-13',''],
+    shield:['M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6zM9 12l2.2 2.2L15.5 10','M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6z'],
+    lock:['M6.5 10.5h11a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19v-7a1.5 1.5 0 0 1 1.5-1.5zM8 10.5V8a4 4 0 0 1 8 0v2.5M12 14.5v2','M6.5 10.5h11a1.5 1.5 0 0 1 1.5 1.5v7a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19v-7a1.5 1.5 0 0 1 1.5-1.5z'],
+    key:['M15 14a5 5 0 1 0-4.7-3.3L3.5 17.5v3h3v-2h2v-2h2l1.8-1.8A5 5 0 0 0 15 14zM16.5 8h.01','M15 14a5 5 0 1 0 0-10 5 5 0 0 0 0 10z'],
+    heart:['M12 20.5S3.5 15.6 3.5 9.6A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8.5 2.4c0 6-8.5 10.9-8.5 10.9zM7.5 12.5H10l1.2-2 2 4 1.3-2h2','M12 20.5S3.5 15.6 3.5 9.6A4.6 4.6 0 0 1 12 7.2a4.6 4.6 0 0 1 8.5 2.4c0 6-8.5 10.9-8.5 10.9z'],
+    building:['M3 20.5h18M5 20.5V9.5l7-5 7 5v11M9.5 20.5v-5h5v5M12 11.5h.01','M5 9.5l7-5 7 5v11H5z'],
+    board:['M3.5 4.5h17v11h-17zM8 20.5l2-5M16 20.5l-2-5M7 8.5h6M7 11.5h4','M3.5 4.5h17v11h-17z'],
+    grid:['M4 5.5h16v14H4zM4 10h16M4 14.5h16M9.5 5.5v14M15 5.5v14','M4 5.5h16V10H4z'],
+    tiles:['M5 4.5h5v5H5zM14 4.5h5v5h-5zM5 14.5h5v5H5zM14 14.5h5v5h-5z','M5 4.5h5v5H5zM14 14.5h5v5h-5z'],
+    cloud:['M7 18.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6 3.8 3.8 0 0 1-.3 7.4zM12 10.5v5M9.8 13.3 12 15.5l2.2-2.2','M7 18.5a4.5 4.5 0 0 1-.6-9 6 6 0 0 1 11.4 1.6 3.8 3.8 0 0 1-.3 7.4z'],
+    device:['M7.5 3h9a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1h-9a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1zM11 18h2','M7.5 3h9a1 1 0 0 1 1 1v11.5h-11V4a1 1 0 0 1 1-1z'],
+    eye:['M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z','M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6z'],
+    camera:['M5.5 6.5h2L9 4.5h6l1.5 2h2A1.5 1.5 0 0 1 20 8v10a1.5 1.5 0 0 1-1.5 1.5h-13A1.5 1.5 0 0 1 4 18V8a1.5 1.5 0 0 1 1.5-1.5zM12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z','M12 16.5a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z'],
+    briefcase:['M5 8.5h14A1.5 1.5 0 0 1 20.5 10v8.5A1.5 1.5 0 0 1 19 20H5a1.5 1.5 0 0 1-1.5-1.5V10A1.5 1.5 0 0 1 5 8.5zM9 8.5V6.2a1.7 1.7 0 0 1 1.7-1.7h2.6A1.7 1.7 0 0 1 15 6.2v2.3M3.5 13.5h17','M5 8.5h14A1.5 1.5 0 0 1 20.5 10v3.5h-17V10A1.5 1.5 0 0 1 5 8.5z'],
+    sun:['M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8zM12 2.5v2M12 19.5v2M4.6 4.6 6 6M18 18l1.4 1.4M2.5 12h2M19.5 12h2M4.6 19.4 6 18M18 6l1.4-1.4','M12 16a4 4 0 1 0 0-8 4 4 0 0 0 0 8z'],
+    phone:['M5 4h3.5l1.5 4.5-2 1.5a11 11 0 0 0 6 6l1.5-2 4.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5A16.5 16.5 0 0 1 3.5 5.5 1.5 1.5 0 0 1 5 4z','M5 4h3.5l1.5 4.5-2 1.5a11 11 0 0 0 6 6l1.5-2 4.5 1.5V19a1.5 1.5 0 0 1-1.5 1.5A16.5 16.5 0 0 1 3.5 5.5 1.5 1.5 0 0 1 5 4z'],
+    mail:['M4.5 5.5h15A1.5 1.5 0 0 1 21 7v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17V7a1.5 1.5 0 0 1 1.5-1.5zM3.5 7l8.5 6.5L20.5 7','M4.5 5.5h15A1.5 1.5 0 0 1 21 7v10a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 17V7a1.5 1.5 0 0 1 1.5-1.5z'],
+    globe:['M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17zM3.5 12h17M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5z','M12 3.5c2.3 2.4 3.4 5.2 3.4 8.5s-1.1 6.1-3.4 8.5c-2.3-2.4-3.4-5.2-3.4-8.5s1.1-6.1 3.4-8.5z'],
+    sliders:['M4 7h8.5M17.5 7H20M4 17h2.5M11.5 17H20M15 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM9 19.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z','M15 9.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5zM9 19.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z'],
+    layers:['M12 3.5 3.5 8 12 12.5 20.5 8zM3.5 12 12 16.5 20.5 12M3.5 16 12 20.5 20.5 16','M12 3.5 3.5 8 12 12.5 20.5 8z'],
+    download:['M12 4v11M7.5 10.5 12 15l4.5-4.5M4.5 16.5V19a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-2.5',''],
+    history:['M3.5 12a8.5 8.5 0 1 0 2.5-6M3.5 4v4.5H8M12 8v4.5l3 1.5',''],
+    archive:['M3.5 4.5h17v4h-17zM5 8.5V19a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19V8.5M10 12.5h4','M3.5 4.5h17v4h-17z'],
+    pulse:['M3 12h4l2.5-6.5 5 13L17 12h4',''],
+    star:['M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z','M12 3.5l2.6 5.3 5.9.9-4.3 4.1 1 5.8L12 16.9l-5.2 2.7 1-5.8L3.5 9.7l5.9-.9z'],
+    sprout:['M12 20.5v-8M12 12.5C12 8.5 9 6 4.5 6c0 4 3 6.5 7.5 6.5zM12 14.5c0-3.5 2.6-6 7-6 0 3.5-2.6 6-7 6z','M12 12.5C12 8.5 9 6 4.5 6c0 4 3 6.5 7.5 6.5zM12 14.5c0-3.5 2.6-6 7-6 0 3.5-2.6 6-7 6z'],
+    target:['M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18zM12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9zM12 12.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z','M12 16.5a4.5 4.5 0 1 0 0-9 4.5 4.5 0 0 0 0 9z'],
+    hash:['M9.5 3.5 7.5 20.5M16.5 3.5l-2 17M4.5 8.5h16M3.5 15.5h16',''],
+    listCheck:['M10 6.5h10.5M10 12h10.5M10 17.5h10.5M3.5 6.5l1.3 1.3 2.5-2.5M3.5 12l1.3 1.3 2.5-2.5M3.5 17.5l1.3 1.3 2.5-2.5',''],
+    bag:['M5.5 8h13l-1 12.5h-11zM9 10.5v-4a3 3 0 0 1 6 0v4','M5.5 8h13l-1 12.5h-11z'],
+    link:['M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1',''],
+    bulb:['M9.5 17.5h5M10.5 20.5h3M12 3.5a5.5 5.5 0 0 0-3.2 10c.5.4.8 1 .8 1.7v.8h4.8v-.8c0-.7.3-1.3.8-1.7a5.5 5.5 0 0 0-3.2-10z','M12 3.5a5.5 5.5 0 0 0-3.2 10c.5.4.8 1 .8 1.7v.8h4.8v-.8c0-.7.3-1.3.8-1.7a5.5 5.5 0 0 0-3.2-10z'],
+    crown:['M4 17.5 3 7.5l5 4 4-6.5 4 6.5 5-4-1 10zM4.5 20.5h15','M4 17.5 3 7.5l5 4 4-6.5 4 6.5 5-4-1 10z']
+  };
+
+export const KI_MONEY: Array<[RegExp, string]> = [[/discount|waiver|exposure/, 'tag'], [/bank|cheque|cash|point of sale|transfer|card|method/, 'card'],
+    [/collected|paid|received|receipt|settled|this payment|in hand/, 'wallet'],
+    [/payroll|payslip|gross|\bnet\b|salary|deduct|statutory|allowance|cost of|band|a year|run\b/, 'banknote'],
+    [/outstanding|owe|balance|due|billed|expected|fee|instal|termly|sessional|list|bill|total/, 'receipt'], [/plan|premium|renew|cost|rate|budget/, 'card']];
+
+export const KI_RULES: Array<[RegExp, string]> = [
+    [/never marked|unmarked|not marked|no core|not activated|duplicate/, 'alert'],
+    [/^(mr|mrs|miss|ms|dr)\b|reviewer|reports to|form master|^approver$|^teacher$|^student$/, 'person'],
+    [/^required$|^optional$|full list/, 'listCheck'],
+    [/^[a-f]\d\b|grading/, 'medal'],
+    [/^\d{4}\/\d{4}|school days|days so far|^monday|^tuesday|^wednesday|^thursday|^friday/, 'calendar'],
+    [/password|two-factor|locked|withheld|mandatory/, 'lock'],
+    [/sync|storage|connection|offline/, 'cloud'],
+    [/fail|clash|conflict|blocked|out of range|impossible|incident|over capacity|past (its|service|the cutoff)|overdue|variance|invalid|breach|integrity/, 'warning'],
+    [/sessions|saved on|device/, 'device'],
+    [/safeguard|consent|sensitive|privacy|recertif|data scope|subject request|security/, 'shield'],
+    [/role|access|tabs reachable|delegation|can approve|can export|permission/, 'key'],
+    [/medical|health|wellbeing|settling|sick|support plan/, 'heart'],
+    [/present/, 'userCheck'],
+    [/absen|away|unaccounted|truan/, 'userX'],
+    [/^late$|late arriv|punctual|cutoff|before 09|median|time to|answer time|marking time|oldest|quiet hours|\btime\b|expir/, 'clock'],
+    [/attendance|register|marked|accounted|days marked/, 'register'],
+    [/\bcover\b|covering|on cover|covered for/, 'swap'],
+    [/leave|holiday|closed days|entitlement|working days lost/, 'sun'],
+    [/certificat|cpd|earns|award/, 'medal'],
+    [/growth|since last|improv|rising/, 'trendUp'],
+    [/training|course|enrol|alumni|required by your school/, 'cap'],
+    [/application|admission|applying|screening/, 'userPlus'],
+    [/withdrawn|dormant|never activated|declin/, 'userMinus'],
+    [/rating|appraisal|rated|evidence/, 'star'],
+    [/position|rank|\bbest\b|\btop\b|highest|strongest|above 95/, 'trophy'],
+    [/lowest|weakest|worst|falling|below|behind/, 'trendDown'],
+    [/^credits?$|grade|credit or above|at credit|credit rate|passed/, 'medal'],
+    [/average|\brate\b|activation/, 'gauge'],
+    [/missing|blank|not written|not started|unassigned|no arm|no class|no list|no phone|no screening|no note|incomplete|uncovered|unpublished|undelivered|unresolved|not yet|short|gap|owed$|outstanding$|remarks owed|unreconciled/, 'alert'],
+    [/credit/, 'coins'],
+    [/remark|comment|message|sms|answered|repl|notified|reminded|asked/, 'message'],
+    [/observ|opened|viewed|preview|reads|retrieved/, 'eye'],
+    [/deliver|sent|send/, 'send'],
+    [/campaign|broadcast/, 'megaphone'],
+    [/notification|alert/, 'bell'],
+    [/escalat|flag|attention|repeat|raised/, 'flag'],
+    [/returned|sent back|rework|revision|reversal|correction|revised/, 'undo'],
+    [/released/, 'docChart'],
+    [/waiting on (you|me)|waiting for you|for you|awaiting your|decision|approval|^open$|routed|requests?$/, 'inbox'],
+    [/await|waiting|pending|in progress|draft|held for|review|renewing|due within|in this state/, 'hourglass'],
+    [/approved|published|complete|ready|settled|resolved|activated|signed|enabled|in force|on schedule|issued|valid|clear|decided|on time|secure|held$|filed|done|assigned/, 'check'],
+    [/payroll|payslip|gross|\bnet\b|salary|deduct|statutory|allowance|payment|band/, 'banknote'],
+    [/discount|waiver/, 'tag'],
+    [/receipt to|email/, 'mail'],
+    [/receipt/, 'receipt'],
+    [/collected|paid|received/, 'wallet'],
+    [/fee|bill|owe|outstanding|balance|cost|amount|price|termly|sessional|expected|exposure/, 'receipt'],
+    [/bank|cheque|point of sale|cash|method|mode|plan|premium|renew|account/, 'card'],
+    [/reachable|cannot be reached|phone/, 'phone'],
+    [/household|guardian|famil|parent|one account/, 'family'],
+    [/student|child|pupil|roll|staff|teacher|people|recipient|reach|holders/, 'people'],
+    [/subject|curriculum|scheme|lesson|notes|catalogue|learning area|units|chemistry|physics|biology|science|weeks planned|teaching time|descriptor/, 'book'],
+    [/result|total scored|scores|score submission/, 'bars'],
+    [/sheet|marks|entered|written|score|assessment|exam/, 'edit'],
+    [/\bclass|\barms?\b|form class|stream|jss|sss|primary|nursery|secondary/, 'board'],
+    [/period|timetable|schedule|load/, 'grid'],
+    [/buy|basket|shop/, 'bag'],
+    [/offered by|provider|awarded by|school|academy|ridgeview|branch|campus/, 'building'],
+    [/photo/, 'camera'],
+    [/report|cards? |cards$/, 'docChart'],
+    [/document|form|file|template|record|letter|card|returns/, 'doc'],
+    [/export|dataset/, 'download'],
+    [/audit|entries|retention|last changed|archive|history/, 'history'],
+    [/list|item/, 'listCheck'],
+    [/mapped|link/, 'link'],
+    [/portal|in-app/, 'device'],
+    [/language|countr|currency/, 'globe'],
+    [/conduct|kpi|weighted/, 'star'],
+    [/develop|early years/, 'sprout'],
+    [/target|goal/, 'target'],
+    [/number|\bid\b|reference/, 'hash'],
+    [/rule|structure|route|weights|override|setting|adjust|density|format|choice group|definition/, 'sliders'],
+    [/layer|stage|level|version|modules|tabs/, 'layers'],
+    [/progress/, 'trendUp'],
+    [/term|week|day|date|next|due|deadline|session|cycle|year|month|today|ends|started|^then$|publish/, 'calendar'],
+    [/employ|job|work/, 'briefcase'],
+    [/running|active|live|depth|status|state/, 'pulse']
+  ];
+
+type IconCard = { icon?: string; label?: string; value?: string | number | null; unit?: string | null };
+
+/** The [outline, fill] paths for a card: its own named icon, else the first label rule that matches, else the shape of its figure. */
+export function cardIcon(card: IconCard): [string, string] {
+  if (card.icon) return KI[card.icon] ?? (/^M/.test(card.icon) ? [card.icon, ""] : KI.bars);
+  const label = String(card.label ?? "").toLowerCase().trim();
+  const value = String(card.value ?? "").trim();
+  const unit = String(card.unit ?? "").toLowerCase();
+  if (/^[\u20a6\u20b5$\u00a3\u20ac]|^(ngn|ghs|usd)\b|^gh\u20b5/i.test(value) || /^[\u20a6\u20b5]/.test(unit)) {
+    for (const [pattern, name] of KI_MONEY) if (pattern.test(label)) return KI[name];
+    return KI.coins;
+  }
+  for (const [pattern, name] of KI_RULES) if (pattern.test(label)) return KI[name];
+  if (/%$/.test(value)) return KI.gauge;
+  if (/\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\b|\b(mon|tue|wed|thu|fri)[a-z]*\b/i.test(value)) return KI.calendar;
+  if (/\b(min|mins|minutes|hr|hrs|hours)\b|^\d+:\d+/.test(`${value} ${unit}`)) return KI.clock;
+  if (/\bdays?\b|\bweeks?\b/.test(`${value} ${unit}`)) return KI.calendar;
+  if (/students?|children|pupils|people|staff/.test(unit)) return KI.people;
+  return KI.bars;
+}

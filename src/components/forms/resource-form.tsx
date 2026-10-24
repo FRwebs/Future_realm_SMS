@@ -11,6 +11,7 @@ import {
 
 import { useToast } from "@/components/ui/toast-provider";
 import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
+import { readReply } from "@/lib/modules/submit";
 
 export interface ResourceField {
   name: string;
@@ -267,11 +268,7 @@ export function ResourceForm({
         body: JSON.stringify(payload),
       });
 
-      const body = (await response.json()) as {
-        ok?: boolean;
-        error?: string;
-        message?: string;
-      };
+      const body = await readReply<{ ok?: boolean; error?: string; message?: string }>(response);
 
       if (!response.ok || body.ok === false) {
         throw new Error(body.error ?? "Unable to save record");

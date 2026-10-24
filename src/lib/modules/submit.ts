@@ -22,6 +22,25 @@ export function readCookie(name: string) {
  * A failed schema check comes back as a JSON array of Zod issues. Showing that
  * to somebody is not an error message, it is a stack trace with extra steps.
  */
+/** What a reply that is not our JSON means: a gateway or host answering before the API did. */
+export function statusMessage(status: number): string {
+  if (status === 429) return "Too many requests were sent in a short time. Wait a minute and try again.";
+  if (status === 502 || status === 503 || status === 504) return "The server is not answering right now. Try again in a moment.";
+  if (status === 413) return "That is too large to send.";
+  return "";
+}
+
+/** Reads a reply as JSON, or as the plain message of a gateway that answered instead of the API. */
+export async function readReply<T extends { ok?: boolean; error?: string; message?: string }>(response: Response): Promise<T> {
+  const raw = await response.text().catch(() => "");
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    if (response.ok) return {} as T;
+    return { ok: false, error: statusMessage(response.status) || raw.trim().slice(0, 140) || undefined } as T;
+  }
+}
+
 export function readableError(raw: string | undefined): string {
   if (!raw) return "That did not save.";
   const trimmed = raw.trim();
@@ -86,11 +105,7 @@ export async function sendJson(
     throw noConnection(cause) ? new Error(NO_CONNECTION) : cause;
   }
 
-  const result = (await response.json().catch(() => ({}))) as {
-    ok?: boolean;
-    error?: string;
-    message?: string;
-  };
+  const result = await readReply<{ ok?: boolean; error?: string; message?: string }>(response);
 
   if (!response.ok || result.ok === false) {
     throw new Error(readableError(result.error ?? result.message));
@@ -118,12 +133,7 @@ export async function sendJsonForData<T>(endpoint: string, method: string, paylo
     throw noConnection(cause) ? new Error(NO_CONNECTION) : cause;
   }
 
-  const result = (await response.json().catch(() => ({}))) as {
-    ok?: boolean;
-    error?: string;
-    message?: string;
-    data?: T;
-  };
+  const result = await readReply<{ ok?: boolean; error?: string; message?: string; data?: T }>(response);
 
   if (!response.ok || result.ok === false) {
     throw new Error(readableError(result.error ?? result.message));

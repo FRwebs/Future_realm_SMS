@@ -77,7 +77,7 @@ export function complianceTab(c: Compliance, options: Options): TabContent {
             { label: "This week", value: String(k.week), unit: "arm-days", sub: `Across ${plural(k.weekTeachers, "form master")}`, tone: k.week ? "attention" : "positive" },
             { label: "This term", value: String(k.term), unit: "arm-days", sub: k.compliance === null ? "Nothing to measure yet" : `Of ${k.owed.toLocaleString()} expected · ${k.compliance}% compliance`, tone: k.term ? "attention" : "positive" },
             { label: "Repeat breachers", value: String(k.repeat), unit: "teachers", sub: "Breached in 3 or more of the last 5 weeks", tone: k.repeat ? "negative" : "positive" },
-            { label: "Median marking time", value: k.median === null ? "—" : k.median >= 90 ? `${Math.floor(k.median / 60)}m ${String(k.median % 60).padStart(2, "0")}s` : `${k.median}s`, sub: k.median === null ? "Measured from when a register is opened — none recorded yet" : `Across ${k.medianOf} timed registers`, tone: "neutral" },
+            { label: "Median marking time", value: k.median === null ? "—" : k.median >= 90 ? `${Math.floor(k.median / 60)}m ${String(k.median % 60).padStart(2, "0")}s` : `${k.median}s`, sub: k.median === null ? "None recorded yet" : `Across ${k.medianOf} timed registers`, tone: "neutral" },
           ],
         }],
       },

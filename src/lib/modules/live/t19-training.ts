@@ -42,7 +42,7 @@ export type CoursePage = {
   owned: boolean; price: number | null; priceLabel: string; purchase: { state: string; payer: string; decision: string | null } | null; why: string | null;
   required: { by: string | null; note: string | null } | null; lessons: Array<{ position: number; title: string; minutes: number; summary: string; done: boolean }>; done: number; completed: boolean; certificate: Cert | null;
 };
-export type LessonPage = { course: { id: string; title: string; task: string | null; hours: number; certificateName: string; provider: string; required: { by: string | null; note: string | null } | null; lessonsTotal: number; done: number }; outline: Array<{ position: number; title: string; minutes: number; done: boolean }>; lesson: { position: number; title: string; minutes: number; body: string; question: string; options: string[]; done: boolean } };
+export type LessonPage = { preview?: boolean; course: { id: string; title: string; task: string | null; hours: number; certificateName: string; provider: string; required: { by: string | null; note: string | null } | null; lessonsTotal: number; done: number }; outline: Array<{ position: number; title: string; minutes: number; done: boolean }>; lesson: { position: number; title: string; minutes: number; body: string; question: string; options: string[]; done: boolean } };
 
 const length = (hours: number) => (hours < 1 ? `${Math.round(hours * 60)} min` : Number.isInteger(hours) ? `${hours} ${hours === 1 ? "hour" : "hours"}` : `${Math.floor(hours)} h ${Math.round((hours % 1) * 60)} min`);
 const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "");
@@ -340,8 +340,8 @@ export function coursePage(c: CoursePage): TabContent & { crumb: { label: string
     keywords: lesson.title,
     cells: [
       cell(String(lesson.position), { mono: true }), { kind: "name", name: lesson.title, sub: lesson.summary, avatar: false }, cell(`${lesson.minutes} min`),
-      pill(!c.owned ? "Locked" : lesson.done ? "Done" : lesson === nextLesson ? "Next" : "Not started", !c.owned ? "neutral" : lesson.done ? "positive" : lesson === nextLesson ? "progress" : "neutral"),
-      c.owned && (lesson.done || lesson === nextLesson) ? { kind: "action", label: lesson.done ? "Review" : "Open", href: lessonHref(c.id, lesson.position) } : cell(""),
+      pill(!c.owned ? (lesson.position === 1 ? "Free to try" : "Locked") : lesson.done ? "Done" : lesson === nextLesson ? "Next" : "Not started", !c.owned ? (lesson.position === 1 ? "positive" : "neutral") : lesson.done ? "positive" : lesson === nextLesson ? "progress" : "neutral"),
+      (c.owned && (lesson.done || lesson === nextLesson)) || (!c.owned && lesson.position === 1 && c.purchase?.state !== "DECLINED") ? { kind: "action", label: lesson.done ? "Review" : !c.owned ? "Try it" : "Open", href: lessonHref(c.id, lesson.position) } : cell(""),
     ] as TableCellKind[],
   }));
   const cert = c.certificate;
@@ -360,6 +360,7 @@ export function coursePage(c: CoursePage): TabContent & { crumb: { label: string
   return {
     crumb: { label: "Back to Training", href: "/training/for-you" },
     title: c.title, desc: `${c.provider} · ${length(c.hours)} · ${c.format} · ${c.lessons.length} lessons, each with a short check`, primary,
+    launchers: !c.owned && c.lessons.length && c.purchase?.state !== "DECLINED" ? [{ label: "Try lesson 1 free", href: lessonHref(c.id, 1) }] : undefined,
     rows: ([
       row("1fr", [{
         type: "kpi", per: 4,
@@ -378,7 +379,7 @@ export function coursePage(c: CoursePage): TabContent & { crumb: { label: string
       renewable ? row("1fr", [{ type: "note", tone: "attention", icon: WARN, title: `${cert!.name} ${cert!.state === "Expired" ? "has expired" : `expires on ${cert!.expires}`}`, body: "Renew it before it lapses and the new certificate replaces this one on your record.", acts: [{ label: "Renew it", drawer: renew! }] }]) : null,
       c.completed && cert && !renewable ? row("1fr", [{ type: "note", tone: "positive", icon: CHECK, title: `Certificate issued · ${cert.code}`, body: `${cert.name}, issued ${cert.issued}. It is on your staff record and in Certificates.` }]) : null,
       row("1.4fr 1fr", [
-        { type: "table", title: "Lessons", sub: c.owned ? "Each ends with one question. Answer it correctly to finish the lesson — as many tries as you like." : "The lessons open once the course is paid for.", noun: "lesson", nounPlural: "lessons", head: ["#", "Lesson", "Time", "State", ""], rows, per: 0, noRowOpen: true, dense: true },
+        { type: "table", title: "Lessons", sub: c.owned ? "Each ends with one question. Answer it correctly to finish the lesson — as many tries as you like." : "Lesson 1 is free to try. The rest open once the course is paid for.", noun: "lesson", nounPlural: "lessons", head: ["#", "Lesson", "Time", "State", ""], rows, per: 0, noRowOpen: true, dense: true },
         { type: "facts", title: "You will be able to", per: 1, facts: (c.outcomes.length ? c.outcomes : ["The school has not listed outcomes for this course."]).map((outcome, index): PanelFact => [`Outcome ${index + 1}`, outcome, ""]) },
       ]),
     ].filter(Boolean) as PanelRow[]),
@@ -392,7 +393,7 @@ export function lessonPage(p: LessonPage): TabContent & { crumb: { label: string
     crumb: { label: "Back to the course", href: courseHref(course.id) },
     title: `Lesson ${lesson.position} · ${lesson.title}`, desc: `${course.title} · ${lesson.minutes} minutes`,
     rows: [embed("lesson-player", {
-      course, outline, lesson, progressLabel: `${length((course.hours * course.done) / Math.max(1, course.lessonsTotal))} of CPD so far`, requiredLabel: required,
+      preview: p.preview ?? false, course, outline, lesson, progressLabel: `${length((course.hours * course.done) / Math.max(1, course.lessonsTotal))} of CPD so far`, requiredLabel: required,
       endpoint: `${API}/learning/courses/${course.id}/lessons/${lesson.position}/answer`,
       hrefs: { course: courseHref(course.id), lessons: `/training/catalogue/${course.id}/lessons`, certificates: "/training/certificates" },
     })],
