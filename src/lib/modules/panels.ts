@@ -368,6 +368,33 @@ export type ListItem = {
   run?: () => void;
 };
 
+/**
+ * A term's short name for a chart axis: "T2 25/26".
+ *
+ * A term-by-term line can hold a dozen points, and "Second Term 2025/2026"
+ * under each one would collide into a grey smear. This is the form the mockup
+ * uses on its own axes.
+ */
+export function termShort(term: string, session: string): string {
+  const n = /first/i.test(term) ? "T1" : /second/i.test(term) ? "T2" : /third/i.test(term) ? "T3" : term.replace(/ Term$/, "");
+  const years = session.match(/(\d{4})\D+(\d{4})/);
+  return years ? `${n} ${years[1]!.slice(2)}/${years[2]!.slice(2)}` : `${n} ${session}`;
+}
+
+/** One point on a `line` panel. A null value is a gap — the line breaks rather than being drawn across it. */
+export type LinePoint = {
+  label: string;
+  v: number | null;
+  /** Shown above the point instead of the figure, where the value is a state rather than a number. */
+  vLabel?: string;
+  tone?: PanelTone;
+  tip?: string;
+  /** The point being read: this week, this term. */
+  on?: boolean;
+  /** Where clicking the point goes. */
+  href?: string;
+};
+
 export type BarRow = {
   label: string;
   value: number;
@@ -967,6 +994,33 @@ export type Panel =
   | DayStripPanel
   | SheetEntryPanel
   | { type: "bars"; title: string; sub?: string; rows: BarRow[]; foot?: string }
+  /**
+   * A measure over time: one point per day, week, term or cycle, joined by a
+   * line, with the range the values actually occupy filling the plot rather
+   * than a 0–100 axis that flattens them. Where the measure has a target, it is
+   * drawn behind as a dashed rule.
+   *
+   * Only for something ordered, where the space between two points means
+   * elapsed time. Comparing categories — grades, payment methods, classes —
+   * is what `bars` is for: a line across those draws a slope through a gap
+   * where no value exists.
+   */
+  | {
+      type: "line";
+      title: string;
+      sub?: string;
+      points: LinePoint[];
+      /** The figure the measure is out of. 100 for a percentage. */
+      ceiling?: number;
+      target?: { value: number; label: string };
+      /** What the point colours mean. Left out, no key is drawn. */
+      keys?: Array<{ label: string; tone: PanelTone }>;
+      /** A unit to put after each figure, for a measure that is not a percentage. */
+      unit?: string;
+      /** Said instead of an empty pair of axes when there is nothing on record yet. */
+      empty?: string;
+      foot?: string;
+    }
   /**
    * A segmented shelf: every section on one line with its count, the one you are on lit, and beneath it one line on what that section
    * holds, what it costs and who awards it. Each segment goes to its own page, so which one is lit is the server's to say.

@@ -1,7 +1,8 @@
-import { chartFloor, chartTicks, chartX, chartY } from "../../src/components/portals/student/student-attendance";
+import { chartFloor, chartTicks, chartX, chartY } from "../../src/components/modules/line-chart";
+import { termShort } from "../../src/lib/modules/panels";
 
 /**
- * The scale behind the student's attendance line.
+ * The scale behind every line chart in this product.
  *
  * The whole point of this chart is that it does not start at zero. A term of
  * attendance lives between about 85% and 100%, and a 0–100 axis squashes all of
@@ -33,6 +34,32 @@ describe("where the scale starts", () => {
 
   it("assumes a middling term when there is nothing to draw yet", () => {
     expect(chartFloor([])).toBe(85);
+  });
+});
+
+describe("a measure that is not a percentage", () => {
+  it("steps the floor by the same proportion of whatever the ceiling is", () => {
+    // A term average out of 20. 17.4 is 87% of the scale, and 87 floors to 80
+    // on a 100 scale — so this must floor to 16, which is 80% of 20.
+    expect(chartFloor([17.4, 19, 18.2], 20)).toBe(16);
+    expect(chartFloor([87, 95, 91], 100)).toBe(80);
+    expect(chartY(20, 16, 20)).toBeCloseTo(8, 5);
+    expect(chartY(16, 16, 20)).toBeCloseTo(92, 5);
+  });
+
+  it("lands a value in the same place on either scale", () => {
+    // The whole point of carrying a ceiling: a figure and its percentage
+    // equivalent are drawn at the same height.
+    expect(chartY(18, chartFloor([17.4, 19, 18.2], 20), 20)).toBeCloseTo(chartY(90, chartFloor([87, 95, 91], 100), 100), 5);
+  });
+
+  it("still drops to zero when a point is near the bottom of its own scale", () => {
+    expect(chartFloor([2, 18], 20)).toBe(0);
+  });
+
+  it("labels its ticks on its own scale", () => {
+    expect(chartTicks(16, 20)).toEqual([20, 18, 16]);
+    expect(chartTicks(0, 20)).toEqual([20, 10, 0]);
   });
 });
 
@@ -87,5 +114,18 @@ describe("the figures down the side", () => {
       expect(chartY(chartTicks(floor)[0]!, floor)).toBeCloseTo(8, 5);
       expect(chartY(chartTicks(floor)[2]!, floor)).toBeCloseTo(92, 5);
     }
+  });
+});
+
+describe("naming a term on a chart axis", () => {
+  it("shortens a term and its session the way the mockup's axes do", () => {
+    expect(termShort("Second Term", "2025/2026")).toBe("T2 25/26");
+    expect(termShort("First Term", "2024/2025")).toBe("T1 24/25");
+    expect(termShort("Third Term", "2025/2026")).toBe("T3 25/26");
+  });
+
+  it("leaves a term it does not recognise readable rather than blank", () => {
+    expect(termShort("Summer", "2025/2026")).toBe("Summer 25/26");
+    expect(termShort("Second Term", "Michaelmas")).toBe("T2 Michaelmas");
   });
 });
