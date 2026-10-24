@@ -1,3 +1,4 @@
+import { randomBytes } from "node:crypto";
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from "@nestjs/common";
 import { z } from "zod";
 
@@ -36,10 +37,43 @@ const prefsSchema = z.object({
   matrix: z.record(z.string(), z.boolean()).optional(),
   quiet: z.string().max(40).optional(),
   remind: z.string().max(40).optional(),
-  readAnnouncements: z.array(z.string()).max(500).optional()
+  readAnnouncements: z.array(z.string()).max(500).optional(),
+  /** The secret in the student's calendar feed address. Whoever holds the address can read the feed, so it can be replaced. */
+  feedToken: z.string().regex(/^[a-f0-9]{48}$/).optional()
 });
 
 const PREFS_RESOURCE = "student-prefs";
+
+const icsText = (value: string) => value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");
+const ymd = (iso: string) => iso.replace(/-/g, "");
+/** "09:00 – 10:30" on a Lagos day → the same moment in UTC, which a calendar can place anywhere. */
+const utcStamp = (iso: string, clockText: string) => {
+  const moment = new Date(`${iso}T${clockText}:00Z`);
+  moment.setUTCHours(moment.getUTCHours() - 1);
+  return moment.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+};
+
+/** A calendar feed in the one format every phone reads. Whole days stay whole days; timed events are placed in UTC. */
+export function icsFor(name: string, entries: Array<{ id: string; date: string; end: string; title: string; time: string; where: string; note: string }>): string {
+  const lines = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//FutureRealm//Student calendar//EN", "CALSCALE:GREGORIAN", `X-WR-CALNAME:${icsText(name)}`];
+  const stamp = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  for (const entry of entries) {
+    const times = entry.time.match(/(\d{2}:\d{2})\D+(\d{2}:\d{2})/);
+    lines.push("BEGIN:VEVENT", `UID:${entry.id}@futurerealm`, `DTSTAMP:${stamp}`, `SUMMARY:${icsText(entry.title)}`);
+    if (times) {
+      lines.push(`DTSTART:${utcStamp(entry.date, times[1]!)}`, `DTEND:${utcStamp(entry.end, times[2]!)}`);
+    } else {
+      const after = new Date(`${entry.end}T00:00:00Z`);
+      after.setUTCDate(after.getUTCDate() + 1);
+      lines.push(`DTSTART;VALUE=DATE:${ymd(entry.date)}`, `DTEND;VALUE=DATE:${ymd(after.toISOString().slice(0, 10))}`);
+    }
+    if (entry.where) lines.push(`LOCATION:${icsText(entry.where)}`);
+    if (entry.note) lines.push(`DESCRIPTION:${icsText(entry.note.slice(0, 500))}`);
+    lines.push("END:VEVENT");
+  }
+  lines.push("END:VCALENDAR");
+  return `${lines.join("\r\n")}\r\n`;
+}
 
 @Injectable()
 export class StudentWorkspaceService {
@@ -291,6 +325,31 @@ export class StudentWorkspaceService {
         ...windows.filter((window) => window.releaseAt).map((window) => ({ id: `r-${window.id}`, date: isoDay(window.releaseAt!), end: isoDay(window.releaseAt!), title: `${window.component.name} results released`, cat: "Results", time: "", where: "", note: "" }))
       ].sort((a, b) => a.date.localeCompare(b.date))
     };
+  }
+
+  /* ───────────────────────── the calendar feed ───────────────────────── */
+
+  /** The student's private feed address, made the first time it is asked for. `reset` replaces it, so a link that got out stops working. */
+  async calendarLink(session: SessionPayload, reset = false) {
+    this.assert(session);
+    const prefs = await this.readPrefs(session);
+    const token = !prefs.feedToken || reset ? randomBytes(24).toString("hex") : prefs.feedToken;
+    if (token !== prefs.feedToken) await this.writePrefs(session, { ...prefs, feedToken: token });
+    return { path: `/api/v1/student-calendar/${token}.ics` };
+  }
+
+  /** The feed itself, read by a phone's calendar with no sign-in: school events, the student's tests and examinations, and the dates their work is due. */
+  async feed(token: string): Promise<string> {
+    if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException("That calendar link is not one we issued.");
+    const row = await prisma.configurationItem.findFirst({ where: { resource: PREFS_RESOURCE, deletedAt: null, data: { path: ["feedToken"], equals: token } } });
+    if (!row) throw new NotFoundException("That calendar link is not one we issued.");
+    const session = { userId: row.name, schoolId: row.schoolId, role: "STUDENT" } as unknown as SessionPayload;
+    const [{ events }, { items }, me] = await Promise.all([this.calendar(session), this.assignments(session), this.me(session)]);
+    const entries = [
+      ...events.map((event) => ({ id: event.id, date: event.date, end: event.end, title: event.title, time: event.time, where: event.where, note: event.note })),
+      ...items.filter((work) => work.state === "todo" || work.state === "overdue").map((work) => ({ id: `due-${work.id}`, date: work.due, end: work.due, title: `${work.subject} due · ${work.title}`, time: "", where: "", note: work.description })),
+    ];
+    return icsFor(`${me.name} · ${me.school}`, entries);
   }
 
   /* ───────────────────────── messages ───────────────────────── */
