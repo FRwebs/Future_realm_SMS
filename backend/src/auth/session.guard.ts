@@ -28,20 +28,34 @@ function getBearerToken(authorization?: string) {
 /**
  * A signed session is trusted as issued — until the person it names has changed. Every request is checked (cached for a
  * few seconds, so it costs one lookup in many) against the account itself: switched off, removed, given a different role,
- * signed out from the Sessions list — or its school suspended or removed by the Back Office. Any of those ends the session on the
- * next request, not at the next sign-in.
+ * signed out from the Sessions list, had its password changed — or its school suspended or removed by the Back Office. Any of
+ * those ends the session on the next request, not at the next sign-in.
  */
 const STATE_TTL_MS = 10_000;
 /** Back Office accounts are signed out after this long without a request. 0 turns it off. School accounts keep their full session. */
 const IDLE_MINUTES = Number(process.env.PLATFORM_IDLE_MINUTES ?? 30);
 const state = new Map<string, { at: number; ok: boolean; reason: string | null }>();
 
-async function accountStillMatches(userId: string, role: string, tokenHash: string, schoolId: string): Promise<{ ok: boolean; reason: string | null }> {
+/**
+ * Whether a token was minted before the account's password was changed.
+ *
+ * Both sides are compared in whole seconds. A token's `iat` is floored to the
+ * second, so a token minted in the same second as the change looks almost a
+ * second older than it — and comparing in milliseconds signs out the very
+ * device that just changed its own password, which is the opposite of what
+ * every account page in this product promises.
+ */
+export function predatesPasswordChange(issuedAt: number, passwordChangedAt: Date | null | undefined): boolean {
+  if (!passwordChangedAt) return false;
+  return issuedAt < Math.floor(passwordChangedAt.getTime() / 1000);
+}
+
+async function accountStillMatches(userId: string, role: string, tokenHash: string, schoolId: string, issuedAt: number): Promise<{ ok: boolean; reason: string | null }> {
   const key = `${userId}:${tokenHash}`;
   const hit = state.get(key);
   if (hit && Date.now() - hit.at < STATE_TTL_MS) return hit;
   const [user, platformSession, school] = await Promise.all([
-    prisma.user.findUnique({ where: { id: userId }, select: { isActive: true, deletedAt: true, role: true } }),
+    prisma.user.findUnique({ where: { id: userId }, select: { isActive: true, deletedAt: true, role: true, passwordChangedAt: true } }),
     prisma.platformSession.findFirst({ where: { tokenHash }, select: { revokedAt: true, lastActivityAt: true } }),
     schoolId ? prisma.school.findUnique({ where: { id: schoolId }, select: { status: true, deletedAt: true } }) : Promise.resolve(null)
   ]);
@@ -49,6 +63,12 @@ async function accountStillMatches(userId: string, role: string, tokenHash: stri
     ? { ok: false, reason: "This account has been switched off." }
     : !isPlatformRole(user.role) && school && (school.deletedAt || school.status === "SUSPENDED" || school.status === "DELETED")
       ? { ok: false, reason: "Your school account has been suspended. Please contact support." }
+    // Changing a password signs the other devices out, which is what every
+    // account page in this product promises. A token minted before the change
+    // is one of those other devices; the one that made the change is given a
+    // fresh cookie in the same response, so it keeps working.
+    : predatesPasswordChange(issuedAt, user.passwordChangedAt)
+      ? { ok: false, reason: "The password on this account was changed. Sign in again." }
     : String(user.role) !== role && !(await memberships.holds(userId, schoolId, role))
       ? { ok: false, reason: "Your access has changed. Sign in again." }
       : platformSession?.revokedAt
@@ -76,7 +96,7 @@ export class SessionGuard implements CanActivate {
     }
 
     const tokenHash = createHash("sha256").update(token).digest("hex");
-    const standing = await accountStillMatches(session.userId, String(session.role), tokenHash, session.schoolId);
+    const standing = await accountStillMatches(session.userId, String(session.role), tokenHash, session.schoolId, session.iat);
     if (!standing.ok) throw new UnauthorizedException(standing.reason ?? "Unauthorized");
 
     request.user = session;
