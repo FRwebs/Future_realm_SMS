@@ -98,9 +98,14 @@ export async function getLiveTabContent(
   if (!builder) return undefined;
 
   try {
-    // A builder returning nothing means "this tab is not wired yet", which is
-    // not a failure: the page falls back to the authored tab with no banner.
-    return (await builder(tabSlug, query)) ?? undefined;
+    // A builder returning nothing used to mean "this tab is not wired yet", and
+    // the page fell back to the authored tab silently. Every tab is wired now,
+    // so nothing reaches this except a tab whose own record is missing — and
+    // the answer to that is to say so, not to draw an example school.
+    return (
+      (await builder(tabSlug, query)) ??
+      couldNotLoad("This tab has no data to read for your school yet.")
+    );
   } catch (error) {
     return couldNotLoad(error instanceof Error ? error.message : "The request failed.");
   }
