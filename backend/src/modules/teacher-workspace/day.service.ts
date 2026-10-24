@@ -6,6 +6,7 @@ import { iso, isSchoolDay, lagosClock, longDay, loadPolicy, today } from "../att
 import { loadAll, loadStaffNames } from "../score-results/arm";
 import { armName, fullName } from "../fee-management/fees.shared";
 import { TeacherStudentQuestionsService } from "./student-questions.service";
+import { TeacherStudentWorkService } from "./student-work.service";
 import { TeacherWorkspaceService } from "./workspace.service";
 
 const DOW_NAMES = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
@@ -34,7 +35,7 @@ const shortDate = (date: Date) => date.toLocaleDateString("en-GB", { day: "numer
  */
 @Injectable()
 export class MyDayService {
-  constructor(private readonly workspace: TeacherWorkspaceService, private readonly studentQuestions: TeacherStudentQuestionsService) {}
+  constructor(private readonly workspace: TeacherWorkspaceService, private readonly studentQuestions: TeacherStudentQuestionsService, private readonly studentWork: TeacherStudentWorkService) {}
 
   async day(session: SessionPayload) {
     const me = await this.workspace.me(session);
@@ -140,6 +141,9 @@ export class MyDayService {
       const oldest = asked.oldest ? Math.floor((now.getTime() - new Date(asked.oldest).getTime()) / 86_400_000) : 0;
       queue.push({ work: "Students are asking", what: `${asked.waiting} question${asked.waiting === 1 ? "" : "s"} from students · the oldest is ${oldest} day${oldest === 1 ? "" : "s"} old`, due: oldest > 2 ? "Overdue" : "Today", rank: oldest > 2 ? 5 : 11, urgent: oldest > 2, state: "Waiting on you", href: "/student-questions", action: "Answer them", kind: "students" });
     }
+    /* homework handed in and not yet marked */
+    const toMark = await this.studentWork.waitingCount(session);
+    if (toMark) queue.push({ work: "Homework to mark", what: `${toMark} piece${toMark === 1 ? "" : "s"} of homework handed in by students`, due: "This week", rank: 14, urgent: false, state: "Waiting on you", href: "/student-work", action: "Mark it", kind: "students" });
     /* lesson notes: what came back, what this week still owes, and — for a head of department — what is waiting to be signed */
     const ownSubjects = [...new Map(me.teaching.filter((row) => !row.assistant).map((row) => [row.subjectId, row])).values()];
     if (ownSubjects.length) {

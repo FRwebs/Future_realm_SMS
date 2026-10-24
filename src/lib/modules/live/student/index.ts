@@ -9,7 +9,7 @@ type Builder = (query: Record<string, string | undefined>) => Promise<StudentCon
 const pages: Record<string, Builder> = {
   today: () => todayPage(),
   timetable: (query) => timetablePage(query),
-  subjects: () => subjectsPage(),
+  subjects: (query) => subjectsPage(query),
   assignments: (query) => assignmentsPage(query),
   results: (query) => resultsPage(query),
   attendance: () => attendancePage(),

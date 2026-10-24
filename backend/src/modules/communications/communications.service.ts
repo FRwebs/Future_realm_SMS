@@ -5,6 +5,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { AnnouncementView } from "../../../../src/lib/domain/types";
 import { sendNotification } from "../../../../src/lib/integrations/notifications";
+import { notifyStudents } from "../student-portal/student-notify";
 
 export const announcementSchema = z.object({
   title: z.string().min(5),
@@ -44,6 +45,12 @@ export class CommunicationsService {
         channel: parsed.channel
       }
     });
+
+    // Students are told too when the notice is for them: in-app always, email as each of them has chosen.
+    if (/student|learner|^all\b|school/i.test(parsed.audience)) {
+      const students = await prisma.student.findMany({ where: { schoolId, status: "ACTIVE", userId: { not: null } }, select: { userId: true } });
+      await notifyStudents(schoolId, students.map((student) => ({ userId: student.userId!, kind: "school" as const, title: parsed.title, body: parsed.body.slice(0, 240), meta: { kind: "ANNOUNCEMENT", announcementId: record.id } })));
+    }
 
     await sendNotification({
       channel: parsed.channel,
