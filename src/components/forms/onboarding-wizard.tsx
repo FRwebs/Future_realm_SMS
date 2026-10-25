@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 
 import { SearchCombo } from "@/components/forms/search-combo";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 import { PHONE_PLACEHOLDER, geoFor } from "@/lib/onboarding/geo";
 
@@ -178,14 +178,15 @@ function deriveCategory(levels: Record<string, boolean>): "NURSERY" | "PRIMARY" 
 
 export function OnboardingWizard() {
   const router = useRouter();
-  const { showToast } = useToast();
+  // What each part of the page says back, where it happened: the steps of the form, and the code-entry screen.
+  const stepNotice = useNotice();
+  const codeNotice = useNotice();
 
   const [view, setView] = useState<View>("fork");
   const [role, setRole] = useState<SignupRole>("admin");
   const [step, setStep] = useState(1);
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -424,12 +425,10 @@ export function OnboardingWizard() {
   async function handleNext() {
     const validationError = validateStep();
     if (validationError) {
-      setErrorMessage(validationError);
-      showToast({ variant: "error", title: "Check that step", description: validationError });
-      window.scrollTo(0, 0);
+      stepNotice.warning("This step needs a little more", validationError);
       return;
     }
-    setErrorMessage(null);
+    stepNotice.clear();
     if (step < lastStep) {
       setStep((current) => current + 1);
       window.scrollTo(0, 0);
@@ -517,8 +516,7 @@ export function OnboardingWizard() {
       };
 
       if (!response.ok || responseBody.ok === false || !responseBody.data) {
-        const nextError = responseBody.error ?? "Unable to create your account";
-        showToast({ variant: "error", title: "Something went wrong", description: nextError });
+        stepNotice.error("Your account could not be created", responseBody.error ?? "Please check what you entered and try again.");
         setPending(false);
         return;
       }
@@ -530,11 +528,7 @@ export function OnboardingWizard() {
       setView("done");
       window.scrollTo(0, 0);
     } catch {
-      showToast({
-        variant: "error",
-        title: "Server unavailable",
-        description: "Unable to reach the server. Please make sure the app is running and try again."
-      });
+      stepNotice.error("The server could not be reached", "Check your connection and try again.");
     } finally {
       setPending(false);
     }
@@ -549,6 +543,7 @@ export function OnboardingWizard() {
 
   async function handleVerify() {
     if (otp.length !== 6) return;
+    codeNotice.clear();
     setVerifyPending(true);
     try {
       const response = await fetch("/api/v1/onboarding/verify", {
@@ -559,18 +554,14 @@ export function OnboardingWizard() {
       });
       const body = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || body.ok === false) {
-        showToast({ variant: "error", title: "Verification failed", description: body.error ?? "Incorrect code" });
+        codeNotice.error("That code did not work", body.error ?? "Check it and try again.");
         setVerifyPending(false);
         return;
       }
-      showToast({ variant: "success", title: "Email verified", description: "Taking you to your workspace now." });
+      codeNotice.success("Email verified", "Taking you to your workspace now.");
       window.setTimeout(goToDashboard, 250);
     } catch {
-      showToast({
-        variant: "error",
-        title: "Server unavailable",
-        description: "Unable to reach the server. Please try again."
-      });
+      codeNotice.error("The server could not be reached", "Check your connection and try again.");
       setVerifyPending(false);
     }
   }
@@ -586,7 +577,7 @@ export function OnboardingWizard() {
       });
       const body = (await response.json()) as { ok?: boolean; error?: string; data?: { email: string } };
       if (!response.ok || body.ok === false || !body.data) {
-        showToast({ variant: "error", title: "Could not change it", description: body.error ?? "Please try again." });
+        codeNotice.error("The address could not be changed", body.error ?? "Please try again.");
         return;
       }
       setEmail(body.data.email);
@@ -594,9 +585,9 @@ export function OnboardingWizard() {
       setNewEmail("");
       setOtp("");
       setExpiresInSeconds(15 * 60);
-      showToast({ variant: "success", title: "Code sent", description: `A new code is on its way to ${body.data.email}.` });
+      codeNotice.success("A new code is on its way", `It was sent to ${body.data.email}. The earlier code no longer works.`);
     } catch {
-      showToast({ variant: "error", title: "Server unavailable", description: "Please try again shortly." });
+      codeNotice.error("The server could not be reached", "Please try again shortly.");
     }
   }
 
@@ -610,13 +601,13 @@ export function OnboardingWizard() {
       });
       const body = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || body.ok === false) {
-        showToast({ variant: "error", title: "Unable to resend", description: body.error ?? "Please try again shortly." });
+        codeNotice.error("The code could not be sent again", body.error ?? "Please try again shortly.");
         return;
       }
       setExpiresInSeconds(15 * 60);
-      showToast({ variant: "success", title: "Code sent", description: "Check your inbox for the new code." });
+      codeNotice.success("A new code is on its way", "Check your inbox. The earlier code no longer works.");
     } catch {
-      showToast({ variant: "error", title: "Server unavailable", description: "Please try again shortly." });
+      codeNotice.error("The server could not be reached", "Please try again shortly.");
     }
   }
 
@@ -630,15 +621,7 @@ export function OnboardingWizard() {
     idle: ["#f2f6f4", "#8c9a92"]
   };
 
-  const errorBanner = errorMessage ? (
-    <div className="mb-[18px] flex items-start gap-[9px] rounded-[11px] border border-[#f0cfcf] bg-[#fceeee] px-3 py-[11px]">
-      <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#b23b3b" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="mt-px shrink-0">
-        <circle cx="12" cy="12" r="9" />
-        <path d="M12 7.6v5M12 16.2h.01" />
-      </svg>
-      <div className="text-[10.5px] leading-[1.5] text-[#9b2f2f]">{errorMessage}</div>
-    </div>
-  ) : null;
+  const errorBanner = <InlineNotice notice={stepNotice.notice} onDismiss={stepNotice.clear} className="mb-[18px]" />;
 
   if (view === "fork") {
     return (
@@ -1517,6 +1500,8 @@ export function OnboardingWizard() {
               className="absolute inset-0 h-full w-full cursor-pointer border-none bg-transparent opacity-0"
             />
           </div>
+
+          <InlineNotice notice={codeNotice.notice} onDismiss={codeNotice.notice?.variant === "success" ? undefined : codeNotice.clear} className="mb-3" />
 
           <button
             type="button"

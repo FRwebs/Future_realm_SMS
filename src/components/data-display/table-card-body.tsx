@@ -5,7 +5,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ArrowUpDown, ChevronLeft, ChevronRight, Columns3 } from "lucide-react";
 
 import { usePortalType } from "@/components/layout/portal-context";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 
 import { BackOfficeTable } from "./back-office-table";
 
@@ -95,7 +95,8 @@ function StandardTableCardBody({
   selection,
 }: TableCardBodyProps) {
   const router = useRouter();
-  const { showToast } = useToast();
+  // What a bulk action did, said above the rows it acted on — and kept after the selection it came from has cleared.
+  const bulk = useNotice();
   const [picked, setPicked] = useState<Array<string | number>>([]);
   const [acting, setActing] = useState(false);
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -123,11 +124,11 @@ function StandardTableCardBody({
       const response = await fetch(action.endpoint, { method: action.method ?? "POST", credentials: "include", headers: { "Content-Type": "application/json", "x-csrf-token": getCookie("fr_csrf") ?? "" }, body: JSON.stringify({ ...(action.extra ?? {}), ...(action.choice ? { [action.choice.field]: choices[action.label] } : {}), [action.idsField]: ids }) });
       const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!response.ok) throw new Error(body.error ?? "That did not go through.");
-      showToast({ variant: "success", title: action.label, description: body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.` });
+      bulk.success(action.label, body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.`);
       setPicked([]);
       router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: action.label, description: error instanceof Error ? error.message : "That did not go through." });
+      bulk.error(`${action.label} did not go through`, error instanceof Error ? error.message : "Please try again.");
     } finally {
       setActing(false);
     }
@@ -260,6 +261,7 @@ function StandardTableCardBody({
 
       {filterBar}
 
+      <div className="px-3 pt-3 empty:hidden"><InlineNotice notice={bulk.notice} onDismiss={bulk.clear} /></div>
       {selection && picked.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2 border-b border-[#E6EEE9] bg-[#0D2315] px-5 py-3 text-[12px] text-white">
           <span className="mr-2 font-semibold">{picked.length} {picked.length === 1 ? selection.noun : selection.nounPlural} selected</span>

@@ -4,13 +4,6 @@ import { useState } from "react";
 
 export const TOOLTIP_OPEN_DELAY_MS = 400;
 
-export const TOAST_DURATIONS = {
-  success: 3000,
-  info: 3000,
-  warning: 4000,
-  error: 5000,
-} as const;
-
 export const MODAL_MAX_WIDTH = {
   sm: "max-w-md",
   md: "max-w-2xl",

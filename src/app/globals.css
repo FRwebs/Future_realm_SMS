@@ -226,15 +226,6 @@ a:focus-visible,
   }
 }
 
-@keyframes toast-progress {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
-}
-
 @keyframes fade-up {
   from {
     opacity: 0;

@@ -9,7 +9,7 @@ import {
   XCircle,
 } from "lucide-react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, type Notice } from "@/components/ui/inline-notice";
 import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
 import { readReply } from "@/lib/modules/submit";
 
@@ -221,7 +221,9 @@ export function ResourceForm({
   recorded,
 }: ResourceFormProps) {
   const router = useRouter();
-  const { showToast } = useToast();
+  /** Why a locked control cannot be changed, said beside the control that was pressed. */
+  const [explained, setExplained] = useState<{ field: string; notice: Notice } | null>(null);
+  const explain = (field: ResourceField, title: string, description: string) => setExplained({ field: field.name, notice: { variant: "info", title, description } });
   const [pending, setPending] = useState(false);
   const [live, setLive] = useState<Record<string, string>>(() => Object.fromEntries(fields.filter((field) => field.defaultValue !== undefined && !Array.isArray(field.defaultValue)).map((field) => [field.name, String(field.defaultValue)])));
   const [message, setMessage] = useState<string | null>(null);
@@ -246,12 +248,7 @@ export function ResourceForm({
       if (offlineKey && !navigator.onLine) {
         offlineQueue.saveDraft(payload);
         setTone("warning");
-        setMessage("Saved as an offline draft. Sync when connectivity improves.");
-        showToast({
-          variant: "warning",
-          title: "Saved as offline draft",
-          description: "Your changes were queued locally and can be synced when connectivity improves.",
-        });
+        setMessage("Saved as an offline draft. Your changes are queued on this device and can be synced when connectivity improves.");
         setNeedsConfirmation(false);
         setPendingPayload(null);
         form.reset();
@@ -276,11 +273,6 @@ export function ResourceForm({
 
       setTone("success");
       setMessage(keepOpen && body.message ? body.message : "Saved successfully.");
-      showToast({
-        variant: "success",
-        title: body.message ? body.message.slice(0, 90) : "Saved successfully",
-        description: title,
-      });
       setNeedsConfirmation(false);
       setPendingPayload(null);
       if (keepOpen) return;
@@ -291,11 +283,6 @@ export function ResourceForm({
       setTone("danger");
       const nextMessage = error instanceof Error ? error.message : "Something went wrong";
       setMessage(nextMessage);
-      showToast({
-        variant: "error",
-        title: "Unable to save record",
-        description: nextMessage,
-      });
     } finally {
       setPending(false);
     }
@@ -372,7 +359,8 @@ export function ResourceForm({
       const query = new URLSearchParams();
       for (const [key, value] of Object.entries(payload)) if (value !== undefined && value !== null && value !== "") query.set(key, String(value));
       window.location.assign(`${downloadHref}${downloadHref.includes("?") ? "&" : "?"}${query.toString()}`);
-      showToast({ variant: "success", title: "Export started", description: title });
+      setTone("success");
+      setMessage("Your export has started — it will download in a moment.");
       onSuccess?.();
       return;
     }
@@ -392,11 +380,6 @@ export function ResourceForm({
     const result = await offlineQueue.syncDrafts();
     setTone("success");
     setMessage(`Synced ${result.synced} queued draft(s).`);
-    showToast({
-      variant: "success",
-      title: "Drafts synced",
-      description: `${result.synced} queued draft(s) were uploaded successfully.`,
-    });
     router.refresh();
   }
 
@@ -533,21 +516,11 @@ export function ResourceForm({
                         key={field.name}
                         role="button"
                         tabIndex={0}
-                        onClick={() =>
-                          showToast({
-                            variant: "info",
-                            title: field.disabled ? "Not built" : "Fixed — can't be changed here",
-                            description: field.note ?? (field.disabled ? "This control isn't wired up in this build." : "This is always on and isn't editable.")
-                          })
-                        }
+                        onClick={() => explain(field, field.disabled ? "Not built" : "Fixed — can't be changed here", field.note ?? (field.disabled ? "This control isn't wired up in this build." : "This is always on and isn't editable."))}
                         onKeyDown={(event) => {
                           if (event.key === "Enter" || event.key === " ") {
                             event.preventDefault();
-                            showToast({
-                              variant: "info",
-                              title: field.disabled ? "Not built" : "Fixed — can't be changed here",
-                              description: field.note ?? (field.disabled ? "This control isn't wired up in this build." : "This is always on and isn't editable.")
-                            });
+                            explain(field, field.disabled ? "Not built" : "Fixed — can't be changed here", field.note ?? (field.disabled ? "This control isn't wired up in this build." : "This is always on and isn't editable."));
                           }
                         }}
                         style={{
@@ -584,6 +557,9 @@ export function ResourceForm({
                         </div>
                       </div>
                     ))}
+                    {explained && segment.fields.some((field) => field.name === explained.field) ? (
+                      <div style={{ gridColumn: "1 / -1" }}><InlineNotice notice={explained.notice} onDismiss={() => setExplained(null)} compact /></div>
+                    ) : null}
                   </div>
                 ) : (
                   <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 11 }}>
@@ -614,7 +590,7 @@ export function ResourceForm({
                               tabIndex={field.type === "static" ? 0 : undefined}
                               onClick={
                                 field.type === "static"
-                                  ? () => showToast({ variant: "info", title: "Not editable here", description: field.note ?? "This field is locked — nothing in this build lets it be changed." })
+                                  ? () => explain(field, "Not editable here", field.note ?? "This field is locked — nothing in this build lets it be changed.")
                                   : undefined
                               }
                               onKeyDown={
@@ -622,7 +598,7 @@ export function ResourceForm({
                                   ? (event) => {
                                       if (event.key === "Enter" || event.key === " ") {
                                         event.preventDefault();
-                                        showToast({ variant: "info", title: "Not editable here", description: field.note ?? "This field is locked — nothing in this build lets it be changed." });
+                                        explain(field, "Not editable here", field.note ?? "This field is locked — nothing in this build lets it be changed.");
                                       }
                                     }
                                   : undefined
@@ -683,6 +659,7 @@ export function ResourceForm({
                             </div>
                           )}
                           {field.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 4.5, lineHeight: 1.45 }}>{field.note}</div> : null}
+                        {explained?.field === field.name ? <div style={{ marginTop: 7 }}><InlineNotice notice={explained.notice} onDismiss={() => setExplained(null)} compact /></div> : null}
                         </label>
                       );
                     })}

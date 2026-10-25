@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { InvoiceView } from "@/lib/domain/types";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
@@ -30,7 +30,8 @@ function getCookie(name: string) {
 
 export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const pageNotice = useNotice();
+  const formNotice = useNotice();
   const openInvoices = invoices.filter((invoice) => invoice.balance > 0 && !["PAID", "VOID"].includes(invoice.status));
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -63,12 +64,9 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
   }
 
   function openModal() {
+    formNotice.clear();
     if (openInvoices.length === 0) {
-      showToast({
-        variant: "info",
-        title: "No open invoices available",
-        description: "All visible invoices are settled already, so there is nothing to record right now.",
-      });
+      pageNotice.info("No open invoices available", "All visible invoices are settled already, so there is nothing to record right now.");
       return;
     }
     setOpen(true);
@@ -76,38 +74,23 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
 
   async function submitPayment() {
     if (!selectedInvoice) {
-      showToast({
-        variant: "warning",
-        title: "Select an invoice first",
-        description: "Choose the learner's open invoice before recording payment.",
-      });
+      formNotice.warning("Select an invoice first", "Choose the learner's open invoice before recording payment.");
       return;
     }
     if (!Number.isFinite(amount) || amount <= 0) {
-      showToast({
-        variant: "warning",
-        title: "Enter a valid amount",
-        description: "Payment amount must be greater than zero.",
-      });
+      formNotice.warning("Enter a valid amount", "Payment amount must be greater than zero.");
       return;
     }
     if (amount > selectedInvoice.balance) {
-      showToast({
-        variant: "warning",
-        title: "Amount is above outstanding balance",
-        description: `This invoice has only ${formatCurrency(selectedInvoice.balance)} outstanding.`,
-      });
+      formNotice.warning("Amount is above outstanding balance", `This invoice has only ${formatCurrency(selectedInvoice.balance)} outstanding.`);
       return;
     }
     if (method !== "CASH" && !reference.trim()) {
-      showToast({
-        variant: "warning",
-        title: "Reference required",
-        description: "Add the transfer, POS, or cheque reference before recording this payment.",
-      });
+      formNotice.warning("Reference required", "Add the transfer, POS, or cheque reference before recording this payment.");
       return;
     }
 
+    formNotice.clear();
     setPending(true);
     try {
       const response = await fetch("/api/v1/finance/payments/manual", {
@@ -130,19 +113,12 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
       const body = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || body.ok === false) throw new Error(body.error ?? "Unable to record payment.");
 
-      showToast({
-        variant: "success",
-        title: "Payment recorded",
-        description: `${formatCurrency(amount)} recorded for ${selectedInvoice.studentName}. Receipt generated.`,
-      });
+      pageNotice.success("Payment recorded", `${formatCurrency(amount)} recorded for ${selectedInvoice.studentName}. Receipt generated.`);
       setOpen(false);
+      formNotice.clear();
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Could not record payment",
-        description: error instanceof Error ? error.message : "Please review the payment details and try again.",
-      });
+      formNotice.error("Could not record payment", error instanceof Error ? error.message : "Please review the payment details and try again.");
     } finally {
       setPending(false);
     }
@@ -156,6 +132,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
         <Banknote className="h-4 w-4" />
         Record payment
       </button>
+      <InlineNotice notice={pageNotice.notice} onDismiss={pageNotice.clear} compact className="mt-2 max-w-[340px]" />
 
       <Modal
         open={open}
@@ -164,6 +141,8 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
         subtitle="Search the student or invoice, confirm the amount, and generate an official receipt."
         size="lg"
         footer={
+          <div className="grid gap-3">
+          <InlineNotice notice={formNotice.notice} onDismiss={formNotice.clear} />
           <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-[12px] text-[var(--color-text-secondary)]">
               {selectedInvoice ? `Balance after payment: ${formatCurrency(nextBalance)}` : "Select an invoice to continue."}
@@ -182,6 +161,7 @@ export function ManualPaymentModal({ invoices }: ManualPaymentModalProps) {
                 {pending ? "Recording..." : "Confirm and Generate Receipt"}
               </button>
             </div>
+          </div>
           </div>
         }
       >

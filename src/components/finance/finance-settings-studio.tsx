@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Save, Settings2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { FinanceSettingsView } from "@/lib/domain/types";
 import {
   FinancePageHeader,
@@ -24,7 +24,7 @@ function getCookie(name: string) {
 
 export function FinanceSettingsStudio({ settings }: Props) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const notice = useNotice();
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({
     paymentMethodsCsv: settings.paymentMethods.join(", "),
@@ -34,6 +34,7 @@ export function FinanceSettingsStudio({ settings }: Props) {
   });
 
   async function submit() {
+    notice.clear();
     setSaving(true);
     try {
       const response = await fetch("/api/v1/bursary/settings", {
@@ -52,10 +53,10 @@ export function FinanceSettingsStudio({ settings }: Props) {
       });
       const body = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || body.ok === false) throw new Error(body.error ?? "Could not update finance settings.");
-      showToast({ variant: "success", title: "Finance settings updated", description: "The bursary operating rules are now saved." });
+      notice.success("Finance settings updated", "The bursary operating rules are now saved.");
       router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: "Settings update failed", description: error instanceof Error ? error.message : "Please try again." });
+      notice.error("Settings update failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSaving(false);
     }
@@ -68,10 +69,13 @@ export function FinanceSettingsStudio({ settings }: Props) {
         title="Control the bursary operating rules"
         description="Configure payment methods, overpayment handling, reminder cadence, and receipt sequencing from a clean, production-ready control surface."
         actions={
-          <button type="button" onClick={submit} className="finance-btn-primary" disabled={saving}>
-            <Save className="h-4 w-4" />
-            {saving ? "Saving..." : "Save settings"}
-          </button>
+          <div className="grid justify-items-end gap-2">
+            <button type="button" onClick={submit} className="finance-btn-primary" disabled={saving}>
+              <Save className="h-4 w-4" />
+              {saving ? "Saving..." : "Save settings"}
+            </button>
+            <InlineNotice notice={notice.notice} onDismiss={notice.clear} compact className="max-w-[340px]" />
+          </div>
         }
       />
 

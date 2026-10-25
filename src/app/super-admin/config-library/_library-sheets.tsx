@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { DetailSheet } from "@/components/data-display/detail-sheet";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { readCookie, readableError } from "@/lib/modules/submit";
 import type { PortabilityFinding } from "@/lib/domain/types";
 
@@ -143,19 +143,25 @@ export function CardPreview({ id, name }: { id: string; name: string }) {
 /** Runs the eight tests against every master still in play, then reloads so the portability table reads the results. */
 export function RunPortability({ id, label = "Run the tests" }: { id?: string; label?: string }) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const notice = useNotice();
   const [busy, setBusy] = useState(false);
   async function run() {
     setBusy(true);
+    notice.clear();
     try {
       const result = await request<{ passed?: boolean | number; ran?: number; results?: PortabilityFinding[] }>(id ? `/curricula/${id}/portability` : "/portability/run-all", "POST");
-      showToast({ variant: "success", title: "Portability tests run", description: id ? (result.passed ? "All eight passed." : "At least one failed — see the findings.") : `${result.ran ?? 0} masters checked, ${result.passed ?? 0} passed outright.` });
+      notice.success("Portability tests run", id ? (result.passed ? "All eight passed." : "At least one failed — see the findings.") : `${result.ran ?? 0} masters checked, ${result.passed ?? 0} passed outright.`);
       router.refresh();
     } catch (cause) {
-      showToast({ variant: "error", title: "The tests did not run", description: cause instanceof Error ? cause.message : "Try again." });
+      notice.error("The tests did not run", cause instanceof Error ? cause.message : "Try again.");
     } finally {
       setBusy(false);
     }
   }
-  return <button type="button" onClick={run} disabled={busy} className={SECONDARY}>{busy ? "Running…" : label}</button>;
+  return (
+    <span className="inline-flex max-w-full flex-col items-start gap-[8px]">
+      <button type="button" onClick={run} disabled={busy} className={SECONDARY}>{busy ? "Running…" : label}</button>
+      <InlineNotice notice={notice.notice} onDismiss={notice.clear} compact className="max-w-[420px]" />
+    </span>
+  );
 }

@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { FeeStructureView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
@@ -120,7 +120,8 @@ export function FinanceFeeStructuresStudio({
   canManageFinance,
 }: Props) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const pageNotice = useNotice();
+  const formNotice = useNotice();
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
   const [drawerMode, setDrawerMode] = useState<"create" | "edit" | "generate" | null>(null);
@@ -162,18 +163,24 @@ export function FinanceFeeStructuresStudio({
   }, [structures]);
 
   function openCreate() {
+    formNotice.clear();
+    pageNotice.clear();
     setSelected(null);
     setForm(emptyState());
     setDrawerMode("create");
   }
 
   function openEdit(structure: FeeStructureView) {
+    formNotice.clear();
+    pageNotice.clear();
     setSelected(structure);
     setForm(formFromStructure(structure));
     setDrawerMode("edit");
   }
 
   function openGenerate(structure: FeeStructureView) {
+    formNotice.clear();
+    pageNotice.clear();
     setSelected(structure);
     setDueOn(structure.dueDate?.slice(0, 10) ?? "");
     setDrawerMode("generate");
@@ -181,15 +188,16 @@ export function FinanceFeeStructuresStudio({
 
   async function submitStructure() {
     if (!form.name.trim()) {
-      showToast({ variant: "warning", title: "Add a structure name", description: "Every fee template needs a clear bursary-facing name." });
+      formNotice.warning("Add a structure name", "Every fee template needs a clear bursary-facing name.");
       return;
     }
     const items = form.items.filter((item) => item.label.trim() && item.amount > 0);
     if (!items.length) {
-      showToast({ variant: "warning", title: "Add fee items", description: "At least one active fee item with an amount is required." });
+      formNotice.warning("Add fee items", "At least one active fee item with an amount is required.");
       return;
     }
 
+    formNotice.clear();
     setSaving(true);
     try {
       const endpoint =
@@ -218,19 +226,11 @@ export function FinanceFeeStructuresStudio({
       if (!response.ok || body.ok === false) {
         throw new Error(body.error ?? "Could not save fee structure.");
       }
-      showToast({
-        variant: "success",
-        title: drawerMode === "edit" ? "Fee structure updated" : "Fee structure created",
-        description: "The bursary fee template is now ready for invoice generation.",
-      });
+      pageNotice.success(drawerMode === "edit" ? "Fee structure updated" : "Fee structure created", "The bursary fee template is now ready for invoice generation.");
       setDrawerMode(null);
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Unable to save structure",
-        description: error instanceof Error ? error.message : "Please review the form and try again.",
-      });
+      formNotice.error("Unable to save structure", error instanceof Error ? error.message : "Please review the form and try again.");
     } finally {
       setSaving(false);
     }
@@ -239,6 +239,7 @@ export function FinanceFeeStructuresStudio({
   async function archiveStructure(structure: FeeStructureView) {
     const approved = window.confirm(`Archive ${structure.name}? It will be hidden from active invoice generation but kept in history.`);
     if (!approved) return;
+    pageNotice.clear();
     try {
       const response = await fetch(`/api/v1/bursary/fee-structures/${structure.id}`, {
         method: "DELETE",
@@ -247,19 +248,16 @@ export function FinanceFeeStructuresStudio({
       });
       const body = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || body.ok === false) throw new Error(body.error ?? "Could not archive the structure.");
-      showToast({ variant: "success", title: "Structure archived", description: `${structure.name} was moved out of active bursary use.` });
+      pageNotice.success("Structure archived", `${structure.name} was moved out of active bursary use.`);
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Archive failed",
-        description: error instanceof Error ? error.message : "Please try again.",
-      });
+      pageNotice.error("Archive failed", error instanceof Error ? error.message : "Please try again.");
     }
   }
 
   async function generateInvoices() {
     if (!selected) return;
+    formNotice.clear();
     setSaving(true);
     try {
       const response = await fetch("/api/v1/bursary/invoices/generate", {
@@ -278,19 +276,11 @@ export function FinanceFeeStructuresStudio({
       if (!response.ok || body.ok === false) {
         throw new Error(body.error ?? "Could not generate invoices.");
       }
-      showToast({
-        variant: "success",
-        title: "Invoices generated",
-        description: `${Array.isArray(body.data) ? body.data.length : 0} invoice records were created from ${selected.name}.`,
-      });
+      pageNotice.success("Invoices generated", `${Array.isArray(body.data) ? body.data.length : 0} invoice records were created from ${selected.name}.`);
       setDrawerMode(null);
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Invoice generation failed",
-        description: error instanceof Error ? error.message : "Please try again.",
-      });
+      formNotice.error("Invoice generation failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSaving(false);
     }
@@ -304,10 +294,13 @@ export function FinanceFeeStructuresStudio({
         description="Organise tuition, levies, exams, transport, and boarding lines into reusable fee structures that the bursary can push into live student billing with confidence."
         actions={
           canManageFinance ? (
-            <button type="button" onClick={openCreate} className="finance-btn-primary">
-              <Plus className="h-4 w-4" />
-              Add fee structure
-            </button>
+            <div className="grid justify-items-end gap-2">
+              <button type="button" onClick={openCreate} className="finance-btn-primary">
+                <Plus className="h-4 w-4" />
+                Add fee structure
+              </button>
+              <InlineNotice notice={pageNotice.notice} onDismiss={pageNotice.clear} compact className="max-w-[360px]" />
+            </div>
           ) : undefined
         }
       />
@@ -469,6 +462,8 @@ export function FinanceFeeStructuresStudio({
         title={drawerMode === "edit" ? "Edit fee structure" : "Create fee structure"}
         subtitle="Use this drawer to define the fee mix, scope, and due date without leaving the bursary workspace."
         footer={
+          <div className="grid gap-3">
+          <InlineNotice notice={formNotice.notice} onDismiss={formNotice.clear} />
           <div className="flex items-center justify-end gap-3">
             <button type="button" onClick={() => setDrawerMode(null)} className="finance-btn-secondary">
               Cancel
@@ -476,6 +471,7 @@ export function FinanceFeeStructuresStudio({
             <button type="button" onClick={submitStructure} className="finance-btn-primary" disabled={saving}>
               {saving ? "Saving..." : drawerMode === "edit" ? "Save changes" : "Create structure"}
             </button>
+          </div>
           </div>
         }
       >
@@ -678,6 +674,8 @@ export function FinanceFeeStructuresStudio({
         subtitle="Push this approved template into live student billing and create term-ready invoices."
         width="420px"
         footer={
+          <div className="grid gap-3">
+          <InlineNotice notice={formNotice.notice} onDismiss={formNotice.clear} />
           <div className="flex items-center justify-end gap-3">
             <button type="button" onClick={() => setDrawerMode(null)} className="finance-btn-secondary">
               Cancel
@@ -685,6 +683,7 @@ export function FinanceFeeStructuresStudio({
             <button type="button" onClick={generateInvoices} className="finance-btn-primary" disabled={saving}>
               {saving ? "Generating..." : "Generate invoices"}
             </button>
+          </div>
           </div>
         }
       >

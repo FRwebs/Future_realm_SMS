@@ -384,6 +384,16 @@ export class OnboardingService {
   }
 
   /** The countries a school can sign up in right now: the ones opened in Country Settings. */
+  /** The website's "Stay updated" box. The address is kept as a lead for the sales team — once, however many times it is sent. */
+  async joinNewsletter(payload: unknown) {
+    const parsed = z.object({ email: z.string().trim().toLowerCase().email("That does not look like an email address.").max(200) }).safeParse(payload);
+    if (!parsed.success) throw new BadRequestException(parsed.error.issues[0]?.message ?? "That does not look like an email address.");
+    const email = parsed.data.email;
+    const existing = await prisma.lead.findFirst({ where: { email, source: "Website · Stay updated" }, select: { id: true } });
+    if (!existing) await prisma.lead.create({ data: { prospectName: email, contactName: email, email, source: "Website · Stay updated", notes: "Asked for launch notes and rollout news." } });
+    return { joined: true };
+  }
+
   async openCountryNames() {
     const live = await prisma.countryProfile.findMany({ where: { isLive: true }, orderBy: { country: "asc" }, select: { country: true } });
     if (live.length) return live.map((row) => row.country);

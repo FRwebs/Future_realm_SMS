@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { usePermissions } from "@/components/auth/permission-provider";
 import { Modal } from "@/components/ui/modal";
 import { SidePanel } from "@/components/ui/side-panel";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { SchemeOfWorkDetailView, SchemeOfWorkTopicView } from "@/lib/domain/types";
 import { schemeApi } from "./api";
 import { SchemeOfWorkStatusBadge } from "./status-badge";
@@ -288,7 +288,7 @@ export function SchemeOfWorkDetailClient({
   isAssignedTeacher?: boolean;
 }) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const actionNotice = useNotice();
   const { hasPermission } = usePermissions();
   const [sow, setSow] = useState(initialSow);
   const [pending, setPending] = useState<string | null>(null);
@@ -317,6 +317,7 @@ export function SchemeOfWorkDetailClient({
   async function runAction(action: "submit" | "approve" | "return", reason?: string) {
     setPending(action);
     setError(null);
+    actionNotice.clear();
     try {
       if (action === "submit") {
         await schemeApi(`/api/v1/scheme-of-work/${sow.id}/submit`, { method: "PATCH", body: JSON.stringify({}) });
@@ -330,29 +331,17 @@ export function SchemeOfWorkDetailClient({
         });
       }
       await refresh();
-      showToast({
-        variant: "success",
-        title:
-          action === "submit"
-            ? "Scheme submitted"
-            : action === "approve"
-              ? "Scheme approved"
-              : "Returned for revision",
-        description:
-          action === "submit"
-            ? `${sow.className} ${sow.subjectName} was submitted for review.`
-            : action === "approve"
-              ? `${sow.className} ${sow.subjectName} was approved successfully.`
-              : `${sow.className} ${sow.subjectName} was returned to the teacher.`,
-      });
+      actionNotice.success(
+        action === "submit" ? "Scheme submitted" : action === "approve" ? "Scheme approved" : "Returned for revision",
+        action === "submit"
+          ? `${sow.className} ${sow.subjectName} was submitted for review.`
+          : action === "approve"
+            ? `${sow.className} ${sow.subjectName} was approved successfully.`
+            : `${sow.className} ${sow.subjectName} was returned to the teacher.`,
+      );
     } catch (err) {
       const message = err instanceof Error ? err.message : "Unable to complete the action.";
       setError(message);
-      showToast({
-        variant: "error",
-        title: "Action failed",
-        description: message,
-      });
     } finally {
       setPending(null);
     }
@@ -425,6 +414,7 @@ export function SchemeOfWorkDetailClient({
             {error}
           </p>
         ) : null}
+        <InlineNotice notice={actionNotice.notice} onDismiss={actionNotice.clear} className="mt-4" bringIntoView />
         {sow.returnReason ? (
           <div
             className="mt-4 rounded-2xl border px-4 py-3 text-sm"

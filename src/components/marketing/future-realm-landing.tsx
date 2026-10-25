@@ -18,7 +18,7 @@ import {
   UserPlus,
 } from "lucide-react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { FieldMessage, InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { cn } from "@/lib/utils/cn";
 
 const INK = "#0d2315";
@@ -420,7 +420,9 @@ export function FutureRealmLandingPage() {
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [plans, setPlans] = useState<Plan[]>(fallbackPlans);
-  const { showToast } = useToast();
+  const newsletter = useNotice();
+  const [newsletterMissing, setNewsletterMissing] = useState<string | undefined>();
+  const [newsletterPending, setNewsletterPending] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -452,24 +454,30 @@ export function FutureRealmLandingPage() {
 
   const tab = roleTabs[activeTab];
 
-  function handleNewsletterSubmit(event: React.FormEvent<HTMLFormElement>) {
+  async function handleNewsletterSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    newsletter.clear();
 
-    if (!newsletterEmail.trim() || !newsletterEmail.includes("@")) {
-      showToast({
-        variant: "error",
-        title: "Enter a valid email",
-        description: "Please provide a working email address so we can share product updates.",
-      });
+    if (!/^\S+@\S+\.\S+$/.test(newsletterEmail.trim())) {
+      setNewsletterMissing("Enter a working email address so we can share product updates.");
       return;
     }
-
-    showToast({
-      variant: "success",
-      title: "You are on the list",
-      description: "We will share FutureRealm SMS updates, demos, and rollout news with you.",
-    });
-    setNewsletterEmail("");
+    setNewsletterMissing(undefined);
+    setNewsletterPending(true);
+    try {
+      const response = await fetch("/api/v1/onboarding/newsletter", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newsletterEmail.trim() }) });
+      const body = (await response.json().catch(() => ({}))) as { ok?: boolean; error?: string };
+      if (!response.ok || body.ok === false) {
+        newsletter.error("You were not added", body.error ?? "Please try again in a moment.");
+        return;
+      }
+      newsletter.success("You are on the list", "We will share FutureRealm SMS updates, demos and rollout news with you.");
+      setNewsletterEmail("");
+    } catch {
+      newsletter.error("The server could not be reached", "Check your connection and try again.");
+    } finally {
+      setNewsletterPending(false);
+    }
   }
 
   return (
@@ -1425,18 +1433,22 @@ export function FutureRealmLandingPage() {
             <div>
               <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Stay updated</p>
               <p className="mb-3 text-[13px] text-[#435048]">Launch notes and rollout insights for school leaders.</p>
-              <form onSubmit={handleNewsletterSubmit} className="flex gap-2">
+              <form onSubmit={handleNewsletterSubmit} noValidate className="flex gap-2">
                 <input
                   type="email"
                   value={newsletterEmail}
-                  onChange={(event) => setNewsletterEmail(event.target.value)}
+                  aria-invalid={Boolean(newsletterMissing)}
+                  aria-describedby={newsletterMissing ? "newsletter-email-missing" : undefined}
+                  onChange={(event) => { setNewsletterEmail(event.target.value); if (newsletterMissing) setNewsletterMissing(undefined); }}
                   placeholder="you@school.edu.ng"
                   className="flex-1 rounded-[9px] border border-[#e3ece6] bg-[#f3f7f4] px-3 py-2.5 text-[13px] outline-none placeholder:text-[#9fb8a7]"
                 />
-                <button type="submit" className="whitespace-nowrap rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white" style={{ background: INK }}>
-                  Join
+                <button type="submit" disabled={newsletterPending} className="whitespace-nowrap rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-70" style={{ background: INK }}>
+                  {newsletterPending ? "Joining…" : "Join"}
                 </button>
               </form>
+              <FieldMessage id="newsletter-email-missing">{newsletterMissing}</FieldMessage>
+              <InlineNotice notice={newsletter.notice} onDismiss={newsletter.clear} compact className="mt-2" />
             </div>
           </div>
           <div className="flex flex-col items-center justify-between gap-3 pb-7 text-[13px] text-[#77857c] sm:flex-row">

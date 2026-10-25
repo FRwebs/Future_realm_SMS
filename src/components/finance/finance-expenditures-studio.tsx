@@ -8,7 +8,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { ExpenditureView } from "@/lib/domain/types";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
 import {
@@ -31,7 +31,8 @@ function getCookie(name: string) {
 
 export function FinanceExpendituresStudio({ expenditures }: Props) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const pageNotice = useNotice();
+  const formNotice = useNotice();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -63,9 +64,10 @@ export function FinanceExpendituresStudio({ expenditures }: Props) {
 
   async function submitExpense() {
     if (!form.category.trim() || !form.description.trim() || !form.amount || !form.paymentMethod.trim() || !form.paidTo.trim()) {
-      showToast({ variant: "warning", title: "Complete the expense form", description: "Category, description, amount, payment method, and beneficiary are required." });
+      formNotice.warning("Complete the expense form", "Category, description, amount, payment method, and beneficiary are required.");
       return;
     }
+    formNotice.clear();
     setSaving(true);
     try {
       const response = await fetch("/api/v1/bursary/expenditures", {
@@ -82,11 +84,12 @@ export function FinanceExpendituresStudio({ expenditures }: Props) {
       });
       const body = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || body.ok === false) throw new Error(body.error ?? "Could not record expenditure.");
-      showToast({ variant: "success", title: "Expenditure recorded", description: "The finance ledger has been updated successfully." });
+      pageNotice.success("Expenditure recorded", "The finance ledger has been updated successfully.");
+      formNotice.clear();
       setOpen(false);
       router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: "Could not save expenditure", description: error instanceof Error ? error.message : "Please try again." });
+      formNotice.error("Could not save expenditure", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSaving(false);
     }
@@ -99,10 +102,13 @@ export function FinanceExpendituresStudio({ expenditures }: Props) {
         title="Track every naira that leaves the school"
         description="Keep petty cash, utilities, transport, salaries, and vendor payments in one searchable finance ledger with production-ready traceability."
         actions={
-          <button type="button" onClick={() => setOpen(true)} className="finance-btn-primary">
-            <Plus className="h-4 w-4" />
-            Record expense
-          </button>
+          <div className="grid justify-items-end gap-2">
+            <button type="button" onClick={() => { formNotice.clear(); pageNotice.clear(); setOpen(true); }} className="finance-btn-primary">
+              <Plus className="h-4 w-4" />
+              Record expense
+            </button>
+            <InlineNotice notice={pageNotice.notice} onDismiss={pageNotice.clear} compact className="max-w-[340px]" />
+          </div>
         }
       />
 
@@ -165,11 +171,14 @@ export function FinanceExpendituresStudio({ expenditures }: Props) {
         title="Record expenditure"
         subtitle="Add a clean finance ledger entry with all the context the bursary office will need later."
         footer={
+          <div className="grid gap-3">
+          <InlineNotice notice={formNotice.notice} onDismiss={formNotice.clear} />
           <div className="flex items-center justify-end gap-3">
             <button type="button" onClick={() => setOpen(false)} className="finance-btn-secondary">Cancel</button>
             <button type="button" onClick={submitExpense} className="finance-btn-primary" disabled={saving}>
               {saving ? "Saving..." : "Save expenditure"}
             </button>
+          </div>
           </div>
         }
       >

@@ -104,7 +104,6 @@ export function DashboardShell({
   return (
     <PortalProvider value={portalType}>
     <PermissionProvider permissions={permissions}>
-      <NavigationNoticeListener />
       <div
         data-shell-theme={theme}
         className="finance-shell flex h-screen overflow-hidden"
@@ -171,6 +170,7 @@ export function DashboardShell({
                 incoming content is still a freshly-inserted child each time, so it still gets
                 its own page-shell-enter entrance below. */}
             <div className="page-shell-enter mx-auto w-full max-w-[1480px]">
+              <NavigationNoticeListener />
               {children}
             </div>
           </main>

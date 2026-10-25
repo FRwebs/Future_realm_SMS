@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Children, isValidElement, useEffect, useMemo, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 
 import type { PreparedColumn, PreparedRow, SelectionAction, SelectionConfig } from "./table-card-body";
 
@@ -44,7 +44,8 @@ const perPage = (total: number, pageSize: number | false) => (pageSize === false
 
 export function BackOfficeTable({ title, description, meta, emptyState, actions, filterBar, footnote, columns, rows, pageSize, selection }: Props) {
   const router = useRouter();
-  const { showToast } = useToast();
+  // What a bulk action did, said above the rows it acted on — and kept after the selection it came from has cleared.
+  const bulk = useNotice();
   const [picked, setPicked] = useState<Array<string | number>>([]);
   const [acting, setActing] = useState(false);
   const [page, setPage] = useState(0);
@@ -81,11 +82,11 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
       const response = await fetch(action.endpoint, { method: action.method ?? "POST", credentials: "include", headers: { "Content-Type": "application/json", "x-csrf-token": csrf() }, body: JSON.stringify({ ...(action.extra ?? {}), ...(action.choice ? { [action.choice.field]: choices[action.label] } : {}), [action.idsField]: ids }) });
       const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!response.ok) throw new Error(body.error ?? "That did not go through.");
-      showToast({ variant: "success", title: action.label, description: body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.` });
+      bulk.success(action.label, body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.`);
       setPicked([]);
       router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: action.label, description: error instanceof Error ? error.message : "That did not go through." });
+      bulk.error(`${action.label} did not go through`, error instanceof Error ? error.message : "Please try again.");
     } finally {
       setActing(false);
     }
@@ -138,6 +139,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         </div>
       ) : null}
 
+      <div className="px-3 pt-3 empty:hidden"><InlineNotice notice={bulk.notice} onDismiss={bulk.clear} /></div>
       {selection && picked.length > 0 ? (
         <div className="px-3 pt-3">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#0D2315] px-4 py-[11px]">

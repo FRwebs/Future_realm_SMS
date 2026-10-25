@@ -4,30 +4,32 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Eye, EyeOff, Lock, ShieldCheck } from "lucide-react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { FieldMessage, InlineNotice, useNotice } from "@/components/ui/inline-notice";
 
 export function ResetPasswordForm({ token }: { token: string }) {
-  const { showToast } = useToast();
+  const notice = useNotice();
   const [pending, setPending] = useState(false);
   const [complete, setComplete] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [missing, setMissing] = useState<{ password?: string; confirmPassword?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setPending(true);
-    setError(null);
+    notice.clear();
 
     const formData = new FormData(event.currentTarget);
     const password = String(formData.get("password") ?? "");
     const confirmPassword = String(formData.get("confirmPassword") ?? "");
 
-    if (password !== confirmPassword) {
-      setError("Passwords do not match.");
-      setPending(false);
-      return;
-    }
+    // Every requirement is said beside the field it is about, together, so nobody fixes one and meets the next.
+    const gaps = {
+      password: !password ? "Choose a new password." : password.length < 8 ? "Use at least 8 characters." : undefined,
+      confirmPassword: !confirmPassword ? "Type it again to be sure." : password !== confirmPassword ? "The two passwords are not the same." : undefined
+    };
+    setMissing(gaps);
+    if (gaps.password || gaps.confirmPassword) return;
+    setPending(true);
 
     try {
       const response = await fetch("/api/v1/auth/reset-password", {
@@ -38,23 +40,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
       const body = (await response.json()) as { ok?: boolean; error?: string; data?: { message?: string } };
 
       if (!response.ok || body.ok === false) {
-        const nextError = body.error ?? "Unable to reset password.";
-        setError(nextError);
-        showToast({ variant: "error", title: "Reset failed", description: nextError });
+        notice.error("The password was not changed", body.error ?? "The link may have expired. Request a new one and try again.");
         setPending(false);
         return;
       }
 
       setComplete(true);
-      showToast({
-        variant: "success",
-        title: "Password changed",
-        description: body.data?.message ?? "You can now sign in with the new password."
-      });
     } catch {
-      const nextError = "Unable to reach the server. Please try again.";
-      setError(nextError);
-      showToast({ variant: "error", title: "Server unavailable", description: nextError });
+      notice.error("The server could not be reached", "Check your connection and try again.");
     } finally {
       setPending(false);
     }
@@ -87,13 +80,15 @@ export function ResetPasswordForm({ token }: { token: string }) {
   }
 
   return (
-    <form onSubmit={handleSubmit}>
+    <form onSubmit={handleSubmit} noValidate>
       <PasswordField
         label="New password"
         name="password"
         placeholder="At least 8 characters"
         visible={showPassword}
         onToggle={() => setShowPassword((current) => !current)}
+        message={missing.password}
+        onType={() => missing.password && setMissing((current) => ({ ...current, password: undefined }))}
       />
       <PasswordField
         label="Confirm password"
@@ -101,7 +96,11 @@ export function ResetPasswordForm({ token }: { token: string }) {
         placeholder="Re-enter new password"
         visible={showConfirm}
         onToggle={() => setShowConfirm((current) => !current)}
+        message={missing.confirmPassword}
+        onType={() => missing.confirmPassword && setMissing((current) => ({ ...current, confirmPassword: undefined }))}
       />
+
+      <InlineNotice notice={notice.notice} onDismiss={notice.clear} className="mb-3" />
 
       <button
         type="submit"
@@ -111,7 +110,6 @@ export function ResetPasswordForm({ token }: { token: string }) {
         {pending ? "Changing password..." : "Change password"}
       </button>
 
-      {error ? <p className="mt-4 text-[13px] text-[var(--color-danger)]">{error}</p> : null}
     </form>
   );
 }
@@ -121,24 +119,29 @@ function PasswordField({
   name,
   placeholder,
   visible,
-  onToggle
+  onToggle,
+  message,
+  onType
 }: {
   label: string;
   name: string;
   placeholder: string;
   visible: boolean;
   onToggle: () => void;
+  message?: string;
+  onType: () => void;
 }) {
   return (
     <div className="mb-4">
       <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">{label}</label>
-      <div className="flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
+      <div className={`flex items-center gap-[10px] rounded-[11px] border-[1.5px] px-[14px] py-[12px] transition focus-within:border-[#12796a] ${message ? "border-[#a13d3d]" : "border-[#dee8e2]"}`}>
         <Lock className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
         <input
           type={visible ? "text" : "password"}
           name={name}
-          required
-          minLength={8}
+          aria-invalid={Boolean(message)}
+          aria-describedby={message ? `${name}-missing` : undefined}
+          onChange={onType}
           className="w-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
           placeholder={placeholder}
         />
@@ -151,6 +154,7 @@ function PasswordField({
           {visible ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
         </button>
       </div>
+      <FieldMessage id={`${name}-missing`}>{message}</FieldMessage>
     </div>
   );
 }

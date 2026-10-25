@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, Lock, ShieldCheck, UserRound } from "lucide-react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { FieldMessage, InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { wakeApi, useApiState } from "@/lib/api/wake";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 
@@ -16,10 +16,11 @@ function resolveLandingPath(role: string) {
 
 export function LoginForm() {
   const router = useRouter();
-  const { showToast } = useToast();
+  const notice = useNotice();
   const apiState = useApiState();
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  /** What is missing, said under the field it is about. */
+  const [missing, setMissing] = useState<{ identifier?: string; password?: string; code?: string }>({});
   const [showPassword, setShowPassword] = useState(false);
   const [trustDevice, setTrustDevice] = useState(true);
   const [email, setEmail] = useState("");
@@ -31,7 +32,7 @@ export function LoginForm() {
 
   async function attemptLogin(code?: string, retried = false) {
     setPending(true);
-    setError(null);
+    notice.clear();
 
     try {
       // A sign-in sent while the API is still starting would look like a failure. Wait for it to answer (the page has been asking since it
@@ -64,26 +65,17 @@ export function LoginForm() {
         if (body.code === "MFA_REQUIRED") {
           setMfaRequired(true);
           setCodeSentTo(body.channel === "EMAIL" ? (body.sentTo ?? "your email") : null);
-          if (code) setError(body.error ?? null);
+          if (code) notice.error("That code did not work", body.error ?? "Check it and try again.");
           setPending(false);
           return;
         }
-        const nextError = body.error ?? "Unable to sign in";
-        setError(nextError);
-        showToast({
-          variant: "error",
-          title: "Sign-in failed",
-          description: nextError,
-        });
+        notice.error("Sign-in failed", body.error ?? "We could not sign you in. Check your details and try again.");
         setPending(false);
         return;
       }
 
-      showToast({
-        variant: "success",
-        title: "Sign-in successful",
-        description: "Opening your workspace now.",
-      });
+      // The button stays disabled and the message stays put until the next page has replaced this one.
+      notice.success("Signed in", "Opening your workspace now.");
       const nextPath = resolveLandingPath(body.data.user.role);
 
       window.setTimeout(() => {
@@ -93,31 +85,36 @@ export function LoginForm() {
     } catch {
       // The connection dropped while the server was waking: ask it to wake once more and send the same sign-in again, once.
       if (!retried && (await wakeApi()) === "ready") return attemptLogin(code, true);
-      const nextError =
-        "Unable to reach the server. Please make sure the app is running and try again.";
-      setError(nextError);
-      showToast({
-        variant: "error",
-        title: "Server unavailable",
-        description: nextError,
-      });
+      notice.error("The server could not be reached", "Check your connection and try again. If it keeps happening, wait a moment — the server may still be starting.");
       setPending(false);
     }
   }
 
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    // What is needed is said beside the field, not in the browser's own bubble, and both gaps are named at once.
+    const gaps = { identifier: email.trim() ? undefined : "Enter your email address or User ID.", password: password ? undefined : "Enter your password." };
+    setMissing(gaps);
+    if (gaps.identifier || gaps.password) {
+      notice.warning("Two things are needed to sign in", "Fill in the highlighted fields, then sign in.");
+      return;
+    }
     await attemptLogin();
   }
 
   async function handleMfaSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    if (!mfaCode.trim()) {
+      setMissing({ code: "Enter the 6-digit code." });
+      return;
+    }
+    setMissing({});
     await attemptLogin(mfaCode);
   }
 
   if (mfaRequired) {
     return (
-      <form onSubmit={handleMfaSubmit}>
+      <form onSubmit={handleMfaSubmit} noValidate>
         <div className="mb-5 flex items-start gap-[10px] rounded-[11px] border px-[14px] py-[13px]" style={{ borderColor: "var(--color-gold-dim)", background: "var(--color-gold-dim)" }}>
           <ShieldCheck className="mt-px h-4 w-4 shrink-0" style={{ color: "#8a6410" }} strokeWidth={1.8} />
           <p className="text-[11.5px] leading-[1.5] text-[#435048]">
@@ -132,24 +129,26 @@ export function LoginForm() {
           <input
             type="text"
             name="mfaCode"
-            required
             autoFocus
+            aria-invalid={Boolean(missing.code)}
+            aria-describedby={missing.code ? "login-code-missing" : undefined}
             value={mfaCode}
-            onChange={(event) => setMfaCode(event.target.value)}
+            onChange={(event) => { setMfaCode(event.target.value); if (missing.code) setMissing({}); }}
             className="w-full bg-transparent text-[13.5px] tracking-widest text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
             placeholder="123456"
           />
         </div>
+        <FieldMessage id="login-code-missing">{missing.code}</FieldMessage>
+
+        <InlineNotice notice={notice.notice} onDismiss={notice.notice?.variant === "success" ? undefined : notice.clear} className="mb-3 mt-4" />
 
         <button
           type="submit"
-          disabled={pending || mfaCode.trim().length === 0}
+          disabled={pending}
           className="flex h-[46px] w-full items-center justify-center rounded-[11px] bg-[#0d2315] text-[14px] font-semibold text-white shadow-[0_10px_22px_-10px_rgba(13,35,21,0.55)] transition hover:bg-[#12796a] disabled:cursor-not-allowed disabled:opacity-70"
         >
           {pending ? "Verifying..." : "Verify and sign in"}
         </button>
-
-        {error ? <p className="mt-4 text-[13px] text-[var(--color-danger)]">{error}</p> : null}
 
         {codeSentTo ? (
           <p className="mt-4 text-center text-[12px] text-[#435048]">
@@ -160,7 +159,8 @@ export function LoginForm() {
               onClick={async () => {
                 setMfaCode("");
                 await attemptLogin();
-                showToast({ variant: "success", title: "Code sent", description: "Check your inbox for the new code." });
+                // attemptLogin asks for the code again and says nothing of its own when it works, so this is the only word on it.
+                notice.success("A new code is on its way", "Check your inbox. The earlier code no longer works.");
               }}
               className="font-semibold text-[#12796a] hover:underline"
             >
@@ -175,7 +175,8 @@ export function LoginForm() {
             setMfaRequired(false);
             setMfaCode("");
             setCodeSentTo(null);
-            setError(null);
+            setMissing({});
+            notice.clear();
           }}
           className="mt-4 w-full text-center text-[12.5px] font-semibold text-[#435048] hover:underline"
         >
@@ -186,36 +187,39 @@ export function LoginForm() {
   }
 
   return (
-    <form onSubmit={handleSubmit} method="post">
+    <form onSubmit={handleSubmit} method="post" noValidate>
       <label className="mb-[7px] block text-[11.5px] font-semibold text-[#435048]">Email address or User ID</label>
-      <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
+      <div className={`${missing.identifier ? "mb-0" : "mb-4"} flex items-center gap-[10px] rounded-[11px] border-[1.5px] px-[14px] py-[12px] transition focus-within:border-[#12796a] ${missing.identifier ? "border-[#a13d3d]" : "border-[#dee8e2]"}`}>
         <UserRound className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
         <input
           type="text"
           name="identifier"
           autoComplete="username"
-          required
+          aria-invalid={Boolean(missing.identifier)}
+          aria-describedby={missing.identifier ? "login-identifier-missing" : undefined}
           value={email}
-          onChange={(event) => setEmail(event.target.value)}
+          onChange={(event) => { setEmail(event.target.value); if (missing.identifier) setMissing((current) => ({ ...current, identifier: undefined })); }}
           className="w-full bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
           placeholder="you@school.com or 482173"
         />
       </div>
+      <FieldMessage id="login-identifier-missing">{missing.identifier}</FieldMessage>
 
-      <div className="mb-[7px] flex items-center justify-between">
+      <div className={`mb-[7px] flex items-center justify-between ${missing.identifier ? "mt-4" : ""}`}>
         <label className="text-[11.5px] font-semibold text-[#435048]">Password</label>
         <Link href="/forgot-password" className="text-[11.5px] font-semibold text-[#12796a] hover:underline">
           Forgot password?
         </Link>
       </div>
-      <div className="mb-4 flex items-center gap-[10px] rounded-[11px] border-[1.5px] border-[#dee8e2] px-[14px] py-[12px] transition focus-within:border-[#12796a]">
+      <div className={`${missing.password ? "mb-0" : "mb-4"} flex items-center gap-[10px] rounded-[11px] border-[1.5px] px-[14px] py-[12px] transition focus-within:border-[#12796a] ${missing.password ? "border-[#a13d3d]" : "border-[#dee8e2]"}`}>
         <Lock className="h-4 w-4 shrink-0 text-[#9fb8a7]" strokeWidth={1.8} />
         <input
           type={showPassword ? "text" : "password"}
           name="password"
-          required
+          aria-invalid={Boolean(missing.password)}
+          aria-describedby={missing.password ? "login-password-missing" : undefined}
           value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          onChange={(event) => { setPassword(event.target.value); if (missing.password) setMissing((current) => ({ ...current, password: undefined })); }}
           className="w-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#9fb8a7]"
           placeholder="Your password"
         />
@@ -229,7 +233,9 @@ export function LoginForm() {
         </button>
       </div>
 
-      <label className="mb-[22px] flex cursor-pointer items-center gap-2">
+      <FieldMessage id="login-password-missing">{missing.password}</FieldMessage>
+
+      <label className={`mb-[22px] flex cursor-pointer items-center gap-2 ${missing.password ? "mt-4" : ""}`}>
         <input
           type="checkbox"
           checked={trustDevice}
@@ -251,6 +257,8 @@ export function LoginForm() {
             : "The server has not answered yet. You can still try to sign in; if it fails, wait a moment and try again."}
         </p>
       ) : null}
+
+      <InlineNotice notice={notice.notice} onDismiss={notice.notice?.variant === "success" ? undefined : notice.clear} className="mb-3" />
 
       <button
         type="submit"
@@ -276,8 +284,6 @@ export function LoginForm() {
           asked for a one-time code sent to your email after this step.
         </p>
       </div>
-
-      {error ? <p className="mt-4 text-[13px] text-[var(--color-danger)]">{error}</p> : null}
 
       <p className="mt-[22px] text-center text-[12.5px] text-[#435048]">
         New to FutureRealm?{" "}

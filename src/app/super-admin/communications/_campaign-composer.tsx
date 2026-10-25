@@ -3,7 +3,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 
 type Option = { label: string; value: string };
 
@@ -34,7 +34,7 @@ const MERGE_FIELDS = ["school_name", "first_name", "last_name", "admin_name"] as
 
 export function CampaignComposer({ templateOptions, planFilterOptions, platformName }: CampaignComposerProps) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const notice = useNotice();
 
   const [type, setType] = useState<"OPERATIONAL" | "PROMOTIONAL">("OPERATIONAL");
   const [channel, setChannel] = useState<"EMAIL" | "SMS" | "WHATSAPP">("EMAIL");
@@ -90,13 +90,14 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
 
   async function handleSave() {
     if (!name.trim() || !body.trim()) {
-      showToast({ variant: "error", title: "Missing required fields", description: "Campaign name and message body are required." });
+      notice.warning("A name and a message are needed", "Give the campaign a name and write what it says.");
       return;
     }
     if (channel === "SMS" && smsPrefix.length + body.length > 160) {
-      showToast({ variant: "error", title: "SMS is limited to 160 characters", description: `It opens with “${platformName}”, which makes this ${smsPrefix.length + body.length}.` });
+      notice.warning("An SMS is limited to 160 characters", `It opens with “${platformName}”, which makes this ${smsPrefix.length + body.length}. Shorten the message.`);
       return;
     }
+    notice.clear();
     setPending(true);
     try {
       const payload: Record<string, unknown> = { name, type, channel, body };
@@ -119,11 +120,14 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
       const json = (await response.json()) as { ok?: boolean; error?: string };
       if (!response.ok || json.ok === false) throw new Error(json.error ?? "Unable to save the draft");
 
-      showToast({ variant: "success", title: "Campaign drafted", description: name });
-      router.push("/super-admin/communications?tab=campaigns");
-      router.refresh();
+      // Said where the button is, then on to the list: long enough to read, short enough not to be in the way.
+      notice.success("Campaign drafted", `“${name}” is saved. Taking you to the campaigns list.`);
+      window.setTimeout(() => {
+        router.push("/super-admin/communications?tab=campaigns");
+        router.refresh();
+      }, 900);
     } catch (error) {
-      showToast({ variant: "error", title: "Unable to save draft", description: error instanceof Error ? error.message : "Something went wrong" });
+      notice.error("The draft was not saved", error instanceof Error ? error.message : "Something went wrong. Try again.");
     } finally {
       setPending(false);
     }
@@ -131,9 +135,10 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
 
   async function handleTest() {
     if (!body.trim()) {
-      showToast({ variant: "error", title: "Write the message first", description: "A test is sent exactly as written." });
+      notice.warning("Write the message first", "A test is sent exactly as written.");
       return;
     }
+    notice.clear();
     setTesting(true);
     try {
       const response = await fetch("/api/super-admin/communications/campaigns/test", {
@@ -144,9 +149,9 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
       });
       const json = (await response.json()) as { ok?: boolean; error?: string; message?: string; data?: { note?: string | null } };
       if (!response.ok || json.ok === false) throw new Error(json.error ?? "The test could not be sent.");
-      showToast({ variant: "success", title: json.message ?? "Test sent", description: json.data?.note ?? "Check how it reads before you schedule it." });
+      notice.success(json.message ?? "Test sent", json.data?.note ?? "Check how it reads before you schedule it.");
     } catch (error) {
-      showToast({ variant: "error", title: "The test did not go", description: error instanceof Error ? error.message : "Try again." });
+      notice.error("The test did not go", error instanceof Error ? error.message : "Try again.");
     } finally {
       setTesting(false);
     }
@@ -300,6 +305,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
             </label>
           </div>
         </div>
+        <InlineNotice notice={notice.notice} onDismiss={notice.notice?.variant === "success" ? undefined : notice.clear} className="mt-4" />
         <div className="mt-4 flex flex-wrap items-center gap-2">
           <button type="button" onClick={handleSave} disabled={pending} className="whitespace-nowrap rounded-[10px] bg-[#0D2315] px-4 py-2.5 text-[11.5px] font-semibold text-white transition hover:bg-[#17402A] disabled:opacity-60">
             {pending ? "Saving..." : scheduledAt ? "Schedule campaign" : "Save draft"}

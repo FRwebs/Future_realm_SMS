@@ -21,7 +21,7 @@ import {
 
 import { ActionMenu, ActionMenuButton } from "@/components/ui/action-menu";
 import { SidePanel } from "@/components/ui/side-panel";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { PayrollRunView, PayrollStaffMemberView, PayrollWorkspaceView } from "@/lib/domain/types";
 import { cn } from "@/lib/utils/cn";
 import { formatCurrency, formatDate } from "@/lib/utils/formatters";
@@ -155,7 +155,9 @@ function amountBadgeStyle(amount: number): CSSProperties {
 
 export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const pageNotice = useNotice();
+  const runNotice = useNotice();
+  const reviewNotice = useNotice();
   const [activeTab, setActiveTab] = useState<PayrollTab>("roster");
   const [search, setSearch] = useState("");
   const [departmentFilter, setDepartmentFilter] = useState("");
@@ -248,6 +250,8 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
   const selectedNet = selectedGross - selectedDeductions;
 
   function openRunDrawer() {
+    runNotice.clear();
+    pageNotice.clear();
     setDraftRows(buildDraftRows(workspace.staff));
     setDraftMonth(new Date().getMonth() + 1);
     setDraftYear(new Date().getFullYear());
@@ -284,23 +288,16 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
   }
 
   async function processPayroll() {
+    runNotice.clear();
     const selectedRows = Object.values(draftRows).filter((row) => row.selected);
     if (selectedRows.length === 0) {
-      showToast({
-        variant: "warning",
-        title: "Select staff first",
-        description: "Choose at least one staff member before processing payroll.",
-      });
+      runNotice.warning("Select staff first", "Choose at least one staff member before processing payroll.");
       return;
     }
 
     const hasPositiveEntry = selectedRows.some((row) => row.basicSalary > 0);
     if (!hasPositiveEntry) {
-      showToast({
-        variant: "warning",
-        title: "No payroll amounts entered",
-        description: "Enter at least one basic salary before processing this payroll batch.",
-      });
+      runNotice.warning("No payroll amounts entered", "Enter at least one basic salary before processing this payroll batch.");
       return;
     }
 
@@ -339,19 +336,11 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         throw new Error(body.error ?? "Unable to process payroll.");
       }
 
-      showToast({
-        variant: "success",
-        title: "Payroll processed",
-        description: `${selectedRows.length} staff entries prepared for ${monthNames[draftMonth - 1]} ${draftYear}.`,
-      });
+      pageNotice.success("Payroll processed", `${selectedRows.length} staff entries prepared for ${monthNames[draftMonth - 1]} ${draftYear}.`);
       setRunDrawerOpen(false);
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Could not process payroll",
-        description: error instanceof Error ? error.message : "Please review the payroll lines and try again.",
-      });
+      runNotice.error("Could not process payroll", error instanceof Error ? error.message : "Please review the payroll lines and try again.");
     } finally {
       setProcessing(false);
     }
@@ -359,12 +348,9 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
 
   async function publishRun() {
     if (!selectedRun) return;
+    reviewNotice.clear();
     if (!publishPassword.trim()) {
-      showToast({
-        variant: "warning",
-        title: "Confirm your password",
-        description: "Publishing payroll requires password reconfirmation.",
-      });
+      reviewNotice.warning("Confirm your password", "Publishing payroll requires password reconfirmation.");
       return;
     }
 
@@ -384,27 +370,21 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         throw new Error(body.error ?? "Unable to publish payroll.");
       }
 
-      showToast({
-        variant: "success",
-        title: "Payroll published",
-        description: `Payslips for ${monthNames[selectedRun.month - 1]} ${selectedRun.year} are now marked as paid.`,
-      });
+      pageNotice.success("Payroll published", `Payslips for ${monthNames[selectedRun.month - 1]} ${selectedRun.year} are now marked as paid.`);
       setReviewDrawerOpen(false);
       setSelectedRun(null);
       setPublishPassword("");
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Could not publish payroll",
-        description: error instanceof Error ? error.message : "Please try again.",
-      });
+      reviewNotice.error("Could not publish payroll", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setPublishing(false);
     }
   }
 
   function openRunReview(run: PayrollRunView) {
+    reviewNotice.clear();
+    pageNotice.clear();
     setSelectedRun(run);
     setPublishPassword("");
     setReviewDrawerOpen(true);
@@ -426,15 +406,18 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
               Review staff pay history, prepare the current month&apos;s run from live staff records, and publish confirmed payouts with audit-safe confirmation.
             </p>
           </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <button type="button" onClick={openRunDrawer} className="btn-primary">
-              <BadgeDollarSign className="h-4 w-4" />
-              Run payroll
-            </button>
-            <a href="/api/v1/bursary/reports/payroll?format=pdf" target="_blank" rel="noreferrer" className="btn-secondary">
-              <Download className="h-4 w-4" />
-              Export report
-            </a>
+          <div className="grid gap-2 xl:justify-items-end">
+            <div className="flex flex-wrap items-center gap-3">
+              <button type="button" onClick={openRunDrawer} className="btn-primary">
+                <BadgeDollarSign className="h-4 w-4" />
+                Run payroll
+              </button>
+              <a href="/api/v1/bursary/reports/payroll?format=pdf" target="_blank" rel="noreferrer" className="btn-secondary">
+                <Download className="h-4 w-4" />
+                Export report
+              </a>
+            </div>
+            <InlineNotice notice={pageNotice.notice} onDismiss={pageNotice.clear} compact className="max-w-[380px]" />
           </div>
         </div>
 
@@ -741,6 +724,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         size="lg"
         footer={
           <div className="flex flex-col gap-3">
+            <InlineNotice notice={runNotice.notice} onDismiss={runNotice.clear} />
             <div className="grid gap-3 rounded-2xl bg-[var(--color-bg-subtle)] p-4 md:grid-cols-4">
               <div>
                 <p className="text-xs uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Selected staff</p>
@@ -911,6 +895,7 @@ export function PayrollWorkspace({ workspace }: PayrollWorkspaceProps) {
         footer={
           selectedRun ? (
             <div className="grid gap-3">
+              <InlineNotice notice={reviewNotice.notice} onDismiss={reviewNotice.clear} />
               {selectedRun.status !== "PUBLISHED" ? (
                 <div className="rounded-2xl border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-4 py-3">
                   <div className="flex items-start gap-3">

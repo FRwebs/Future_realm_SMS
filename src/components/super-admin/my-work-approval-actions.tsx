@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { MyWorkApprovalItem } from "@/lib/domain/types";
 
 function getCookie(name: string) {
@@ -33,17 +33,18 @@ async function callAction(endpoint: string, method: string, body: Record<string,
 
 export function MyWorkApprovalActions({ item }: { item: MyWorkApprovalItem }) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const notice = useNotice();
   const [pending, setPending] = useState<"approve" | "decline" | null>(null);
 
   async function handleApprove() {
     setPending("approve");
+    notice.clear();
     try {
       await callAction(item.approveEndpoint, item.approveMethod, item.approveBody ?? {});
-      showToast({ variant: "success", title: "Approved", description: item.title });
+      notice.success("Approved", item.title);
       router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: "Couldn't approve", description: error instanceof Error ? error.message : "Something went wrong." });
+      notice.error("It could not be approved", error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       setPending(null);
     }
@@ -59,17 +60,18 @@ export function MyWorkApprovalActions({ item }: { item: MyWorkApprovalItem }) {
     setPending("decline");
     try {
       await callAction(item.declineEndpoint, item.declineMethod, { ...(item.declineBody ?? {}), ...(reason ? { reason } : {}) });
-      showToast({ variant: "success", title: "Declined", description: item.title });
+      notice.success("Declined", item.title);
       router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: "Couldn't decline", description: error instanceof Error ? error.message : "Something went wrong." });
+      notice.error("It could not be declined", error instanceof Error ? error.message : "Something went wrong.");
     } finally {
       setPending(null);
     }
   }
 
   return (
-    <div className="mt-2.5 flex items-center gap-1.5">
+    <div className="mt-2.5">
+    <div className="flex items-center gap-1.5">
       <button
         type="button"
         onClick={handleApprove}
@@ -86,6 +88,8 @@ export function MyWorkApprovalActions({ item }: { item: MyWorkApprovalItem }) {
       >
         {pending === "decline" ? "Working…" : "Decline"}
       </button>
+    </div>
+    <InlineNotice notice={notice.notice} onDismiss={notice.clear} compact className="mt-2" />
     </div>
   );
 }

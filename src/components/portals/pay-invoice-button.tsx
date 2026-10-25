@@ -4,7 +4,7 @@ import { Building2, CreditCard, Landmark, QrCode, ShieldCheck, Smartphone } from
 import { useState } from "react";
 
 import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { formatCurrency } from "@/lib/utils/formatters";
 import { cn } from "@/lib/utils/cn";
 
@@ -57,18 +57,16 @@ function getCookie(name: string) {
 }
 
 export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayInvoiceButtonProps) {
-  const { showToast } = useToast();
+  // Said under the button when there is nothing to pay, and inside the payment sheet when starting it fails.
+  const buttonNotice = useNotice();
+  const sheetNotice = useNotice();
   const [open, setOpen] = useState(false);
   const [selectedOption, setSelectedOption] = useState<(typeof paymentOptions)[number]>(paymentOptions[0]);
   const [pending, setPending] = useState(false);
 
   function openPayment() {
     if (!Number.isFinite(amount) || amount <= 0) {
-      showToast({
-        variant: "warning",
-        title: "Payment amount unavailable",
-        description: "This invoice does not have a payable balance yet.",
-      });
+      buttonNotice.warning("Payment amount unavailable", "This invoice does not have a payable balance yet.");
       return;
     }
     setOpen(true);
@@ -76,13 +74,10 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
 
   async function handlePay() {
     if (!Number.isFinite(amount) || amount <= 0) {
-      showToast({
-        variant: "warning",
-        title: "Payment amount unavailable",
-        description: "This invoice does not have a payable balance yet.",
-      });
+      buttonNotice.warning("Payment amount unavailable", "This invoice does not have a payable balance yet.");
       return;
     }
+    sheetNotice.clear();
     setPending(true);
     try {
       const response = await fetch("/api/v1/finance/payments", {
@@ -113,11 +108,7 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
       }
       window.location.href = body.data.checkoutUrl;
     } catch (err) {
-      showToast({
-        variant: "error",
-        title: "Unable to start payment",
-        description: err instanceof Error ? err.message : "Please try again or contact the school bursary.",
-      });
+      sheetNotice.error("Payment could not be started", err instanceof Error ? err.message : "Please try again or contact the school bursary.");
     } finally {
       setPending(false);
     }
@@ -125,13 +116,16 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
 
   return (
     <>
-      <button
-        type="button"
-        onClick={openPayment}
-        className="btn-primary h-9 px-3 text-[12px]"
-      >
-        {label}
-      </button>
+      <span className="inline-flex max-w-full flex-col items-start gap-[8px]">
+        <button
+          type="button"
+          onClick={() => { buttonNotice.clear(); openPayment(); }}
+          className="btn-primary h-9 px-3 text-[12px]"
+        >
+          {label}
+        </button>
+        <InlineNotice notice={buttonNotice.notice} onDismiss={buttonNotice.clear} compact className="max-w-[320px]" />
+      </span>
 
       <Modal
         open={open}
@@ -150,6 +144,7 @@ export function PayInvoiceButton({ invoiceId, amount, label = "Pay now" }: PayIn
         }
       >
         <div className="grid gap-4">
+          <InlineNotice notice={sheetNotice.notice} onDismiss={sheetNotice.clear} />
           <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-4">
             <p className="text-[12px] font-semibold uppercase tracking-wide text-[var(--color-text-accent)]">Secure payment</p>
             <p className="mt-1 text-[13px] leading-6 text-[var(--color-text-secondary)]">
