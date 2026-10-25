@@ -77,7 +77,8 @@ export default async function SuperAdminSettingsPage({ searchParams }: { searchP
 }
 
 async function PlatformTab() {
-  const [settings, policy, lifecycle, carriers, library, fx] = await Promise.all([
+  const [usage, settings, policy, lifecycle, carriers, library, fx] = await Promise.all([
+    apiGet<{ rows: Array<{ schoolId: string; school: string; status: string; enabled: boolean; students: number; withAccount: number; everSignedIn: number; active: number }>; totals: { students: number; withAccount: number; everSignedIn: number; active: number } }>("/api/super-admin/student-portal/usage").catch(() => null),
     apiGet<SuperAdminSettingsView>("/api/super-admin/settings"),
     loadPolicy(),
     apiGet<LifecycleItem[]>("/api/super-admin/lifecycle/preview").catch(() => [] as LifecycleItem[]),
@@ -220,6 +221,25 @@ async function PlatformTab() {
         />
       </section>
 
+      {usage ? (
+        <TableCard
+          title="Who is using the student portal"
+          description={`${usage.totals.active.toLocaleString("en-NG")} of ${usage.totals.withAccount.toLocaleString("en-NG")} students with an account signed in during the last 30 days; ${usage.totals.everSignedIn.toLocaleString("en-NG")} have signed in at least once.`}
+          items={usage.rows}
+          pageSize={false}
+          getRowKey={(item) => item.schoolId}
+          emptyState="No school has students yet."
+          columns={[
+            { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.school}</span> },
+            { key: "enabled", header: "Portal", render: (item) => <StatusBadge status={item.enabled ? "On" : "Switched off"} tone={item.enabled ? "success" : "danger"} /> },
+            { key: "students", header: "Students", render: (item) => item.students.toLocaleString("en-NG") },
+            { key: "withAccount", header: "With an account", render: (item) => item.withAccount.toLocaleString("en-NG") },
+            { key: "everSignedIn", header: "Ever signed in", render: (item) => `${item.everSignedIn.toLocaleString("en-NG")}${item.withAccount ? ` · ${Math.round((item.everSignedIn / item.withAccount) * 100)}%` : ""}` },
+            { key: "active", header: "Last 30 days", render: (item) => `${item.active.toLocaleString("en-NG")}${item.withAccount ? ` · ${Math.round((item.active / item.withAccount) * 100)}%` : ""}` }
+          ]}
+        />
+      ) : null}
+
       <TableCard
         title="What the lifecycle engine would do now"
         description={`Checked every 30 minutes${carriers.scheduler ? "" : " — the scheduler is switched off on this deployment, so nothing runs by itself"}. Nothing below has happened yet.`}
@@ -309,7 +329,7 @@ async function DefaultsTab() {
           { setting: "Fee balance on report cards", value: "Not on the card. The report card carries scores, position, attendance, remarks and traits.", canChange: "No", where: "Fixed" },
           { setting: "Class position on report cards", value: "Shown — competition ranking within the arm, from the approved sheets", canChange: "No", where: "Fixed" },
           { setting: "Guardian portal", value: "On from the Premium tier up. A school on a trial has every feature.", canChange: "Yes", where: "Subscription & Billing → Plan" },
-          { setting: "Student portal", value: "On for every student account — access is role-based, not gated by class or grade", canChange: "No — always on", where: "Real, but not a configurable default" },
+          { setting: "Student portal", value: `${settings.globalModuleAvailability.student_portal === false ? "Switched off for every school" : "On for every student account"} — and a school can be switched off on its own page. A student also loses any page whose module is off for the school (attendance, report cards, timetable, messaging).`, canChange: "No", where: "This page — Edit modules, or a school’s own Features" },
           { setting: "Sample class", value: "30 sample students with a marked term, scored subjects and 30 report cards — no guardians, phones or emails, removable in one action", canChange: "Yes — the school removes it", where: "Schools → Provisioning" },
           { setting: "Full account data export", value: "A school's proprietor can request a full export with the password and a code; a Super Admin can also run one for a compliance request", canChange: "Yes", where: "Analytics & Reports · Security & Compliance" },
           { setting: "Audit log", value: "Written platform-wide on every mutating action", canChange: "No", where: "AuditLog — no toggle to hide it from a school exists" }

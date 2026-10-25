@@ -1,4 +1,5 @@
 import { apiGet } from "@/lib/api/server";
+import { homeworkTab } from "@/lib/modules/live/m3-homework";
 import { lessonNotesTab } from "@/lib/modules/live/m3-lesson-notes";
 import {
   addArmDrawer,
@@ -1332,6 +1333,7 @@ export async function classTimetableLiveTab(tabSlug: string): Promise<TabContent
   }
 
   if (tabSlug === "lesson-notes") return lessonNotesTab();
+  if (tabSlug === "homework") return homeworkTab();
 
   if (tabSlug === "coverage") {
     const [data, overview, teaching] = await Promise.all([loadCoverage(), loadOverview(), loadTeaching()]);

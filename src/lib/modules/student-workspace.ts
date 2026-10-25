@@ -30,15 +30,20 @@ const section = (title: string, slugs: StudentPageSlug[]) => ({
   }),
 });
 
-export function studentNavigation(): TeacherRail {
-  return {
-    items: [],
-    extra: [],
-    groups: [
-      section("", ["today"]),
-      section("My learning", ["timetable", "subjects", "assignments", "results"]),
-      section("My school", ["attendance", "calendar", "messages"]),
-      section("Me", ["profile", "notifications", "account"]),
-    ],
-  };
+/** The school module each page is read from; a page whose module is switched off for the school is left out of the rail. */
+const PAGE_MODULE: Record<string, string> = { timetable: "class-timetable", subjects: "class-timetable", attendance: "attendance", results: "report-cards", messages: "communication-center" };
+
+export function studentNavigation(switchedOff: string[] = [], hidden: string[] = []): TeacherRail {
+  const off = new Set(switchedOff);
+  const left = new Set(hidden);
+  const keep = (slugs: StudentPageSlug[]) => slugs.filter((slug) => !off.has(PAGE_MODULE[slug] ?? "") && !left.has(slug));
+  const groups = off.has("student-portal")
+    ? [section("", ["today"])]
+    : [
+        section("", ["today"]),
+        section("My learning", keep(["timetable", "subjects", "assignments", "results"])),
+        section("My school", keep(["attendance", "calendar", "messages"])),
+        section("Me", ["profile", "notifications", "account"]),
+      ];
+  return { items: [], extra: [], groups: groups.filter((group) => group.items.length || !group.title) };
 }

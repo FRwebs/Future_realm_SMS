@@ -4,6 +4,8 @@ import { AuditAction, Prisma } from "@prisma/client";
 import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
+import { randomInt } from "node:crypto";
+import { hashPassword } from "../../../../src/lib/auth/password";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { PAYMENT_MODE } from "../fee-management/fees.shared";
 import { loadConsentTypes } from "./consent.shared";
@@ -111,6 +113,7 @@ export class RecordService {
       ...full,
       // A teacher reads what they must do for the child — never why.
       support: await this.plans.forStudent(session, id, "teacher"),
+      account: { hasLogin: false, active: false, email: null, lastSignIn: null, passwordChangedAt: null, mustChangePassword: false, twoStep: false },
       address: null, previousSchool: null,
       wellbeing: { log: [], counselling: 0, visits: 0, health: full.wellbeing.health && (full.wellbeing.health.conditions || full.wellbeing.health.allergies) ? { conditions: null, allergies: null, bloodGroup: null, genotype: null, notes: null, alert: true } : null },
       fees: { billed: 0, paid: 0, owing: 0, state: full.fees.state, days: 0, structures: [], items: [], invoices: [], receipts: [], familyId: "" },
@@ -126,7 +129,7 @@ export class RecordService {
         where: { id, schoolId },
         include: {
           currentClass: { include: { classLevel: true, classTeacher: { select: { id: true, firstName: true, lastName: true, role: true, phone: true, email: true, createdAt: true, lastLoginAt: true } } } },
-          user: { select: { lastLoginAt: true } },
+          user: { select: { lastLoginAt: true, isActive: true, email: true, passwordChangedAt: true, passwordResetRequired: true, mfaEnabled: true } },
           guardians: { include: { guardian: { include: { user: { select: { lastLoginAt: true } } } } } },
           medicalRecord: true,
           documents: { orderBy: { createdAt: "desc" } },
@@ -338,6 +341,16 @@ export class RecordService {
 
     return {
       id: student.id,
+      /** The child's own sign-in to the student portal — never the family's. */
+      account: {
+        hasLogin: Boolean(student.userId),
+        active: student.user?.isActive ?? false,
+        email: student.user?.email ?? null,
+        lastSignIn: isoDate(student.user?.lastLoginAt),
+        passwordChangedAt: isoDate(student.user?.passwordChangedAt),
+        mustChangePassword: student.user?.passwordResetRequired ?? false,
+        twoStep: student.user?.mfaEnabled ?? false
+      },
       name: fullName(student),
       fullName: [student.firstName, student.middleName, student.lastName].filter(Boolean).join(" "),
       initials: initials(fullName(student)),
@@ -576,6 +589,31 @@ export class RecordService {
   }
 
   /** The full health and welfare record — opened on purpose, and logged at the moment it is opened. */
+  /**
+   * Looking after a child's own sign-in: give them a new temporary password (shown once, and they must change it), or turn their sign-in
+   * off or back on. Turning it off keeps everything the child recorded; it only closes the door.
+   */
+  async account(session: SessionPayload, id: string, body: unknown) {
+    const input = z.object({ action: z.enum(["reset", "disable", "enable"]), reason: z.string().trim().max(300).optional() }).parse(body);
+    if (!LEADERS.has(session.role) && session.role !== "ADMIN_OFFICER" && session.role !== "ADMINISTRATOR") throw new ForbiddenException("A child’s sign-in is looked after by the school’s leadership and office.");
+    const student = await prisma.student.findFirst({ where: { id, schoolId: session.schoolId }, select: { id: true, firstName: true, lastName: true, userId: true } });
+    if (!student) throw new NotFoundException("That student is not on this school's roll.");
+    if (!student.userId) throw new BadRequestException("This child has no sign-in yet.");
+    const name = `${student.firstName} ${student.lastName}`;
+    if (input.action === "reset") {
+      // Eight characters a child can read aloud: no 0/O or 1/l, and never reused from the old one.
+      const alphabet = "abcdefghjkmnpqrstuvwxyz23456789";
+      const temporary = Array.from({ length: 8 }, () => alphabet[randomInt(alphabet.length)]).join("");
+      await prisma.user.update({ where: { id: student.userId }, data: { passwordHash: hashPassword(temporary), passwordChangedAt: new Date(), passwordResetRequired: true, isActive: true } });
+      await this.audit(session, AuditAction.RESET_PASSWORD, "Student", id, { summary: `Student password reset · ${name}`, reason: input.reason ?? null });
+      return { fields: [["Temporary password", temporary], ["What happens next", `${student.firstName} must choose their own the first time they sign in.`], ["Shown", "Only now — write it down and give it to them in person."]] };
+    }
+    const on = input.action === "enable";
+    await prisma.user.update({ where: { id: student.userId }, data: { isActive: on } });
+    await this.audit(session, AuditAction.UPDATE, "Student", id, { summary: `Student sign-in turned ${on ? "on" : "off"} · ${name}`, reason: input.reason ?? null });
+    return { fields: [["Sign-in", on ? "On" : "Off"], ["Their work", "Nothing they recorded was removed."]] };
+  }
+
   async reveal(session: SessionPayload, id: string, body: unknown) {
     const input = z.object({ reason: z.string().trim().min(5, "Say why you need it — it is written to the audit log.") }).parse(body);
     if (!LEADERS.has(session.role) && !WELFARE.has(session.role)) throw new ForbiddenException("Only the leadership, the nurse and the counsellor may open this record.");

@@ -1,7 +1,7 @@
 import type { CalEvent, Message } from "@/lib/modules/live/student/shared";
 import {
   askDrawer, attTone, daysBetween, dDow, dFull, dLong, dShort, dueText, greeting, handInDrawer, loadAskable, loadAssignments, loadAttendance, loadCalendar, loadCards, loadMe, loadMessages,
-  loadSubjects, loadTimetable, MON3, monday, ord, num, pctText, workPill, addDays, dayOf
+  loadSubjects, loadTimetable, MON3, monday, ord, num, pctText, workPill, addDays, dayOf, orNone
 } from "@/lib/modules/live/student/shared";
 import type { StudentContent } from "@/lib/modules/live/student/shared";
 import type { ListItem, PanelTone } from "@/lib/modules/panels";
@@ -23,7 +23,15 @@ export const messageItem = (message: Message): ListItem => ({
 
 export async function todayPage(): Promise<StudentContent> {
   const [me, tt, subjects, work, att, cal, inbox, cards, askable] = await Promise.all([
-    loadMe(), loadTimetable(), loadSubjects(), loadAssignments(), loadAttendance(), loadCalendar(), loadMessages(), loadCards(), loadAskable(),
+    loadMe(),
+    orNone(loadTimetable(), { slots: [], periods: [], exams: [], components: [], published: false }),
+    orNone(loadSubjects(), { components: [], subjects: [] }),
+    loadAssignments(),
+    orNone(loadAttendance(), { current: null, terms: [], records: [], closed: [] }),
+    loadCalendar(),
+    orNone(loadMessages(), { formMaster: null, items: [] }),
+    orNone(loadCards(), { cards: [] }),
+    loadAskable(),
   ]);
   const today = me.today;
   const dow = dayOf(today).getUTCDay();
@@ -34,7 +42,9 @@ export async function todayPage(): Promise<StudentContent> {
   const minsLeft = (to: string) => Number(to.slice(0, 2)) * 60 + Number(to.slice(3)) - (Number(me.now.slice(0, 2)) * 60 + Number(me.now.slice(3)));
   const lessons = current?.kind === "lesson";
   const topic = lessons ? subjectOf(current!.subject)?.topic ?? null : null;
-  const ask = (to?: string) => askDrawer(askable.people, { to, topic: "A question about work" });
+  const canAsk = askable.people.length > 0;
+  const ask = (to?: string) => askDrawer(askable.people, { to, topic: "A question about work", fmReads: askable.formMasterReads });
+  const canHandIn = me.policy?.homework !== false;
   const teacherId = askable.people.find((person) => lessons && current!.teacher.startsWith(person.name))?.id;
 
   const todo = work.items.filter((item) => item.state === "todo" || item.state === "overdue").sort((a, b) => (a.state === b.state ? a.due.localeCompare(b.due) : a.state === "overdue" ? -1 : 1));
@@ -65,8 +75,8 @@ export async function todayPage(): Promise<StudentContent> {
   return {
     eyebrow: `${dFull(today)} ${dayOf(today).getUTCFullYear()}${me.term ? ` · ${me.term.name}, week ${me.term.week}` : ""}`,
     title: `${greeting(me.now)}, ${me.first}`, desc: sub,
-    primary: nextTodo ? { label: "Hand in work", href: "/portals/student/assignments" } : undefined,
-    launchers: [{ label: "Ask a teacher", drawer: ask() }],
+    primary: nextTodo ? { label: canHandIn ? "Hand in work" : "See your work", href: "/portals/student/assignments" } : undefined,
+    launchers: canAsk ? [{ label: "Ask a teacher", drawer: ask() }] : [],
     rows: [
       row("1fr", [{
         type: "embed", component: "student-now",
@@ -75,7 +85,7 @@ export async function todayPage(): Promise<StudentContent> {
           when: current ? `${current.from} – ${current.to} · ${minsLeft(current.to)} minutes left` : slots.length ? `Lessons run ${slots[0]!.from} – ${slots[slots.length - 1]!.to}` : "No lessons are published for today",
           subject: current ? current.subject : slots.length ? "No lesson right now" : "Nothing on your timetable today",
           who: lessons ? [current!.teacher, current!.venue].filter(Boolean).join(" · ") : "", topic,
-          acts: lessons ? [{ label: `Open ${current!.subject}`, href: "/portals/student/subjects" }, { label: `Ask ${current!.teacher.replace(/^(Mrs|Mr|Miss|Ms|Dr) /, "") || "your teacher"}`, drawer: ask(teacherId) }] : [],
+          acts: lessons ? [{ label: `Open ${current!.subject}`, href: "/portals/student/subjects" }, ...(canAsk ? [{ label: `Ask ${current!.teacher.replace(/^(Mrs|Mr|Miss|Ms|Dr) /, "") || "your teacher"}`, drawer: ask(teacherId) }] : [])] : [],
           later: later.map((slot) => ({ time: slot.from, subject: slot.subject, who: slot.kind === "lesson" ? [slot.teacher, slot.lab ? "laboratory" : ""].filter(Boolean).join(" · ") : "", tag: slot.lab ? "Lab" : "", brk: slot.kind !== "lesson" })),
           laterEmpty: later.length ? "" : slots.length ? "That was the last lesson today." : "Enjoy the day.", laterTitle: "Rest of today",
         },
@@ -92,7 +102,7 @@ export async function todayPage(): Promise<StudentContent> {
       row("minmax(0,1.25fr) minmax(0,1fr)", [
         {
           type: "list", title: "Due soon", sub: todo.length ? "Late work first, then by due date." : "Nothing to hand in.", empty: "You are all caught up.", acts: [{ label: "All work", href: "/portals/student/assignments" }],
-          items: todo.slice(0, 6).map((item): ListItem => { const [label, tone] = workPill(item, today); const x = dayOf(item.due); return { lead: { top: MON3[x.getUTCMonth()]!.toUpperCase(), value: String(x.getUTCDate()), tone }, label: item.title, sub: `${item.subject} · due ${dueText(item, today).replace(/^(Today|Tomorrow)/, (m) => m.toLowerCase())}`, pill: label, tone, viewLabel: "Hand in", drawer: handInDrawer(item) }; }),
+          items: todo.slice(0, 6).map((item): ListItem => { const [label, tone] = workPill(item, today); const x = dayOf(item.due); return { lead: { top: MON3[x.getUTCMonth()]!.toUpperCase(), value: String(x.getUTCDate()), tone }, label: item.title, sub: `${item.subject} · due ${dueText(item, today).replace(/^(Today|Tomorrow)/, (m) => m.toLowerCase())}`, pill: label, tone, viewLabel: canHandIn ? "Hand in" : "Open", ...(canHandIn ? { drawer: handInDrawer(item) } : { href: "/portals/student/assignments" }) }; }),
         },
         { type: "list", title: "Coming up", sub: "From the school calendar.", acts: [{ label: "Calendar", href: "/portals/student/calendar" }], items: upcoming.map((event) => eventItem(event)), empty: "Nothing is on the calendar yet." },
       ]),

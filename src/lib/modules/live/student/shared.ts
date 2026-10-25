@@ -9,6 +9,8 @@ export type Me = {
   guardian: { name: string; relationship: string | null; phone: string | null } | null; school: string;
   term: { id: string; name: string; session: string; start: string | null; end: string | null; week: number; weeks: number; onBreak: boolean } | null;
   today: string; now: string;
+  /** What the school lets a student do on the portal. */
+  policy?: { homework: boolean; questions: boolean; calendarLink: boolean };
 };
 export type Slot = { day: number; n: number; from: string; to: string; kind: "lesson" | "break" | "free"; subject: string; teacher: string; venue: string; lab: boolean };
 export type Timetable = {
@@ -16,7 +18,7 @@ export type Timetable = {
   exams: Array<{ id: string; subject: string; date: string; from: string; to: string; venue: string }>;
   components: Array<{ code: string; name: string; weight: number; max: number }>;
 };
-export type Part = { code: string; name: string; max: number; score: number | null };
+export type Part = { code: string; name: string; max: number; score: number | null; /** The day the school releases this assessment, while it is still ahead. */ releaseOn?: string | null };
 export type SubjectRow = { id: string; name: string; code: string; core: boolean; teacher: string; periods: number; labs: number; topic: string | null; open: number; nextDue: string | null; late: number; released: boolean; parts: Part[] };
 export type Subjects = { components: Array<{ id: string; code: string; name: string; weight: number; max: number }>; subjects: SubjectRow[] };
 export type Work = {
@@ -37,7 +39,7 @@ export type Card = {
   attendance: { present: number; days: number };
   subjects: Array<{ id: string; name: string; total: number; grade: string; position: number | null; of: number; classAverage: number | null; parts: Array<{ code: string; name: string; max: number; score: number }> }>;
 };
-export type Askable = { people: Array<{ id: string; name: string; role: string }> };
+export type Askable = { formMasterReads?: boolean; people: Array<{ id: string; name: string; role: string }> };
 
 export const loadMe = () => apiGet<Me>(`${SW}/me`);
 export const loadTimetable = () => apiGet<Timetable>(`${SW}/timetable`);
@@ -89,7 +91,7 @@ export function workPill(work: Work, today: string): [string, PanelTone] {
 
 /* ───────── the two drawers a student opens from anywhere: ask a teacher, and hand work in ───────── */
 
-export function askDrawer(people: Askable["people"], preset: { to?: string; topic?: string; text?: string } = {}): DrawerSpec {
+export function askDrawer(people: Askable["people"], preset: { to?: string; topic?: string; text?: string; fmReads?: boolean } = {}): DrawerSpec {
   const names = people.map((person) => (person.role ? `${person.name} · ${person.role}` : person.name));
   const chosen = people.find((person) => person.id === preset.to);
   const fields: FormField[] = [
@@ -98,7 +100,7 @@ export function askDrawer(people: Askable["people"], preset: { to?: string; topi
     { kind: "area", label: "Your question", placeholder: "Say it the way you would say it to them.", value: preset.text ?? "", required: true, span: 2 },
   ];
   return {
-    kicker: "Messages", title: "Ask a teacher", sub: "It goes to them as an in-app message, and their answer arrives in your Messages.", mode: "form", fields,
+    kicker: "Messages", title: "Ask a teacher", sub: `It goes to them as an in-app message, and their answer arrives in your Messages.${preset.fmReads ? " Your form master can read it too, as a safeguard — they cannot answer for the teacher." : ""}`, mode: "form", fields,
     commitLabel: "Send the question", commitDone: "Question sent", commitDoneBody: "You will see the answer in Messages.", next: { label: "Open Messages", href: "/portals/student/messages" },
     submit: { endpoint: `${SW}/ask`, method: "POST", map: { "Who do you want to ask?": "to", About: "topic", "Your question": "text" }, encode: { "Who do you want to ask?": Object.fromEntries(names.map((label, index) => [label, people[index]!.id])) } },
   };
@@ -120,3 +122,9 @@ export function greeting(clock: string) {
   const hour = Number(clock.slice(0, 2));
   return hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
 }
+
+/** The school module each student page is read from. When the Back Office switches that module off for the school, the page goes with it. */
+export const PAGE_MODULE: Record<string, string> = { timetable: "class-timetable", subjects: "class-timetable", attendance: "attendance", results: "report-cards", messages: "communication-center" };
+
+/** A source a page can do without: if its module has been switched off the answer is "none", and the rest of the page still draws. */
+export const orNone = <T,>(read: Promise<T>, none: T): Promise<T> => read.catch(() => none);

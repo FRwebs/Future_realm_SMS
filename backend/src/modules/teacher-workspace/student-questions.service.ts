@@ -5,6 +5,7 @@ import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 import { notifyStudents } from "../student-portal/student-notify";
+import { loadStudentPolicy } from "../student-portal/student-policy";
 
 /**
  * What students have asked this person, and what was said back. A student's question is an in-app message to one teacher; the answer is one
@@ -38,7 +39,24 @@ export class TeacherStudentQuestionsService {
         replies: mine.map((answer) => ({ text: answer.body, at: answer.createdAt.toISOString() })), answered: mine.length > 0
       };
     });
-    return { items, waiting: items.filter((item) => !item.answered).length };
+    return { items, waiting: items.filter((item) => !item.answered).length, observed: await this.observed(session) };
+  }
+
+  /**
+   * What a form master may read of their arm's questions to other teachers — read only, never answered from here — when the school has
+   * chosen that as its safeguarding rule. The teacher who was asked answers; the form master only knows what is being asked.
+   */
+  private async observed(session: SessionPayload) {
+    const arms = await prisma.classRoom.findMany({ where: { schoolId: session.schoolId, classTeacherId: session.userId, deletedAt: null }, select: { id: true, name: true, arm: true } });
+    if (!arms.length || !(await loadStudentPolicy(session.schoolId)).formMasterReads) return [];
+    const students = await prisma.student.findMany({ where: { schoolId: session.schoolId, currentClassId: { in: arms.map((arm) => arm.id) }, userId: { not: null } }, select: { userId: true, currentClassId: true } });
+    const armOf = new Map(students.map((student) => [student.userId!, student.currentClassId!]));
+    const rows = await prisma.internalMessage.findMany({
+      where: { schoolId: session.schoolId, senderId: { in: [...armOf.keys()] }, recipientId: { not: session.userId } },
+      include: { sender: { select: { firstName: true, lastName: true } }, recipient: { select: { firstName: true, lastName: true } } }, orderBy: { createdAt: "desc" }, take: 60
+    });
+    const named = new Map(arms.map((arm) => [arm.id, formatNigeriaClassName(`${arm.name} - ${arm.arm}`)]));
+    return rows.map((row) => ({ id: row.id, student: `${row.sender.firstName} ${row.sender.lastName}`, arm: named.get(armOf.get(row.senderId)!) ?? "", topic: row.subject, text: row.body, at: row.createdAt.toISOString(), to: `${row.recipient.firstName} ${row.recipient.lastName}` }));
   }
 
   async reply(session: SessionPayload, id: string, body: unknown) {

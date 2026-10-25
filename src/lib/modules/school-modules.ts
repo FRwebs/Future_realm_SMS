@@ -109,6 +109,7 @@ export const schoolModules: SchoolModule[] = [
       { slug: "teaching", label: "Teaching" },
       { slug: "timetable", label: "Timetable" },
       { slug: "lesson-notes", label: "Lesson notes" },
+      { slug: "homework", label: "Homework" },
       { slug: "coverage", label: "Coverage" },
     ],
   },
@@ -813,7 +814,7 @@ export const teachingTemplateTabs: Record<string, Partial<Record<string, string[
   "Principal": { m17: ["review", "coverage"] },
   "Form Master": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"], m5: ["enter", "results"], m6: ["remarks", "completion", "archive"], m8: ["registry"], m9: ["guardians", "submissions"], m12: ["compose", "sent"], m17: ["curriculum", "notes"] },
   "Subject Teacher": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"], m5: ["enter", "results"], m17: ["curriculum", "notes"] },
-  "Head of Department": { ...teachingModuleTabs, m1: ["today", "oversight"], m3: ["timetable", "teaching"], m4: ["mark", "register", "compliance"], m5: ["enter", "review", "results"], m6: ["remarks", "completion", "archive"], m8: ["registry"], m9: ["guardians", "submissions"], m12: ["compose", "sent"], m13: ["queue"], m17: ["curriculum", "notes", "review", "coverage"] },
+  "Head of Department": { ...teachingModuleTabs, m1: ["today", "oversight"], m3: ["timetable", "teaching", "homework"], m4: ["mark", "register", "compliance"], m5: ["enter", "review", "results"], m6: ["remarks", "completion", "archive"], m8: ["registry"], m9: ["guardians", "submissions"], m12: ["compose", "sent"], m13: ["queue"], m17: ["curriculum", "notes", "review", "coverage"] },
   "Teaching Assistant": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"] },
   "Cover / Substitute": { ...teachingModuleTabs, m1: ["today"], m3: ["timetable", "teaching"], m4: ["mark", "register"], m5: ["enter", "results"], m17: ["curriculum", "notes"] },
 };
@@ -836,6 +837,7 @@ export const teachingTemplateWork: Record<string, Partial<Record<string, string[
 /** What a template may do on one tab: its module's actions where it works, and View alone where it only reads. */
 export function templateTabActions(roleTemplate: string, moduleCode: string, tabSlug: string, actions: Record<SchoolModuleAction, boolean>): Record<SchoolModuleAction, boolean> {
   // The people who vet lesson notes read and sign them whatever their module level; anyone else is given the right per person.
+  if (moduleCode === "m3" && tabSlug === "homework" && /Head of Department|Deputy|Vice|Principal|Proprietor/.test(roleTemplate)) return { ...actions, View: true };
   if (moduleCode === "m3" && tabSlug === "lesson-notes" && /Head of Department|Deputy|Vice|Principal|Proprietor/.test(roleTemplate)) return { ...actions, View: true, Approve: true };
   const work = teachingTemplateWork[roleTemplate]?.[moduleCode];
   if (!work || work.includes(tabSlug)) return actions;

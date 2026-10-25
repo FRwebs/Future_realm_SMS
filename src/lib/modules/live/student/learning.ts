@@ -169,7 +169,7 @@ export async function subjectsPage(query: Record<string, string | undefined> = {
       facts: [
         ["Teacher", subject.teacher || "Not assigned yet", ""], ["This week’s topic", subject.topic ?? "None posted", week ? `Week ${week}` : ""],
         ["Work still to hand in", subject.open ? `${subject.open} ${subject.open === 1 ? "task" : "tasks"}${subject.late ? ` · ${subject.late} late` : ""}` : "None", subject.nextDue ? `Next due ${dDow(subject.nextDue)}` : ""],
-        ...subject.parts.map((part): [string, string, string] => [part.name, part.score === null ? "Pending" : `${num(part.score)} of ${part.max}`, part.score === null ? "Shows here when your teacher releases it" : "Released"]),
+        ...subject.parts.map((part): [string, string, string] => [part.name, part.score === null ? "Pending" : `${num(part.score)} of ${part.max}`, part.score === null ? (part.releaseOn ? `Your school releases it on ${dLong(part.releaseOn)}` : "Shows here when your teacher releases it") : "Released"]),
       ],
       next: { label: "See the work", href: "/portals/student/assignments" },
     };
@@ -252,13 +252,13 @@ export async function assignmentsPage(query: Record<string, string | undefined>)
   } else {
     table = {
       type: "table", title: "To do", sub: todo.length ? "Late work first, then by due date." : "You are all caught up.", noun: "piece of work", nounPlural: "pieces of work", head: ["Assignment", "Teacher", "Set", "Due", "Status", ""], per: 10, dense: true,
-      rows: todo.map((item): TableRow => ({ drawer: workDrawer(item, today), keywords: `${item.title} ${item.subject}`, cells: [nameCell(item), txt(item.teacher), txt(dDow(item.set)), txt(dueText(item, today), item.state === "overdue" ? "negative" : undefined), pillCell(item), { kind: "action", label: "Hand in", drawer: handInDrawer(item) }] })),
+      rows: todo.map((item): TableRow => ({ drawer: workDrawer(item, today), keywords: `${item.title} ${item.subject}`, cells: [nameCell(item), txt(item.teacher), txt(dDow(item.set)), txt(dueText(item, today), item.state === "overdue" ? "negative" : undefined), pillCell(item), { kind: "action", label: me.policy?.homework === false ? "Open" : "Hand in", drawer: me.policy?.homework === false ? workDrawer(item, today) : handInDrawer(item) }] })),
       empty: "Nothing to hand in.", foot: late.length ? `${late.length} ${late.length === 1 ? "piece of work is" : "pieces of work are"} late. Hand ${late.length === 1 ? "it" : "them"} in anyway — your teacher is told it is late.` : undefined,
     };
   }
   return {
     eyebrow: `${me.arm}${me.term ? ` · Week ${me.term.week}` : ""}`, title: "Assignments", desc: "Homework from all your subjects, in one place. Homework is practice — it is not part of your CA.", tabs, tab,
-    launchers: [{ label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment" }) }],
+    launchers: askable.people.length ? [{ label: "Ask for more time", drawer: askDrawer(askable.people, { topic: "More time for an assignment", fmReads: askable.formMasterReads }) }] : [],
     rows: [
       row("1fr", [{
         type: "kpi", bare: true, per: 4,
@@ -315,7 +315,7 @@ export async function resultsPage(query: Record<string, string | undefined>): Pr
   const head = {
     eyebrow: `${me.name} · ${me.arm}`, title: "Results", tabs, tab,
     desc: tab === "Progress over time" ? `Every report card you have received at ${me.school}, kept exactly as it was published.` : "Your latest report card, and what has been released this term. Tap any subject to see exactly how its score was reached.",
-    launchers: [{ label: "Ask about a result", drawer: askDrawer(askable.people, { topic: "A question about a result" }) }],
+    launchers: askable.people.length ? [{ label: "Ask about a result", drawer: askDrawer(askable.people, { topic: "A question about a result", fmReads: askable.formMasterReads }) }] : [],
     ...(latest ? { primary: { label: "Printable report card", href: `/api/v1/reports/report-card/${me.id}` } } : {}),
   };
 

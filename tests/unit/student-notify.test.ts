@@ -67,3 +67,14 @@ describe("who a notice is for", () => {
     expect(isForStudents("The whole school's teachers")).toBe(false);
   });
 });
+
+import { hiddenPages, type StudentPolicy } from "../../backend/src/modules/student-portal/student-policy";
+
+describe("what a school has not made visible to its students", () => {
+  const policy = (sees: Array<"Results" | "Attendance" | "Timetable" | "Announcements">): StudentPolicy => ({ sees: new Set(sees), homework: true, questions: true, formMasterReads: true, quietHours: "None", calendarLink: true });
+  it("names the pages that go", () => {
+    expect(hiddenPages(policy(["Results", "Attendance", "Timetable", "Announcements"]))).toEqual([]);
+    expect(hiddenPages(policy(["Results"]))).toEqual(["attendance", "timetable"]);
+    expect(hiddenPages(policy([]))).toEqual(["results", "attendance", "timetable"]);
+  });
+});

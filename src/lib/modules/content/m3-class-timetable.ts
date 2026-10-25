@@ -1523,11 +1523,47 @@ const lessonNotesTab: TabContent = {
   ],
 };
 
+/* ---------------------------------------------------------- Homework */
+
+/** The shape of the page before the school's homework loads: nothing is invented, every figure is nil. */
+const homeworkTab: TabContent = {
+  title: "Homework",
+  desc: "How much homework is set, how much comes back, and how long it waits to be marked — by teacher and by arm.",
+  launchers: [{ label: "Who teaches what", href: "/class-timetable/teaching" }],
+  rows: [
+    row("1fr", [
+      {
+        type: "kpi",
+        per: 5,
+        cards: [
+          { label: "Homework set", value: "0", sub: "None has been set yet", tone: "neutral" },
+          { label: "Handed in", value: "0%", sub: "Nothing expected yet", tone: "neutral" },
+          { label: "Waiting to be marked", value: "0", sub: "Nothing waiting", tone: "positive" },
+          { label: "Waiting over a week", value: "0", sub: "Marking is keeping up", tone: "positive" },
+          { label: "Teachers not setting any", value: "0", sub: "Of those named on an arm", tone: "positive" },
+        ],
+      },
+    ]),
+    row("1fr", [
+      {
+        type: "table",
+        title: "By teacher",
+        sub: "Marking that is behind first.",
+        head: ["Teacher", "Set", "Handed in", "To mark", "Oldest", "State"],
+        rows: [],
+        emptyTitle: "No homework has been set",
+        emptyBody: "Teachers set it from Student work, on their My Day.",
+      },
+    ]),
+  ],
+};
+
 export const classTimetableContent: ModuleContent = {
   classes: classesTab,
   subjects: subjectsTab,
   teaching: teachingTab,
   timetable: timetableTab,
   "lesson-notes": lessonNotesTab,
+  homework: homeworkTab,
   coverage: coverageTab,
 };

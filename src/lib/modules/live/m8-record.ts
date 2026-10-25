@@ -5,7 +5,7 @@ import { dayLabel, dayLong, plural } from "@/lib/modules/live/m7-format";
 import { attendanceSessionDrawer, collectorDrawer, documentDrawer, endSupportPlanDrawer, mapGuardianDrawer, noteDrawer, requestChangeDrawer, sensitiveDrawer, SR, supportPlanDrawer } from "@/lib/modules/live/m8-forms";
 import { FEE_TONE, STATE_TONE, attTone, gradeTone, loadRegistry, studentHref } from "@/lib/modules/live/m8-registry";
 import type { Dossier, DossierSubject, Registry, TermResult } from "@/lib/modules/live/m8-types";
-import { name as nameCell, pill, termShort, text, type KpiCard, type PanelFact, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { name as nameCell, pill, termShort, text, type DrawerSpec, type KpiCard, type Panel, type PanelFact, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 
 /**
  * One child, in full. Eight sections, one record, reached identically from a class roster and from
@@ -415,6 +415,36 @@ function wellbeing({ d, wrap }: Body): RecordPage {
 
 /* ───────────────────────── family ───────────────────────── */
 
+/** The child's own door to the student portal: whether it exists, when it was last used, and the three things the office may do about it. */
+function studentSignIn(d: Dossier): Panel {
+  const a = d.account!;
+  const first = d.fullName.split(" ")[0] ?? "The student";
+  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : null);
+  const act = (action: "reset" | "disable" | "enable", title: string, sub: string, label: string): DrawerSpec => ({
+    kicker: "Student portal", title, sub, mode: "commit", commitLabel: label, commitDone: action === "reset" ? "Temporary password ready" : "Done", commitDoneBody: action === "reset" ? "Shown once below. Give it to them in person." : "It takes effect straight away.",
+    fields: [{ kind: "text", label: "Why", value: "", optional: true, placeholder: "Kept in the audit log", span: 2 }],
+    submit: { endpoint: `/api/v1/student-records/students/${d.id}/account`, method: "POST", body: { action }, map: { Why: "reason" } },
+  });
+  if (!a.hasLogin) {
+    return { type: "note", tone: "neutral", title: `${first} has no student-portal sign-in`, body: "A sign-in is made when a child is enrolled with a school email. Without one, they cannot use the student portal." };
+  }
+  return {
+    type: "facts", title: `${first}’s own sign-in`, sub: "To the student portal — separate from the family’s.", tag: !a.active ? "Turned off" : a.lastSignIn ? "In use" : "Not used yet", tagTone: !a.active ? "negative" : a.lastSignIn ? "positive" : "attention", per: 3,
+    facts: [
+      ["Sign-in", a.email ?? "—", a.active ? "On" : "Off — they cannot sign in"],
+      ["Last signed in", when(a.lastSignIn) ?? "Never", a.lastSignIn ? "" : "Has not signed in yet"],
+      ["Password", when(a.passwordChangedAt) ? `Changed ${when(a.passwordChangedAt)}` : "Set at enrolment", a.mustChangePassword ? "A temporary one — they must choose their own" : ""],
+      ["Two-step sign-in", a.twoStep ? "On" : "Off", ""],
+    ],
+    acts: [
+      { label: "Give a new temporary password", drawer: act("reset", `New temporary password for ${first}`, "It replaces their password straight away, and they must choose their own the first time they sign in. It is shown once.", "Give a new password") },
+      a.active
+        ? { label: "Turn sign-in off", drawer: act("disable", `Turn off ${first}’s sign-in`, "They will not be able to sign in. Everything they recorded stays.", "Turn it off") }
+        : { label: "Turn sign-in on", drawer: act("enable", `Turn on ${first}’s sign-in`, "They can sign in again with their own password.", "Turn it on"), primary: true },
+    ],
+  };
+}
+
 function family({ d, registry, pool, wrap }: Body): RecordPage {
   void registry;
   const f = d.family;
@@ -433,6 +463,7 @@ function family({ d, registry, pool, wrap }: Body): RecordPage {
           { type: "list", title: "What reached this family", sub: "Every send and every call against this child, newest first.", items: f.sent.length ? f.sent.map((entry) => ({ label: entry.label, sub: entry.sub, pill: entry.pill, tone: (entry.pill === "Not reached" ? "attention" : "positive") as PanelTone })) : [{ label: "Nothing has been sent yet", sub: "Messages, reminders and invitations appear here.", pill: "None", tone: "neutral" as PanelTone }] },
         ],
       },
+      ...(d.account ? [{ cols: "1fr", panels: [studentSignIn(d)] }] : []),
       { cols: "1fr", panels: [{ type: "list", title: "Authorised collectors", sub: "Who may collect this child from school.", items: [...f.collectors.map((collector) => ({ label: `${collector.name} · ${collector.relation}`, sub: collector.note, pill: collector.note.startsWith("No photograph") ? "No photograph" : "Authorised", tone: (collector.note.startsWith("No photograph") ? "negative" : "positive") as PanelTone })), { label: "Add a collector", sub: "A name with no photograph on file cannot collect.", pill: "Add", tone: "neutral" as PanelTone, viewLabel: "Add", drawer: collectorDrawer(d) }] }] },
     ],
   });

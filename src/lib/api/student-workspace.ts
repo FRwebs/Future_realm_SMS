@@ -11,20 +11,23 @@ export type StudentBadges = {
   counts: Record<string, number>;
   /** The work badge carries its own warning: amber while there is work to hand in, red once any of it is past its date. */
   tones: Record<string, "warning" | "danger" | undefined>;
+  /** Pages the school has chosen not to show its students (School Configuration → Policies → Student portal visibility). */
+  hidden: string[];
 };
 
 export const getStudentBadges = cache(async (role: string): Promise<StudentBadges> => {
-  if (role !== "STUDENT") return { counts: {}, tones: {} };
+  if (role !== "STUDENT") return { counts: {}, tones: {}, hidden: [] };
   try {
     const session = await getServerSession();
-    if (!session) return { counts: {}, tones: {} };
-    const counts = await ttlCached(`sbadge:${session.schoolId}:${session.userId}`, 15_000, () => apiGet<{ work: number; late: number; unread: number }>(`${SW}/badges`));
+    if (!session) return { counts: {}, tones: {}, hidden: [] };
+    const counts = await ttlCached(`sbadge:${session.schoolId}:${session.userId}`, 15_000, () => apiGet<{ work: number; late: number; unread: number; hidden: string[] }>(`${SW}/badges`));
     return {
       counts: { s_assignments: counts.work, s_messages: counts.unread },
       tones: { s_assignments: counts.work ? (counts.late ? "danger" : "warning") : undefined },
+      hidden: counts.hidden ?? [],
     };
   } catch {
-    return { counts: {}, tones: {} };
+    return { counts: {}, tones: {}, hidden: [] };
   }
 });
 

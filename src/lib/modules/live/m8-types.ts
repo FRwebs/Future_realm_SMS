@@ -67,6 +67,8 @@ export type DossierSubject = {
 
 export type Dossier = {
   id: string;
+  /** The child's own sign-in to the student portal. */
+  account?: { hasLogin: boolean; active: boolean; email: string | null; lastSignIn: string | null; passwordChangedAt: string | null; mustChangePassword: boolean; twoStep: boolean };
   name: string;
   fullName: string;
   initials: string;
