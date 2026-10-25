@@ -4,7 +4,9 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
-import { DEFAULT_QUIET_HOURS, isForStudents } from "./student-notify";
+import { switchedOffModules } from "../platform-sync/availability";
+import { isForStudents } from "./student-notify";
+import { hiddenPages, loadStudentPolicy, type StudentVisible } from "./student-policy";
 import { resolveGradeLabel } from "../../../../src/lib/domain/grading";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
 
@@ -95,6 +97,11 @@ export class StudentWorkspaceService {
     if (session.role !== "STUDENT") throw new ForbiddenException("This is the student's own workspace.");
   }
 
+  /** What the school has decided a student may see and do. A page the school has not made visible answers plainly, rather than with an empty list. */
+  private async allow(session: SessionPayload, what: StudentVisible) {
+    if (!(await loadStudentPolicy(session.schoolId)).sees.has(what)) throw new ForbiddenException(`Your school has not made ${what === "Announcements" ? "announcements" : what.toLowerCase()} visible to students.`);
+  }
+
   private async context(session: SessionPayload) {
     this.assert(session);
     const student = await prisma.student.findFirst({
@@ -116,6 +123,7 @@ export class StudentWorkspaceService {
 
   async me(session: SessionPayload) {
     const { student, term, school, formMaster } = await this.context(session);
+    const policy = await loadStudentPolicy(session.schoolId);
     const guardian = (student.guardians.find((link) => link.isPrimary) ?? student.guardians[0])?.guardian;
     const today = isoDay(new Date());
     // Whether a child boards is not a field on them — it is whether the school
@@ -158,6 +166,7 @@ export class StudentWorkspaceService {
       formMaster: formMaster ? { id: formMaster.id, name: fullName(formMaster) } : null,
       guardian: guardian ? { name: `${guardian.firstName} ${guardian.lastName}`, relationship: guardian.relationship ?? null, phone: guardian.phone ?? null } : null,
       school: school?.name ?? "",
+      policy: { homework: policy.homework, questions: policy.questions, calendarLink: policy.calendarLink },
       term: term ? { id: term.id, name: term.name, session: term.academicSession.name, start, end, week, weeks, onBreak: Boolean(term.breakStart && term.breakEnd && today >= isoDay(term.breakStart) && today <= isoDay(term.breakEnd)) } : null,
       today,
       now: clock()
@@ -177,12 +186,15 @@ export class StudentWorkspaceService {
     const arm = armName(student.currentClass?.name, student.currentClass?.arm).toLowerCase();
     const read = new Set(prefs.readAnnouncements ?? []);
     const unreadNotices = notices.filter((notice) => isForStudents(notice.audience, arm) && !read.has(notice.id)).length;
-    return { work: open.length, late: open.filter((row) => row.dueAt.getTime() < Date.now()).length, unread: unreadMessages + unreadNotices };
+    const own = await prisma.user.findUnique({ where: { id: session.userId }, select: { passwordResetRequired: true } });
+    const policy = await loadStudentPolicy(session.schoolId);
+    return { work: open.length, late: open.filter((row) => row.dueAt.getTime() < Date.now()).length, unread: unreadMessages + (policy.sees.has("Announcements") ? unreadNotices : 0), mustChangePassword: own?.passwordResetRequired ?? false, hidden: hiddenPages(policy), questions: policy.questions, homework: policy.homework };
   }
 
   /* ───────────────────────── timetable ───────────────────────── */
 
   async timetable(session: SessionPayload) {
+    await this.allow(session, "Timetable");
     const { student, term } = await this.context(session);
     if (!student.currentClassId || !term) return { slots: [], periods: [], exams: [], components: [], published: false };
     const [entries, exams, components] = await Promise.all([
@@ -238,12 +250,19 @@ export class StudentWorkspaceService {
     const teachers = teacherIds.length ? new Map((await prisma.user.findMany({ where: { id: { in: teacherIds } }, select: { id: true, firstName: true, lastName: true } })).map((person) => [person.id, fullName(person)])) : new Map<string, string>();
 
     /* marks the school has released: an approved sheet's entries for this child, never a draft */
-    const approved = term ? await prisma.scoreSheet.findMany({ where: { schoolId: session.schoolId, termId: term.id, classId, status: "APPROVED" }, select: { subjectId: true } }) : [];
+    // With Score Entry & Results switched off for the school there is nothing to release: every mark stays pending.
+    const resultsOff = (await switchedOffModules(session.schoolId)).some((module) => module.slug === "score-entry-results") || !(await loadStudentPolicy(session.schoolId)).sees.has("Results");
+    const approved = term && !resultsOff ? await prisma.scoreSheet.findMany({ where: { schoolId: session.schoolId, termId: term.id, classId, status: "APPROVED" }, select: { subjectId: true } }) : [];
     const released = new Set(approved.map((sheet) => sheet.subjectId));
     const entries = term && released.size
       ? await prisma.scoreEntry.findMany({ where: { schoolId: session.schoolId, studentId: student.id, subjectId: { in: [...released] }, isDraft: false, resultSheet: { termId: term.id } }, select: { subjectId: true, assessmentComponentId: true, score: true } })
       : [];
     const scoreOf = new Map(entries.map((entry) => [`${entry.subjectId}|${entry.assessmentComponentId}`, entry.score]));
+    /* the school's own release date for each assessment: an approved mark still waits for it, exactly as it does for a guardian */
+    const windows = term ? await prisma.assessmentWindow.findMany({ where: { schoolId: session.schoolId, termId: term.id }, select: { componentId: true, releaseAt: true, appliesTo: true } }) : [];
+    const armLabel = armName(student.currentClass?.name, student.currentClass?.arm).toLowerCase();
+    const releaseOf = new Map(windows.filter((window) => /^every class$/i.test(window.appliesTo) || window.appliesTo.toLowerCase().includes(armLabel)).map((window) => [window.componentId, window.releaseAt.getTime()]));
+    const opened = (componentId: string) => (releaseOf.get(componentId) ?? 0) <= Date.now();
 
     /* this week's topic, from the subject's scheme of work */
     const week = term ? Math.max(1, Math.floor((dayOf(isoDay(new Date())).getTime() - dayOf(isoDay(term.startDate)).getTime()) / (7 * DAY)) + 1) : 0;
@@ -262,7 +281,7 @@ export class StudentWorkspaceService {
           periods: own.length || row.subject.periodsPerWeek || 0, labs: own.filter((slot) => /lab/i.test(slot.venue ?? "")).length,
           topic: topicOf.get(row.subjectId) ?? null, open: open.length, nextDue: next[0] ? isoDay(next[0].dueAt) : null, late: open.filter((a) => a.dueAt.getTime() < now).length,
           released: released.has(row.subjectId),
-          parts: components.map((component) => ({ code: component.code, name: component.name, max: component.maxScore, score: released.has(row.subjectId) ? scoreOf.get(`${row.subjectId}|${component.id}`) ?? null : null }))
+          parts: components.map((component) => ({ code: component.code, name: component.name, max: component.maxScore, score: released.has(row.subjectId) && opened(component.id) ? scoreOf.get(`${row.subjectId}|${component.id}`) ?? null : null, releaseOn: opened(component.id) ? null : isoDay(new Date(releaseOf.get(component.id)!)) }))
         };
       })
     };
@@ -294,6 +313,7 @@ export class StudentWorkspaceService {
   }
 
   async handIn(session: SessionPayload, assignmentId: string, body: unknown) {
+    if (!(await loadStudentPolicy(session.schoolId)).homework) throw new ForbiddenException("Your school takes homework on paper, so it is not handed in here.");
     const parsed = handInSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues[0]?.message ?? "That could not be handed in.");
     const { student } = await this.context(session);
@@ -316,6 +336,7 @@ export class StudentWorkspaceService {
   /* ───────────────────────── attendance ───────────────────────── */
 
   async attendance(session: SessionPayload) {
+    await this.allow(session, "Attendance");
     const { student, term } = await this.context(session);
     const [records, terms, closed] = await Promise.all([
       prisma.studentAttendance.findMany({ where: { schoolId: session.schoolId, studentId: student.id, subjectId: null }, include: { markedBy: { select: { firstName: true, lastName: true } }, classRoom: { select: { name: true, arm: true } } }, orderBy: { date: "asc" } }),
@@ -364,11 +385,11 @@ export class StudentWorkspaceService {
   /** How this account is protected, and the last times someone signed in — so a student can spot a sign-in that was not them. */
   async security(session: SessionPayload) {
     this.assert(session);
-    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null }, select: { mfaEnabled: true, mfaEnrolledAt: true, passwordChangedAt: true, createdAt: true } });
+    const user = await prisma.user.findFirst({ where: { id: session.userId, schoolId: session.schoolId, deletedAt: null }, select: { mfaEnabled: true, mfaEnrolledAt: true, passwordChangedAt: true, passwordResetRequired: true, createdAt: true } });
     if (!user) throw new NotFoundException("No account found.");
     const attempts = await prisma.loginAttempt.findMany({ where: { userId: session.userId }, orderBy: { createdAt: "desc" }, take: 12 });
     return {
-      mfaEnabled: user.mfaEnabled, mfaEnrolledAt: user.mfaEnrolledAt?.toISOString() ?? null, passwordChangedAt: user.passwordChangedAt?.toISOString() ?? null, createdAt: user.createdAt.toISOString(),
+      mustChangePassword: user.passwordResetRequired, mfaEnabled: user.mfaEnabled, mfaEnrolledAt: user.mfaEnrolledAt?.toISOString() ?? null, passwordChangedAt: user.passwordChangedAt?.toISOString() ?? null, createdAt: user.createdAt.toISOString(),
       signIns: attempts.map((attempt) => ({ id: attempt.id, at: attempt.createdAt.toISOString(), success: attempt.success, device: deviceName(attempt.device), where: attempt.location || hide(attempt.ipAddress), newDevice: attempt.newDevice, reason: attempt.success ? null : attempt.reason }))
     };
   }
@@ -415,6 +436,7 @@ export class StudentWorkspaceService {
 
   /** The student's private feed address, made the first time it is asked for. `reset` replaces it, so a link that got out stops working. */
   async calendarLink(session: SessionPayload, reset = false) {
+    if (!(await loadStudentPolicy(session.schoolId)).calendarLink) throw new ForbiddenException("Your school has not switched phone calendar links on for students.");
     this.assert(session);
     const prefs = await this.readPrefs(session);
     const token = !prefs.feedToken || reset ? randomBytes(24).toString("hex") : prefs.feedToken;
@@ -427,6 +449,8 @@ export class StudentWorkspaceService {
     if (!/^[a-f0-9]{48}$/.test(token)) throw new NotFoundException("That calendar link is not one we issued.");
     const row = await prisma.configurationItem.findFirst({ where: { resource: PREFS_RESOURCE, deletedAt: null, data: { path: ["feedToken"], equals: token } } });
     if (!row) throw new NotFoundException("That calendar link is not one we issued.");
+    if ((await switchedOffModules(row.schoolId)).some((module) => module.slug === "student-portal")) throw new NotFoundException("That calendar link is not one we issued.");
+    if (!(await loadStudentPolicy(row.schoolId)).calendarLink) throw new NotFoundException("That calendar link is not one we issued.");
     const session = { userId: row.name, schoolId: row.schoolId, role: "STUDENT" } as unknown as SessionPayload;
     const [{ events }, { items }, me] = await Promise.all([this.calendar(session), this.assignments(session), this.me(session)]);
     const entries = [
@@ -441,12 +465,14 @@ export class StudentWorkspaceService {
   async messages(session: SessionPayload) {
     const { student, formMaster } = await this.context(session);
     const arm = armName(student.currentClass?.name, student.currentClass?.arm);
-    const [received, sent, notices, prefs] = await Promise.all([
+    const seesNotices = (await loadStudentPolicy(session.schoolId)).sees.has("Announcements");
+    const [received, sent, noticeRows, prefs] = await Promise.all([
       prisma.internalMessage.findMany({ where: { schoolId: session.schoolId, recipientId: session.userId }, include: { sender: { select: { id: true, firstName: true, lastName: true, role: true } } }, orderBy: { createdAt: "desc" }, take: 80 }),
       prisma.internalMessage.findMany({ where: { schoolId: session.schoolId, senderId: session.userId }, include: { recipient: { select: { firstName: true, lastName: true } } }, orderBy: { createdAt: "desc" }, take: 80 }),
       prisma.announcement.findMany({ where: { schoolId: session.schoolId, publishedAt: { lte: new Date() }, OR: [{ expiresAt: null }, { expiresAt: { gte: new Date() } }] }, orderBy: { publishedAt: "desc" }, take: 40 }),
       this.readPrefs(session)
     ]);
+    const notices = seesNotices ? noticeRows : [];
     const readNotices = new Set(prefs.readAnnouncements ?? []);
     const audience = (value: string) => isForStudents(value, arm);
     return {
@@ -482,6 +508,7 @@ export class StudentWorkspaceService {
 
   /** A question to a teacher or the form master. It is an in-app message the person answers from their own Messages. */
   async ask(session: SessionPayload, body: unknown) {
+    if (!(await loadStudentPolicy(session.schoolId)).questions) throw new ForbiddenException("Your school does not take students’ questions on the portal. Ask in person.");
     const parsed = askSchema.safeParse(body);
     if (!parsed.success) throw new BadRequestException(parsed.error.issues[0]?.message ?? "That could not be sent.");
     const { student, formMaster } = await this.context(session);
@@ -501,12 +528,15 @@ export class StudentWorkspaceService {
 
   /** The people a student may ask: the teachers of their own subjects, and their form master. */
   async askable(session: SessionPayload) {
+    if (!(await loadStudentPolicy(session.schoolId)).questions) return { formMasterReads: false, people: [] as Array<{ id: string; name: string; role: string }> };
     const { student, formMaster } = await this.context(session);
     const rows = student.currentClassId ? await prisma.classSubject.findMany({ where: { schoolId: session.schoolId, classId: student.currentClassId, isActive: true, teacherId: { not: null } }, include: { subject: { select: { name: true } } } }) : [];
     const ids = [...new Set(rows.map((row) => row.teacherId).filter(Boolean))] as string[];
     const people = ids.length ? await prisma.user.findMany({ where: { id: { in: ids } }, select: { id: true, firstName: true, lastName: true } }) : [];
     const subjectsOf = (id: string) => rows.filter((row) => row.teacherId === id).map((row) => row.subject.name).join(", ");
+    const readers = (await loadStudentPolicy(session.schoolId)).formMasterReads;
     return {
+      formMasterReads: readers,
       people: [
         ...(formMaster ? [{ id: formMaster.id, name: fullName(formMaster), role: "Form master" }] : []),
         ...people.filter((person) => person.id !== formMaster?.id).map((person) => ({ id: person.id, name: fullName(person), role: subjectsOf(person.id) }))
@@ -531,7 +561,7 @@ export class StudentWorkspaceService {
   async prefs(session: SessionPayload) {
     this.assert(session);
     const prefs = await this.readPrefs(session);
-    return { matrix: prefs.matrix ?? {}, quiet: prefs.quiet ?? DEFAULT_QUIET_HOURS, remind: prefs.remind ?? "The day before" };
+    return { matrix: prefs.matrix ?? {}, quiet: prefs.quiet ?? (await loadStudentPolicy(session.schoolId)).quietHours, remind: prefs.remind ?? "The day before" };
   }
 
   async savePrefs(session: SessionPayload, body: unknown) {
@@ -546,6 +576,7 @@ export class StudentWorkspaceService {
   /* ───────────────────────── results (what the school has published, with the arm it was in) ───────────────────────── */
 
   async cards(session: SessionPayload) {
+    await this.allow(session, "Results");
     const { student } = await this.context(session);
     const sheets = await prisma.resultSheet.findMany({
       where: { schoolId: session.schoolId, studentId: student.id, status: "PUBLISHED", publishedAt: { not: null } },

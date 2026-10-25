@@ -4,6 +4,8 @@ import { ApiTags } from "@nestjs/swagger";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
+import { PermissionsGuard } from "../../auth/permissions.guard";
+import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { ok } from "../student-records/records.shared";
 import { TeacherStudentWorkService } from "./student-work.service";
@@ -17,6 +19,14 @@ export class TeacherStudentWorkController {
   @Get()
   overview(@CurrentSession() session: SessionPayload) {
     return ok(this.work.overview(session));
+  }
+
+  /** The school's homework at a glance — for leadership and heads of department, who hold the Class & Timetable Homework tab. */
+  @Get("school")
+  @UseGuards(PermissionsGuard)
+  @RequirePermission("class-timetable.homework.view")
+  school(@CurrentSession() session: SessionPayload) {
+    return ok(this.work.school(session));
   }
 
   @Post("homework")

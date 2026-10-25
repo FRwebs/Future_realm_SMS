@@ -1,6 +1,7 @@
 import type { Prisma } from "@prisma/client";
 
 import { prisma } from "../../../../src/lib/db/prisma";
+import { loadStudentPolicy } from "./student-policy";
 
 /**
  * Telling a student something, the way they chose to be told. The in-app notice is their record and is always written. An email is queued
@@ -38,13 +39,20 @@ export async function notifyStudents(schoolId: string, notices: StudentNotice[],
   const email = new Map(users.map((user) => [user.id, user.email]));
   const prefs = new Map(prefRows.map((row) => [row.name, (row.data ?? {}) as Prefs]));
   const clock = lagosClock(at);
+  // A student who has not chosen their own quiet hours has the school's.
+  const policy = await loadStudentPolicy(schoolId);
+  const schoolQuiet = policy.quietHours;
+  // A notice about something the school has not made visible to students is not sent: it would point at a page they cannot open.
+  const needs: Partial<Record<StudentNewsKind, "Results" | "Timetable" | "Announcements">> = { results: "Results", timetable: "Timetable", school: "Announcements" };
   const data: Prisma.NotificationLogCreateManyInput[] = [];
   for (const notice of notices) {
+    const needed = needs[notice.kind];
+    if (needed && !policy.sees.has(needed)) continue;
     data.push({ schoolId, userId: notice.userId, channel: "IN_APP", title: notice.title, body: notice.body, status: "SENT", sentAt: at, metadata: notice.meta as Prisma.InputJsonValue });
     const mine = prefs.get(notice.userId);
     const wants = mine?.matrix?.[`${notice.kind}:Email`] ?? !EMAIL_OFF_BY_DEFAULT.includes(notice.kind);
     const address = email.get(notice.userId);
-    if (wants && address && !insideQuietHours(mine?.quiet ?? DEFAULT_QUIET_HOURS, clock)) {
+    if (wants && address && !insideQuietHours(mine?.quiet ?? schoolQuiet, clock)) {
       data.push({ schoolId, userId: notice.userId, channel: "EMAIL", title: notice.title, body: notice.body, status: "QUEUED", sentAt: at, metadata: { ...notice.meta, email: address } as Prisma.InputJsonValue });
     }
   }

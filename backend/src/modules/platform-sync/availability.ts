@@ -19,11 +19,22 @@ export const PLATFORM_KEYS_BY_MODULE: Record<string, string[]> = {
   "parents-guardians": ["parents"],
   "fee-management": ["fees"],
   "communication-center": ["messaging", "announcements"],
-  "analytics-reports": ["analytics"]
+  "analytics-reports": ["analytics"],
+  // The students' own portal: switching it off closes every student page and the calendar feed, and nothing a student recorded is deleted.
+  "student-portal": ["student_portal"]
 };
+
+/** Names for switches that are not one of the school's sixteen modules. */
+const SWITCH_NAMES: Record<string, string> = { "student-portal": "The student portal" };
 
 /** The API areas that belong to each switchable module, so a switched-off module is closed at the door and not only hidden. */
 export const API_PREFIXES_BY_MODULE: Array<[string, string]> = [
+  // What a student reads belongs to the module it comes from — a school without Attendance shows no attendance to its students either.
+  ["/api/v1/student-portal/ws/attendance", "attendance"],
+  ["/api/v1/student-portal/ws/cards", "report-cards"],
+  ["/api/v1/student-portal/ws/timetable", "class-timetable"],
+  ["/api/v1/student-portal/ws/messages", "communication-center"],
+  ["/api/v1/student-portal", "student-portal"],
   ["/api/v1/attendance-management", "attendance"],
   ["/api/v1/attendance", "attendance"],
   ["/api/v1/score-results", "score-entry-results"],
@@ -80,7 +91,7 @@ export async function switchedOffModules(schoolId: string): Promise<SwitchedOff[
   const own = asRecord(school?.featureFlags);
   const off: SwitchedOff[] = [];
   for (const [slug, keys] of Object.entries(PLATFORM_KEYS_BY_MODULE)) {
-    const name = schoolModules.find((module) => module.slug === slug)?.name ?? slug;
+    const name = SWITCH_NAMES[slug] ?? schoolModules.find((module) => module.slug === slug)?.name ?? slug;
     if (keys.every((key) => global[key] === false)) off.push({ slug, name, scope: "platform", reason: `${name} is switched off for every school on FutureRealm for now.` });
     else if (keys.every((key) => own[key] === false)) off.push({ slug, name, scope: "school", reason: `${name} is switched off for this school by FutureRealm.` });
   }

@@ -52,7 +52,7 @@ export default async function AppLayout({
   ]);
 
   // A teacher's rail: the teacher modules their permissions reach, in the teacher's order, then anything more the school has granted.
-  const teacherRail = teacher ? teacherNavigation(teacher.persona, permissions) : session.role === "STUDENT" ? studentNavigation() : null;
+  const teacherRail = teacher ? teacherNavigation(teacher.persona, permissions) : session.role === "STUDENT" ? studentNavigation(platformSync?.switchedOff.map((module) => module.slug) ?? [], studentBadges.hidden) : null;
   const navBadges = session.role === "STUDENT" ? studentBadges.counts : teacherBadges;
   const navBadgeTones = session.role === "STUDENT" ? studentBadges.tones : undefined;
 

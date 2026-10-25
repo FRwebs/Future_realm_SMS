@@ -65,6 +65,56 @@ export class TeacherStudentWorkService {
     };
   }
 
+  /**
+   * Homework across the school for the people who answer for it — leadership and heads of department. It is oversight, not surveillance:
+   * how much is set, how much comes back, and how long marked work waits, by teacher and by arm. It reads no student's answer.
+   */
+  async school(session: SessionPayload) {
+    const term = await prisma.term.findFirst({ where: { schoolId: session.schoolId, isCurrent: true }, select: { name: true, startDate: true, endDate: true, academicSession: { select: { name: true } } } });
+    const since = term ? new Date(Math.min(term.startDate.getTime(), Date.now() - 60 * 86_400_000)) : new Date(Date.now() - 90 * 86_400_000);
+    const rows = await prisma.assignment.findMany({
+      where: { schoolId: session.schoolId, status: "PUBLISHED", createdAt: { gte: since } },
+      include: {
+        teacher: { select: { id: true, firstName: true, lastName: true } }, subject: { select: { name: true } },
+        classRoom: { select: { id: true, name: true, arm: true, _count: { select: { students: { where: { status: "ACTIVE" } } } } } },
+        submissions: { select: { submittedAt: true, gradedAt: true } }
+      }
+    });
+    const teachers = await prisma.classSubject.findMany({ where: { schoolId: session.schoolId, isActive: true, teacherId: { not: null } }, select: { teacherId: true } });
+    const now = Date.now();
+    const age = (date: Date) => Math.floor((now - date.getTime()) / 86_400_000);
+    type Tally = { name: string; set: number; expected: number; handed: number; marked: number; waiting: number; oldest: number; stale: number };
+    const blank = (name: string): Tally => ({ name, set: 0, expected: 0, handed: 0, marked: 0, waiting: 0, oldest: 0, stale: 0 });
+    const byTeacher = new Map<string, Tally>();
+    const byArm = new Map<string, Tally>();
+    for (const row of rows) {
+      const teacher = byTeacher.get(row.teacher.id) ?? blank(`${row.teacher.firstName} ${row.teacher.lastName}`);
+      const armTally = byArm.get(row.classRoom.id) ?? blank(arm(row.classRoom.name, row.classRoom.arm));
+      const handed = row.submissions.filter((entry) => entry.submittedAt);
+      const marked = handed.filter((entry) => entry.gradedAt);
+      const waiting = handed.filter((entry) => !entry.gradedAt);
+      const oldest = waiting.reduce((max, entry) => Math.max(max, age(entry.submittedAt!)), 0);
+      for (const tally of [teacher, armTally]) {
+        tally.set += 1; tally.expected += row.classRoom._count.students; tally.handed += handed.length; tally.marked += marked.length; tally.waiting += waiting.length;
+        tally.oldest = Math.max(tally.oldest, oldest); tally.stale += waiting.filter((entry) => age(entry.submittedAt!) > 7).length;
+      }
+      byTeacher.set(row.teacher.id, teacher);
+      byArm.set(row.classRoom.id, armTally);
+    }
+    const all = [...byTeacher.values()];
+    const teachersNamed = new Set(teachers.map((row) => row.teacherId!)).size;
+    return {
+      term: term ? `${term.name} ${term.academicSession.name}` : null,
+      since: since.toISOString().slice(0, 10),
+      totals: {
+        set: rows.length, handed: all.reduce((sum, row) => sum + row.handed, 0), expected: all.reduce((sum, row) => sum + row.expected, 0), waiting: all.reduce((sum, row) => sum + row.waiting, 0),
+        stale: all.reduce((sum, row) => sum + row.stale, 0), teachersSetting: all.length, teachersNamed
+      },
+      teachers: all.sort((a, b) => b.stale - a.stale || b.waiting - a.waiting || a.name.localeCompare(b.name)),
+      arms: [...byArm.values()].sort((a, b) => a.name.localeCompare(b.name, undefined, { numeric: true }))
+    };
+  }
+
   async waitingCount(session: SessionPayload) {
     if (session.role === "STUDENT" || session.role === "PARENT") return 0;
     return prisma.assignmentSubmission.count({ where: { schoolId: session.schoolId, submittedAt: { not: null }, gradedAt: null, assignment: { teacherId: session.userId } } });

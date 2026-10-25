@@ -18,7 +18,8 @@ const moduleLabels: Record<string, string> = {
   fees: "Fees",
   "e-learning": "E-learning",
   messaging: "Messaging",
-  report_cards: "Report cards"
+  report_cards: "Report cards",
+  student_portal: "Student portal"
 };
 
 const statusOptions = [

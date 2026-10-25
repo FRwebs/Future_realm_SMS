@@ -536,6 +536,11 @@ export class SuperAdminController {
     return result;
   }
 
+  @Get("student-portal/usage")
+  studentPortalUsage(@CurrentSession() session: SessionPayload) {
+    return this.superAdminService.studentPortalUsage(session);
+  }
+
   @Get("settings")
   settings(@CurrentSession() session: SessionPayload) {
     return this.superAdminService.getSettings(session);

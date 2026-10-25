@@ -3875,6 +3875,8 @@ function policiesTab(saved: PolicyItem[], country: string | null): TabContent {
 
   const academic = POLICY_DEFINITIONS.filter((item) => item.area === "academic");
   const family = POLICY_DEFINITIONS.filter((item) => item.area === "family");
+  const students = POLICY_DEFINITIONS.filter((item) => item.area === "students");
+  const studentsTitle = "Student portal policy";
   const academicTitle = "Academic and attendance policy";
   const familyTitle = "Family, finance and communication policy";
 
@@ -3921,6 +3923,20 @@ function policiesTab(saved: PolicyItem[], country: string | null): TabContent {
             nounPlural: "settings",
             rows: familyRows,
             foot: "A value in regular weight is the product's default \u2014 nobody here has chosen it yet. These settings are recorded for the school; each module applies the ones it enforces.",
+          },
+        ],
+      },
+      {
+        cols: "1fr",
+        panels: [
+          {
+            type: "table",
+            title: studentsTitle,
+            sub: "What the students’ own portal does at this school. Student portal visibility, above, decides which pages they see.",
+            head: ["Setting", "Value", "What it changes", "Edit"],
+            noun: "setting",
+            nounPlural: "settings",
+            rows: students.map((item) => rowFor(item, studentsTitle)),
           },
         ],
       },

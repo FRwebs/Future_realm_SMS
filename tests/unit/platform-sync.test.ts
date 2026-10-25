@@ -25,9 +25,19 @@ describe("plan and tier stay one answer", () => {
 
 describe("module availability map", () => {
   it("names only modules the School Admin really has", () => {
-    const slugs = new Set(schoolModules.map((module) => module.slug));
+    // The students' own portal is the one switch that is not a School Admin module: it closes the portal a school's students use.
+    const slugs = new Set([...schoolModules.map((module) => module.slug), "student-portal"]);
     for (const slug of Object.keys(PLATFORM_KEYS_BY_MODULE)) expect(slugs.has(slug)).toBe(true);
     for (const [, slug] of API_PREFIXES_BY_MODULE) expect(slugs.has(slug)).toBe(true);
+  });
+
+  it("closes what a student reads along with the module it comes from", () => {
+    const owner = (path: string) => API_PREFIXES_BY_MODULE.find(([prefix]) => path.startsWith(prefix))?.[1];
+    expect(owner("/api/v1/student-portal/ws/attendance")).toBe("attendance");
+    expect(owner("/api/v1/student-portal/ws/cards")).toBe("report-cards");
+    expect(owner("/api/v1/student-portal/ws/timetable")).toBe("class-timetable");
+    expect(owner("/api/v1/student-portal/ws/messages")).toBe("communication-center");
+    expect(owner("/api/v1/student-portal/ws/assignments")).toBe("student-portal");
   });
 
   it("can never switch off the pages a school needs to get back in", () => {

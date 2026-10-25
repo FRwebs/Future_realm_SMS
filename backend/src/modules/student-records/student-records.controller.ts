@@ -97,6 +97,13 @@ export class StudentRecordsController {
     return ok(this.record.addNote(session, id, body), "Note saved.");
   }
 
+  @Post("students/:id/account")
+  @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
+  @RequirePermission("student-records.registry.edit")
+  account(@CurrentSession() session: SessionPayload, @Param("id") id: string, @Body() body: Record<string, unknown>) {
+    return ok(this.record.account(session, id, body));
+  }
+
   @Post("students/:id/reveal")
   @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
   @RequirePermission("student-records.registry.view")

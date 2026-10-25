@@ -9,7 +9,7 @@ import { row } from "@/lib/modules/panels";
 
 export async function profilePage(): Promise<StudentContent> {
   const [me, askable] = await Promise.all([loadMe(), loadAskable()]);
-  const correct = askDrawer(askable.people, { to: me.formMaster?.id, topic: "Something else", text: "Something on my record needs correcting: " });
+  const correct = askDrawer(askable.people, { to: me.formMaster?.id, topic: "Something else", text: "Something on my record needs correcting: ", fmReads: askable.formMasterReads });
   // The line under the name: where they are, which house, whether they board.
   const place = [me.arm, me.house, me.boarding, me.school].filter(Boolean).join(" · ");
   const collectors = me.collectors.length
@@ -17,7 +17,7 @@ export async function profilePage(): Promise<StudentContent> {
     : ["Nobody is on the list yet", "Your parent can add one through the school office"];
   return {
     eyebrow: `${me.level} · ${me.admissionNumber}`, title: me.name, desc: place,
-    launchers: me.formMaster ? [{ label: "Something wrong? Tell your form master", drawer: correct }] : [],
+    launchers: me.formMaster && askable.people.length ? [{ label: "Something wrong? Tell your form master", drawer: correct }] : [],
     rows: [
       row("1fr", [{
         type: "facts", title: "Your record", sub: "Held by the school registry. Only the school can change it.", per: 3,
@@ -90,7 +90,7 @@ export async function accountPage(): Promise<StudentContent> {
   type Device = { id: string; device: string; where: string; lastActiveAt: string; startedAt: string; current: boolean };
   const [me, sec, devices] = await Promise.all([
     loadMe(),
-    apiGet<{ mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`),
+    apiGet<{ mustChangePassword: boolean; mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`),
     apiGet<Device[]>(`${SW}/sessions`).catch(() => [] as Device[]),
   ]);
   const change: DrawerSpec = {
@@ -114,6 +114,7 @@ export async function accountPage(): Promise<StudentContent> {
     eyebrow: "Settings", title: "Account and security", desc: "Your sign-in, your password and the devices you are signed in on.",
     primary: { label: "Change password", drawer: change },
     rows: [
+      ...(sec.mustChangePassword ? [row("1fr", [{ type: "note" as const, tone: "attention" as const, title: "Choose your own password to carry on", body: "The school gave you a temporary password. Nothing else opens until you have changed it — use “Change password” above, with the temporary one as your current password." }])] : []),
       row("1fr", [{
         type: "facts", title: "Signing in", per: 3,
         facts: [

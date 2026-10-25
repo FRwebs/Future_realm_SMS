@@ -94,7 +94,7 @@ export async function messagesPage(query: Record<string, string | undefined>): P
   };
   return {
     eyebrow: "Inbox", title: "Messages", desc: "Messages from your teachers and the school, and the questions you have asked.", tabs, tab,
-    primary: { label: "Ask a teacher", drawer: askDrawer(askable.people, {}) },
+    primary: askable.people.length ? { label: "Ask a teacher", drawer: askDrawer(askable.people, { fmReads: askable.formMasterReads }) } : undefined,
     launchers: unread.length ? [{ label: "Mark all as read", drawer: markAll }] : [],
     rows: [row("1fr", [{
       type: "embed", component: "student-inbox",
@@ -102,7 +102,7 @@ export async function messagesPage(query: Record<string, string | undefined>): P
         base: SW, empty: tab === "Sent" ? "Questions you send to teachers appear here." : "No messages here.",
         messages: shown.map((message) => ({
           id: message.id, cat: message.cat, from: message.from, role: message.role, title: message.title, preview: message.body[0] ?? "", body: message.body, when: whenOf(message.at, me.today), read: message.read, to: message.to,
-          reply: message.cat === "From teachers" && message.fromId ? askDrawer(people(message), { to: message.fromId, topic: `Re: ${message.title}` }) : null,
+          reply: askable.people.length && message.cat === "From teachers" && message.fromId ? askDrawer(people(message), { to: message.fromId, topic: `Re: ${message.title}`, fmReads: askable.formMasterReads }) : null,
         })),
       },
     }])],

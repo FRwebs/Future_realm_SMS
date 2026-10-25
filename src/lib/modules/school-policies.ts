@@ -23,7 +23,7 @@ export type PolicyField = {
 
 export type PolicyDefinition = {
   code: string;
-  area: "academic" | "family";
+  area: "academic" | "family" | "students";
   label: string;
   /** The grey line under the setting's name. */
   sub: string;
@@ -188,7 +188,7 @@ export const POLICY_DEFINITIONS: PolicyDefinition[] = [
         hint: "Fees are not on this list because a student is never shown them.",
       },
     ],
-    defaults: { sees: ["Results", "Attendance"] },
+    defaults: { sees: ["Results", "Attendance", "Timetable", "Announcements"] },
   },
   {
     code: "guardian_submissions",
@@ -258,6 +258,51 @@ export const POLICY_DEFINITIONS: PolicyDefinition[] = [
       },
     ],
     defaults: { channel: "SMS", opens: "07:00", closes: "19:00" },
+  },
+  {
+    code: "student_homework",
+    area: "students",
+    label: "Homework hand-in",
+    sub: "Whether students hand work in on the portal",
+    changes: "Off, students still see what is set and when it is due; they hand it in on paper.",
+    fields: [{ key: "mode", label: "Homework hand-in", kind: "select", options: ["Students hand work in on the portal", "On paper — the portal only shows what is set"] }],
+    defaults: { mode: "Students hand work in on the portal" },
+  },
+  {
+    code: "student_questions",
+    area: "students",
+    label: "Questions to teachers",
+    sub: "Whether a student can ask a teacher from the portal",
+    changes: "Off, the Ask a teacher buttons go and a student asks in person.",
+    fields: [{ key: "mode", label: "Questions to teachers", kind: "select", options: ["Students may ask their teachers", "Students may not ask from the portal"] }],
+    defaults: { mode: "Students may ask their teachers" },
+  },
+  {
+    code: "student_question_readers",
+    area: "students",
+    label: "Who can read a student’s questions",
+    sub: "A safeguarding choice",
+    changes: "The form master sees the questions their arm has put to other teachers, read only. Nobody else does.",
+    fields: [{ key: "mode", label: "Who can read a student’s questions", kind: "select", options: ["The teacher asked, and the form master", "Only the teacher asked"] }],
+    defaults: { mode: "The teacher asked, and the form master" },
+  },
+  {
+    code: "student_quiet_hours",
+    area: "students",
+    label: "Students’ quiet hours",
+    sub: "When no email is sent to a student",
+    changes: "A student who has chosen their own hours keeps them. The in-app notice is always there.",
+    fields: [{ key: "mode", label: "Students’ quiet hours", kind: "select", options: ["None", "21:00 – 07:00", "22:00 – 06:00"] }],
+    defaults: { mode: "21:00 – 07:00" },
+  },
+  {
+    code: "student_calendar_link",
+    area: "students",
+    label: "Phone calendar link",
+    sub: "A private link a student adds to their phone",
+    changes: "Off, students cannot make a link, and any link already made stops working.",
+    fields: [{ key: "mode", label: "Phone calendar link", kind: "select", options: ["Students may use a phone calendar link", "Students may not"] }],
+    defaults: { mode: "Students may use a phone calendar link" },
   },
 ];
 

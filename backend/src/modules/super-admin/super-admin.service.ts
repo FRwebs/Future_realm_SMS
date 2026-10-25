@@ -559,7 +559,8 @@ const platformModules = [
   "online_payments",
   "e_learning",
   "report_cards",
-  "analytics"
+  "analytics",
+  "student_portal"
 ] as const;
 
 const schoolAdminRoles: UserRole[] = [
@@ -714,7 +715,8 @@ export class SuperAdminService {
 
   private async settingsRecord() {
     const existing = await prisma.platformSetting.findFirst({ orderBy: { createdAt: "asc" } });
-    if (existing) return existing;
+    // A switch added after these settings were saved is on until somebody turns it off — so it shows up here to be turned off.
+    if (existing) return { ...existing, globalModuleAvailability: { ...featureDefaults(), ...jsonRecord(existing.globalModuleAvailability) } };
     return prisma.platformSetting.create({ data: defaultSettingsData() });
   }
 
@@ -924,7 +926,7 @@ export class SuperAdminService {
         sms: school.smsLimitPerMonth,
         email: school.emailLimitPerMonth
       },
-      featureFlags: school.featureFlags ?? featureDefaults(),
+      featureFlags: { ...featureDefaults(), ...jsonRecord(school.featureFlags) },
       trialEndsAt: school.trialEndsAt?.toISOString(),
       lastPaymentAt: school.lastPaymentAt?.toISOString(),
       nextBillingAt: school.nextBillingAt?.toISOString(),
@@ -3004,6 +3006,24 @@ export class SuperAdminService {
     }));
   }
 
+  /** How the students' portal is being used, school by school: who has an account, who has ever signed in, and who did in the last 30 days. */
+  async studentPortalUsage(session: SessionPayload) {
+    assertSuperAdmin(session);
+    const since = new Date(Date.now() - 30 * 86_400_000);
+    const [schools, students] = await Promise.all([
+      prisma.school.findMany({ where: { deletedAt: null, isPersonalWorkspace: false }, select: { id: true, name: true, status: true, featureFlags: true }, orderBy: { name: "asc" } }),
+      prisma.student.findMany({ where: { status: "ACTIVE", school: { deletedAt: null, isPersonalWorkspace: false } }, select: { schoolId: true, userId: true, user: { select: { lastLoginAt: true, isActive: true } } } })
+    ]);
+    const rows = schools.map((school) => {
+      const mine = students.filter((student) => student.schoolId === school.id);
+      const withAccount = mine.filter((student) => student.userId && student.user?.isActive !== false);
+      const everSignedIn = withAccount.filter((student) => student.user?.lastLoginAt).length;
+      const active = withAccount.filter((student) => student.user?.lastLoginAt && student.user.lastLoginAt >= since).length;
+      return { schoolId: school.id, school: school.name, status: school.status, enabled: jsonRecord(school.featureFlags).student_portal !== false, students: mine.length, withAccount: withAccount.length, everSignedIn, active };
+    });
+    return this.response({ rows, totals: rows.reduce((sum, row) => ({ students: sum.students + row.students, withAccount: sum.withAccount + row.withAccount, everSignedIn: sum.everSignedIn + row.everSignedIn, active: sum.active + row.active }), { students: 0, withAccount: 0, everSignedIn: 0, active: 0 }) });
+  }
+
   async getSettings(session: SessionPayload) {
     assertSuperAdmin(session);
     const settings = await this.settingsRecord();
@@ -3029,7 +3049,7 @@ export class SuperAdminService {
     assertSuperAdmin(session);
     const school = await prisma.school.findUnique({ where: { id: schoolId }, select: { id: true, name: true, featureFlags: true } });
     if (!school) throw new NotFoundException("School not found.");
-    return this.response({ schoolId: school.id, schoolName: school.name, features: school.featureFlags ?? featureDefaults() });
+    return this.response({ schoolId: school.id, schoolName: school.name, features: { ...featureDefaults(), ...jsonRecord(school.featureFlags) } });
   }
 
   async updateFeatures(session: SessionPayload, schoolId: string, payload: unknown) {
