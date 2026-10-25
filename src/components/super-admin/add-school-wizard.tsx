@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createPortal } from "react-dom";
 import { Check, CheckCircle2, Mail, Plus, ShieldCheck, X } from "lucide-react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import type { SuperAdminPlanRow } from "@/lib/domain/types";
 import { formatCurrency } from "@/lib/utils/formatters";
 
@@ -103,7 +103,7 @@ function Chip({ label, on, onToggle }: { label: string; on: boolean; onToggle: (
 
 export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const notice = useNotice();
 
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(1);
@@ -191,16 +191,17 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
     const adminName = `${firstName.trim()} ${lastName.trim()}`.trim();
 
     if (schoolName.trim().length < 2) {
-      showToast({ variant: "error", title: "School name required", description: "Enter the school's full name to continue." });
+      notice.warning("The school needs a name", "Enter the school's full name to continue.");
       setStep(1);
       return;
     }
     if (adminName.length < 2 || !email.trim()) {
-      showToast({ variant: "error", title: "Administrator details required", description: "Enter the primary administrator's name and email." });
+      notice.warning("The administrator's details are needed", "Enter the primary administrator's name and email.");
       setStep(2);
       return;
     }
 
+    notice.clear();
     setSubmitting(true);
     try {
       const response = await fetch("/api/super-admin/schools", {
@@ -244,11 +245,7 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
       setDone(true);
       router.refresh();
     } catch (error) {
-      showToast({
-        variant: "error",
-        title: "Unable to create school",
-        description: error instanceof Error ? error.message : "Please try again.",
-      });
+      notice.error("The school was not created", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -568,6 +565,9 @@ export function AddSchoolWizard({ plans }: { plans: SuperAdminPlanRow[] }) {
               ) : null}
             </div>
 
+            <div className="border-t border-[#edf3ef] bg-[#fbfdfc] px-[23.5px] pt-3 empty:hidden">
+              <InlineNotice notice={notice.notice} onDismiss={notice.clear} />
+            </div>
             <div className="flex items-center justify-between gap-4 border-t border-[#edf3ef] bg-[#fbfdfc] px-[23.5px] py-4">
               <p className="text-[10.5px] text-[#8c9a92]">{footNote}</p>
               <div className="flex items-center gap-[8px]">

@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Columns3, Download, Send, Shuffle, User, X } from "lucide-react";
 
 import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
 import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import type { SuperAdminSchoolRow } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
@@ -146,7 +147,10 @@ function downloadCsv(schools: SuperAdminSchoolRow[]) {
 }
 
 export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { schools: SuperAdminSchoolRow[]; filterBar?: ReactNode; paginationFooter?: ReactNode }) {
-  const { showToast } = useToast();
+  // Two places a message belongs: inside the dialog that is open (what is wrong with what was typed), and above the table (what the action did).
+  const router = useRouter();
+  const dialogNotice = useNotice();
+  const barNotice = useNotice();
   const [selected, setSelected] = useState<Record<string, boolean>>({});
   const [hidden, setHidden] = useState<string[]>([]);
   const [columnsOpen, setColumnsOpen] = useState(false);
@@ -194,11 +198,15 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
     setSelected({ [id]: true });
   }
 
+  useEffect(() => { dialogNotice.clear(); // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [statusDialogOpen, managerDialogOpen, notifyDialogOpen]);
+
   async function submitBatchStatus() {
     if (statusReason.trim().length < 3) {
-      showToast({ variant: "error", title: "Reason required", description: "Enter at least 3 characters explaining this status change." });
+      dialogNotice.warning("A reason is needed", "Enter at least 3 characters explaining this status change.");
       return;
     }
+    dialogNotice.clear();
     setSubmitting(true);
     try {
       await Promise.all(
@@ -206,13 +214,13 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
           authedFetch(`/api/super-admin/schools/${schoolId}/status`, "PATCH", { status: statusValue, reason: statusReason.trim() })
         )
       );
-      showToast({ variant: "success", title: "Status updated", description: `${selectedIds.length} school(s) moved to ${statusValue}.` });
+      barNotice.success("Status updated", `${selectedIds.length} school(s) moved to ${statusValue}.`);
       setStatusDialogOpen(false);
       setStatusReason("");
       clearSelection();
-      window.location.reload();
+      router.refresh();
     } catch (error) {
-      showToast({ variant: "error", title: "Batch status change failed", description: error instanceof Error ? error.message : "Please try again." });
+      dialogNotice.error("The status change failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -220,20 +228,21 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
 
   async function submitAccountManager() {
     if (!managerEmail.trim()) {
-      showToast({ variant: "error", title: "Email required", description: "Enter the account manager's email." });
+      dialogNotice.warning("An email is needed", "Enter the account manager's email.");
       return;
     }
+    dialogNotice.clear();
     setSubmitting(true);
     try {
       await Promise.all(
         selectedIds.map((schoolId) => authedFetch(`/api/super-admin/schools/${schoolId}/account-manager`, "POST", { accountManagerEmail: managerEmail.trim() }))
       );
-      showToast({ variant: "success", title: "Account manager assigned", description: `Assigned to ${selectedIds.length} school(s).` });
+      barNotice.success("Account manager assigned", `Assigned to ${selectedIds.length} school(s).`);
       setManagerDialogOpen(false);
       setManagerEmail("");
       clearSelection();
     } catch (error) {
-      showToast({ variant: "error", title: "Assignment failed", description: error instanceof Error ? error.message : "Please try again." });
+      dialogNotice.error("The assignment failed", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -241,9 +250,10 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
 
   async function submitNotification() {
     if (notifyTitle.trim().length < 2 || notifyBody.trim().length < 3) {
-      showToast({ variant: "error", title: "Title and message required", description: "Enter a title and a message for the announcement." });
+      dialogNotice.warning("A title and a message are needed", "Enter a title and a message for the announcement.");
       return;
     }
+    dialogNotice.clear();
     setSubmitting(true);
     try {
       await authedFetch("/api/super-admin/communications/announcements", "POST", {
@@ -252,13 +262,13 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
         type: "INFO",
         target: { audience: "SPECIFIC_SCHOOLS", schoolIds: selectedIds }
       });
-      showToast({ variant: "success", title: "Announcement created", description: `Targeted at ${selectedIds.length} school(s). Review it in Communications.` });
+      barNotice.success("Announcement created", `Targeted at ${selectedIds.length} school(s). Review it in Communications.`);
       setNotifyDialogOpen(false);
       setNotifyTitle("");
       setNotifyBody("");
       clearSelection();
     } catch (error) {
-      showToast({ variant: "error", title: "Could not create announcement", description: error instanceof Error ? error.message : "Please try again." });
+      dialogNotice.error("The announcement was not created", error instanceof Error ? error.message : "Please try again.");
     } finally {
       setSubmitting(false);
     }
@@ -266,12 +276,13 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
 
   function handleExport() {
     downloadCsv(selectedSchools);
-    showToast({ variant: "success", title: "Export ready", description: `${selectedSchools.length} school(s) exported to CSV.` });
+    barNotice.success("Export ready", `${selectedSchools.length} school(s) exported to CSV.`);
   }
 
   return (
     <section className="overflow-hidden rounded-[14px] border border-[#DEE8E2] bg-white">
       {filterBar}
+      <div className="px-3 pt-3 empty:hidden"><InlineNotice notice={barNotice.notice} onDismiss={barNotice.clear} /></div>
       <div className="p-0">
         {selectedIds.length > 0 ? (
           <div className="m-3 flex flex-wrap items-center justify-between gap-3 rounded-[11px] bg-[#0d2315] px-4 py-[10px]">
@@ -598,6 +609,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             />
           </label>
         </div>
+        <InlineNotice notice={dialogNotice.notice} onDismiss={dialogNotice.clear} className="mt-4" />
         <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setStatusDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitBatchStatus} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
@@ -620,6 +632,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             <span className="mt-1.5 block text-[10px] text-[var(--color-text-muted)]">Must be an active internal team member.</span>
           </label>
         </div>
+        <InlineNotice notice={dialogNotice.notice} onDismiss={dialogNotice.clear} className="mt-4" />
         <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setManagerDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitAccountManager} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
@@ -650,6 +663,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             />
           </label>
         </div>
+        <InlineNotice notice={dialogNotice.notice} onDismiss={dialogNotice.clear} className="mt-4" />
         <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setNotifyDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitNotification} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">

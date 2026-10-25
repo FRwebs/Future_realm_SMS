@@ -6,7 +6,7 @@ import { CircleHelp, Loader2, UserCheck } from "lucide-react";
 
 import { Popover } from "@/components/ui/popover";
 import { SidePanel } from "@/components/ui/side-panel";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { Tooltip } from "@/components/ui/tooltip";
 
 type SubjectAssignmentOption = {
@@ -48,7 +48,7 @@ export function AssignSubjectTeacherDialog({
   triggerVariant?: "primary" | "secondary" | "menu";
 }) {
   const router = useRouter();
-  const { showToast } = useToast();
+  const triggerNotice = useNotice();
   const defaultClassId = initialClassId ?? assignments[0]?.classId ?? "";
   const initialAssignment = assignments.find((assignment) => assignment.classId === defaultClassId) ?? assignments[0];
   const [open, setOpen] = useState(false);
@@ -65,13 +65,10 @@ export function AssignSubjectTeacherDialog({
 
   function openDialog() {
     if (assignments.length === 0) {
-      showToast({
-        variant: "warning",
-        title: "No classes available",
-        description: "This subject is not linked to any class yet, so there is nowhere to assign a teacher.",
-      });
+      triggerNotice.warning("No classes available", "This subject is not linked to any class yet, so there is nowhere to assign a teacher.");
       return;
     }
+    triggerNotice.clear();
     setClassId(initialClassId ?? assignments[0]?.classId ?? "");
     setTeacherId((assignments.find((assignment) => assignment.classId === (initialClassId ?? assignments[0]?.classId))?.teacherId ?? ""));
     setApplyToAllArms(false);
@@ -114,11 +111,6 @@ export function AssignSubjectTeacherDialog({
       setTone("success");
       const successMessage = body.message ?? "Subject teacher assignment saved.";
       setMessage(successMessage);
-      showToast({
-        variant: "success",
-        title: "Teacher assigned",
-        description: successMessage,
-      });
       router.refresh();
       window.setTimeout(() => {
         setOpen(false);
@@ -128,11 +120,6 @@ export function AssignSubjectTeacherDialog({
       const nextMessage =
         error instanceof Error ? error.message : "Unable to save subject teacher assignment.";
       setMessage(nextMessage);
-      showToast({
-        variant: "error",
-        title: "Unable to assign teacher",
-        description: nextMessage,
-      });
     } finally {
       setPending(false);
     }
@@ -160,6 +147,7 @@ export function AssignSubjectTeacherDialog({
           </span>
         </Tooltip>
       </button>
+      <InlineNotice notice={triggerNotice.notice} onDismiss={triggerNotice.clear} compact className="mt-2 max-w-[320px]" />
 
       <SidePanel
         open={open}

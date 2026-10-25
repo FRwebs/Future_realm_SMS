@@ -5,7 +5,6 @@ import { useRouter } from "next/navigation";
 import { AlertTriangle } from "lucide-react";
 
 import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/ui/toast-provider";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 import type { Role } from "@/lib/domain/types";
 
@@ -28,7 +27,6 @@ interface ImpersonateUserDialogProps {
 
 export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialogProps) {
   const router = useRouter();
-  const { showToast } = useToast();
   const [open, setOpen] = useState(false);
   const [reason, setReason] = useState("");
   const [elevationId, setElevationId] = useState("");
@@ -66,18 +64,12 @@ export function ImpersonateUserDialog({ userId, userName }: ImpersonateUserDialo
       }
 
       const destination = defaultPathForRole(body.data?.user?.role ?? "");
-      showToast({
-        variant: "success",
-        title: "Impersonation started",
-        description: `Redirecting to ${userName}'s interface.`,
-      });
       setOpen(false);
       router.replace(destination);
       router.refresh();
     } catch (caught) {
       const message = caught instanceof Error ? caught.message : "Unable to start impersonation";
       setError(message);
-      showToast({ variant: "error", title: "Unable to impersonate", description: message });
     } finally {
       setPending(false);
     }

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { InlineNotice } from "@/components/ui/inline-notice";
 import type { PanelTone } from "@/lib/modules/panels";
 import { GRID_SUFFIX, type Letterhead, type Section } from "@/lib/modules/lesson-notes-types";
 import { sendJsonForData } from "@/lib/modules/submit";
@@ -53,18 +54,20 @@ export function Label({ children, hint }: { children: React.ReactNode; hint?: st
   );
 }
 
-/** A message that fades: what happened, in words. */
+/**
+ * What just happened, in words, at the top of the workspace it happened in. It stays until the next thing happens or it is dismissed, and it
+ * is brought into view — a message that fades from a corner of the screen is gone before it has been read.
+ */
 export function useToast() {
-  const [toast, setToast] = useState<{ text: string; tone: "ok" | "bad" } | null>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const show = useCallback((text: string, tone: "ok" | "bad" = "ok") => {
-    setToast({ text, tone });
-    if (timer.current) clearTimeout(timer.current);
-    timer.current = setTimeout(() => setToast(null), tone === "bad" ? 7000 : 3600);
-  }, []);
-  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
-  const node = toast ? (
-    <div role="status" className="fixed bottom-5 left-1/2 z-[80] max-w-[92vw] -translate-x-1/2 rounded-[12px] px-[16px] py-[10px] text-[12px] font-semibold shadow-[0_14px_30px_-12px_rgba(0,0,0,0.5)]" style={{ background: toast.tone === "ok" ? INK : "#8E2A2A", color: "#fff" }}>{toast.text}</div>
+  const [message, setMessage] = useState<{ text: string; tone: "ok" | "bad" } | null>(null);
+  const show = useCallback((text: string, tone: "ok" | "bad" = "ok") => setMessage({ text, tone }), []);
+  const node = message ? (
+    <InlineNotice
+      notice={{ variant: message.tone === "ok" ? "success" : "error", title: message.text }}
+      onDismiss={() => setMessage(null)}
+      bringIntoView
+      className="mb-3"
+    />
   ) : null;
   return { show, node };
 }

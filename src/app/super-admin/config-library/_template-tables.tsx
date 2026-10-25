@@ -10,7 +10,7 @@ import { ResourceField, ResourceForm } from "@/components/forms/resource-form";
 import { CardPreview, RunPortability, SchoolsUsing, VersionHistory } from "./_library-sheets";
 import { cardFields } from "./_card-form";
 import { ActionMenu } from "@/components/ui/action-menu";
-import { useToast } from "@/components/ui/toast-provider";
+import { UnbuiltAction } from "@/components/ui/unbuilt-action";
 import { Modal } from "@/components/ui/modal";
 import type { SuperAdminConfigLibrary } from "@/lib/domain/types";
 
@@ -27,16 +27,7 @@ function initialsOf(name: string): string {
 /** A secondary action rendered in a review sheet's footer that isn't real functionality —
  * clicking it tells the viewer plainly why, instead of doing nothing or being hidden. */
 function InertFooterAction({ label, note }: { label: string; note: string }) {
-  const { showToast } = useToast();
-  return (
-    <button
-      type="button"
-      onClick={() => showToast({ variant: "info", title: "Not built", description: note })}
-      className={SHEET_NORMAL}
-    >
-      {label}
-    </button>
-  );
+  return <UnbuiltAction label={label} note={note} className={SHEET_NORMAL} />;
 }
 
 

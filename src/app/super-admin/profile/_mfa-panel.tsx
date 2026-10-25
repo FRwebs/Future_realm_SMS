@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Modal } from "@/components/ui/modal";
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice } from "@/components/ui/inline-notice";
 import { formatDate } from "@/lib/utils/formatters";
 
 function getCookie(name: string) {
@@ -52,7 +52,6 @@ function BackupCodesView({ codes, onDone }: { codes: string[]; onDone: () => voi
 
 function SetupFlow({ onClose }: { onClose: () => void }) {
   const router = useRouter();
-  const { showToast } = useToast();
   const [step, setStep] = useState<"loading" | "scan" | "done">("loading");
   const [setup, setSetup] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
   const [code, setCode] = useState("");
@@ -86,7 +85,6 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
       const data = await apiCall<{ backupCodes: string[] }>("/api/v1/profile/me/mfa/confirm", "POST", { code });
       setBackupCodes(data.backupCodes);
       setStep("done");
-      showToast({ variant: "success", title: "Two-factor authentication is on", description: "Keep your backup codes somewhere safe." });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Invalid code");
     } finally {
@@ -100,18 +98,21 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
 
   if (step === "done") {
     return (
-      <BackupCodesView
-        codes={backupCodes}
-        onDone={() => {
-          onClose();
-          router.refresh();
-        }}
-      />
+      <div className="grid gap-3">
+        <InlineNotice notice={{ variant: "success", title: "Two-factor authentication is on", description: "Keep your backup codes somewhere safe." }} />
+        <BackupCodesView
+          codes={backupCodes}
+          onDone={() => {
+            onClose();
+            router.refresh();
+          }}
+        />
+      </div>
     );
   }
 
   if (!setup) {
-    return <p className="py-8 text-center text-[11.5px] text-[var(--color-danger)]">{error ?? "Unable to start setup."}</p>;
+    return <InlineNotice notice={{ variant: "error", title: "Setup could not start", description: error ?? "Try again in a moment." }} />;
   }
 
   return (
@@ -136,7 +137,7 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
           placeholder="123456"
         />
       </label>
-      {error ? <p className="text-[11.5px] text-[var(--color-danger)]">{error}</p> : null}
+      <InlineNotice notice={error ? { variant: "error", title: "That code did not work", description: error } : null} onDismiss={() => setError(null)} />
       <button type="submit" disabled={pending || code.trim().length === 0} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
         {pending ? "Confirming..." : "Confirm and turn on"}
       </button>

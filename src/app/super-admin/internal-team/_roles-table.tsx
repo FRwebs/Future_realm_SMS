@@ -5,7 +5,7 @@ import { useState } from "react";
 import { DetailFacts, DetailSheet } from "@/components/data-display/detail-sheet";
 import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
-import { useToast } from "@/components/ui/toast-provider";
+import { UnbuiltAction } from "@/components/ui/unbuilt-action";
 
 export interface RoleBreakdownRow {
   role: string;
@@ -30,12 +30,7 @@ export interface CustomRoleRow {
 }
 
 function InertAction({ label, note }: { label: string; note: string }) {
-  const { showToast } = useToast();
-  return (
-    <button type="button" onClick={() => showToast({ variant: "info", title: "Not built", description: note })} className="btn-secondary px-4 text-[11.5px]">
-      {label}
-    </button>
-  );
+  return <UnbuiltAction label={label} note={note} />;
 }
 
 /** Copying a built-in role is how a narrower version of it gets made: the new role starts from the same grid and is then trimmed. */

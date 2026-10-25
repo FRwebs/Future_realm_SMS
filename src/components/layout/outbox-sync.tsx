@@ -3,7 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef } from "react";
 
-import { useToast } from "@/components/ui/toast-provider";
+import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { flushOutbox, readOutbox } from "@/lib/offline/outbox";
 
 /**
@@ -11,7 +11,7 @@ import { flushOutbox, readOutbox } from "@/lib/offline/outbox";
  * so a teacher is never left wondering whether a register they marked on the bus reached the school.
  */
 export function OutboxSync() {
-  const { showToast } = useToast();
+  const banner = useNotice();
   const router = useRouter();
   const busy = useRef(false);
 
@@ -23,7 +23,7 @@ export function OutboxSync() {
         const result = await flushOutbox();
         if (!result.sent) return;
         const parts = [result.applied ? `${result.applied} reached the school` : null, result.conflicts ? `${result.conflicts} changed on the record since — a school administrator will choose` : null, result.refused.length ? `${result.refused.length} refused: ${result.refused[0]}` : null].filter(Boolean);
-        showToast({ variant: result.conflicts || result.refused.length ? "warning" : "success", title: "Work from this device was sent", description: parts.join(" · ") });
+        banner.show({ variant: result.conflicts || result.refused.length ? "warning" : "success", title: "Work from this device was sent", description: parts.join(" · ") });
         router.refresh();
       } finally {
         busy.current = false;
@@ -38,7 +38,9 @@ export function OutboxSync() {
       window.removeEventListener("fr:outbox-flush", run);
       window.clearInterval(timer);
     };
-  }, [router, showToast]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- the notice hook's setters never change
+  }, [router]);
 
-  return null;
+  // A strip above the page, in the shell's own flow, that stays until it is read and dismissed.
+  return <InlineNotice notice={banner.notice} onDismiss={banner.clear} className="mx-4 mb-1 mt-2 md:mx-6" />;
 }

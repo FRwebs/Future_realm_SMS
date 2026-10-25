@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import { AlertCircle, ArrowLeft, CheckCircle2, Clock, DoorOpen, EyeOff, Plus, Send, Sparkles, Trash2 } from "lucide-react";
 
 import { usePermissions } from "@/components/auth/permission-provider";
-import { useToast } from "@/components/ui/toast-provider";
 import { SidePanel } from "@/components/ui/side-panel";
 import { cn } from "@/lib/utils/cn";
 import { apiJson, formatTime, getCookie } from "./api";
@@ -251,7 +250,6 @@ function TimetableGrid({ data, canEdit, canDelete, onEdit, onDelete }: { data: T
 }
 
 function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId: string; className: string; slot: ActiveSlot; onClose: () => void; onSaved: () => void }) {
-  const { showToast } = useToast();
   const [subjects, setSubjects] = useState<SubjectOption[]>([]);
   const [teachers, setTeachers] = useState<TeacherOption[]>([]);
   const [form, setForm] = useState({
@@ -286,11 +284,6 @@ function SlotEditPanel({ classId, className, slot, onClose, onSaved }: { classId
     if (form.slot_type === "lesson" && !form.subject_id) {
       const message = "Select a subject before saving this lesson slot.";
       setError(message);
-      showToast({
-        variant: "warning",
-        title: "Subject required",
-        description: message,
-      });
       return;
     }
 

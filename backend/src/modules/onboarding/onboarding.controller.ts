@@ -39,6 +39,12 @@ export class OnboardingController {
     return this.establishSession(sessionUser, school, response, account);
   }
 
+  /** The website's "Stay updated" box: the address becomes a lead the sales team can see, once, however many times it is sent. */
+  @Post("newsletter")
+  async joinNewsletter(@Body() body: unknown) {
+    return { ok: true, data: await this.onboardingService.joinNewsletter(body) };
+  }
+
   @Get("slug-check")
   async checkSlug(@Query("slug") slug: string) {
     const evaluation = await this.onboardingService.checkSlugAvailability(slug || "");
