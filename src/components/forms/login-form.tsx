@@ -68,7 +68,7 @@ export function LoginForm() {
         code?: string;
         channel?: "EMAIL" | "APP";
         sentTo?: string;
-        data?: { user: { role: string } };
+        data?: { user: { role: string }; landingPath?: string | null };
       };
 
       if (!response.ok || body.ok === false || !body.data) {
@@ -86,10 +86,11 @@ export function LoginForm() {
 
       // The button stays disabled and the message stays put until the next page has replaced this one.
       notice.success(t("signIn.signedInTitle"), t("signIn.signedInHelp"));
-      const nextPath = resolveLandingPath(body.data.user.role);
+      // The page this person asked to open on (Preferences), when their role may see it; otherwise the usual place for their role.
+      const nextPath = body.data.landingPath ?? resolveLandingPath(body.data.user.role);
 
       window.setTimeout(() => {
-        router.push(nextPath);
+        router.push(nextPath as never);
         router.refresh();
       }, 250);
     } catch {
@@ -214,7 +215,7 @@ export function LoginForm() {
 
       <label className="mb-[22px] flex cursor-pointer items-center gap-2">
         <input type="checkbox" {...form.register("trustDevice")} className="peer sr-only" />
-        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border border-[#b9c9c0] bg-white transition peer-checked:border-[#0d2315] peer-checked:bg-[#0d2315] [&>svg]:peer-checked:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-[#12796a]/40">
+        <span className="flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border border-[#b9c9c0] bg-white transition peer-checked:border-[#0d2315] peer-checked:bg-[#0d2315] peer-checked:*:opacity-100 peer-focus-visible:ring-2 peer-focus-visible:ring-[#12796a]/40">
           <svg className="opacity-0 transition" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round">
             <path d="m5 12 5 5 9-10" />
           </svg>

@@ -1,11 +1,12 @@
 import type { Metadata, Viewport } from "next";
 
+import { PREFS_COOKIE, decodeDevicePreferences } from "@/lib/preferences";
 import { ProductAnalytics } from "@/components/layout/product-analytics";
 import { ServiceWorker } from "@/components/layout/service-worker";
 import { WarmApi } from "@/components/layout/warm-api";
 import { WebVitals } from "@/components/layout/web-vitals";
 import { NextIntlClientProvider } from "next-intl";
-import { headers } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { getLocale, getMessages } from "next-intl/server";
 import { NuqsAdapter } from "nuqs/adapters/next/app";
 
@@ -45,8 +46,10 @@ export default async function RootLayout({
   const messages = await getMessages();
   // The page's one inline script (the theme, applied before paint so there is no flash) carries this request's nonce from the middleware.
   const nonce = (await headers()).get("x-nonce") ?? undefined;
+  // How roomy this person asked the product to be (Preferences → Density), applied before the first paint.
+  const density = decodeDevicePreferences((await cookies()).get(PREFS_COOKIE)?.value).density.toLowerCase();
   return (
-    <html lang={locale} data-theme="light" suppressHydrationWarning>
+    <html lang={locale} data-theme="light" data-density={density} suppressHydrationWarning>
       <head>
         <script nonce={nonce} dangerouslySetInnerHTML={{ __html: themeBootstrapScript }} />
       </head>

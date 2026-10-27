@@ -11,7 +11,7 @@ export function LanguagePicker() {
   const current = useLocale();
   if (LOCALES.length < 2) return null;
   return (
-    <label className="mt-[18px] flex items-center justify-center gap-2 text-[11px] text-[#5f6e65]">
+    <label data-testid="language-picker" className="mt-[18px] flex items-center justify-center gap-2 text-[11px] text-[#5f6e65]">
       <span>Language</span>
       <select
         value={current}

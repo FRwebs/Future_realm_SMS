@@ -1347,3 +1347,14 @@
   background: #FDF3F3;
   color: #B23B3B;
 }
+
+/* Density (Preferences): "comfortable" gives tables and pages more room, for a projector or a tired eye. Compact is the default design. */
+html[data-density="comfortable"] :is(td, th) {
+  padding-block: 0.9rem !important;
+}
+html[data-density="comfortable"] .portal-page {
+  gap: 1.75rem;
+}
+html[data-density="comfortable"] body {
+  font-size: 14.5px;
+}

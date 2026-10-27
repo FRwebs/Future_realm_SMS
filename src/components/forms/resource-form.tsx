@@ -13,6 +13,7 @@ import {
 import { FieldMessage, InlineNotice, type Notice } from "@/components/ui/inline-notice";
 import { useOfflineDraftQueue } from "@/hooks/use-offline-draft-queue";
 import { readReply } from "@/lib/modules/submit";
+import { readDevicePreferences } from "@/lib/preferences";
 
 export interface ResourceField {
   name: string;
@@ -291,6 +292,9 @@ export function ResourceForm({
     setMessage(null);
 
     try {
+      if (offlineKey && !navigator.onLine && !readDevicePreferences().keepOffline) {
+        throw new Error("You are offline, and you have chosen not to keep work on this device (Preferences), so nothing was saved.");
+      }
       if (offlineKey && !navigator.onLine) {
         offlineQueue.saveDraft(payload);
         setTone("warning");

@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { PanelView } from "@/components/modules/panel-renderer";
 import type { DrawerSpec, KpiCard, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { sendJson } from "@/lib/modules/submit";
+import { readDevicePreferences } from "@/lib/preferences";
 
 /**
  * A teacher's score sheet, as the teacher mockup draws it: one subject-arm, every child down the page, every component across it.
@@ -113,7 +114,8 @@ export function TeacherSheet(props: TeacherSheetProps) {
   const dirty = changes().length > 0;
   useEffect(() => {
     if (!dirty || locked) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    // Whether to ask before leaving is the person's own choice (Preferences).
+    const warn = (event: BeforeUnloadEvent) => { if (readDevicePreferences().confirmLeave) event.preventDefault(); };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, locked]);
@@ -153,7 +155,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
   useEffect(() => {
     if (locked) return;
     const onClick = (event: MouseEvent) => {
-      if (!dirty || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
+      if (!dirty || !readDevicePreferences().confirmLeave || event.defaultPrevented || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey) return;
       const link = (event.target as HTMLElement | null)?.closest("a");
       const href = link?.getAttribute("href");
       if (!link || !href || href.startsWith("#") || link.target === "_blank") return;

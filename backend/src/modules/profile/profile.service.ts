@@ -10,6 +10,7 @@ import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { toLocale } from "../../common/locale";
+import { preferencesSchema, type Preferences } from "../../../../src/lib/preferences";
 
 const optionalText = z.string().trim().optional().or(z.literal(""));
 const optionalEmail = z.string().trim().email().optional().or(z.literal(""));
@@ -53,6 +54,7 @@ const localeField = z.string().trim().refine((value) => toLocale(value) !== null
 const selfUpdateSchema = z.object({
   preferredName: profileFields.preferredName,
   locale: localeField.optional(),
+  preferences: preferencesSchema.optional(),
   avatarUrl: profileFields.avatarUrl,
   phone: profileFields.phone,
   secondaryPhone: profileFields.secondaryPhone,
@@ -256,6 +258,7 @@ export class ProfileService {
       lastName: user.lastName,
       preferredName: user.preferredName,
       locale: user.locale,
+      preferences: (user.preferences as Preferences | null) ?? null,
       avatarUrl: user.avatarUrl,
       role: user.role,
       email: user.email,
@@ -404,9 +407,16 @@ export class ProfileService {
 
   async updateMyProfile(session: SessionPayload, payload: unknown) {
     const parsed = selfUpdateSchema.parse(payload);
+    const { preferences, ...rest } = parsed;
+    const data = toUserData(rest);
+    if (preferences) {
+      // A change to some of the settings keeps the ones it does not mention.
+      const current = await prisma.user.findUnique({ where: { id: session.userId }, select: { preferences: true } });
+      data.preferences = { ...((current?.preferences as Preferences | null) ?? {}), ...preferences } as Prisma.InputJsonValue;
+    }
     await prisma.user.update({
       where: { id: session.userId },
-      data: toUserData(parsed),
+      data,
     });
     await this.audit(session, "UPDATE", "UserProfile", session.userId, { selfService: true, fields: Object.keys(parsed) });
     return this.getProfile(session, session.userId);

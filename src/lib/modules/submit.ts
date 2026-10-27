@@ -8,6 +8,7 @@
  */
 
 import { enqueue, noConnection, offlineTarget } from "@/lib/offline/outbox";
+import { readDevicePreferences } from "@/lib/preferences";
 
 export function readCookie(name: string) {
   return document.cookie
@@ -78,10 +79,13 @@ function heldOffline(endpoint: string, method: string, payload: unknown, cause: 
   if (!noConnection(cause)) return false;
   const target = offlineTarget(endpoint, method);
   if (!target || !payload || typeof payload !== "object") return false;
+  // Holding work on the device is the person's choice (Preferences); declined, an offline write is refused so nothing is left behind.
+  if (!readDevicePreferences().keepOffline) return false;
   return Boolean(enqueue(target, payload as Record<string, unknown>, target.kind === "ATTENDANCE" ? "A register" : "Scores"));
 }
 
 const NO_CONNECTION = "There is no connection, and this needs one. Nothing was saved.";
+const NOT_KEPT_OFFLINE = "There is no connection, and you have chosen not to keep work on this device (Preferences), so nothing was saved. Try again when you are connected.";
 
 /** One write, with the CSRF header and the error handling both callers want. */
 export async function sendJson(
@@ -102,7 +106,7 @@ export async function sendJson(
     });
   } catch (cause) {
     if (heldOffline(endpoint, method, payload, cause)) return { queued: true };
-    throw noConnection(cause) ? new Error(NO_CONNECTION) : cause;
+    throw noConnection(cause) ? new Error(offlineTarget(endpoint, method) && !readDevicePreferences().keepOffline ? NOT_KEPT_OFFLINE : NO_CONNECTION) : cause;
   }
 
   const result = await readReply<{ ok?: boolean; error?: string; message?: string }>(response);

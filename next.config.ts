@@ -21,12 +21,6 @@ const securityHeaders = [
 const nextConfig: NextConfig = {
   typedRoutes: true,
   allowedDevOrigins: ["127.0.0.1", "localhost"],
-  typescript: {
-    // Next's generated route-type pass is intermittently misresolving app entries
-    // in this codebase during production builds; we keep source validation outside
-    // of that fragile step so Vercel deploys stay unblocked.
-    ignoreBuildErrors: true,
-  },
   async headers() {
     return [
       { source: "/:path*", headers: securityHeaders },

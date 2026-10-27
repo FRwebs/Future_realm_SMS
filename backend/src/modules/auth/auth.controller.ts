@@ -27,7 +27,10 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { AuthService, MfaRequiredError } from "./auth.service";
-import { rememberLocale, toLocale } from "../../common/locale";
+import { rememberDevicePreferences, rememberLocale, toLocale } from "../../common/locale";
+import { canAccessPath } from "../../../../src/lib/auth/roles";
+import type { Role } from "../../../../src/lib/domain/types";
+import { landingPathFor, type Preferences } from "../../../../src/lib/preferences";
 
 function clientIp(request: Request) {
   const forwarded = request.headers["x-forwarded-for"];
@@ -118,12 +121,18 @@ export class AuthController {
     response.cookie(SESSION_COOKIE_NAME, token, getCookieOptions(true, maxAgeSeconds));
     response.cookie(CSRF_COOKIE_NAME, session.csrfToken, getCookieOptions(false, maxAgeSeconds));
     // Signing in on a new device brings the person's chosen language with them.
-    rememberLocale(response, toLocale((await prisma.user.findUnique({ where: { id: user.userId }, select: { locale: true } }))?.locale));
+    const saved = await prisma.user.findUnique({ where: { id: user.userId }, select: { locale: true, preferences: true } });
+    rememberLocale(response, toLocale(saved?.locale));
+    const preferences = (saved?.preferences as Preferences | null) ?? null;
+    rememberDevicePreferences(response, preferences);
+    // Where this person asked to open — only if their role may see it; otherwise the usual place.
+    const asked = landingPathFor(preferences);
 
     return {
       ok: true,
       data: {
-        user: session
+        user: session,
+        landingPath: asked && canAccessPath(session.role as Role, asked) ? asked : null
       }
     };
   }

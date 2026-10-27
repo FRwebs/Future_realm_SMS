@@ -1,10 +1,13 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { getTranslations } from "next-intl/server";
 
 import { ModuleHero } from "@/components/data-display/module-hero";
 import { PanelRows } from "@/components/modules/panel-renderer";
 import { TabBar } from "@/components/modules/tab-bar";
-import { accountContentFor, accountTabs, type MyProfile } from "@/lib/modules/account";
+import { LOCALES } from "@/i18n/locales";
+import { getUiText } from "@/i18n/ui-text";
+import { accountContentFor, accountTabs, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { getServerSession } from "@/lib/auth/session";
 import { apiGet } from "@/lib/api/server";
 import type { SchoolContextView } from "@/lib/domain/types";
@@ -41,19 +44,29 @@ export default async function AccountTabPage({ params }: PageProps) {
   // does not says so — rather than the page assuming either way.
   const profile = await apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile);
 
-  const content = accountContentFor(session, schoolName, profile)[tab.slug];
+  const t = await getTranslations("shell.account");
+  const ui = await getUiText();
+  const words: AccountWords = {
+    language: t("language"),
+    languageSub: t("languageSub"),
+    languageHint: LOCALES.length > 1 ? t("languageHint") : t("languageHintOff"),
+    saved: t("savedLanguage"),
+    save: t("saveLanguage"),
+  };
+
+  const content = accountContentFor(session, schoolName, profile, words)[tab.slug];
 
   return (
     <div className="grid gap-5">
       <ModuleHero
-        eyebrow="My account"
-        title={content?.title ?? tab.label}
+        eyebrow={t("eyebrow")}
+        title={ui(content?.title ?? tab.label)}
         description={content?.desc ?? ""}
       />
 
       <TabBar
-        ariaLabel="Account tabs"
-        items={accountTabs.map((entry) => ({ href: `/account/${entry.slug}`, label: entry.label }))}
+        ariaLabel={t("tabs")}
+        items={accountTabs.map((entry) => ({ href: `/account/${entry.slug}`, label: ui(entry.label) }))}
       />
 
       {content ? <PanelRows rows={content.rows} /> : null}

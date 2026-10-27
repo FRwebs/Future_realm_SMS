@@ -70,3 +70,30 @@ test("a Back Office decision dialog says what is missing beside the field, not i
   await expect(dialog.getByRole("alert").filter({ hasText: "Reason is needed." })).toBeVisible();
   await expect(dialog).toBeVisible();
 });
+
+test("a saved preference takes effect at once and follows the person to another device", async ({ page, browser }) => {
+  const email = "proprietor@greenfieldcollege.ng";
+  await page.request.post("/api/v1/auth/login", { data: { email, identifier: email, password } });
+  await page.goto("/account/preferences");
+  await expect(page.getByLabel("Open on")).toBeVisible({ timeout: 90_000 });
+  await page.getByLabel("Open on").selectOption("Approvals · Queue");
+  await page.getByRole("button", { name: "Comfortable" }).click();
+  await page.getByRole("button", { name: "Save preferences" }).click();
+  await expect(page.getByText("Saved to your account.").first()).toBeVisible({ timeout: 30_000 });
+  await expect(page.locator("html")).toHaveAttribute("data-density", "comfortable");
+
+  // A second device signs in and opens where the person asked, as roomy as they asked.
+  const other = await browser.newContext({ baseURL: page.url().split("/account")[0] });
+  const second = await other.newPage();
+  await second.goto("/login");
+  await second.getByLabel("Email address or User ID").fill(email);
+  await second.getByLabel("Password", { exact: true }).fill(password);
+  await second.getByRole("button", { name: "Sign in" }).click();
+  await expect(second).toHaveURL(/approvals-workflow\/queue/, { timeout: 90_000 });
+  await expect(second.locator("html")).toHaveAttribute("data-density", "comfortable");
+  await other.close();
+
+  // Leave nothing behind for the next run.
+  const csrf = (await page.context().cookies()).find((cookie) => cookie.name === "fr_csrf")!.value;
+  await page.request.patch("/api/v1/profile/me", { data: { preferences: { openOn: "Command Center · Today", density: "Compact" } }, headers: { "x-csrf-token": csrf } });
+});
