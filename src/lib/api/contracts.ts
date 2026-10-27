@@ -7,8 +7,17 @@ import { z } from "zod";
  */
 export const membershipsContract = z.array(z.object({ schoolId: z.string(), schoolName: z.string(), role: z.string(), current: z.boolean() }));
 
+/** Three feeds share this bell — staff, parent and student — and they do not carry quite the same fields: only the staff feed has a `href`, only the others a `channel`. */
 export const notificationsContract = z.array(
-  z.object({ id: z.string(), title: z.string(), body: z.string(), channel: z.string(), status: z.string(), sentAt: z.string().optional().nullable() }),
+  z.object({
+    id: z.string(),
+    title: z.string(),
+    body: z.string(),
+    status: z.string(),
+    channel: z.string().optional(),
+    href: z.string().nullable().optional(),
+    sentAt: z.string().optional().nullable(),
+  }),
 );
 
 export const countriesContract = z.array(z.string());

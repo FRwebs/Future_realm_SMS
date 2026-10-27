@@ -20,6 +20,8 @@ for (const person of people) {
   test(`${person.who} signs in and lands somewhere sensible`, async ({ page }) => {
     const pageErrors: string[] = [];
     page.on("pageerror", (error) => pageErrors.push(error.message));
+    // A script or style the Content-Security-Policy refused shows up in the console; none should, on any screen.
+    page.on("console", (message) => { if (/content security policy/i.test(message.text())) pageErrors.push(message.text()); });
 
     await page.goto("/login");
     await page.getByLabel("Email address or User ID").fill(person.email);
@@ -55,4 +57,16 @@ test("an empty sign-in says what is missing under each field", async ({ page }) 
   await expect(page.getByText("Enter your email address or User ID.")).toBeVisible();
   await expect(page.getByText("Enter your password.")).toBeVisible();
   await expect(page.getByLabel("Password", { exact: true })).toHaveAttribute("aria-invalid", "true");
+});
+
+test("a Back Office decision dialog says what is missing beside the field, not in a browser bubble", async ({ page }) => {
+  await page.request.post("/api/v1/auth/login", { data: { email: "admin@futurerealm.sms", identifier: "admin@futurerealm.sms", password } });
+  await page.goto("/super-admin/schools");
+  await expect(page.getByRole("heading", { name: "School Accounts" })).toBeVisible({ timeout: 90_000 });
+  await page.getByRole("button", { name: /^Actions for / }).first().click();
+  await page.getByRole("menuitem", { name: /Suspend|Reactivate/ }).click();
+  const dialog = page.getByRole("dialog");
+  await dialog.locator("button[type=submit]").click();
+  await expect(dialog.getByRole("alert").filter({ hasText: "Reason is needed." })).toBeVisible();
+  await expect(dialog).toBeVisible();
 });

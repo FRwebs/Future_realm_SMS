@@ -1,11 +1,16 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-import { LOCALES } from "@/i18n/locales";
+import IntlMessageFormat from "intl-messageformat";
+
+import { ALL_LOCALES } from "@/i18n/locales";
 import en from "@/messages/en.json";
 
 const flatten = (value: unknown, prefix = ""): string[] =>
-  value && typeof value === "object" ? Object.entries(value).flatMap(([key, child]) => flatten(child, prefix ? `${prefix}.${key}` : key)) : [prefix];
+  value && typeof value === "object" ? Object.entries(value).filter(([key]) => key !== "_meta").flatMap(([key, child]) => flatten(child, prefix ? `${prefix}.${key}` : key)) : [prefix];
+const entries = (value: unknown, prefix = ""): Array<[string, string]> =>
+  value && typeof value === "object" ? Object.entries(value).filter(([key]) => key !== "_meta").flatMap(([key, child]) => entries(child, prefix ? `${prefix}.${key}` : key)) : [[prefix, String(value)]];
+const placeholders = (message: string) => [...message.matchAll(/\{(\w+)\s*[,}]/g)].map((match) => match[1]!).sort();
 const englishKeys = new Set(flatten(en));
 
 function sourceFiles(dir: string): string[] {
@@ -17,9 +22,27 @@ function sourceFiles(dir: string): string[] {
 
 describe("translations", () => {
   it("gives every language exactly the keys English has", async () => {
-    for (const locale of LOCALES.filter((code) => code !== "en")) {
+    for (const locale of ALL_LOCALES.filter((code) => code !== "en")) {
       const other = (await import(`../../src/messages/${locale}.json`)).default;
       expect(new Set(flatten(other)), locale).toEqual(englishKeys);
+    }
+  });
+
+  it("keeps every placeholder, and every message is valid message syntax", async () => {
+    const english = new Map(entries(en));
+    for (const locale of ALL_LOCALES) {
+      const other = locale === "en" ? en : (await import(`../../src/messages/${locale}.json`)).default;
+      for (const [key, message] of entries(other)) {
+        expect(() => new IntlMessageFormat(message, locale), `${locale} ${key}`).not.toThrow();
+        expect(placeholders(message), `${locale} ${key}`).toEqual(placeholders(english.get(key)!));
+      }
+    }
+  });
+
+  it("marks every non-English language a draft until it has been reviewed", async () => {
+    for (const locale of ALL_LOCALES.filter((code) => code !== "en")) {
+      const other = (await import(`../../src/messages/${locale}.json`)).default as { _meta?: { status?: string } };
+      expect(other._meta?.status, locale).toBeDefined();
     }
   });
 

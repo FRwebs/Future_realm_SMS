@@ -1,6 +1,8 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useQuery } from "@tanstack/react-query";
+import { useForm } from "react-hook-form";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -21,6 +23,7 @@ import { apiJson, getUrl } from "@/lib/api/client";
 import { countriesContract, schoolSearchContract, slugCheckContract } from "@/lib/api/contracts";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 import { PHONE_PLACEHOLDER, geoFor } from "@/lib/onboarding/geo";
+import { createSignupStepSchema, fieldsOfStep, type SignupStepContext, type SignupValues } from "@/lib/validation/signup";
 import { focusOnMount } from "@/lib/ui/focus";
 
 type SignupRole = "admin" | "teacher";
@@ -161,12 +164,16 @@ function inputClass(extra = "") {
   return `w-full rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-hidden transition placeholder:text-[#b4c4bb] focus:border-[#12796a] ${extra}`;
 }
 
-function fieldLabel(text: string, optional?: boolean, required?: boolean) {
+/** A field's label, with what is wrong with the field said on the same line when something is. */
+function fieldLabel(text: string, optional?: boolean, required?: boolean, error?: string) {
   return (
-    <div className="mb-[6.5px] text-[10.5px] font-semibold text-[#435048]">
-      {text}
-      {required ? <span className="ml-[2px] font-semibold text-[#b23b3b]">*</span> : null}
-      {optional ? <span className="ml-1 font-medium text-[#9fb8a7]">optional</span> : null}
+    <div className="mb-[6.5px] flex items-baseline justify-between gap-3 text-[10.5px] font-semibold text-[#435048]">
+      <span>
+        {text}
+        {required ? <span className="ml-[2px] font-semibold text-[#b23b3b]">*</span> : null}
+        {optional ? <span className="ml-1 font-medium text-[#5f6e65]">optional</span> : null}
+      </span>
+      {error ? <span role="alert" className="text-right text-[10.5px] font-medium text-[#a13d3d]">{error}</span> : null}
     </div>
   );
 }
@@ -195,36 +202,58 @@ export function OnboardingWizard() {
   const [pending, setPending] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
-  const [firstName, setFirstName] = useState("");
-  const [lastName, setLastName] = useState("");
-  const [gender, setGender] = useState("");
-  const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
-  const [position, setPosition] = useState("");
-  const [country, setCountry] = useState("Nigeria");
+  // The form's values live in React Hook Form, checked step by step against `lib/validation/signup`. Each value is read and set through
+  // `field("name")`, which hands back the familiar [value, setter] pair so the screens below are unchanged.
+  const stepContext = useRef<SignupStepContext>({ step: 1, admin: true, level1Label: "State", level2Label: "Local government", slugUnavailable: false });
+  const form = useForm<SignupValues>({
+    defaultValues: { firstName: "", lastName: "", gender: "", phone: "", email: "", position: "", country: "Nigeria", schoolName: "", slug: "", state: "", lga: "", city: "", address: "", website: "", schoolType: "", curriculum: "", studentCount: "", regNumber1: "", regNumber2: "", levels: {}, levelsOther: "", teacherSchoolName: "", subjects: {}, subjectsOther: "", password: "", confirmPassword: "" },
+    resolver: (values, context, options) => zodResolver(createSignupStepSchema(stepContext.current))(values, context, options),
+  });
+  const values = form.watch();
+  // One setter per field, created once, so effects that depend on a setter do not run again on every render.
+  const setters = useRef(new Map<keyof SignupValues, unknown>());
+  function field<K extends keyof SignupValues>(name: K) {
+    type Set = (next: SignupValues[K] | ((current: SignupValues[K]) => SignupValues[K])) => void;
+    if (!setters.current.has(name)) {
+      const set: Set = (next) =>
+        form.setValue(name, (typeof next === "function" ? (next as (current: SignupValues[K]) => SignupValues[K])(form.getValues(name)) : next) as never, { shouldDirty: true, shouldValidate: Boolean(form.getFieldState(name).error) });
+      setters.current.set(name, set);
+    }
+    return [values[name], setters.current.get(name) as Set] as const;
+  }
+  /** What is wrong with a field, if the step has been tried and it is. */
+  const problem = (name: keyof SignupValues) => form.formState.errors[name]?.message as string | undefined;
+
+  const [firstName, setFirstName] = field("firstName");
+  const [lastName, setLastName] = field("lastName");
+  const [gender, setGender] = field("gender");
+  const [phone, setPhone] = field("phone");
+  const [email, setEmail] = field("email");
+  const [position, setPosition] = field("position");
+  const [country, setCountry] = field("country");
   const countries = useQuery({ queryKey: ["onboarding", "countries"], queryFn: ({ signal }) => apiJson(getUrl("/api/v1/onboarding/countries"), signal, countriesContract), staleTime: 60 * 60_000 });
   const openCountries = countries.data?.length ? countries.data : ["Nigeria"];
   // If the chosen country is not one the platform is open in, fall back to the first that is.
   useEffect(() => {
     if (countries.data?.length) setCountry((current) => (countries.data.includes(current) ? current : countries.data[0]!));
-  }, [countries.data]);
+  }, [countries.data, setCountry]);
 
-  const [schoolName, setSchoolName] = useState("");
-  const [slug, setSlug] = useState("");
-  const [state, setState] = useState("");
-  const [lga, setLga] = useState("");
-  const [city, setCity] = useState("");
-  const [address, setAddress] = useState("");
-  const [website, setWebsite] = useState("");
-  const [schoolType, setSchoolType] = useState("");
-  const [curriculum, setCurriculum] = useState("");
-  const [studentCount, setStudentCount] = useState("");
-  const [regNumber1, setRegNumber1] = useState("");
-  const [regNumber2, setRegNumber2] = useState("");
-  const [levels, setLevels] = useState<Record<string, boolean>>({});
-  const [levelsOther, setLevelsOther] = useState("");
+  const [schoolName, setSchoolName] = field("schoolName");
+  const [slug, setSlug] = field("slug");
+  const [state, setState] = field("state");
+  const [lga, setLga] = field("lga");
+  const [city, setCity] = field("city");
+  const [address, setAddress] = field("address");
+  const [website, setWebsite] = field("website");
+  const [schoolType, setSchoolType] = field("schoolType");
+  const [curriculum, setCurriculum] = field("curriculum");
+  const [studentCount, setStudentCount] = field("studentCount");
+  const [regNumber1, setRegNumber1] = field("regNumber1");
+  const [regNumber2, setRegNumber2] = field("regNumber2");
+  const [levels, setLevels] = field("levels");
+  const [levelsOther, setLevelsOther] = field("levelsOther");
 
-  const [teacherSchoolName, setTeacherSchoolName] = useState("");
+  const [teacherSchoolName, setTeacherSchoolName] = field("teacherSchoolName");
   const [joinRequestChoice, setJoinRequestChoice] = useState<"none" | "sent" | "declined">("none");
   /** The school the teacher chose to ask, once they have pressed "Send join request". */
   const [joinSchoolId, setJoinSchoolId] = useState<string | null>(null);
@@ -232,11 +261,11 @@ export function OnboardingWizard() {
   const [account, setAccount] = useState<{ userCode: string; address: string; trialStarted: boolean; setup: Array<{ key: string; label: string; detail: string }>; joinRequest?: { school: string; status: string } | null } | null>(null);
   const [changingEmail, setChangingEmail] = useState(false);
   const [newEmail, setNewEmail] = useState("");
-  const [subjects, setSubjects] = useState<Record<string, boolean>>({});
-  const [subjectsOther, setSubjectsOther] = useState("");
+  const [subjects, setSubjects] = field("subjects");
+  const [subjectsOther, setSubjectsOther] = field("subjectsOther");
 
-  const [password, setPassword] = useState("");
-  const [confirmPassword, setConfirmPassword] = useState("");
+  const [password, setPassword] = field("password");
+  const [confirmPassword, setConfirmPassword] = field("confirmPassword");
 
   const [otp, setOtp] = useState("");
   const otpInputRef = useRef<HTMLInputElement>(null);
@@ -276,6 +305,8 @@ export function OnboardingWizard() {
       // A draft that cannot be read is simply not restored.
     }
     setRestored(true);
+    // The saved draft is read once, when the page opens; the setters it calls are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -305,6 +336,7 @@ export function OnboardingWizard() {
     staleTime: 30_000,
   });
   const slugState: SlugState = !slug.trim() ? IDLE_SLUG : (slugCheck.data ?? IDLE_SLUG);
+  stepContext.current = { step, admin, level1Label: geo.level1Label, level2Label: geo.level2Label, slugUnavailable: slugState.tone === "bad" || slugState.tone === "warn" };
 
   // Real fuzzy match against schools already on the platform — debounced, and only once there's enough to search on. Matches are shown
   // as-is; nothing is shared with the matched school unless the teacher explicitly sends a join request.
@@ -366,45 +398,13 @@ export function OnboardingWizard() {
     setLga("");
   }
 
-  function validateStep(): string | null {
-    if (step === 1) {
-      if (!firstName.trim() || !lastName.trim()) return "Enter your first and last name.";
-      if (!gender) return "Select a gender.";
-      if (!phone.trim()) return "Enter a phone number.";
-      if (!email.trim()) return "Enter your email address.";
-      if (!position) return admin ? "Select your position." : "Select what you teach as.";
-      if (!admin && !country) return "Select a country.";
-    }
-    if (step === 2 && admin) {
-      if (!schoolName.trim()) return "Enter your school's name.";
-      if (!slug.trim() || slugState.tone === "bad" || slugState.tone === "warn") {
-        return "Choose an available web address for your school.";
-      }
-      if (!country) return "Select a country.";
-      if (!state.trim()) return `Enter a ${geo.level1Label.toLowerCase()}.`;
-      if (!city.trim()) return "Enter a city or town.";
-      if (!lga.trim()) return `Enter a ${geo.level2Label.toLowerCase()}.`;
-      if (!address.trim()) return "Enter the full address.";
-      if (!schoolType) return "Select a school type.";
-      if (!curriculum) return "Select a curriculum.";
-      if (!studentCount.trim()) return "Enter an estimated student count.";
-      if (!Object.values(levels).some(Boolean) && !levelsOther.trim()) return "Pick at least one level operated.";
-    }
-    if (step === 2 && !admin) {
-      if (!Object.values(subjects).some(Boolean) && !subjectsOther.trim()) return "Pick at least one subject you teach.";
-      if (!Object.values(levels).some(Boolean) && !levelsOther.trim()) return "Pick at least one level you teach.";
-    }
-    if (step === 3) {
-      if (password.length < 8) return "Password must be at least 8 characters.";
-      if (password !== confirmPassword) return "Passwords do not match.";
-    }
-    return null;
-  }
-
   async function handleNext() {
-    const validationError = validateStep();
-    if (validationError) {
-      stepNotice.warning("This step needs a little more", validationError);
+    const names = fieldsOfStep({ step, admin });
+    if (!(await form.trigger(names))) {
+      // Every problem is marked beside its field. A group of choices (levels, subjects) has no single field to mark, so its message is
+      // said here instead.
+      const group = (["levels", "subjects"] as const).map((name) => form.getFieldState(name).error?.message).find(Boolean);
+      stepNotice.warning("This step needs a little more", group ?? "Fill in the marked details, then continue.");
       return;
     }
     stepNotice.clear();
@@ -792,19 +792,19 @@ export function OnboardingWizard() {
                   {errorBanner}
                   <div className="grid gap-x-4 gap-y-[14.5px] sm:grid-cols-2">
                     <label>
-                      {fieldLabel("First name", false, true)}
+                      {fieldLabel("First name", false, true, problem("firstName"))}
                       {fieldWrap(
                         <input value={firstName} onChange={(e) => setFirstName(e.target.value)} className={inputClass()} placeholder="Nkechi" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel("Last name", false, true)}
+                      {fieldLabel("Last name", false, true, problem("lastName"))}
                       {fieldWrap(
                         <input value={lastName} onChange={(e) => setLastName(e.target.value)} className={inputClass()} placeholder="Obiora" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel("Gender", false, true)}
+                      {fieldLabel("Gender", false, true, problem("gender"))}
                       <select value={gender} onChange={(e) => setGender(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         <option value="FEMALE">Female</option>
@@ -813,7 +813,7 @@ export function OnboardingWizard() {
                       </select>
                     </label>
                     <label>
-                      {fieldLabel("Phone number", false, true)}
+                      {fieldLabel("Phone number", false, true, problem("phone"))}
                       {fieldWrap(
                         <input
                           value={phone}
@@ -825,7 +825,7 @@ export function OnboardingWizard() {
                       <div className="mt-1.5 text-[10px] text-[#5f6e65]">Include your country dialling code.</div>
                     </label>
                     <label className="sm:col-span-2">
-                      {fieldLabel("Email address", false, true)}
+                      {fieldLabel("Email address", false, true, problem("email"))}
                       {fieldWrap(
                         <input
                           type="email"
@@ -841,7 +841,7 @@ export function OnboardingWizard() {
                       </div>
                     </label>
                     <label className={admin ? "sm:col-span-2" : ""}>
-                      {fieldLabel(admin ? "Your position" : "What you teach as", false, true)}
+                      {fieldLabel(admin ? "Your position" : "What you teach as", false, true, problem("position"))}
                       <select value={position} onChange={(e) => setPosition(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         {(admin ? ADMIN_POSITIONS : TEACHER_POSITIONS).map((p) => (
@@ -853,7 +853,7 @@ export function OnboardingWizard() {
                     </label>
                     {!admin ? (
                       <label>
-                        {fieldLabel("Country", false, true)}
+                        {fieldLabel("Country", false, true, problem("country"))}
                         <SearchCombo value={country} onChange={setCountry} options={openCountries} placeholder="Search countries…" />
                       </label>
                     ) : null}
@@ -875,7 +875,7 @@ export function OnboardingWizard() {
                   {errorBanner}
                   <div className="grid gap-4 sm:grid-cols-2">
                     <label className="sm:col-span-2">
-                      {fieldLabel("School name", false, true)}
+                      {fieldLabel("School name", false, true, problem("schoolName"))}
                       {fieldWrap(
                         <input value={schoolName} onChange={(e) => setSchoolName(e.target.value)} className={inputClass()} placeholder="Power House School" />
                       )}
@@ -904,11 +904,11 @@ export function OnboardingWizard() {
                       <div className="mt-1.5 text-[10px] leading-normal text-[#5f6e65]">{slugState.note}</div>
                     </label>
                     <label>
-                      {fieldLabel("Country", false, true)}
+                      {fieldLabel("Country", false, true, problem("country"))}
                       <SearchCombo value={country} onChange={onCountryChange} options={openCountries} placeholder="Search countries…" />
                     </label>
                     <label>
-                      {fieldLabel(geo.level1Label, false, true)}
+                      {fieldLabel(geo.level1Label, false, true, problem("state"))}
                       <SearchCombo
                         value={state}
                         onChange={setState}
@@ -922,29 +922,29 @@ export function OnboardingWizard() {
                       />
                     </label>
                     <label>
-                      {fieldLabel("City or town", false, true)}
+                      {fieldLabel("City or town", false, true, problem("city"))}
                       {fieldWrap(<input value={city} onChange={(e) => setCity(e.target.value)} className={inputClass()} placeholder="Ikeja" />)}
                     </label>
                     <label>
-                      {fieldLabel(geo.level2Label, false, true)}
+                      {fieldLabel(geo.level2Label, false, true, problem("lga"))}
                       {fieldWrap(
                         <input value={lga} onChange={(e) => setLga(e.target.value)} className={inputClass()} placeholder={geo.level2Label} />
                       )}
                     </label>
                     <label className="sm:col-span-2">
-                      {fieldLabel("Full address", false, true)}
+                      {fieldLabel("Full address", false, true, problem("address"))}
                       {fieldWrap(
                         <input value={address} onChange={(e) => setAddress(e.target.value)} className={inputClass()} placeholder="14 Aminu Kano Crescent, Wuse II" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel("School website", true)}
+                      {fieldLabel("School website", true, false, problem("website"))}
                       {fieldWrap(
                         <input value={website} onChange={(e) => setWebsite(e.target.value)} className={inputClass()} placeholder="www.powerhouse.school" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel("School type", false, true)}
+                      {fieldLabel("School type", false, true, problem("schoolType"))}
                       <select value={schoolType} onChange={(e) => setSchoolType(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         {SCHOOL_TYPE_OPTIONS.map((t) => (
@@ -1002,7 +1002,7 @@ export function OnboardingWizard() {
                       )}
                     </label>
                     <label>
-                      {fieldLabel("Curriculum", false, true)}
+                      {fieldLabel("Curriculum", false, true, problem("curriculum"))}
                       <select value={curriculum} onChange={(e) => setCurriculum(e.target.value)} className={inputClass("bg-white")}>
                         <option value="">Select</option>
                         {CURRICULUM_OPTIONS.map((c) => (
@@ -1013,7 +1013,7 @@ export function OnboardingWizard() {
                       </select>
                     </label>
                     <label>
-                      {fieldLabel("Estimated student count", false, true)}
+                      {fieldLabel("Estimated student count", false, true, problem("studentCount"))}
                       {fieldWrap(
                         <input
                           value={studentCount}
@@ -1025,13 +1025,13 @@ export function OnboardingWizard() {
                       )}
                     </label>
                     <label>
-                      {fieldLabel(geo.registrationLabel1, true)}
+                      {fieldLabel(geo.registrationLabel1, true, false, problem("regNumber1"))}
                       {fieldWrap(
                         <input value={regNumber1} onChange={(e) => setRegNumber1(e.target.value)} className={inputClass()} placeholder="As issued" />
                       )}
                     </label>
                     <label>
-                      {fieldLabel(geo.registrationLabel2, true)}
+                      {fieldLabel(geo.registrationLabel2, true, false, problem("regNumber2"))}
                       {fieldWrap(
                         <input value={regNumber2} onChange={(e) => setRegNumber2(e.target.value)} className={inputClass()} placeholder="As issued" />
                       )}
@@ -1062,7 +1062,7 @@ export function OnboardingWizard() {
                 <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
                   {errorBanner}
                   <label>
-                    {fieldLabel("School you teach at", true)}
+                    {fieldLabel("School you teach at", true, false, problem("teacherSchoolName"))}
                     {fieldWrap(
                       <input
                         value={teacherSchoolName}
@@ -1229,7 +1229,7 @@ export function OnboardingWizard() {
                 <div className="max-w-[468px] rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
                   {errorBanner}
                   <label>
-                    {fieldLabel("Password", false, true)}
+                    {fieldLabel("Password", false, true, problem("password"))}
                     <div className="mb-3 flex items-center gap-[8px] rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] focus-within:border-[#12796a]">
                       <input
                         type={showPassword ? "text" : "password"}
@@ -1252,7 +1252,7 @@ export function OnboardingWizard() {
                     Strength: <span style={{ fontWeight: 600, color: pwColor }}>{pwLabel}</span>
                   </div>
                   <label>
-                    {fieldLabel("Confirm password", false, true)}
+                    {fieldLabel("Confirm password", false, true, problem("confirmPassword"))}
                     <input
                       type={showPassword ? "text" : "password"}
                       value={confirmPassword}
