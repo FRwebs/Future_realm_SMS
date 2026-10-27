@@ -311,7 +311,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 render: (row) => (
                   <div>
                     <p className="font-bold text-[var(--color-text-primary)]">{row.school.name}</p>
-                    <p className="text-[11.5px] text-[#8C9A92]">{[row.school.city, row.school.state].filter(Boolean).join(", ") || "—"}</p>
+                    <p className="text-[11.5px] text-[#5f6e65]">{[row.school.city, row.school.state].filter(Boolean).join(", ") || "—"}</p>
                   </div>
                 )
               },
@@ -341,7 +341,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 render: (row) => {
                   const dismissed = dismissals[row.school.id];
                   if (dismissed && dismissed.plan === row.recommendedPlan.plan) {
-                    return <span className="text-[11.5px] text-[#8C9A92]" title={dismissed.reason}>Dismissed by {dismissed.by} · {dismissed.reason}</span>;
+                    return <span className="text-[11.5px] text-[#5f6e65]" title={dismissed.reason}>Dismissed by {dismissed.by} · {dismissed.reason}</span>;
                   }
                   return (
                     <div className="flex items-center gap-3">
@@ -1032,9 +1032,9 @@ async function PricingPromotionsTab({ billing }: { billing: SuperAdminBillingRow
   const campaignCount = new Set(activeCodes.map((code) => code.campaignName ?? code.code)).size;
   const stat = (label: string, value: string, sub: string) => (
     <div key={label}>
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#77857C]">{label}</p>
+      <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{label}</p>
       <p className="mt-1 text-[18px] font-extrabold tracking-[-0.02em] text-[var(--color-text-primary)]">{value}</p>
-      <p className="mt-0.5 text-[11.5px] text-[#8C9A92]">{sub}</p>
+      <p className="mt-0.5 text-[11.5px] text-[#5f6e65]">{sub}</p>
     </div>
   );
 

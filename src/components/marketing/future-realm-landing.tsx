@@ -351,7 +351,7 @@ function ImagePlaceholder({ caption, className, src }: { caption: string; classN
       aria-label={caption}
     >
       <Camera className="absolute right-5 top-5 h-5 w-5 text-[#cfddd5]" strokeWidth={1.6} />
-      <span className="m-4 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#77857c]">{caption}</span>
+      <span className="m-4 rounded-full bg-white/80 px-3 py-1.5 text-[11px] font-medium text-[#5f6e65]">{caption}</span>
     </div>
   );
 }
@@ -625,10 +625,10 @@ export function FutureRealmLandingPage() {
               </span>
               <div>
                 <p className="text-xs font-semibold">Parent notified</p>
-                <p className="text-[11px] text-[#77857c]">Fee reminder · SMS + push</p>
+                <p className="text-[11px] text-[#5f6e65]">Fee reminder · SMS + push</p>
               </div>
             </div>
-            <p className="rounded-lg bg-[#f3f7f4] px-2.5 py-2 text-[11px] text-[#77857c]">
+            <p className="rounded-lg bg-[#f3f7f4] px-2.5 py-2 text-[11px] text-[#5f6e65]">
               &quot;Term 2 balance of ₦45,000 is due Friday.&quot;
             </p>
           </div>
@@ -835,7 +835,7 @@ export function FutureRealmLandingPage() {
                 ))}
               </div>
               <div className="mt-[30px] flex flex-wrap items-center gap-[22px] border-t border-[#dce6df] pt-6">
-                <span className="text-[12.5px] text-[#77857c]">Settles through</span>
+                <span className="text-[12.5px] text-[#5f6e65]">Settles through</span>
                 <div className="flex flex-wrap gap-3">
                   {["Paystack", "Flutterwave", "Bank transfer"].map((rail) => (
                     <span key={rail} className="rounded-[9px] border border-[#dce6df] bg-[#f3f7f4] px-4 py-2.5 text-[13px] font-semibold text-[#435048]">
@@ -921,7 +921,7 @@ export function FutureRealmLandingPage() {
                 </div>
                 <div className="p-6">
                   <div className="mb-4 flex flex-wrap items-center gap-2.5">
-                    <span className="shrink-0 text-[12.5px] text-[#77857c]">To</span>
+                    <span className="shrink-0 text-[12.5px] text-[#5f6e65]">To</span>
                     <span className="rounded-full border border-[#d3dfd7] bg-[#eaf0ec] px-3 py-1.5 text-[12.5px] font-semibold" style={{ color: INK }}>
                       Year 8 Gold · parents
                     </span>
@@ -977,7 +977,7 @@ export function FutureRealmLandingPage() {
                       <p className="font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.01em]" style={{ color: INK }}>
                         {stat.value}
                       </p>
-                      <p className="mt-[3px] text-[11px] text-[#77857c]">{stat.label}</p>
+                      <p className="mt-[3px] text-[11px] text-[#5f6e65]">{stat.label}</p>
                     </div>
                   ))}
                 </div>
@@ -1060,7 +1060,7 @@ export function FutureRealmLandingPage() {
                 ))}
               </div>
               <div className="rounded-[14px] border border-[#dce6df] bg-white p-5">
-                <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.06em] text-[#77857c]">{tab.panelLabel}</p>
+                <p className="mb-4 text-[11px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">{tab.panelLabel}</p>
                 <div className="flex flex-col gap-3">
                   {tab.rows.map((row) => (
                     <div key={row.label}>
@@ -1208,7 +1208,7 @@ export function FutureRealmLandingPage() {
                   </span>
                   <div>
                     <p className="text-[13.5px] font-semibold">{item.name}</p>
-                    <p className="text-[12.5px] text-[#77857c]">{item.role}</p>
+                    <p className="text-[12.5px] text-[#5f6e65]">{item.role}</p>
                   </div>
                 </div>
               </div>
@@ -1400,7 +1400,7 @@ export function FutureRealmLandingPage() {
                 </span>
                 <span className="font-[var(--font-heading)] text-base font-extrabold">FutureRealm SMS</span>
               </div>
-              <p className="mb-[18px] max-w-[260px] text-[13.5px] leading-[1.6] text-[#77857c]">
+              <p className="mb-[18px] max-w-[260px] text-[13.5px] leading-[1.6] text-[#5f6e65]">
                 A school management platform for admissions, academics, finance and communication — built to help
                 school leaders run calmer, smarter institutions.
               </p>
@@ -1413,7 +1413,7 @@ export function FutureRealmLandingPage() {
               </p>
             </div>
             <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Product</p>
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#5f6e65]">Product</p>
               <div className="flex flex-col gap-[11px] text-sm">
                 <a href="#features" style={{ color: INK }}>Features</a>
                 <a href="#messaging" style={{ color: INK }}>Messaging</a>
@@ -1422,7 +1422,7 @@ export function FutureRealmLandingPage() {
               </div>
             </div>
             <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Company</p>
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#5f6e65]">Company</p>
               <div className="flex flex-col gap-[11px] text-sm">
                 <a href="#" style={{ color: INK }}>About</a>
                 <a href="#" style={{ color: INK }}>Careers</a>
@@ -1431,7 +1431,7 @@ export function FutureRealmLandingPage() {
               </div>
             </div>
             <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#77857c]">Stay updated</p>
+              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#5f6e65]">Stay updated</p>
               <p className="mb-3 text-[13px] text-[#435048]">Launch notes and rollout insights for school leaders.</p>
               <form onSubmit={handleNewsletterSubmit} noValidate className="flex gap-2">
                 <input
@@ -1451,7 +1451,7 @@ export function FutureRealmLandingPage() {
               <InlineNotice notice={newsletter.notice} onDismiss={newsletter.clear} compact className="mt-2" />
             </div>
           </div>
-          <div className="flex flex-col items-center justify-between gap-3 pb-7 text-[13px] text-[#77857c] sm:flex-row">
+          <div className="flex flex-col items-center justify-between gap-3 pb-7 text-[13px] text-[#5f6e65] sm:flex-row">
             <p>© {new Date().getFullYear()} FutureRealm SMS. All rights reserved.</p>
             <div className="flex items-center gap-2">
               <span className="flex h-4 w-4 items-center justify-center rounded border border-[#d3dfd7] bg-[#eaf0ec] text-[9px]" style={{ color: INK }}>

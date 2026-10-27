@@ -134,7 +134,7 @@ function SwitchField({ field }: { field: ResourceField }) {
       </span>
       <span style={{ minWidth: 0 }}>
         <span style={{ display: "block", fontSize: 11, fontWeight: 600, color: "#0D2315", textWrap: "pretty" }}>{field.label}</span>
-        {field.note ? <span style={{ display: "block", fontSize: 10, color: "#8C9A92", marginTop: 2, lineHeight: 1.4 }}>{field.note}</span> : null}
+        {field.note ? <span style={{ display: "block", fontSize: 10, color: "#5f6e65", marginTop: 2, lineHeight: 1.4 }}>{field.note}</span> : null}
       </span>
     </button>
   );
@@ -161,13 +161,13 @@ function MultiPicker({ field }: { field: ResourceField }) {
         />
         <span style={{ fontSize: 10.5, fontWeight: 600, color: picked.length ? "#12796A" : "#8C9A92", whiteSpace: "nowrap" }}>{picked.length ? `${picked.length} chosen` : "None chosen"}</span>
         {picked.length ? (
-          <button type="button" onClick={() => setPicked([])} style={{ fontSize: 10.5, fontWeight: 600, color: "#8C9A92", background: "none", border: "none", cursor: "pointer" }}>
+          <button type="button" onClick={() => setPicked([])} style={{ fontSize: 10.5, fontWeight: 600, color: "#5f6e65", background: "none", border: "none", cursor: "pointer" }}>
             Clear
           </button>
         ) : null}
       </div>
       <div style={{ maxHeight: 132, overflowY: "auto" }}>
-        {shown.length === 0 ? <div style={{ padding: "10px 11px", fontSize: 11, color: "#8C9A92" }}>Nothing matches.</div> : null}
+        {shown.length === 0 ? <div style={{ padding: "10px 11px", fontSize: 11, color: "#5f6e65" }}>Nothing matches.</div> : null}
         {shown.map((option) => {
           const on = picked.includes(option.value);
           return (
@@ -481,7 +481,7 @@ export function ResourceForm({
               >
                 {segment.section && segment.section !== segments[segIndex - 1]?.section ? (
                   <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 10 }}>
-                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", whiteSpace: "nowrap" }}>
+                    <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#5f6e65", whiteSpace: "nowrap" }}>
                       {segment.section}
                     </div>
                     <div style={{ height: 1, flex: 1, background: "#EDF3EF" }} />
@@ -553,7 +553,7 @@ export function ResourceForm({
                         </div>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: "#0D2315", textWrap: "pretty" }}>{field.label}</div>
-                          {field.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 2, lineHeight: 1.4 }}>{field.note}</div> : null}
+                          {field.note ? <div style={{ fontSize: 10, color: "#5f6e65", marginTop: 2, lineHeight: 1.4 }}>{field.note}</div> : null}
                         </div>
                       </div>
                     ))}
@@ -658,7 +658,7 @@ export function ResourceForm({
                               ) : null}
                             </div>
                           )}
-                          {field.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 4.5, lineHeight: 1.45 }}>{field.note}</div> : null}
+                          {field.note ? <div style={{ fontSize: 10, color: "#5f6e65", marginTop: 4.5, lineHeight: 1.45 }}>{field.note}</div> : null}
                         {explained?.field === field.name ? <div style={{ marginTop: 7 }}><InlineNotice notice={explained.notice} onDismiss={() => setExplained(null)} compact /></div> : null}
                         </label>
                       );
@@ -671,7 +671,7 @@ export function ResourceForm({
 
         {impact && (!steps || stepIndex === steps.length - 1) ? (
           <div style={{ background: "#F7FAF8", border: "1px solid #E6EEE9", borderRadius: 13, padding: "13.5px 15.5px" }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", marginBottom: 10 }}>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#5f6e65", marginBottom: 10 }}>
               {impact.label}
             </div>
             {impact.rows.map(([label, value]) => (
@@ -693,7 +693,7 @@ export function ResourceForm({
           <div className={needsConfirmation && pendingPayload ? "hidden" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-[14.5px]"}>
             <div className="min-h-[24px]">
               {message === null && note ? (
-                <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#8C9A92]">{note}</p>
+                <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{note}</p>
               ) : null}
               {message ? (
                 <div
@@ -809,17 +809,17 @@ export function ResourceForm({
                 rows={3}
                 style={{ width: "100%", minHeight: 74, fontSize: 11.5, color: "#0D2315", fontWeight: 500, borderRadius: 11, padding: "11px 13px", background: "#fff", border: "1.5px solid #DEE8E2", outline: "none", resize: "vertical", lineHeight: 1.55 }}
               />
-              {reasonField.note ? <div style={{ fontSize: 10, color: "#8C9A92", marginTop: 4.5, lineHeight: 1.45 }}>{reasonField.note}</div> : null}
+              {reasonField.note ? <div style={{ fontSize: 10, color: "#5f6e65", marginTop: 4.5, lineHeight: 1.45 }}>{reasonField.note}</div> : null}
             </>
           ) : null}
 
           {reasonField || recorded ? (
           <div style={{ background: "#F7FAF8", border: "1px solid #E6EEE9", borderRadius: 13, padding: "14px 15px", marginTop: 15 }}>
-            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#8C9A92", marginBottom: 9 }}>Will be recorded</div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: "0.12em", textTransform: "uppercase", color: "#5f6e65", marginBottom: 9 }}>Will be recorded</div>
             <div style={{ fontSize: 11.5, fontWeight: 600, color: "#0D2315" }}>{recorded?.line ?? `You · ${title}`}</div>
             {recorded?.before || recorded?.after ? (
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
-                {recorded.before ? <span style={{ fontSize: 10.5, color: "#8C9A92", background: "#F4F8F6", border: "1px solid #EDF3EF", borderRadius: 7, padding: "2px 7px" }}>{recorded.before}</span> : null}
+                {recorded.before ? <span style={{ fontSize: 10.5, color: "#5f6e65", background: "#F4F8F6", border: "1px solid #EDF3EF", borderRadius: 7, padding: "2px 7px" }}>{recorded.before}</span> : null}
                 {recorded.before && recorded.after ? (
                   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round">
                     <path d="M5 12h13M13.5 7l5 5-5 5" />

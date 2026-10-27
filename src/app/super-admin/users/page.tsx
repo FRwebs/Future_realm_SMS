@@ -241,13 +241,13 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
             render: (item) => (
               <Link href={`/super-admin/users/${item.id}`} className="group block min-w-0">
                 <p className="truncate text-[11.5px] font-semibold text-[#0D2315] group-hover:text-[#12796A]">{item.name}</p>
-                <p className="mt-0.5 truncate text-[10.5px] text-[#8C9A92]">{item.email || item.phone || "—"}</p>
+                <p className="mt-0.5 truncate text-[10.5px] text-[#5f6e65]">{item.email || item.phone || "—"}</p>
               </Link>
             )
           },
           { key: "role", header: "Role", render: (item) => roleLabel(item.role) },
           { key: "school", header: "School", render: (item) => item.schoolName },
-          { key: "lastLogin", header: "Last login", render: (item) => <span className="text-[#77857C]">{loginAgo(item.lastLoginAt)}</span> },
+          { key: "lastLogin", header: "Last login", render: (item) => <span className="text-[#5f6e65]">{loginAgo(item.lastLoginAt)}</span> },
           {
             key: "status",
             header: "Status",
@@ -256,7 +256,7 @@ async function DirectoryTab({ params }: { params: Record<string, string | undefi
               return <span className="inline-block whitespace-nowrap rounded-full px-2 py-[2.5px] text-[10px] font-bold" style={{ background: pill.bg, color: pill.fg }}>{pill.label}</span>;
             }
           },
-          { key: "lastDevice", header: "Device (last used)", render: (item) => <span className="text-[#77857C]">{deviceLabel(item.lastDevice)}</span> },
+          { key: "lastDevice", header: "Device (last used)", render: (item) => <span className="text-[#5f6e65]">{deviceLabel(item.lastDevice)}</span> },
           {
             key: "actions",
             header: "",
@@ -897,7 +897,7 @@ function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: strin
         <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
       </div>
       <div className="grid gap-0 p-5">
-        <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-[#E6EEE9] pb-2 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">
+        <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-[#E6EEE9] pb-2 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">
           <span>Control</span>
           <span>Specification</span>
           <span>State</span>

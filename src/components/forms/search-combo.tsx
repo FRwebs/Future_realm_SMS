@@ -96,7 +96,7 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
             }
           }}
           placeholder={value || placeholder}
-          className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#8c9a92]"
+          className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#5f6e65]"
         />
         <ChevronDown className="h-[13px] w-[13px] shrink-0 text-[#9fb8a7]" />
       </div>
@@ -128,7 +128,7 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
             </div>
           ))}
           {filtered.length === 0 && !trimmed ? (
-            <div className="px-[10px] py-2 text-[11px] leading-[1.5] text-[#8c9a92]">
+            <div className="px-[10px] py-2 text-[11px] leading-[1.5] text-[#5f6e65]">
               {emptyNote || "Type it in full and we will use exactly what you write."}
             </div>
           ) : null}

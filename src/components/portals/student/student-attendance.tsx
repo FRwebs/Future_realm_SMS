@@ -249,7 +249,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
             toneFor={(value) => toneFor(value)}
             onPoint={(index) => series[index]?.go}
           />
-        ) : <p className="mt-[12px] text-[11.5px]" style={{ color: "#8C9A92" }}>No school days to show yet.</p>}
+        ) : <p className="mt-[12px] text-[11.5px]" style={{ color: "#5f6e65" }}>No school days to show yet.</p>}
       </section>
 
       <div className="grid min-w-0 gap-[14px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -269,7 +269,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
                 </li>
               ); })}
             </ul>
-          ) : <p className="pb-[10px] pt-[10px] text-[11.5px]" style={{ color: "#8C9A92" }}>Present every school day in this period.</p>}
+          ) : <p className="pb-[10px] pt-[10px] text-[11.5px]" style={{ color: "#5f6e65" }}>Present every school day in this period.</p>}
         </section>
       </div>
 

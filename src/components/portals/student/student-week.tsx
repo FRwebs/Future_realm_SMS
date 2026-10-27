@@ -25,7 +25,7 @@ export function StudentWeek({ title, sub, foot, today, now, days, rows }: WeekPr
           ))}
           {rows.map((entry) =>
             entry.brk ? (
-              <div key={`${entry.label}-${entry.time}`} className="col-span-6 rounded-[8px] py-[5px] text-center text-[9.5px] font-bold uppercase tracking-[0.08em]" style={{ background: "#F5F8F6", color: "#8C9A92" }}>
+              <div key={`${entry.label}-${entry.time}`} className="col-span-6 rounded-[8px] py-[5px] text-center text-[9.5px] font-bold uppercase tracking-[0.08em]" style={{ background: "#F5F8F6", color: "#5f6e65" }}>
                 {entry.label} · {entry.time}
               </div>
             ) : (

@@ -1,9 +1,9 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect } from "react";
-import { createPortal } from "react-dom";
+import * as Dialog from "@radix-ui/react-dialog";
 
+import { useReturnFocus } from "@/components/ui/use-return-focus";
 import { SIDE_PANEL_WIDTH } from "@/lib/ui/interaction";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,6 +17,7 @@ type SidePanelProps = {
   size?: keyof typeof SIDE_PANEL_WIDTH;
 };
 
+/** A drawer built on Radix: focus is trapped and returned, the page behind is inert, and Escape or an outside click closes it. */
 export function SidePanel({
   open,
   onClose,
@@ -26,74 +27,46 @@ export function SidePanel({
   footer,
   size = "md",
 }: SidePanelProps) {
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      document.removeEventListener("keydown", handleKeyDown);
-    };
-  }, [onClose, open]);
-
-  if (!open || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[var(--z-modal)]">
-      <button
-        type="button"
-        aria-label="Close side panel backdrop"
-        onClick={onClose}
-        className="overlay-enter absolute inset-0 bg-black/60 backdrop-blur-[8px]"
-      />
-
-      <div className="absolute inset-y-0 right-0 flex w-full justify-end">
-        <section
-          className={cn(
-            "panel-enter-right flex h-full w-full flex-col border-l border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] text-[var(--color-text-primary)] shadow-[var(--shadow-lg)] transition-transform duration-200",
-            "max-md:max-w-full",
-            SIDE_PANEL_WIDTH[size],
-          )}
-          role="dialog"
-          aria-modal="true"
-          aria-label={title}
-        >
-          <div className="sticky top-0 z-[1] flex items-start justify-between gap-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-5 py-4">
-            <div className="min-w-0">
-              <h2 className="font-[var(--font-display)] text-[20px] font-bold text-[var(--color-text-primary)]">{title}</h2>
-              {subtitle ? (
-                <p className="mt-1 text-[13px] leading-6 text-[var(--color-text-secondary)]">
-                  {subtitle}
-                </p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="icon-btn shrink-0"
-              aria-label="Close side panel"
+  const returnFocus = useReturnFocus(open);
+  return (
+    <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="overlay-enter fixed inset-0 z-[var(--z-modal)] bg-black/60 backdrop-blur-[8px]">
+          <div className="absolute inset-y-0 right-0 flex w-full justify-end">
+            <Dialog.Content
+              onCloseAutoFocus={returnFocus}
+              {...(subtitle ? {} : { "aria-describedby": undefined })}
+              className={cn(
+                "panel-enter-right flex h-full w-full flex-col border-l border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] text-[var(--color-text-primary)] shadow-[var(--shadow-lg)] outline-none transition-transform duration-200",
+                "max-md:max-w-full",
+                SIDE_PANEL_WIDTH[size],
+              )}
             >
-              <X className="h-4 w-4" />
-            </button>
+              <div className="sticky top-0 z-[1] flex items-start justify-between gap-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-5 py-4">
+                <div className="min-w-0">
+                  <Dialog.Title className="font-[var(--font-display)] text-[20px] font-bold text-[var(--color-text-primary)]">{title}</Dialog.Title>
+                  {subtitle ? (
+                    <Dialog.Description className="mt-1 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+                      {subtitle}
+                    </Dialog.Description>
+                  ) : null}
+                </div>
+                <Dialog.Close className="icon-btn shrink-0" aria-label="Close side panel">
+                  <X className="h-4 w-4" />
+                </Dialog.Close>
+              </div>
+
+              <div tabIndex={0} className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent-primary)] px-5 py-5">{children}</div>
+
+              {footer ? (
+                <div className="sticky bottom-0 border-t border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-5 py-4">
+                  {footer}
+                </div>
+              ) : null}
+            </Dialog.Content>
           </div>
-
-          <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">{children}</div>
-
-          {footer ? (
-            <div className="sticky bottom-0 border-t border-[var(--color-border-default)] bg-[var(--color-bg-overlay)] px-5 py-4">
-              {footer}
-            </div>
-          ) : null}
-        </section>
-      </div>
-    </div>,
-    document.body,
+        </Dialog.Overlay>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

@@ -1,9 +1,9 @@
 "use client";
 
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
-import { createPortal } from "react-dom";
+import * as Dialog from "@radix-ui/react-dialog";
 
+import { useReturnFocus } from "@/components/ui/use-return-focus";
 import { MODAL_MAX_WIDTH } from "@/lib/ui/interaction";
 import { cn } from "@/lib/utils/cn";
 
@@ -22,6 +22,10 @@ type ModalProps = {
   headerExtra?: React.ReactNode;
 };
 
+/**
+ * A dialog built on Radix, so focus is trapped and restored, the page behind is inert to assistive technology, Escape and an outside click
+ * close it in the right order when dialogs stack, and the title and subtitle are what a screen reader announces. The look is ours.
+ */
 export function Modal({
   open,
   onClose,
@@ -35,95 +39,58 @@ export function Modal({
   showCloseButton = true,
   headerExtra,
 }: ModalProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const returnFocus = useReturnFocus(open);
+  return (
+    <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="overlay-enter fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto bg-ink/55 px-[21.5px] py-[39.5px]">
+          <Dialog.Content
+            {...(subtitle ? {} : { "aria-describedby": undefined })}
+            onCloseAutoFocus={returnFocus}
+            onInteractOutside={(event) => { if (!closeOnBackdrop) event.preventDefault(); }}
+            onEscapeKeyDown={(event) => { if (!closeOnEscape) event.preventDefault(); }}
+            className={cn(
+              "modal-surface modal-enter relative z-[1] flex max-h-[calc(100vh-79px)] w-full flex-col overflow-hidden rounded-[20px] bg-white text-[var(--color-text-primary)] shadow-[0_45px_90px_-36px_rgba(13,35,21,0.6)] outline-none transition-all duration-200",
+              MODAL_MAX_WIDTH[size],
+            )}
+          >
+            {title ? null : <Dialog.Title className="sr-only">Dialog</Dialog.Title>}
+            {title || showCloseButton ? (
+              <div className="relative overflow-hidden px-[23.5px] py-[20px]" style={{ background: "#0d2315" }}>
+                <div className="pointer-events-none absolute -right-[63px] -top-[99px] h-[252px] w-[252px] rounded-full border border-[rgba(95,214,180,0.14)]" />
+                <div className="relative flex items-start justify-between gap-[18px]">
+                  <div className="min-w-0">
+                    {title ? (
+                      <Dialog.Title className="text-pretty font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.018em] text-white">{title}</Dialog.Title>
+                    ) : null}
+                    {subtitle ? (
+                      <Dialog.Description className="mt-[6.5px] max-w-[468px] text-pretty text-[11.5px] leading-[1.55] text-white/[62%]">
+                        {subtitle}
+                      </Dialog.Description>
+                    ) : null}
+                  </div>
 
-  useEffect(() => {
-    if (!open || !closeOnEscape) return;
-
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") onClose();
-    }
-
-    document.addEventListener("keydown", handleKeyDown);
-    return () => document.removeEventListener("keydown", handleKeyDown);
-  }, [closeOnEscape, onClose, open]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-
-    const focusable = panelRef.current?.querySelector<
-      HTMLButtonElement | HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement | HTMLAnchorElement
-    >(
-      'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
-    );
-    focusable?.focus();
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-    };
-  }, [open]);
-
-  if (!open || typeof document === "undefined") return null;
-
-  return createPortal(
-    <div className="fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto bg-ink/55 px-[21.5px] py-[39.5px]">
-      <button
-        type="button"
-        aria-label="Close modal backdrop"
-        onClick={closeOnBackdrop ? onClose : undefined}
-        className="overlay-enter fixed inset-0"
-      />
-
-      <div
-        ref={panelRef}
-        className={cn(
-          "modal-surface modal-enter relative z-[1] flex max-h-[calc(100vh-79px)] w-full flex-col overflow-hidden rounded-[20px] bg-white text-[var(--color-text-primary)] shadow-[0_45px_90px_-36px_rgba(13,35,21,0.6)] transition-all duration-200",
-          MODAL_MAX_WIDTH[size],
-        )}
-        role="dialog"
-        aria-modal="true"
-        aria-label={title ?? "Dialog"}
-      >
-        {title || showCloseButton ? (
-          <div className="relative overflow-hidden px-[23.5px] py-[20px]" style={{ background: "#0d2315" }}>
-            <div className="pointer-events-none absolute -right-[63px] -top-[99px] h-[252px] w-[252px] rounded-full border border-[rgba(95,214,180,0.14)]" />
-            <div className="relative flex items-start justify-between gap-[18px]">
-            <div className="min-w-0">
-              {title ? (
-                <h2 className="text-pretty font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.018em] text-white">{title}</h2>
-              ) : null}
-              {subtitle ? (
-                <p className="mt-[6.5px] max-w-[468px] text-pretty text-[11.5px] leading-[1.55] text-white/[62%]">
-                  {subtitle}
-                </p>
-              ) : null}
-            </div>
-
-            {showCloseButton ? (
-              <button
-                type="button"
-                onClick={onClose}
-                className="flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[9px] bg-[rgba(255,255,255,0.12)] transition hover:bg-[rgba(255,255,255,0.2)]"
-                aria-label="Close modal"
-              >
-                <X className="h-[12.5px] w-[12.5px] text-white" strokeWidth={2.2} />
-              </button>
+                  {showCloseButton ? (
+                    <Dialog.Close
+                      className="flex h-[25px] w-[25px] shrink-0 items-center justify-center rounded-[9px] bg-[rgba(255,255,255,0.12)] transition hover:bg-[rgba(255,255,255,0.2)]"
+                      aria-label="Close modal"
+                    >
+                      <X className="h-[12.5px] w-[12.5px] text-white" strokeWidth={2.2} />
+                    </Dialog.Close>
+                  ) : null}
+                </div>
+                {headerExtra ? <div className="relative mt-[15px]">{headerExtra}</div> : null}
+              </div>
             ) : null}
-            </div>
-            {headerExtra ? <div className="relative mt-[15px]">{headerExtra}</div> : null}
-          </div>
-        ) : null}
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-[23.5px] py-[20px]">{children}</div>
+            <div tabIndex={0} className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent-primary)] px-[23.5px] py-[20px]">{children}</div>
 
-        {footer ? (
-          <div className="border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">{footer}</div>
-        ) : null}
-      </div>
-    </div>,
-    document.body,
+            {footer ? (
+              <div className="border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">{footer}</div>
+            ) : null}
+          </Dialog.Content>
+        </Dialog.Overlay>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

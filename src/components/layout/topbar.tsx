@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { accountPath } from "@/lib/modules/account";
@@ -59,6 +60,7 @@ import {
   Zap,
 } from "lucide-react";
 
+import { apiJson } from "@/lib/api/client";
 import { roleLabels } from "@/lib/auth/roles";
 import type {
   SessionUser,
@@ -303,27 +305,27 @@ function NotificationBell({
   portalType: PortalType;
 }) {
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState<
-    StudentPortalNotificationView[]
-  >([]);
   const bellRef = useRef<HTMLDivElement>(null);
   const endpoint = notificationsEndpoint(session, portalType);
-
-  useEffect(() => {
-    if (!endpoint) return;
-    let cancelled = false;
-    fetch(endpoint, { credentials: "include" })
-      .then((response) => (response.ok ? response.json() : null))
-      .then((body: { data?: StudentPortalNotificationView[] } | null) => {
-        if (!cancelled) setNotifications(body?.data ?? []);
-      })
-      .catch(() => {
-        if (!cancelled) setNotifications([]);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [endpoint]);
+  const queryClient = useQueryClient();
+  // Kept fresh while the tab is open: a notice sent after the page loaded shows up in the count within a minute, without a reload.
+  const feed = useQuery({
+    queryKey: ["notifications", endpoint],
+    queryFn: ({ signal }) => apiJson<StudentPortalNotificationView[]>(endpoint!, signal),
+    enabled: Boolean(endpoint),
+    refetchInterval: 60_000,
+    staleTime: 15_000,
+  });
+  const notifications = feed.data ?? [];
+  const markAllRead = useMutation({
+    mutationFn: async () => {
+      const token = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1];
+      const response = await fetch("/api/v1/notifications/read", { method: "POST", credentials: "include", headers: { "x-csrf-token": token ?? "" } });
+      if (!response.ok) throw new Error("Could not mark the notifications read.");
+    },
+    onSuccess: () =>
+      queryClient.setQueryData<StudentPortalNotificationView[]>(["notifications", endpoint], (current) => (current ?? []).map((item) => ({ ...item, status: "READ" }))),
+  });
 
   useEffect(() => {
     function handleOutsideClick(event: MouseEvent) {
@@ -345,10 +347,7 @@ function NotificationBell({
 
   function markRead() {
     if (!staffFeed || !count) return;
-    const token = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1];
-    void fetch("/api/v1/notifications/read", { method: "POST", credentials: "include", headers: { "x-csrf-token": token ?? "" } })
-      .then(() => setNotifications((current) => current.map((item) => ({ ...item, status: "READ" }))))
-      .catch(() => undefined);
+    markAllRead.mutate();
   }
 
   return (
@@ -600,7 +599,7 @@ function ProfileDropdown({
         ) : null}
         {schools.length > 1 ? (
           <div className="border-b border-[#EDF3EF] p-[6px]">
-            <p className="px-[11px] pb-[3px] pt-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#8C9A92]">Switch school</p>
+            <p className="px-[11px] pb-[3px] pt-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">Switch school</p>
             {schools.map((entry) => (
               <button key={entry.schoolId} type="button" disabled={entry.current} onClick={() => void switchSchool(entry.schoolId)} className="flex w-full items-center justify-between gap-2 rounded-[9px] px-[11px] py-[7px] text-left text-[11.5px] font-medium text-[#2A3B31] transition hover:bg-[#F1F8F4] disabled:cursor-default disabled:bg-[#F7FAF8]">
                 <span className="min-w-0 truncate">{entry.schoolName}</span>

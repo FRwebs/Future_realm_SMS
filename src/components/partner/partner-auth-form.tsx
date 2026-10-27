@@ -44,7 +44,7 @@ export function PartnerAuthForm({ mode, token }: { mode: "login" | "accept"; tok
       <label className="grid gap-1.5">
         <span className="text-[12px] font-semibold text-[#435048]">{mode === "login" ? "Password" : "Choose a password"}</span>
         <input name="password" type="password" required minLength={mode === "accept" ? 12 : 1} autoComplete={mode === "login" ? "current-password" : "new-password"} className={field} />
-        {mode === "accept" ? <span className="text-[11px] text-[#8C9A92]">At least 12 characters. You set it yourself — nobody at the platform ever sees it.</span> : null}
+        {mode === "accept" ? <span className="text-[11px] text-[#5f6e65]">At least 12 characters. You set it yourself — nobody at the platform ever sees it.</span> : null}
       </label>
       {error ? <p className="rounded-[10px] bg-[#FDF3F3] px-3 py-2 text-[12px] font-medium text-[#B23B3B]">{error}</p> : null}
       <button type="submit" disabled={pending} className="rounded-[10px] bg-[#0D2315] px-4 py-[12px] text-[13px] font-semibold text-white hover:bg-[#17402A] disabled:opacity-60">

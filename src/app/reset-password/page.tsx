@@ -48,7 +48,7 @@ export default async function ResetPasswordPage({
             <Link href="/login" className="font-[var(--font-heading)] text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</Link>
           </div>
           <h2 className="font-[var(--font-heading)] text-[26px] font-bold tracking-[-0.01em] text-[#0d2315]">Set new password</h2>
-          <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#77857c]">Choose a strong password to restore account access.</p>
+          <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#5f6e65]">Choose a strong password to restore account access.</p>
           <ResetPasswordForm token={token} />
         </div>
       </div>

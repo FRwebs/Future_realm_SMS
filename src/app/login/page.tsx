@@ -88,7 +88,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <h2 className="font-[var(--font-heading)] text-[26px] font-bold tracking-[-0.01em] text-[#0d2315]">
             Welcome back
           </h2>
-          <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#77857c]">
+          <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#5f6e65]">
             Sign in with your email address or User ID
           </p>
 

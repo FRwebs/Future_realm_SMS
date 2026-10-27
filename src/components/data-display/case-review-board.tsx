@@ -161,7 +161,7 @@ export function CaseReviewBoard({
             <span
               className={cn(
                 "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10.5px] font-bold",
-                activeType === filter.value ? "bg-white/20 text-white" : "bg-[#F0F5F2] text-[#8C9A92]",
+                activeType === filter.value ? "bg-white/20 text-white" : "bg-[#F0F5F2] text-[#5f6e65]",
               )}
             >
               {filter.count}
@@ -179,7 +179,7 @@ export function CaseReviewBoard({
         <div className="flex flex-wrap items-center justify-between gap-3 px-[18px] pb-3 pt-4">
           <div>
             <h3 className="text-[14px] font-semibold text-[#0D2315]">{title ?? "Open cases"}</h3>
-            <p className="mt-1 text-[11.5px] text-[#8C9A92]">
+            <p className="mt-1 text-[11.5px] text-[#5f6e65]">
               {filtered.length} case{filtered.length === 1 ? "" : "s"}
               {q ? ` matching "${query}"` : ""} · {types.find((t) => t.value === activeType)?.label.toLowerCase()}
             </p>
@@ -191,7 +191,7 @@ export function CaseReviewBoard({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-none placeholder:text-[#9FB8A7]"
+                className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]"
               />
               {query ? (
                 <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]" aria-label="Clear search">
@@ -201,7 +201,7 @@ export function CaseReviewBoard({
             </div>
           ) : null}
         </div>
-        <div className="grid grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] gap-3 border-b border-[#E6EEE9] bg-[#F7FAF8] px-[18px] py-3 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">
+        <div className="grid grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] gap-3 border-b border-[#E6EEE9] bg-[#F7FAF8] px-[18px] py-3 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">
           <div>Subject</div>
           <div>Type</div>
           <div>Signals</div>
@@ -226,7 +226,7 @@ export function CaseReviewBoard({
               <span className={cn("h-2 w-2 shrink-0 rounded-full", toneDot(item.slaTone ?? "neutral"))} />
               <span className="min-w-0">
                 <span className="block truncate font-semibold text-[#0D2315]">{item.subject}</span>
-                <span className="block truncate text-[11px] text-[#77857C]">{item.meta}</span>
+                <span className="block truncate text-[11px] text-[#5f6e65]">{item.meta}</span>
               </span>
             </div>
             <div>
@@ -237,11 +237,11 @@ export function CaseReviewBoard({
             <div className="text-[#435048]">{item.signals.length}</div>
             <div className={slaStyle(item.slaTone)}>{item.sla ?? "—"}</div>
             <div className="truncate text-[#435048]">{item.assignee}</div>
-            <div className="text-right text-[#77857C]">{item.age}</div>
+            <div className="text-right text-[#5f6e65]">{item.age}</div>
           </button>
         ))}
         {footerNote ? (
-          <div className="bg-[#F7FAF8] px-[18px] py-2.5 text-[11px] text-[#77857C]">{footerNote}</div>
+          <div className="bg-[#F7FAF8] px-[18px] py-2.5 text-[11px] text-[#5f6e65]">{footerNote}</div>
         ) : null}
       </div>
 
@@ -382,7 +382,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
           </span>
           <span className="min-w-0">
             <span className="block truncate font-[var(--font-heading)] text-[17px] font-extrabold tracking-[-0.015em] text-[#0D2315]">{selected.subject}</span>
-            <span className="mt-0.5 block truncate text-[11.5px] text-[#8C9A92]">{selected.meta}</span>
+            <span className="mt-0.5 block truncate text-[11.5px] text-[#5f6e65]">{selected.meta}</span>
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
@@ -404,7 +404,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
         <div className="grid grid-cols-2 border-b border-[var(--color-border-default)] sm:grid-cols-4">
           {strip.map((fact, index) => (
             <div key={fact.label} className={cn("min-w-0 px-[18px] py-[13px]", index < strip.length - 1 ? "border-r border-[#F2F7F4]" : "")}>
-              <p className="mb-[5px] text-[10px] font-bold uppercase tracking-[0.06em] text-[#8C9A92]">{fact.label}</p>
+              <p className="mb-[5px] text-[10px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">{fact.label}</p>
               <p className="text-pretty text-[12.5px] font-semibold text-[#0D2315]">{fact.value}</p>
             </div>
           ))}
@@ -413,7 +413,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
 
       <div className="border-b border-[var(--color-border-default)] px-5 py-[18px]">
         <p className="mb-1 text-[13px] font-semibold text-[#0D2315]">Why the system flagged this</p>
-        <p className="mb-3 text-[11.5px] text-[#8C9A92]">Machine-generated. Nothing here is a conclusion — it is what a human is being asked to judge.</p>
+        <p className="mb-3 text-[11.5px] text-[#5f6e65]">Machine-generated. Nothing here is a conclusion — it is what a human is being asked to judge.</p>
         <div className="flex flex-col gap-2">
           {selected.signals.length ? (
             selected.signals.map((signal, index) => {
@@ -436,7 +436,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <div>
               <p className="text-[13px] font-semibold text-[#0D2315]">Confirm before you decide</p>
-              <p className="mt-[3px] text-[11.5px] text-[#8C9A92]">Each box is a person&rsquo;s word, not the system&rsquo;s.</p>
+              <p className="mt-[3px] text-[11.5px] text-[#5f6e65]">Each box is a person&rsquo;s word, not the system&rsquo;s.</p>
             </div>
             {selected.checks.length ? (
               <span className="whitespace-nowrap text-[11.5px] font-semibold text-[#12796A]">{confirmedCount} of {selected.checks.length} confirmed</span>
@@ -467,7 +467,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
         </div>
         <div className="bg-[#FDFEFD] px-5 py-[18px]">
           <p className="text-[13px] font-semibold text-[#0D2315]">Your decision</p>
-          <p className="mb-3 mt-[3px] text-[11.5px] text-[#8C9A92]">Each one asks for a reason, and is written to the audit log under your name.</p>
+          <p className="mb-3 mt-[3px] text-[11.5px] text-[#5f6e65]">Each one asks for a reason, and is written to the audit log under your name.</p>
           <div className="flex flex-col gap-[11px]">{selected.decisions}</div>
         </div>
       </div>

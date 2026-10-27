@@ -369,7 +369,7 @@ function StandardTableCardBody({
                               scope="col"
                               aria-sort={isActive ? (sortDirection === "asc" ? "ascending" : "descending") : "none"}
                               className={[
-                                "border-b border-[#E6EEE9] px-5 py-[11px] text-left text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]",
+                                "border-b border-[#E6EEE9] px-5 py-[11px] text-left text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]",
                                 column.headerClassName ?? "",
                               ].join(" ")}
                             >
@@ -463,7 +463,7 @@ function StandardTableCardBody({
         )}
       </div>
 
-      {footnote ? <div className="border-t border-[#EDF3EF] bg-[#F7FAF8] px-5 py-3 text-[11.5px] text-[#8C9A92]">{footnote}</div> : null}
+      {footnote ? <div className="border-t border-[#EDF3EF] bg-[#F7FAF8] px-5 py-3 text-[11.5px] text-[#5f6e65]">{footnote}</div> : null}
     </section>
   );
 }

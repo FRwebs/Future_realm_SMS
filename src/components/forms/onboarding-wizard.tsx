@@ -647,7 +647,7 @@ export function OnboardingWizard() {
               <h1 className="mb-[9px] font-[var(--font-heading)] text-[30.5px] font-bold tracking-[-0.02em] text-[#0d2315]">
                 Who are you signing up as?
               </h1>
-              <p className="mx-auto max-w-[420px] text-[13px] leading-[1.6] text-[#77857c]">
+              <p className="mx-auto max-w-[420px] text-[13px] leading-[1.6] text-[#5f6e65]">
                 This decides what we build for you in the next minute — a full school workspace, or a personal
                 teaching workspace.
               </p>
@@ -663,7 +663,7 @@ export function OnboardingWizard() {
                   <SchoolIcon className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
                 </div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[18px] font-bold text-[#0d2315]">School Administrator</div>
-                <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#77857c]">
+                <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#5f6e65]">
                   Proprietor, Director, Principal, Head of School or Administrator setting up their school.
                 </p>
                 <div className="flex flex-col gap-[8px]">
@@ -694,7 +694,7 @@ export function OnboardingWizard() {
                   <GraduationCap className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
                 </div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[18px] font-bold text-[#0d2315]">Teacher</div>
-                <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#77857c]">
+                <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#5f6e65]">
                   Signing up on your own, whether or not your school is on FutureRealm yet.
                 </p>
                 <div className="flex flex-col gap-[8px]">
@@ -717,7 +717,7 @@ export function OnboardingWizard() {
               </button>
             </div>
 
-            <p className="mt-[23.5px] text-center text-[11.5px] text-[#8c9a92]">
+            <p className="mt-[23.5px] text-center text-[11.5px] text-[#5f6e65]">
               Parents and students receive their accounts from their school — they cannot sign up here.
             </p>
           </div>
@@ -789,7 +789,7 @@ export function OnboardingWizard() {
 
         <div className="flex min-w-0 flex-1 flex-col">
           <div className="flex items-center justify-between px-6 pt-[23.5px] sm:px-[39.5px]">
-            <div className="text-[11px] text-[#8c9a92]">
+            <div className="text-[11px] text-[#5f6e65]">
               Step {step} of {lastStep}
             </div>
             <div className="text-[11.5px] text-[#435048]">
@@ -804,7 +804,7 @@ export function OnboardingWizard() {
             {step === 1 ? (
               <div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About you</div>
-                <p className="mb-[25px] text-[12px] text-[#77857c]">
+                <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   {admin
                     ? "Instant — no human approval stands between you and a working school."
                     : "Instant. No review, no school required, no waiting."}
@@ -843,7 +843,7 @@ export function OnboardingWizard() {
                           placeholder={PHONE_PLACEHOLDER[country] ?? "+000 000 0000"}
                         />
                       )}
-                      <div className="mt-1.5 text-[10px] text-[#8c9a92]">Include your country dialling code.</div>
+                      <div className="mt-1.5 text-[10px] text-[#5f6e65]">Include your country dialling code.</div>
                     </label>
                     <label className="sm:col-span-2">
                       {fieldLabel("Email address", false, true)}
@@ -856,7 +856,7 @@ export function OnboardingWizard() {
                           placeholder="you@yourschool.edu.ng"
                         />
                       )}
-                      <div className="mt-1.5 text-[10px] text-[#8c9a92]">
+                      <div className="mt-1.5 text-[10px] text-[#5f6e65]">
                         One email address is one account across the whole platform. We&apos;ll send a 6-digit
                         verification code here.
                       </div>
@@ -889,7 +889,7 @@ export function OnboardingWizard() {
             {step === 2 && admin ? (
               <div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About your school</div>
-                <p className="mb-[25px] text-[12px] text-[#77857c]">
+                <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   Your short name becomes your permanent web address — the one every invitation email will carry.
                 </p>
                 <div className="mb-4 rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
@@ -920,9 +920,9 @@ export function OnboardingWizard() {
                           className="w-[150px] min-w-0 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-none"
                           placeholder="powerhouse"
                         />
-                        <span className="text-[12px] text-[#8c9a92]">.futurerealm.school</span>
+                        <span className="text-[12px] text-[#5f6e65]">.futurerealm.school</span>
                       </div>
-                      <div className="mt-1.5 text-[10px] leading-[1.5] text-[#8c9a92]">{slugState.note}</div>
+                      <div className="mt-1.5 text-[10px] leading-[1.5] text-[#5f6e65]">{slugState.note}</div>
                     </label>
                     <label>
                       {fieldLabel("Country", false, true)}
@@ -1076,7 +1076,7 @@ export function OnboardingWizard() {
             {step === 2 && !admin ? (
               <div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">What you teach</div>
-                <p className="mb-[25px] text-[12px] text-[#77857c]">
+                <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   Tell us what you teach and we build your gradebook around it. Your school is optional — the rest we
                   need.
                 </p>
@@ -1139,7 +1139,7 @@ export function OnboardingWizard() {
                       <b>Join request ready.</b> It goes to {teacherSchoolMatches[0]?.name ?? "the school"} when you create your account. You can use your workspace while you wait.
                     </div>
                   ) : null}
-                  <div className="mt-1.5 text-[10px] text-[#8c9a92]">
+                  <div className="mt-1.5 text-[10px] text-[#5f6e65]">
                     {teacherSchoolName.trim().length >= 2 && teacherSchoolMatches.length === 0
                       ? "No match yet — the name is stored as a claim only, and nothing is shared with that school."
                       : "Matched against schools already on FutureRealm as you type."}
@@ -1181,7 +1181,7 @@ export function OnboardingWizard() {
                       placeholder="Any subject not listed — Kiswahili, Sanskrit, Design Technology — separate with commas"
                     />
                   )}
-                  <div className="mt-1.5 text-[10px] leading-[1.5] text-[#8c9a92]">
+                  <div className="mt-1.5 text-[10px] leading-[1.5] text-[#5f6e65]">
                     Type as many as you like, separated by commas. Each one becomes a gradebook you can open on day
                     one.
                   </div>
@@ -1244,7 +1244,7 @@ export function OnboardingWizard() {
             {step === 3 ? (
               <div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Create your password</div>
-                <p className="mb-[25px] text-[12px] text-[#77857c]">
+                <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   Minimum 8 characters with letters and numbers. No forced special characters.
                 </p>
                 <div className="max-w-[468px] rounded-2xl border border-[#dee8e2] bg-white p-[23.5px]">
@@ -1269,7 +1269,7 @@ export function OnboardingWizard() {
                       <div key={i} className="h-1 flex-1 rounded-full" style={{ background: pwScore >= i ? pwColor : "#edf3ef" }} />
                     ))}
                   </div>
-                  <div className="mb-5 text-[10.5px] text-[#8c9a92]">
+                  <div className="mb-5 text-[10.5px] text-[#5f6e65]">
                     Strength: <span style={{ fontWeight: 600, color: pwColor }}>{pwLabel}</span>
                   </div>
                   <label>
@@ -1305,7 +1305,7 @@ export function OnboardingWizard() {
             {step === 4 && admin ? (
               <div>
                 <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 1-month free trial</div>
-                <p className="mb-[25px] text-[12px] text-[#77857c]">Every feature unlocked. No card required. No charge at the end.</p>
+                <p className="mb-[25px] text-[12px] text-[#5f6e65]">Every feature unlocked. No card required. No charge at the end.</p>
                 <div className="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
                   <div className="relative overflow-hidden rounded-[18px] p-[23.5px]" style={{ background: "#0d2315" }}>
                     <div className="relative">
@@ -1336,7 +1336,7 @@ export function OnboardingWizard() {
                   </div>
                   <div className="rounded-[18px] border border-[#dee8e2] bg-white p-[21.5px]">
                     <div className="mb-1 text-[11.5px] font-semibold text-[#0d2315]">Set up automatically</div>
-                    <div className="mb-4 text-[10.5px] text-[#8c9a92]">In under 60 seconds, with no human involved</div>
+                    <div className="mb-4 text-[10.5px] text-[#5f6e65]">In under 60 seconds, with no human involved</div>
                     <div className="flex flex-col gap-[11px]">
                       {AUTO_SETUP_ADMIN.map((line) => (
                         <div key={line} className="flex items-start gap-[9px]">
@@ -1404,7 +1404,7 @@ export function OnboardingWizard() {
           <div className="mb-[7px] font-[var(--font-heading)] text-[22.5px] font-bold tracking-[-0.015em] text-[#0d2315]">
             {doneRole === "admin" ? `${schoolName || "Your school"} is live.` : "Your workspace is ready."}
           </div>
-          <p className="mx-auto mb-[23px] max-w-[378px] text-[12px] leading-[1.65] text-[#77857c]">
+          <p className="mx-auto mb-[23px] max-w-[378px] text-[12px] leading-[1.65] text-[#5f6e65]">
             {doneRole === "admin"
               ? "Your school exists, your web address is live, and a demo class is already loaded. One step left — verify your email address, then sign in to your new portal."
               : "Your personal teaching workspace is created and free for as long as you use it. One step left — verify your email address, then sign in."}
@@ -1413,7 +1413,7 @@ export function OnboardingWizard() {
           <div className="mb-[21.5px] rounded-[14px] border border-[#e6eee9] bg-[#f7faf8] px-[18px] py-[16px] text-left">
             {doneRows.map((row) => (
               <div key={row.k} className="flex items-center justify-between gap-3.5 py-2">
-                <div className="whitespace-nowrap text-[10.5px] text-[#8c9a92]">{row.k}</div>
+                <div className="whitespace-nowrap text-[10.5px] text-[#5f6e65]">{row.k}</div>
                 <div className="min-w-0 text-right text-[11.5px] font-semibold text-[#0d2315]">{row.v}</div>
               </div>
             ))}
@@ -1465,7 +1465,7 @@ export function OnboardingWizard() {
             <Mail className="h-[19px] w-[19px] text-[#0d2315]" strokeWidth={1.9} />
           </div>
           <div className="mb-[5.5px] font-[var(--font-heading)] text-[20.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Verify your email</div>
-          <p className="mb-[23.5px] text-[11.5px] leading-[1.6] text-[#77857c]">
+          <p className="mb-[23.5px] text-[11.5px] leading-[1.6] text-[#5f6e65]">
             Enter the 6-digit code we sent to <b className="text-[#0d2315]">{email}</b>. Valid for 15 minutes · 3
             attempts.
           </p>
@@ -1518,14 +1518,14 @@ export function OnboardingWizard() {
           </button>
 
           <div className="mt-[18px] flex items-center justify-between">
-            <button type="button" onClick={handleResend} className="text-[11px] text-[#8c9a92]">
+            <button type="button" onClick={handleResend} className="text-[11px] text-[#5f6e65]">
               Didn&apos;t get it? <span className="font-semibold text-[#12796a] hover:underline">Send me a new code</span>
             </button>
             <div className="text-[10.5px] text-[#b4c4bb]">Expires in {otpExpiryLabel}</div>
           </div>
 
           <div className="my-[20px] h-px bg-[#edf3ef]" />
-          <p className="text-[10.5px] leading-[1.55] text-[#8c9a92]">
+          <p className="text-[10.5px] leading-[1.55] text-[#5f6e65]">
             Codes go to email only. We never send passwords by email.
           </p>
           <div className="mt-[14px] text-[11px] text-[#9fb8a7]">

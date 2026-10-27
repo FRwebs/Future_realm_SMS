@@ -34,33 +34,33 @@ export default async function AttendanceRecordPage({ searchParams }: { searchPar
             <p className="mt-1 text-[11px] text-[#5F6E65]">{meta.letterhead ? "Official attendance record" : "Attendance record · plain copy"}</p>
           </div>
           <div className="text-right">
-            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#8C9A92]">Attendance record</p>
+            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#5f6e65]">Attendance record</p>
             <p className="mt-1 text-[13px] font-bold text-[#12796A]">{meta.subject}</p>
-            <p className="mt-0.5 text-[10.5px] text-[#77857C]">{meta.period}</p>
+            <p className="mt-0.5 text-[10.5px] text-[#5f6e65]">{meta.period}</p>
           </div>
         </header>
         <dl className="grid grid-cols-4 gap-x-4 gap-y-3 border-b border-[#EDF3EF] py-4 text-[11.5px]">
           {[["Period", `${meta.from} to ${meta.to}`], ["Purpose", meta.purpose], ["Marks", meta.marks.toLocaleString()], ["Children", meta.children.toLocaleString()], ["Prepared by", meta.by], ["Prepared on", meta.generatedAt.slice(0, 10)]].map(([label, value]) => (
             <div key={label} className="min-w-0">
-              <dt className="text-[8.5px] font-bold uppercase tracking-[0.07em] text-[#8C9A92]">{label}</dt>
+              <dt className="text-[8.5px] font-bold uppercase tracking-[0.07em] text-[#5f6e65]">{label}</dt>
               <dd className="mt-[3px] font-semibold">{value}</dd>
             </div>
           ))}
         </dl>
         {sections.map((section) => (
           <div key={section.title} className="mt-5">
-            <h2 className="text-[12.5px] font-bold">{section.title} <span className="font-normal text-[#8C9A92]">· {section.rows.length}</span></h2>
+            <h2 className="text-[12.5px] font-bold">{section.title} <span className="font-normal text-[#5f6e65]">· {section.rows.length}</span></h2>
             <table className="mt-2 w-full overflow-hidden rounded-[9px] border border-[#E6EEE9] text-[10.5px]">
-              <thead className="bg-[#F7FAF8] text-[8.5px] uppercase tracking-[0.06em] text-[#8C9A92]">
+              <thead className="bg-[#F7FAF8] text-[8.5px] uppercase tracking-[0.06em] text-[#5f6e65]">
                 <tr>{section.head.map((head) => <th key={head} className="px-3 py-2 text-left">{head}</th>)}</tr>
               </thead>
               <tbody>
                 {section.rows.length ? section.rows.slice(0, 1500).map((row, index) => (
                   <tr key={index} className={index % 2 ? "bg-[#FBFDFC]" : ""}>{row.map((value, cell) => <td key={cell} className="px-3 py-[5px]">{value}</td>)}</tr>
-                )) : <tr><td colSpan={section.head.length} className="px-3 py-3 text-center text-[#8C9A92]">Nothing on record for this period.</td></tr>}
+                )) : <tr><td colSpan={section.head.length} className="px-3 py-3 text-center text-[#5f6e65]">Nothing on record for this period.</td></tr>}
               </tbody>
             </table>
-            {section.rows.length > 1500 ? <p className="mt-1 text-[10px] text-[#8C9A92]">Showing the first 1,500 of {section.rows.length}. The spreadsheet format holds all of them.</p> : null}
+            {section.rows.length > 1500 ? <p className="mt-1 text-[10px] text-[#5f6e65]">Showing the first 1,500 of {section.rows.length}. The spreadsheet format holds all of them.</p> : null}
           </div>
         ))}
         <footer className="mt-8 grid grid-cols-2 gap-8 text-[10px] text-[#5F6E65]">

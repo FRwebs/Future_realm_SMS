@@ -8,7 +8,7 @@ export default function PartnerLoginPage() {
         <h1 className="mt-2 font-[var(--font-heading)] text-[24px] font-extrabold tracking-[-0.02em] text-[#0D2315]">Sign in</h1>
         <p className="mb-6 mt-2 text-[12.5px] leading-[1.6] text-[#5D6B63]">The schools you brought, how they are holding up, your commission and your registered deals.</p>
         <PartnerAuthForm mode="login" />
-        <p className="mt-5 text-[11.5px] leading-[1.5] text-[#8C9A92]">No login yet? Your partner manager sends one when your agreement is countersigned.</p>
+        <p className="mt-5 text-[11.5px] leading-[1.5] text-[#5f6e65]">No login yet? Your partner manager sends one when your agreement is countersigned.</p>
       </div>
     </main>
   );

@@ -59,16 +59,16 @@ export function ModuleAdoptionTable({ trends = [], heatmapByTier, tierColumns, s
 
       <div className="px-5 py-3.5">
         <div className="grid items-end gap-1.5 border-b border-[#EDF3EF] pb-2.5" style={{ gridTemplateColumns: cols }}>
-          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#8C9A92]">Module</div>
+          <div className="min-w-0 text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">Module</div>
           {visibleTierIndexes.map((index) => (
-            <div key={tierColumns[index].plan} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">
+            <div key={tierColumns[index].plan} className="min-w-0 text-center text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#5f6e65]">
               <div>{tierColumns[index].plan}</div>
               <div className="mt-[2.5px] overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-medium normal-case tracking-normal text-[#B4C4BB]">
                 {tierColumns[index].schoolCount} school{tierColumns[index].schoolCount === 1 ? "" : "s"}
               </div>
             </div>
           ))}
-          <div className="text-right text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#8C9A92]">12-week trend</div>
+          <div className="text-right text-[9.5px] font-semibold uppercase tracking-[0.04em] text-[#5f6e65]">12-week trend</div>
         </div>
 
         {heatmapByTier.length === 0 ? (

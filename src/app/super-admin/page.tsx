@@ -142,7 +142,7 @@ function CardHeader({ title, meta, sub }: { title: string; meta?: string; sub?: 
         <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">{title}</h3>
         {meta ? <p className="shrink-0 text-[10.5px] text-[#9fb8a7]">{meta}</p> : null}
       </div>
-      {sub ? <p className="mt-1.5 text-[10.5px] leading-5 text-[#8c9a92]">{sub}</p> : null}
+      {sub ? <p className="mt-1.5 text-[10.5px] leading-5 text-[#5f6e65]">{sub}</p> : null}
     </div>
   );
 }
@@ -546,7 +546,7 @@ export default async function SuperAdminDashboardPage() {
           const color = tile.positive ? "#12796A" : "#B23B3B";
           return (
             <article key={tile.label} className="rounded-[14px] border px-[16px] pb-[12.5px] pt-4" style={{ borderColor: "#DEE8E2", background: "#fff" }}>
-              <p className="min-h-[28px] text-[10.5px] leading-[1.35] text-[#77857C]">{tile.label}</p>
+              <p className="min-h-[28px] text-[10.5px] leading-[1.35] text-[#5f6e65]">{tile.label}</p>
               <div className="mt-[8px] flex items-baseline gap-[6.5px]">
                 <p className="font-[var(--font-heading)] text-[21.5px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
                 <p className="min-w-0 truncate text-[10.5px] text-[#9FB8A7]">{tile.secondary}</p>
