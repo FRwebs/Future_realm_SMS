@@ -27,6 +27,7 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { AuthService, MfaRequiredError } from "./auth.service";
+import { rememberLocale, toLocale } from "../../common/locale";
 
 function clientIp(request: Request) {
   const forwarded = request.headers["x-forwarded-for"];
@@ -116,6 +117,8 @@ export class AuthController {
 
     response.cookie(SESSION_COOKIE_NAME, token, getCookieOptions(true, maxAgeSeconds));
     response.cookie(CSRF_COOKIE_NAME, session.csrfToken, getCookieOptions(false, maxAgeSeconds));
+    // Signing in on a new device brings the person's chosen language with them.
+    rememberLocale(response, toLocale((await prisma.user.findUnique({ where: { id: user.userId }, select: { locale: true } }))?.locale));
 
     return {
       ok: true,

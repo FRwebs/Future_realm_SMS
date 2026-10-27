@@ -9,6 +9,7 @@ import { hashPassword, verifyPassword } from "../../../../src/lib/auth/password"
 import { isPlatformRole } from "../../../../src/lib/auth/role-architecture";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { toLocale } from "../../common/locale";
 
 const optionalText = z.string().trim().optional().or(z.literal(""));
 const optionalEmail = z.string().trim().email().optional().or(z.literal(""));
@@ -46,8 +47,12 @@ const profileFields = {
   nextOfKinOccupation: optionalText,
 };
 
+/** A language the person chose: a code (`ha`) or a name (`Hausa`); stored as the code. */
+const localeField = z.string().trim().refine((value) => toLocale(value) !== null, "Choose English, Yorùbá, Hausa or Igbo.").transform((value) => toLocale(value)!);
+
 const selfUpdateSchema = z.object({
   preferredName: profileFields.preferredName,
+  locale: localeField.optional(),
   avatarUrl: profileFields.avatarUrl,
   phone: profileFields.phone,
   secondaryPhone: profileFields.secondaryPhone,
@@ -250,6 +255,7 @@ export class ProfileService {
       middleName: user.middleName,
       lastName: user.lastName,
       preferredName: user.preferredName,
+      locale: user.locale,
       avatarUrl: user.avatarUrl,
       role: user.role,
       email: user.email,

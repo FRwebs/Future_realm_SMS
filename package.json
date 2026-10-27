@@ -32,7 +32,8 @@
     "analyze": "ANALYZE=true next build",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "chromatic": "chromatic --exit-zero-on-changes"
+    "chromatic": "chromatic --exit-zero-on-changes",
+    "i18n:review": "node scripts/translation-review.mjs"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
