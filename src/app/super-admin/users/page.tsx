@@ -55,7 +55,7 @@ function DecisionAction({ action, note }: { action: ReactNode; note: string }) {
   return (
     <div className="grid gap-1.5">
       {action}
-      <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">{note}</p>
+      <p className="text-[10px] leading-relaxed text-(--color-text-muted)">{note}</p>
     </div>
   );
 }
@@ -382,9 +382,9 @@ async function MembershipsSection() {
         pageSize={8}
         emptyState="No person holds an account at more than one school yet."
         columns={[
-          { key: "user", header: "User", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.name}</p><p className="text-xs text-[var(--color-text-muted)]">{row.contact}</p></div> },
+          { key: "user", header: "User", render: (row) => <div><p className="font-semibold text-(--color-text-primary)">{row.name}</p><p className="text-xs text-(--color-text-muted)">{row.contact}</p></div> },
           { key: "memberships", header: "Memberships", render: (row) => row.memberships },
-          { key: "roles", header: "Roles held", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.roles.join(" · ")}</span> },
+          { key: "roles", header: "Roles held", render: (row) => <span className="text-[12px] text-(--color-text-secondary)">{row.roles.join(" · ")}</span> },
           { key: "last", header: "Last active", render: (row) => (row.lastActive ? formatDate(row.lastActive) : "Never") },
           { key: "open", header: "", render: (row) => <ActionMenuLink href={`/super-admin/users/${row.id}`}>Open</ActionMenuLink> }
         ]}
@@ -399,7 +399,7 @@ async function MembershipsSection() {
         pageSize={8}
         emptyState="No membership has been given yet."
         columns={[
-          { key: "person", header: "Person", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.person}</span> },
+          { key: "person", header: "Person", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.person}</span> },
           { key: "school", header: "School", render: (row) => row.school },
           { key: "role", header: "Role", render: (row) => row.role },
           { key: "ends", header: "Ends", render: (row) => (row.expiresAt ? formatDate(row.expiresAt) : "No end date") },
@@ -674,7 +674,7 @@ async function ReviewsAndCasesTab({
         { what: `${completed ? "Completed" : "Initiated"} by ${record.verifiedBy}`, when: formatDate(record.completedAt ?? record.createdAt) }
       ],
       decisions: (
-        <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">
+        <p className="text-[11px] leading-relaxed text-(--color-text-secondary)">
           No further action is available on this record — the temporary password and notification are issued the
           moment a recovery is created, so there is nothing left pending here. To recover a different account, use
           &quot;Recover account&quot; from the Directory tab.
@@ -772,7 +772,7 @@ async function RepairQueue() {
           ]
         }}
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "school", header: "School", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.school}</span> },
           { key: "unreachable", header: "Unreachable", render: (row) => `${row.unreachable} guardian${row.unreachable === 1 ? "" : "s"}${row.problems > row.unreachable ? ` · ${row.problems - row.unreachable} failed sends` : ""}` },
           { key: "share", header: "Share of guardians", render: (row) => <div className="flex items-center gap-2"><div className="h-1.5 w-20 rounded-full bg-[#EDF3EF]"><div className="h-1.5 rounded-full" style={{ width: `${Math.min(100, row.sharePct * 4)}%`, background: row.sharePct >= 15 ? "var(--color-danger)" : "var(--color-success)" }} /></div><span className="text-[11.5px] font-semibold">{row.sharePct}%</span></div> },
           { key: "channel", header: "Channel", render: (row) => (row.channels.length ? row.channels.join(" + ") : "—") },
@@ -820,8 +820,8 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
         pageSize={8}
         emptyState="No individual teacher has named a school yet."
         columns={[
-          { key: "school", header: "Named school", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
-          { key: "location", header: "Location", render: (row) => row.location ?? <span className="text-[var(--color-text-muted)]">Not given</span> },
+          { key: "school", header: "Named school", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}</span> },
+          { key: "location", header: "Location", render: (row) => row.location ?? <span className="text-(--color-text-muted)">Not given</span> },
           { key: "teachers", header: "Teachers", render: (row) => row.teachers },
           { key: "activity", header: "Combined activity", render: (row) => <StatusPill bg={ACTIVITY_TONE[row.activity].bg} fg={ACTIVITY_TONE[row.activity].fg} label={`${row.activity} · ${row.activityScore}`} /> },
           { key: "platform", header: "On platform?", render: (row) => row.onPlatform },
@@ -857,8 +857,8 @@ async function IndividualTeachersTab({ params }: { params: Record<string, string
           ]
         }}
         columns={[
-          { key: "teacher", header: "Teacher", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.name}</p><p className="text-xs text-[var(--color-text-muted)]">{row.role}</p></div> },
-          { key: "school", header: "Claimed school", render: (row) => row.school ?? <span className="text-[var(--color-text-muted)]">None named</span> },
+          { key: "teacher", header: "Teacher", render: (row) => <div><p className="font-semibold text-(--color-text-primary)">{row.name}</p><p className="text-xs text-(--color-text-muted)">{row.role}</p></div> },
+          { key: "school", header: "Claimed school", render: (row) => row.school ?? <span className="text-(--color-text-muted)">None named</span> },
           { key: "city", header: "City", render: (row) => row.city ?? "—" },
           { key: "subjects", header: "Subjects", render: (row) => <span className="text-[12px]">{row.subjects.join(", ") || "—"}</span> },
           { key: "activity", header: "Activity", render: (row) => <StatusPill bg={ACTIVITY_TONE[row.activity].bg} fg={ACTIVITY_TONE[row.activity].fg} label={row.activity} /> },
@@ -892,20 +892,20 @@ function ControlSpecTable({ rows }: { rows: Array<{ control: string; spec: strin
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-        <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Support access controls</p>
-        <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
+      <div className="border-b border-(--color-border-default) px-5 py-4">
+        <p className="text-[12.5px] font-bold text-(--color-text-primary)">Support access controls</p>
+        <p className="mt-1 text-[10.5px] text-(--color-text-muted)">The portal being entered holds a school&apos;s own records — this states plainly what actually stops or logs a session, not what would be nice to claim.</p>
       </div>
       <div className="grid gap-0 p-5">
-        <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-[#E6EEE9] pb-2 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">
+        <div className="grid grid-cols-[1fr_2fr_auto] gap-4 border-b border-[#E6EEE9] pb-2 text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">
           <span>Control</span>
           <span>Specification</span>
           <span>State</span>
         </div>
         {rows.map((row) => (
-          <div key={row.control} className="grid grid-cols-[1fr_2fr_auto] items-start gap-4 border-b border-[var(--color-border-muted)] py-3 last:border-b-0">
-            <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{row.control}</p>
-            <p className="text-[11px] leading-relaxed text-[var(--color-text-secondary)]">{row.spec}</p>
+          <div key={row.control} className="grid grid-cols-[1fr_2fr_auto] items-start gap-4 border-b border-(--color-border-muted) py-3 last:border-b-0">
+            <p className="text-[11.5px] font-bold text-(--color-text-primary)">{row.control}</p>
+            <p className="text-[11px] leading-relaxed text-(--color-text-secondary)">{row.spec}</p>
             <span className="inline-flex shrink-0 items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: stateStyle[row.state].bg, color: stateStyle[row.state].fg }}>
               {stateStyle[row.state].label}
             </span>
@@ -962,12 +962,12 @@ async function SupportAccessTab() {
           />
         }
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "school", header: "School", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.school}</span> },
           { key: "target", header: "Account", render: (row) => row.target },
-          { key: "summary", header: "Asked", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.summary}</span> },
+          { key: "summary", header: "Asked", render: (row) => <span className="text-[12px] text-(--color-text-secondary)">{row.summary}</span> },
           { key: "when", header: "Requested", render: (row) => formatDate(row.requestedAt) },
-          { key: "status", header: "School's answer", render: (row) => <div><StatusPill bg={row.usable ? "var(--color-success-dim)" : row.status === "PENDING" ? "var(--color-warning-dim)" : "var(--color-bg-subtle)"} fg={row.usable ? "var(--color-success)" : row.status === "PENDING" ? "var(--color-warning)" : "var(--color-text-muted)"} label={row.usable ? "Approved — usable" : row.status.charAt(0) + row.status.slice(1).toLowerCase()} />{row.decidedBy ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{row.decidedBy}{row.decidedAt ? ` · ${formatDate(row.decidedAt)}` : ""}{row.note ? ` — ${row.note}` : ""}</p> : null}</div> },
-          { key: "ref", header: "Approval reference", render: (row) => (row.usable ? <span className="select-all font-[var(--font-mono)] text-[11px]">{row.id}</span> : <span className="text-[var(--color-text-muted)]">—</span>) }
+          { key: "status", header: "School's answer", render: (row) => <div><StatusPill bg={row.usable ? "var(--color-success-dim)" : row.status === "PENDING" ? "var(--color-warning-dim)" : "var(--color-bg-subtle)"} fg={row.usable ? "var(--color-success)" : row.status === "PENDING" ? "var(--color-warning)" : "var(--color-text-muted)"} label={row.usable ? "Approved — usable" : row.status.charAt(0) + row.status.slice(1).toLowerCase()} />{row.decidedBy ? <p className="mt-1 text-[11px] text-(--color-text-muted)">{row.decidedBy}{row.decidedAt ? ` · ${formatDate(row.decidedAt)}` : ""}{row.note ? ` — ${row.note}` : ""}</p> : null}</div> },
+          { key: "ref", header: "Approval reference", render: (row) => (row.usable ? <span className="select-all font-(--font-mono) text-[11px]">{row.id}</span> : <span className="text-(--color-text-muted)">—</span>) }
         ]}
       />
 
@@ -995,10 +995,10 @@ async function SupportAccessTab() {
           />
         }
         columns={[
-          { key: "g", header: "Guardian", render: (row) => <div><p className="font-semibold text-[var(--color-text-primary)]">{row.guardian}</p><p className="text-[11px] text-[var(--color-text-muted)]">{row.email}</p></div> },
+          { key: "g", header: "Guardian", render: (row) => <div><p className="font-semibold text-(--color-text-primary)">{row.guardian}</p><p className="text-[11px] text-(--color-text-muted)">{row.email}</p></div> },
           { key: "school", header: "School", render: (row) => row.school },
           { key: "since", header: "Since", render: (row) => formatDate(row.since) },
-          { key: "note", header: "Basis", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.note}</span> },
+          { key: "note", header: "Basis", render: (row) => <span className="text-[12px] text-(--color-text-secondary)">{row.note}</span> },
           { key: "lift", header: "", render: (row) => <ResourceActionDialog triggerLabel="Lift" title={`Lift the restriction — ${row.guardian}`} description="Support sessions into this account become possible again." endpoint={`/api/super-admin/users/support-access/restrictions/${row.id}/lift`} method="POST" variant="textActionDanger" submitLabel="Lift restriction" confirmLabel="Confirm" fields={[{ name: "note", label: "Why it is being lifted", type: "textarea", required: true }]} /> }
         ]}
       />
@@ -1010,9 +1010,9 @@ async function SupportAccessTab() {
         getRowKey={(item) => item.id}
         emptyState="No support access sessions recorded yet."
         columns={[
-          { key: "by", header: "Agent", render: (item) => <span className="inline-flex items-center gap-1.5 font-semibold text-[var(--color-text-primary)]"><LifeBuoy className="h-3.5 w-3.5 text-[var(--color-text-muted)]" />{item.impersonatedBy}</span> },
-          { key: "target", header: "Target user", render: (item) => <div><p>{item.targetRole ? roleLabel(item.targetRole) : "User"} — {item.schoolName}</p><p className="text-[11px] text-[var(--color-text-muted)]">{item.targetEmail}</p></div> },
-          { key: "reason", header: "Reason", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.reason ?? "—"}</span> },
+          { key: "by", header: "Agent", render: (item) => <span className="inline-flex items-center gap-1.5 font-semibold text-(--color-text-primary)"><LifeBuoy className="h-3.5 w-3.5 text-(--color-text-muted)" />{item.impersonatedBy}</span> },
+          { key: "target", header: "Target user", render: (item) => <div><p>{item.targetRole ? roleLabel(item.targetRole) : "User"} — {item.schoolName}</p><p className="text-[11px] text-(--color-text-muted)">{item.targetEmail}</p></div> },
+          { key: "reason", header: "Reason", render: (item) => <span className="text-[12px] text-(--color-text-secondary)">{item.reason ?? "—"}</span> },
           { key: "duration", header: "Duration", render: (item) => (item.blocked ? "—" : item.windowEnded ? "30 min — auto-expired" : "In progress · 30 min max") },
           { key: "mode", header: "Mode", render: (item) => (item.blocked ? <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Blocked" /> : item.elevated ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Elevated" /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Read-only" />) },
           { key: "school", header: "School log", render: (item) => (item.blocked ? <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label={/safeguarding/i.test(item.blocked) ? "Safeguarding restriction" : "Open dispute"} /> : item.elevated && item.confirmedBy ? <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label={`Confirmed by ${item.confirmedBy}`} /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Visible" />) }
@@ -1053,9 +1053,9 @@ async function SupportAccessTab() {
         getRowKey={(item) => `w-${item.id}`}
         emptyState="No session in the last 7 days."
         columns={[
-          { key: "admin", header: "Admin", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.impersonatedBy}</p><p className="text-[11px] capitalize text-[var(--color-text-muted)]">{item.agentRole ?? ""}</p></div> },
-          { key: "target", header: "Target user", render: (item) => <div><p>{item.targetEmail}</p><p className="text-[11px] text-[var(--color-text-muted)]">{item.schoolName}</p></div> },
-          { key: "reason", header: "Reason", render: (item) => <span className="text-[12px] text-[var(--color-text-secondary)]">{item.reason ?? "—"}</span> },
+          { key: "admin", header: "Admin", render: (item) => <div><p className="font-semibold text-(--color-text-primary)">{item.impersonatedBy}</p><p className="text-[11px] capitalize text-(--color-text-muted)">{item.agentRole ?? ""}</p></div> },
+          { key: "target", header: "Target user", render: (item) => <div><p>{item.targetEmail}</p><p className="text-[11px] text-(--color-text-muted)">{item.schoolName}</p></div> },
+          { key: "reason", header: "Reason", render: (item) => <span className="text-[12px] text-(--color-text-secondary)">{item.reason ?? "—"}</span> },
           { key: "duration", header: "Duration", render: (item) => (item.blocked ? "—" : item.windowEnded ? "30 min · expired" : "In progress") },
           { key: "mode", header: "Mode", render: (item) => (item.blocked ? <StatusPill bg="var(--color-danger-dim)" fg="var(--color-danger)" label="Blocked" /> : item.elevated ? <StatusPill bg="var(--color-warning-dim)" fg="var(--color-warning)" label="Write escalated" /> : <StatusPill bg="var(--color-success-dim)" fg="var(--color-success)" label="Read-only" />) }
         ]}

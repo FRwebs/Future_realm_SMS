@@ -81,14 +81,14 @@ export function SubjectNotes({ data }: { data: SubjectNotesData }) {
         <Card pad={false}>
           <div className="flex flex-wrap items-center gap-3 border-b px-4 py-3" style={{ borderColor: CARD_BORDER }}>
             <label className="flex items-center gap-2 text-[11px] font-bold" style={{ color: MUTED }}>Show
-              <select className={`${inputClass} !w-auto`} value={show} onChange={(event) => setShow(event.target.value as Show)}><option value="any">Any week</option><option value="this">This week</option><option value="taught">Taught</option><option value="ahead">To come</option></select>
+              <select className={`${inputClass} w-auto!`} value={show} onChange={(event) => setShow(event.target.value as Show)}><option value="any">Any week</option><option value="this">This week</option><option value="taught">Taught</option><option value="ahead">To come</option></select>
             </label>
             <label className="flex items-center gap-2 text-[11px] font-bold" style={{ color: MUTED }}>Note
-              <select className={`${inputClass} !w-auto`} value={state} onChange={(event) => setState(event.target.value as StateFilter)}><option value="any">Any state</option><option value="Not started">Not started</option><option value="Draft">Draft</option><option value="Submitted">With the reviewer</option><option value="Returned">Returned</option><option value="Approved">Signed</option></select>
+              <select className={`${inputClass} w-auto!`} value={state} onChange={(event) => setState(event.target.value as StateFilter)}><option value="any">Any state</option><option value="Not started">Not started</option><option value="Draft">Draft</option><option value="Submitted">With the reviewer</option><option value="Returned">Returned</option><option value="Approved">Signed</option></select>
             </label>
             {!data.readOnly && unwritten.length ? (
               <label className="ml-auto flex items-center gap-2 text-[11px] font-bold" style={{ color: MUTED }}>Write a note
-                <select className={`${inputClass} !w-auto`} value={chooser} onChange={(event) => { setChooser(event.target.value); if (event.target.value) router.push(href(Number(event.target.value)) as Route); }}>
+                <select className={`${inputClass} w-auto!`} value={chooser} onChange={(event) => { setChooser(event.target.value); if (event.target.value) router.push(href(Number(event.target.value)) as Route); }}>
                   <option value="">Choose a week…</option>{unwritten.map((entry) => <option key={entry.week} value={entry.week}>Week {entry.week} — {entry.topic}</option>)}
                 </select>
               </label>

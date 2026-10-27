@@ -30,9 +30,9 @@ export default async function StudentServicesPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href="/portals/student" className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to student portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Library, hostel, and transport</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <Link href="/portals/student" className="text-[13px] font-semibold text-(--color-text-accent)">Back to student portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Library, hostel, and transport</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
           Read-only student service allocations and active library loan records.
         </p>
       </section>

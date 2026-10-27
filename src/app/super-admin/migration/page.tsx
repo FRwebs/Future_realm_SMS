@@ -185,11 +185,11 @@ async function RetentionTable() {
       getRowKey={(job) => job.id}
       footnote="The platform does not store these files itself, so deletion is evidenced by the person who destroyed them. A job past its date alerts the Super Admins and its specialist. Extending retention needs a reason and a named approver, and the school is told."
       columns={[
-        { key: "ref", header: "Job", render: (job) => <span className="font-[var(--font-mono)] text-[11px] font-bold">{job.ref}</span> },
-        { key: "school", header: "School", render: (job) => <span className="font-semibold text-[var(--color-text-primary)]">{job.school}</span> },
+        { key: "ref", header: "Job", render: (job) => <span className="font-(--font-mono) text-[11px] font-bold">{job.ref}</span> },
+        { key: "school", header: "School", render: (job) => <span className="font-semibold text-(--color-text-primary)">{job.school}</span> },
         { key: "signedOff", header: "Signed off", render: (job) => (job.signedOffAt ? formatDate(job.signedOffAt) : "—") },
-        { key: "files", header: "Files held", render: (job) => (job.filesCount === null ? <span className="text-[var(--color-text-muted)]">Not recorded</span> : job.filesCount) },
-        { key: "deletesOn", header: "Deletes on", render: (job) => <span>{formatDate(job.deletesOn)}{job.extended ? <span className="ml-1 text-[9.5px] text-[var(--color-text-muted)]">extended</span> : null}</span>, sortValue: (job) => job.deletesOn },
+        { key: "files", header: "Files held", render: (job) => (job.filesCount === null ? <span className="text-(--color-text-muted)">Not recorded</span> : job.filesCount) },
+        { key: "deletesOn", header: "Deletes on", render: (job) => <span>{formatDate(job.deletesOn)}{job.extended ? <span className="ml-1 text-[9.5px] text-(--color-text-muted)">extended</span> : null}</span>, sortValue: (job) => job.deletesOn },
         {
           key: "state",
           header: "State",
@@ -244,22 +244,22 @@ async function SetupProgressTab({ progress }: { progress: SuperAdminSetupProgres
           pageSize={false}
           getRowKey={(step) => step.key}
           columns={[
-            { key: "index", header: "#", render: (step) => <span className="font-[var(--font-mono)] font-bold text-[var(--color-text-muted)]">{step.stepNumber}</span> },
-            { key: "step", header: "Step", render: (step) => <span className="font-bold text-[var(--color-text-primary)]">{step.label}</span> },
+            { key: "index", header: "#", render: (step) => <span className="font-(--font-mono) font-bold text-(--color-text-muted)">{step.stepNumber}</span> },
+            { key: "step", header: "Step", render: (step) => <span className="font-bold text-(--color-text-primary)">{step.label}</span> },
             { key: "reached", header: "Reached", render: (step) => step.reached },
             {
               key: "completed",
               header: "Completed",
               render: (step) => (
                 <div className="flex items-center gap-2">
-                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-[var(--color-bg-subtle)]">
+                  <div className="h-1.5 w-16 overflow-hidden rounded-full bg-(--color-bg-subtle)">
                     <div className="h-full rounded-full" style={{ width: `${step.completionRatePct}%`, background: step.completionRatePct >= 70 ? "var(--color-success)" : step.completionRatePct >= 40 ? "var(--color-warning)" : "var(--color-danger)" }} />
                   </div>
-                  <span className="text-[11px] font-semibold text-[var(--color-text-primary)]">{step.completed}</span>
+                  <span className="text-[11px] font-semibold text-(--color-text-primary)">{step.completed}</span>
                 </div>
               )
             },
-            { key: "abandoned", header: "Abandoned here", render: (step) => <span className="font-semibold text-[var(--color-text-primary)]">{step.reached - step.completed}</span> }
+            { key: "abandoned", header: "Abandoned here", render: (step) => <span className="font-semibold text-(--color-text-primary)">{step.reached - step.completed}</span> }
           ]}
         />
 
@@ -344,11 +344,11 @@ async function InvitationsTab({ params }: { params: Record<string, string | unde
           />
         }
         columns={[
-          { key: "invitee", header: "Invitee", render: (row) => <div><p className="font-bold text-[var(--color-text-primary)]">{row.name}</p><p className="text-[10px] text-[var(--color-text-muted)]">{row.email}</p></div> },
+          { key: "invitee", header: "Invitee", render: (row) => <div><p className="font-bold text-(--color-text-primary)">{row.name}</p><p className="text-[10px] text-(--color-text-muted)">{row.email}</p></div> },
           { key: "school", header: "School", render: (row) => row.school },
           { key: "role", header: "Role", render: (row) => row.roleLabel },
           { key: "resends", header: "Resends", render: (row) => <span title={`${row.sentToday} of ${data.limit} links used in the last 24 hours`}>{row.resends}</span> },
-          { key: "issued", header: "Issued", render: (row) => <span>{formatDate(row.issuedAt)}<span className="block text-[10px] text-[var(--color-text-muted)]">{row.ageDays} day{row.ageDays === 1 ? "" : "s"} ago</span></span>, sortValue: (row) => row.issuedAt },
+          { key: "issued", header: "Issued", render: (row) => <span>{formatDate(row.issuedAt)}<span className="block text-[10px] text-(--color-text-muted)">{row.ageDays} day{row.ageDays === 1 ? "" : "s"} ago</span></span>, sortValue: (row) => row.issuedAt },
           { key: "state", header: "State", render: (row) => { const tone = invitationState[row.state]; return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{tone.label}</span>; } },
           {
             key: "action",
@@ -356,7 +356,7 @@ async function InvitationsTab({ params }: { params: Record<string, string | unde
             sortable: false,
             render: (row) =>
               row.state === "CANCELLED" ? (
-                <span className="text-[var(--color-text-muted)]">—</span>
+                <span className="text-(--color-text-muted)">—</span>
               ) : (
                 <div className="flex gap-3">
                   <ResourceActionDialog triggerLabel="Resend" title={`Resend the invitation — ${row.name}`} description={`A new link goes to ${row.email} and every earlier link stops working. ${row.sentToday} of ${data.limit} sends used in the last 24 hours.`} endpoint="/api/super-admin/migration/invitations/resend" method="POST" variant="textAction" submitLabel="Resend" fields={[{ name: "userIds", label: "Account", type: "select", defaultValue: row.userId, options: [{ label: `${row.name} — ${row.email}`, value: row.userId }] }]} />
@@ -408,10 +408,10 @@ async function SourceAdaptersTab() {
       footnote="Adapter coverage is a competitive metric, tracked in Analytics. Jobs run are matched to an adapter by the source system’s name."
       actions={<ResourceActionDialog triggerLabel="New adapter" title="New source adapter" description="Describe how one source system is read, so a specialist can pick it up without asking." endpoint="/api/super-admin/migration/source-adapters" method="POST" variant="secondary" submitLabel="Create adapter" fields={fields()} />}
       columns={[
-        { key: "name", header: "Source system", render: (adapter) => <span className="font-semibold text-[var(--color-text-primary)]">{adapter.name}</span> },
-        { key: "formats", header: "Accepted formats", render: (adapter) => adapter.formats ?? <span className="text-[var(--color-text-muted)]">Not described</span> },
+        { key: "name", header: "Source system", render: (adapter) => <span className="font-semibold text-(--color-text-primary)">{adapter.name}</span> },
+        { key: "formats", header: "Accepted formats", render: (adapter) => adapter.formats ?? <span className="text-(--color-text-muted)">Not described</span> },
         { key: "jobsRun", header: "Jobs run", render: (adapter) => adapter.jobsRun },
-        { key: "quirks", header: "Known quirks", render: (adapter) => <span className="text-[11.5px] text-[var(--color-text-secondary)]">{adapter.quirks ?? adapter.notes ?? "—"}</span> },
+        { key: "quirks", header: "Known quirks", render: (adapter) => <span className="text-[11.5px] text-(--color-text-secondary)">{adapter.quirks ?? adapter.notes ?? "—"}</span> },
         { key: "completion", header: "Completion rate", render: (adapter) => (adapter.completionRatePct === null ? "—" : `${adapter.completionRatePct}%`) },
         {
           key: "status",

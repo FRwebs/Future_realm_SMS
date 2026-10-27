@@ -86,7 +86,7 @@ export function TrainingCheckout({ basket, totalLabel, email, base, back, openDr
     <section className="min-w-0 overflow-hidden rounded-[14px]" style={{ background: INK, border: `1px solid ${INK}`, boxShadow: "0 18px 40px -26px rgba(13,35,21,0.7)" }}>
       <div className="flex flex-col gap-[14px] p-[18px] text-white sm:px-[20px]">
         <div>
-          <p className="text-[9.5px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.62)" }}>{requested ? "Requested from the school" : "Total paid to the provider"}</p>
+          <p className="text-[9.5px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.62)" }}>{requested ? "Requested from the school" : "Total paid to the provider"}</p>
           <p className="mt-[7px] text-[38px] font-extrabold leading-[1.05] tracking-[-0.035em] tabular-nums">{basket.length ? totalLabel : "₦0"}</p>
           <p className="mt-[6px] text-[11px] leading-[1.45]" style={{ color: "rgba(255,255,255,0.7)" }}>{basket.length} {basket.length === 1 ? "course" : "courses"} · prices held as they were when added · in naira</p>
         </div>
@@ -105,7 +105,7 @@ export function TrainingCheckout({ basket, totalLabel, email, base, back, openDr
         <button type="button" disabled={!ready || busy} onClick={settle} className="flex items-center justify-center gap-[7px] rounded-[10px] bg-white px-[14px] py-[11px] text-[12px] font-bold disabled:cursor-not-allowed disabled:opacity-60" style={{ color: INK }}>
           {busy ? "Sending…" : requested ? `Send the request · ${totalLabel}` : `Record the payment · ${totalLabel}`}
         </button>
-        <p className="text-pretty text-[10px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.62)" }}>
+        <p className="text-pretty text-[10px] leading-normal" style={{ color: "rgba(255,255,255,0.62)" }}>
           {requested ? "Nothing is charged to you. The courses open when whoever manages staff development approves." : `The courses open once the office has the reference. The receipt goes to ${email || "your account email"}.`}
         </p>
       </div>

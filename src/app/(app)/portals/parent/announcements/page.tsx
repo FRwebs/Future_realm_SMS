@@ -25,18 +25,18 @@ export default async function ParentAnnouncementsPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Family announcements</h1>
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to parent portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Family announcements</h1>
       </section>
       {announcements.map((item) => (
         <article key={item.id} className="surface-card p-6">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">{displayTime(item.time)}</p>
-          <h2 className="mt-3 font-[var(--font-heading)] text-[18px] font-bold text-[var(--color-text-primary)]">{item.title}</h2>
-          <p className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">{item.detail}</p>
+          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-(--color-text-muted)">{displayTime(item.time)}</p>
+          <h2 className="mt-3 font-(--font-heading) text-[18px] font-bold text-(--color-text-primary)">{item.title}</h2>
+          <p className="mt-3 text-[13px] leading-6 text-(--color-text-secondary)">{item.detail}</p>
         </article>
       ))}
       {announcements.length === 0 ? (
-        <section className="surface-card p-6 text-[13px] text-[var(--color-text-secondary)]">
+        <section className="surface-card p-6 text-[13px] text-(--color-text-secondary)">
           No announcements are available right now.
         </section>
       ) : null}

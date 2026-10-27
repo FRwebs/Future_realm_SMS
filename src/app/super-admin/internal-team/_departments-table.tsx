@@ -74,7 +74,7 @@ function DepartmentReview({ department, members, moduleOptions }: { department: 
               { label: "Raw value", value: ceilingSet ? JSON.stringify(department.permissionCeiling) : "Not set" }
             ]}
           />
-          <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className="text-[10px] leading-relaxed text-(--color-text-muted)">
             The ceiling caps what the department&apos;s lead can grant within their team. When the lead sets a member&apos;s module access it is checked against this: a module
             with no ceiling cannot be granted by the lead, and no level above the ceiling can be given. A Super Admin is not limited by it.
           </p>
@@ -93,7 +93,7 @@ export function DepartmentsTable({ items, actions, members = {}, moduleOptions }
       actions={actions}
       getRowKey={(item) => item.id}
       columns={[
-        { key: "name", header: "Department", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.name}</span> },
+        { key: "name", header: "Department", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.name}</span> },
         { key: "lead", header: "Lead", render: (item) => item.lead },
         {
           key: "ceiling",

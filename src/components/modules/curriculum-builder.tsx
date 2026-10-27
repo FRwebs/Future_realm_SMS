@@ -23,7 +23,7 @@ import { sendJson } from "@/lib/modules/submit";
 import { toneSwatches } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 
-const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-[var(--color-bg-surface)]";
+const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface)";
 
 /** A number out of whatever was typed, never negative and never NaN. */
 function num(value: unknown): number {
@@ -90,7 +90,7 @@ function Rail({
     <aside className={cn(CARD, "h-fit px-[14px] py-[14px]")}>
       <div className="mb-[11px]">
         <div className="mb-[6px] flex items-baseline justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-[#67766D]">Progress</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#67766D]">Progress</span>
           <span className="text-[10.5px] font-semibold text-[#0D2315]">{doneCount} of 7 done</span>
         </div>
         <div className="h-[5px] w-full overflow-hidden rounded-full bg-[#EDF3EF]">
@@ -116,7 +116,7 @@ function Rail({
               >
                 <span
                   className={cn(
-                    "mt-[1px] flex h-[17px] w-[17px] flex-none items-center justify-center rounded-full border text-[9.5px] font-bold",
+                    "mt-px flex h-[17px] w-[17px] flex-none items-center justify-center rounded-full border text-[9.5px] font-bold",
                     section.done
                       ? "border-[#22A06B] bg-[#22A06B] text-white"
                       : on
@@ -170,7 +170,7 @@ function Meter({ pct, tone, label, note }: { pct: number; tone: PanelTone; label
 }
 
 const CELL =
-  "w-full min-w-0 rounded-[8px] border-[1.5px] bg-white px-[9px] py-[7px] text-[11.5px] font-medium text-[#0D2315] outline-none focus:border-[#12796A]";
+  "w-full min-w-0 rounded-[8px] border-[1.5px] bg-white px-[9px] py-[7px] text-[11.5px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A]";
 
 function GridCell({
   value,
@@ -273,13 +273,13 @@ function BuilderHead({
   backHref: string;
 }) {
   const pill =
-    "inline-flex flex-none items-center gap-[6px] whitespace-nowrap rounded-full border border-white/[0.18] bg-white/10 px-[12px] py-[7px] text-[11px] font-semibold text-white transition hover:bg-white/20";
+    "inline-flex flex-none items-center gap-[6px] whitespace-nowrap rounded-full border border-white/18 bg-white/10 px-[12px] py-[7px] text-[11px] font-semibold text-white transition hover:bg-white/20";
 
   return (
     <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-        <div className="absolute -right-[18px] -top-[70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+        <div className="absolute right-[-80px] top-[-132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+        <div className="absolute right-[-18px] top-[-70px] h-[212px] w-[212px] rounded-full border border-[rgba(95,214,180,0.08)]" />
       </div>
       <div className="relative flex flex-wrap items-center justify-between gap-x-5 gap-y-2.5">
         <div className="min-w-0 max-w-[620px]">
@@ -288,11 +288,11 @@ function BuilderHead({
             <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">
               School Configuration
             </span>
-            <span className="rounded-full border border-white/[0.18] bg-white/10 px-[8px] py-[2px] text-[9px] font-bold uppercase tracking-[0.08em] text-white/70">
+            <span className="rounded-full border border-white/18 bg-white/10 px-[8px] py-[2px] text-[9px] font-bold uppercase tracking-[0.08em] text-white/70">
               {tag}
             </span>
           </div>
-          <h1 className="text-pretty font-[family-name:var(--font-heading)] text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
+          <h1 className="text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
             Build a curriculum
           </h1>
           <p className="mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60">
@@ -520,7 +520,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
 
       {/* The mockup's builder is a 248px rail beside the section; it stacks
           on a narrow screen rather than squeezing both. */}
-      <div className="grid min-w-0 gap-4 lg:[grid-template-columns:248px_minmax(0,1fr)]">
+      <div className="grid min-w-0 gap-4 lg:grid-cols-[248px_minmax(0,1fr)]">
         <Rail
           sections={sections}
           step={step}
@@ -532,7 +532,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
         <section className={cn(CARD, "px-[18px] py-[15px]")}>
           <div className="mb-[13px] flex flex-wrap items-start justify-between gap-x-4 gap-y-2 border-b border-[#EDF3EF] pb-[11px]">
             <div className="min-w-0">
-              <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
+              <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
                 {current.title}
               </h2>
               <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#67766D]">{current.sub}</p>
@@ -577,7 +577,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
               />
 
               <div className="grid gap-[6px]">
-                <div className="grid items-center gap-[7px] px-[2px] [grid-template-columns:minmax(0,1.6fr)_84px_84px_118px_26px]">
+                <div className="grid items-center gap-[7px] px-[2px] grid-cols-[minmax(0,1.6fr)_84px_84px_118px_26px]">
                   {["Component", "Max mark", "Weight %", "Aggregation", ""].map((head, index) => (
                     <span
                       key={head || index}
@@ -592,7 +592,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
                 </div>
 
                 {components.map((row, index) => (
-                  <div key={index} className="grid items-center gap-[7px] [grid-template-columns:minmax(0,1.6fr)_84px_84px_118px_26px]">
+                  <div key={index} className="grid items-center gap-[7px] grid-cols-[minmax(0,1.6fr)_84px_84px_118px_26px]">
                     <GridCell
                       value={row.name}
                       bold
@@ -620,7 +620,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
                   </div>
                 ))}
 
-                <div className="mt-[3px] grid items-center gap-[7px] [grid-template-columns:minmax(0,1.6fr)_84px_84px_118px_26px]">
+                <div className="mt-[3px] grid items-center gap-[7px] grid-cols-[minmax(0,1.6fr)_84px_84px_118px_26px]">
                   <GridCell
                     value={draftComponent.name}
                     placeholder="Another component — e.g. Practical"
@@ -686,7 +686,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
               />
 
               <div className="grid gap-[6px]">
-                <div className="grid items-center gap-[7px] px-[2px] [grid-template-columns:96px_72px_72px_minmax(0,1.2fr)_66px_26px]">
+                <div className="grid items-center gap-[7px] px-[2px] grid-cols-[96px_72px_72px_minmax(0,1.2fr)_66px_26px]">
                   {["Grade", "From", "To", "What it is called", "Points", ""].map((head, index) => (
                     <span
                       key={head || index}
@@ -704,7 +704,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
                   .map((band, index) => ({ band, index }))
                   .sort((a, b) => b.band.hi - a.band.hi)
                   .map(({ band, index }) => (
-                    <div key={index} className="grid items-center gap-[7px] [grid-template-columns:96px_72px_72px_minmax(0,1.2fr)_66px_26px]">
+                    <div key={index} className="grid items-center gap-[7px] grid-cols-[96px_72px_72px_minmax(0,1.2fr)_66px_26px]">
                       <GridCell
                         value={band.grade}
                         bold
@@ -735,7 +735,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
                     </div>
                   ))}
 
-                <div className="mt-[3px] grid items-center gap-[7px] [grid-template-columns:96px_72px_72px_minmax(0,1.2fr)_66px_26px]">
+                <div className="mt-[3px] grid items-center gap-[7px] grid-cols-[96px_72px_72px_minmax(0,1.2fr)_66px_26px]">
                   <GridCell value={draftBand.grade} placeholder="Grade" onChange={(next) => setDraftBand({ ...draftBand, grade: next })} />
                   <GridCell value={draftBand.lo} placeholder="From" right onChange={(next) => setDraftBand({ ...draftBand, lo: next })} />
                   <GridCell value={draftBand.hi} placeholder="To" right onChange={(next) => setDraftBand({ ...draftBand, hi: next })} />
@@ -807,7 +807,7 @@ function FormSection({
   const swatch = toneSwatches[footTone];
   return (
     <>
-      <div className="grid gap-x-[14px] gap-y-[13px] [grid-template-columns:repeat(auto-fit,minmax(240px,1fr))]">
+      <div className="grid gap-x-[14px] gap-y-[13px] grid-cols-[repeat(auto-fit,minmax(240px,1fr))]">
         {section.fields.map((field) => {
           const key = `${section.key}:${field.label}`;
           return (

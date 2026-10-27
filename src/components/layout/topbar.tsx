@@ -60,7 +60,8 @@ import {
   Zap,
 } from "lucide-react";
 
-import { apiJson } from "@/lib/api/client";
+import { apiJson, getUrl } from "@/lib/api/client";
+import { membershipsContract, notificationsContract } from "@/lib/api/contracts";
 import { roleLabels } from "@/lib/auth/roles";
 import type {
   SessionUser,
@@ -149,7 +150,7 @@ const iconMap = {
 };
 
 function chromeButton() {
-  return "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)] transition hover:border-[var(--color-border-strong)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]";
+  return "inline-flex h-10 w-10 items-center justify-center rounded-[10px] border border-(--color-border-default) bg-(--color-bg-surface) text-(--color-text-secondary) shadow-(--shadow-sm) transition hover:border-(--color-border-strong) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary)";
 }
 
 function initials(name: string) {
@@ -285,7 +286,7 @@ function DropdownShell({
   return (
     <div
       className={cn(
-        "absolute right-0 top-[calc(100%+0.85rem)] z-[200] origin-top-right transition-all duration-200 ease-out",
+        "absolute right-0 top-[calc(100%+0.85rem)] z-200 origin-top-right transition-all duration-200 ease-out",
         open
           ? "pointer-events-auto translate-y-0 scale-100 opacity-100"
           : "pointer-events-none -translate-y-1 scale-95 opacity-0",
@@ -311,7 +312,7 @@ function NotificationBell({
   // Kept fresh while the tab is open: a notice sent after the page loaded shows up in the count within a minute, without a reload.
   const feed = useQuery({
     queryKey: ["notifications", endpoint],
-    queryFn: ({ signal }) => apiJson<StudentPortalNotificationView[]>(endpoint!, signal),
+    queryFn: ({ signal }) => apiJson(endpoint!, signal, notificationsContract),
     enabled: Boolean(endpoint),
     refetchInterval: 60_000,
     staleTime: 15_000,
@@ -355,7 +356,7 @@ function NotificationBell({
       <button
         type="button"
         onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
-        className="relative flex flex-none items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-[var(--color-bg-surface)] px-[10px] py-[6.5px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
+        className="relative flex flex-none items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-(--color-bg-surface) px-[10px] py-[6.5px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
         aria-label={`${count} unread notifications`}
         aria-expanded={open}
       >
@@ -369,12 +370,12 @@ function NotificationBell({
       </button>
 
       <DropdownShell open={open} className="w-72">
-        <div className="overflow-hidden rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)]">
-          <div className="border-b border-[var(--color-border-default)] px-4 py-3.5">
-            <p className="text-sm font-semibold text-[var(--color-text-primary)]">
+        <div className="overflow-hidden rounded-2xl border border-(--color-border-default) bg-(--color-bg-surface) shadow-(--shadow-lg)">
+          <div className="border-b border-(--color-border-default) px-4 py-3.5">
+            <p className="text-sm font-semibold text-(--color-text-primary)">
               Notifications
             </p>
-            <p className="text-xs text-[var(--color-text-secondary)]">
+            <p className="text-xs text-(--color-text-secondary)">
               {count} unread · everything routed to you
             </p>
           </div>
@@ -385,28 +386,28 @@ function NotificationBell({
                 const href = (notification as { href?: string | null }).href;
                 const body = (
                   <>
-                    <p className="text-xs font-semibold text-[var(--color-text-primary)]">
+                    <p className="text-xs font-semibold text-(--color-text-primary)">
                       {notification.status !== "READ" ? <span aria-hidden className="mr-[6px] inline-block h-[6px] w-[6px] rounded-full bg-[#12796A]" /> : null}
                       {notification.title}
                     </p>
-                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-[var(--color-text-secondary)]">
+                    <p className="mt-1 line-clamp-2 text-xs leading-5 text-(--color-text-secondary)">
                       {notification.body}
                     </p>
                   </>
                 );
                 return href ? (
-                  <Link key={notification.id} href={href as never} onClick={() => { setOpen(false); markRead(); }} className="block rounded-2xl px-3 py-2.5 text-left transition hover:bg-[var(--color-bg-subtle)]">
+                  <Link key={notification.id} href={href as never} onClick={() => { setOpen(false); markRead(); }} className="block rounded-2xl px-3 py-2.5 text-left transition hover:bg-(--color-bg-subtle)">
                     {body}
                   </Link>
                 ) : (
-                  <div key={notification.id} className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-[var(--color-bg-subtle)]">
+                  <div key={notification.id} className="rounded-2xl px-3 py-2.5 text-left transition hover:bg-(--color-bg-subtle)">
                     {body}
                   </div>
                 );
               })
             ) : (
               <div className="px-3 py-6 text-center">
-                <p className="text-xs text-[var(--color-text-secondary)]">
+                <p className="text-xs text-(--color-text-secondary)">
                   Nothing is routed to you right now.
                 </p>
                 {!endpoint ? (
@@ -535,11 +536,12 @@ function ProfileDropdown({
 }) {
   const router = useRouter();
   const isSuperAdmin = portalType === "super_admin";
-  const [schools, setSchools] = useState<Array<{ schoolId: string; schoolName: string; role: string; current: boolean }>>([]);
-  useEffect(() => {
-    if (isSuperAdmin) return;
-    void fetch("/api/v1/memberships/mine", { credentials: "include" }).then((response) => (response.ok ? response.json() : null)).then((body: { data?: typeof schools } | null) => setSchools(body?.data ?? [])).catch(() => undefined);
-  }, [isSuperAdmin]);
+  const memberships = useQuery({
+    queryKey: ["memberships", "mine"],
+    queryFn: ({ signal }) => apiJson(getUrl("/api/v1/memberships/mine"), signal, membershipsContract),
+    enabled: !isSuperAdmin,
+  });
+  const schools = memberships.data ?? [];
 
   async function switchSchool(schoolId: string) {
     const csrf = document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1] ?? "";
@@ -577,9 +579,9 @@ function ProfileDropdown({
     // The mockup's account menu: who you are in a tinted band, the account
     // pages, then sign-out with the reassurance that unsynced work is kept.
     return (
-      <div className="w-[246px] overflow-hidden rounded-[13px] border border-[#DEE8E2] bg-[var(--color-bg-surface)] shadow-[0_20px_44px_-18px_rgba(13,35,21,0.42)]">
+      <div className="w-[246px] overflow-hidden rounded-[13px] border border-[#DEE8E2] bg-(--color-bg-surface) shadow-[0_20px_44px_-18px_rgba(13,35,21,0.42)]">
         <div className="flex items-center gap-[10px] border-b border-[#EDF3EF] bg-[#F7FAF8] px-[14px] py-[13px]">
-          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#0D2315] font-[family-name:var(--font-heading)] text-[11px] font-extrabold text-white">
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#0D2315] font-(family-name:--font-heading) text-[11px] font-extrabold text-white">
             {initials(session.name)}
           </span>
           <div className="min-w-0 flex-1">
@@ -593,7 +595,7 @@ function ProfileDropdown({
           </div>
         </div>
         {session.impersonation ? (
-          <div className="mx-[6px] mt-[6px] rounded-[9px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-[11px] py-[7px] text-[11px] font-semibold text-[var(--color-warning)]">
+          <div className="mx-[6px] mt-[6px] rounded-[9px] border border-(--color-warning) bg-(--color-warning-dim) px-[11px] py-[7px] text-[11px] font-semibold text-(--color-warning)">
             Impersonating account
           </div>
         ) : null}
@@ -668,28 +670,28 @@ function ProfileDropdown({
   }
 
   return (
-    <div className="w-72 overflow-hidden rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] shadow-[var(--shadow-lg)]">
-      <div className="border-b border-[var(--color-border-default)] px-4 py-4">
+    <div className="w-72 overflow-hidden rounded-2xl border border-(--color-border-default) bg-(--color-bg-surface) shadow-(--shadow-lg)">
+      <div className="border-b border-(--color-border-default) px-4 py-4">
         <div className="flex items-center gap-3">
           <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[13px] bg-[#0d2315] text-xs font-black text-white shadow-[0_10px_24px_-8px_rgba(13,35,21,0.4)]">
             {initials(session.name)}
           </div>
 
           <div className="min-w-0">
-            <p className="truncate text-[0.84rem] font-semibold text-[var(--color-text-primary)]">
+            <p className="truncate text-[0.84rem] font-semibold text-(--color-text-primary)">
               {session.name}
             </p>
             {isSuperAdmin ? (
-              <p className="truncate text-[0.72rem] text-[var(--color-text-secondary)]">
+              <p className="truncate text-[0.72rem] text-(--color-text-secondary)">
                 {session.email}
               </p>
             ) : (
-              <p className="truncate text-[0.72rem] text-[var(--color-text-secondary)]">
+              <p className="truncate text-[0.72rem] text-(--color-text-secondary)">
                 {roleLabels[session.role]}
               </p>
             )}
             {schoolName ? (
-              <p className="truncate text-[0.72rem] text-[var(--color-text-muted)]">
+              <p className="truncate text-[0.72rem] text-(--color-text-muted)">
                 {schoolName}
               </p>
             ) : null}
@@ -697,13 +699,13 @@ function ProfileDropdown({
         </div>
         {isSuperAdmin ? (
           <div className="mt-3 flex flex-wrap items-center gap-1.5">
-            <span className="rounded-full bg-[var(--color-bg-subtle)] px-2.5 py-1 text-[0.66rem] font-bold text-[var(--color-text-secondary)]">
+            <span className="rounded-full bg-(--color-bg-subtle) px-2.5 py-1 text-[0.66rem] font-bold text-(--color-text-secondary)">
               {roleLabels[session.role]}
             </span>
           </div>
         ) : null}
         {session.impersonation ? (
-          <div className="mt-3 rounded-[12px] border border-[var(--color-warning)] bg-[var(--color-warning-dim)] px-3 py-2 text-[11.5px] font-semibold text-[var(--color-warning)]">
+          <div className="mt-3 rounded-[12px] border border-(--color-warning) bg-(--color-warning-dim) px-3 py-2 text-[11.5px] font-semibold text-(--color-warning)">
             Impersonating account
           </div>
         ) : null}
@@ -718,16 +720,16 @@ function ProfileDropdown({
             className={cn(
               "flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left transition",
               item.danger
-                ? "text-[var(--color-danger)] hover:bg-[var(--color-danger-dim)]"
-                : "text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]",
+                ? "text-danger hover:bg-(--color-danger-dim)"
+                : "text-(--color-text-secondary) hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary)",
             )}
           >
             <Icon
               name={item.icon}
               className={
                 item.danger
-                  ? "text-[var(--color-danger)]"
-                  : "text-[var(--color-text-muted)]"
+                  ? "text-danger"
+                  : "text-(--color-text-muted)"
               }
             />
             <span className="min-w-0 flex-1">
@@ -735,20 +737,20 @@ function ProfileDropdown({
                 className={cn(
                   "block text-[0.82rem] font-semibold",
                   item.danger
-                    ? "text-[var(--color-danger)]"
-                    : "text-[var(--color-text-primary)]",
+                    ? "text-danger"
+                    : "text-(--color-text-primary)",
                 )}
               >
                 {item.label}
               </span>
               {item.note ? (
-                <span className="mt-0.5 block truncate text-[0.68rem] font-normal text-[var(--color-text-muted)]">
+                <span className="mt-0.5 block truncate text-[0.68rem] font-normal text-(--color-text-muted)">
                   {item.note}
                 </span>
               ) : null}
             </span>
             {typeof item.badge === "number" && item.badge > 0 ? (
-              <span className="shrink-0 rounded-full bg-[var(--color-warning-dim)] px-2 py-0.5 text-[0.66rem] font-bold text-[var(--color-warning)]">
+              <span className="shrink-0 rounded-full bg-(--color-warning-dim) px-2 py-0.5 text-[0.66rem] font-bold text-(--color-warning)">
                 {item.badge} open
               </span>
             ) : null}
@@ -756,7 +758,7 @@ function ProfileDropdown({
         ))}
       </div>
 
-      <div className="border-t border-[var(--color-border-default)] p-2">
+      <div className="border-t border-(--color-border-default) p-2">
         <button
           type="button"
           onClick={() =>
@@ -767,9 +769,9 @@ function ProfileDropdown({
               danger: true,
             })
           }
-          className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold text-[var(--color-danger)] transition hover:bg-[var(--color-danger-dim)]"
+          className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold text-danger transition hover:bg-(--color-danger-dim)"
         >
-          <LogOut className="h-3.5 w-3.5 text-[var(--color-danger)]" />
+          <LogOut className="h-3.5 w-3.5 text-danger" />
           <span>Sign Out</span>
         </button>
       </div>
@@ -842,8 +844,8 @@ export function Topbar({
   }, []);
 
   return (
-    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-      <div className="relative flex h-[var(--layout-topbar-height)] items-center justify-between gap-4 overflow-visible px-4 md:px-6">
+    <header className="sticky top-0 z-30 w-full shrink-0 border-b border-(--color-border-default) bg-(--color-bg-surface)">
+      <div className="relative flex h-(--layout-topbar-height) items-center justify-between gap-4 overflow-visible px-4 md:px-6">
         <div className="flex min-w-0 flex-1 items-center gap-[10px]">
           <button
             type="button"
@@ -870,15 +872,15 @@ export function Topbar({
           <div className="min-w-[96px] max-w-[340px] flex-[0_1_auto]">
             <h1
               className={cn(
-                "truncate text-[var(--color-text-primary)]",
+                "truncate text-(--color-text-primary)",
                 portalType === "super_admin"
                   ? "text-[13.5px] font-semibold leading-[1.22]"
-                  : "font-[family-name:var(--font-heading)] text-[12.5px] font-bold leading-[1.25]",
+                  : "font-(family-name:--font-heading) text-[12.5px] font-bold leading-tight",
               )}
             >
               {contextTitle}
             </h1>
-            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[9.5px] font-medium leading-[1.3] text-[var(--color-text-muted)]">
+            <div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-[9.5px] font-medium leading-[1.3] text-(--color-text-muted)">
               {contextMeta
                 .filter(
                   (item) =>
@@ -890,7 +892,7 @@ export function Topbar({
                     className="inline-flex min-w-0 items-center gap-1.5"
                   >
                     {index > 0 ? (
-                      <span className="text-[var(--color-text-muted)]">·</span>
+                      <span className="text-(--color-text-muted)">·</span>
                     ) : null}
                     <span className="truncate">{item}</span>
                   </span>
@@ -927,18 +929,18 @@ export function Topbar({
         <div className="flex shrink-0 items-center gap-2">
           {portalType === "super_admin" ? (
             <div className="hidden items-center gap-2 lg:flex">
-              <span className="inline-flex items-center gap-2 rounded-full border border-[var(--color-border-default)] bg-[var(--color-success-dim)] px-3 py-1.5 text-[12px] font-semibold leading-[1.2] text-[var(--color-success)]">
-                <span className="h-1.5 w-1.5 rounded-full bg-[var(--color-success)]" />
+              <span className="inline-flex items-center gap-2 rounded-full border border-(--color-border-default) bg-(--color-success-dim) px-3 py-1.5 text-[12px] font-semibold leading-[1.2] text-(--color-success)">
+                <span className="h-1.5 w-1.5 rounded-full bg-(--color-success)" />
                 {isProduction ? "Production" : "Development"}
               </span>
               <Link
                 href="/super-admin/schools?tab=approval-queue"
-                className="relative inline-flex items-center gap-1.5 rounded-[9px] border border-[var(--color-border-default)] px-[11px] py-[7px] text-[12.5px] font-semibold leading-[1.2] text-[var(--color-text-secondary)] transition hover:border-[var(--color-border-strong)] hover:text-[var(--color-text-primary)]"
+                className="relative inline-flex items-center gap-1.5 rounded-[9px] border border-(--color-border-default) px-[11px] py-[7px] text-[12.5px] font-semibold leading-[1.2] text-(--color-text-secondary) transition hover:border-(--color-border-strong) hover:text-(--color-text-primary)"
               >
                 <BellRing className="h-3.5 w-3.5" />
                 Alerts
                 {platformStats?.reviewQueueCount ? (
-                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--color-danger)] px-1 text-[0.6rem] font-bold leading-none text-white">
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-1 text-[0.6rem] font-bold leading-none text-white">
                     {platformStats.reviewQueueCount > 99
                       ? "99+"
                       : platformStats.reviewQueueCount}
@@ -1002,22 +1004,22 @@ export function Topbar({
                 type="button"
                 onClick={() => setDropdownOpen((value) => !value)}
                 aria-expanded={dropdownOpen}
-                className="flex items-center gap-1.5 rounded-full border border-[var(--color-border-default)] py-1 pl-1 pr-2.5 transition hover:border-[var(--color-border-strong)]"
+                className="flex items-center gap-1.5 rounded-full border border-(--color-border-default) py-1 pl-1 pr-2.5 transition hover:border-(--color-border-strong)"
               >
                 <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[#0d2315] text-[0.6rem] font-black text-white">
                   {initials(session.name)}
                 </span>
                 <span className="hidden text-left leading-tight sm:block">
-                  <span className="block truncate text-[0.76rem] font-semibold text-[var(--color-text-primary)]">
+                  <span className="block truncate text-[0.76rem] font-semibold text-(--color-text-primary)">
                     {session.name}
                   </span>
-                  <span className="block truncate text-[0.64rem] text-[var(--color-text-muted)]">
+                  <span className="block truncate text-[0.64rem] text-(--color-text-muted)">
                     {roleLabels[session.role]}
                   </span>
                 </span>
                 <ChevronDown
                   className={cn(
-                    "h-3.5 w-3.5 text-[var(--color-text-muted)] transition-transform duration-200",
+                    "h-3.5 w-3.5 text-(--color-text-muted) transition-transform duration-200",
                     dropdownOpen && "rotate-180",
                   )}
                 />
@@ -1030,18 +1032,18 @@ export function Topbar({
                 className="flex items-center gap-2 rounded-full border border-[#DEE8E2] py-[3.5px] pl-1 pr-[10px] transition-[background,border-color] duration-150 hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
               >
                 <span
-                  className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-full font-[family-name:var(--font-heading)] text-[10px] font-extrabold"
+                  className="flex h-[27px] w-[27px] flex-none items-center justify-center rounded-full font-(family-name:--font-heading) text-[10px] font-extrabold"
                   style={studentChrome ? { background: "#EBF1FA", color: "#2A5A96", border: "1px solid #C9DAF0" } : { background: "#0D2315", color: "#fff" }}
                 >
                   {initials(session.name)}
                 </span>
                 <span className="hidden min-w-0 text-left sm:block">
-                  <span className="block whitespace-nowrap text-[11px] font-semibold leading-[1.25] text-[var(--color-text-primary)]">
+                  <span className="block whitespace-nowrap text-[11px] font-semibold leading-tight text-(--color-text-primary)">
                     {session.name}
                   </span>
                   {/* A student's class is the half of "who they are" that
                       actually varies between two people with the same role. */}
-                  <span className="block whitespace-nowrap text-[9.5px] leading-[1.25] text-[#67766D]">
+                  <span className="block whitespace-nowrap text-[9.5px] leading-tight text-[#67766D]">
                     {studentChrome ? studentChrome.who.line : roleLabels[session.role]}
                   </span>
                 </span>

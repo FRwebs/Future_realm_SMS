@@ -32,19 +32,19 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
   return (
     <div className="grid gap-[14px]">
       <ViewTracker kind="TICKET" entityId={ticketId} label={`${ticket.ticketNo} · ${ticket.subject}`} href={`/super-admin/support/${ticketId}`} />
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+      <section className="relative overflow-hidden rounded-(--radius-hero) border border-(--color-border-strong) bg-[#0d2315] p-6 text-white md:p-7">
         <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
           <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
           <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
           <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
           <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
         </svg>
-        <div className="relative z-[1]">
+        <div className="relative z-1">
         <Link href="/super-admin/support" className="text-[11.5px] font-semibold text-[rgba(255,255,255,0.85)] underline">← Back to support</Link>
         <div className="mt-4 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
             <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-white/60">{ticket.ticketNo} · {ticket.schoolName}</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[23.5px] font-bold text-white">{ticket.subject}</h1>
+            <h1 className="mt-2 font-(--font-heading) text-[23.5px] font-bold text-white">{ticket.subject}</h1>
             <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[rgba(255,255,255,0.74)]">{ticket.description}</p>
           </div>
           <div className="flex flex-wrap items-start gap-2">
@@ -60,20 +60,20 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
 
       <section className="grid gap-3 md:grid-cols-4">
         <article className="surface-card p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Category</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.category.replaceAll("_", " ")}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Category</p>
+          <p className="mt-2 font-(--font-heading) text-[14.5px] font-bold text-(--color-text-primary)">{ticket.category.replaceAll("_", " ")}</p>
         </article>
         <article className="surface-card p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Assigned to</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.assignedTo?.name ?? "Unassigned"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Assigned to</p>
+          <p className="mt-2 font-(--font-heading) text-[14.5px] font-bold text-(--color-text-primary)">{ticket.assignedTo?.name ?? "Unassigned"}</p>
         </article>
         <article className="surface-card p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">SLA deadline</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.slaDueAt ? formatDate(ticket.slaDueAt) : "Not set"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">SLA deadline</p>
+          <p className="mt-2 font-(--font-heading) text-[14.5px] font-bold text-(--color-text-primary)">{ticket.slaDueAt ? formatDate(ticket.slaDueAt) : "Not set"}</p>
         </article>
         <article className="surface-card p-4">
-          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">CSAT</p>
-          <p className="mt-2 font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{ticket.csat ? `${ticket.csat.score} / 5` : "Not yet rated"}</p>
+          <p className="text-[9px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">CSAT</p>
+          <p className="mt-2 font-(--font-heading) text-[14.5px] font-bold text-(--color-text-primary)">{ticket.csat ? `${ticket.csat.score} / 5` : "Not yet rated"}</p>
         </article>
       </section>
 
@@ -144,9 +144,9 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
               header: "Actions",
               render: (item) =>
                 item.status === "PENDING" ? (
-                  <Link href="/super-admin/support?tab=corrections" className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Validate and approve</Link>
+                  <Link href="/super-admin/support?tab=corrections" className="text-[11.5px] font-semibold text-(--color-text-accent) hover:underline">Validate and approve</Link>
                 ) : (
-                  <span className="text-xs text-[var(--color-text-muted)]">{item.completedAt ? formatDate(item.completedAt) : "-"}</span>
+                  <span className="text-xs text-(--color-text-muted)">{item.completedAt ? formatDate(item.completedAt) : "-"}</span>
                 )
             }
           ]}
@@ -158,8 +158,8 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
         <div className="flex items-start justify-between gap-4">
           <div>
             <p className="section-eyebrow">Thread</p>
-            <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Conversation</h2>
-            <p className="mt-2 text-[11.5px] text-[var(--color-text-secondary)]">Internal notes are only visible to the platform team.</p>
+            <h2 className="mt-2 text-[12.5px] font-semibold text-(--color-text-primary)">Conversation</h2>
+            <p className="mt-2 text-[11.5px] text-(--color-text-secondary)">Internal notes are only visible to the platform team.</p>
           </div>
           <ResourceActionDialog
             triggerLabel="Add message"
@@ -183,14 +183,14 @@ export default async function SuperAdminTicketDetailPage({ params }: { params: P
               style={message.internalOnly ? { background: "var(--color-warning-dim)" } : { background: "var(--color-bg-subtle)" }}
             >
               <div className="flex items-center justify-between gap-3">
-                <span className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{message.author}{message.internalOnly ? " · Internal note" : ""}</span>
-                <span className="text-[10px] text-[var(--color-text-muted)]">{formatDate(message.createdAt)}</span>
+                <span className="text-[11.5px] font-semibold text-(--color-text-primary)">{message.author}{message.internalOnly ? " · Internal note" : ""}</span>
+                <span className="text-[10px] text-(--color-text-muted)">{formatDate(message.createdAt)}</span>
               </div>
-              <p className="mt-2 text-[11.5px] leading-6 text-[var(--color-text-secondary)]">{message.body}</p>
+              <p className="mt-2 text-[11.5px] leading-6 text-(--color-text-secondary)">{message.body}</p>
             </div>
           ))}
           {ticket.messages.length === 0 ? (
-            <p className="rounded-[9px] bg-[var(--color-bg-subtle)] px-4 py-6 text-center text-[11.5px] text-[var(--color-text-muted)]">No messages yet.</p>
+            <p className="rounded-[9px] bg-(--color-bg-subtle) px-4 py-6 text-center text-[11.5px] text-(--color-text-muted)">No messages yet.</p>
           ) : null}
         </div>
       </section>

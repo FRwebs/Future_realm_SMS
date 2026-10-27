@@ -1,12 +1,14 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { TierChangePanel } from "@/lib/modules/panels";
 import { readableError, sendJson } from "@/lib/modules/submit";
 import { INK, MUTED, toneSwatches } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
+import { apiJson } from "@/lib/api/client";
 
 /**
  * Changing tier part-way through a term.
@@ -48,7 +50,7 @@ const day = (iso: string | null) =>
     ? new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" })
     : "—";
 
-const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-[var(--color-bg-surface)]";
+const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface)";
 
 function Row({ label, value, hint }: { label: string; value: string; hint?: string }) {
   return (
@@ -58,7 +60,7 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
           {label}
         </div>
         {hint ? (
-          <div className="mt-[1px] text-pretty text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>
+          <div className="mt-px text-pretty text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>
             {hint}
           </div>
         ) : null}
@@ -73,44 +75,23 @@ function Row({ label, value, hint }: { label: string; value: string; hint?: stri
 export function TierChange({ panel }: { panel: TierChangePanel }) {
   const router = useRouter();
   const [open, setOpen] = useState<string | null>(null);
-  const [preview, setPreview] = useState<Preview | null>(null);
-  const [loading, setLoading] = useState(false);
   const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [actionError, setError] = useState<string | null>(null);
   const [done, setDone] = useState<string | null>(null);
   const [showSmaller, setShowSmaller] = useState(false);
 
-  const load = useCallback(
-    async (tier: string) => {
-      setLoading(true);
-      setError(null);
-      setPreview(null);
-      try {
-        const response = await fetch(`${panel.previewEndpoint}?tier=${encodeURIComponent(tier)}`, {
-          credentials: "include",
-        });
-        const result = (await response.json().catch(() => ({}))) as {
-          ok?: boolean;
-          data?: Preview;
-          error?: string;
-          message?: string;
-        };
-        if (!response.ok || result.ok === false || !result.data) {
-          throw new Error(readableError(result.error ?? result.message));
-        }
-        setPreview(result.data);
-      } catch (cause) {
-        setError(cause instanceof Error ? cause.message : "That estimate could not be worked out.");
-      } finally {
-        setLoading(false);
-      }
-    },
-    [panel.previewEndpoint],
-  );
-
-  useEffect(() => {
-    if (open) void load(open);
-  }, [open, load]);
+  // What moving to the chosen tier would cost, worked out by the server. Cached per tier, so flipping between two is instant.
+  const estimate = useQuery({
+    queryKey: ["tier-change", panel.previewEndpoint, open],
+    queryFn: ({ signal }) => apiJson<Preview>(`${panel.previewEndpoint}?tier=${encodeURIComponent(open as string)}`, signal),
+    enabled: Boolean(open),
+    retry: false,
+    staleTime: 15_000,
+  });
+  const preview = open ? (estimate.data ?? null) : null;
+  const loading = Boolean(open) && estimate.isFetching && !estimate.data;
+  const loadError = estimate.isError ? readableError(estimate.error.message) || "That estimate could not be worked out." : null;
+  const error = actionError ?? loadError;
 
   useEffect(() => {
     if (!open) return;
@@ -172,7 +153,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
   return (
     <section className={cn(CARD, "px-[18px] py-[15px]")}>
       <div className="mb-[13px] border-b border-[#EDF3EF] pb-[11px]">
-        <h2 className="font-[family-name:var(--font-heading)] text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
+        <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
           {panel.title}
         </h2>
         {panel.sub ? (
@@ -210,7 +191,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
           className="mb-[13px] flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-[11px] border px-[13px] py-[11px]"
           style={{ background: toneSwatches.progress.bg, borderColor: toneSwatches.progress.bd }}
         >
-          <p className="text-pretty text-[11.5px] leading-[1.5]" style={{ color: toneSwatches.progress.fg }}>
+          <p className="text-pretty text-[11.5px] leading-normal" style={{ color: toneSwatches.progress.fg }}>
             <span className="font-bold">Your plan will downgrade to {panel.pending.tier}</span> at the
             start of next term{panel.pending.from ? `, on ${day(panel.pending.from)}` : ""}. Nothing
             changes, and nothing is charged, before then.
@@ -229,7 +210,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
         </div>
       ) : null}
 
-      <div className="grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]">
+      <div className="grid gap-[10px] grid-cols-[repeat(auto-fit,minmax(210px,1fr))]">
         {upgrades.map((tier) => {
           const dearer = true;
           return (
@@ -286,7 +267,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
           </button>
 
           {showSmaller ? (
-            <div className="mt-[11px] grid gap-[10px] [grid-template-columns:repeat(auto-fit,minmax(210px,1fr))]">
+            <div className="mt-[11px] grid gap-[10px] grid-cols-[repeat(auto-fit,minmax(210px,1fr))]">
               {downgrades.map((tier) => (
                 <div key={tier.key} className="rounded-[12px] border border-[#EDF3EF] px-[13px] py-[12px]">
                   <div className="flex items-baseline justify-between gap-2">
@@ -321,7 +302,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
 
       {open ? (
         <div
-          className="fixed inset-0 z-[42] flex items-center justify-center overflow-y-auto px-[24px] py-[32px]"
+          className="fixed inset-0 z-42 flex items-center justify-center overflow-y-auto px-[24px] py-[32px]"
           role="dialog"
           aria-modal="true"
           aria-label="Change plan"
@@ -344,7 +325,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
           >
             <header className="relative flex-none overflow-hidden px-[23.5px] py-[20px]" style={{ background: INK }}>
               <div className="pointer-events-none absolute inset-0 overflow-hidden">
-                <div className="absolute -right-[80px] -top-[132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+                <div className="absolute right-[-80px] top-[-132px] h-[336px] w-[336px] rounded-full border border-[rgba(95,214,180,0.12)]" />
               </div>
               <div className="relative flex items-start justify-between gap-[18px]">
                 <div className="min-w-0">
@@ -355,10 +336,10 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
                         : "SCHEDULED CHANGE"
                       : "SUBSCRIPTION"}
                   </p>
-                  <h2 className="text-pretty text-[19px] font-bold leading-[1.25] tracking-[-0.01em] text-white">
+                  <h2 className="text-pretty text-[19px] font-bold leading-tight tracking-[-0.01em] text-white">
                     {panel.currentTier.name} to {panel.tiers.find((tier) => tier.key === open)?.name}
                   </h2>
-                  <p className="mt-[4.5px] text-pretty text-[11px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.6)" }}>
+                  <p className="mt-[4.5px] text-pretty text-[11px] leading-normal" style={{ color: "rgba(255,255,255,0.6)" }}>
                     {preview
                       ? preview.isUpgrade
                         ? "An upgrade takes effect immediately, and is charged only for the rest of this term."

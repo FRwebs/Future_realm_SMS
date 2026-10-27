@@ -32,7 +32,7 @@ export function PartnerAuthForm({ mode, token }: { mode: "login" | "accept"; tok
     }
   }
 
-  const field = "w-full rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[11px] text-[13px] text-[#0D2315] outline-none focus:border-[#12796A]";
+  const field = "w-full rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[11px] text-[13px] text-[#0D2315] outline-hidden focus:border-[#12796A]";
   return (
     <form onSubmit={submit} className="grid gap-4">
       {mode === "login" ? (

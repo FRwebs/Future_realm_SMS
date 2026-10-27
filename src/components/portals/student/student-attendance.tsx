@@ -202,7 +202,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
 
   return (
     <div className="grid min-w-0 gap-[14px]">
-      <section className="flex min-w-0 flex-wrap items-center justify-between gap-[10px] rounded-[14px] border bg-[var(--color-bg-surface)] px-[14px] py-[12px]" style={{ borderColor: "#DEE8E2" }}>
+      <section className="flex min-w-0 flex-wrap items-center justify-between gap-[10px] rounded-[14px] border bg-(--color-bg-surface) px-[14px] py-[12px]" style={{ borderColor: "#DEE8E2" }}>
         <div className="min-w-0">
           <p className="text-[14px] font-extrabold tracking-[-0.01em]" style={{ color: "#0D2315" }}>{label}</p>
           <p className="mt-[2px] text-[10.5px]" style={{ color: "#67766D" }}>{range}</p>
@@ -230,15 +230,15 @@ export function StudentAttendance({ terms, records, today, current, first, guard
           { label: view === "All" ? "Since the first term" : `Compared with ${prevName}`, value: view === "All" && terms.length < 2 ? "—" : pts(delta), sub: view === "All" ? allSub : PS && PS.pct !== null ? `${prevName.charAt(0).toUpperCase()}${prevName.slice(1)} was ${pct(PS.pct)}` : "Nothing earlier on record", tone: delta === null ? ("neutral" as PanelTone) : delta >= 0 ? ("positive" as PanelTone) : ("attention" as PanelTone) },
           { label: "Longest run present", value: `${S.best} ${S.best === 1 ? "day" : "days"}`, sub: S.best ? `In a row, up to ${short(S.bestEnd)}` : "No school days yet", tone: "neutral" as PanelTone },
         ].map((card) => (
-          <article key={card.label} className="rounded-[14px] border bg-[var(--color-bg-surface)] px-[14px] pb-[14px] pt-[13px]" style={{ borderColor: "#DEE8E2" }}>
-            <p className="text-[9.5px] font-semibold uppercase tracking-[0.05em]" style={{ color: "#67766D" }}>{card.label}</p>
+          <article key={card.label} className="rounded-[14px] border bg-(--color-bg-surface) px-[14px] pb-[14px] pt-[13px]" style={{ borderColor: "#DEE8E2" }}>
+            <p className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: "#67766D" }}>{card.label}</p>
             <p className="mt-[8px] text-[20.5px] font-extrabold leading-none tracking-[-0.03em] tabular-nums" style={{ color: toneOf(card.tone).fg }}>{card.value}</p>
             <p className="mt-[6px] text-[10.5px] leading-[1.4]" style={{ color: "#67766D" }}>{card.sub}</p>
           </article>
         ))}
       </section>
 
-      <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[16px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
+      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{chartTitle}</h3>
         <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{chartSub}</p>
         {series.length ? (
@@ -254,7 +254,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
 
       <div className="grid min-w-0 gap-[14px] lg:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <Detail view={view} cur={cur} scope={scope} today={today} terms={terms} current={current} past={past} go={go} open={open} termRows={termRows} />
-        <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
+        <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
           <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Days away and late arrivals</h3>
           <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>What happened, and who recorded it.</p>
           {away.length ? (
@@ -287,7 +287,7 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
   view: View; cur: string; scope: Rec[]; today: string; terms: Term[]; current: string | null; past: Rec[]; go: (view: View, key?: string) => void; open: (record: Rec | undefined, date: string) => void;
   termRows: (subset: Term[]) => Array<{ term: Term; s: ReturnType<typeof summary> }>;
 }) {
-  const shell = "min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[16px] pb-[14px] pt-[14px]";
+  const shell = "min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[14px] pt-[14px]";
   const cell = (date: string, label?: string) => {
     const rec = past.find((record) => record.date === date); const swatch = rec ? toneOf(TONE[rec.status] ?? "neutral") : null;
     return (
@@ -320,7 +320,7 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
       </section>
     );
   }
-  const head = "text-[9.5px] font-semibold uppercase tracking-[0.05em]";
+  const head = "text-[9.5px] font-semibold uppercase tracking-wider";
   if (view === "Term") {
     const weeks = uniq(scope.map((record) => monday(record.date))).reverse();
     // Counted from the term's first Monday. Numbering by row position drifts

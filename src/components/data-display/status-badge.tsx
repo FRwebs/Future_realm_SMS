@@ -4,24 +4,24 @@ type StatusTone = "neutral" | "success" | "warning" | "danger" | "brand";
 
 const toneStyles: Record<StatusTone, { shell: string; dot: string }> = {
   neutral: {
-    shell: "border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-[var(--color-text-secondary)]",
-    dot: "bg-[var(--color-text-muted)]",
+    shell: "border-(--color-border-default) bg-(--color-bg-subtle) text-(--color-text-secondary)",
+    dot: "bg-(--color-text-muted)",
   },
   success: {
-    shell: "border-[var(--color-success-dim)] bg-[var(--color-success-dim)] text-[var(--color-success)]",
-    dot: "bg-[var(--color-success)]",
+    shell: "border-(--color-success-dim) bg-(--color-success-dim) text-(--color-success)",
+    dot: "bg-(--color-success)",
   },
   warning: {
-    shell: "border-[var(--color-warning-dim)] bg-[var(--color-warning-dim)] text-[var(--color-warning)]",
-    dot: "bg-[var(--color-warning)]",
+    shell: "border-(--color-warning-dim) bg-(--color-warning-dim) text-(--color-warning)",
+    dot: "bg-(--color-warning)",
   },
   danger: {
-    shell: "border-[var(--color-danger-dim)] bg-[var(--color-danger-dim)] text-[var(--color-danger)]",
-    dot: "bg-[var(--color-danger)]",
+    shell: "border-(--color-danger-dim) bg-(--color-danger-dim) text-danger",
+    dot: "bg-danger",
   },
   brand: {
-    shell: "border-[var(--color-accent-primary-dim)] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]",
-    dot: "bg-[var(--color-accent-primary)]",
+    shell: "border-(--color-accent-primary-dim) bg-(--color-accent-primary-dim) text-(--color-text-accent)",
+    dot: "bg-(--color-accent-primary)",
   },
 };
 

@@ -21,7 +21,6 @@ import type {
   TrainingProgramView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName, getNigeriaClassOptions } from "../../../../src/lib/school-options";
-import { env } from "../../../../src/lib/utils/env";
 
 const adminRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER"] as const;
 const trainingAdminRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PRINCIPAL", "ADMIN_OFFICER"] as const;

@@ -66,11 +66,11 @@ export function LessonPlayer({ course, outline, lesson, progressLabel, requiredL
   };
 
   return (
-    <section className={`${PANEL_SHELL} !p-0`} style={{ borderColor: CARD_BORDER }}>
+    <section className={`${PANEL_SHELL} p-0!`} style={{ borderColor: CARD_BORDER }}>
       <div className="grid lg:grid-cols-[minmax(0,1fr)_280px]">
         <div className="min-w-0 px-[18px] pb-[20px] pt-[16px]">
           <p className="text-[9px] font-bold uppercase tracking-[0.07em]" style={{ color: MUTED }}>Lesson {lesson.position} of {course.lessonsTotal}</p>
-          <h2 className="mt-[4px] text-[17px] font-extrabold leading-[1.25] tracking-[-0.01em]" style={{ color: INK }}>{lesson.title}</h2>
+          <h2 className="mt-[4px] text-[17px] font-extrabold leading-tight tracking-[-0.01em]" style={{ color: INK }}>{lesson.title}</h2>
           <p className="mt-[3px] text-[10.5px]" style={{ color: MUTED }}>{lesson.minutes} minutes · {course.provider}</p>
 
           <div className="mt-[14px] whitespace-pre-line text-pretty text-[12.5px] leading-[1.75]" style={{ color: "#2A3A31" }}>{lesson.body}</div>
@@ -97,7 +97,7 @@ export function LessonPlayer({ course, outline, lesson, progressLabel, requiredL
               {lesson.options.map((option, index) => (
                 <button key={option} type="button" role="radio" aria-checked={chosen?.choice === index} disabled={busy || done} onClick={() => answer(index)} className="flex items-start gap-[10px] rounded-[10px] border-[1.5px] px-[12px] py-[10px] text-left transition enabled:hover:border-[#BFDCD1] disabled:cursor-default" style={style(index)}>
                   <span className="flex h-[20px] w-[20px] flex-none items-center justify-center rounded-full text-[10px] font-extrabold" style={done && chosen?.choice === index ? { background: "#22A06B", color: "#fff" } : wrong.includes(index) ? { background: "#DB5555", color: "#fff" } : { background: "#F2F7F4", color: "#5F6E65" }}>{mark(index)}</span>
-                  <span className="min-w-0 flex-1 text-[12px] leading-[1.5]" style={{ color: INK }}>{option}</span>
+                  <span className="min-w-0 flex-1 text-[12px] leading-normal" style={{ color: INK }}>{option}</span>
                 </button>
               ))}
             </div>

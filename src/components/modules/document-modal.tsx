@@ -62,7 +62,7 @@ export function DocumentModal({ spec, onClose, onSwap }: { spec: DrawerSpec; onC
   };
 
   return createPortal(
-    <div data-doc-print="true" className="fixed inset-0 z-[42] flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label={spec.title}>
+    <div data-doc-print="true" className="fixed inset-0 z-42 flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label={spec.title}>
       <button type="button" aria-label="Close" onClick={onClose} className="fixed inset-0 cursor-default" style={{ background: "rgba(13,35,21,0.5)" }} data-print-hide="true" />
       <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-[940px] flex-col overflow-hidden rounded-[18px] bg-white" style={{ boxShadow: "0 45px 90px -36px rgba(13,35,21,0.6)" }}>
         <div data-print-hide="true" className="flex flex-none items-center justify-between gap-[14px] px-5 py-[13px] text-white" style={{ background: INK }}>
@@ -74,7 +74,7 @@ export function DocumentModal({ spec, onClose, onSwap }: { spec: DrawerSpec; onC
                 {doc.state.label}
               </span>
             ) : null}
-            {doc.meta ? <p className="text-[11px] leading-[1.5]" style={{ color: "rgba(255,255,255,0.62)" }}>{doc.meta}</p> : null}
+            {doc.meta ? <p className="text-[11px] leading-normal" style={{ color: "rgba(255,255,255,0.62)" }}>{doc.meta}</p> : null}
           </div>
           <button type="button" onClick={onClose} aria-label="Close" title="Close" className="flex h-[28px] w-[28px] flex-none items-center justify-center rounded-[9px]" style={{ background: "rgba(255,255,255,0.1)" }}>
             <X className="h-[12.5px] w-[12.5px] text-white" strokeWidth={2.4} />

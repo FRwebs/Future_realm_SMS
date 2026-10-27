@@ -147,7 +147,7 @@ async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] 
         pageSize={false}
         emptyState="No campaigns yet — use New campaign above to draft one."
         columns={[
-          { key: "name", header: "Campaign", render: (item) => <div><p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[10.5px] text-[#5f6e65]">{item.scheduledAt ? `${item.status === "SENT" || item.status === "SENDING" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.sentAt ? `Sent ${formatDate(item.sentAt)}` : "Draft"}</p></div> },
+          { key: "name", header: "Campaign", render: (item) => <div><p className="text-[11.5px] font-semibold text-(--color-text-primary)">{item.name}</p><p className="text-[10.5px] text-[#5f6e65]">{item.scheduledAt ? `${item.status === "SENT" || item.status === "SENDING" ? "Sent" : "Scheduled"} ${formatDate(item.scheduledAt)}` : item.sentAt ? `Sent ${formatDate(item.sentAt)}` : "Draft"}</p></div> },
           { key: "type", header: "Type", render: (item) => <StatusPill bg={item.type === "PROMOTIONAL" ? "#FDF6E7" : "#E4F1EC"} fg={item.type === "PROMOTIONAL" ? "#8A6410" : "#17604F"} label={item.type === "PROMOTIONAL" ? "Promotional" : "Operational"} /> },
           { key: "channel", header: "Channel", render: (item) => CHANNEL_LABEL[item.channel] ?? item.channel },
           { key: "audience", header: "Audience", render: (item) => item.recipientCount.toLocaleString() },
@@ -278,7 +278,7 @@ async function TemplatesTab({ group, channel, status }: { group?: string; channe
       }
       emptyState="No message templates yet."
       columns={[
-        { key: "name", header: "Template", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p><p className="text-[11.5px] text-[#5f6e65]">{item.triggerKey ? `${TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey} · ` : ""}v{item.version ?? 1}</p></div> },
+        { key: "name", header: "Template", render: (item) => <div><p className="font-semibold text-(--color-text-primary)">{item.name}</p><p className="text-[11.5px] text-[#5f6e65]">{item.triggerKey ? `${TRIGGERS.find((t) => t.key === item.triggerKey)?.label ?? item.triggerKey} · ` : ""}v{item.version ?? 1}</p></div> },
         { key: "category", header: "Group", render: (item) => item.category },
         { key: "channel", header: "Channels", render: (item) => item.channel },
         { key: "approval", header: "Status", render: (item) => <StatusBadge status={item.approvalStatus} tone={item.approvalStatus === "APPROVED" ? "success" : item.approvalStatus === "REJECTED" ? "danger" : "warning"} /> },
@@ -484,12 +484,12 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
               </div>
             }
             columns={[
-              { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
+              { key: "event", header: "Event", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.event}</span> },
               { key: "recipient", header: "Recipient", render: (row) => row.recipient },
               { key: "channel", header: "Channel", render: (row) => row.channel },
               { key: "tier", header: "Tier", render: (row) => row.tier },
-              { key: "template", header: "Template", render: (row) => (row.template ? <span className="text-[11.5px]">{row.template}</span> : <span className="text-[var(--color-text-muted)]">Built-in wording</span>) },
-              { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> },
+              { key: "template", header: "Template", render: (row) => (row.template ? <span className="text-[11.5px]">{row.template}</span> : <span className="text-(--color-text-muted)">Built-in wording</span>) },
+              { key: "when", header: "When it sends", render: (row) => <span className="text-(--color-text-secondary)">{row.when}</span> },
               { key: "state", header: "", sortable: false, render: (row) => <StatusPill bg={row.enabled ? "var(--color-success-dim)" : "var(--color-warning-dim)"} fg={row.enabled ? "var(--color-success)" : "var(--color-warning)"} label={row.enabled ? "Enabled" : "Disabled"} /> },
               {
                 key: "controls",
@@ -547,11 +547,11 @@ async function TriggersTab({ templates }: { templates: SuperAdminMessageTemplate
         pageSize={false}
         actions={<span className="text-[11.5px] text-[#5f6e65]">No controls — withheld by policy</span>}
         columns={[
-          { key: "event", header: "Event", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.event}</span> },
+          { key: "event", header: "Event", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.event}</span> },
           { key: "recipient", header: "Recipient", render: (row) => row.recipient },
           { key: "channel", header: "Channel", render: (row) => row.channel },
           { key: "tier", header: "Tier", render: (row) => row.tier },
-          { key: "when", header: "When it sends", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.when}</span> }
+          { key: "when", header: "When it sends", render: (row) => <span className="text-(--color-text-secondary)">{row.when}</span> }
         ]}
       />
     </div>
@@ -592,11 +592,11 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
           items={sent}
           emptyState="No campaigns have been sent yet."
           columns={[
-            { key: "name", header: "Campaign", render: (item) => <div><Link href={`/super-admin/communications?tab=delivery&campaign=${item.id}`} className="font-semibold text-[var(--color-text-primary)] hover:text-[var(--color-text-accent)]">{item.name}</Link><p className="text-[10px] text-[var(--color-text-muted)]">{item.sentAt ? formatDate(item.sentAt) : "—"}</p></div> },
+            { key: "name", header: "Campaign", render: (item) => <div><Link href={`/super-admin/communications?tab=delivery&campaign=${item.id}`} className="font-semibold text-(--color-text-primary) hover:text-(--color-text-accent)">{item.name}</Link><p className="text-[10px] text-(--color-text-muted)">{item.sentAt ? formatDate(item.sentAt) : "—"}</p></div> },
             { key: "channel", header: "Channel", render: (item) => item.channel },
             { key: "sent", header: "Recipients", render: (item) => item.recipientCount.toLocaleString() },
             { key: "delivered", header: "Delivered", render: (item) => item.deliveredCount.toLocaleString() },
-            { key: "failed", header: "Failed", render: (item) => <span className={item.recipientCount > 0 && item.failedCount / item.recipientCount > 0.05 ? "font-semibold text-[var(--color-danger)]" : "text-[var(--color-text-secondary)]"}>{item.failedCount.toLocaleString()}</span> },
+            { key: "failed", header: "Failed", render: (item) => <span className={item.recipientCount > 0 && item.failedCount / item.recipientCount > 0.05 ? "font-semibold text-danger" : "text-(--color-text-secondary)"}>{item.failedCount.toLocaleString()}</span> },
             { key: "waiting", header: "Waiting", render: (item) => (item.queuedCount ?? 0).toLocaleString() }
           ]}
         />
@@ -619,15 +619,15 @@ async function DeliveryTab({ sent, focus, status }: { sent: SuperAdminCampaignRo
         actions={
           <div className="flex gap-2 text-[11px] font-semibold">
             {[["", "All"], ["SENT", "Delivered"], ["FAILED", "Failed"], ["QUEUED", "Waiting"], ["HELD", "Held"]].map(([value, label]) => (
-              <Link key={label} href={`/super-admin/communications?tab=delivery${current ? `&campaign=${current.id}` : ""}${value ? `&status=${value}` : ""}`} className={(status ?? "") === value ? "text-[var(--color-text-accent)]" : "text-[var(--color-text-muted)]"}>{label}</Link>
+              <Link key={label} href={`/super-admin/communications?tab=delivery${current ? `&campaign=${current.id}` : ""}${value ? `&status=${value}` : ""}`} className={(status ?? "") === value ? "text-(--color-text-accent)" : "text-(--color-text-muted)"}>{label}</Link>
             ))}
           </div>
         }
         columns={[
-          { key: "recipient", header: "Recipient", render: (line) => <div><p className="font-semibold text-[var(--color-text-primary)]">{line.recipient}</p><p className="text-[10px] text-[var(--color-text-muted)]">{line.school}</p></div> },
-          { key: "address", header: "Sent to", render: (line) => <span className="font-[var(--font-mono)] text-[11px]">{line.address ?? "—"}</span> },
+          { key: "recipient", header: "Recipient", render: (line) => <div><p className="font-semibold text-(--color-text-primary)">{line.recipient}</p><p className="text-[10px] text-(--color-text-muted)">{line.school}</p></div> },
+          { key: "address", header: "Sent to", render: (line) => <span className="font-(--font-mono) text-[11px]">{line.address ?? "—"}</span> },
           { key: "status", header: "State", render: (line) => <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={line.status === "SENT" ? { background: "var(--color-success-dim)", color: "var(--color-success)" } : line.status === "FAILED" ? { background: "var(--color-danger-dim)", color: "var(--color-danger)" } : { background: "var(--color-warning-dim)", color: "var(--color-warning)" }}>{line.status === "SENT" ? "Delivered" : line.status === "FAILED" ? "Failed" : line.status === "HELD" ? "Held" : "Waiting"}</span> },
-          { key: "detail", header: "Detail", render: (line) => <span className="text-[11px] text-[var(--color-text-muted)]">{line.error ?? (line.deliveredAt ? `${line.provider ?? "Carrier"} · ${new Date(line.deliveredAt).toLocaleString("en-GB")}` : line.attempts ? `${line.attempts} attempt${line.attempts === 1 ? "" : "s"} so far` : "—")}</span> }
+          { key: "detail", header: "Detail", render: (line) => <span className="text-[11px] text-(--color-text-muted)">{line.error ?? (line.deliveredAt ? `${line.provider ?? "Carrier"} · ${new Date(line.deliveredAt).toLocaleString("en-GB")}` : line.attempts ? `${line.attempts} attempt${line.attempts === 1 ? "" : "s"} so far` : "—")}</span> }
         ]}
         footnote="A message waits when delivery is switched off, when quiet hours or a daily cap apply, or after a carrier outage; it fails when the carrier refuses it or after the allowed number of attempts."
       />
@@ -699,11 +699,11 @@ async function ConsentTab() {
         items={records ?? []}
         emptyState="No consent records yet."
         columns={[
-          { key: "user", header: "User", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{item.userName}</p><p className="text-xs text-[var(--color-text-muted)]">{item.userEmail}</p></div> },
+          { key: "user", header: "User", render: (item) => <div><p className="font-semibold text-(--color-text-primary)">{item.userName}</p><p className="text-xs text-(--color-text-muted)">{item.userEmail}</p></div> },
           { key: "role", header: "Role", render: (item) => item.userRole.replaceAll("_", " ") },
           { key: "school", header: "School", render: (item) => item.school ?? "—" },
           { key: "channel", header: "Channel", render: (item) => item.channel },
-          { key: "source", header: "How it was given", render: (item) => <span className="text-[11px] text-[var(--color-text-muted)]">{item.source ?? "—"}</span> },
+          { key: "source", header: "How it was given", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.source ?? "—"}</span> },
           {
             key: "status",
             header: "Status",
@@ -733,8 +733,8 @@ async function ConsentTab() {
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
-          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "Specification", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.requirement}</span> },
+          { key: "spec", header: "Specification", render: (row) => <span className="text-(--color-text-secondary)">{row.spec}</span> },
           {
             key: "state",
             header: "State",
@@ -768,8 +768,8 @@ async function NoticesTab({ announcementTypes }: { announcementTypes: Array<{ la
     <div className="grid gap-[14px]">
       <section className="surface-card p-6">
         <p className="section-eyebrow">In-app notices</p>
-        <h2 className="mt-2 text-[12.5px] font-semibold text-[var(--color-text-primary)]">Platform announcements & maintenance</h2>
-        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-[var(--color-text-secondary)]">
+        <h2 className="mt-2 text-[12.5px] font-semibold text-(--color-text-primary)">Platform announcements & maintenance</h2>
+        <p className="mt-2 max-w-2xl text-[11.5px] leading-6 text-(--color-text-secondary)">
           Lightweight in-app notices shown inside every school portal — separate from full campaigns. Use these for
           platform-wide notices and scheduled maintenance windows.
         </p>
@@ -815,7 +815,7 @@ async function NoticesTab({ announcementTypes }: { announcementTypes: Array<{ la
         items={data.announcements ?? []}
         emptyState="No announcements have been created yet."
         columns={[
-          { key: "title", header: "Title", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.title}</span> },
+          { key: "title", header: "Title", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.title}</span> },
           { key: "type", header: "Type", render: (item) => item.type.replaceAll("_", " ") },
           { key: "published", header: "Published", render: (item) => item.publishedAt ? formatDate(item.publishedAt) : "Scheduled" },
           { key: "expires", header: "Expires", render: (item) => item.expiresAt ? formatDate(item.expiresAt) : "No expiry" },
@@ -829,7 +829,7 @@ async function NoticesTab({ announcementTypes }: { announcementTypes: Array<{ la
         items={data.maintenance ?? []}
         emptyState="No maintenance windows are scheduled."
         columns={[
-          { key: "title", header: "Title", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.title}</span> },
+          { key: "title", header: "Title", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.title}</span> },
           { key: "status", header: "Status", render: (item) => item.isActive ? "Active" : "Scheduled" },
           { key: "starts", header: "Starts", render: (item) => formatDate(item.startsAt) },
           { key: "ends", header: "Ends", render: (item) => formatDate(item.endsAt) }

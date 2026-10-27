@@ -1,7 +1,9 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { ApiRequestError, apiJson, getUrl } from "@/lib/api/client";
 
 type Overview = {
   person: { name: string; email: string };
@@ -33,7 +35,7 @@ function Table({ head, rows, empty }: { head: string[]; rows: React.ReactNode[][
     <div className="overflow-x-auto">
       <table className="w-full border-collapse text-left">
         <thead>
-          <tr>{head.map((h) => <th key={h} className="whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-5 py-[11px] text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{h}</th>)}</tr>
+          <tr>{head.map((h) => <th key={h} className="whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-5 py-[11px] text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">{h}</th>)}</tr>
         </thead>
         <tbody>
           {rows.map((row, index) => (
@@ -49,17 +51,15 @@ function Table({ head, rows, empty }: { head: string[]; rows: React.ReactNode[][
 
 export function PartnerDashboard() {
   const router = useRouter();
-  const [data, setData] = useState<Overview | null>(null);
-  const [failed, setFailed] = useState(false);
+  const overview = useQuery({ queryKey: ["partner", "overview"], queryFn: ({ signal }) => apiJson<Overview>(getUrl("/api/partner-portal/overview"), signal) });
+  const data = overview.data ?? null;
+  const signedOut = overview.error instanceof ApiRequestError && overview.error.status === 401;
+  const failed = overview.isError && !signedOut;
 
+  // A signed-out partner goes to the partner sign-in rather than seeing a failed page.
   useEffect(() => {
-    void fetch("/api/partner-portal/overview", { credentials: "include" }).then(async (response) => {
-      if (response.status === 401) return router.replace("/partner/login");
-      const body = (await response.json()) as { data?: Overview };
-      if (!response.ok || !body.data) return setFailed(true);
-      setData(body.data);
-    }).catch(() => setFailed(true));
-  }, [router]);
+    if (signedOut) router.replace("/partner/login");
+  }, [signedOut, router]);
 
   async function signOut() {
     await fetch("/api/partner-portal/logout", { method: "POST", credentials: "include" });
@@ -77,7 +77,7 @@ export function PartnerDashboard() {
         <div className="relative flex flex-wrap items-center justify-between gap-4">
           <div>
             <p className="text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/55">Partner portal{data.partner.tier ? ` · ${data.partner.tier}` : ""}</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-extrabold tracking-[-0.028em]">{data.partner.name}</h1>
+            <h1 className="mt-2 font-(--font-heading) text-[26px] font-extrabold tracking-[-0.028em]">{data.partner.name}</h1>
             <p className="mt-2 text-[12px] text-white/60">Reference code {data.partner.code ?? "not yet issued"}{data.partner.territory ? ` · ${data.partner.territory}` : ""} · signed in as {data.person.name}</p>
           </div>
           <button type="button" onClick={signOut} className="rounded-full bg-white px-[18px] py-[11px] text-[11.5px] font-semibold text-[#0D2315]">Sign out</button>
@@ -92,8 +92,8 @@ export function PartnerDashboard() {
           ["Statements", String(data.commission.statements.length), `${data.commission.statements.filter((s) => s.status === "SETTLED").length} settled`]
         ].map(([title, value, detail]) => (
           <article key={title} className="rounded-[14px] border border-[#DEE8E2] bg-white px-[18px] py-4">
-            <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{title}</p>
-            <p className="mt-[11px] font-[var(--font-body)] text-[23px] font-extrabold tracking-[-0.03em] text-[#0D2315]">{value}</p>
+            <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">{title}</p>
+            <p className="mt-[11px] font-(--font-body) text-[23px] font-extrabold tracking-[-0.03em] text-[#0D2315]">{value}</p>
             <p className="mt-[7px] text-[11.5px] text-[#5f6e65]">{detail}</p>
           </article>
         ))}

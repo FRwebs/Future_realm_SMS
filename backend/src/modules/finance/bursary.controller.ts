@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, ForbiddenException, Get, Header, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, ForbiddenException, Get, Param, Patch, Post, Put, Query, Req, Res, UseGuards } from "@nestjs/common";
 import { ApiTags } from "@nestjs/swagger";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
 import type { Request, Response } from "express";

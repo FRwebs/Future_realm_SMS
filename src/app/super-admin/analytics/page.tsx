@@ -54,7 +54,7 @@ const barToneColors: Record<"good" | "warn" | "bad", string> = { good: "#22A06B"
 
 function BarCell({ value }: { value: number | null }) {
   if (value === null) {
-    return <span className="text-[11.5px] text-[var(--color-text-muted)]">—</span>;
+    return <span className="text-[11.5px] text-(--color-text-muted)">—</span>;
   }
   const tone: "good" | "warn" | "bad" = value >= 80 ? "good" : value >= 60 ? "warn" : "bad";
   const color = barToneColors[tone];
@@ -70,13 +70,13 @@ function BarCell({ value }: { value: number | null }) {
 
 function SectionHeader({ eyebrow, title, description, aside }: { eyebrow?: string; title: string; description?: string; aside?: string }) {
   return (
-    <div className="flex flex-col gap-3 border-b border-[var(--color-border-default)] px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex flex-col gap-3 border-b border-(--color-border-default) px-5 py-4 lg:flex-row lg:items-end lg:justify-between">
       <div>
         {eyebrow ? <p className="section-eyebrow">{eyebrow}</p> : null}
-        <p className="mt-1 text-[14.5px] font-bold text-[var(--color-text-primary)]">{title}</p>
-        {description ? <p className="mt-1 max-w-4xl text-[11.5px] leading-5 text-[var(--color-text-secondary)]">{description}</p> : null}
+        <p className="mt-1 text-[14.5px] font-bold text-(--color-text-primary)">{title}</p>
+        {description ? <p className="mt-1 max-w-4xl text-[11.5px] leading-5 text-(--color-text-secondary)">{description}</p> : null}
       </div>
-      {aside ? <p className="text-[10.5px] font-bold text-[var(--color-text-muted)]">{aside}</p> : null}
+      {aside ? <p className="text-[10.5px] font-bold text-(--color-text-muted)">{aside}</p> : null}
     </div>
   );
 }
@@ -184,7 +184,7 @@ async function GrowthTab() {
                     style={{ height: `${barPct}%`, background: isLast ? "#0d2315" : `rgba(18,121,106,${0.28 + index * 0.1})` }}
                   />
                 </div>
-                <p className="mt-[10px] font-[var(--font-display)] text-[13.5px] font-bold text-[var(--color-text-primary)]">{stage.count.toLocaleString()}</p>
+                <p className="mt-[10px] font-(--font-display) text-[13.5px] font-bold text-(--color-text-primary)">{stage.count.toLocaleString()}</p>
                 <p className="mt-[3.5px] text-pretty text-[10px] leading-[1.35] text-[#5f6e65]">{stage.stage}</p>
                 <p className="mt-[4.5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
                   {stage.changePct === null ? "—" : stage.changePct < 0 ? `−${Math.abs(stage.changePct)}% drop` : `+${stage.changePct}%`}
@@ -202,8 +202,8 @@ async function GrowthTab() {
         pageSize={false}
         getRowKey={(item) => item.stage}
         columns={[
-          { key: "stage", header: "Stage", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.stage}</span>, sortValue: (item) => item.stage },
-          { key: "thisWeek", header: "This week", render: (item) => <span className="font-[var(--font-mono)] font-black text-[var(--color-text-primary)]">{item.thisWeek}</span>, sortValue: (item) => item.thisWeek },
+          { key: "stage", header: "Stage", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.stage}</span>, sortValue: (item) => item.stage },
+          { key: "thisWeek", header: "This week", render: (item) => <span className="font-(--font-mono) font-black text-(--color-text-primary)">{item.thisWeek}</span>, sortValue: (item) => item.thisWeek },
           { key: "lastWeek", header: "Last week", render: (item) => item.lastWeek, sortValue: (item) => item.lastWeek },
           {
             key: "change",
@@ -222,7 +222,7 @@ async function GrowthTab() {
               const current = ownerOf.get(item.stage);
               return (
                 <div className="flex items-center gap-2">
-                  <span className="text-[11.5px]">{current ? current.owner : <span className="text-[var(--color-text-muted)]">Nobody yet</span>}</span>
+                  <span className="text-[11.5px]">{current ? current.owner : <span className="text-(--color-text-muted)">Nobody yet</span>}</span>
                   <ResourceActionDialog
                     triggerLabel={current ? "Change" : "Assign"}
                     title={`Owner of “${item.stage}”`}
@@ -259,7 +259,7 @@ async function GrowthTab() {
         getRowKey={(item) => item.sourceSystem}
         emptyState="No migrations logged yet."
         columns={[
-          { key: "source", header: "Previous system", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.sourceSystem}</span>, sortValue: (item) => item.sourceSystem },
+          { key: "source", header: "Previous system", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.sourceSystem}</span>, sortValue: (item) => item.sourceSystem },
           { key: "won", header: "Won", render: (item) => item.won, sortValue: (item) => item.won },
           { key: "lost", header: "Lost", render: (item) => item.lost, sortValue: (item) => item.lost },
           {
@@ -268,7 +268,7 @@ async function GrowthTab() {
             render: (item) => (item.migrationRatePct === null ? "—" : <BarCell value={item.migrationRatePct} />),
             sortValue: (item) => item.migrationRatePct ?? 0
           },
-          { key: "reason", header: "What they said made them move", render: () => <span className="text-[11px] text-[var(--color-text-muted)]">Not captured — no field records this</span> },
+          { key: "reason", header: "What they said made them move", render: () => <span className="text-[11px] text-(--color-text-muted)">Not captured — no field records this</span> },
           {
             key: "adapter",
             header: "Adapter",
@@ -288,9 +288,9 @@ async function GrowthTab() {
         getRowKey={(item, index) => `${item.schoolName}-${index}`}
         emptyState="No school has rolled back a migration."
         columns={[
-          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolName}</span> },
+          { key: "school", header: "School", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.schoolName}</span> },
           { key: "returnedTo", header: "Returned to", render: (item) => item.sourceSystem },
-          { key: "reason", header: "Reason given", render: (item) => <span className="text-[var(--color-text-secondary)]">{item.reason}</span> }
+          { key: "reason", header: "Reason given", render: (item) => <span className="text-(--color-text-secondary)">{item.reason}</span> }
         ]}
         footnote={
           displacement.lossAnalysis.length === 0
@@ -337,8 +337,8 @@ async function RetentionTab() {
         getRowKey={(item) => item.cohort}
         emptyState="No cohort data yet."
         columns={[
-          { key: "cohort", header: "Cohort", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.cohort}</span>, sortValue: (item) => item.cohort },
-          { key: "joined", header: "Schools", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.joined}</span>, sortValue: (item) => item.joined },
+          { key: "cohort", header: "Cohort", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.cohort}</span>, sortValue: (item) => item.cohort },
+          { key: "joined", header: "Schools", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.joined}</span>, sortValue: (item) => item.joined },
           { key: "active", header: "Still active", render: (item) => item.stillActive, sortValue: (item) => item.stillActive },
           { key: "retention", header: "Retention", render: (item) => <BarCell value={item.retentionPct} />, sortValue: (item) => item.retentionPct },
           ...curveMonths.map((month) => ({
@@ -346,7 +346,7 @@ async function RetentionTab() {
             header: month,
             render: (item: SuperAdminBiOverview["cohorts"][number]) => {
               const reading = retentionByCohort.get(item.cohort)?.readings.find((r) => r.month === month);
-              if (!reading || reading.measured === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+              if (!reading || reading.measured === 0) return <span className="text-(--color-text-muted)">—</span>;
               return `${Math.round((reading.active / reading.measured) * 100)}%`;
             }
           })),
@@ -387,10 +387,10 @@ async function RetentionTab() {
           />
         }
         columns={[
-          { key: "reason", header: "Churn reason", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.reason.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())}</span>, sortValue: (item) => item.reason },
-          { key: "count", header: "Count", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.count}</span>, sortValue: (item) => item.count },
+          { key: "reason", header: "Churn reason", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.reason.replaceAll("_", " ").toLowerCase().replace(/^./, (c) => c.toUpperCase())}</span>, sortValue: (item) => item.reason },
+          { key: "count", header: "Count", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.count}</span>, sortValue: (item) => item.count },
           { key: "share", header: "Share", render: (item) => <span className="font-bold" style={{ color: item.pct >= 25 ? "var(--color-danger)" : "var(--color-text-primary)" }}>{item.pct}%</span>, sortValue: (item) => item.pct },
-          { key: "signal", header: "What it signals", render: (item) => <span className="text-[var(--color-text-secondary)]">{churnSignal(item.reason)}</span> }
+          { key: "signal", header: "What it signals", render: (item) => <span className="text-(--color-text-secondary)">{churnSignal(item.reason)}</span> }
         ]}
       />
 
@@ -558,27 +558,27 @@ async function ProductTab() {
           getRowKey={(item) => item.module}
           emptyState="No module is below the 40% floor."
           columns={[
-            { key: "module", header: "Module", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
+            { key: "module", header: "Module", render: (item) => <span className="font-bold text-(--color-text-primary)">{moduleLabel(item.module)}</span>, sortValue: (item) => item.module },
             { key: "adoption", header: "Adoption", render: (item) => <BarCell value={item.adoptionPct} />, sortValue: (item) => item.adoptionPct },
-            { key: "using", header: "Schools using", headerClassName: "!whitespace-normal", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
-            { key: "notUsing", header: "Schools not using", headerClassName: "!whitespace-normal", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
+            { key: "using", header: "Schools using", headerClassName: "whitespace-normal!", render: (item) => item.schoolsUsing, sortValue: (item) => item.schoolsUsing },
+            { key: "notUsing", header: "Schools not using", headerClassName: "whitespace-normal!", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.schoolsNotUsing}</span>, sortValue: (item) => item.schoolsNotUsing },
             {
               key: "diagnosis",
               header: "Diagnosis from support tickets",
-              headerClassName: "!whitespace-normal",
+              headerClassName: "whitespace-normal!",
               render: (item) => {
                 const heard = tickets[item.module];
                 return heard && heard.tickets > 0
-                  ? <span className="text-[11px] text-[var(--color-text-secondary)]">{heard.tickets} ticket{heard.tickets === 1 ? "" : "s"} from {heard.schools} school{heard.schools === 1 ? "" : "s"} in 90 days mention it{heard.sample ? ` — “${heard.sample}”` : ""}</span>
-                  : <span className="text-[11px] text-[var(--color-text-muted)]">No ticket in 90 days mentions it — likely not a support problem</span>;
+                  ? <span className="text-[11px] text-(--color-text-secondary)">{heard.tickets} ticket{heard.tickets === 1 ? "" : "s"} from {heard.schools} school{heard.schools === 1 ? "" : "s"} in 90 days mention it{heard.sample ? ` — “${heard.sample}”` : ""}</span>
+                  : <span className="text-[11px] text-(--color-text-muted)">No ticket in 90 days mentions it — likely not a support problem</span>;
               }
             }
           ]}
         />
         <section className="surface-card overflow-hidden">
-          <div className="border-b border-[var(--color-border-default)] px-5 py-4">
-            <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">How this grid is read</p>
-            <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">Four rules keep the comparison honest</p>
+          <div className="border-b border-(--color-border-default) px-5 py-4">
+            <p className="text-[12.5px] font-bold text-(--color-text-primary)">How this grid is read</p>
+            <p className="mt-1 text-[10.5px] text-(--color-text-muted)">Four rules keep the comparison honest</p>
           </div>
           <div className="grid gap-3 p-5">
             {[
@@ -587,9 +587,9 @@ async function ProductTab() {
               { title: "Adoption is measured per school, not per user", detail: "One teacher using a module does not make a school an adopter of it." },
               { title: "Below 40% for two tiers running is worth a product conversation", detail: "The floor is a prompt to ask why, not an automatic verdict." }
             ].map((row) => (
-              <div key={row.title} className="border-b border-[var(--color-border-muted)] pb-3 last:border-b-0 last:pb-0">
-                <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">{row.title}</p>
-                <p className="mt-0.5 text-[10.5px] text-[var(--color-text-muted)]">{row.detail}</p>
+              <div key={row.title} className="border-b border-(--color-border-muted) pb-3 last:border-b-0 last:pb-0">
+                <p className="text-[11.5px] font-semibold text-(--color-text-primary)">{row.title}</p>
+                <p className="mt-0.5 text-[10.5px] text-(--color-text-muted)">{row.detail}</p>
               </div>
             ))}
           </div>
@@ -632,7 +632,7 @@ async function ProductTab() {
           />
         }
       />
-      <p className="-mt-2 flex items-center gap-2 text-[10.5px] text-[var(--color-text-muted)]">
+      <p className="-mt-2 flex items-center gap-2 text-[10.5px] text-(--color-text-muted)">
         <Lightbulb className="h-3.5 w-3.5" /> Priority score weights mention count, distinct schools, and distinct tiers requesting. Requests come from support-ticket keywords and from asks logged by hand.
       </p>
     </section>
@@ -695,7 +695,7 @@ async function ReportsTab() {
         getRowKey={(item) => item.type}
         columns={[
           { key: "type", header: "Report type", render: (item) => item.type },
-          { key: "frequency", header: "Frequency", render: (item) => <span className="text-[var(--color-text-muted)]">{item.frequency}</span> }
+          { key: "frequency", header: "Frequency", render: (item) => <span className="text-(--color-text-muted)">{item.frequency}</span> }
         ]}
       />
     </section>

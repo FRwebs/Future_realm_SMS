@@ -89,7 +89,7 @@ export function AttendanceGrid({ panel }: { panel: RosterPanel }) {
   if (!panel.students.length) {
     return (
       <section
-        className="min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] py-[16px]"
+        className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[16px]"
         style={{ borderColor: CARD_BORDER }}
       >
         <h3 className="text-[12.5px] font-semibold" style={{ color: INK }}>
@@ -104,7 +104,7 @@ export function AttendanceGrid({ panel }: { panel: RosterPanel }) {
 
   return (
     <section
-      className="min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)]"
+      className="min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface)"
       style={{ borderColor: CARD_BORDER }}
     >
       <div
@@ -116,7 +116,7 @@ export function AttendanceGrid({ panel }: { panel: RosterPanel }) {
             {panel.title}
           </h3>
           {panel.sub ? (
-            <p className="mt-[3px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+            <p className="mt-[3px] text-[10.5px] leading-normal" style={{ color: MUTED }}>
               {panel.sub}
             </p>
           ) : null}

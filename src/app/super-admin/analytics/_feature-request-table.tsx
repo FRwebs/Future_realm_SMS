@@ -95,23 +95,23 @@ export function FeatureRequestTable({ items, logged, actions }: { items: TicketR
         />
       }
       columns={[
-        { key: "rank", header: "#", render: (row) => <span className="text-[var(--color-text-muted)]">{String(filtered.indexOf(row) + 1).padStart(2, "0")}</span>, sortable: false },
+        { key: "rank", header: "#", render: (row) => <span className="text-(--color-text-muted)">{String(filtered.indexOf(row) + 1).padStart(2, "0")}</span>, sortable: false },
         {
           key: "request",
           header: "Feature request",
           render: (row) => (
             <div>
-              <p className="font-bold text-[var(--color-text-primary)]">{row.title}</p>
+              <p className="font-bold text-(--color-text-primary)">{row.title}</p>
               <p className="text-[11.5px] text-[#5f6e65]">{row.detail}{row.flag ? ` · ${row.flag}` : ""}</p>
             </div>
           ),
           sortValue: (row) => row.title
         },
-        { key: "schools", header: "Schools", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.schools}</span>, sortValue: (row) => row.schools },
-        { key: "tiers", header: "Tier weight", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.tiers} tier{row.tiers === 1 ? "" : "s"}</span>, sortValue: (row) => row.tiers },
-        { key: "severity", header: "Severity", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.severity}</span> },
-        { key: "source", header: "Source", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.source}</span> },
-        { key: "priority", header: "Priority score", render: (row) => <span className="font-extrabold text-[var(--color-text-primary)]">{row.score}</span>, sortValue: (row) => row.score }
+        { key: "schools", header: "Schools", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.schools}</span>, sortValue: (row) => row.schools },
+        { key: "tiers", header: "Tier weight", render: (row) => <span className="text-(--color-text-secondary)">{row.tiers} tier{row.tiers === 1 ? "" : "s"}</span>, sortValue: (row) => row.tiers },
+        { key: "severity", header: "Severity", render: (row) => <span className="text-(--color-text-secondary)">{row.severity}</span> },
+        { key: "source", header: "Source", render: (row) => <span className="text-(--color-text-secondary)">{row.source}</span> },
+        { key: "priority", header: "Priority score", render: (row) => <span className="font-extrabold text-(--color-text-primary)">{row.score}</span>, sortValue: (row) => row.score }
       ]}
     />
   );

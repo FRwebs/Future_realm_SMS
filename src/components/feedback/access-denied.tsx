@@ -31,22 +31,22 @@ export function AccessDenied({
 
   return (
     <section className="surface-hero relative overflow-hidden p-8 md:p-10">
-      <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-[var(--color-accent-primary-dim)] blur-3xl" />
-      <div className="pointer-events-none absolute bottom-0 left-0 h-32 w-32 rounded-full bg-[var(--color-info-dim)] blur-3xl" />
+      <div className="pointer-events-none absolute right-0 top-0 h-40 w-40 rounded-full bg-(--color-accent-primary-dim) blur-3xl" />
+      <div className="pointer-events-none absolute bottom-0 left-0 h-32 w-32 rounded-full bg-(--color-info-dim) blur-3xl" />
 
       <div className="relative flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <div className="inline-flex h-14 w-14 items-center justify-center rounded-[18px] bg-gradient-to-br from-[var(--color-accent-primary)] via-[var(--color-accent-primary-hover)] to-[var(--color-border-focus)] text-[var(--color-text-inverse)] shadow-[0_16px_30px_rgba(37,89,63,0.20)]">
+          <div className="inline-flex h-14 w-14 items-center justify-center rounded-[18px] bg-linear-to-br from-(--color-accent-primary) via-(--color-accent-primary-hover) to-(--color-border-focus) text-(--color-text-inverse) shadow-[0_16px_30px_rgba(37,89,63,0.20)]">
             <ShieldAlert className="h-6 w-6" />
           </div>
 
-          <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">
+          <p className="mt-5 text-[11px] font-semibold uppercase tracking-[0.28em] text-(--color-text-accent)">
             Permission Check
           </p>
-          <h1 className="mt-3 text-[28px] font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-[32px]">
+          <h1 className="mt-3 text-[28px] font-extrabold tracking-tight text-(--color-text-primary) md:text-[32px]">
             {title}
           </h1>
-          <p className="mt-3 max-w-2xl text-[14px] leading-7 text-[var(--color-text-secondary)]">
+          <p className="mt-3 max-w-2xl text-[14px] leading-7 text-(--color-text-secondary)">
             {detail}
           </p>
 
@@ -63,11 +63,11 @@ export function AccessDenied({
           </div>
         </div>
 
-        <div className="rounded-[18px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5 shadow-sm backdrop-blur">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-[var(--color-text-muted)]">
+        <div className="rounded-[18px] border border-(--color-border-default) bg-(--color-bg-surface) p-5 shadow-xs backdrop-blur-sm">
+          <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-(--color-text-muted)">
             What you can do
           </p>
-          <ul className="mt-3 space-y-2 text-[13px] text-[var(--color-text-secondary)]">
+          <ul className="mt-3 space-y-2 text-[13px] text-(--color-text-secondary)">
             <li>Return to a page your account can already access.</li>
             <li>Ask a school administrator to review your assigned permissions.</li>
             <li>Sign in with the correct portal or role if you switched accounts.</li>

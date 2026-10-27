@@ -43,11 +43,11 @@ function PlanCard({ plan, others, rates }: { plan: SuperAdminPlanRow; others: Su
   const revenue = plan.monthlyPrice * plan.subscriberCount;
 
   return (
-    <article className="flex min-w-0 flex-col rounded-[14px] border border-[var(--color-border-default)] bg-white p-[18px]">
+    <article className="flex min-w-0 flex-col rounded-[14px] border border-(--color-border-default) bg-white p-[18px]">
       <div className="flex items-start justify-between gap-2.5">
         <div className="min-w-0">
-          <p className="truncate font-[var(--font-heading)] text-[14.5px] font-bold text-[var(--color-text-primary)]">{plan.name}</p>
-          <p className="mt-[2.5px] truncate text-[10px] text-[var(--color-text-muted)]">{planCode(plan)}</p>
+          <p className="truncate font-(--font-heading) text-[14.5px] font-bold text-(--color-text-primary)">{plan.name}</p>
+          <p className="mt-[2.5px] truncate text-[10px] text-(--color-text-muted)">{planCode(plan)}</p>
         </div>
         <span className="shrink-0 whitespace-nowrap rounded-full bg-[#F1F4F2] px-[8px] py-[2.5px] text-[10px] font-bold text-[#5C6A62]">
           {lifecycle.charAt(0) + lifecycle.slice(1).toLowerCase()}{plan.version && plan.version > 1 ? ` · v${plan.version}` : ""}
@@ -55,23 +55,23 @@ function PlanCard({ plan, others, rates }: { plan: SuperAdminPlanRow; others: Su
       </div>
 
       <div className="mt-4 flex items-baseline gap-1.5">
-        <span className="text-[20.5px] font-bold text-[var(--color-text-primary)]">{formatCurrency(plan.monthlyPrice)}</span>
-        <span className="text-[10.5px] text-[var(--color-text-muted)]">flat rate, per school, per semester</span>
+        <span className="text-[20.5px] font-bold text-(--color-text-primary)">{formatCurrency(plan.monthlyPrice)}</span>
+        <span className="text-[10.5px] text-(--color-text-muted)">flat rate, per school, per semester</span>
       </div>
-      <p className="mt-1 text-[10.5px] text-[var(--color-text-muted)]">{planLimits(plan)}</p>
+      <p className="mt-1 text-[10.5px] text-(--color-text-muted)">{planLimits(plan)}</p>
 
       <div className="mt-3 grid grid-cols-3 gap-2 border-t border-[#EDF3EF] pt-3">
         <div>
-          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">{plan.subscriberCount}</p>
-          <p className="text-[9.5px] text-[var(--color-text-muted)]">Schools</p>
+          <p className="text-[12.5px] font-bold text-(--color-text-primary)">{plan.subscriberCount}</p>
+          <p className="text-[9.5px] text-(--color-text-muted)">Schools</p>
         </div>
         <div>
-          <p className="truncate text-[12.5px] font-bold text-[var(--color-text-primary)]">{formatCurrency(revenue)}</p>
-          <p className="text-[9.5px] text-[var(--color-text-muted)]">Recorded revenue</p>
+          <p className="truncate text-[12.5px] font-bold text-(--color-text-primary)">{formatCurrency(revenue)}</p>
+          <p className="text-[9.5px] text-(--color-text-muted)">Recorded revenue</p>
         </div>
         <div>
-          <p className="truncate text-[12.5px] font-bold text-[var(--color-text-primary)]">{plan.supportTier}</p>
-          <p className="text-[9.5px] text-[var(--color-text-muted)]">Support</p>
+          <p className="truncate text-[12.5px] font-bold text-(--color-text-primary)">{plan.supportTier}</p>
+          <p className="text-[9.5px] text-(--color-text-muted)">Support</p>
         </div>
       </div>
 
@@ -116,7 +116,7 @@ function PlanCard({ plan, others, rates }: { plan: SuperAdminPlanRow; others: Su
           </>
         ) : (
           <>
-            <Link href={"/super-admin/feature-flags?tab=matrix" as Route} className="rounded-[8px] border border-[var(--color-border-default)] bg-transparent px-[11px] py-[6px] text-[11.5px] font-semibold text-[#435048] hover:border-[var(--color-border-strong)]">
+            <Link href={"/super-admin/feature-flags?tab=matrix" as Route} className="rounded-[8px] border border-(--color-border-default) bg-transparent px-[11px] py-[6px] text-[11.5px] font-semibold text-[#435048] hover:border-(--color-border-strong)">
               Manage features
             </Link>
             <ResourceActionDialog
@@ -178,19 +178,19 @@ export function PlanCardGrid({ plans, actions, rates }: { plans: SuperAdminPlanR
     <section className="grid gap-[14px]">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <p className="text-[12.5px] font-bold text-[var(--color-text-primary)]">Subscription plans</p>
-          <p className="mt-1 max-w-2xl text-[11px] text-[var(--color-text-muted)]">
+          <p className="text-[12.5px] font-bold text-(--color-text-primary)">Subscription plans</p>
+          <p className="mt-1 max-w-2xl text-[11px] text-(--color-text-muted)">
             Priced and invoiced in Naira, flat rate per school per semester — not per student, not per currency. New subscriptions and upgrades use these terms.
           </p>
         </div>
         {actions}
       </div>
       {plans.length === 0 ? (
-        <p className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-6 text-[11.5px] text-[var(--color-text-muted)]">
+        <p className="rounded-[14px] border border-(--color-border-default) bg-white p-6 text-[11.5px] text-(--color-text-muted)">
           No subscription plans configured yet — build one to get started.
         </p>
       ) : (
-        <div className="grid items-stretch gap-[11px] [grid-template-columns:repeat(auto-fill,minmax(232px,1fr))]">
+        <div className="grid items-stretch gap-[11px] grid-cols-[repeat(auto-fill,minmax(232px,1fr))]">
           {plans.map((plan) => (
             <PlanCard key={plan.id} plan={plan} others={plans} rates={rates} />
           ))}

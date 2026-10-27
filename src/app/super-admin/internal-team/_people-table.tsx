@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
 import { DetailFacts, DetailSheet } from "@/components/data-display/detail-sheet";
 import { StatusBadge } from "@/components/data-display/status-badge";
@@ -8,6 +8,8 @@ import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import type { SuperAdminInternalMember, SuperAdminPermissionGridMatrix } from "@/lib/domain/types";
 import { formatDate } from "@/lib/utils/formatters";
+import { useQuery } from "@tanstack/react-query";
+import { apiJson, getUrl } from "@/lib/api/client";
 
 const accessLevels = ["NONE", "VIEW", "EDIT", "FULL"].map((v) => ({ label: v, value: v }));
 
@@ -25,24 +27,11 @@ function initialsOf(name: string): string {
 
 function MemberReview({ member, matrix, profile, departmentOptions, memberOptions, moduleOptions }: { member: SuperAdminInternalMember; matrix: SuperAdminPermissionGridMatrix; profile?: PersonProfile; departmentOptions: Option[]; memberOptions: Option[]; moduleOptions: Option[] }) {
   const [open, setOpen] = useState(false);
-  const [devices, setDevices] = useState<DeviceRow[] | null>(null);
-  const [owns, setOwns] = useState<Owns | null>(null);
-
-  useEffect(() => {
-    if (!open || devices) return;
-    void (async () => {
-      try {
-        const [d, o] = await Promise.all([
-          fetch(`/api/super-admin/internal-team/devices/${member.id}`, { credentials: "include" }).then((r) => r.json()),
-          fetch(`/api/super-admin/internal-team/owns/${member.id}`, { credentials: "include" }).then((r) => r.json())
-        ]);
-        setDevices(d.data ?? []);
-        setOwns(o.data ?? null);
-      } catch {
-        setDevices([]);
-      }
-    })();
-  }, [open, devices, member.id]);
+  // Read when the sheet opens, and kept for a moment so closing and reopening it does not ask again.
+  const devicesQuery = useQuery({ queryKey: ["internal-team", "devices", member.id], queryFn: ({ signal }) => apiJson<DeviceRow[]>(getUrl("/api/super-admin/internal-team/devices/{userId}", { userId: member.id }), signal), enabled: open });
+  const ownsQuery = useQuery({ queryKey: ["internal-team", "owns", member.id], queryFn: ({ signal }) => apiJson<Owns>(getUrl("/api/super-admin/internal-team/owns/{userId}", { userId: member.id }), signal), enabled: open });
+  const devices: DeviceRow[] | null = devicesQuery.data ?? (devicesQuery.isError ? [] : null);
+  const owns: Owns | null = ownsQuery.data ?? null;
   const gridRow = matrix.members.find((m) => m.id === member.id);
   const modules = matrix.modules ?? [];
   const grantedCount = modules.filter((moduleId) => (gridRow?.access[moduleId] ?? "NONE") !== "NONE").length;
@@ -211,8 +200,8 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
 
           {suspended ? (
             <div className="rounded-[11px] border p-4" style={{ background: "var(--color-danger-dim)", borderColor: "#F3E0E0" }}>
-              <p className="mb-1.5 text-[11.5px] font-bold text-[var(--color-danger)]">Account suspended</p>
-              <p className="text-[11px] leading-relaxed text-[var(--color-danger)]">
+              <p className="mb-1.5 text-[11.5px] font-bold text-danger">Account suspended</p>
+              <p className="text-[11px] leading-relaxed text-danger">
                 Sign-in is blocked. Use “Reinstate the account” to restore it; offboarding is the permanent route.
               </p>
             </div>
@@ -226,7 +215,7 @@ function MemberReview({ member, matrix, profile, departmentOptions, memberOption
               bold: (gridRow?.access[moduleId] ?? "NONE") !== "NONE"
             }))}
           />
-          <p className="text-[10px] leading-relaxed text-[var(--color-text-muted)]">
+          <p className="text-[10px] leading-relaxed text-(--color-text-muted)">
             Whole-module levels only (None/View/Edit/Full) — there is no per-action grant inside a module. These are enforced: a module reading None
             is hidden from their sidebar and its API refuses them; View blocks every change; Delete needs Full. A module with nothing set falls back to
             their role&apos;s template, then to what their role could always do.
@@ -276,15 +265,15 @@ export function PeopleTable({
           header: "Team member",
           render: (item) => (
             <div>
-              <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
-              <p className="text-xs text-[var(--color-text-muted)]">{item.email}</p>
+              <p className="font-semibold text-(--color-text-primary)">{item.name}</p>
+              <p className="text-xs text-(--color-text-muted)">{item.email}</p>
             </div>
           )
         },
         { key: "role", header: "Role", render: (item) => item.role.replaceAll("_", " ") },
-        { key: "department", header: "Department", render: (item) => profiles[item.id]?.department ?? <span className="text-[var(--color-text-muted)]">None</span> },
-        { key: "level", header: "Level", render: (item) => profiles[item.id]?.level ?? <span className="text-[var(--color-text-muted)]">—</span> },
-        { key: "scope", header: "Data scope", render: (item) => (profiles[item.id]?.scopeStates.length ? profiles[item.id].scopeStates.join(", ") : <span className="text-[var(--color-text-muted)]">Whole platform</span>) },
+        { key: "department", header: "Department", render: (item) => profiles[item.id]?.department ?? <span className="text-(--color-text-muted)">None</span> },
+        { key: "level", header: "Level", render: (item) => profiles[item.id]?.level ?? <span className="text-(--color-text-muted)">—</span> },
+        { key: "scope", header: "Data scope", render: (item) => (profiles[item.id]?.scopeStates.length ? profiles[item.id].scopeStates.join(", ") : <span className="text-(--color-text-muted)">Whole platform</span>) },
         { key: "lastLogin", header: "Last sign-in", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
         { key: "status", header: "Status", render: (item) => <StatusBadge status={item.status} tone={item.status === "ACTIVE" ? "success" : item.status === "REVOKED" ? "danger" : "warning"} /> },
         {

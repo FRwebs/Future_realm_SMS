@@ -40,7 +40,7 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
 
   return (
     <div className="grid min-w-0 gap-[14px]">
-      <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
+      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>What reaches you, and where</h3>
         <p className="mt-[3.5px] text-[10.5px]" style={{ color: "#67766D" }}>In-app notifications cannot be turned off — they are your record.</p>
         <div className="mt-[12px] overflow-x-auto">
@@ -72,7 +72,7 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
         <p className="mt-[10px] text-[10.5px]" style={{ color: "#67766D" }}>{foot}</p>
         {error ? <p className="mt-[6px] text-[11px]" style={{ color: "#B23B3B" }}>{error}</p> : null}
       </section>
-      <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] py-[14px]" style={{ borderColor: "#DEE8E2" }}>
+      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Timing</h3>
         <div className="mt-[10px] grid gap-[14px] sm:grid-cols-2">
           <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>Quiet hours</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#67766D" }}>No email in these hours, except safety notices.</p>{chips(hours, quietOptions, setHours, "quiet")}</div>

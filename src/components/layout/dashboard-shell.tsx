@@ -84,13 +84,13 @@ export function DashboardShell({
       <div className="mx-auto flex min-h-[60vh] w-full max-w-5xl items-center justify-center">
         <section className="w-full">
           <div className="surface-hero p-8 md:p-10">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-[var(--color-text-accent)]">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-(--color-text-accent)">
               Permission Check
             </p>
-            <h1 className="mt-3 text-[28px] font-extrabold tracking-tight text-[var(--color-text-primary)] md:text-[32px]">
+            <h1 className="mt-3 text-[28px] font-extrabold tracking-tight text-(--color-text-primary) md:text-[32px]">
               Super Admin permission required
             </h1>
-            <p className="mt-3 max-w-2xl text-[14px] leading-7 text-[var(--color-text-secondary)]">
+            <p className="mt-3 max-w-2xl text-[14px] leading-7 text-(--color-text-secondary)">
               Your internal platform role can sign in, but it cannot open this Super Admin section.
             </p>
           </div>

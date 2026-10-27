@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Modal } from "@/components/ui/modal";
 import { InlineNotice } from "@/components/ui/inline-notice";
 import { formatDate } from "@/lib/utils/formatters";
+import { focusOnMount } from "@/lib/ui/focus";
 
 function getCookie(name: string) {
   return document.cookie
@@ -34,11 +35,11 @@ async function apiCall<T>(endpoint: string, method: string, body?: unknown): Pro
 function BackupCodesView({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   return (
     <div className="grid gap-4">
-      <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">
+      <p className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">
         Save these codes somewhere safe. Each one works once, as a way in if you lose access to your authenticator app.
         They won&apos;t be shown again.
       </p>
-      <div className="grid grid-cols-2 gap-2 rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4 font-[var(--font-mono)] text-[11.5px]">
+      <div className="grid grid-cols-2 gap-2 rounded-[9px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4 font-(--font-mono) text-[11.5px]">
         {codes.map((code) => (
           <span key={code}>{code}</span>
         ))}
@@ -93,7 +94,7 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
   }
 
   if (step === "loading") {
-    return <p className="py-8 text-center text-[11.5px] text-[var(--color-text-secondary)]">Setting up...</p>;
+    return <p className="py-8 text-center text-[11.5px] text-(--color-text-secondary)">Setting up...</p>;
   }
 
   if (step === "done") {
@@ -117,23 +118,23 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
 
   return (
     <form onSubmit={handleConfirm} className="grid gap-4">
-      <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">
+      <p className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">
         Scan this with an authenticator app (Google Authenticator, Authy, 1Password), or enter the code manually.
       </p>
       <div className="flex justify-center">
-        <img src={setup.qrCodeDataUrl} alt="Scan this QR code with your authenticator app" width={200} height={200} className="rounded-[9px] border border-[var(--color-border-default)]" />
+        <img src={setup.qrCodeDataUrl} alt="Scan this QR code with your authenticator app" width={200} height={200} className="rounded-[9px] border border-(--color-border-default)" />
       </div>
-      <div className="rounded-[7px] bg-[var(--color-bg-subtle)] px-3 py-2 text-center font-[var(--font-mono)] text-[11.5px] tracking-wider text-[var(--color-text-primary)]">
+      <div className="rounded-[7px] bg-(--color-bg-subtle) px-3 py-2 text-center font-(--font-mono) text-[11.5px] tracking-wider text-(--color-text-primary)">
         {setup.secret}
       </div>
       <label className="block">
         <span className="mb-1.5 block text-[10.5px] font-semibold text-[#435048]">Enter the 6-digit code to confirm</span>
         <input
           type="text"
-          autoFocus
+          ref={focusOnMount}
           value={code}
           onChange={(event) => setCode(event.target.value)}
-          className="w-full rounded-[9px] border border-[var(--color-border-default)] px-3.5 py-2.5 text-[12px] outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-[9px] border border-(--color-border-default) px-3.5 py-2.5 text-[12px] outline-hidden focus:border-(--color-accent-primary)"
           placeholder="123456"
         />
       </label>
@@ -195,18 +196,18 @@ function PasswordConfirmFlow({
 
   return (
     <form onSubmit={handleSubmit} className="grid gap-4">
-      <p className="text-[11.5px] leading-relaxed text-[var(--color-text-secondary)]">{description}</p>
+      <p className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{description}</p>
       <label className="block">
         <span className="mb-1.5 block text-[10.5px] font-semibold text-[#435048]">Current password</span>
         <input
           type="password"
-          autoFocus
+          ref={focusOnMount}
           value={password}
           onChange={(event) => setPassword(event.target.value)}
-          className="w-full rounded-[9px] border border-[var(--color-border-default)] px-3.5 py-2.5 text-[12px] outline-none focus:border-[var(--color-accent-primary)]"
+          className="w-full rounded-[9px] border border-(--color-border-default) px-3.5 py-2.5 text-[12px] outline-hidden focus:border-(--color-accent-primary)"
         />
       </label>
-      {error ? <p className="text-[11.5px] text-[var(--color-danger)]">{error}</p> : null}
+      {error ? <p className="text-[11.5px] text-danger">{error}</p> : null}
       <button type="submit" disabled={pending || password.length === 0} className="btn-destructive disabled:cursor-not-allowed disabled:opacity-60">
         {pending ? "Working..." : submitLabel}
       </button>
@@ -221,7 +222,7 @@ export function MfaPanel({ mfaEnabled, mfaEnrolledAt }: { mfaEnabled: boolean; m
     <>
       <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
         <div className="min-w-0">
-          <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Two-factor authentication</p>
+          <p className="text-[11.5px] font-semibold text-(--color-text-primary)">Two-factor authentication</p>
           <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">
             {mfaEnabled ? `On since ${mfaEnrolledAt ? formatDate(mfaEnrolledAt) : "unknown"} — an authenticator app code is required at sign-in.` : "Off — sign-in is email and password only."}
           </p>
@@ -229,15 +230,15 @@ export function MfaPanel({ mfaEnabled, mfaEnrolledAt }: { mfaEnabled: boolean; m
         <div className="flex shrink-0 items-center gap-3">
           {mfaEnabled ? (
             <>
-              <button type="button" onClick={() => setDialog("regenerate")} className="text-[10.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+              <button type="button" onClick={() => setDialog("regenerate")} className="text-[10.5px] font-semibold text-(--color-text-accent) hover:underline">
                 New backup codes
               </button>
-              <button type="button" onClick={() => setDialog("disable")} className="text-[10.5px] font-semibold text-[var(--color-danger)] hover:underline">
+              <button type="button" onClick={() => setDialog("disable")} className="text-[10.5px] font-semibold text-danger hover:underline">
                 Turn off
               </button>
             </>
           ) : (
-            <button type="button" onClick={() => setDialog("setup")} className="text-[10.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+            <button type="button" onClick={() => setDialog("setup")} className="text-[10.5px] font-semibold text-(--color-text-accent) hover:underline">
               Turn on
             </button>
           )}

@@ -21,8 +21,8 @@ export default async function ParentNotificationsPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Notifications</h1>
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to parent portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Notifications</h1>
       </section>
       <TableCard
         title="Notification log"

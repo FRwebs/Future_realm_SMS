@@ -47,7 +47,7 @@ export default async function StatementPage({ searchParams }: { searchParams: Pr
       </Link>
       <section className="rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] text-white">
         <p className="text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">Fee Management</p>
-        <h1 className="mt-1 font-[family-name:var(--font-heading)] text-[19px] font-extrabold">Spool a statement</h1>
+        <h1 className="mt-1 font-(family-name:--font-heading) text-[19px] font-extrabold">Spool a statement</h1>
         <p className="mt-1 text-[11px] text-white/60">Every payment in the period, as one document — read off the payments themselves.</p>
       </section>
 
@@ -77,7 +77,7 @@ export default async function StatementPage({ searchParams }: { searchParams: Pr
           {data.rows.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-[11px]">
-                <thead className="bg-[#F7FAF8] text-[9.5px] uppercase tracking-[0.05em] text-[#67766D]">
+                <thead className="bg-[#F7FAF8] text-[9.5px] uppercase tracking-wider text-[#67766D]">
                   <tr>{["Date", "Receipt", "Student", "Class and arm", "Amount", "Method", "Reference", "Recorded by"].map((head) => <th key={head} className="px-[14px] py-[9px] text-left">{head}</th>)}</tr>
                 </thead>
                 <tbody>

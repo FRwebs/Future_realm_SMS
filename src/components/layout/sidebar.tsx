@@ -124,7 +124,7 @@ function SidebarContent({
         items: group.items.filter((item) => item.label.toLowerCase().includes(query)),
       }))
       .filter((group) => group.items.length > 0);
-  }, [query, visibleGroups.length]);
+  }, [query, visibleGroups]);
 
   async function handleSignOut() {
     setSigningOut(true);
@@ -156,7 +156,7 @@ function SidebarContent({
   return (
     <div
       className={cn(
-        "flex h-full flex-col bg-[#0d2315] font-[var(--font-body)] text-white",
+        "flex h-full flex-col bg-[#0d2315] font-(--font-body) text-white",
         collapsed && !isMobile ? "overflow-visible" : "overflow-hidden",
       )}
     >
@@ -168,7 +168,7 @@ function SidebarContent({
       >
         {collapsed && !isMobile ? (
           <div className="flex flex-col items-center gap-3">
-            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-white font-[var(--font-heading)] text-[12px] font-black text-[#0d2315] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)]">
+            <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-[10px] bg-white font-(--font-heading) text-[12px] font-black text-[#0d2315] shadow-[0_8px_18px_-10px_rgba(0,0,0,0.7)]">
               FR
             </div>
 
@@ -184,7 +184,7 @@ function SidebarContent({
         ) : (
           <div className="flex items-center gap-2.5">
             <div className="min-w-0 flex-1">
-              <p className="truncate font-[var(--font-heading)] text-[18px] font-extrabold leading-none text-white">
+              <p className="truncate font-(--font-heading) text-[18px] font-extrabold leading-none text-white">
                 FutureRealm
               </p>
             </div>
@@ -224,7 +224,7 @@ function SidebarContent({
               value={search}
               onChange={(event) => setSearch(event.target.value)}
               placeholder={portalType === "super_admin" ? "Search everything" : "Search students, staff"}
-              className="min-w-0 flex-1 bg-transparent text-[12.5px] leading-[1.2] text-white placeholder:text-[rgba(255,255,255,0.55)] outline-none"
+              className="min-w-0 flex-1 bg-transparent text-[12.5px] leading-[1.2] text-white placeholder:text-[rgba(255,255,255,0.55)] outline-hidden"
             />
             {search ? (
               <button
@@ -245,8 +245,8 @@ function SidebarContent({
       )}
 
       <div className="relative min-h-0 flex-1 pb-2">
-        <div className="pointer-events-none absolute inset-x-3 top-2 z-10 h-6 bg-gradient-to-b from-[#0d2315] to-transparent" />
-        <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10 h-6 bg-gradient-to-t from-[#0d2315] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-3 top-2 z-10 h-6 bg-linear-to-b from-[#0d2315] to-transparent" />
+        <div className="pointer-events-none absolute inset-x-3 bottom-2 z-10 h-6 bg-linear-to-t from-[#0d2315] to-transparent" />
 
         {/*
           Padding lives on <nav> itself (not the wrapping div above) so the active item's
@@ -271,7 +271,7 @@ function SidebarContent({
               <section key={group.title} className="grid gap-0">
                 {!collapsed && group.title && (
                   <div className="px-[9px] pb-[5px] pt-[11px]">
-                    <p className="text-[9px] font-bold uppercase leading-[1.2] tracking-[0.1em] text-[rgba(255,255,255,0.62)]">
+                    <p className="text-[9px] font-bold uppercase leading-[1.2] tracking-widest text-[rgba(255,255,255,0.62)]">
                       {group.title}
                     </p>
                   </div>
@@ -327,7 +327,7 @@ function SidebarContent({
                               strokeLinejoin="round"
                               aria-hidden
                               className={cn(
-                                "relative z-[1] shrink-0",
+                                "relative z-1 shrink-0",
                                 collapsed ? "h-[18px] w-[18px]" : "h-[15.5px] w-[15.5px]",
                               )}
                             >
@@ -336,7 +336,7 @@ function SidebarContent({
                           ) : (
                             <Icon
                               className={cn(
-                                "relative z-[1] shrink-0",
+                                "relative z-1 shrink-0",
                                 collapsed ? "h-[18px] w-[18px]" : "h-[15.5px] w-[15.5px]",
                               )}
                               strokeWidth={1.7}
@@ -344,7 +344,7 @@ function SidebarContent({
                           )}
 
                           {!collapsed && (
-                            <span className="relative z-[1] flex-1 truncate">
+                            <span className="relative z-1 flex-1 truncate">
                               {item.label}
                             </span>
                           )}
@@ -352,7 +352,7 @@ function SidebarContent({
                           {!collapsed && badgeValue ? (
                             <span
                               className={cn(
-                                "relative z-[1] shrink-0 rounded-full px-[6px] py-[1.5px] text-[9px] font-bold leading-[1.2] text-white",
+                                "relative z-1 shrink-0 rounded-full px-[6px] py-[1.5px] text-[9px] font-bold leading-[1.2] text-white",
                                 badgeTone === "danger"
                                   ? "bg-[#C93F3F]"
                                   : badgeTone === "warning"
@@ -372,7 +372,7 @@ function SidebarContent({
                           {!collapsed && item.dot && !active ? (
                             <span
                               title="Unresolved problem"
-                              className="relative z-[1] h-[6px] w-[6px] shrink-0 rounded-full bg-[#D99A0B]"
+                              className="relative z-1 h-[6px] w-[6px] shrink-0 rounded-full bg-[#D99A0B]"
                             />
                           ) : null}
                         </Link>
@@ -387,12 +387,12 @@ function SidebarContent({
             {collapsed && !isMobile && tooltip
               ? createPortal(
                   <div
-                    className="pointer-events-none fixed z-[var(--z-dropdown)] -translate-y-1/2"
+                    className="pointer-events-none fixed z-(--z-dropdown) -translate-y-1/2"
                     style={{ top: tooltip.top, left: tooltip.left }}
                   >
-                    <div className="relative whitespace-nowrap rounded-xl border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] px-3 py-2 text-xs font-medium text-[var(--color-text-primary)] shadow-[0_12px_24px_rgba(15,23,42,0.08)]">
+                    <div className="relative whitespace-nowrap rounded-xl border border-(--color-border-default) bg-(--color-bg-surface) px-3 py-2 text-xs font-medium text-(--color-text-primary) shadow-[0_12px_24px_rgba(15,23,42,0.08)]">
                       {tooltip.label}
-                      <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-[var(--color-border-default)] bg-[var(--color-bg-surface)]" />
+                      <span className="absolute left-0 top-1/2 h-2.5 w-2.5 -translate-x-1/2 -translate-y-1/2 rotate-45 border-b border-l border-(--color-border-default) bg-(--color-bg-surface)" />
                     </div>
                   </div>,
                   document.body,
@@ -446,7 +446,7 @@ function SidebarContent({
           reminding of is which term it is and who their form master is. */}
       {studentChrome && !collapsed ? (
         <div className="border-t px-[13px] pb-[14px] pt-[11px]" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
-          <p className="mb-[7px] text-[9px] font-bold uppercase tracking-[0.1em]" style={{ color: "rgba(255,255,255,0.55)" }}>
+          <p className="mb-[7px] text-[9px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.55)" }}>
             Your school
           </p>
           <p className="truncate text-[11px] font-semibold text-white">{studentChrome.school.name}</p>
@@ -460,13 +460,13 @@ function SidebarContent({
         {accountMenuOpen && (
           <div
             className={cn(
-              "absolute bottom-[calc(100%+8px)] z-50 w-[calc(100%-2rem)] overflow-hidden rounded-[14px] border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] shadow-[var(--shadow-lg)]",
+              "absolute bottom-[calc(100%+8px)] z-50 w-[calc(100%-2rem)] overflow-hidden rounded-[14px] border border-(--color-border-strong) bg-(--color-bg-overlay) shadow-(--shadow-lg)",
               collapsed && !isMobile ? "left-[calc(100%+8px)] bottom-0 w-56" : "left-4",
             )}
           >
-            <div className="border-b border-[var(--color-border-default)] px-4 py-3.5">
-              <p className="truncate text-[13px] font-semibold text-[var(--color-text-primary)]">{session.name}</p>
-              <p className="truncate text-[11px] text-[var(--color-text-secondary)]">{roleLabels[session.role]}</p>
+            <div className="border-b border-(--color-border-default) px-4 py-3.5">
+              <p className="truncate text-[13px] font-semibold text-(--color-text-primary)">{session.name}</p>
+              <p className="truncate text-[11px] text-(--color-text-secondary)">{roleLabels[session.role]}</p>
             </div>
             <div className="py-1.5">
               <Link
@@ -475,9 +475,9 @@ function SidebarContent({
                   setAccountMenuOpen(false);
                   if (isMobile) onCloseMobile();
                 }}
-                className="mx-2 flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] text-[var(--color-text-secondary)] transition hover:bg-[var(--color-bg-subtle)] hover:text-[var(--color-text-primary)]"
+                className="mx-2 flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] text-(--color-text-secondary) transition hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary)"
               >
-                <User className="h-4 w-4 text-[var(--color-text-muted)]" />
+                <User className="h-4 w-4 text-(--color-text-muted)" />
                 My Profile
               </Link>
               <button
@@ -504,7 +504,7 @@ function SidebarContent({
             collapsed && !isMobile ? "justify-center p-1.5" : "px-1 py-1 hover:bg-[rgba(255,255,255,0.06)]",
           )}
         >
-          <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-white text-[12.5px] font-bold font-[var(--font-heading)] text-[#0d2315]">
+          <span className="flex h-[34px] w-[34px] shrink-0 items-center justify-center rounded-[11px] bg-white text-[12.5px] font-bold font-(--font-heading) text-[#0d2315]">
             {initials(session.name)}
           </span>
           {!collapsed && (
@@ -546,8 +546,8 @@ export function Sidebar({
           "sticky top-0 z-40 hidden h-screen shrink-0 p-0 transition-all duration-200 md:block",
           "bg-[#0d2315]",
           collapsed
-            ? "w-[var(--layout-sidebar-collapsed)] min-w-[var(--layout-sidebar-collapsed)]"
-            : "w-[var(--layout-sidebar-width)] min-w-[var(--layout-sidebar-width)]",
+            ? "w-(--layout-sidebar-collapsed) min-w-(--layout-sidebar-collapsed)"
+            : "w-(--layout-sidebar-width) min-w-(--layout-sidebar-width)",
         )}
       >
         <SidebarContent
@@ -567,7 +567,7 @@ export function Sidebar({
       </aside>
 
       {mobileOpen && (
-        <aside className="fixed inset-y-0 left-0 z-50 w-[var(--layout-sidebar-width)] max-w-[calc(100vw-1rem)] bg-[#0d2315] md:hidden">
+        <aside className="fixed inset-y-0 left-0 z-50 w-(--layout-sidebar-width) max-w-[calc(100vw-1rem)] bg-[#0d2315] md:hidden">
           <SidebarContent
             session={session}
             permissions={permissions}

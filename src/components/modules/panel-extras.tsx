@@ -170,7 +170,7 @@ export function GridPanelView({ panel, openDrawer }: { panel: GridPanel; openDra
     : null;
 
   const inputClass =
-    "w-full min-w-0 rounded-[8px] border-[1.5px] bg-white px-[9px] py-[6.5px] text-[11.5px] font-medium text-[#0D2315] outline-none focus:border-[#12796A]";
+    "w-full min-w-0 rounded-[8px] border-[1.5px] bg-white px-[9px] py-[6.5px] text-[11.5px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A]";
 
   function cellView(cell: GridCell, c: number, value: string, display: string, onChange: (next: string) => void, key: string) {
     if (cell.static || cell.calc) {
@@ -221,11 +221,11 @@ export function GridPanelView({ panel, openDrawer }: { panel: GridPanel; openDra
         </div>
       ) : null}
 
-      <div className="-mx-[18px] overflow-x-auto px-[18px]">
+      <div className="mx-[-18px] overflow-x-auto px-[18px]">
         <div className="grid min-w-[620px] gap-[6px]">
           <div className="grid items-end gap-[8px] border-b pb-[6px]" style={{ ...gridStyle, borderColor: "#EDF3EF" }}>
             {panel.head.map((heading, index) => (
-              <span key={heading + index} className={cn("text-[9.5px] font-semibold uppercase tracking-[0.05em]", align(index))} style={{ color: MUTED }}>
+              <span key={heading + index} className={cn("text-[9.5px] font-semibold uppercase tracking-wider", align(index))} style={{ color: MUTED }}>
                 {heading}
               </span>
             ))}
@@ -273,7 +273,7 @@ export function GridPanelView({ panel, openDrawer }: { panel: GridPanel; openDra
           <span className="mt-[6px] block h-[5px] overflow-hidden rounded-full" style={{ background: "#EDF3EF" }} aria-hidden>
             <span className="block h-full rounded-full" style={{ width: `${meter.pct}%`, background: meter.ok ? "#17714F" : meter.over ? "#B23B3B" : "#C9972B" }} />
           </span>
-          <p className="mt-[6px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+          <p className="mt-[6px] text-[10.5px] leading-normal" style={{ color: MUTED }}>
             {meter.ok ? panel.meter.okNote : panel.meter.note}
           </p>
         </div>
@@ -282,7 +282,7 @@ export function GridPanelView({ panel, openDrawer }: { panel: GridPanel; openDra
       {panel.save ? (
         <div className="mt-[14px] flex flex-wrap items-center justify-between gap-3 border-t pt-[12px]" style={{ borderColor: "#EDF3EF" }}>
           <p
-            className="min-w-0 flex-[1_1_200px] text-[10.5px] leading-[1.5]"
+            className="min-w-0 flex-[1_1_200px] text-[10.5px] leading-normal"
             role={state.kind === "failed" ? "alert" : undefined}
             style={{ color: state.kind === "failed" ? "#B23B3B" : state.kind === "saved" ? "#17714F" : MUTED, fontWeight: state.kind === "idle" ? 400 : 600 }}
           >
@@ -303,7 +303,7 @@ export function GridPanelView({ panel, openDrawer }: { panel: GridPanel; openDra
         </p>
       ) : null}
       {panel.foot ? (
-        <p className="-mx-[18px] -mb-[12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[10px] text-[10.5px] leading-[1.5]" style={{ borderColor: "#EDF3EF", color: MUTED }}>
+        <p className="mx-[-18px] mb-[-12px] mt-[12px] border-t bg-[#F7FAF8] px-[18px] py-[10px] text-[10.5px] leading-normal" style={{ borderColor: "#EDF3EF", color: MUTED }}>
           {panel.foot}
         </p>
       ) : null}
@@ -436,10 +436,10 @@ export function FlowPanelView({ panel, openDrawer }: { panel: FlowPanel; openDra
                       <span className="rounded-full bg-[#0D2315] px-[8px] py-[2px] text-[9.5px] font-semibold text-white">Here now</span>
                     ) : null}
                   </div>
-                  <p className="mt-[3px] text-[11px] leading-[1.5]" style={{ color: "#435048" }}>
+                  <p className="mt-[3px] text-[11px] leading-normal" style={{ color: "#435048" }}>
                     <strong className="font-semibold">{stage.who}</strong> · {lowerFirst(stage.does)} · {lowerFirst(stage.scope)}
                   </p>
-                  <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                  <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
                     {stage.win}, {SILENCE_SHORT[stage.silence] ?? lowerFirst(stage.silence)} · tells {stage.notify.map(lowerFirst).join(", ")}
                   </p>
                 </div>
@@ -476,7 +476,7 @@ export function FlowPanelView({ panel, openDrawer }: { panel: FlowPanel; openDra
       {panel.rules?.length ? (
         <ul className="mt-[12px] grid gap-[3px] border-t pt-[10px]" style={{ borderColor: "#EDF3EF" }}>
           {panel.rules.map((rule) => (
-            <li key={rule} className="flex gap-[8px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+            <li key={rule} className="flex gap-[8px] text-[10.5px] leading-normal" style={{ color: MUTED }}>
               <span aria-hidden>{"·"}</span>
               <span>{rule}</span>
             </li>

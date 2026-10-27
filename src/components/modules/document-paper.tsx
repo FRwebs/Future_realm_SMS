@@ -15,13 +15,13 @@ export function DocumentPaper({ doc, className = "" }: { doc: DocumentSpec; clas
     <section data-print-grid="true" className={`relative break-inside-avoid overflow-hidden rounded-[12px] border border-[#DEE8E2] bg-white px-[26px] py-[24px] text-[#0D2315] print:rounded-none print:border-0 print:px-6 print:py-6 ${className}`}>
       <header className="flex items-start justify-between gap-[18px] border-b-2 border-[#0D2315] pb-[14px]">
         <div className="min-w-0">
-          <h1 className="font-[family-name:var(--font-heading)] text-[17px] font-extrabold leading-[1.2] tracking-[-0.01em]">{doc.letterhead.name}</h1>
-          {doc.letterhead.place ? <p className="mt-[3px] text-[10.5px] leading-[1.5] text-[#5F6E65]">{doc.letterhead.place}</p> : null}
-          {doc.letterhead.contact ? <p className="text-[10.5px] leading-[1.5] text-[#5F6E65]">{doc.letterhead.contact}</p> : null}
+          <h1 className="font-(family-name:--font-heading) text-[17px] font-extrabold leading-[1.2] tracking-[-0.01em]">{doc.letterhead.name}</h1>
+          {doc.letterhead.place ? <p className="mt-[3px] text-[10.5px] leading-normal text-[#5F6E65]">{doc.letterhead.place}</p> : null}
+          {doc.letterhead.contact ? <p className="text-[10.5px] leading-normal text-[#5F6E65]">{doc.letterhead.contact}</p> : null}
         </div>
         <div className="flex-none text-right">
           <p className="text-[9px] font-bold uppercase tracking-[0.08em] text-[#5f6e65]">{doc.kicker}</p>
-          <p className="mt-[3px] font-[family-name:var(--font-heading)] text-[12.5px] font-bold leading-[1.3] text-[#12796A]">{doc.title}</p>
+          <p className="mt-[3px] font-(family-name:--font-heading) text-[12.5px] font-bold leading-[1.3] text-[#12796A]">{doc.title}</p>
           {doc.ref ? <p className="mt-[2px] text-[10px] text-[#5f6e65]">{doc.ref}</p> : null}
           {doc.stamp && stamp ? (
             <p className="mt-[8px] inline-block rotate-[-5deg] rounded-[7px] border-2 px-[10px] py-[2px] text-[13px] font-extrabold tracking-[0.18em]" style={{ color: stamp.fg, borderColor: stamp.fg }}>
@@ -91,7 +91,7 @@ export function DocumentPaper({ doc, className = "" }: { doc: DocumentSpec; clas
             return (
               <div key={box.label} className="min-w-0 rounded-[9px] border px-[12px] py-[10px]" style={{ borderColor: tone?.bd ?? "#E6EEE9", background: tone?.bg ?? "#FBFDFC" }}>
                 <p className="text-[8.5px] font-bold uppercase tracking-[0.07em] text-[#5f6e65]">{box.label}</p>
-                <p className="mt-[4px] font-[family-name:var(--font-heading)] text-[16px] font-extrabold" style={{ fontVariantNumeric: "tabular-nums" }}>{box.value}</p>
+                <p className="mt-[4px] font-(family-name:--font-heading) text-[16px] font-extrabold" style={{ fontVariantNumeric: "tabular-nums" }}>{box.value}</p>
                 {box.sub ? <p className="mt-[2px] text-[9.5px] leading-[1.4] text-[#5f6e65]">{box.sub}</p> : null}
               </div>
             );

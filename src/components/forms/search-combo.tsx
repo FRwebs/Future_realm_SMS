@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { useId, useMemo, useRef, useState } from "react";
 import { ChevronDown, Search } from "lucide-react";
 
 interface SearchComboProps {
@@ -26,6 +26,9 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
   // Guards against handleBlur re-committing with its own stale (pre-commit) query text
   // when commit()'s own deliberate blur (see below) triggers that same blur handler.
   const committingRef = useRef(false);
+  const listId = useId();
+  /** Which row the arrow keys are on; -1 is the typed text itself. */
+  const [active, setActive] = useState(-1);
 
   const trimmed = query.trim();
   const lower = trimmed.toLowerCase();
@@ -34,12 +37,17 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
     return options.filter((option) => option.toLowerCase().includes(lower));
   }, [options, open, lower]);
   const exactHit = options.find((option) => option.toLowerCase() === lower);
+  const shown = filtered.slice(0, 260);
+  const offerTyped = Boolean(trimmed && !exactHit);
+  const rows = offerTyped ? [trimmed, ...shown] : shown;
+  const optionId = (index: number) => `${listId}-option-${index}`;
 
   function commit(next: string) {
     committingRef.current = true;
     onChange(next);
     setOpen(false);
     setQuery("");
+    setActive(-1);
     // Selecting an option deliberately never blurs via the option's own mousedown (see
     // onMouseDown preventDefault below — it avoids a blur-then-click race), so the input
     // is still focused after this. Blur it explicitly so the *next* click is a fresh
@@ -77,9 +85,15 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
         <input
           ref={inputRef}
           value={open ? query : value}
+          role="combobox"
+          aria-expanded={open}
+          aria-controls={listId}
+          aria-autocomplete="list"
+          aria-activedescendant={open && active >= 0 ? optionId(active) : undefined}
           onChange={(e) => {
             setOpen(true);
             setQuery(e.target.value);
+            setActive(-1);
           }}
           onFocus={() => {
             setOpen(true);
@@ -87,48 +101,60 @@ export function SearchCombo({ value, onChange, options, placeholder, emptyNote, 
           }}
           onBlur={handleBlur}
           onKeyDown={(e) => {
-            if (e.key === "Enter") {
+            if (e.key === "ArrowDown" || e.key === "ArrowUp") {
               e.preventDefault();
-              if (trimmed) commit(exactHit || trimmed);
+              setOpen(true);
+              setActive((current) => {
+                const step = e.key === "ArrowDown" ? 1 : -1;
+                return rows.length ? (current + step + rows.length) % rows.length : -1;
+              });
+            } else if (e.key === "Enter") {
+              e.preventDefault();
+              if (open && active >= 0 && rows[active] !== undefined) commit(rows[active]!);
+              else if (trimmed) commit(exactHit || trimmed);
             } else if (e.key === "Escape") {
               setOpen(false);
               setQuery("");
             }
           }}
           placeholder={value || placeholder}
-          className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-[#0d2315] outline-none placeholder:text-[#5f6e65]"
+          className="min-w-0 flex-1 border-none bg-transparent text-[13.5px] text-[#0d2315] outline-hidden placeholder:text-[#5f6e65]"
         />
         <ChevronDown className="h-[13px] w-[13px] shrink-0 text-[#9fb8a7]" />
       </div>
       {open ? (
-        <div className="absolute left-0 right-0 top-[calc(100%+5px)] z-40 max-h-[234px] overflow-y-auto rounded-xl border-[1.5px] border-[#dee8e2] bg-white p-[5px] shadow-[0_18px_38px_-18px_rgba(13,35,21,0.4)]">
-          {trimmed && !exactHit ? (
-            <div
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => commit(trimmed)}
-              className="cursor-pointer rounded-lg px-[10px] py-2 text-[11.5px] font-semibold"
-              style={{ background: "#edf7f1", color: "#17604f" }}
-            >
-              Use “{trimmed}”
-            </div>
-          ) : null}
-          {filtered.slice(0, 260).map((option) => (
-            <div
-              key={option}
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => commit(option)}
-              className="cursor-pointer rounded-lg px-[10px] py-2 text-[11.5px]"
-              style={{
-                background: value === option ? "#f2f6f4" : "transparent",
-                color: value === option ? "#0d2315" : "#435048",
-                fontWeight: value === option ? 600 : 500
-              }}
-            >
-              {option}
-            </div>
-          ))}
+        <div id={listId} role="listbox" className="absolute left-0 right-0 top-[calc(100%+5px)] z-40 max-h-[234px] overflow-y-auto rounded-xl border-[1.5px] border-[#dee8e2] bg-white p-[5px] shadow-[0_18px_38px_-18px_rgba(13,35,21,0.4)]">
+          {rows.map((option, index) => {
+            const typed = offerTyped && index === 0;
+            const chosen = !typed && value === option;
+            return (
+              <div
+                key={typed ? "typed" : option}
+                id={optionId(index)}
+                role="option"
+                tabIndex={-1}
+                aria-selected={chosen}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => commit(option)}
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); commit(option); } }}
+                onMouseEnter={() => setActive(index)}
+                className="cursor-pointer rounded-lg px-[10px] py-2 text-[11.5px]"
+                style={
+                  typed
+                    ? { background: "#edf7f1", color: "#17604f", fontWeight: 600, outline: active === index ? "2px solid #12796a" : "none" }
+                    : {
+                        background: chosen ? "#f2f6f4" : active === index ? "#f7faf8" : "transparent",
+                        color: chosen ? "#0d2315" : "#435048",
+                        fontWeight: chosen ? 600 : 500,
+                      }
+                }
+              >
+                {typed ? <>Use “{trimmed}”</> : option}
+              </div>
+            );
+          })}
           {filtered.length === 0 && !trimmed ? (
-            <div className="px-[10px] py-2 text-[11px] leading-[1.5] text-[#5f6e65]">
+            <div className="px-[10px] py-2 text-[11px] leading-normal text-[#5f6e65]">
               {emptyNote || "Type it in full and we will use exactly what you write."}
             </div>
           ) : null}

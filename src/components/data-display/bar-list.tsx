@@ -7,15 +7,15 @@ export function BarList({ title, sub, items, empty, footer }: { title: string; s
   return (
     <section className="surface-card min-w-0 overflow-hidden">
       <div className="px-5 pb-[14px] pt-4">
-        <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
-        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
+        <h3 className="text-pretty text-[14px] font-semibold leading-[1.3] text-(--color-text-primary)">{title}</h3>
+        {sub ? <p className="mt-1 text-pretty text-[11.5px] leading-normal text-[#5f6e65]">{sub}</p> : null}
       </div>
       <div className="px-5 pb-[18px] pt-1">
         {items.map((item) => (
           <div key={item.label} className="mt-[14px]">
             <div className="mb-[6px] flex items-center justify-between gap-3">
               <span className="min-w-0 text-[12.5px] text-[#435048]">{item.label}</span>
-              <span className="flex-none font-[var(--font-heading)] text-[13px] font-bold">{item.value}</span>
+              <span className="flex-none font-(--font-heading) text-[13px] font-bold">{item.value}</span>
             </div>
             <div className="h-2 overflow-hidden rounded-full bg-[#EDF3EF]">
               <div className="h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, item.pct))}%`, background: solid[item.tone] }} />

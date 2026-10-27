@@ -49,7 +49,7 @@ test.describe("signed-in screens", () => {
     // The row menu is a Radix popover: it must open, be reachable, and give focus back on Escape.
     const menuButton = page.getByRole("button", { name: /^Actions for / }).first();
     await menuButton.click();
-    await expect(page.getByRole("link", { name: "Open school profile" })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: "Open school profile" })).toBeVisible();
     expect(await serious(page)).toEqual([]);
     await page.keyboard.press("Escape");
     await expect(menuButton).toBeFocused();

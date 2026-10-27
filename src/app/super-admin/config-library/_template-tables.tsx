@@ -45,7 +45,7 @@ function SheetTableBlock({ table }: { table: SheetTable }) {
     <SheetCard title={table.title} sub={table.sub}>
       <div className="px-[14.5px]">
         <div style={grid} className="border-b border-[#E6EEE9] py-2">
-          {table.head.map((cell, index) => <div key={index} className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.05em] text-[#5f6e65]">{cell}</div>)}
+          {table.head.map((cell, index) => <div key={index} className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap text-[9px] font-bold uppercase tracking-wider text-[#5f6e65]">{cell}</div>)}
         </div>
         {table.rows.map((row, index) => (
           <div key={index} style={grid} className="border-b border-[#F4F8F6] py-[9px] last:border-b-0">
@@ -57,7 +57,7 @@ function SheetTableBlock({ table }: { table: SheetTable }) {
           </div>
         ))}
       </div>
-      {table.foot ? <p className="text-pretty border-t border-[#EDF3EF] bg-[#F7FAF8] px-[14.5px] py-[10px] text-[10.5px] leading-[1.5] text-[#5f6e65]">{table.foot}</p> : null}
+      {table.foot ? <p className="text-pretty border-t border-[#EDF3EF] bg-[#F7FAF8] px-[14.5px] py-[10px] text-[10.5px] leading-normal text-[#5f6e65]">{table.foot}</p> : null}
     </SheetCard>
   );
 }

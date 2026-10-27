@@ -118,18 +118,6 @@ const academicSections = [
   "SENIOR_SECONDARY",
 ] as const;
 
-const cohortNames = [
-  ["Ayo", "Balogun", "MALE"],
-  ["Zainab", "Lawal", "FEMALE"],
-  ["Chiamaka", "Nwosu", "FEMALE"],
-  ["Favour", "Okafor", "FEMALE"],
-  ["Malik", "Adebayo", "MALE"],
-  ["Ruth", "Ekanem", "FEMALE"],
-  ["Tomiwa", "Akinola", "MALE"],
-  ["Nifemi", "Ojo", "FEMALE"],
-  ["David", "Ibe", "MALE"],
-] as const;
-
 const secondaryCohortProfiles = [
   ["Ayomide", "MALE"],
   ["Ebunoluwa", "FEMALE"],
@@ -3591,9 +3579,6 @@ async function main() {
     },
   ] as const;
 
-  const scoringPlanByClass = new Map(
-    secondTermResultPlans.map((plan) => [plan.classRoom.id, plan]),
-  );
   const secondTermStudents = await prisma.student.findMany({
     where: {
       schoolId: school.id,

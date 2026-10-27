@@ -1,0 +1,25 @@
+# Keeps dependencies current without anyone remembering to: one pull request a week per ecosystem, minor and patch updates grouped
+# so they arrive as a single reviewable change, and a separate one for each major version.
+version: 2
+updates:
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+    open-pull-requests-limit: 5
+    groups:
+      minor-and-patch:
+        update-types: [minor, patch]
+    ignore:
+      # Tailwind, Next and Prisma majors change how the whole app builds; they are upgraded on purpose, not by bot.
+      - dependency-name: next
+        update-types: [version-update:semver-major]
+      - dependency-name: prisma
+        update-types: [version-update:semver-major]
+      - dependency-name: "@prisma/client"
+        update-types: [version-update:semver-major]
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly

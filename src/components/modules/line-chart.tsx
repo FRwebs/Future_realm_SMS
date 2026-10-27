@@ -155,7 +155,7 @@ export function LineChart({ points, ceiling = 100, target = null, keys, format, 
               const href = hrefFor?.(index);
               const swatch = toneOf(toneOfPoint(point));
               const style = { left: `${x(index)}%`, top: `${y(point.v)}%`, borderColor: swatch.dot, boxShadow: point.on ? "0 0 0 4px rgba(18,121,106,0.2)" : undefined };
-              const className = "absolute box-border h-[11px] w-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] bg-white transition-transform duration-[120ms] hover:scale-125";
+              const className = "absolute box-border h-[11px] w-[11px] -translate-x-1/2 -translate-y-1/2 rounded-full border-[2.5px] bg-white transition-transform duration-120 hover:scale-125";
               if (go) return <button key={`${point.label}-${index}`} type="button" title={point.tip} onClick={go} className={`${className} cursor-pointer`} style={style} />;
               if (href) return <Link key={`${point.label}-${index}`} href={href as Route} title={point.tip} className={`${className} cursor-pointer`} style={style} />;
               return <span key={`${point.label}-${index}`} title={point.tip} className={className} style={style} />;

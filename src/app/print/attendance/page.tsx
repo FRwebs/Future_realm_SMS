@@ -34,7 +34,7 @@ export default async function AttendanceRecordPage({ searchParams }: { searchPar
             <p className="mt-1 text-[11px] text-[#5F6E65]">{meta.letterhead ? "Official attendance record" : "Attendance record · plain copy"}</p>
           </div>
           <div className="text-right">
-            <p className="text-[9px] font-bold uppercase tracking-[0.1em] text-[#5f6e65]">Attendance record</p>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-[#5f6e65]">Attendance record</p>
             <p className="mt-1 text-[13px] font-bold text-[#12796A]">{meta.subject}</p>
             <p className="mt-0.5 text-[10.5px] text-[#5f6e65]">{meta.period}</p>
           </div>

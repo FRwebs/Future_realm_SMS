@@ -141,7 +141,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
 
       {error ? (
         <div className="rounded-[12px] border px-[13px] py-[11px]" style={{ background: "#FDF2F2", borderColor: "#F3D2D2" }}>
-          <p className="text-[11.5px] font-semibold leading-[1.5]" style={{ color: "#A32B2B" }}>{error}</p>
+          <p className="text-[11.5px] font-semibold leading-normal" style={{ color: "#A32B2B" }}>{error}</p>
         </div>
       ) : null}
 
@@ -173,7 +173,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
             <h3 className="text-[13px] font-semibold" style={{ color: INK }}>{reviewing ? "Check this, then create the record" : step.title}</h3>
             <span className="text-[10.5px] font-semibold tabular-nums" style={{ color: MUTED }}>Step {index + 1} of {steps.length}</span>
           </div>
-          {step.hint ? <p className="mt-[3px] text-[11px] leading-[1.5]" style={{ color: MUTED }}>{reviewing ? (page?.reviewDesc ?? step.hint) : step.hint}</p> : null}
+          {step.hint ? <p className="mt-[3px] text-[11px] leading-normal" style={{ color: MUTED }}>{reviewing ? (page?.reviewDesc ?? step.hint) : step.hint}</p> : null}
         </header>
         <div className="grid items-start gap-x-[16px] gap-y-[14px] px-[18px] py-[16px] sm:grid-cols-2">
           {visible(step.fields).map((field) => (
@@ -231,7 +231,7 @@ export function CreateWizard({ spec }: { spec: DrawerSpec }) {
       ) : null}
 
       {confirm ? (
-        <div className="fixed inset-0 z-[42]">
+        <div className="fixed inset-0 z-42">
           <ConfirmSheet
             title={confirm === "leave" ? "Leave without creating?" : `${spec.commitLabel ?? "Create"}?`}
             body={confirm === "leave" ? "What you have entered here will not be kept." : (page?.confirmBody ?? "Nothing is written until you confirm.")}

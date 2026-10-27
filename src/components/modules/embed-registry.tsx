@@ -37,8 +37,8 @@ export function EmbeddedPanel({ component, props, openDrawer }: { component: str
   if (!Component) {
     return (
       <section className="surface-card border-dashed p-4 md:p-5">
-        <p className="text-[12px] font-bold text-[var(--color-text-primary)]">This part of the page could not be drawn</p>
-        <p className="mt-1 text-[11.5px] text-[var(--color-text-muted)]">“{component}” is not a component this build knows.</p>
+        <p className="text-[12px] font-bold text-(--color-text-primary)">This part of the page could not be drawn</p>
+        <p className="mt-1 text-[11.5px] text-(--color-text-muted)">“{component}” is not a component this build knows.</p>
       </section>
     );
   }

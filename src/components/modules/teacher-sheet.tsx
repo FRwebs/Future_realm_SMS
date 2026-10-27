@@ -2,7 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { PanelView } from "@/components/modules/panel-renderer";
 import type { DrawerSpec, KpiCard, PanelAction, PanelTone, TableCellKind, TableRow } from "@/lib/modules/panels";
@@ -147,6 +147,9 @@ export function TeacherSheet(props: TeacherSheetProps) {
   }
   // Marks typed here exist only in this page until they are saved. A link that would leave without them says so — and the link to
   // the preview saves first, so the header's "Preview, then submit" does what it says.
+  // The click guard is bound while there is something unsaved; it reads the latest preview/router from a ref instead of rebinding for them.
+  const latest = useRef({ preview, router });
+  useEffect(() => { latest.current = { preview, router }; });
   useEffect(() => {
     if (locked) return;
     const onClick = (event: MouseEvent) => {
@@ -156,12 +159,12 @@ export function TeacherSheet(props: TeacherSheetProps) {
       if (!link || !href || href.startsWith("#") || link.target === "_blank") return;
       event.preventDefault();
       event.stopPropagation();
-      if (href === props.previewHref) { void preview(); return; }
-      if (window.confirm("You have marks that are not saved. Leave without saving them?")) router.push(href as Route);
+      if (href === props.previewHref) { void latest.current.preview(); return; }
+      if (window.confirm("You have marks that are not saved. Leave without saving them?")) latest.current.router.push(href as Route);
     };
     document.addEventListener("click", onClick, true);
     return () => document.removeEventListener("click", onClick, true);
-  }, [dirty, locked, cells, props.previewHref]);
+  }, [dirty, locked, props.previewHref]);
 
   function type(studentId: string, key: string, raw: string) {
     setNote(null);
@@ -195,7 +198,7 @@ export function TeacherSheet(props: TeacherSheetProps) {
             placeholder="–"
             aria-label={`${column.name} out of ${column.max} — ${row.name}`}
             onChange={(event) => type(row.id, column.key, event.target.value)}
-            className="w-[56px] rounded-[8px] border px-[6px] py-[6px] text-center text-[11.5px] font-semibold tabular-nums outline-none focus:border-[#12796A] disabled:bg-[#F4F6F5]"
+            className="w-[56px] rounded-[8px] border px-[6px] py-[6px] text-center text-[11.5px] font-semibold tabular-nums outline-hidden focus:border-[#12796A] disabled:bg-[#F4F6F5]"
             style={absent ? { background: "#F5F0FA", borderColor: "#E7DDF2", color: "#6B4E9E", fontSize: 10, letterSpacing: "0.04em" } : bad ? { background: "#FDF3F3", borderColor: "#E8B4B4", color: "#B23B3B" } : { borderColor: "#DEE8E2", color: "#0D2315" }}
           />
         ),

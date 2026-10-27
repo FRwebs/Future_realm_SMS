@@ -1,10 +1,25 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { Children, isValidElement, useEffect, useMemo, useState, type ReactNode } from "react";
+import {
+  columnFilteringFeature,
+  createFilteredRowModel,
+  createPaginatedRowModel,
+  filterFn_includesString,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  tableFeatures,
+  useTable,
+  type ColumnDef,
+  type PaginationState,
+  type RowSelectionState,
+} from "@tanstack/react-table";
+import { Children, isValidElement, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Search, X } from "lucide-react";
 
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
+import { useTableUrlState } from "@/hooks/use-table-url-state";
 
 import type { PreparedColumn, PreparedRow, SelectionAction, SelectionConfig } from "./table-card-body";
 
@@ -37,6 +52,20 @@ function nodeText(node: ReactNode): string {
   return "";
 }
 
+/**
+ * The table's rows are filtered, paged and selected by TanStack Table (headless — the markup below is still ours). The features and the
+ * column helper live at module scope because the library requires them to be stable between renders.
+ */
+const features = tableFeatures({
+  columnFilteringFeature,
+  globalFilteringFeature,
+  rowPaginationFeature,
+  rowSelectionFeature,
+  filteredRowModel: createFilteredRowModel(),
+  paginatedRowModel: createPaginatedRowModel(),
+  filterFns: { includesString: filterFn_includesString },
+});
+
 const csrf = () => document.cookie.split("; ").find((item) => item.startsWith("fr_csrf="))?.split("=")[1] ?? "";
 
 /** The mockup pages a table of ten or more rows, eight to a page. */
@@ -46,28 +75,62 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
   const router = useRouter();
   // What a bulk action did, said above the rows it acted on — and kept after the selection it came from has cleared.
   const bulk = useNotice();
-  const [picked, setPicked] = useState<Array<string | number>>([]);
   const [acting, setActing] = useState(false);
-  const [page, setPage] = useState(0);
-  const [query, setQuery] = useState("");
+  // The search and the page live in the address (see `useTableUrlState`), so this view can be refreshed, shared and gone back to.
+  const url = useTableUrlState(title);
+  const query = url.query;
+  const pageIndex = Math.max(0, url.page - 1);
+  const setPageIndex = (updater: number | ((current: number) => number)) => {
+    const next = typeof updater === "function" ? updater(pageIndex) : updater;
+    void url.setPage(next + 1);
+  };
+  const setQuery = (value: string) => {
+    void url.setQuery(value);
+    void url.setPage(1);
+  };
+  const [rowSelection, setRowSelection] = useState<RowSelectionState>({});
   const [choices, setChoices] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    setPage(0);
-    setPicked([]);
-  }, [rows]);
-  useEffect(() => setPage(0), [query]);
 
   // A table long enough to page can be searched, as in the mockup — unless the page already brought its own toolbar.
   const all = rows;
-  const searchable = !filterBar && perPage(all.length, pageSize) > 0;
-  const needle = query.trim().toLowerCase();
-  const texts = useMemo(() => (searchable ? all.map((row) => Object.values(row.cells).map(nodeText).join(" · ").toLowerCase()) : []), [all, searchable]);
-  const matching = needle && searchable ? all.filter((_, index) => texts[index]?.includes(needle)) : all;
   const per = perPage(all.length, pageSize);
+  const searchable = !filterBar && per > 0;
+  const needle = query.trim().toLowerCase();
+
+  // Each column answers the search with the words it shows, read back out of what it renders.
+  const tableColumns = useMemo(
+    (): Array<ColumnDef<typeof features, PreparedRow>> => columns.map((column) => ({ id: column.key, accessorFn: (row: PreparedRow) => nodeText(row.cells[column.key]) })),
+    [columns],
+  );
+  const pagination: PaginationState = { pageIndex, pageSize: per || Math.max(all.length, 1) };
+  const table = useTable({
+    features,
+    columns: tableColumns,
+    data: all,
+    getRowId: (row) => String(row.key),
+    globalFilterFn: "includesString",
+    enableRowSelection: Boolean(selection),
+    state: { globalFilter: searchable ? needle : "", pagination, rowSelection },
+    onPaginationChange: (updater) => setPageIndex((current) => (typeof updater === "function" ? updater({ pageIndex: current, pageSize: pagination.pageSize }) : updater).pageIndex),
+    onRowSelectionChange: setRowSelection,
+    autoResetPageIndex: false,
+  });
+
+  // New rows (a refresh, a different tab) start from the first page with nothing picked. Comparing with the previous rows, not a
+  // "first run" flag, keeps the page from the address on load.
+  const previousRows = useRef(rows);
+  useEffect(() => {
+    if (previousRows.current === rows) return;
+    previousRows.current = rows;
+    void url.setPage(1);
+    setRowSelection({});
+  }, [rows, url]);
+
+  const picked = Object.keys(rowSelection).filter((id) => rowSelection[id]);
+  const matching = table.getFilteredRowModel().rows;
   const pages = per ? Math.max(1, Math.ceil(matching.length / per)) : 1;
-  const current = Math.min(page, pages - 1);
-  const shown = per ? matching.slice(current * per, current * per + per) : matching;
+  const current = Math.min(pageIndex, pages - 1);
+  const shown = table.getRowModel().rows;
   const hasHead = Boolean(title) || Boolean(actions) || Boolean(meta);
 
   async function run(action: SelectionAction) {
@@ -83,7 +146,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
       const body = (await response.json().catch(() => ({}))) as { error?: string; message?: string };
       if (!response.ok) throw new Error(body.error ?? "That did not go through.");
       bulk.success(action.label, body.message ?? `Done for ${ids.length} ${ids.length === 1 ? selection?.noun : selection?.nounPlural}.`);
-      setPicked([]);
+      table.resetRowSelection(true);
       router.refresh();
     } catch (error) {
       bulk.error(`${action.label} did not go through`, error instanceof Error ? error.message : "Please try again.");
@@ -92,8 +155,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
     }
   }
 
-  const pageIds = shown.map((row) => row.key);
-  const allOn = pageIds.length > 0 && pageIds.every((id) => picked.includes(id));
+  const allOn = shown.length > 0 && table.getIsAllPageRowsSelected();
   const box = (on: boolean) => `flex h-4 w-4 flex-none cursor-pointer items-center justify-center rounded-[4.5px] border-[1.5px] text-[10.5px] font-extrabold text-white ${on ? "border-[#0D2315] bg-[#0D2315]" : "border-[#C2D2C8] bg-white"}`;
   const pageButton = (on: boolean, disabled: boolean) => `flex h-[25px] min-w-[25px] items-center justify-center rounded-lg border px-[7px] text-[11px] font-semibold ${on ? "border-[#0D2315] bg-[#0D2315] text-white" : `border-[#DEE8E2] bg-white ${disabled ? "cursor-default text-[#C2D2C8]" : "cursor-pointer text-[#435048] hover:border-[#BFDCD1] hover:bg-[#EFF6F2]"}`}`;
 
@@ -115,8 +177,8 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
       {hasHead ? (
         <div className="flex flex-wrap items-start justify-between gap-[12.5px] border-b border-[#EDF3EF] px-[18px] pb-[12.5px] pt-[14.5px]">
           <div className="min-w-0 flex-[1_1_300px]">
-            <h3 className="text-pretty text-[12.5px] font-semibold leading-[1.3] text-[var(--color-text-primary)]">{title}</h3>
-            {description ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{description}</p> : null}
+            <h3 className="text-pretty text-[12.5px] font-semibold leading-[1.3] text-(--color-text-primary)">{title}</h3>
+            {description ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-normal text-[#5f6e65]">{description}</p> : null}
           </div>
           {actions || meta ? (
             <div className="flex min-w-0 flex-[0_1_auto] items-center justify-end gap-[12.5px]">
@@ -132,7 +194,7 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         <div className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
           <div className="flex min-w-[236px] items-center gap-2 rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[7px]">
             <Search className="h-3 w-3 shrink-0 text-[#9FB8A7]" strokeWidth={1.9} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${String(columns[0]?.header || "this table").toLowerCase()}`} aria-label="Search this table" className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${String(columns[0]?.header || "this table").toLowerCase()}`} aria-label="Search this table" className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-hidden placeholder:text-[#7a8f82]" />
             {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="flex shrink-0 text-[#9FB8A7] hover:text-[#0D2315]"><X className="h-3 w-3" /></button> : null}
           </div>
           {needle ? <span className="ml-auto text-[10.5px] text-[#5f6e65]">{matching.length} of {all.length} shown</span> : null}
@@ -144,11 +206,11 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         <div className="px-3 pt-3">
           <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl bg-[#0D2315] px-4 py-[11px]">
             <div className="flex items-center gap-[11px]">
-              <button type="button" aria-label="Clear the selection" onClick={() => setPicked([])} className="flex h-[17px] w-[17px] flex-none items-center justify-center rounded-[5px] bg-white">
-                <span className="block h-[2px] w-[9px] rounded bg-[#0D2315]" />
+              <button type="button" aria-label="Clear the selection" onClick={() => table.resetRowSelection(true)} className="flex h-[17px] w-[17px] flex-none items-center justify-center rounded-[5px] bg-white">
+                <span className="block h-[2px] w-[9px] rounded-sm bg-[#0D2315]" />
               </button>
               <span className="text-[12.5px] font-semibold text-white">{picked.length} {picked.length === 1 ? selection.noun : selection.nounPlural} selected</span>
-              <button type="button" onClick={() => setPicked([])} className="text-[11.5px] text-white/60 hover:text-white">Clear</button>
+              <button type="button" onClick={() => table.resetRowSelection(true)} className="text-[11.5px] text-white/60 hover:text-white">Clear</button>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {selection.actions.map((action) => (
@@ -179,22 +241,25 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
               <tr>
                 {selection ? (
                   <th scope="col" className="w-[34px] border-b border-[#E6EEE9] bg-[#F7FAF8] py-[10px] pl-[18px] pr-[6.25px]">
-                    <button type="button" role="checkbox" aria-checked={allOn} aria-label="Select every row on this page" onClick={() => setPicked((currentPicked) => (allOn ? currentPicked.filter((id) => !pageIds.includes(id)) : Array.from(new Set([...currentPicked, ...pageIds]))))} className={box(allOn)}>{allOn ? "✓" : ""}</button>
+                    <button type="button" role="checkbox" aria-checked={allOn} aria-label="Select every row on this page" onClick={() => table.toggleAllPageRowsSelected(!allOn)} className={box(allOn)}>{allOn ? "✓" : ""}</button>
                   </th>
                 ) : null}
                 {columns.map((column) => (
-                  <th key={column.key} scope="col" className={["whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-[6.25px] py-[10px] text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65] first:pl-[18px] last:pr-[18px]", column.headerClassName ?? ""].join(" ")}>
+                  <th key={column.key} scope="col" className={["whitespace-nowrap border-b border-[#E6EEE9] bg-[#F7FAF8] px-[6.25px] py-[10px] text-left text-[9.5px] font-semibold uppercase tracking-wider text-[#5f6e65] first:pl-[18px] last:pr-[18px]", column.headerClassName ?? ""].join(" ")}>
                     {column.header}
                   </th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {shown.map((row) => (
-                <tr key={row.key} className="text-[11.5px] text-[#435048]">
+              {shown.map((tableRow) => {
+                const row = tableRow.original;
+                const on = tableRow.getIsSelected();
+                return (
+                <tr key={tableRow.id} className="text-[11.5px] text-[#435048]">
                   {selection ? (
                     <td className="w-[34px] border-b border-[#F2F7F4] py-[11.5px] pl-[18px] pr-[6.25px] align-middle">
-                      <button type="button" role="checkbox" aria-checked={picked.includes(row.key)} aria-label="Select this row" onClick={() => setPicked((currentPicked) => (currentPicked.includes(row.key) ? currentPicked.filter((id) => id !== row.key) : [...currentPicked, row.key]))} className={box(picked.includes(row.key))}>{picked.includes(row.key) ? "✓" : ""}</button>
+                      <button type="button" role="checkbox" aria-checked={on} aria-label="Select this row" onClick={() => tableRow.toggleSelected()} className={box(on)}>{on ? "✓" : ""}</button>
                     </td>
                   ) : null}
                   {columns.map((column) => (
@@ -203,7 +268,8 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
                     </td>
                   ))}
                 </tr>
-              ))}
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -213,15 +279,15 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
         <div className="flex items-center justify-between gap-[14px] border-t border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[10px]">
           <p className="text-[10.5px] text-[#5f6e65]">Showing {first}–{last} of {matching.length}</p>
           <div className="flex flex-none items-center gap-[6px]">
-            <button type="button" aria-label="Previous page" disabled={current === 0} onClick={() => setPage(Math.max(0, current - 1))} className={pageButton(false, current === 0)}>‹</button>
+            <button type="button" aria-label="Previous page" disabled={current === 0} onClick={() => table.setPageIndex(Math.max(0, current - 1))} className={pageButton(false, current === 0)}>‹</button>
             {numbers.map((n, index) =>
               typeof n === "number" ? (
-                <button key={n} type="button" onClick={() => setPage(n)} className={pageButton(n === current, false)}>{n + 1}</button>
+                <button key={n} type="button" onClick={() => table.setPageIndex(n)} className={pageButton(n === current, false)}>{n + 1}</button>
               ) : (
                 <span key={`${n}-${index}`} className="flex h-[25px] min-w-[18px] items-center justify-center text-[11px] text-[#B4C4BB]">…</span>
               )
             )}
-            <button type="button" aria-label="Next page" disabled={current >= pages - 1} onClick={() => setPage(Math.min(pages - 1, current + 1))} className={pageButton(false, current >= pages - 1)}>›</button>
+            <button type="button" aria-label="Next page" disabled={current >= pages - 1} onClick={() => table.setPageIndex(Math.min(pages - 1, current + 1))} className={pageButton(false, current >= pages - 1)}>›</button>
           </div>
         </div>
       ) : null}

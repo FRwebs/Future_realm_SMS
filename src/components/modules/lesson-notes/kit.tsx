@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import * as AlertDialog from "@radix-ui/react-alert-dialog";
+import { useCallback, useState } from "react";
 
 import { InlineNotice } from "@/components/ui/inline-notice";
 import type { PanelTone } from "@/lib/modules/panels";
@@ -43,7 +44,7 @@ export function Btn({ children, onClick, kind = "ghost", disabled, busy, small, 
   );
 }
 
-export const inputClass = "w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11px] py-[8px] text-[12px] font-medium text-[#0D2315] outline-none focus:border-[#12796A] disabled:bg-[#F6F9F7] disabled:text-[#67766D]";
+export const inputClass = "w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11px] py-[8px] text-[12px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A] disabled:bg-[#F6F9F7] disabled:text-[#67766D]";
 
 export function Label({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (
@@ -96,24 +97,27 @@ export function useWrite(toast: (text: string, tone?: "ok" | "bad") => void) {
   return { busy, run };
 }
 
+/**
+ * A question that needs an answer before anything is changed. Built as an alert dialog: focus starts on "Not yet" so a stray Enter cannot
+ * confirm, Escape and an outside press decline, and the page behind is inert while it is open.
+ */
 export function Confirm({ title, body, confirm, danger, busy, onConfirm, onCancel, children }: { title: string; body?: string; confirm: string; danger?: boolean; busy?: boolean; onConfirm: () => void; onCancel: () => void; children?: React.ReactNode }) {
-  useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if (event.key === "Escape") onCancel(); };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [onCancel]);
   return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-[rgba(13,35,21,0.45)] p-4" onClick={onCancel}>
-      <div role="dialog" aria-modal="true" aria-label={title} onClick={(event) => event.stopPropagation()} className="w-full max-w-[460px] rounded-[16px] bg-white p-5 shadow-[0_30px_60px_-24px_rgba(0,0,0,0.6)]">
-        <p className="text-[14px] font-extrabold" style={{ color: INK }}>{title}</p>
-        {body ? <p className="mt-2 text-[12px] leading-[1.65]" style={{ color: MUTED }}>{body}</p> : null}
-        {children}
-        <div className="mt-4 flex justify-end gap-2">
-          <Btn onClick={onCancel}>Not yet</Btn>
-          <Btn kind={danger ? "danger" : "primary"} onClick={onConfirm} busy={busy}>{confirm}</Btn>
-        </div>
-      </div>
-    </div>
+    <AlertDialog.Root open onOpenChange={(open) => { if (!open) onCancel(); }}>
+      <AlertDialog.Portal>
+        <AlertDialog.Overlay className="overlay-enter fixed inset-0 z-70 flex items-center justify-center bg-[rgba(13,35,21,0.45)] p-4">
+          <AlertDialog.Content {...(body ? {} : { "aria-describedby": undefined })} className="modal-enter w-full max-w-[460px] rounded-[16px] bg-white p-5 shadow-[0_30px_60px_-24px_rgba(0,0,0,0.6)] outline-hidden">
+            <AlertDialog.Title className="text-[14px] font-extrabold" style={{ color: INK }}>{title}</AlertDialog.Title>
+            {body ? <AlertDialog.Description className="mt-2 text-[12px] leading-[1.65]" style={{ color: MUTED }}>{body}</AlertDialog.Description> : null}
+            {children}
+            <div className="mt-4 flex justify-end gap-2">
+              <Btn onClick={onCancel}>Not yet</Btn>
+              <Btn kind={danger ? "danger" : "primary"} onClick={onConfirm} busy={busy}>{confirm}</Btn>
+            </div>
+          </AlertDialog.Content>
+        </AlertDialog.Overlay>
+      </AlertDialog.Portal>
+    </AlertDialog.Root>
   );
 }
 

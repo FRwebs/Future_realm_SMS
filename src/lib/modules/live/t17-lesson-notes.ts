@@ -309,9 +309,9 @@ function catalogueRow(entries: CatalogueRow[]): PanelRow {
     cells: [{ kind: "name", name: entry.subject, sub: `${entry.curriculum} · ${entry.stage} · term ${entry.term}`, avatar: false }, cell(String(entry.topics), { mono: true }), cell(entry.source ?? "—"), pill(entry.own ? "Your school’s" : "Platform", entry.own ? "progress" : "neutral"), entry.own ? { kind: "action", label: "Remove", drawer: remove(entry) } : cell("")] as TableCellKind[],
   }));
   return row("1fr", [{
-    type: "table", title: "Curriculum catalogue", sub: "The outlines a teacher can start a scheme of work from. The platform’s are loaded for every school; load your own from Excel.", meta: `${entries.length} outline${entries.length === 1 ? "" : "s"}`, noun: "outline", nounPlural: "outlines",
-    head: ["Subject", "Topics", "Source", "From", ""], rows, per: 8, search: "Find an outline", noRowOpen: true, empty: "No outline has been loaded.",
-    emptyTitle: "No outline has been loaded", emptyBody: "Load the national or your own curriculum from Excel, and teachers can start a scheme from it instead of a blank page.",
+    type: "table", title: "Curriculum catalogue", sub: "The outlines a teacher can start a scheme of work from. The platform’s are loaded for every school; load your own from Excel.", meta: `${entries.length} outline${entries.length === 1 ? "" : "s"}`, noun: "outline-solid", nounPlural: "outlines",
+    head: ["Subject", "Topics", "Source", "From", ""], rows, per: 8, search: "Find an outline-solid", noRowOpen: true, empty: "No outline-solid has been loaded.",
+    emptyTitle: "No outline-solid has been loaded", emptyBody: "Load the national or your own curriculum from Excel, and teachers can start a scheme from it instead of a blank page.",
   }]);
 }
 

@@ -65,17 +65,17 @@ export interface CaseTypeFilter {
 }
 
 function toneDot(tone: CaseSignalTone | "neutral") {
-  if (tone === "bad") return "bg-[var(--color-danger)]";
-  if (tone === "warn") return "bg-[var(--color-warning)]";
-  if (tone === "good") return "bg-[var(--color-success)]";
-  return "bg-[var(--color-text-muted)]";
+  if (tone === "bad") return "bg-danger";
+  if (tone === "warn") return "bg-(--color-warning)";
+  if (tone === "good") return "bg-(--color-success)";
+  return "bg-(--color-text-muted)";
 }
 
 function slaStyle(tone?: CaseSignalTone | "neutral") {
-  if (tone === "bad") return "text-[var(--color-danger)] font-semibold";
-  if (tone === "warn") return "text-[var(--color-warning)] font-semibold";
-  if (tone === "good") return "text-[var(--color-success)] font-semibold";
-  return "text-[var(--color-text-muted)]";
+  if (tone === "bad") return "text-danger font-semibold";
+  if (tone === "warn") return "text-(--color-warning) font-semibold";
+  if (tone === "good") return "text-(--color-success) font-semibold";
+  return "text-(--color-text-muted)";
 }
 
 function signalToneStyle(tone: CaseSignalTone) {
@@ -160,7 +160,7 @@ export function CaseReviewBoard({
             {filter.label}
             <span
               className={cn(
-                "inline-flex min-w-[1.25rem] items-center justify-center rounded-full px-1.5 py-0.5 text-[10.5px] font-bold",
+                "inline-flex min-w-5 items-center justify-center rounded-full px-1.5 py-0.5 text-[10.5px] font-bold",
                 activeType === filter.value ? "bg-white/20 text-white" : "bg-[#F0F5F2] text-[#5f6e65]",
               )}
             >
@@ -191,7 +191,7 @@ export function CaseReviewBoard({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 placeholder={searchPlaceholder}
-                className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-none placeholder:text-[#7a8f82]"
+                className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-hidden placeholder:text-[#7a8f82]"
               />
               {query ? (
                 <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]" aria-label="Clear search">
@@ -201,7 +201,7 @@ export function CaseReviewBoard({
             </div>
           ) : null}
         </div>
-        <div className="grid grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] gap-3 border-b border-[#E6EEE9] bg-[#F7FAF8] px-[18px] py-3 text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">
+        <div className="grid grid-cols-[2.1fr_1.15fr_0.9fr_0.9fr_1fr_0.5fr] gap-3 border-b border-[#E6EEE9] bg-[#F7FAF8] px-[18px] py-3 text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">
           <div>Subject</div>
           <div>Type</div>
           <div>Signals</div>
@@ -248,37 +248,37 @@ export function CaseReviewBoard({
       {selected && variant === "lean" ? <LeanDetailPanel selected={selected} /> : null}
 
       {selected && variant === "rich" ? (
-        <div className="overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-          <div className="flex items-center justify-between gap-4 border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
+        <div className="overflow-hidden rounded-[16px] border border-(--color-border-default) bg-(--color-bg-surface)">
+          <div className="flex items-center justify-between gap-4 border-b border-(--color-border-default) bg-(--color-bg-subtle) px-5 py-4">
             <div className="flex min-w-0 items-center gap-3">
-              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-[var(--color-accent-primary-dim)] text-[13px] font-black text-[var(--color-text-accent)]">
+              <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-[12px] bg-(--color-accent-primary-dim) text-[13px] font-black text-(--color-text-accent)">
                 {selected.initials}
               </span>
               <span className="min-w-0">
-                <span className="block truncate font-[var(--font-heading)] text-[16px] font-bold text-[var(--color-text-primary)]">
+                <span className="block truncate font-(--font-heading) text-[16px] font-bold text-(--color-text-primary)">
                   {selected.subject}
                 </span>
-                <span className="block truncate text-[11.5px] text-[var(--color-text-muted)]">{selected.meta}</span>
+                <span className="block truncate text-[11.5px] text-(--color-text-muted)">{selected.meta}</span>
               </span>
             </div>
             <div className="flex shrink-0 items-center gap-3">
-              <span className="rounded-full bg-[var(--color-bg-surface)] border border-[var(--color-border-default)] px-2.5 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)]">
+              <span className="rounded-full bg-(--color-bg-surface) border border-(--color-border-default) px-2.5 py-1 text-[11px] font-semibold text-(--color-text-secondary)">
                 {selected.type}
               </span>
               <span className={cn("text-[12px]", slaStyle(selected.slaTone))}>{selected.sla}</span>
-              <span className="h-5 w-px bg-[var(--color-border-default)]" />
-              <span className="text-[12px] text-[var(--color-text-secondary)]">{selected.assignee}</span>
+              <span className="h-5 w-px bg-(--color-border-default)" />
+              <span className="text-[12px] text-(--color-text-secondary)">{selected.assignee}</span>
             </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-[1.55fr_1fr]">
-            <div className="min-w-0 border-b border-[var(--color-border-default)] p-5 md:border-b-0 md:border-r">
+            <div className="min-w-0 border-b border-(--color-border-default) p-5 md:border-b-0 md:border-r">
               <SectionLabel label="Subject" hint="deep-linked" />
               <div className="mb-5 grid grid-cols-1 gap-2.5 sm:grid-cols-2">
                 {selected.facts.map((fact) => (
-                  <div key={fact.label} className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-2.5">
-                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-[var(--color-text-muted)]">{fact.label}</p>
-                    <p className="mt-1 text-[12.5px] font-semibold text-[var(--color-text-primary)]">{fact.value}</p>
+                  <div key={fact.label} className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-2.5">
+                    <p className="text-[10.5px] font-semibold uppercase tracking-[0.04em] text-(--color-text-muted)">{fact.label}</p>
+                    <p className="mt-1 text-[12.5px] font-semibold text-(--color-text-primary)">{fact.value}</p>
                   </div>
                 ))}
               </div>
@@ -287,35 +287,35 @@ export function CaseReviewBoard({
               <div className="mb-5 grid gap-2">
                 {selected.signals.length ? (
                   selected.signals.map((signal, index) => (
-                    <div key={index} className="flex items-start gap-2.5 rounded-[10px] bg-[var(--color-bg-subtle)] p-2.5">
+                    <div key={index} className="flex items-start gap-2.5 rounded-[10px] bg-(--color-bg-subtle) p-2.5">
                       <span className={cn("mt-1 h-2 w-2 shrink-0 rounded-full", toneDot(signal.tone))} />
-                      <span className="text-[12.5px] leading-relaxed text-[var(--color-text-primary)]">{signal.text}</span>
+                      <span className="text-[12.5px] leading-relaxed text-(--color-text-primary)">{signal.text}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-[12px] text-[var(--color-text-muted)]">No automated signals for this case.</p>
+                  <p className="text-[12px] text-(--color-text-muted)">No automated signals for this case.</p>
                 )}
               </div>
 
               <SectionLabel label="Evidence" hint="gathered, with attachments" />
-              <div className="overflow-hidden rounded-[11px] border border-[var(--color-border-default)]">
+              <div className="overflow-hidden rounded-[11px] border border-(--color-border-default)">
                 {selected.evidence.length ? (
                   selected.evidence.map((item, index) => (
                     <div
                       key={index}
-                      className="flex items-center gap-3 border-b border-[var(--color-border-default)] px-3 py-2.5 text-[12.5px] last:border-b-0"
+                      className="flex items-center gap-3 border-b border-(--color-border-default) px-3 py-2.5 text-[12.5px] last:border-b-0"
                     >
-                      <span className="min-w-0 flex-1 truncate text-[var(--color-text-primary)]">{item.name}</span>
-                      <span className="shrink-0 text-[11px] text-[var(--color-text-muted)]">{item.who}</span>
+                      <span className="min-w-0 flex-1 truncate text-(--color-text-primary)">{item.name}</span>
+                      <span className="shrink-0 text-[11px] text-(--color-text-muted)">{item.who}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="px-3 py-3 text-[12px] text-[var(--color-text-muted)]">No evidence attached yet.</p>
+                  <p className="px-3 py-3 text-[12px] text-(--color-text-muted)">No evidence attached yet.</p>
                 )}
               </div>
             </div>
 
-            <div className="min-w-0 bg-[var(--color-bg-subtle)]/40 p-5">
+            <div className="min-w-0 bg-(--color-bg-subtle)/40 p-5">
               <SectionLabel label="Checks" hint="verified by a human" />
               <div className="mb-5 grid gap-2.5">
                 {selected.checks.length ? (
@@ -325,22 +325,22 @@ export function CaseReviewBoard({
                         className={cn(
                           "mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-[5px] border",
                           check.done
-                            ? "border-[var(--color-success)] bg-[var(--color-success)]"
-                            : "border-[var(--color-border-strong)] bg-transparent",
+                            ? "border-(--color-success) bg-(--color-success)"
+                            : "border-(--color-border-strong) bg-transparent",
                         )}
                       >
                         {check.done ? <span className="block h-1.5 w-1.5 rounded-full bg-white" /> : null}
                       </span>
                       <span className="min-w-0">
-                        <span className={cn("block text-[12.5px] font-medium", check.done ? "text-[var(--color-text-primary)]" : "text-[var(--color-text-secondary)]")}>
+                        <span className={cn("block text-[12.5px] font-medium", check.done ? "text-(--color-text-primary)" : "text-(--color-text-secondary)")}>
                           {check.label}
                         </span>
-                        {check.who ? <span className="block text-[11px] text-[var(--color-text-muted)]">{check.who}</span> : null}
+                        {check.who ? <span className="block text-[11px] text-(--color-text-muted)">{check.who}</span> : null}
                       </span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-[12px] text-[var(--color-text-muted)]">No checklist for this case.</p>
+                  <p className="text-[12px] text-(--color-text-muted)">No checklist for this case.</p>
                 )}
               </div>
 
@@ -349,13 +349,13 @@ export function CaseReviewBoard({
                 {selected.history.length ? (
                   selected.history.map((item, index) => (
                     <div key={index} className="flex items-baseline gap-2.5">
-                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-border-strong)]" />
-                      <span className="min-w-0 flex-1 truncate text-[12px] text-[var(--color-text-secondary)]">{item.what}</span>
-                      <span className="shrink-0 text-[11px] text-[var(--color-text-muted)]">{item.when}</span>
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-(--color-border-strong)" />
+                      <span className="min-w-0 flex-1 truncate text-[12px] text-(--color-text-secondary)">{item.what}</span>
+                      <span className="shrink-0 text-[11px] text-(--color-text-muted)">{item.when}</span>
                     </div>
                   ))
                 ) : (
-                  <p className="text-[12px] text-[var(--color-text-muted)]">No prior actions recorded.</p>
+                  <p className="text-[12px] text-(--color-text-muted)">No prior actions recorded.</p>
                 )}
               </div>
 
@@ -374,26 +374,26 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
   const confirmedCount = selected.checks.filter((check) => check.done).length;
 
   return (
-    <div className="overflow-hidden rounded-[16px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[var(--color-border-default)] bg-[#FBFDFC] px-5 py-[18px]">
+    <div className="overflow-hidden rounded-[16px] border border-(--color-border-default) bg-(--color-bg-surface)">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-(--color-border-default) bg-[#FBFDFC] px-5 py-[18px]">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-[42px] w-[42px] shrink-0 items-center justify-center rounded-[12px] bg-[#F0F5F2] text-[13px] font-extrabold text-[#0D2315]">
             {selected.initials}
           </span>
           <span className="min-w-0">
-            <span className="block truncate font-[var(--font-heading)] text-[17px] font-extrabold tracking-[-0.015em] text-[#0D2315]">{selected.subject}</span>
+            <span className="block truncate font-(--font-heading) text-[17px] font-extrabold tracking-[-0.015em] text-[#0D2315]">{selected.subject}</span>
             <span className="mt-0.5 block truncate text-[11.5px] text-[#5f6e65]">{selected.meta}</span>
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
           <span className={cn("text-[12.5px]", slaStyle(selected.slaTone))}>{selected.sla}</span>
           {selected.recordHref ? (
-            <Link href={selected.recordHref as Route} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-[var(--color-bg-subtle)]">
+            <Link href={selected.recordHref as Route} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-(--color-bg-subtle)">
               School record
             </Link>
           ) : null}
           {selected.historyHref ? (
-            <Link href={selected.historyHref as Route} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-[var(--color-bg-subtle)]">
+            <Link href={selected.historyHref as Route} className="whitespace-nowrap rounded-[9px] border border-[#DEE8E2] bg-white px-3 py-2 text-[12px] font-semibold text-[#435048] hover:bg-(--color-bg-subtle)">
               History
             </Link>
           ) : null}
@@ -401,7 +401,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
       </div>
 
       {strip.length > 0 ? (
-        <div className="grid grid-cols-2 border-b border-[var(--color-border-default)] sm:grid-cols-4">
+        <div className="grid grid-cols-2 border-b border-(--color-border-default) sm:grid-cols-4">
           {strip.map((fact, index) => (
             <div key={fact.label} className={cn("min-w-0 px-[18px] py-[13px]", index < strip.length - 1 ? "border-r border-[#F2F7F4]" : "")}>
               <p className="mb-[5px] text-[10px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">{fact.label}</p>
@@ -411,7 +411,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
         </div>
       ) : null}
 
-      <div className="border-b border-[var(--color-border-default)] px-5 py-[18px]">
+      <div className="border-b border-(--color-border-default) px-5 py-[18px]">
         <p className="mb-1 text-[13px] font-semibold text-[#0D2315]">Why the system flagged this</p>
         <p className="mb-3 text-[11.5px] text-[#5f6e65]">Machine-generated. Nothing here is a conclusion — it is what a human is being asked to judge.</p>
         <div className="flex flex-col gap-2">
@@ -426,13 +426,13 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
               );
             })
           ) : (
-            <p className="text-[12px] text-[var(--color-text-muted)]">No automated signals for this case.</p>
+            <p className="text-[12px] text-(--color-text-muted)">No automated signals for this case.</p>
           )}
         </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2">
-        <div className="border-b border-[var(--color-border-default)] px-5 py-[18px] md:border-b-0 md:border-r">
+        <div className="border-b border-(--color-border-default) px-5 py-[18px] md:border-b-0 md:border-r">
           <div className="mb-3 flex items-baseline justify-between gap-3">
             <div>
               <p className="text-[13px] font-semibold text-[#0D2315]">Confirm before you decide</p>
@@ -449,19 +449,19 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
                   <span
                     className={cn(
                       "mt-0.5 flex h-[17px] w-[17px] shrink-0 items-center justify-center rounded-[5px] border",
-                      check.done ? "border-[var(--color-success)] bg-[var(--color-success)]" : "border-[#D5E0DA] bg-white",
+                      check.done ? "border-(--color-success) bg-(--color-success)" : "border-[#D5E0DA] bg-white",
                     )}
                   >
                     {check.done ? <span className="block h-1.5 w-1.5 rounded-full bg-white" /> : null}
                   </span>
                   <span className="min-w-0">
-                    <span className={cn("block text-[12.5px] font-medium", check.done ? "text-[#0D2315]" : "text-[var(--color-text-secondary)]")}>{check.label}</span>
+                    <span className={cn("block text-[12.5px] font-medium", check.done ? "text-[#0D2315]" : "text-(--color-text-secondary)")}>{check.label}</span>
                     <span className="block text-[11px] text-[#9FB8A7]">{check.who ? `Verified by ${check.who}` : "Not yet verified"}</span>
                   </span>
                 </div>
               ))
             ) : (
-              <p className="text-[12px] text-[var(--color-text-muted)]">No checklist for this case.</p>
+              <p className="text-[12px] text-(--color-text-muted)">No checklist for this case.</p>
             )}
           </div>
         </div>
@@ -478,9 +478,9 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
 function SectionLabel({ label, hint }: { label: string; hint: string }) {
   return (
     <div className="mb-2.5 flex items-center gap-2">
-      <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">{label}</span>
-      <span className="h-px flex-1 bg-[var(--color-border-default)]" />
-      <span className="whitespace-nowrap text-[10.5px] text-[var(--color-text-muted)]">{hint}</span>
+      <span className="whitespace-nowrap text-[10px] font-bold uppercase tracking-[0.12em] text-(--color-text-muted)">{label}</span>
+      <span className="h-px flex-1 bg-(--color-border-default)" />
+      <span className="whitespace-nowrap text-[10.5px] text-(--color-text-muted)">{hint}</span>
     </div>
   );
 }

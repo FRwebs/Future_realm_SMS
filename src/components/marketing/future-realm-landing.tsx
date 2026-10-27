@@ -2,7 +2,8 @@
 
 import type { Route } from "next";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import {
   Camera,
   Check,
@@ -19,6 +20,8 @@ import {
 } from "lucide-react";
 
 import { FieldMessage, InlineNotice, useNotice } from "@/components/ui/inline-notice";
+import { apiJson, getUrl } from "@/lib/api/client";
+import { plansContract } from "@/lib/api/contracts";
 import { cn } from "@/lib/utils/cn";
 
 const INK = "#0d2315";
@@ -397,7 +400,7 @@ function NumberedRow({
       style={{ borderTop: `1px solid ${dark ? "rgba(255,255,255,0.16)" : "#dce6df"}` }}
     >
       <span
-        className="w-[26px] shrink-0 font-[var(--font-heading)] text-xs font-bold tracking-[0.04em]"
+        className="w-[26px] shrink-0 font-(--font-heading) text-xs font-bold tracking-[0.04em]"
         style={{ color: MINT }}
       >
         {n}
@@ -408,7 +411,7 @@ function NumberedRow({
       >
         {title}
       </span>
-      <span className="text-sm leading-[1.5]" style={{ color: dark ? "#9fb8a7" : "#435048" }}>
+      <span className="text-sm leading-normal" style={{ color: dark ? "#9fb8a7" : "#435048" }}>
         {desc}
       </span>
     </div>
@@ -419,38 +422,30 @@ export function FutureRealmLandingPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [openFaq, setOpenFaq] = useState<number | null>(0);
   const [newsletterEmail, setNewsletterEmail] = useState("");
-  const [plans, setPlans] = useState<Plan[]>(fallbackPlans);
   const newsletter = useNotice();
   const [newsletterMissing, setNewsletterMissing] = useState<string | undefined>();
   const [newsletterPending, setNewsletterPending] = useState(false);
 
-  useEffect(() => {
-    let cancelled = false;
-    fetch("/api/v1/onboarding/plans")
-      .then((response) => response.json())
-      .then((body: { data?: PublicPlan[] }) => {
-        if (cancelled || !body.data || body.data.length === 0) return;
-        // The live plan catalog can carry more than one row per tier name (e.g. an
-        // older price alongside a current one) — keep only the last (most recent)
-        // row per name so tiers never render with a duplicate React key.
-        const byName = new Map<string, PublicPlan>();
-        for (const item of body.data) {
-          if (planCopy[item.name]) byName.set(item.name, item);
-        }
-        const live = Array.from(byName.values()).map((item) => ({
-          name: item.name,
-          price: formatNaira(item.annualPrice),
-          ...planCopy[item.name],
-        }));
-        if (live.length > 0) setPlans(live);
-      })
-      .catch(() => {
-        // Keep the fallback copy — the pricing section still renders, just not live-updated.
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  // The live plan catalog replaces the built-in copy once it arrives; if it never does, the pricing section still renders.
+  const livePlans = useQuery({
+    queryKey: ["onboarding", "plans"],
+    queryFn: ({ signal }) => apiJson(getUrl("/api/v1/onboarding/plans"), signal, plansContract),
+    staleTime: 5 * 60_000,
+    select: (items): Plan[] => {
+      // The live catalog can carry more than one row per tier name (e.g. an older price alongside a current one) — keep only the last
+      // (most recent) row per name so tiers never render with a duplicate React key.
+      const byName = new Map<string, PublicPlan>();
+      for (const item of items ?? []) {
+        if (planCopy[item.name]) byName.set(item.name, item);
+      }
+      return Array.from(byName.values()).map((item) => ({
+        name: item.name,
+        price: formatNaira(item.annualPrice),
+        ...planCopy[item.name],
+      }));
+    },
+  });
+  const plans: Plan[] = livePlans.data?.length ? livePlans.data : fallbackPlans;
 
   const tab = roleTabs[activeTab];
 
@@ -488,7 +483,7 @@ export function FutureRealmLandingPage() {
           <span className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ background: INK }}>
             <School className="h-4 w-4 text-white" />
           </span>
-          <span className="font-[var(--font-heading)] text-base font-extrabold" style={{ color: INK }}>
+          <span className="font-(--font-heading) text-base font-extrabold" style={{ color: INK }}>
             FutureRealm <span style={{ color: TEAL }}>SMS</span>
           </span>
         </Link>
@@ -530,10 +525,10 @@ export function FutureRealmLandingPage() {
               </span>
             ))}
           </div>
-          <p className="mb-4 font-[var(--font-heading)] text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "#17604f" }}>
+          <p className="mb-4 font-(--font-heading) text-[13px] font-bold uppercase tracking-[0.14em]" style={{ color: "#17604f" }}>
             Redefining school management
           </p>
-          <h1 className="mb-[22px] font-[var(--font-heading)] text-[42px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-[52px] lg:text-[58px]">
+          <h1 className="mb-[22px] font-(--font-heading) text-[42px] font-bold leading-[1.06] tracking-[-0.03em] sm:text-[52px] lg:text-[58px]">
             No student should be
             <br />
             <span style={{ color: TEAL }}>a row in a spreadsheet.</span>
@@ -575,7 +570,7 @@ export function FutureRealmLandingPage() {
               <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
               <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
               <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
-              <span className="ml-3 font-[var(--font-heading)] text-[11px] text-[#9fb8a7]">app.futurerealm.school/dashboard</span>
+              <span className="ml-3 font-(--font-heading) text-[11px] text-[#9fb8a7]">app.futurerealm.school/dashboard</span>
             </div>
             <div className="flex">
               <div className="flex w-14 flex-col items-center gap-4 border-r border-[#e3ece6] bg-[#f3f7f4] py-4">
@@ -585,7 +580,7 @@ export function FutureRealmLandingPage() {
                 <span className="h-[18px] w-[18px] rounded-md bg-[#d3dfd7]" />
               </div>
               <div className="flex-1 p-5">
-                <p className="mb-3.5 font-[var(--font-heading)] text-sm font-semibold">Term overview</p>
+                <p className="mb-3.5 font-(--font-heading) text-sm font-semibold">Term overview</p>
                 <div className="mb-4 grid grid-cols-3 gap-2.5">
                   {heroKpis.map((kpi) => (
                     <div
@@ -596,7 +591,7 @@ export function FutureRealmLandingPage() {
                       <p className="mb-1.5 text-[10px]" style={{ color: kpi.dark ? "#9fb8a7" : "#77857c" }}>
                         {kpi.label}
                       </p>
-                      <p className="font-[var(--font-heading)] text-lg font-bold" style={{ color: kpi.dark ? "#fff" : INK }}>
+                      <p className="font-(--font-heading) text-lg font-bold" style={{ color: kpi.dark ? "#fff" : INK }}>
                         {kpi.value}
                       </p>
                     </div>
@@ -606,14 +601,14 @@ export function FutureRealmLandingPage() {
                   {[40, 65, 50, 85, 60, 72].map((h, i) => (
                     <div
                       key={i}
-                      className="lp-mini-bar w-full rounded"
+                      className="lp-mini-bar w-full rounded-sm"
                       style={{ height: `${h}%`, background: i === 3 ? INK : "#d3dfd7", animationDelay: `${i * 70}ms` }}
                     />
                   ))}
                 </div>
                 <div className="flex flex-col gap-2">
-                  <div className="h-2.5 w-full rounded bg-[#e3ece6]" />
-                  <div className="h-2.5 w-4/5 rounded bg-[#e3ece6]" />
+                  <div className="h-2.5 w-full rounded-sm bg-[#e3ece6]" />
+                  <div className="h-2.5 w-4/5 rounded-sm bg-[#e3ece6]" />
                 </div>
               </div>
             </div>
@@ -655,10 +650,10 @@ export function FutureRealmLandingPage() {
                 index < bandStats.length - 1 && "border-r border-[rgba(255,255,255,0.14)]",
               )}
             >
-              <p className="font-[var(--font-heading)] text-[32px] font-extrabold leading-none tracking-[-0.02em] text-white sm:text-[40px]">
+              <p className="font-(--font-heading) text-[32px] font-extrabold leading-none tracking-[-0.02em] text-white sm:text-[40px]">
                 {stat.value}
               </p>
-              <p className="mt-2.5 text-sm leading-[1.5] text-[#eaf0ec]">{stat.detail}</p>
+              <p className="mt-2.5 text-sm leading-normal text-[#eaf0ec]">{stat.detail}</p>
             </div>
           ))}
         </div>
@@ -671,7 +666,7 @@ export function FutureRealmLandingPage() {
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: INK }}>
               School operations command
             </p>
-            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
               One reliable operating system
             </h2>
           </div>
@@ -681,7 +676,7 @@ export function FutureRealmLandingPage() {
                 <span className="mb-[18px] flex h-[42px] w-[42px] items-center justify-center rounded-xl" style={{ background: INK }}>
                   <pillar.icon className="h-[18px] w-[18px] text-white" strokeWidth={1.9} />
                 </span>
-                <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{pillar.title}</p>
+                <p className="mb-2 font-(--font-heading) text-lg font-semibold">{pillar.title}</p>
                 <p className="text-[13.5px] text-[#435048]">{pillar.subtitle}</p>
               </div>
             ))}
@@ -695,7 +690,7 @@ export function FutureRealmLandingPage() {
           <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: INK }}>
             Key features
           </p>
-          <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+          <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
             Everything a modern Nigerian school needs to run well
           </h2>
           <p className="mt-4 text-[15.5px] text-[#435048]">
@@ -723,7 +718,7 @@ export function FutureRealmLandingPage() {
                       <Icon className="h-[18px] w-[18px]" style={{ color: feature.bg === "#eaf0ec" ? INK : "#fff" }} />
                     </span>
                   ) : null}
-                  <p className="mb-2.5 font-[var(--font-heading)] text-[19px] font-semibold">{feature.title}</p>
+                  <p className="mb-2.5 font-(--font-heading) text-[19px] font-semibold">{feature.title}</p>
                   <p className="text-[14.5px] leading-[1.55] text-[#435048]">{feature.desc}</p>
                 </div>
               </div>
@@ -740,7 +735,7 @@ export function FutureRealmLandingPage() {
               <span className="h-[7px] w-[7px] rounded-full" style={{ background: MINT }} />
               <span className="text-[12.5px] font-semibold text-white">Built for real conditions</span>
             </div>
-            <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+            <h2 className="mb-5 font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
               The power goes out. The register still opens.
             </h2>
             <p className="mb-[10px] max-w-[520px] text-[16.5px] leading-[1.65] text-[#eaf0ec]">
@@ -770,7 +765,7 @@ export function FutureRealmLandingPage() {
               <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
                 Configurable, not hard-coded
               </p>
-              <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
                 Built to fit your school&apos;s structure
               </h2>
             </div>
@@ -790,7 +785,7 @@ export function FutureRealmLandingPage() {
                 }}
               >
                 <p
-                  className="mb-[9px] font-[var(--font-heading)] text-[15.5px] font-bold"
+                  className="mb-[9px] font-(--font-heading) text-[15.5px] font-bold"
                   style={{ color: card.dark ? "#fff" : INK }}
                 >
                   {card.title}
@@ -811,7 +806,7 @@ export function FutureRealmLandingPage() {
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
               Fees &amp; payments
             </p>
-            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
               Money in, reconciled, receipted — without the bursar chasing paper
             </h2>
             <p className="mt-4 text-base leading-[1.6] text-[#435048]">
@@ -829,7 +824,7 @@ export function FutureRealmLandingPage() {
                   { title: "Instant receipts", desc: "Issued the moment payment clears, with a permanent record on both sides." },
                 ].map((item) => (
                   <div key={item.title}>
-                    <p className="mb-2 font-[var(--font-heading)] text-[15.5px] font-bold">{item.title}</p>
+                    <p className="mb-2 font-(--font-heading) text-[15.5px] font-bold">{item.title}</p>
                     <p className="text-[13.5px] leading-[1.55] text-[#435048]">{item.desc}</p>
                   </div>
                 ))}
@@ -848,7 +843,7 @@ export function FutureRealmLandingPage() {
             <div className="flex flex-col justify-between rounded-[20px] p-[34px] text-white" style={{ background: INK }}>
               <div>
                 <p className="mb-2.5 text-[12.5px] text-[#9fb8a7]">Collection rate, this term</p>
-                <p className="font-[var(--font-heading)] text-[52px] font-extrabold leading-none tracking-[-0.02em]">88%</p>
+                <p className="font-(--font-heading) text-[52px] font-extrabold leading-none tracking-[-0.02em]">88%</p>
                 <div className="my-5 h-[9px] overflow-hidden rounded-full bg-[rgba(255,255,255,0.16)]">
                   <div className="h-full rounded-full" style={{ width: "88%", background: MINT }} />
                 </div>
@@ -863,7 +858,7 @@ export function FutureRealmLandingPage() {
                   <div key={row.label} className="flex items-center justify-between border-t border-[rgba(255,255,255,0.16)] pt-3.5">
                     <span className="text-[13px] text-[#eaf0ec]">{row.label}</span>
                     <span
-                      className="font-[var(--font-heading)] text-[15px] font-bold"
+                      className="font-(--font-heading) text-[15px] font-bold"
                       style={{ color: row.accent ? MINT : "#fff" }}
                     >
                       {row.value}
@@ -884,7 +879,7 @@ export function FutureRealmLandingPage() {
               <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: MINT }}>
                 Messaging
               </p>
-              <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+              <h2 className="mb-5 font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
                 One message. Every channel. One click.
               </h2>
               <p className="mb-[26px] max-w-[480px] text-[16.5px] leading-[1.6] text-[#eaf0ec]">
@@ -912,7 +907,7 @@ export function FutureRealmLandingPage() {
             <div>
               <div className="overflow-hidden rounded-[20px] border border-[#dce6df] bg-white shadow-[0_40px_80px_-28px_rgba(0,0,0,0.55)]">
                 <div className="flex items-center justify-between border-b border-[#e3ece6] px-6 py-[18px]">
-                  <p className="font-[var(--font-heading)] text-[14.5px] font-bold" style={{ color: INK }}>
+                  <p className="font-(--font-heading) text-[14.5px] font-bold" style={{ color: INK }}>
                     New message
                   </p>
                   <span className="rounded-full border border-[#e3ece6] bg-[#f3f7f4] px-2.5 py-[5px] text-[11.5px] font-semibold text-[#435048]">
@@ -931,10 +926,10 @@ export function FutureRealmLandingPage() {
                     <span className="text-[12.5px] font-semibold" style={{ color: TEAL }}>412 recipients</span>
                   </div>
                   <div className="mb-[18px] rounded-[14px] border border-[#e3ece6] bg-[#f7faf8] p-[18px] text-[13.5px] leading-[1.6]" style={{ color: INK }}>
-                    Dear <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{parent_name}"}</span>, the
-                    Term 2 balance for <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{student}"}</span> is{" "}
-                    <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{balance}"}</span>, due{" "}
-                    <span className="rounded bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{due_date}"}</span>. Tap to pay
+                    Dear <span className="rounded-sm bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{parent_name}"}</span>, the
+                    Term 2 balance for <span className="rounded-sm bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{student}"}</span> is{" "}
+                    <span className="rounded-sm bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{balance}"}</span>, due{" "}
+                    <span className="rounded-sm bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{due_date}"}</span>. Tap to pay
                     securely.
                   </div>
                   <p className="mb-[11px] text-[11px] font-bold uppercase tracking-[0.08em] text-[#9fb8a7]">Send over</p>
@@ -974,7 +969,7 @@ export function FutureRealmLandingPage() {
                 <div className="grid grid-cols-4 gap-3 border-t border-[#e3ece6] bg-[#f7faf8] px-6 py-[18px]">
                   {messagingStats.map((stat) => (
                     <div key={stat.label}>
-                      <p className="font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.01em]" style={{ color: INK }}>
+                      <p className="font-(--font-heading) text-[19px] font-extrabold tracking-[-0.01em]" style={{ color: INK }}>
                         {stat.value}
                       </p>
                       <p className="mt-[3px] text-[11px] text-[#5f6e65]">{stat.label}</p>
@@ -998,7 +993,7 @@ export function FutureRealmLandingPage() {
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
               How it works
             </p>
-            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
               Get your school running in four simple steps
             </h2>
           </div>
@@ -1006,12 +1001,12 @@ export function FutureRealmLandingPage() {
             {howItWorks.map((step) => (
               <div key={step.n}>
                 <span
-                  className="mb-5 flex h-[52px] w-[52px] items-center justify-center rounded-full font-[var(--font-heading)] text-[17px] font-bold text-white"
+                  className="mb-5 flex h-[52px] w-[52px] items-center justify-center rounded-full font-(--font-heading) text-[17px] font-bold text-white"
                   style={{ background: INK }}
                 >
                   {step.n}
                 </span>
-                <p className="mb-2 font-[var(--font-heading)] text-[17px] font-semibold">{step.title}</p>
+                <p className="mb-2 font-(--font-heading) text-[17px] font-semibold">{step.title}</p>
                 <p className="text-[13.5px] leading-[1.55] text-[#435048]">{step.desc}</p>
               </div>
             ))}
@@ -1022,7 +1017,7 @@ export function FutureRealmLandingPage() {
       {/* Role tabs */}
       <RevealSection className="px-6 py-24 sm:px-14">
         <div className="mx-auto max-w-[1360px]">
-          <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+          <h2 className="mb-3 text-center font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
             Built differently for every role
           </h2>
           <p className="mb-11 text-center text-base text-[#435048]">The same data, three purpose-built views.</p>
@@ -1046,7 +1041,7 @@ export function FutureRealmLandingPage() {
           <div className="mx-auto max-w-[1040px] rounded-[22px] border border-[#dce6df] bg-white p-2 shadow-[0_30px_60px_-30px_rgba(23,20,38,0.2)]">
             <div className="grid min-h-[320px] gap-8 rounded-2xl bg-[#f3f7f4] p-9 sm:grid-cols-2">
               <div>
-                <p className="mb-3.5 font-[var(--font-heading)] text-[22px] font-semibold">{tab.title}</p>
+                <p className="mb-3.5 font-(--font-heading) text-[22px] font-semibold">{tab.title}</p>
                 {tab.points.map((point) => (
                   <div key={point} className="mb-3 flex items-start gap-2.5">
                     <span
@@ -1055,7 +1050,7 @@ export function FutureRealmLandingPage() {
                     >
                       ✓
                     </span>
-                    <span className="text-[14.5px] leading-[1.5] text-[#435048]">{point}</span>
+                    <span className="text-[14.5px] leading-normal text-[#435048]">{point}</span>
                   </div>
                 ))}
               </div>
@@ -1066,7 +1061,7 @@ export function FutureRealmLandingPage() {
                     <div key={row.label}>
                       <div className="mb-[7px] flex items-baseline justify-between gap-3">
                         <span className="text-[12.5px] text-[#435048]">{row.label}</span>
-                        <span className="font-[var(--font-heading)] text-sm font-bold">{row.value}</span>
+                        <span className="font-(--font-heading) text-sm font-bold">{row.value}</span>
                       </div>
                       <div className="h-[7px] overflow-hidden rounded-full bg-[#edf3ef]">
                         <div
@@ -1098,7 +1093,7 @@ export function FutureRealmLandingPage() {
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
               For parents
             </p>
-            <h2 className="mb-5 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            <h2 className="mb-5 font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
               The front desk stops being a call centre
             </h2>
             <p className="mb-8 max-w-[520px] text-[16.5px] leading-[1.65] text-[#435048]">
@@ -1115,7 +1110,7 @@ export function FutureRealmLandingPage() {
                   >
                     <Check className="h-[11px] w-[11px] text-white" strokeWidth={3.2} />
                   </span>
-                  <p className="text-[15px] leading-[1.5]">
+                  <p className="text-[15px] leading-normal">
                     <span className="font-semibold">{point.title}</span>
                     <span className="text-[#435048]">{point.rest}</span>
                   </p>
@@ -1134,7 +1129,7 @@ export function FutureRealmLandingPage() {
               <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
                 Our commitments
               </p>
-              <h2 className="mb-[18px] font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+              <h2 className="mb-[18px] font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
                 What we commit to, in writing.
               </h2>
               <p className="mb-[26px] text-base leading-[1.6] text-[#435048]">
@@ -1160,7 +1155,7 @@ export function FutureRealmLandingPage() {
                   >
                     <div className="mb-2.5 flex items-center gap-2.5">
                       <Check className="h-[17px] w-[17px] shrink-0" style={{ color: TEAL }} strokeWidth={2.4} />
-                      <p className="font-[var(--font-heading)] text-base font-bold" style={{ color: INK }}>
+                      <p className="font-(--font-heading) text-base font-bold" style={{ color: INK }}>
                         {item.title}
                       </p>
                     </div>
@@ -1172,7 +1167,7 @@ export function FutureRealmLandingPage() {
                 <p className="text-[13px] text-[#eaf0ec]">Published as part of every school agreement</p>
                 <div className="flex items-center gap-2">
                   <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: MINT }} />
-                  <p className="font-[var(--font-heading)] text-[12.5px] font-bold tracking-[0.02em] text-white">
+                  <p className="font-(--font-heading) text-[12.5px] font-bold tracking-[0.02em] text-white">
                     FutureRealm · Service commitments v1.0
                   </p>
                 </div>
@@ -1185,18 +1180,18 @@ export function FutureRealmLandingPage() {
       {/* Testimonials */}
       <RevealSection className="px-6 py-24 sm:px-14" style={{ background: "#f3f7f4" }}>
         <div className="mx-auto max-w-[1360px]">
-          <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+          <h2 className="mb-3 text-center font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
             Trusted by school leaders across Nigeria
           </h2>
           <p className="mb-12 text-center text-base text-[#435048]">Heads of school don&apos;t go back to spreadsheets.</p>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {testimonials.map((item) => (
               <div key={item.name} className="rounded-[18px] border border-[#e3ece6] bg-white p-[30px]">
-                <p className="mb-3.5 font-[var(--font-heading)] text-[38px] font-extrabold leading-[0.7] text-[#cfddd5]">&ldquo;</p>
+                <p className="mb-3.5 font-(--font-heading) text-[38px] font-extrabold leading-[0.7] text-[#cfddd5]">&ldquo;</p>
                 <p className="mb-6 text-[15.5px] leading-[1.62]">{item.quote}</p>
                 <div className="flex items-center gap-3">
                   <span
-                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-[var(--font-heading)] text-sm font-bold text-white"
+                    className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full font-(--font-heading) text-sm font-bold text-white"
                     style={{ background: INK }}
                   >
                     {item.name
@@ -1224,7 +1219,7 @@ export function FutureRealmLandingPage() {
             <p className="mb-3.5 text-[13px] font-bold uppercase tracking-[0.06em]" style={{ color: TEAL }}>
               Trust &amp; compliance
             </p>
-            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+            <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
               You are holding children&apos;s records. We treat that seriously.
             </h2>
             <p className="mt-4 text-base leading-[1.6] text-[#435048]">
@@ -1235,7 +1230,7 @@ export function FutureRealmLandingPage() {
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
             {trustCards.map((card) => (
               <div key={card.title} className="rounded-[18px] border border-[#e3ece6] bg-[#f3f7f4] p-7">
-                <p className="mb-2.5 font-[var(--font-heading)] text-base font-bold">{card.title}</p>
+                <p className="mb-2.5 font-(--font-heading) text-base font-bold">{card.title}</p>
                 <p className="text-[13.5px] leading-[1.55] text-[#435048]">{card.desc}</p>
               </div>
             ))}
@@ -1247,7 +1242,7 @@ export function FutureRealmLandingPage() {
       <RevealSection id="pricing" className="px-6 py-24 sm:px-14" style={{ background: INK }}>
         <div className="mx-auto max-w-[1360px]">
           <div className="mb-12 text-center">
-            <h2 className="font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+            <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
               Simple pricing, per student
             </h2>
             <p className="mx-auto mt-2.5 max-w-[520px] text-base text-[#9fb8a7]">
@@ -1279,10 +1274,10 @@ export function FutureRealmLandingPage() {
                       {plan.badge}
                     </span>
                   )}
-                  <p className="mb-2 font-[var(--font-heading)] text-lg font-semibold">{plan.name}</p>
+                  <p className="mb-2 font-(--font-heading) text-lg font-semibold">{plan.name}</p>
                   <p className="mb-5 min-h-9 text-[13px] text-[#435048]">{plan.desc}</p>
                   <div className="mb-6 flex items-baseline gap-1.5">
-                    <span className="font-[var(--font-heading)] text-[36px] font-extrabold tracking-[-0.02em]">{plan.price}</span>
+                    <span className="font-(--font-heading) text-[36px] font-extrabold tracking-[-0.02em]">{plan.price}</span>
                     <span className="text-[13px] text-[#435048]">/ student · year</span>
                   </div>
                   <Link
@@ -1322,7 +1317,7 @@ export function FutureRealmLandingPage() {
 
       {/* FAQ */}
       <RevealSection id="faq" className="mx-auto max-w-[820px] px-6 py-24 sm:px-14">
-        <h2 className="mb-3 text-center font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
+        <h2 className="mb-3 text-center font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] sm:text-[40px]">
           Questions schools ask before switching
         </h2>
         <p className="mb-10 text-center text-[15px] text-[#435048]">
@@ -1366,7 +1361,7 @@ export function FutureRealmLandingPage() {
         <div className="relative overflow-hidden rounded-[28px] px-6 py-[70px] text-center sm:px-14" style={{ background: INK }}>
           <span className="pointer-events-none absolute -right-16 -top-16 h-[220px] w-[220px] rounded-full bg-[rgba(255,255,255,0.12)]" />
           <span className="pointer-events-none absolute -bottom-20 -left-10 h-[180px] w-[180px] rounded-full bg-[rgba(255,255,255,0.1)]" />
-          <h2 className="relative mb-4 font-[var(--font-heading)] text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
+          <h2 className="relative mb-4 font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
             Ready to run a calmer school office?
           </h2>
           <p className="relative mb-8 text-base text-[#eaf0ec]">Set up in a day. Free for your first 30 days.</p>
@@ -1398,7 +1393,7 @@ export function FutureRealmLandingPage() {
                 <span className="flex h-8 w-8 items-center justify-center rounded-[9px]" style={{ background: INK }}>
                   <School className="h-4 w-4 text-white" />
                 </span>
-                <span className="font-[var(--font-heading)] text-base font-extrabold">FutureRealm SMS</span>
+                <span className="font-(--font-heading) text-base font-extrabold">FutureRealm SMS</span>
               </div>
               <p className="mb-[18px] max-w-[260px] text-[13.5px] leading-[1.6] text-[#5f6e65]">
                 A school management platform for admissions, academics, finance and communication — built to help
@@ -1413,25 +1408,25 @@ export function FutureRealmLandingPage() {
               </p>
             </div>
             <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#5f6e65]">Product</p>
+              <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[#5f6e65]">Product</p>
               <div className="flex flex-col gap-[11px] text-sm">
                 <a href="#features" style={{ color: INK }}>Features</a>
                 <a href="#messaging" style={{ color: INK }}>Messaging</a>
                 <a href="#pricing" style={{ color: INK }}>Pricing</a>
-                <a href="#" style={{ color: INK }}>Parent app</a>
+                <span style={{ color: INK }} className="cursor-default opacity-60" title="Coming soon">Parent app</span>
               </div>
             </div>
             <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#5f6e65]">Company</p>
+              <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[#5f6e65]">Company</p>
               <div className="flex flex-col gap-[11px] text-sm">
-                <a href="#" style={{ color: INK }}>About</a>
-                <a href="#" style={{ color: INK }}>Careers</a>
-                <a href="#" style={{ color: INK }}>Contact</a>
+                <span style={{ color: INK }} className="cursor-default opacity-60" title="Coming soon">About</span>
+                <span style={{ color: INK }} className="cursor-default opacity-60" title="Coming soon">Careers</span>
+                <span style={{ color: INK }} className="cursor-default opacity-60" title="Coming soon">Contact</span>
                 <Link href={"/login" as Route} style={{ color: INK }}>Login</Link>
               </div>
             </div>
             <div>
-              <p className="mb-4 text-xs font-bold uppercase tracking-[0.05em] text-[#5f6e65]">Stay updated</p>
+              <p className="mb-4 text-xs font-bold uppercase tracking-wider text-[#5f6e65]">Stay updated</p>
               <p className="mb-3 text-[13px] text-[#435048]">Launch notes and rollout insights for school leaders.</p>
               <form onSubmit={handleNewsletterSubmit} noValidate className="flex gap-2">
                 <input
@@ -1441,7 +1436,7 @@ export function FutureRealmLandingPage() {
                   aria-describedby={newsletterMissing ? "newsletter-email-missing" : undefined}
                   onChange={(event) => { setNewsletterEmail(event.target.value); if (newsletterMissing) setNewsletterMissing(undefined); }}
                   placeholder="you@school.edu.ng"
-                  className="flex-1 rounded-[9px] border border-[#e3ece6] bg-[#f3f7f4] px-3 py-2.5 text-[13px] outline-none placeholder:text-[#9fb8a7]"
+                  className="flex-1 rounded-[9px] border border-[#e3ece6] bg-[#f3f7f4] px-3 py-2.5 text-[13px] outline-hidden placeholder:text-[#9fb8a7]"
                 />
                 <button type="submit" disabled={newsletterPending} className="whitespace-nowrap rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-70" style={{ background: INK }}>
                   {newsletterPending ? "Joining…" : "Join"}
@@ -1454,7 +1449,7 @@ export function FutureRealmLandingPage() {
           <div className="flex flex-col items-center justify-between gap-3 pb-7 text-[13px] text-[#5f6e65] sm:flex-row">
             <p>© {new Date().getFullYear()} FutureRealm SMS. All rights reserved.</p>
             <div className="flex items-center gap-2">
-              <span className="flex h-4 w-4 items-center justify-center rounded border border-[#d3dfd7] bg-[#eaf0ec] text-[9px]" style={{ color: INK }}>
+              <span className="flex h-4 w-4 items-center justify-center rounded-sm border border-[#d3dfd7] bg-[#eaf0ec] text-[9px]" style={{ color: INK }}>
                 ✓
               </span>
               NDPC compliant

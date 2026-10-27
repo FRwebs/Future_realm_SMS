@@ -41,7 +41,7 @@ function Card({ title, sub, children, aside }: { title: string; sub?: string; ch
       <div className="flex items-start justify-between gap-3 border-b border-[#EDF3EF] px-[18px] pb-[12.5px] pt-[14.5px]">
         <div className="min-w-0">
           <h2 className="text-[12.5px] font-semibold text-[#0D2315]">{title}</h2>
-          {sub ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{sub}</p> : null}
+          {sub ? <p className="mt-[3.5px] text-pretty text-[10.5px] leading-normal text-[#5f6e65]">{sub}</p> : null}
         </div>
         {aside}
       </div>
@@ -82,15 +82,15 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
       </nav>
 
       <section className="relative overflow-hidden rounded-[20px] bg-[#0d2315] px-[27px] py-[23.5px] shadow-[0_18px_39.5px_-27px_rgba(13,35,21,0.8)]">
-        <div className="pointer-events-none absolute -right-[81px] -top-[135px] h-[342px] w-[342px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-        <div className="pointer-events-none absolute -right-[18px] -top-[72px] h-[216px] w-[216px] rounded-full border border-[rgba(95,214,180,0.08)]" />
-        <div className="pointer-events-none absolute -bottom-[144px] -left-[63px] h-[252px] w-[252px] rounded-full border border-white/5" />
+        <div className="pointer-events-none absolute right-[-81px] top-[-135px] h-[342px] w-[342px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+        <div className="pointer-events-none absolute right-[-18px] top-[-72px] h-[216px] w-[216px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+        <div className="pointer-events-none absolute bottom-[-144px] left-[-63px] h-[252px] w-[252px] rounded-full border border-white/5" />
 
         <div className="relative">
 
           <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex min-w-0 items-center gap-[15px]">
-              <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-white/10 font-[var(--font-heading)] text-[17px] font-extrabold text-white ring-1 ring-white/10">
+              <div className="flex h-[54px] w-[54px] shrink-0 items-center justify-center rounded-[16px] bg-white/10 font-(--font-heading) text-[17px] font-extrabold text-white ring-1 ring-white/10">
                 {initials(user.name)}
               </div>
               <div className="min-w-0">
@@ -98,8 +98,8 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
                   <span className="h-[4.5px] w-[4.5px] shrink-0 rounded-full bg-[#5FD6B4]" />
                   <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/55">User profile · {user.profileType.toLowerCase()}</span>
                 </div>
-                <h1 className="truncate font-[var(--font-heading)] text-[26px] font-extrabold leading-[1.08] tracking-[-0.028em] text-white">{user.name}</h1>
-                <p className="mt-[7px] truncate text-[12px] text-white/[62%]">
+                <h1 className="truncate font-(--font-heading) text-[26px] font-extrabold leading-[1.08] tracking-[-0.028em] text-white">{user.name}</h1>
+                <p className="mt-[7px] truncate text-[12px] text-white/62">
                   {[user.email, user.phone].filter(Boolean).join(" · ")}
                 </p>
                 <div className="mt-[11px] flex flex-wrap items-center gap-[6.5px]">
@@ -167,7 +167,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
             <div className="grid gap-2.5 p-[18px] sm:grid-cols-2">
               {activityRows(user.activitySummary).map((item) => (
                 <div key={item.label} className="rounded-[11px] border border-[#EDF3EF] bg-[#FBFDFC] px-[14px] py-[12px]">
-                  <p className="text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{item.label}</p>
+                  <p className="text-[9.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">{item.label}</p>
                   <p className="mt-[7px] text-[20.5px] font-extrabold leading-none tracking-[-0.03em] text-[#0D2315] tabular-nums">{item.value.toLocaleString()}</p>
                   <p className="mt-[6.5px] text-[10.5px] leading-[1.4] text-[#5f6e65]">{item.note}</p>
                 </div>
@@ -181,7 +181,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
             <div className="grid gap-3 p-[18px]">
               <div>
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">{suspended ? "Reinstate access" : "Suspend access"}</p>
-                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#5f6e65]">
+                <p className="mb-2 mt-[3px] text-[10.5px] leading-normal text-[#5f6e65]">
                   {suspended ? "Restores sign-in for this account after the suspension is resolved." : "Stops this account signing in. School records are kept untouched."}
                 </p>
                 {suspended ? (
@@ -192,7 +192,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
               </div>
               <div className="border-t border-[#F2F7F4] pt-3">
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">Account recovery</p>
-                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#5f6e65]">For someone locked out with no email access. Verify their identity first — how you verified is logged.</p>
+                <p className="mb-2 mt-[3px] text-[10.5px] leading-normal text-[#5f6e65]">For someone locked out with no email access. Verify their identity first — how you verified is logged.</p>
                 <ResourceActionDialog
                   triggerLabel="Recover account"
                   title={`Recover account — ${user.name}`}
@@ -211,7 +211,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
               </div>
               <div className="border-t border-[#F2F7F4] pt-3">
                 <p className="text-[11.5px] font-semibold text-[#0D2315]">Support access</p>
-                <p className="mb-2 mt-[3px] text-[10.5px] leading-[1.5] text-[#5f6e65]">See the platform as this person does. Read-only unless the school approves more, and the school is told.</p>
+                <p className="mb-2 mt-[3px] text-[10.5px] leading-normal text-[#5f6e65]">See the platform as this person does. Read-only unless the school approves more, and the school is told.</p>
                 <ImpersonateUserDialog userId={user.id} userName={user.name} />
               </div>
             </div>

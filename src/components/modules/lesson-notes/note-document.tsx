@@ -3,7 +3,7 @@
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Btn, Card, Chip, CARD_BORDER, Confirm, INK, Label, MUTED, GRID_DAYS, GRID_SLOTS, composeGrid, inputClass, longDate, notesHtml, parseGrid, printSheet, useToast, useWrite } from "@/components/modules/lesson-notes/kit";
 import { GRID_SUFFIX, LN_API, stateLabel, stateTone, type Letterhead, type NoteData, type Section, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
@@ -19,7 +19,7 @@ function Thread({ thread }: { thread: ThreadEntry[] }) {
       <ul className="mt-3 grid gap-2.5">
         {thread.map((entry) => (
           <li key={entry.id} className="rounded-[10px] px-3 py-2" style={{ background: tone(entry.kind).bg }}>
-            <p className="text-[10.5px] font-bold uppercase tracking-[0.05em]" style={{ color: tone(entry.kind).fg }}>{entry.kind === "RETURN" ? "Returned" : entry.kind === "SIGN" ? "Signed" : entry.kind === "REPLY" ? "Reply" : "Note"} · {entry.author} · {longDate(entry.at)}{entry.section ? ` · ${entry.section}` : ""}</p>
+            <p className="text-[10.5px] font-bold uppercase tracking-wider" style={{ color: tone(entry.kind).fg }}>{entry.kind === "RETURN" ? "Returned" : entry.kind === "SIGN" ? "Signed" : entry.kind === "REPLY" ? "Reply" : "Note"} · {entry.author} · {longDate(entry.at)}{entry.section ? ` · ${entry.section}` : ""}</p>
             <p className="mt-0.5 whitespace-pre-wrap text-[12px] leading-[1.6]" style={{ color: INK }}>{entry.body}</p>
           </li>
         ))}
@@ -87,11 +87,14 @@ export function NoteDocument({ data }: { data: NoteData }) {
     setConfirm(null);
     if (result) router.refresh();
   }
+  // Ctrl/⌘-S saves whatever is on the page now: the listener is bound once and reads the latest save from a ref.
+  const saveRef = useRef(save);
+  useEffect(() => { saveRef.current = save; });
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s" && editable) { event.preventDefault(); void save(); } };
+    const onKey = (event: KeyboardEvent) => { if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s" && editable) { event.preventDefault(); void saveRef.current(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [editable, text]);
+  }, [editable]);
 
   const assist = (section: Section) => {
     const suggestion = data.draft[section.key];
@@ -174,9 +177,9 @@ export function NoteDocument({ data }: { data: NoteData }) {
           {sections.map((section, index) => {
             const flagged = data.returned?.section === section.key;
             return (
-              <Card key={section.key} className={flagged ? "!border-[#E9B8B8]" : ""}>
+              <Card key={section.key} className={flagged ? "border-[#E9B8B8]!" : ""}>
                 <div className="flex flex-wrap items-center justify-between gap-2">
-                  <p className="text-[12.5px] font-extrabold" style={{ color: INK }}><span className="mr-1.5 text-[11px]" style={{ color: MUTED }}>{index + 1}</span>{section.label}{section.required ? <span className="ml-2 rounded-full px-[7px] py-[1px] text-[9.5px] font-bold uppercase" style={{ background: "#FDF6E7", color: "#8A6410" }}>Required</span> : null}</p>
+                  <p className="text-[12.5px] font-extrabold" style={{ color: INK }}><span className="mr-1.5 text-[11px]" style={{ color: MUTED }}>{index + 1}</span>{section.label}{section.required ? <span className="ml-2 rounded-full px-[7px] py-px text-[9.5px] font-bold uppercase" style={{ background: "#FDF6E7", color: "#8A6410" }}>Required</span> : null}</p>
                   {editable && view === "write" && section.assist ? <button type="button" onClick={() => assist(section)} className="rounded-full border px-[10px] py-[3px] text-[10.5px] font-bold" style={{ borderColor: "#CFE4DB", color: "#17714F", background: "#F2FAF6" }}>✦ {section.assist}</button> : null}
                 </div>
                 {section.kind === "week-grid" ? (
@@ -297,7 +300,7 @@ export function NoteReader({ data }: { data: ReaderData }) {
         <div className="grid min-w-0 grid-cols-[minmax(0,1fr)] gap-3">
           {data.sections.map((entry, index) => (
             <Card key={entry.key}>
-              <p className="text-[12.5px] font-extrabold" style={{ color: INK }}><span className="mr-1.5 text-[11px]" style={{ color: MUTED }}>{index + 1}</span>{entry.label}{entry.required ? <span className="ml-2 rounded-full px-[7px] py-[1px] text-[9.5px] font-bold uppercase" style={{ background: "#FDF6E7", color: "#8A6410" }}>Required</span> : null}</p>
+              <p className="text-[12.5px] font-extrabold" style={{ color: INK }}><span className="mr-1.5 text-[11px]" style={{ color: MUTED }}>{index + 1}</span>{entry.label}{entry.required ? <span className="ml-2 rounded-full px-[7px] py-px text-[9.5px] font-bold uppercase" style={{ background: "#FDF6E7", color: "#8A6410" }}>Required</span> : null}</p>
               {has(data.text[entry.key]) ? <p className="mt-2 whitespace-pre-wrap text-[12.5px] leading-[1.75]" style={{ color: INK }}>{data.text[entry.key]}</p> : <p className="mt-2 text-[12px] italic" style={{ color: MUTED }}>{entry.required ? "Required, and not written." : "Not written."}</p>}
             </Card>
           ))}
@@ -335,7 +338,7 @@ function WeekGridView({ grid, fallback, hint, editable, onChange, required }: { 
                   const value = grid[day]?.[slot] ?? "";
                   return (
                     <td key={slot} className="align-top">
-                      {editable ? <textarea className={`${inputClass} !min-h-[62px] !px-2 !py-1.5 !text-[11.5px]`} value={value} onChange={(event) => onChange(day, slot, event.target.value)} aria-label={`${day} ${slot}`} /> : <div className="min-h-[34px] rounded-[8px] border px-2 py-1.5" style={{ borderColor: value ? "#DCE7E0" : "#EEF3F0", background: value ? "#fff" : "#FAFCFB", color: INK }}>{value}</div>}
+                      {editable ? <textarea className={`${inputClass} min-h-[62px]! px-2! py-1.5! text-[11.5px]!`} value={value} onChange={(event) => onChange(day, slot, event.target.value)} aria-label={`${day} ${slot}`} /> : <div className="min-h-[34px] rounded-[8px] border px-2 py-1.5" style={{ borderColor: value ? "#DCE7E0" : "#EEF3F0", background: value ? "#fff" : "#FAFCFB", color: INK }}>{value}</div>}
                     </td>
                   );
                 })}

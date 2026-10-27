@@ -235,8 +235,8 @@ async function PeopleTab({ params }: { params: Record<string, string | undefined
             header: "Person",
             render: (item) => (
               <div>
-                <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{item.email}</p>
+                <p className="font-semibold text-(--color-text-primary)">{item.name}</p>
+                <p className="text-xs text-(--color-text-muted)">{item.email}</p>
               </div>
             )
           },
@@ -265,7 +265,7 @@ async function RolesTab() {
   const [templates, matrix, customRoles] = await Promise.all([
     apiGet<SuperAdminPermissionTemplateRow[]>("/api/super-admin/internal-team/permission-templates"),
     apiGet<MatrixWithLabels>("/api/super-admin/internal-team/permission-grid"),
-    apiGet<CustomRoleRow[]>("/api/super-admin/team-access/roles").catch(() => [] as CustomRoleRow[])
+    apiGet<CustomRoleRow[]>("/api/super-admin/internal-team/roles").catch(() => [] as CustomRoleRow[])
   ]);
   const modules = matrix.modules ?? [];
   const members = matrix.members ?? [];
@@ -311,8 +311,8 @@ async function RolesTab() {
         ]}
         getRowKey={(row) => row.rule}
         columns={[
-          { key: "rule", header: "Rule", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.rule}</span> },
-          { key: "detail", header: "Why it's true here", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.detail}</span> }
+          { key: "rule", header: "Rule", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.rule}</span> },
+          { key: "detail", header: "Why it's true here", render: (row) => <span className="text-(--color-text-secondary)">{row.detail}</span> }
         ]}
       />
 
@@ -327,9 +327,9 @@ async function RolesTab() {
         ]}
         getRowKey={(row) => row.dimension}
         columns={[
-          { key: "dimension", header: "Dimension", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.dimension}</span> },
-          { key: "question", header: "Question it answers", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.question}</span> },
-          { key: "enforcedWhere", header: "Enforced where", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.enforcedWhere}</span> },
+          { key: "dimension", header: "Dimension", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.dimension}</span> },
+          { key: "question", header: "Question it answers", render: (row) => <span className="text-(--color-text-secondary)">{row.question}</span> },
+          { key: "enforcedWhere", header: "Enforced where", render: (row) => <span className="text-(--color-text-secondary)">{row.enforcedWhere}</span> },
           {
             key: "state",
             header: "State",
@@ -390,10 +390,10 @@ async function RolesTab() {
           {
             key: "module",
             header: "Module",
-            headerClassName: "sticky left-0 z-[1] bg-[color-mix(in_srgb,var(--color-bg-subtle)_92%,transparent)]",
-            cellClassName: "sticky left-0 bg-[var(--color-bg-surface)]",
+            headerClassName: "sticky left-0 z-1 bg-[color-mix(in_srgb,var(--color-bg-subtle)_92%,transparent)]",
+            cellClassName: "sticky left-0 bg-(--color-bg-surface)",
             render: (moduleId: string) => (
-              <span className="font-semibold text-[var(--color-text-primary)]">
+              <span className="font-semibold text-(--color-text-primary)">
                 {matrix.labels?.[moduleId] ?? moduleId}
               </span>
             )
@@ -449,7 +449,7 @@ async function ActivityTab() {
         items={activity.members}
         columns={[
           { key: "name", header: "Team member", render: (item) => item.name },
-          { key: "department", header: "Department", render: (item) => item.department ?? <span className="text-[var(--color-text-muted)]">None set</span> },
+          { key: "department", header: "Department", render: (item) => item.department ?? <span className="text-(--color-text-muted)">None set</span> },
           { key: "actions", header: "Actions", render: (item) => item.actionsTaken },
           { key: "lastLogin", header: "Last login", render: (item) => (item.lastLoginAt ? formatDate(item.lastLoginAt) : "Never") },
           {
@@ -459,7 +459,7 @@ async function ActivityTab() {
               const parts: string[] = [];
               if (item.ticketsResolved > 0) parts.push(`${item.ticketsResolved} tickets resolved`);
               if (item.revenueReconciled > 0) parts.push(`${formatNaira(item.revenueReconciled)} reconciled`);
-              return <span className="text-[11px] text-[var(--color-text-secondary)]">{parts.length > 0 ? parts.join(" · ") : "Nothing recorded this window"}</span>;
+              return <span className="text-[11px] text-(--color-text-secondary)">{parts.length > 0 ? parts.join(" · ") : "Nothing recorded this window"}</span>;
             }
           },
           {
@@ -510,8 +510,8 @@ async function SecurityTab() {
         ]}
         getRowKey={(row) => row.requirement}
         columns={[
-          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.requirement}</span> },
-          { key: "spec", header: "What actually happens", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.spec}</span> },
+          { key: "requirement", header: "Requirement", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.requirement}</span> },
+          { key: "spec", header: "What actually happens", render: (row) => <span className="text-(--color-text-secondary)">{row.spec}</span> },
           {
             key: "state",
             header: "State",
@@ -538,10 +538,10 @@ async function SecurityTab() {
         emptyState="Nothing has been flagged."
         actions={<ResourceActionDialog triggerLabel="Scan now" title="Scan for large exports" description="Looks back over the last 20 minutes of the audit trail. It runs by itself every 15 minutes." endpoint="/api/super-admin/internal-team/anomalies/scan" method="POST" variant="secondary" submitLabel="Scan" fields={[]} />}
         columns={[
-          { key: "person", header: "Person", render: (row) => <span className="font-semibold text-[var(--color-text-primary)]">{row.person}</span> },
-          { key: "flag", header: "Flag", render: (row) => <div><p className="font-semibold">{ANOMALY_LABEL[row.kind] ?? row.kind}</p><p className="text-[11.5px] text-[var(--color-text-secondary)]">{row.detail}</p></div> },
+          { key: "person", header: "Person", render: (row) => <span className="font-semibold text-(--color-text-primary)">{row.person}</span> },
+          { key: "flag", header: "Flag", render: (row) => <div><p className="font-semibold">{ANOMALY_LABEL[row.kind] ?? row.kind}</p><p className="text-[11.5px] text-(--color-text-secondary)">{row.detail}</p></div> },
           { key: "when", header: "When", render: (row) => formatDate(row.detectedAt) },
-          { key: "outcome", header: "Outcome", render: (row) => (row.status === "OPEN" ? <span className="text-[var(--color-warning)] font-semibold">Open</span> : <span className="text-[12px]">{row.status === "ESCALATED" ? "Escalated" : "Reviewed"} by {row.reviewedBy ?? "—"}{row.note ? ` — ${row.note}` : ""}</span>) },
+          { key: "outcome", header: "Outcome", render: (row) => (row.status === "OPEN" ? <span className="text-(--color-warning) font-semibold">Open</span> : <span className="text-[12px]">{row.status === "ESCALATED" ? "Escalated" : "Reviewed"} by {row.reviewedBy ?? "—"}{row.note ? ` — ${row.note}` : ""}</span>) },
           {
             key: "actions",
             header: "",
@@ -564,8 +564,8 @@ async function SecurityTab() {
             header: "Team member",
             render: (item) => (
               <div>
-                <p className="font-semibold text-[var(--color-text-primary)]">{item.name}</p>
-                <p className="text-xs text-[var(--color-text-muted)]">{item.email}</p>
+                <p className="font-semibold text-(--color-text-primary)">{item.name}</p>
+                <p className="text-xs text-(--color-text-muted)">{item.email}</p>
               </div>
             )
           },
@@ -617,7 +617,7 @@ async function SecurityTab() {
           />
         }
         columns={[
-          { key: "ip", header: "IP address", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.ipAddress}</span> },
+          { key: "ip", header: "IP address", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.ipAddress}</span> },
           {
             key: "type",
             header: "Type",

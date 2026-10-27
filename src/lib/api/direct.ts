@@ -17,7 +17,7 @@ import {
   TeacherPortalView,
   TeacherRecordView,
 } from "@/lib/domain/types";
-import type { ClassListItem, PaginatedResponse } from "@/components/classes/classes-list-client";
+import type { ClassListItem, PaginatedResponse } from "@/lib/domain/class-list";
 
 type DirectApiResultMap = {
   "/api/v1/dashboard/overview": DashboardSummary;

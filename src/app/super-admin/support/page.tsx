@@ -188,24 +188,24 @@ async function TicketBoardTab({ board }: { board: Board }) {
             return (
               <section key={column.label} className="surface-card flex max-h-[70vh] flex-col p-3">
                 <div className="flex items-center justify-between px-1 pb-2">
-                  <p className="text-[11.5px] font-bold text-[var(--color-text-primary)]">{column.label}</p>
-                  <span className="rounded-full bg-[var(--color-bg-subtle)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-text-muted)]">{columnTickets.length}</span>
+                  <p className="text-[11.5px] font-bold text-(--color-text-primary)">{column.label}</p>
+                  <span className="rounded-full bg-(--color-bg-subtle) px-2 py-0.5 text-[10px] font-bold text-(--color-text-muted)">{columnTickets.length}</span>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
                   {columnTickets.length === 0 ? (
-                    <p className="rounded-[9px] border border-dashed border-[var(--color-border-default)] px-3 py-4 text-center text-[10px] text-[var(--color-text-muted)]">No tickets</p>
+                    <p className="rounded-[9px] border border-dashed border-(--color-border-default) px-3 py-4 text-center text-[10px] text-(--color-text-muted)">No tickets</p>
                   ) : (
                     columnTickets.map((ticket) => {
                       const tone = priorityTone[ticket.priority] ?? priorityTone.LOW;
                       return (
-                        <Link key={ticket.id} href={`/super-admin/support/${ticket.id}`} className="rounded-[9px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-3 transition hover:border-[var(--color-accent-primary)]">
+                        <Link key={ticket.id} href={`/super-admin/support/${ticket.id}`} className="rounded-[9px] border border-(--color-border-default) bg-(--color-bg-surface) p-3 transition hover:border-(--color-accent-primary)">
                           <div className="flex items-center justify-between gap-2">
-                            <span className="font-[var(--font-mono)] text-[10px] font-bold text-[var(--color-text-muted)]">{ticket.ticketNo}</span>
+                            <span className="font-(--font-mono) text-[10px] font-bold text-(--color-text-muted)">{ticket.ticketNo}</span>
                             <StatusPill bg={tone.bg} fg={tone.fg} label={priorityLabel[ticket.priority] ?? ticket.priority} />
                           </div>
-                          <p className="mt-2 line-clamp-2 text-[11.5px] font-semibold text-[var(--color-text-primary)]">{ticket.subject}</p>
-                          <p className="mt-2 text-[10px] text-[var(--color-text-muted)]">{ticket.schoolName} · {ticket.assignedTo || "Unassigned"}</p>
-                          {ticket.status === "ESCALATED" ? <p className="mt-1 text-[10px] font-bold text-[var(--color-danger)]">Escalated</p> : null}
+                          <p className="mt-2 line-clamp-2 text-[11.5px] font-semibold text-(--color-text-primary)">{ticket.subject}</p>
+                          <p className="mt-2 text-[10px] text-(--color-text-muted)">{ticket.schoolName} · {ticket.assignedTo || "Unassigned"}</p>
+                          {ticket.status === "ESCALATED" ? <p className="mt-1 text-[10px] font-bold text-danger">Escalated</p> : null}
                           {ticket.slaDueAt && !["RESOLVED", "CLOSED"].includes(ticket.status) ? (
                             <p className="mt-1 text-[10px] font-semibold" style={{ color: ticket.slaBreached ? "var(--color-danger)" : "var(--color-text-muted)" }}>{ticket.slaBreached ? "SLA breached" : `Due ${formatDate(ticket.slaDueAt)}`}</p>
                           ) : null}
@@ -229,9 +229,9 @@ async function TicketBoardTab({ board }: { board: Board }) {
         footnote="A four-hour target that expires overnight in Nairobi while our office is closed is a promise we cannot keep and should not make."
         columns={[
           { key: "priority", header: "Priority", render: (row) => { const tone = priorityTone[row.key] ?? priorityTone.LOW; return <StatusPill bg={tone.bg} fg={tone.fg} label={row.label} />; } },
-          { key: "target", header: "Target", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.hours} hour{row.hours === 1 ? "" : "s"}</span> },
-          { key: "definition", header: "Definition", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.definition}</span> },
-          { key: "escalation", header: "Escalation", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.escalation}</span> },
+          { key: "target", header: "Target", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.hours} hour{row.hours === 1 ? "" : "s"}</span> },
+          { key: "definition", header: "Definition", render: (row) => <span className="text-(--color-text-secondary)">{row.definition}</span> },
+          { key: "escalation", header: "Escalation", render: (row) => <span className="text-(--color-text-secondary)">{row.escalation}</span> },
           { key: "open", header: "Open now", render: (row) => row.open }
         ]}
       />
@@ -245,8 +245,8 @@ async function TicketBoardTab({ board }: { board: Board }) {
           pageSize={false}
           footnote={`Data Migration and Onboarding and Setup are new in v4.0 — together they account for ${levels.newCategoryVolume} ticket${levels.newCategoryVolume === 1 ? "" : "s"} in the last 120 days, which would previously have been filed as Other. Volume counts tickets opened in the last 120 days.`}
           columns={[
-            { key: "label", header: "Category", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.label}</span> },
-            { key: "covers", header: "Covers", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.covers}</span> },
+            { key: "label", header: "Category", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.label}</span> },
+            { key: "covers", header: "Covers", render: (row) => <span className="text-(--color-text-secondary)">{row.covers}</span> },
             { key: "volume", header: "Volume", render: (row) => row.volume }
           ]}
         />
@@ -278,9 +278,9 @@ async function TicketBoardTab({ board }: { board: Board }) {
           }
           footnote={`${levels.countries.filter((c) => c.live).map((c) => c.country).join(", ") || "No country"} ${levels.countries.filter((c) => c.live).length === 1 ? "is" : "are"} live. The others exist as configuration records so that a launch is a data change.`}
           columns={[
-            { key: "country", header: "Country", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.country}</span> },
-            { key: "hours", header: "Working hours", render: (row) => (row.configured ? row.hours : <span className="text-[var(--color-text-muted)]">Not set — clocks run in flat hours</span>) },
-            { key: "holidays", header: "Holidays", render: (row) => (row.holidays === null ? <span className="text-[var(--color-text-muted)]">Not set</span> : `${row.holidays} public`) }
+            { key: "country", header: "Country", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.country}</span> },
+            { key: "hours", header: "Working hours", render: (row) => (row.configured ? row.hours : <span className="text-(--color-text-muted)">Not set — clocks run in flat hours</span>) },
+            { key: "holidays", header: "Holidays", render: (row) => (row.holidays === null ? <span className="text-(--color-text-muted)">Not set</span> : `${row.holidays} public`) }
           ]}
         />
       </div>
@@ -339,7 +339,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
           />
         }
         columns={[
-          { key: "ticket", header: "Ticket", render: (item) => <Link href={`/super-admin/support/${item.id}`} className="block"><span className="font-[var(--font-mono)] font-bold text-[var(--color-text-accent)]">{item.ticketNo}</span><span className="block max-w-[260px] truncate text-[10px] text-[var(--color-text-muted)]">{item.subject}</span></Link> },
+          { key: "ticket", header: "Ticket", render: (item) => <Link href={`/super-admin/support/${item.id}`} className="block"><span className="font-(--font-mono) font-bold text-(--color-text-accent)">{item.ticketNo}</span><span className="block max-w-[260px] truncate text-[10px] text-(--color-text-muted)">{item.subject}</span></Link> },
           { key: "school", header: "School", render: (item) => item.schoolName },
           { key: "category", header: "Category", render: (item) => categoryOptions.find((option) => option.value === item.category)?.label.toLowerCase().replace(/^./, (c) => c.toUpperCase()) ?? formatLabel(item.category) },
           { key: "priority", header: "Priority", render: (item) => { const tone = priorityTone[item.priority] ?? priorityTone.LOW; return <StatusPill bg={tone.bg} fg={tone.fg} label={priorityLabel[item.priority] ?? item.priority} />; } },
@@ -350,7 +350,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
             header: "SLA",
             render: (item) =>
               item.slaDueAt ? (
-                ["RESOLVED", "CLOSED"].includes(item.status) ? <span className="text-[var(--color-text-muted)]">Done</span> : item.slaBreached ? <span className="font-bold text-[var(--color-danger)]">Breached — {formatDate(item.slaDueAt)}</span> : formatDate(item.slaDueAt)
+                ["RESOLVED", "CLOSED"].includes(item.status) ? <span className="text-(--color-text-muted)">Done</span> : item.slaBreached ? <span className="font-bold text-danger">Breached — {formatDate(item.slaDueAt)}</span> : formatDate(item.slaDueAt)
               ) : "Not set"
           }
         ]}
@@ -376,7 +376,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
           columns={[
             { key: "priority", header: "Priority", render: (row) => { const tone = priorityTone[row.key] ?? priorityTone.LOW; return <StatusPill bg={tone.bg} fg={tone.fg} label={row.label} />; } },
             { key: "target", header: "Target", render: (row) => `${row.hours} hour${row.hours === 1 ? "" : "s"}` },
-            { key: "trigger", header: "Alert trigger", render: (row) => <span className="text-[var(--color-text-secondary)]">{row.escalation} — {row.definition.toLowerCase()}</span> }
+            { key: "trigger", header: "Alert trigger", render: (row) => <span className="text-(--color-text-secondary)">{row.escalation} — {row.definition.toLowerCase()}</span> }
           ]}
         />
       </div>
@@ -399,7 +399,7 @@ async function TicketQueueTab({ params, schoolOptions, agents, board }: { params
           emptyState="No agent has handled a ticket this week."
           footnote="Agents with consistently low CSAT are flagged for coaching review before the drop appears in platform NPS."
           columns={[
-            { key: "agent", header: "Agent", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.name}</span> },
+            { key: "agent", header: "Agent", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.name}</span> },
             { key: "assigned", header: "Assigned", render: (row) => row.assigned },
             { key: "resolved", header: "Resolved", render: (row) => row.resolved },
             { key: "sla", header: "Within SLA", render: (row) => (row.withinSla === null ? "—" : `${row.withinSla}%`) },
@@ -449,12 +449,12 @@ async function DataCorrectionsTab({ records }: { records: SuperAdminDataCorrecti
         emptyState="No data correction requests have been raised yet."
         footnote="Approval is the audit record and the school’s notice. The change itself is made on the school’s record by the person who approves it."
         columns={[
-          { key: "ticket", header: "Ticket", render: (item) => <Link href={`/super-admin/support/${item.ticketId}`} className="font-[var(--font-mono)] font-bold text-[var(--color-text-accent)]">{item.ticketNo}</Link> },
+          { key: "ticket", header: "Ticket", render: (item) => <Link href={`/super-admin/support/${item.ticketId}`} className="font-(--font-mono) font-bold text-(--color-text-accent)">{item.ticketNo}</Link> },
           { key: "school", header: "School", render: (item) => item.schoolName },
           { key: "field", header: "Field corrected", render: (item) => item.fieldCorrected },
-          { key: "old", header: "Old value", render: (item) => <span className="text-[var(--color-text-muted)] line-through">{item.oldValue}</span> },
-          { key: "new", header: "New value", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.newValue}</span> },
-          { key: "approved", header: "Approved by", render: (item) => item.approvedBy ?? <span className="text-[var(--color-text-muted)]">{item.requestedBy ? `Requested by ${item.requestedBy}` : "—"}</span> },
+          { key: "old", header: "Old value", render: (item) => <span className="text-(--color-text-muted) line-through">{item.oldValue}</span> },
+          { key: "new", header: "New value", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.newValue}</span> },
+          { key: "approved", header: "Approved by", render: (item) => item.approvedBy ?? <span className="text-(--color-text-muted)">{item.requestedBy ? `Requested by ${item.requestedBy}` : "—"}</span> },
           {
             key: "status",
             header: "Status",
@@ -545,7 +545,7 @@ async function KnowledgeTab() {
           columns={[
             { key: "category", header: "Category", render: (item) => lead(item.category) },
             { key: "title", header: "Title", render: (item) => item.title },
-            { key: "body", header: "Body", render: (item) => <span className="line-clamp-2 text-[11.5px] text-[var(--color-text-secondary)]">{item.body}</span> },
+            { key: "body", header: "Body", render: (item) => <span className="line-clamp-2 text-[11.5px] text-(--color-text-secondary)">{item.body}</span> },
             { key: "updated", header: "Updated", render: (item) => formatDate(item.updatedAt) },
             {
               key: "actions",

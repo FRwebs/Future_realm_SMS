@@ -28,10 +28,10 @@ function StatusPill({ bg, fg, label }: { bg: string; fg: string; label: string }
 }
 
 function DetailsPreview({ details }: { details: unknown }) {
-  if (details === null || details === undefined) return <span className="text-[var(--color-text-muted)]">—</span>;
-  if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-[var(--color-text-muted)]">—</span>;
+  if (details === null || details === undefined) return <span className="text-(--color-text-muted)">—</span>;
+  if (typeof details === "object" && Object.keys(details as object).length === 0) return <span className="text-(--color-text-muted)">—</span>;
   const text = typeof details === "string" ? details : JSON.stringify(details);
-  return <span className="line-clamp-2 max-w-xs font-[var(--font-mono)] text-[10px] text-[var(--color-text-secondary)]">{text}</span>;
+  return <span className="line-clamp-2 max-w-xs font-(--font-mono) text-[10px] text-(--color-text-secondary)">{text}</span>;
 }
 
 export default async function SuperAdminAuditLogsPage({ searchParams }: { searchParams?: Promise<Record<string, string | undefined>> }) {
@@ -52,17 +52,17 @@ export default async function SuperAdminAuditLogsPage({ searchParams }: { search
 
   return (
     <div className="grid gap-[14px]">
-      <section className="relative overflow-hidden rounded-[var(--radius-hero)] border border-[var(--color-border-strong)] bg-[#0d2315] p-6 text-white md:p-7">
+      <section className="relative overflow-hidden rounded-(--radius-hero) border border-(--color-border-strong) bg-[#0d2315] p-6 text-white md:p-7">
         <svg className="pointer-events-none absolute inset-0 h-full w-full opacity-50" viewBox="0 0 800 200" preserveAspectRatio="xMidYMid slice">
           <path d="M-50 180 Q 200 120 400 170 T 850 140" stroke="rgba(255,255,255,0.07)" strokeWidth="1.5" fill="none" />
           <path d="M-50 20 Q 240 -20 460 20 T 850 0" stroke="rgba(255,255,255,0.06)" strokeWidth="1.5" fill="none" />
           <circle cx="700" cy="20" r="140" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
           <circle cx="700" cy="20" r="90" stroke="rgba(255,255,255,0.07)" strokeWidth="1" fill="none" />
         </svg>
-        <div className="relative z-[1] flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="relative z-1 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div>
             <p className="text-[9.5px] font-semibold uppercase tracking-[0.14em] text-white/60">Compliance trail</p>
-            <h1 className="mt-2 font-[var(--font-heading)] text-[28px] font-bold text-white">Audit Logs</h1>
+            <h1 className="mt-2 font-(--font-heading) text-[28px] font-bold text-white">Audit Logs</h1>
             <p className="mt-2 max-w-3xl text-[11.5px] leading-6 text-[rgba(255,255,255,0.74)]">
               Every significant action taken on the platform, logged here immutably — who did what, to what, and
               when. This is the accountability layer behind every other module.
@@ -102,7 +102,7 @@ export default async function SuperAdminAuditLogsPage({ searchParams }: { search
               return <StatusPill bg={tone.bg} fg={tone.fg} label={item.action.replaceAll("_", " ")} />;
             }
           },
-          { key: "target", header: "Target", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.target}</span> },
+          { key: "target", header: "Target", render: (item) => <span className="font-(--font-mono) text-[11px]">{item.target}</span> },
           { key: "school", header: "School", render: (item) => item.schoolName ?? "Platform" },
           { key: "details", header: "Details", render: (item) => <DetailsPreview details={item.details} /> }
         ]}

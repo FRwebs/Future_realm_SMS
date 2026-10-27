@@ -423,13 +423,13 @@ export function ResourceForm({
         <div className="mb-6 flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <p className="section-eyebrow">Resource form</p>
-            <h3 className="mt-2 text-[20px] font-bold text-[var(--color-text-primary)]">{title}</h3>
-            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-[var(--color-text-secondary)]">{description}</p>
+            <h3 className="mt-2 text-[20px] font-bold text-(--color-text-primary)">{title}</h3>
+            <p className="mt-2 max-w-2xl text-[13px] leading-6 text-(--color-text-secondary)">{description}</p>
           </div>
 
           {offlineKey ? (
-            <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-4 py-3 text-sm">
-              <p className="font-semibold text-[var(--color-text-primary)]">
+            <div className="rounded-2xl border border-(--color-border-default) bg-(--color-accent-primary-dim) px-4 py-3 text-sm">
+              <p className="font-semibold text-(--color-text-primary)">
                 Queued drafts: {offlineQueue.draftCount}
               </p>
               <button
@@ -446,8 +446,8 @@ export function ResourceForm({
         </div>
       ) : offlineKey ? (
         <div className="mb-6 flex justify-end">
-          <div className="rounded-2xl border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] px-4 py-3 text-sm">
-            <p className="font-semibold text-[var(--color-text-primary)]">
+          <div className="rounded-2xl border border-(--color-border-default) bg-(--color-accent-primary-dim) px-4 py-3 text-sm">
+            <p className="font-semibold text-(--color-text-primary)">
               Queued drafts: {offlineQueue.draftCount}
             </p>
             <button
@@ -686,14 +686,14 @@ export function ResourceForm({
         <div
           className={
             chrome === "plain"
-              ? "sticky -bottom-[22px] -mx-[26px] -mb-[22px] border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]"
-              : "border-t border-[var(--color-border-default)] pt-4"
+              ? "sticky bottom-[-22px] mx-[-26px] mb-[-22px] border-t border-[#EDF3EF] bg-[#FBFDFC] px-[26px] py-[15px]"
+              : "border-t border-(--color-border-default) pt-4"
           }
         >
           <div className={needsConfirmation && pendingPayload ? "hidden" : "flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between sm:gap-[14.5px]"}>
             <div className="min-h-[24px]">
               {message === null && note ? (
-                <p className="max-w-[378px] text-pretty text-[10.5px] leading-[1.5] text-[#5f6e65]">{note}</p>
+                <p className="max-w-[378px] text-pretty text-[10.5px] leading-normal text-[#5f6e65]">{note}</p>
               ) : null}
               {message ? (
                 <div
@@ -742,10 +742,10 @@ export function ResourceForm({
 
           {needsConfirmation && pendingPayload ? (
             <div className="mt-4 rounded-2xl border p-4" style={{ borderColor: "var(--color-warning-dim)", background: "var(--color-warning-dim)" }}>
-              <p className="text-[14px] font-semibold text-[var(--color-warning)]">
+              <p className="text-[14px] font-semibold text-(--color-warning)">
                 Confirm before continuing
               </p>
-              <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">
+              <p className="mt-1 text-[13px] text-(--color-text-secondary)">
                 {confirmMessage ??
                   "Please confirm this action before the record is saved."}
               </p>
@@ -787,7 +787,7 @@ export function ResourceForm({
     const reasonField = fields.find((field) => field.type === "textarea");
     const FeedbackIcon = feedbackIcon;
     return (
-      <form id={formId} onSubmit={handleSubmit} className="-mx-[23.5px] -my-[20px]">
+      <form id={formId} onSubmit={handleSubmit} className="mx-[-23.5px] my-[-20px]">
         {hiddenFields.map((field) => (
           <input key={field.name} type="hidden" name={field.name} defaultValue={field.defaultValue as string | undefined} />
         ))}

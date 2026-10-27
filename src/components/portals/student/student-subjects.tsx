@@ -25,13 +25,13 @@ export function StudentSubjects({ groups, openDrawer }: SubjectsProps) {
           </div>
           <div className="grid gap-[11px]" style={{ gridTemplateColumns: "repeat(auto-fill, minmax(290px, 1fr))" }}>
             {group.cards.map((card) => (
-              <article
+              <div
                 key={card.id}
                 role="button"
                 tabIndex={0}
                 onClick={() => openDrawer?.(card.drawer)}
-                onKeyDown={(event) => { if (event.key === "Enter") openDrawer?.(card.drawer); }}
-                className="flex min-w-0 cursor-pointer flex-col gap-[11px] rounded-[14px] border bg-[var(--color-bg-surface)] p-[14px] text-left transition-[transform,border-color] duration-150 hover:-translate-y-px hover:border-[#BFDCD1]"
+                onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); openDrawer?.(card.drawer); } }}
+                className="flex min-w-0 cursor-pointer flex-col gap-[11px] rounded-[14px] border bg-(--color-bg-surface) p-[14px] text-left transition-[transform,border-color] duration-150 hover:-translate-y-px hover:border-[#BFDCD1]"
                 style={{ borderColor: "#DEE8E2" }}
               >
                 <div className="flex items-start gap-[11px]">
@@ -69,7 +69,7 @@ export function StudentSubjects({ groups, openDrawer }: SubjectsProps) {
                   <span className="text-[10.5px]" style={{ color: "#67766D" }}>{card.foot}</span>
                   {card.scheme ? <button type="button" onClick={(event) => { event.stopPropagation(); openDrawer?.(card.scheme!); }} className="text-[10.5px] font-semibold hover:underline" style={{ color: "#12796A" }}>Scheme of work</button> : null}
                 </div>
-              </article>
+              </div>
             ))}
           </div>
         </section>

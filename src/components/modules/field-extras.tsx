@@ -9,7 +9,7 @@ import { cn } from "@/lib/utils/cn";
 type Kind<K extends FormField["kind"]> = Extract<FormField, { kind: K }>;
 
 const SEARCH =
-  "w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11px] py-[8px] text-[11.5px] font-medium text-[#0D2315] outline-none focus:border-[#12796A]";
+  "w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11px] py-[8px] text-[11.5px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A]";
 
 /** A list of checkboxes where the person may also type an option the list does not hold. */
 export function AddableChecks({
@@ -307,7 +307,7 @@ export function MatrixField({
         <table className="w-full min-w-[420px] border-collapse">
           <thead>
             <tr style={{ background: "#F7FAF8" }}>
-              <th className="sticky top-0 bg-[#F7FAF8] px-[11px] py-[8px] text-left text-[9.5px] font-semibold uppercase tracking-[0.05em]" style={{ color: MUTED }}>
+              <th className="sticky top-0 bg-[#F7FAF8] px-[11px] py-[8px] text-left text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>
                 {field.rowHead ?? "Row"}
               </th>
               {field.cols.map((col) => (
@@ -315,7 +315,7 @@ export function MatrixField({
                   <button
                     type="button"
                     onClick={() => toggleCol(col)}
-                    className="text-[9.5px] font-semibold uppercase tracking-[0.05em] hover:underline"
+                    className="text-[9.5px] font-semibold uppercase tracking-wider hover:underline"
                     style={{ color: MUTED }}
                     title={`Tick or clear ${col} for every row`}
                   >
@@ -428,7 +428,7 @@ export function LinesField({
         <div className="grid min-w-[560px] gap-[5px]">
           <div className="grid items-end gap-[6px]" style={{ gridTemplateColumns: template }}>
             {field.cols.map((col) => (
-              <span key={col.key} className="text-[9.5px] font-semibold uppercase tracking-[0.05em]" style={{ color: MUTED }}>
+              <span key={col.key} className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: MUTED }}>
                 {col.label}
               </span>
             ))}

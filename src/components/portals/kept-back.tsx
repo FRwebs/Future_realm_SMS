@@ -21,9 +21,9 @@ export function KeptBack({ title, message, backHref, backLabel = "Back to child 
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={backHref as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">{backLabel}</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{title}</h1>
-        <p role="status" className="mt-3 text-[13px] leading-6 text-[var(--color-text-secondary)]">{message} Please ask the school office if you need it.</p>
+        <Link href={backHref as Route} className="text-[13px] font-semibold text-(--color-text-accent)">{backLabel}</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">{title}</h1>
+        <p role="status" className="mt-3 text-[13px] leading-6 text-(--color-text-secondary)">{message} Please ask the school office if you need it.</p>
       </section>
     </div>
   );

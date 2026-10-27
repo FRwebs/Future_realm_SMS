@@ -52,20 +52,20 @@ export function TimetableGrid({ title, description, entries, emptyState, compact
 
   return (
     <section className="surface-card overflow-hidden">
-      <div className="border-b border-[var(--color-border-default)] px-5 py-4 md:px-6">
-        <h2 className="text-[18px] font-bold text-[var(--color-text-primary)]">{title}</h2>
-        <p className="mt-1 text-sm text-[var(--color-text-secondary)]">{description}</p>
+      <div className="border-b border-(--color-border-default) px-5 py-4 md:px-6">
+        <h2 className="text-[18px] font-bold text-(--color-text-primary)">{title}</h2>
+        <p className="mt-1 text-sm text-(--color-text-secondary)">{description}</p>
       </div>
 
       {entries.length === 0 ? (
-        <div className="p-6 text-sm text-[var(--color-text-secondary)]">{emptyState}</div>
+        <div className="p-6 text-sm text-(--color-text-secondary)">{emptyState}</div>
       ) : (
         <div className="overflow-x-auto">
           <div className="min-w-[920px]">
-            <div className="grid grid-cols-[150px_repeat(5,minmax(130px,1fr))] border-b border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-xs font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">
+            <div className="grid grid-cols-[150px_repeat(5,minmax(130px,1fr))] border-b border-(--color-border-default) bg-(--color-bg-subtle) text-xs font-bold uppercase tracking-[0.18em] text-(--color-text-muted)">
               <div className="px-4 py-3">Time</div>
               {days.map((day) => (
-                <div key={day} className="border-l border-[var(--color-border-default)] px-4 py-3">
+                <div key={day} className="border-l border-(--color-border-default) px-4 py-3">
                   {day}
                 </div>
               ))}
@@ -74,7 +74,7 @@ export function TimetableGrid({ title, description, entries, emptyState, compact
               row.kind === "break" ? (
                 <div
                   key={row.label}
-                  className="grid grid-cols-[150px_1fr] border-b border-[var(--color-border-default)]"
+                  className="grid grid-cols-[150px_1fr] border-b border-(--color-border-default)"
                   style={{ background: "var(--color-warning-dim)" }}
                 >
                   <div className="px-4 py-3 text-xs font-semibold" style={{ color: "var(--color-warning)" }}>
@@ -88,15 +88,15 @@ export function TimetableGrid({ title, description, entries, emptyState, compact
                   </div>
                 </div>
               ) : (
-                <div key={row.label} className="grid grid-cols-[150px_repeat(5,minmax(130px,1fr))] border-b border-[var(--color-border-default)]">
-                  <div className="bg-[var(--color-bg-subtle)] px-4 py-4">
-                    <p className="text-sm font-semibold text-[var(--color-text-primary)]">{row.label}</p>
-                    <p className="mt-1 text-xs text-[var(--color-text-muted)]">{row.time}</p>
+                <div key={row.label} className="grid grid-cols-[150px_repeat(5,minmax(130px,1fr))] border-b border-(--color-border-default)">
+                  <div className="bg-(--color-bg-subtle) px-4 py-4">
+                    <p className="text-sm font-semibold text-(--color-text-primary)">{row.label}</p>
+                    <p className="mt-1 text-xs text-(--color-text-muted)">{row.time}</p>
                   </div>
                   {days.map((day) => {
                     const slot = byDayTime.get(`${day}:${normalize(row.time)}`);
                     return (
-                      <div key={`${day}-${row.time}`} className="min-h-28 border-l border-[var(--color-border-default)] p-2">
+                      <div key={`${day}-${row.time}`} className="min-h-28 border-l border-(--color-border-default) p-2">
                         {slot ? (
                           onSelectEntry ? (
                             <button
@@ -104,7 +104,7 @@ export function TimetableGrid({ title, description, entries, emptyState, compact
                               onClick={() => onSelectEntry(slot)}
                               className={cn(
                                 "h-full w-full rounded-[10px] border p-3 text-left transition hover:-translate-y-0.5 hover:shadow-md",
-                                selectedEntryId === slot.id ? "ring-2 ring-[var(--color-accent-primary)]" : "",
+                                selectedEntryId === slot.id ? "ring-2 ring-(--color-accent-primary)" : "",
                                 compact ? "text-xs" : "text-sm",
                               )}
                               style={subjectTone(slot.subject)}
@@ -126,7 +126,7 @@ export function TimetableGrid({ title, description, entries, emptyState, compact
                             </div>
                           )
                         ) : (
-                          <div className="flex h-full items-center justify-center rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] text-xs text-[var(--color-text-muted)]">
+                          <div className="flex h-full items-center justify-center rounded-[10px] border border-dashed border-(--color-border-default) bg-(--color-bg-subtle) text-xs text-(--color-text-muted)">
                             Free
                           </div>
                         )}

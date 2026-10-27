@@ -84,7 +84,7 @@ export function MyWorkApprovalActions({ item }: { item: MyWorkApprovalItem }) {
         type="button"
         onClick={handleDecline}
         disabled={pending !== null}
-        className="rounded-[7px] border border-[var(--color-border-default)] bg-white px-3 py-1.5 text-[10.5px] font-semibold text-[var(--color-text-secondary)] transition disabled:opacity-60"
+        className="rounded-[7px] border border-(--color-border-default) bg-white px-3 py-1.5 text-[10.5px] font-semibold text-(--color-text-secondary) transition disabled:opacity-60"
       >
         {pending === "decline" ? "Working…" : "Decline"}
       </button>

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Columns3, Download, Send, Shuffle, User, X } from "lucide-react";
 
-import { ActionMenu, ActionMenuLink } from "@/components/ui/action-menu";
+import { ActionMenu, ActionMenuButton, ActionMenuLink } from "@/components/ui/action-menu";
 import { Modal } from "@/components/ui/modal";
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
@@ -341,7 +341,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
 
         {schools.length === 0 ? (
           <div className="empty-state">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
+            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-(--color-accent-primary-dim) text-(--color-text-accent)">
               <span className="text-lg font-bold">+</span>
             </div>
             <p className="mt-4 text-[13.5px] font-semibold text-[#0D2315]">Nothing to display yet</p>
@@ -389,19 +389,19 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-3">
                       <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">Tier</dt>
+                        <dt className="text-[9px] font-semibold uppercase tracking-wider text-[#5f6e65]">Tier</dt>
                         <dd className="mt-1 text-[11.5px] text-[#435048]">{planLabel(school.plan)}</dd>
                       </div>
                       <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">Students</dt>
+                        <dt className="text-[9px] font-semibold uppercase tracking-wider text-[#5f6e65]">Students</dt>
                         <dd className="mt-1 text-[11.5px] text-[#435048]">{school.totalStudents.toLocaleString()}</dd>
                       </div>
                       <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">Last login</dt>
+                        <dt className="text-[9px] font-semibold uppercase tracking-wider text-[#5f6e65]">Last login</dt>
                         <dd className="mt-1 text-[11.5px] text-[#435048]">{school.lastSuccessfulLoginAt ? formatDate(school.lastSuccessfulLoginAt) : "Never"}</dd>
                       </div>
                       <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">
-                        <dt className="text-[9px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">Churn risk</dt>
+                        <dt className="text-[9px] font-semibold uppercase tracking-wider text-[#5f6e65]">Churn risk</dt>
                         <dd className="mt-1 text-[11.5px] font-bold" style={{ color: riskColor(risk) }}>{risk}%</dd>
                       </div>
                     </dl>
@@ -454,7 +454,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                         {COLUMNS.map(({ key, label }) => (
                           <th
                             key={key}
-                            className={`border-b border-[#E6EEE9] px-[16px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65] ${hide(key)}`}
+                            className={`border-b border-[#E6EEE9] px-[16px] py-3 text-left text-[9.5px] font-semibold uppercase tracking-wider text-[#5f6e65] ${hide(key)}`}
                           >
                             {label}
                           </th>
@@ -489,7 +489,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                             </td>
                             <td className="border-b border-[#F2F7F4] px-[16px] py-3 align-top">
                               <Link href={`/super-admin/schools/${school.id}`} className="group flex items-center gap-3">
-                                <span className="flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-[var(--font-heading)] text-[11px] font-bold text-[#0D2315]">
+                                <span className="flex h-[31px] w-[31px] shrink-0 items-center justify-center rounded-[10px] bg-[#F0F5F2] font-(--font-heading) text-[11px] font-bold text-[#0D2315]">
                                   {initials(school.name)}
                                 </span>
                                 <span className="min-w-0">
@@ -533,26 +533,8 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                               <ActionMenu compact triggerLabel={`Actions for ${school.name}`}>
                                 <ActionMenuLink href="/super-admin/schools?tab=approval-queue">Review verification</ActionMenuLink>
                                 <ActionMenuLink href={`/super-admin/schools/${school.id}`}>Open school profile</ActionMenuLink>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    selectOnly(school.id);
-                                    setNotifyDialogOpen(true);
-                                  }}
-                                  className="flex w-full items-center justify-start gap-2 rounded-[9px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
-                                >
-                                  Send notification
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={() => {
-                                    selectOnly(school.id);
-                                    setManagerDialogOpen(true);
-                                  }}
-                                  className="flex w-full items-center justify-start gap-2 rounded-[9px] px-3 py-2.5 text-left text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]"
-                                >
-                                  Assign account manager
-                                </button>
+                                <ActionMenuButton onClick={() => { selectOnly(school.id);                                     setNotifyDialogOpen(true); }}>Send notification</ActionMenuButton>
+                                <ActionMenuButton onClick={() => { selectOnly(school.id);                                     setManagerDialogOpen(true); }}>Assign account manager</ActionMenuButton>
                                 <ResourceActionDialog
                                   triggerLabel={school.status === "SUSPENDED" ? "Reactivate account" : "Suspend account"}
                                   title={`${school.status === "SUSPENDED" ? "Reactivate" : "Suspend"} — ${school.name}`}
@@ -587,7 +569,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
       <Modal open={statusDialogOpen} onClose={() => setStatusDialogOpen(false)} title="Batch status change" subtitle={`Update ${selectedIds.length} school(s) at once. This is fully audited.`}>
         <div className="grid gap-4">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">New status</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-(--color-text-secondary)">New status</span>
             <select
               value={statusValue}
               onChange={(event) => setStatusValue(event.target.value)}
@@ -599,7 +581,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             </select>
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Reason</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-(--color-text-secondary)">Reason</span>
             <textarea
               value={statusReason}
               onChange={(event) => setStatusReason(event.target.value)}
@@ -610,7 +592,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
           </label>
         </div>
         <InlineNotice notice={dialogNotice.notice} onDismiss={dialogNotice.clear} className="mt-4" />
-        <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
+        <div className="sticky bottom-[-20px] mx-[-23.5px] mb-[-20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setStatusDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitBatchStatus} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Updating…" : `Update ${selectedIds.length} school(s)`}
@@ -621,7 +603,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
       <Modal open={managerDialogOpen} onClose={() => setManagerDialogOpen(false)} title="Assign account manager" subtitle={`Applies to ${selectedIds.length} school(s).`}>
         <div className="grid gap-4">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Account manager email</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-(--color-text-secondary)">Account manager email</span>
             <input
               type="email"
               value={managerEmail}
@@ -629,11 +611,11 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
               className="field-control h-10 w-full rounded-[9px] text-[11.5px]"
               placeholder="manager@futurerealm.sms"
             />
-            <span className="mt-1.5 block text-[10px] text-[var(--color-text-muted)]">Must be an active internal team member.</span>
+            <span className="mt-1.5 block text-[10px] text-(--color-text-muted)">Must be an active internal team member.</span>
           </label>
         </div>
         <InlineNotice notice={dialogNotice.notice} onDismiss={dialogNotice.clear} className="mt-4" />
-        <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
+        <div className="sticky bottom-[-20px] mx-[-23.5px] mb-[-20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setManagerDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitAccountManager} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Assigning…" : `Assign to ${selectedIds.length} school(s)`}
@@ -644,7 +626,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
       <Modal open={notifyDialogOpen} onClose={() => setNotifyDialogOpen(false)} title="Send notification" subtitle={`Creates a targeted announcement for ${selectedIds.length} school(s).`}>
         <div className="grid gap-4">
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Title</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-(--color-text-secondary)">Title</span>
             <input
               value={notifyTitle}
               onChange={(event) => setNotifyTitle(event.target.value)}
@@ -653,7 +635,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
             />
           </label>
           <label className="block">
-            <span className="mb-1.5 block text-[11px] font-semibold text-[var(--color-text-secondary)]">Message</span>
+            <span className="mb-1.5 block text-[11px] font-semibold text-(--color-text-secondary)">Message</span>
             <textarea
               value={notifyBody}
               onChange={(event) => setNotifyBody(event.target.value)}
@@ -664,7 +646,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
           </label>
         </div>
         <InlineNotice notice={dialogNotice.notice} onDismiss={dialogNotice.clear} className="mt-4" />
-        <div className="sticky -bottom-[20px] -mx-[23.5px] -mb-[20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
+        <div className="sticky bottom-[-20px] mx-[-23.5px] mb-[-20px] mt-5 flex items-center justify-end gap-2 border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">
           <button type="button" onClick={() => setNotifyDialogOpen(false)} disabled={submitting} className="btn-secondary h-10 px-5 disabled:cursor-not-allowed disabled:opacity-50">Cancel</button>
           <button type="button" onClick={submitNotification} disabled={submitting} className="btn-primary h-10 px-6 disabled:cursor-not-allowed disabled:opacity-60">
             {submitting ? "Sending…" : `Send to ${selectedIds.length} school(s)`}

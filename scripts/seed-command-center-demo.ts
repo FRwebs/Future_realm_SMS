@@ -63,13 +63,13 @@ async function main() {
     const slugBase = slugify(seed.name);
     let slug = slugBase;
     let suffix = 1;
-    // eslint-disable-next-line no-await-in-loop
+     
     while (await prisma.school.findUnique({ where: { slug } })) {
       slug = `${slugBase}-${suffix}`;
       suffix += 1;
     }
 
-    // eslint-disable-next-line no-await-in-loop
+     
     const school = await prisma.school.create({
       data: {
         name: seed.name,
@@ -93,7 +93,7 @@ async function main() {
     });
     createdSchoolIds[seed.name] = school.id;
 
-    // eslint-disable-next-line no-await-in-loop
+     
     await prisma.user.create({
       data: {
         schoolId: school.id,
@@ -121,7 +121,7 @@ async function main() {
     if (name === "Zion Comprehensive" || name === "Crestwood Schools") {
       // Overdue invoice, unpaid
       const daysOverdue = name === "Zion Comprehensive" ? 65 : 12;
-      // eslint-disable-next-line no-await-in-loop
+       
       await prisma.platformInvoice.create({
         data: {
           schoolId,
@@ -135,7 +135,7 @@ async function main() {
       continue;
     }
 
-    // eslint-disable-next-line no-await-in-loop
+     
     const invoice = await prisma.platformInvoice.create({
       data: {
         schoolId,
@@ -149,7 +149,7 @@ async function main() {
     });
 
     const reconciled = name !== "Providence High School";
-    // eslint-disable-next-line no-await-in-loop
+     
     await prisma.platformBillingTransaction.create({
       data: {
         schoolId,
@@ -198,7 +198,7 @@ async function main() {
   let ticketSeq = 8800;
   for (const spec of ticketSpecs) {
     if (!spec.schoolId) continue;
-    // eslint-disable-next-line no-await-in-loop
+     
     await prisma.supportTicket.create({
       data: {
         schoolId: spec.schoolId,

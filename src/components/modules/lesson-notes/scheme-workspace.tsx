@@ -8,6 +8,8 @@ import { useMemo, useRef, useState } from "react";
 import { Btn, Card, Chip, CARD_BORDER, Confirm, Empty, INK, Label, MUTED, esc, inputClass, printSheet, statusTone, toBase64, useToast, useWrite } from "@/components/modules/lesson-notes/kit";
 import { LN_API, emptyDraft, stateLabel, stateTone, type DraftWeek, type Overview, type SchemeData, type SchemeWeek, type SubjectCard } from "@/lib/modules/lesson-notes-types";
 import { toneOf } from "@/lib/modules/tones";
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
+import { focusOnMount } from "@/lib/ui/focus";
 
 const noteHref = (scheme: SchemeData, week: number) => `/lesson-notes/notes/${scheme.subjectId}/${week}?term=${scheme.term.id}`;
 const toDraft = (week: SchemeWeek): DraftWeek => ({
@@ -88,12 +90,12 @@ function SubjectCards({ overview, selected, termId, locked, onBlocked, terms, cu
 /** The term as a strip of week bars — colour says how a week stands, a stripe marks the short week. */
 function Ribbon({ weeks, selected, onPick, current }: { weeks: SchemeWeek[]; selected: number; onPick: (week: number) => void; current: number | null }) {
   return (
-    <div className="grid gap-[4px]" style={{ gridTemplateColumns: `repeat(${Math.max(14, weeks.length)}, minmax(0, 1fr))` }} role="list" aria-label="The term, week by week">
+    <div className="grid gap-[4px]" style={{ gridTemplateColumns: `repeat(${Math.max(14, weeks.length)}, minmax(0, 1fr))` }} role="group" aria-label="The term, week by week">
       {weeks.map((week) => {
         const colour = BAR[week.status] ?? BAR["Free week"]!;
         const on = selected === week.week;
         return (
-          <button key={week.week} type="button" role="listitem" disabled={week.kind === "pre"} onClick={() => onPick(week.week)} title={`Week ${week.week} · ${week.dates}${week.topic ? ` · ${week.topic}` : ""}${week.short ? " · short week" : ""}`} className="flex min-w-0 cursor-pointer flex-col gap-[5px] disabled:cursor-default">
+          <button key={week.week} type="button" disabled={week.kind === "pre"} onClick={() => onPick(week.week)} title={`Week ${week.week} · ${week.dates}${week.topic ? ` · ${week.topic}` : ""}${week.short ? " · short week" : ""}`} className="flex min-w-0 cursor-pointer flex-col gap-[5px] disabled:cursor-default">
             <span className="block h-[9px] rounded-[3px]" style={{ backgroundColor: colour, backgroundImage: week.short ? `repeating-linear-gradient(135deg, ${colour} 0 4px, #fff 4px 6px)` : undefined, boxShadow: on ? "0 0 0 2px #fff, 0 0 0 3.5px #0D2315" : undefined }} />
             <span className="text-center text-[9.5px] tabular-nums" style={{ fontWeight: on ? 800 : 600, color: on ? INK : current === week.week ? "#12796A" : "#8C9A92" }}>W{week.week}</span>
           </button>
@@ -147,7 +149,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
   const [replace, setReplace] = useState<string | null>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
-  const weeks = scheme?.weeks ?? [];
+  const weeks = useMemo(() => scheme?.weeks ?? [], [scheme]);
   const planned = weeks.filter((week) => week.kind === "teach" || week.kind === "rev");
   const editing = draft !== null;
   const original = useMemo(() => weeks.map(toDraft), [weeks]);
@@ -211,7 +213,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
 
   /* starting */
   async function applyOutline(id: string) {
-    const result = await run<{ filled: number; kept: number; from: string }>("outline", `${LN_API}/curriculum/${scheme!.subjectId}/catalogue/apply`, "POST", { entryId: id, replace: true, termId: scheme!.term.id }, (data) => `Filled ${data.filled} week${data.filled === 1 ? "" : "s"} from ${data.from}.`);
+    const result = await run<{ filled: number; kept: number; from: string }>("outline-solid", `${LN_API}/curriculum/${scheme!.subjectId}/catalogue/apply`, "POST", { entryId: id, replace: true, termId: scheme!.term.id }, (data) => `Filled ${data.filled} week${data.filled === 1 ? "" : "s"} from ${data.from}.`);
     if (result) router.refresh();
   }
   async function importFile(event: React.ChangeEvent<HTMLInputElement>) {
@@ -275,7 +277,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
               <h3 className="text-pretty text-[12.5px] font-semibold leading-[1.3]" style={{ color: INK }}>{readOnly ? `${scheme.owner ?? "The owner"}’s ${scheme.earlyYears ? "weekly plan" : "scheme of work"}` : scheme.earlyYears ? "Weekly plan" : "Scheme of work"} · {scheme.subject}</h3>
               {tag ? <Chip tone={tagTone}>{tag}</Chip> : null}
             </div>
-            <p className="mt-[3.5px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>{scheme.arms.join(", ")} · {scheme.term.name}, {scheme.term.session}{scheme.schemeStatus !== "None" ? ` · scheme ${scheme.schemeStatus.toLowerCase()}` : ""}</p>
+            <p className="mt-[3.5px] text-[10.5px] leading-normal" style={{ color: MUTED }}>{scheme.arms.join(", ")} · {scheme.term.name}, {scheme.term.session}{scheme.schemeStatus !== "None" ? ` · scheme ${scheme.schemeStatus.toLowerCase()}` : ""}</p>
           </div>
           <div className="flex flex-none flex-wrap items-center justify-end gap-[7px]">
             {editing ? (
@@ -315,25 +317,25 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
               <div className="mx-auto grid max-w-[880px] gap-[11px]" style={{ gridTemplateColumns: "repeat(auto-fit, minmax(230px, 1fr))" }}>
                 <div className="flex flex-col gap-2 rounded-[13px] border bg-white px-4 py-[15px]" style={{ borderColor: CARD_BORDER }}>
                   <p className="text-[12.5px] font-bold" style={{ color: INK }}>Start from the curriculum</p>
-                  <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>The published outline for this subject, stage and term.</p>
+                  <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>The published outline for this subject, stage and term.</p>
                   {scheme.catalogue.length ? (
                     <div className="mt-auto grid gap-2">
                       <select className={inputClass} value={replace ?? scheme.catalogue[0]!.id} onChange={(event) => setReplace(event.target.value)} aria-label="Outline">
                         {scheme.catalogue.map((entry) => <option key={entry.id} value={entry.id}>{entry.curriculum} · {entry.stage}{entry.own ? " · your school’s" : ""} — {entry.topics} topics</option>)}
                       </select>
-                      <Btn kind="primary" busy={busy === "outline"} onClick={() => applyOutline(replace ?? scheme.catalogue[0]!.id)}>Fill the term</Btn>
+                      <Btn kind="primary" busy={busy === "outline-solid"} onClick={() => applyOutline(replace ?? scheme.catalogue[0]!.id)}>Fill the term</Btn>
                     </div>
                   ) : <p className="mt-auto text-[10.5px] font-semibold" style={{ color: "#8A6410" }}>No published outline matches {scheme.subject} at this stage in {scheme.term.name}. Your school can load one from Excel in Coverage.</p>}
                 </div>
                 <div className="flex flex-col gap-2 rounded-[13px] border bg-white px-4 py-[15px]" style={{ borderColor: CARD_BORDER }}>
                   <p className="text-[12.5px] font-bold" style={{ color: INK }}>Import your own scheme</p>
-                  <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>An Excel or CSV file with Week, Topic and Sub-topics (separated by semicolons) — and, if you like, Assessment and Periods. You check every week before it is saved.</p>
+                  <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>An Excel or CSV file with Week, Topic and Sub-topics (separated by semicolons) — and, if you like, Assessment and Periods. You check every week before it is saved.</p>
                   <input ref={fileInput} type="file" accept=".xlsx,.csv" className="hidden" onChange={importFile} />
                   <div className="mt-auto"><Btn busy={busy === "import"} onClick={() => fileInput.current?.click()}>Choose a file</Btn></div>
                 </div>
                 <div className="flex flex-col gap-2 rounded-[13px] border bg-white px-4 py-[15px]" style={{ borderColor: CARD_BORDER }}>
                   <p className="text-[12.5px] font-bold" style={{ color: INK }}>Start blank</p>
-                  <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>Add the weeks yourself, one topic at a time.</p>
+                  <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>Add the weeks yourself, one topic at a time.</p>
                   <div className="mt-auto"><Btn onClick={() => { startEdit(); setSelected(1); }}>Plan the weeks</Btn></div>
                 </div>
               </div>
@@ -347,7 +349,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
             <div className="border-b px-[18px] pb-[13px] pt-[14px]" style={{ borderColor: RULE }}>
               <div className="mb-[10px] flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
                 <div className="min-w-0">
-                  <p className="text-[15px] font-extrabold leading-[1.25] tracking-[-0.01em]" style={{ color: INK }}>{headline}</p>
+                  <p className="text-[15px] font-extrabold leading-tight tracking-[-0.01em]" style={{ color: INK }}>{headline}</p>
                   <p className="mt-[3px] text-pretty text-[10.5px] leading-[1.45]" style={{ color: MUTED }}>{headSub}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-3">
@@ -378,44 +380,49 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
                     const badge = here ? { background: INK, color: "#fff" } : entry.status === "Taught" ? { background: "#EAF6F0", color: "#17714F" } : entry.status === "Revision" ? { background: "#F5F0FA", color: "#6B4E9E" } : { background: "#F2F7F4", color: "#5F6E65" };
                     return (
                       <li key={entry.week} className="relative border-b" style={{ borderColor: "#F2F7F4", background: on ? "#F1F8F4" : marked ? "#FFFCF2" : "#fff", boxShadow: on ? "inset 3px 0 0 #12796A" : undefined }}>
+                        {/* A click anywhere on the row opens the week for the mouse; the week-number button is the same action for the keyboard. */}
+                        {/* eslint-disable-next-line jsx-a11y/click-events-have-key-events, jsx-a11y/no-static-element-interactions */}
                         <div className="grid cursor-pointer items-center gap-3 px-[18px]" style={{ gridTemplateColumns: cols, paddingTop: editing ? 7 : 9, paddingBottom: editing ? 7 : 9 }} onClick={() => setSelected(entry.week)}>
-                          <span className="flex h-[28px] w-[28px] items-center justify-center rounded-[8px] text-[10.5px] font-extrabold tabular-nums" style={badge}>{entry.week}</span>
+                          <button type="button" aria-label={`Open week ${entry.week}`} aria-current={on ? "true" : undefined} onClick={(event) => { event.stopPropagation(); setSelected(entry.week); }} className="flex h-[28px] w-[28px] items-center justify-center rounded-[8px] text-[10.5px] font-extrabold tabular-nums" style={badge}>{entry.week}</button>
                           <span className="min-w-0">
                             {editing ? (
-                              <input className="min-h-[30px] w-full min-w-0 rounded-[8px] border bg-white px-[9px] py-[6px] text-[11.5px] font-semibold outline-none focus:border-[#12796A]" style={{ color: INK, borderColor: free && !entry.topic ? "#C2D2C8" : marked ? "#BFDCD1" : CARD_BORDER, borderStyle: free && !entry.topic ? "dashed" : "solid" }} value={entry.topic} placeholder={free ? `Name a topic for week ${entry.week}` : `Topic for week ${entry.week}`} onClick={(event) => event.stopPropagation()} onFocus={() => setSelected(entry.week)} onChange={(event) => patch(index, { topic: event.target.value })} aria-label={`Week ${entry.week} topic`} />
+                              <input className="min-h-[30px] w-full min-w-0 rounded-[8px] border bg-white px-[9px] py-[6px] text-[11.5px] font-semibold outline-hidden focus:border-[#12796A]" style={{ color: INK, borderColor: free && !entry.topic ? "#C2D2C8" : marked ? "#BFDCD1" : CARD_BORDER, borderStyle: free && !entry.topic ? "dashed" : "solid" }} value={entry.topic} placeholder={free ? `Name a topic for week ${entry.week}` : `Topic for week ${entry.week}`} onClick={(event) => event.stopPropagation()} onFocus={() => setSelected(entry.week)} onChange={(event) => patch(index, { topic: event.target.value })} aria-label={`Week ${entry.week} topic`} />
                             ) : (
                               <span className="block truncate text-[11.5px]" style={{ color: free ? "#8C9A92" : INK, fontWeight: free ? 500 : 600, fontStyle: free ? "italic" : undefined }}>{free ? "Free week · no topic yet" : entry.topic || "Untitled week"}</span>
                             )}
                             <span className="mt-0.5 block truncate text-[10px]" style={{ color: MUTED }}>{entry.dates}{entry.subtopics.length ? ` · ${entry.subtopics.length} sub-topic${entry.subtopics.length === 1 ? "" : "s"}` : ""}{entry.short ? " · short week" : ""}{entry.periods !== null && entry.periods !== per && !scheme.earlyYears ? ` · ${entry.periods} ${entry.periods === 1 ? "period" : "periods"}` : ""}{marked ? " · changed" : ""}</span>
                           </span>
                           <span className="relative min-w-0">
-                            <button type="button" disabled={readOnly || free || editing} title={readOnly || free ? undefined : "Change the status of this week"} onClick={(event) => { event.stopPropagation(); setMenu(menu === entry.week ? null : entry.week); }} className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[7px] py-[3px] text-[10px] font-bold" style={{ background: toneOf(statusTone(entry.status)).bg, color: toneOf(statusTone(entry.status)).fg, borderColor: menu === entry.week ? toneOf(statusTone(entry.status)).dot : toneOf(statusTone(entry.status)).bd, cursor: readOnly || free || editing ? "default" : "pointer" }}>
-                              <span className="h-[6px] w-[6px] rounded-full" style={{ background: toneOf(statusTone(entry.status)).dot }} />{entry.status}{!readOnly && !free && !editing ? <span aria-hidden className="text-[8px] opacity-75">▾</span> : null}
-                            </button>
-                            {menu === entry.week ? (
-                              <>
-                                <span className="fixed inset-0 z-[15]" onClick={(event) => { event.stopPropagation(); setMenu(null); }} />
-                                <div role="menu" className="absolute left-0 z-[16] w-[226px] rounded-[11px] border bg-white p-[5px] shadow-[0_18px_40px_-16px_rgba(13,35,21,0.42)]" style={{ borderColor: CARD_BORDER, top: shown.length > 6 && entry.week > shown.length - 5 ? undefined : "calc(100% + 5px)", bottom: shown.length > 6 && entry.week > shown.length - 5 ? "calc(100% + 5px)" : undefined }} onClick={(event) => event.stopPropagation()}>
-                                  <p className={`px-[9px] pb-[2px] pt-[6px] ${LABEL}`} style={{ color: MUTED }}>Status</p>
+                            <DropdownMenu.Root open={menu === entry.week} onOpenChange={(open) => setMenu(open ? entry.week : null)}>
+                              <DropdownMenu.Trigger asChild>
+                              <button type="button" disabled={readOnly || free || editing} title={readOnly || free ? undefined : "Change the status of this week"} onClick={(event) => event.stopPropagation()} className="inline-flex items-center gap-[5px] whitespace-nowrap rounded-full border px-[7px] py-[3px] text-[10px] font-bold" style={{ background: toneOf(statusTone(entry.status)).bg, color: toneOf(statusTone(entry.status)).fg, borderColor: menu === entry.week ? toneOf(statusTone(entry.status)).dot : toneOf(statusTone(entry.status)).bd, cursor: readOnly || free || editing ? "default" : "pointer" }}>
+                                <span className="h-[6px] w-[6px] rounded-full" style={{ background: toneOf(statusTone(entry.status)).dot }} />{entry.status}{!readOnly && !free && !editing ? <span aria-hidden className="text-[8px] opacity-75">▾</span> : null}
+                              </button>
+                              </DropdownMenu.Trigger>
+                              <DropdownMenu.Portal>
+                                <DropdownMenu.Content side={shown.length > 6 && entry.week > shown.length - 5 ? "top" : "bottom"} align="start" sideOffset={5} collisionPadding={8} onClick={(event) => event.stopPropagation()} className="z-80 w-[226px] rounded-[11px] border bg-white p-[5px] shadow-[0_18px_40px_-16px_rgba(13,35,21,0.42)] outline-hidden" style={{ borderColor: CARD_BORDER }}>
+                                  <DropdownMenu.Label asChild>
+                                    <p className={`px-[9px] pb-[2px] pt-[6px] ${LABEL}`} style={{ color: MUTED }}>Status</p>
+                                  </DropdownMenu.Label>
                                   <p className="mb-1 truncate border-b px-[9px] pb-[6px] text-[10.5px] font-semibold" style={{ color: INK, borderColor: RULE }}>Week {entry.week}{entry.topic ? ` · ${entry.topic}` : ""}</p>
                                   {[entry.auto, ...scheme.statuses.map(([name]) => name)].filter((name, i, all) => all.indexOf(name) === i).map((name) => {
                                     const auto = name === entry.auto;
                                     const hint = auto ? "From the term calendar" : scheme.statuses.find(([n]) => n === name)?.[1] ?? "";
                                     const current = (entry.override ?? entry.auto) === name;
                                     return (
-                                      <button key={name} role="menuitem" type="button" className="flex w-full items-center gap-[9px] rounded-[8px] px-[9px] py-[7px] text-left hover:bg-[#F7FAF8]" style={{ background: current ? "#F1F8F4" : "transparent" }} onClick={() => { setSelected(entry.week); void (async () => { const result = await run("mark", `${LN_API}/curriculum/${scheme.subjectId}/weeks/${entry.week}/coverage`, "POST", { termId: scheme.term.id, status: auto ? null : name }, auto ? "Back to following the calendar." : `Week ${entry.week} marked ${name.toLowerCase()}.`); if (result) router.refresh(); setMenu(null); })(); }}>
+                                      <DropdownMenu.Item key={name} className="flex w-full cursor-pointer items-center gap-[9px] rounded-[8px] px-[9px] py-[7px] text-left outline-hidden data-highlighted:bg-[#F7FAF8]" style={{ background: current ? "#F1F8F4" : "transparent" }} onSelect={() => { setSelected(entry.week); void (async () => { const result = await run("mark", `${LN_API}/curriculum/${scheme.subjectId}/weeks/${entry.week}/coverage`, "POST", { termId: scheme.term.id, status: auto ? null : name }, auto ? "Back to following the calendar." : `Week ${entry.week} marked ${name.toLowerCase()}.`); if (result) router.refresh(); })(); }}>
                                         <span className="h-[7px] w-[7px] flex-none rounded-full" style={{ background: toneOf(statusTone(name)).dot }} />
                                         <span className="min-w-0 flex-1"><span className="block text-[11px] font-semibold leading-[1.3]" style={{ color: INK }}>{name}</span><span className="mt-px block text-[9.5px] leading-[1.35]" style={{ color: MUTED }}>{hint}</span></span>
                                         <span className="flex-none text-[11px] font-extrabold" style={{ color: "#12796A" }}>{current ? "✓" : ""}</span>
-                                      </button>
+                                      </DropdownMenu.Item>
                                     );
                                   })}
-                                </div>
-                              </>
-                            ) : null}
+                                </DropdownMenu.Content>
+                              </DropdownMenu.Portal>
+                            </DropdownMenu.Root>
                           </span>
                           {editing ? (
-                            <span className="flex flex-none justify-end gap-1" onClick={(event) => event.stopPropagation()}>
+                            <span role="presentation" className="flex flex-none justify-end gap-1" onClick={(event) => event.stopPropagation()}>
                               {[["↑", -1, `Move week ${entry.week} up`], ["↓", 1, `Move week ${entry.week} down`]].map(([glyph, by, label]) => {
                                 const target = index + (by as number);
                                 const can = target >= 0 && target < view.length && !frozen(weeks[index]!) && !frozen(weeks[target]!) && weeks[target]!.kind !== "pre";
@@ -488,7 +495,7 @@ function WeekDetail({ scheme, week, weeks, per, readOnly, frozen, busy, onTick, 
     <div>
       <div className="min-w-0">
         <p className={LABEL} style={{ color: MUTED }}>Week {week.week} · {week.dates}</p>
-        <h4 className="mt-[5px] text-pretty text-[17px] font-extrabold leading-[1.25] tracking-[-0.015em]" style={{ color: INK }}>{free ? (week.kind === "pre" ? "Before this subject starts" : "Free week") : week.topic}</h4>
+        <h4 className="mt-[5px] text-pretty text-[17px] font-extrabold leading-tight tracking-[-0.015em]" style={{ color: INK }}>{free ? (week.kind === "pre" ? "Before this subject starts" : "Free week") : week.topic}</h4>
         {/* Status and the week's shape read as one line, the way the mockup has it — the
             status belongs beside what it describes, not floated away in the corner. */}
         <div className="mt-[8px] flex flex-wrap items-center gap-[7px]">
@@ -582,7 +589,7 @@ function WeekDetail({ scheme, week, weeks, per, readOnly, frozen, busy, onTick, 
               <Chip tone={stateTone(note.state || "Not started")}>{stateLabel(note.state === "Not started" || !note.state ? "Not written" : note.state)}</Chip>
             </div>
             <div className="mt-[9px] h-[4px] overflow-hidden rounded-full" style={{ background: "#E4EDE8" }}><div className="h-full rounded-full" style={{ width: `${note.of ? (note.done / note.of) * 100 : 0}%`, background: note.done === note.of ? "#22A06B" : "#4A83CE" }} /></div>
-            <p className="mt-[6px] text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+            <p className="mt-[6px] text-[10.5px] leading-normal" style={{ color: MUTED }}>
               {note.state === "Approved" ? `Signed · ${note.done} of ${note.of} sections` : note.state === "Submitted" ? "With the reviewer for signing" : note.state === "Returned" ? "Returned with a comment — open it to see what to change" : note.state === "Draft" ? `${note.done} of ${note.of} sections written` : readOnly ? "Not written yet by its owner." : "Nothing written yet. Reuse last session’s note, or draft it from these sub-topics."}
             </p>
             <div className="mt-[10px]"><Act primary={!readOnly && (!note.state || note.state === "Not started")} href={noteHref(scheme, week.week)}>{readOnly ? "Read the note" : !note.state || note.state === "Not started" ? (scheme.earlyYears ? "Write the plan" : "Write the note") : note.state === "Draft" ? "Continue the note" : note.state === "Returned" ? "Correct the note" : "Read the note"}</Act></div>
@@ -616,7 +623,7 @@ function WeekEditor({ scheme, index, value, locked, noted, onChange, onClear }: 
           <ul className="grid gap-1.5">
             {value.subtopics.map((sub, at) => (
               <li key={at} className="flex gap-1.5">
-                <input className={inputClass} value={sub} autoFocus={!sub && at === value.subtopics.length - 1} aria-label={`Sub-topic ${at + 1}`} onChange={(event) => onChange({ subtopics: value.subtopics.map((s, i) => (i === at ? event.target.value : s)) })} />
+                <input className={inputClass} value={sub} ref={!sub && at === value.subtopics.length - 1 ? focusOnMount : undefined} aria-label={`Sub-topic ${at + 1}`} onChange={(event) => onChange({ subtopics: value.subtopics.map((s, i) => (i === at ? event.target.value : s)) })} />
                 <button type="button" aria-label="Remove sub-topic" onClick={() => onChange({ subtopics: value.subtopics.filter((_, i) => i !== at), covered: value.covered.filter((i) => i !== at).map((i) => (i > at ? i - 1 : i)) })} className="flex-none rounded-[9px] border px-2.5 text-[12px]" style={{ borderColor: "#F0CFCF", color: "#B23B3B" }}>×</button>
               </li>
             ))}
@@ -630,7 +637,7 @@ function WeekEditor({ scheme, index, value, locked, noted, onChange, onClear }: 
             <ul className="mb-2 grid gap-1.5">{value.resources.map((resource, at) => <li key={at} className="flex items-center gap-2 text-[12px]"><span className="rounded-[6px] px-[7px] py-[2px] text-[10px] font-bold" style={{ background: "#EEF4F0", color: MUTED }}>{resource.kind}</span><span className="min-w-0 flex-1 truncate" style={{ color: INK }}>{resource.label}</span><button type="button" aria-label="Remove resource" onClick={() => onChange({ resources: value.resources.filter((_, i) => i !== at) })} className="text-[13px]" style={{ color: "#B23B3B" }}>×</button></li>)}</ul>
           ) : null}
           <div className="flex gap-1.5">
-            <select className={`${inputClass} !w-[130px] flex-none`} value={resourceKind} onChange={(event) => setResourceKind(event.target.value)} aria-label="Kind of resource">{scheme.resourceKinds.map((kind) => <option key={kind}>{kind}</option>)}</select>
+            <select className={`${inputClass} w-[130px]! flex-none`} value={resourceKind} onChange={(event) => setResourceKind(event.target.value)} aria-label="Kind of resource">{scheme.resourceKinds.map((kind) => <option key={kind}>{kind}</option>)}</select>
             <input className={inputClass} value={resourceLabel} onChange={(event) => setResourceLabel(event.target.value)} placeholder="What it is, or a link" aria-label="Resource" />
             <Btn small disabled={!resourceLabel.trim()} onClick={() => { onChange({ resources: [...value.resources, { kind: resourceKind, label: resourceLabel.trim() }] }); setResourceLabel(""); }}>Add</Btn>
           </div>

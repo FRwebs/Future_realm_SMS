@@ -17,7 +17,6 @@ import {
 } from "../../../../src/lib/domain/finance";
 import {
   AuditLogView,
-  BudgetAllocationView,
   ExpenditureView,
   FeeAssignmentView,
   FeesModuleDiscountView,
@@ -242,10 +241,6 @@ function jsonValue(value: Record<string, unknown>): Prisma.InputJsonValue {
 function sumJsonAmounts(payload: Prisma.JsonValue | null | undefined) {
   if (!payload || typeof payload !== "object" || Array.isArray(payload)) return 0;
   return Object.values(payload as Record<string, unknown>).reduce<number>((sum, value) => sum + Number(value ?? 0), 0);
-}
-
-function normalizeName(value: string) {
-  return value.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 @Injectable()
@@ -1119,7 +1114,6 @@ export class FinanceService {
 
   async createInvoice(schoolId: string, createdById: string, payload: unknown) {
     const parsed = createInvoiceSchema.parse(payload);
-    const normalizedClassName = formatNigeriaClassName(parsed.className);
     const items = [
       { description: "Tuition", amount: parsed.tuition },
       { description: "Transport", amount: parsed.transport },
@@ -2780,7 +2774,6 @@ export class FinanceService {
   }
 
   private async nextReceiptNumber(schoolId: string, termId?: string) {
-    const school = await prisma.school.findUnique({ where: { id: schoolId } });
     const settings = await this.getFinanceSettings(schoolId);
     const year = new Date().getFullYear();
     const term = termId

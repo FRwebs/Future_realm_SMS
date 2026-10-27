@@ -29,7 +29,7 @@ export function Tooltip({
             side="top"
             sideOffset={8}
             collisionPadding={8}
-            className="z-[var(--z-tooltip)] w-max max-w-[200px] rounded-xl border border-[var(--color-border-strong)] bg-[var(--color-bg-overlay)] px-3 py-2 text-[11px] font-medium leading-5 text-[var(--color-text-primary)] shadow-[var(--shadow-md)]"
+            className="z-(--z-tooltip) w-max max-w-[200px] rounded-xl border border-(--color-border-strong) bg-(--color-bg-overlay) px-3 py-2 text-[11px] font-medium leading-5 text-(--color-text-primary) shadow-(--shadow-md)"
           >
             {content}
           </RadixTooltip.Content>

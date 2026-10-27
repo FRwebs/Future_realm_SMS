@@ -201,7 +201,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
 
   return (
     <div className="grid gap-3.5 xl:grid-cols-[1fr_1.25fr_0.85fr]">
-      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+      <section className="rounded-[14px] border border-(--color-border-default) bg-white p-5">
         <p className="mb-3.5 text-[12.5px] font-semibold text-[#0D2315]">Audience builder</p>
         <div className="mb-4 flex gap-1.5 rounded-[9px] bg-[#F2F7F4] p-1">
           {(["OPERATIONAL", "PROMOTIONAL"] as const).map((t) => (
@@ -226,7 +226,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
 
         <div className="mt-4 rounded-[11px] bg-[#0D2315] p-4 text-white">
           <p className="mb-1.5 text-[10.5px] text-white/60">Estimated reach</p>
-          <p className="font-[var(--font-display)] text-[23.5px] font-bold">
+          <p className="font-(--font-display) text-[23.5px] font-bold">
             {previewLoading ? "…" : (preview?.recipientCount ?? 0).toLocaleString()}
           </p>
           <p className="mt-1.5 text-[10.5px] text-white/65">
@@ -235,7 +235,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
         </div>
       </section>
 
-      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+      <section className="rounded-[14px] border border-(--color-border-default) bg-white p-5">
         <div className="mb-3.5 flex items-center justify-between">
           <p className="text-[12.5px] font-semibold text-[#0D2315]">Message composer</p>
           <p className="text-[10.5px] text-[#5f6e65]">Sender is always “{platformName}”</p>
@@ -319,11 +319,11 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
       </section>
 
       <div className="flex flex-col gap-3.5">
-        <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+        <section className="rounded-[14px] border border-(--color-border-default) bg-white p-5">
           <p className="mb-3.5 text-[12.5px] font-semibold text-[#0D2315]">Live preview</p>
           <div className="rounded-[14px] bg-[#F2F7F4] p-3.5">
             <div className="mb-2.5 flex items-center gap-2">
-              <div className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-[8px] bg-[#0D2315] font-[var(--font-display)] text-[9px] font-bold text-white">{platformName.charAt(0).toUpperCase()}</div>
+              <div className="flex h-[23.5px] w-[23.5px] items-center justify-center rounded-[8px] bg-[#0D2315] font-(--font-display) text-[9px] font-bold text-white">{platformName.charAt(0).toUpperCase()}</div>
               <div>
                 <div className="text-[11px] font-semibold">{platformName}</div>
                 <div className="text-[9.5px] text-[#5f6e65]">{channel === "EMAIL" ? "Email · inbox preview" : channel === "SMS" ? "SMS · Termii gateway" : "WhatsApp Business"}</div>
@@ -341,7 +341,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
           <p className="text-[10.5px] leading-relaxed">{approvalNote.body}</p>
         </div>
 
-        <section className="rounded-[14px] border border-[var(--color-border-default)] bg-white p-5">
+        <section className="rounded-[14px] border border-(--color-border-default) bg-white p-5">
           <p className="mb-2.5 text-[11.5px] font-semibold text-[#0D2315]">Channel rules</p>
           {channelRules.map((cr) => (
             <div key={cr.channel} className="border-b border-[#F2F7F4] py-2 last:border-0">

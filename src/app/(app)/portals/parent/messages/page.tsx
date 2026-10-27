@@ -17,10 +17,10 @@ export default async function ParentMessagesPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">Messages from the school</h1>
-        <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{inbox.unread ? `${inbox.unread} unread. ` : ""}What the school writes to you, from your child’s teacher or the office. Your replies go to the school office.</p>
-        <Link href={"/portals/parent/tell-the-school" as Route} className="mt-3 inline-flex text-[13px] font-semibold text-[var(--color-text-accent)]">Tell the school something →</Link>
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to parent portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">Messages from the school</h1>
+        <p className="mt-1 text-[13px] text-(--color-text-secondary)">{inbox.unread ? `${inbox.unread} unread. ` : ""}What the school writes to you, from your child’s teacher or the office. Your replies go to the school office.</p>
+        <Link href={"/portals/parent/tell-the-school" as Route} className="mt-3 inline-flex text-[13px] font-semibold text-(--color-text-accent)">Tell the school something →</Link>
       </section>
       <FamilyMessages school={inbox.school} messages={inbox.messages} />
     </div>

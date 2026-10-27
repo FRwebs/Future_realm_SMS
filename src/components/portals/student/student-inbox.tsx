@@ -28,10 +28,10 @@ export function StudentInbox({ messages, empty, base, openDrawer }: StudentInbox
     router.refresh();
   }
 
-  if (!messages.length) return <section className="rounded-[14px] border bg-[var(--color-bg-surface)] px-[18px] py-[28px] text-center text-[12px]" style={{ borderColor: "#DEE8E2", color: "#67766D" }}>{empty}</section>;
+  if (!messages.length) return <section className="rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[28px] text-center text-[12px]" style={{ borderColor: "#DEE8E2", color: "#67766D" }}>{empty}</section>;
 
   return (
-    <section className="grid min-w-0 overflow-hidden rounded-[14px] border bg-[var(--color-bg-surface)] lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]" style={{ borderColor: "#DEE8E2" }}>
+    <section className="grid min-w-0 overflow-hidden rounded-[14px] border bg-(--color-bg-surface) lg:grid-cols-[minmax(0,1fr)_minmax(0,1.35fr)]" style={{ borderColor: "#DEE8E2" }}>
       <ul className="max-h-[560px] min-w-0 overflow-y-auto border-b lg:border-b-0 lg:border-r" style={{ borderColor: "#EDF3EF" }}>
         {messages.map((message) => {
           const swatch = toneOf(CAT_TONE[message.cat] ?? "neutral");

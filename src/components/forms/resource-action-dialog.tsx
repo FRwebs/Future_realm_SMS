@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { AlertTriangle, Pencil, Plus } from "lucide-react";
+
+import * as DropdownMenu from "@radix-ui/react-dropdown-menu";
 
 import { usePortalType } from "@/components/layout/portal-context";
 import { ResourceField, ResourceForm, type ResourceImpact } from "@/components/forms/resource-form";
+import { useActionMenu } from "@/components/ui/action-menu";
 import { Modal } from "@/components/ui/modal";
 import { MODAL_MAX_WIDTH } from "@/lib/ui/interaction";
 import { cn } from "@/lib/utils/cn";
@@ -43,19 +46,19 @@ const triggerStyles = {
   primary: "btn-primary px-5",
   secondary: "btn-secondary px-5",
   danger: "btn-destructive px-5",
-  menu: "flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors duration-150 hover:bg-[var(--color-accent-primary-dim)] hover:text-[var(--color-text-accent)]",
-  menuDanger: "flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-[var(--color-danger)] transition-colors duration-150 hover:bg-[var(--color-danger-dim)]",
+  menu: "flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-(--color-text-secondary) transition-colors duration-150 hover:bg-(--color-accent-primary-dim) hover:text-(--color-text-accent)",
+  menuDanger: "flex w-full items-center justify-start gap-2 rounded-[10px] px-3 py-2.5 text-left text-[13px] font-semibold text-danger transition-colors duration-150 hover:bg-(--color-danger-dim)",
   // Matches the mockup's white pill primary-action button used inside the ink module
   // hero (e.g. "Add school", "New campaign", "Create Ticket") — see ModuleHeroAction.
   heroWhite: "whitespace-nowrap rounded-full bg-white px-5 py-3 text-[#0d2315] shadow-[0_10px_24px_-12px_rgba(0,0,0,0.65)] hover:bg-[#eaf3ee]",
   // Matches the mockup's compact list-row action text (e.g. Profile page's "Sessions & security" list).
-  textAction: "text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline",
-  textActionDanger: "text-[11.5px] font-semibold text-[var(--color-danger)] hover:underline",
+  textAction: "text-[11.5px] font-semibold text-(--color-text-accent) hover:underline",
+  textActionDanger: "text-[11.5px] font-semibold text-danger hover:underline",
   // Matches the mockup's compact plan-card action buttons (e.g. "Edit plan" on a Plans &
   // Features subscription-plan card): filled ink, 8px radius, small padding, no icon.
   cardPrimary: "rounded-[8px] bg-[#0d2315] px-3 py-[7px] text-[11.5px] font-semibold text-white hover:bg-[#132e1d]",
   // Matches the mockup's compact bordered card action buttons (e.g. "Duplicate", "Archive").
-  cardCompact: "rounded-[8px] border border-[var(--color-border-default)] bg-transparent px-[11px] py-[6px] text-[11.5px] font-semibold text-[#435048] hover:border-[var(--color-border-strong)]",
+  cardCompact: "rounded-[8px] border border-(--color-border-default) bg-transparent px-[11px] py-[6px] text-[11.5px] font-semibold text-[#435048] hover:border-(--color-border-strong)",
 };
 
 const triggerIcons: Partial<Record<keyof typeof triggerStyles, typeof Plus>> = {
@@ -92,6 +95,10 @@ export function ResourceActionDialog({
   const [stepIndex, setStepIndex] = useState(0);
   const backOffice = usePortalType() === "super_admin";
   // In the Back Office a primary action is a small ink button with a plus; every other action is a plain bordered one with no icon.
+  const menu = useActionMenu();
+  const inMenu = Boolean(menu);
+  // Opened from a menu item: ask the menu to keep its items mounted until this dialog is closed.
+  useEffect(() => (open && menu ? menu.hold() : undefined), [open, menu]);
   const TriggerIcon = backOffice ? (variant === "primary" || variant === "heroWhite" ? Plus : undefined) : triggerIcons[variant];
   const backOfficeStyle: Partial<Record<keyof typeof triggerStyles, string>> = {
     primary: "gap-[6px] whitespace-nowrap rounded-[9px] bg-[#0D2315] px-[13px] py-2 text-[12px] font-semibold text-white hover:bg-[#17402A]",
@@ -119,7 +126,7 @@ export function ResourceActionDialog({
           style={{ background: index === stepIndex ? "#fff" : index < stepIndex ? "rgba(95,214,180,0.14)" : "rgba(255,255,255,0.07)" }}
         >
           <span
-            className="flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full font-[var(--font-heading)] text-[10.5px] font-bold"
+            className="flex h-[19px] w-[19px] flex-none items-center justify-center rounded-full font-(--font-heading) text-[10.5px] font-bold"
             style={{ background: index === stepIndex ? "#0D2315" : index < stepIndex ? "#2FA98F" : "rgba(255,255,255,0.16)", color: index <= stepIndex ? "#fff" : "rgba(255,255,255,0.65)" }}
           >
             {index + 1}
@@ -131,21 +138,27 @@ export function ResourceActionDialog({
     </div>
   ) : undefined;
 
+  const triggerClass = cn(
+    "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
+    backOffice && backOfficeStyle[variant] ? "" : variant === "textAction" || variant === "textActionDanger" || variant === "cardPrimary" || variant === "cardCompact" ? "" : "text-[13px] font-semibold",
+    backOffice && backOfficeStyle[variant] ? backOfficeStyle[variant] : triggerStyles[variant]
+  );
+  const triggerBody = (
+    <>
+      {TriggerIcon ? <TriggerIcon className={backOffice && variant === "primary" ? "h-[13px] w-[13px] text-[#5FD6B4]" : backOffice ? "h-[15px] w-[15px]" : "h-4 w-4"} strokeWidth={backOffice ? 2.4 : undefined} /> : null}
+      <span>{triggerLabel}</span>
+    </>
+  );
+  // Inside an action menu the trigger is a real menu item (arrow keys, typeahead, closes the menu); anywhere else it is a plain button.
+  const trigger = inMenu ? (
+    <button type="button" className={triggerClass}>{triggerBody}</button>
+  ) : (
+    <button type="button" onClick={openDialog} className={triggerClass}>{triggerBody}</button>
+  );
+
   return (
     <>
-      <button
-        type="button"
-        onClick={openDialog}
-        data-popover-close={variant === "menu" || variant === "menuDanger" ? "true" : undefined}
-        className={cn(
-          "inline-flex items-center justify-center gap-2 transition-all duration-200 active:scale-[0.99]",
-          backOffice && backOfficeStyle[variant] ? "" : variant === "textAction" || variant === "textActionDanger" || variant === "cardPrimary" || variant === "cardCompact" ? "" : "text-[13px] font-semibold",
-          backOffice && backOfficeStyle[variant] ? backOfficeStyle[variant] : triggerStyles[variant]
-        )}
-      >
-        {TriggerIcon ? <TriggerIcon className={backOffice && variant === "primary" ? "h-[13px] w-[13px] text-[#5FD6B4]" : backOffice ? "h-[15px] w-[15px]" : "h-4 w-4"} strokeWidth={backOffice ? 2.4 : undefined} /> : null}
-        <span>{triggerLabel}</span>
-      </button>
+      {inMenu ? <DropdownMenu.Item asChild onSelect={openDialog}>{trigger}</DropdownMenu.Item> : trigger}
 
       <Modal
         open={open}

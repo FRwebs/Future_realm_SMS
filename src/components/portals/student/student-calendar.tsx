@@ -34,7 +34,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
 
   return (
     <div className="grid min-w-0 gap-[14px] lg:grid-cols-[minmax(0,1.65fr)_minmax(0,1fr)]">
-      <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] p-[14px]" style={{ borderColor: "#DEE8E2" }}>
+      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) p-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <div className="mb-[10px] flex flex-wrap items-center justify-between gap-[8px]">
           <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{month.label}</h3>
           <div className="flex items-center gap-[4px]">
@@ -58,10 +58,10 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
                 className="flex min-h-[74px] min-w-0 flex-col gap-[3px] rounded-[10px] border p-[6px] text-left"
                 style={{ background: cell.value === selected ? "#F1F7F4" : weekend ? "#FBFDFC" : "#fff", borderColor: cell.value === selected ? "#0D2315" : "#E6EEE9", borderWidth: cell.value === selected ? 1.5 : 1 }}
               >
-                <span className="mb-[1px] flex h-[20px] w-[20px] items-center justify-center rounded-full text-[11px] font-bold" style={isToday ? { background: "#12796A", color: "#fff" } : { color: weekend ? "#9AA8A0" : "#0D2315" }}>{cell.day}</span>
+                <span className="mb-px flex h-[20px] w-[20px] items-center justify-center rounded-full text-[11px] font-bold" style={isToday ? { background: "#12796A", color: "#fff" } : { color: weekend ? "#9AA8A0" : "#0D2315" }}>{cell.day}</span>
                 {list.slice(0, 2).map((item) => {
                   const swatch = toneOf(CAT_TONE[item.cat] ?? "neutral");
-                  return <span key={item.id} className="truncate rounded-[5px] px-[5px] py-[2px] text-[9.5px] font-semibold leading-[1.25]" style={{ background: swatch.bg, color: swatch.fg }}>{item.cat === "Due" ? item.title.split(" · ")[0] : item.title}</span>;
+                  return <span key={item.id} className="truncate rounded-[5px] px-[5px] py-[2px] text-[9.5px] font-semibold leading-tight" style={{ background: swatch.bg, color: swatch.fg }}>{item.cat === "Due" ? item.title.split(" · ")[0] : item.title}</span>;
                 })}
                 {list.length > 2 ? <span className="px-[5px] text-[9.5px]" style={{ color: "#67766D" }}>+{list.length - 2} more</span> : null}
               </button>
@@ -73,7 +73,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
         </div>
       </section>
 
-      <section className="min-w-0 rounded-[14px] border bg-[var(--color-bg-surface)] px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
+      <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{longDay(selected)}</h3>
         <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{chosen.length ? `${chosen.length} on this day.` : "Nothing on this day."}</p>
         <ul className="mt-[8px]">

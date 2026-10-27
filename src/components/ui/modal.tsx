@@ -43,28 +43,28 @@ export function Modal({
   return (
     <Dialog.Root open={open} onOpenChange={(next) => { if (!next) onClose(); }}>
       <Dialog.Portal>
-        <Dialog.Overlay className="overlay-enter fixed inset-0 z-[var(--z-modal)] flex items-start justify-center overflow-y-auto bg-ink/55 px-[21.5px] py-[39.5px]">
+        <Dialog.Overlay className="overlay-enter fixed inset-0 z-(--z-modal) flex items-start justify-center overflow-y-auto bg-ink/55 px-[21.5px] py-[39.5px]">
           <Dialog.Content
             {...(subtitle ? {} : { "aria-describedby": undefined })}
             onCloseAutoFocus={returnFocus}
             onInteractOutside={(event) => { if (!closeOnBackdrop) event.preventDefault(); }}
             onEscapeKeyDown={(event) => { if (!closeOnEscape) event.preventDefault(); }}
             className={cn(
-              "modal-surface modal-enter relative z-[1] flex max-h-[calc(100vh-79px)] w-full flex-col overflow-hidden rounded-[20px] bg-white text-[var(--color-text-primary)] shadow-[0_45px_90px_-36px_rgba(13,35,21,0.6)] outline-none transition-all duration-200",
+              "modal-surface modal-enter relative z-1 flex max-h-[calc(100vh-79px)] w-full flex-col overflow-hidden rounded-[20px] bg-white text-(--color-text-primary) shadow-[0_45px_90px_-36px_rgba(13,35,21,0.6)] outline-hidden transition-all duration-200",
               MODAL_MAX_WIDTH[size],
             )}
           >
             {title ? null : <Dialog.Title className="sr-only">Dialog</Dialog.Title>}
             {title || showCloseButton ? (
               <div className="relative overflow-hidden px-[23.5px] py-[20px]" style={{ background: "#0d2315" }}>
-                <div className="pointer-events-none absolute -right-[63px] -top-[99px] h-[252px] w-[252px] rounded-full border border-[rgba(95,214,180,0.14)]" />
+                <div className="pointer-events-none absolute right-[-63px] top-[-99px] h-[252px] w-[252px] rounded-full border border-[rgba(95,214,180,0.14)]" />
                 <div className="relative flex items-start justify-between gap-[18px]">
                   <div className="min-w-0">
                     {title ? (
-                      <Dialog.Title className="text-pretty font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.018em] text-white">{title}</Dialog.Title>
+                      <Dialog.Title className="text-pretty font-(--font-heading) text-[19px] font-extrabold tracking-[-0.018em] text-white">{title}</Dialog.Title>
                     ) : null}
                     {subtitle ? (
-                      <Dialog.Description className="mt-[6.5px] max-w-[468px] text-pretty text-[11.5px] leading-[1.55] text-white/[62%]">
+                      <Dialog.Description className="mt-[6.5px] max-w-[468px] text-pretty text-[11.5px] leading-[1.55] text-white/62">
                         {subtitle}
                       </Dialog.Description>
                     ) : null}
@@ -83,7 +83,9 @@ export function Modal({
               </div>
             ) : null}
 
-            <div tabIndex={0} className="min-h-0 flex-1 overflow-y-auto outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[var(--color-accent-primary)] px-[23.5px] py-[20px]">{children}</div>
+            {/* A scrolling region must be reachable by keyboard so its content can be scrolled without a mouse (axe: scrollable-region-focusable). */}
+            {/* eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex */}
+            <div tabIndex={0} className="min-h-0 flex-1 overflow-y-auto outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-(--color-accent-primary) px-[23.5px] py-[20px]">{children}</div>
 
             {footer ? (
               <div className="border-t border-[#EDF3EF] bg-[#FBFDFC] px-[23.5px] py-[13.5px]">{footer}</div>

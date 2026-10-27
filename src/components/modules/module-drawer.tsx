@@ -2,7 +2,8 @@
 
 import { X } from "lucide-react";
 import { useRouter } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { DocumentModal } from "@/components/modules/document-modal";
@@ -10,6 +11,8 @@ import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
 import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
+import { focusOnMount } from "@/lib/ui/focus";
+import { apiRaw } from "@/lib/api/client";
 
 export function FactRows({ facts }: { facts: PanelFact[] }) {
   return (
@@ -121,24 +124,20 @@ export function ModuleDrawer({
  * and swaps itself for the full record when that arrives, or says plainly that it could not.
  */
 function LazyDrawer({ spec, onClose, onSwap }: { spec: DrawerSpec; onClose: () => void; onSwap: (next: DrawerSpec) => void }) {
-  const [loaded, setLoaded] = useState<{ url: string; spec: DrawerSpec | null; error: string | null } | null>(null);
-  useEffect(() => {
-    let live = true;
-    fetch(spec.load as string, { credentials: "include" })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as Partial<DrawerSpec> & { error?: string; message?: string } | null;
-        if (!response.ok || !body) throw new Error(body?.error ?? body?.message ?? "That record could not be read.");
-        if (live) setLoaded({ url: spec.load as string, spec: { ...spec, ...body, load: undefined } as DrawerSpec, error: null });
-      })
-      .catch((cause) => {
-        if (live) setLoaded({ url: spec.load as string, spec: null, error: cause instanceof Error ? cause.message : "That record could not be read." });
-      });
-    return () => {
-      live = false;
-    };
-  }, [spec]);
+  const record = useQuery({
+    queryKey: ["drawer", spec.load],
+    queryFn: ({ signal }) => apiRaw<Partial<DrawerSpec>>(spec.load as string, signal),
+    retry: false,
+    // A drawer shows the record as it is now: never reuse an earlier read.
+    staleTime: 0,
+    gcTime: 0,
+  });
   const [editing, setEditing] = useState(false);
-  const ready = loaded && loaded.url === spec.load ? loaded : null;
+  const ready = record.isSuccess
+    ? { spec: { ...spec, ...record.data, load: undefined } as DrawerSpec, error: null as string | null }
+    : record.isError
+      ? { spec: null, error: record.error.message || "That record could not be read." }
+      : null;
   const base: DrawerSpec = ready?.spec ?? { ...spec, load: undefined, mode: spec.mode ?? "view", readOnly: true, sub: ready?.error ?? "Reading the record…", readOnlyNote: ready?.error ? ready.error : "Reading the record…", facts: [] };
   const shown = editing && base.edit ? base.edit : base;
   if (shown.doc) return <DocumentModal key={`${spec.title}:doc`} spec={shown} onClose={onClose} onSwap={onSwap} />;
@@ -212,7 +211,7 @@ export function ConfirmSheet({
         <div className="mt-[16px] flex flex-wrap items-center justify-end gap-2">
           <button
             type="button"
-            autoFocus
+            ref={focusOnMount}
             onClick={onCancel}
             className="whitespace-nowrap rounded-[9px] border bg-white px-[14px] py-[9px] text-[11.5px] font-semibold"
             style={{ borderColor: "#CFDDD5", color: "#435048" }}
@@ -398,7 +397,7 @@ export function CommitDone({
                     <a href={result.checkoutUrl} className="inline-flex items-center justify-center rounded-[10px] px-[14px] py-[10px] text-[12px] font-semibold text-white" style={{ background: INK }}>
                       Continue to payment
                     </a>
-                    <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                    <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
                       {result.gateway === "test" ? "The payment provider is in test mode: no card is charged and the payment is simulated." : "Your card is entered on the payment provider's page — it never touches this school's records."}
                     </p>
                   </div>
@@ -420,7 +419,7 @@ export function CommitDone({
                     </p>
                     <ul className="mt-[4px] grid gap-[3px]">
                       {result.warnings.map((warning) => (
-                        <li key={warning} className="text-[10.5px] leading-[1.5]" style={{ color: "#8A6410" }}>
+                        <li key={warning} className="text-[10.5px] leading-normal" style={{ color: "#8A6410" }}>
                           {warning}
                         </li>
                       ))}
@@ -431,7 +430,7 @@ export function CommitDone({
                   const links = result?.links ?? (result?.link ? [{ name: result.name ?? "Activation link", link: result.link }] : []);
                   return links.length ? (
                     <div className="grid gap-[7px]">
-                      <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                      <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
                         Share each link with the person it is for. It works once, and the one before it no longer does.
                       </p>
                       {links.map((item) => {
@@ -509,6 +508,9 @@ function DrawerPanel({
     else onClose();
   }
 
+  // The key listener reads the latest requestClose (it closes over dirty/committed) from a ref, so it is bound once per open state.
+  const requestCloseRef = useRef(requestClose);
+  useEffect(() => { requestCloseRef.current = requestClose; });
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -516,7 +518,7 @@ function DrawerPanel({
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       if (confirm) setConfirm(null);
-      else requestClose();
+      else requestCloseRef.current();
     }
 
     document.addEventListener("keydown", handleKeyDown);
@@ -524,8 +526,7 @@ function DrawerPanel({
       document.body.style.overflow = previousOverflow;
       document.removeEventListener("keydown", handleKeyDown);
     };
-    // requestClose closes over dirty/committed/confirm; re-bind when they change.
-  }, [onClose, dirty, committed, confirm]);
+  }, [confirm]);
 
   const modeMeta =
     DRAWER_MODES[spec.readOnly ? "view" : (spec.mode === "read" ? "view" : (spec.mode ?? "view"))] ??
@@ -685,7 +686,7 @@ function DrawerPanel({
 
   return createPortal(
     <div
-      className="fixed inset-0 z-[42] flex items-center justify-center overflow-y-auto px-6 py-8"
+      className="fixed inset-0 z-42 flex items-center justify-center overflow-y-auto px-6 py-8"
       role="dialog"
       aria-modal="true"
       aria-label={spec.title}
@@ -730,12 +731,12 @@ function DrawerPanel({
                 {(spec.kicker ?? modeMeta.label).toUpperCase()}
                 {isEdit && spec.kicker ? " · EDITING" : ""}
               </p>
-              <h2 className="text-pretty text-[19px] font-bold leading-[1.25] tracking-[-0.01em] text-white">
+              <h2 className="text-pretty text-[19px] font-bold leading-tight tracking-[-0.01em] text-white">
                 {committed ? doneTitle : spec.title}
               </h2>
               {spec.sub && !committed ? (
                 <p
-                  className="mt-[4.5px] text-pretty text-[11px] leading-[1.5]"
+                  className="mt-[4.5px] text-pretty text-[11px] leading-normal"
                   style={{ color: "rgba(255,255,255,0.6)" }}
                 >
                   {spec.sub}
@@ -799,7 +800,7 @@ function DrawerPanel({
                 className="rounded-[12px] border px-[13px] py-[10px]"
                 style={{ background: "#F7FAF8", borderColor: "#E6EEE9" }}
               >
-                <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
                   {spec.readOnlyNote ??
                     "This is a record of what happened. It is read-only, and cannot be edited or deleted."}
                 </p>
@@ -811,7 +812,7 @@ function DrawerPanel({
                 className="rounded-[12px] border px-[13px] py-[11px]"
                 style={{ background: "#FDF2F2", borderColor: "#F3D2D2" }}
               >
-                <p className="text-[11.5px] font-semibold leading-[1.5]" style={{ color: "#A32B2B" }}>
+                <p className="text-[11.5px] font-semibold leading-normal" style={{ color: "#A32B2B" }}>
                   {error}
                 </p>
               </div>
@@ -830,7 +831,7 @@ function DrawerPanel({
                   </span>
                 </div>
                 {step?.hint ? (
-                  <p className="text-[10.5px] leading-[1.5]" style={{ color: MUTED }}>
+                  <p className="text-[10.5px] leading-normal" style={{ color: MUTED }}>
                     {step.hint}
                   </p>
                 ) : null}
@@ -915,7 +916,7 @@ function DrawerPanel({
                   value={reason}
                   onChange={(event) => setReason(event.target.value)}
                   rows={3}
-                  className="w-full resize-y rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-[1.5] outline-none focus:border-[#BFDCD1]"
+                  className="w-full resize-y rounded-[10px] border px-[11px] py-[9px] text-[11.5px] leading-normal outline-hidden focus:border-[#BFDCD1]"
                   placeholder={
                     isEdit
                       ? "Say what changed and why — the next person to open this record sees it."

@@ -49,37 +49,37 @@ export default async function ParentChildSubjectsPage({ params, searchParams }: 
     return (
       <div className="portal-page">
         <section className="surface-hero p-6 md:p-7">
-          <Link href={`/my-children/${childId}/subjects` as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to subjects</Link>
-          <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Parent portal</p>
-          <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{child.studentName}&apos;s {selectedSow.subjectName}</h1>
-          <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+          <Link href={`/my-children/${childId}/subjects` as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to subjects</Link>
+          <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-(--color-text-muted)">Parent portal</p>
+          <h1 className="mt-2 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">{child.studentName}&apos;s {selectedSow.subjectName}</h1>
+          <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
             {child.className}
             {child.departmentTrack ? ` · ${child.departmentTrack}` : ""}
           </p>
         </section>
 
         <section className="grid gap-4 md:grid-cols-4">
-          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Coverage</p>
+          <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Coverage</p>
             <p className="mt-2 text-[22px] font-bold" style={{ color: progressTone(selectedSow.stats.coveragePercent) }}>{selectedSow.stats.coveragePercent}%</p>
           </article>
-          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Covered weeks</p>
-            <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{selectedSow.stats.coveredWeeks}</p>
+          <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Covered weeks</p>
+            <p className="mt-2 text-[22px] font-bold text-(--color-text-primary)">{selectedSow.stats.coveredWeeks}</p>
           </article>
-          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Teaching weeks</p>
-            <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{selectedSow.stats.teachingWeeks}</p>
+          <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Teaching weeks</p>
+            <p className="mt-2 text-[22px] font-bold text-(--color-text-primary)">{selectedSow.stats.teachingWeeks}</p>
           </article>
-          <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Teacher</p>
-            <p className="mt-2 text-[15px] font-bold text-[var(--color-text-primary)]">{selectedSow.teacherName ?? "To be assigned"}</p>
+          <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+            <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Teacher</p>
+            <p className="mt-2 text-[15px] font-bold text-(--color-text-primary)">{selectedSow.teacherName ?? "To be assigned"}</p>
           </article>
         </section>
 
-        <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-accent-primary-dim)] p-5">
-          <p className="text-[13px] font-bold text-[var(--color-text-primary)]">A clear view of this term&apos;s learning journey</p>
-          <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <section className="rounded-[10px] border border-(--color-border-default) bg-(--color-accent-primary-dim) p-5">
+          <p className="text-[13px] font-bold text-(--color-text-primary)">A clear view of this term&apos;s learning journey</p>
+          <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
             You can follow what has already been covered, what is coming next, and the homework attached to each topic so support at home stays aligned with classwork.
           </p>
         </section>
@@ -92,10 +92,10 @@ export default async function ParentChildSubjectsPage({ params, searchParams }: 
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={`/portals/parent/children/${childId}` as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to child profile</Link>
-        <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--color-text-muted)]">Parent portal</p>
-        <h1 className="mt-2 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">{child.studentName}&apos;s Subjects</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">
+        <Link href={`/portals/parent/children/${childId}` as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to child profile</Link>
+        <p className="mt-4 text-[10px] font-bold uppercase tracking-[0.18em] text-(--color-text-muted)">Parent portal</p>
+        <h1 className="mt-2 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">{child.studentName}&apos;s Subjects</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">
           {child.className}
           {child.departmentTrack ? ` · ${child.departmentTrack}` : ""}
           {child.admissionNumber ? ` · ${child.admissionNumber}` : ""}
@@ -103,36 +103,36 @@ export default async function ParentChildSubjectsPage({ params, searchParams }: 
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
-        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Subjects</p>
-          <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{subjects.length}</p>
+        <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Subjects</p>
+          <p className="mt-2 text-[22px] font-bold text-(--color-text-primary)">{subjects.length}</p>
         </article>
-        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Track</p>
-          <p className="mt-2 text-[15px] font-bold text-[var(--color-text-primary)]">{child.departmentTrack ?? "General"}</p>
+        <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Track</p>
+          <p className="mt-2 text-[15px] font-bold text-(--color-text-primary)">{child.departmentTrack ?? "General"}</p>
         </article>
-        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding balance</p>
-          <p className="mt-2 text-[15px] font-bold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p>
+        <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Outstanding balance</p>
+          <p className="mt-2 text-[15px] font-bold text-(--color-text-primary)">{formatCurrency(child.outstandingBalance)}</p>
         </article>
-        <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Latest result</p>
-          <p className="mt-2 text-[15px] font-bold text-[var(--color-text-primary)]">{child.latestResult ? `${child.latestResult.average.toFixed(1)}%` : "Not published"}</p>
+        <article className="rounded-[10px] border border-(--color-border-default) bg-(--color-bg-subtle) p-4">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-(--color-text-muted)">Latest result</p>
+          <p className="mt-2 text-[15px] font-bold text-(--color-text-primary)">{child.latestResult ? `${child.latestResult.average.toFixed(1)}%` : "Not published"}</p>
         </article>
       </section>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {subjects.map((subject) => (
           <article key={subject.id} className="surface-card p-5">
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-[var(--color-text-accent)]">{subject.code ?? "Subject"}</p>
-            <h2 className="mt-3 text-[17px] font-bold text-[var(--color-text-primary)]">{subject.name}</h2>
-            <p className="mt-2 text-[13px] text-[var(--color-text-secondary)]">Teacher: {subject.teacherName ?? "To be assigned"}</p>
-            <p className="mt-1 text-[13px] text-[var(--color-text-muted)]">Track: {subject.track ?? subject.departmentName ?? child.departmentTrack ?? "General"}</p>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-(--color-text-accent)">{subject.code ?? "Subject"}</p>
+            <h2 className="mt-3 text-[17px] font-bold text-(--color-text-primary)">{subject.name}</h2>
+            <p className="mt-2 text-[13px] text-(--color-text-secondary)">Teacher: {subject.teacherName ?? "To be assigned"}</p>
+            <p className="mt-1 text-[13px] text-(--color-text-muted)">Track: {subject.track ?? subject.departmentName ?? child.departmentTrack ?? "General"}</p>
             <div className="mt-4 flex items-center justify-between">
               <SchemeOfWorkStatusBadge status={subject.schemeStatus ?? "DRAFT"} size="sm" />
               <span className="text-[13px] font-bold" style={{ color: progressTone(subject.coveragePercent) }}>{subject.coveragePercent ?? 0}%</span>
             </div>
-            <p className="mt-2 text-xs text-[var(--color-text-muted)]">{subject.coveredWeeks ?? 0}/{subject.teachingWeeks ?? 0} teaching weeks covered</p>
+            <p className="mt-2 text-xs text-(--color-text-muted)">{subject.coveredWeeks ?? 0}/{subject.teachingWeeks ?? 0} teaching weeks covered</p>
             <Link
               href={`/my-children/${childId}/subjects?subjectId=${subject.id}` as Route}
               className="btn-primary mt-5 inline-flex px-4"

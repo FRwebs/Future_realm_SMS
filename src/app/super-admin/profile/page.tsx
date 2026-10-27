@@ -94,7 +94,7 @@ function FieldLine({ label, value }: { label: string; value?: React.ReactNode })
   return (
     <div className="flex items-center justify-between gap-4 border-b border-[#F2F7F4] px-5 py-[10px] last:border-b-0">
       <dt className="text-[11.5px] text-[#5f6e65]">{label}</dt>
-      <dd className="text-right text-[11.5px] font-semibold text-[var(--color-text-primary)]">{value || "Not recorded"}</dd>
+      <dd className="text-right text-[11.5px] font-semibold text-(--color-text-primary)">{value || "Not recorded"}</dd>
     </div>
   );
 }
@@ -118,12 +118,12 @@ export default async function SuperAdminProfilePage() {
     <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-[1.15fr_1fr] xl:items-start">
       <div className="flex min-w-0 flex-col gap-3.5">
         <section className="flex items-start gap-[16px] rounded-2xl bg-[#0d2315] p-[20px] text-white">
-          <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.14] font-[var(--font-heading)] text-[18px] font-extrabold text-white">
+          <div className="flex h-[56px] w-[56px] shrink-0 items-center justify-center rounded-2xl border border-white/20 bg-white/[0.14] font-(--font-heading) text-[18px] font-extrabold text-white">
             {initials(profile.fullName)}
           </div>
           <div className="min-w-0 flex-1">
-            <h1 className="truncate font-[var(--font-heading)] text-[19px] font-extrabold tracking-[-0.01em] text-white">{profile.fullName}</h1>
-            <p className="mt-[2.5px] text-[11.5px] text-white/[66%]">
+            <h1 className="truncate font-(--font-heading) text-[19px] font-extrabold tracking-[-0.01em] text-white">{profile.fullName}</h1>
+            <p className="mt-[2.5px] text-[11.5px] text-white/66">
               {session ? roleLabels[session.role] : profile.role.replaceAll("_", " ")} · {profile.email}
             </p>
             <div className="mt-[11.5px] flex flex-wrap items-center gap-[6.5px]">
@@ -146,9 +146,9 @@ export default async function SuperAdminProfilePage() {
           </div>
         </section>
 
-        <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <article className="overflow-hidden rounded-[14px] border border-(--color-border-default) bg-(--color-bg-surface)">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
-            <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Your details</p>
+            <p className="text-[12.5px] font-semibold text-(--color-text-primary)">Your details</p>
             <ResourceActionDialog
               triggerLabel="Edit details"
               title="Update contact details"
@@ -178,18 +178,18 @@ export default async function SuperAdminProfilePage() {
           <FieldLine label="Last sign-in" value={profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"} />
         </article>
 
-        <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <article className="overflow-hidden rounded-[14px] border border-(--color-border-default) bg-(--color-bg-surface)">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
-            <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Recent actions by you</p>
+            <p className="text-[12.5px] font-semibold text-(--color-text-primary)">Recent actions by you</p>
             <p className="whitespace-nowrap text-[10.5px] text-[#5f6e65]">Immutable audit trail</p>
           </div>
           <div>
             {myActions.length ? (
               myActions.map((log) => (
                 <div key={log.id} className="flex items-start gap-[10px] border-b border-[#F2F7F4] px-5 py-3 last:border-b-0">
-                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--color-accent-primary)]" />
+                  <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-(--color-accent-primary)" />
                   <div className="min-w-0 flex-1">
-                    <p className="text-pretty text-[11.5px] text-[var(--color-text-primary)]">
+                    <p className="text-pretty text-[11.5px] text-(--color-text-primary)">
                       {log.action.replaceAll("_", " ")} — {log.target}
                       {log.schoolName ? ` · ${log.schoolName}` : ""}
                     </p>
@@ -198,16 +198,16 @@ export default async function SuperAdminProfilePage() {
                 </div>
               ))
             ) : (
-              <p className="px-5 py-6 text-center text-[11.5px] text-[var(--color-text-secondary)]">No actions recorded yet.</p>
+              <p className="px-5 py-6 text-center text-[11.5px] text-(--color-text-secondary)">No actions recorded yet.</p>
             )}
           </div>
         </article>
       </div>
 
       <div className="flex min-w-0 flex-col gap-3.5">
-        <article className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
-          <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">What you can do</p>
-          <p className="mb-3.5 mt-1 text-[10.5px] leading-[1.5] text-[#5f6e65]">
+        <article className="rounded-[14px] border border-(--color-border-default) bg-(--color-bg-surface) p-5">
+          <p className="text-[12.5px] font-semibold text-(--color-text-primary)">What you can do</p>
+          <p className="mb-3.5 mt-1 text-[10.5px] leading-normal text-[#5f6e65]">
             Derived from your role&apos;s real permission grant — not editable here.
           </p>
           {permissionRows.length ? (
@@ -217,8 +217,8 @@ export default async function SuperAdminProfilePage() {
                 <span
                   className={
                     row.level === "Full"
-                      ? "shrink-0 rounded-full bg-[var(--color-success-dim)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-success)]"
-                      : "shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-secondary)]"
+                      ? "shrink-0 rounded-full bg-(--color-success-dim) px-[9px] py-[3px] text-[11px] font-bold text-(--color-success)"
+                      : "shrink-0 rounded-full bg-(--color-bg-subtle) px-[9px] py-[3px] text-[11px] font-bold text-(--color-text-secondary)"
                   }
                 >
                   {row.level}
@@ -226,38 +226,38 @@ export default async function SuperAdminProfilePage() {
               </div>
             ))
           ) : (
-            <p className="py-4 text-center text-[11.5px] text-[var(--color-text-secondary)]">No platform permissions granted.</p>
+            <p className="py-4 text-center text-[11.5px] text-(--color-text-secondary)">No platform permissions granted.</p>
           )}
         </article>
 
-        <article className="rounded-[14px] border border-[#E1EBE5] bg-[var(--color-bg-subtle)] p-[16px]">
-          <p className="mb-3 text-[12px] font-semibold text-[var(--color-text-primary)]">Your portfolio</p>
+        <article className="rounded-[14px] border border-[#E1EBE5] bg-(--color-bg-subtle) p-[16px]">
+          <p className="mb-3 text-[12px] font-semibold text-(--color-text-primary)">Your portfolio</p>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2 first:border-t-0">
             <p className="text-[11px] text-[#5f6e65]">Active sessions</p>
-            <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{mySessions.length}</p>
+            <p className="text-[11px] font-semibold text-(--color-text-primary)">{mySessions.length}</p>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2">
             <p className="text-[11px] text-[#5f6e65]">Full-access modules</p>
-            <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{fullAccessCount}</p>
+            <p className="text-[11px] font-semibold text-(--color-text-primary)">{fullAccessCount}</p>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2">
             <p className="text-[11px] text-[#5f6e65]">Actions logged (recent)</p>
-            <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{myActions.length}</p>
+            <p className="text-[11px] font-semibold text-(--color-text-primary)">{myActions.length}</p>
           </div>
           <div className="flex items-center justify-between gap-3 border-t border-[#E7EEEA] py-2">
             <p className="text-[11px] text-[#5f6e65]">Last login</p>
-            <p className="text-[11px] font-semibold text-[var(--color-text-primary)]">{profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"}</p>
+            <p className="text-[11px] font-semibold text-(--color-text-primary)">{profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"}</p>
           </div>
         </article>
 
-        <article className="overflow-hidden rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)]">
+        <article className="overflow-hidden rounded-[14px] border border-(--color-border-default) bg-(--color-bg-surface)">
           <div className="flex items-center justify-between gap-3 border-b border-[#EDF3EF] px-5 py-[13.5px]">
-            <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Sessions &amp; security</p>
+            <p className="text-[12.5px] font-semibold text-(--color-text-primary)">Sessions &amp; security</p>
           </div>
           <MfaPanel mfaEnabled={profile.mfaEnabled} mfaEnrolledAt={profile.mfaEnrolledAt} />
           <div className="flex items-center justify-between gap-3.5 border-b border-[#F2F7F4] px-5 py-3">
             <div className="min-w-0">
-              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Password</p>
+              <p className="text-[11.5px] font-semibold text-(--color-text-primary)">Password</p>
               <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">Keep your account secure with a strong password.</p>
             </div>
             <ResourceActionDialog
@@ -279,10 +279,10 @@ export default async function SuperAdminProfilePage() {
           <SessionsList sessions={mySessions} />
           <div className="flex items-center justify-between gap-3.5 px-5 py-3">
             <div className="min-w-0">
-              <p className="text-[11.5px] font-semibold text-[var(--color-text-primary)]">Production access</p>
+              <p className="text-[11.5px] font-semibold text-(--color-text-primary)">Production access</p>
               <p className="text-pretty mt-0.5 text-[10px] text-[#5f6e65]">Granted {formatDate(profile.createdAt)} · every action is written to the audit log.</p>
             </div>
-            <span className="shrink-0 rounded-full bg-[var(--color-bg-subtle)] px-[9px] py-[3px] text-[11px] font-bold text-[var(--color-text-secondary)]">Audited</span>
+            <span className="shrink-0 rounded-full bg-(--color-bg-subtle) px-[9px] py-[3px] text-[11px] font-bold text-(--color-text-secondary)">Audited</span>
           </div>
         </article>
       </div>

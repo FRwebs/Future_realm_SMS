@@ -20,12 +20,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           <circle cx="700" cy="150" r="150" stroke="rgba(255,255,255,0.06)" strokeWidth="1" fill="none" />
         </svg>
 
-        <div className="relative z-[1]">
+        <div className="relative z-1">
           <span className="inline-flex items-center gap-2 rounded-full border border-[rgba(255,255,255,0.14)] bg-[rgba(255,255,255,0.08)] px-3.5 py-1.5">
             <span className="h-2 w-2 rounded-full" style={{ background: "var(--color-gold)" }} />
             <span className="text-xs font-bold tracking-[0.08em] text-white">FUTUREREALM SMS</span>
           </span>
-          <h1 className="mt-16 max-w-[460px] font-[var(--font-heading)] text-[38px] font-extrabold leading-[1.18] tracking-[-0.01em] text-white">
+          <h1 className="mt-16 max-w-[460px] font-(--font-heading) text-[38px] font-extrabold leading-[1.18] tracking-[-0.01em] text-white">
             One school, one truth — every school day accounted for.
           </h1>
           <p className="mt-[18px] max-w-[420px] text-[14.5px] leading-[1.65] text-[rgba(255,255,255,0.62)]">
@@ -47,13 +47,13 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
           </div>
         </div>
 
-        <div className="relative z-[1] max-w-[440px] rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-6 py-[22px]">
+        <div className="relative z-1 max-w-[440px] rounded-2xl border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-6 py-[22px]">
           <p className="text-[13.5px] italic leading-[1.6] text-[rgba(255,255,255,0.88)]">
             &ldquo;Knowledge is power. Information is liberating. Education is the premise of progress,
             in every society, in every family.&rdquo;
           </p>
           <div className="mt-4 flex items-center gap-[10px]">
-            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[rgba(255,255,255,0.14)] font-[var(--font-heading)] text-[11px] font-bold text-white">
+            <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-[9px] bg-[rgba(255,255,255,0.14)] font-(--font-heading) text-[11px] font-bold text-white">
               KA
             </div>
             <div>
@@ -71,7 +71,7 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
             <span className="text-xs font-bold tracking-[0.08em] text-[#0d2315]">FUTUREREALM SMS</span>
           </span>
           <div className="mb-9 hidden md:block">
-            <span className="font-[var(--font-heading)] text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
+            <span className="font-(--font-heading) text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
           </div>
 
           {verified ? (
@@ -80,12 +80,12 @@ export default async function LoginPage({ searchParams }: { searchParams: Promis
                 <circle cx="12" cy="12" r="9" />
                 <path d="m8 12.4 2.6 2.6L16 9.6" />
               </svg>
-              <div className="text-[11px] leading-[1.5] text-[#17604f]">
+              <div className="text-[11px] leading-normal text-[#17604f]">
                 <b>Email verified.</b> Sign in with the email address or the User ID we sent you.
               </div>
             </div>
           ) : null}
-          <h2 className="font-[var(--font-heading)] text-[26px] font-bold tracking-[-0.01em] text-[#0d2315]">
+          <h2 className="font-(--font-heading) text-[26px] font-bold tracking-[-0.01em] text-[#0d2315]">
             Welcome back
           </h2>
           <p className="mb-[30px] mt-1.5 text-[13.5px] text-[#5f6e65]">

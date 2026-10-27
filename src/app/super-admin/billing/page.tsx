@@ -269,10 +269,10 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
               empty="No active paid subscriptions yet."
               footer={
                 <>
-                  <p className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Additional billing rules</p>
+                  <p className="text-[12.5px] font-semibold text-(--color-text-primary)">Additional billing rules</p>
                   <ul className="mt-2 grid gap-2">
                     {billingRules(trialPolicy.days).map((rule) => (
-                      <li key={rule} className="flex gap-2 text-[11.5px] leading-[1.5] text-[#435048]">
+                      <li key={rule} className="flex gap-2 text-[11.5px] leading-normal text-[#435048]">
                         <span className="mt-[7px] h-1 w-1 flex-none rounded-full bg-[#435048]" />
                         {rule}
                       </li>
@@ -288,7 +288,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
             emptyState="No active plans. Configure one in Plans & Features."
             getRowKey={(plan) => plan.id}
             columns={[
-              { key: "tier", header: "Tier", render: (plan) => <span className="font-bold text-[var(--color-text-primary)]">{planLabel(plan.plan)}</span> },
+              { key: "tier", header: "Tier", render: (plan) => <span className="font-bold text-(--color-text-primary)">{planLabel(plan.plan)}</span> },
               { key: "range", header: "Student range", render: (plan) => studentRangeLabel(plan) },
               { key: "naira", header: "Naira", render: (plan) => planPriceLabel(plan) },
               { key: "usd", header: "USD", render: (plan) => planUsd(plan, usdRate) },
@@ -310,7 +310,7 @@ export default async function SuperAdminBillingPage({ searchParams }: { searchPa
                 header: "School",
                 render: (row) => (
                   <div>
-                    <p className="font-bold text-[var(--color-text-primary)]">{row.school.name}</p>
+                    <p className="font-bold text-(--color-text-primary)">{row.school.name}</p>
                     <p className="text-[11.5px] text-[#5f6e65]">{[row.school.city, row.school.state].filter(Boolean).join(", ") || "—"}</p>
                   </div>
                 )
@@ -438,7 +438,7 @@ async function InvoicesTab({
           />
           <button type="submit" className="btn-secondary h-10 text-[11.5px]">Search</button>
           {search ? (
-            <Link href="/super-admin/billing?tab=invoices" className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">
+            <Link href="/super-admin/billing?tab=invoices" className="text-[11.5px] font-semibold text-(--color-text-accent) hover:underline">
               Clear
             </Link>
           ) : null}
@@ -467,7 +467,7 @@ async function InvoicesTab({
         { key: "invoiceNo", header: "Invoice", render: (item) => item.invoiceNo },
         { key: "school", header: "School", render: (item) => item.schoolName },
         { key: "students", header: "Students", render: (item) => (item.students ?? 0).toLocaleString() },
-        { key: "amount", header: "Amount", render: (item) => <div><p className="font-semibold text-[var(--color-text-primary)]">{formatCurrency(item.totalAmount)}</p>{item.amountPaid > 0 && item.amountPaid < item.totalAmount ? <p className="text-[10.5px] text-[var(--color-text-muted)]">{formatCurrency(item.amountPaid)} paid</p> : null}</div> },
+        { key: "amount", header: "Amount", render: (item) => <div><p className="font-semibold text-(--color-text-primary)">{formatCurrency(item.totalAmount)}</p>{item.amountPaid > 0 && item.amountPaid < item.totalAmount ? <p className="text-[10.5px] text-(--color-text-muted)">{formatCurrency(item.amountPaid)} paid</p> : null}</div> },
         { key: "status", header: "Status", render: (item) => <InvoiceStatusPill status={item.status} /> },
         { key: "due", header: "Due", render: (item) => formatDate(item.dueAt) },
         {
@@ -577,7 +577,7 @@ async function InvoicesTab({
           getRowKey={(row) => row.status}
           columns={[
             { key: "status", header: "Status", render: (row) => { const tone = invoiceStatusTone[row.status.toUpperCase().replace(/\s+/g, "_")] ?? invoiceStatusTone.DRAFT; return <span className="inline-flex items-center rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: tone.bg, color: tone.fg }}>{row.status}</span>; } },
-            { key: "meaning", header: "Meaning", render: (row) => <span className="text-[12px] text-[var(--color-text-secondary)]">{row.meaning}</span> }
+            { key: "meaning", header: "Meaning", render: (row) => <span className="text-[12px] text-(--color-text-secondary)">{row.meaning}</span> }
           ]}
         />
         <ReferenceList
@@ -607,11 +607,11 @@ async function InvoicesTab({
           getRowKey={(item) => item.id}
           emptyState="Nothing waiting on reconciliation."
           columns={[
-            { key: "school", header: "School", render: (item) => <span className="font-semibold text-[var(--color-text-primary)]">{item.schoolName}</span> },
+            { key: "school", header: "School", render: (item) => <span className="font-semibold text-(--color-text-primary)">{item.schoolName}</span> },
             { key: "invoice", header: "Invoice", render: (item) => item.invoiceNo ?? "—" },
             { key: "amount", header: "Amount", render: (item) => formatCurrency(item.amount) },
             { key: "recordedBy", header: "Recorded by", render: (item) => item.recordedBy },
-            { key: "reference", header: "Bank reference", render: (item) => <span className="font-[var(--font-mono)] text-[11px]">{item.reference}</span> },
+            { key: "reference", header: "Bank reference", render: (item) => <span className="font-(--font-mono) text-[11px]">{item.reference}</span> },
             { key: "age", header: "Age", render: (item) => `${item.ageDays}d` },
             {
               key: "actions",
@@ -683,7 +683,7 @@ async function InvoicesTab({
             />
           }
           columns={[
-            { key: "school", header: "School", render: (item) => <div><p className="font-bold text-[var(--color-text-primary)]">{item.school}</p><p className="text-[10px] text-[var(--color-text-muted)]">{item.kind === "NGO" ? "NGO" : "Mission"}{item.state ? ` · ${item.state}` : ""}</p><p className="text-[10px] text-[var(--color-text-muted)]">{item.evidence ?? "No evidence recorded"}{item.evidenceRef ? ` · ${item.evidenceRef}` : ""}{item.verifiedAt ? ` · verified ${new Date(item.verifiedAt).toLocaleDateString("en-GB")} by ${item.verifiedBy ?? "—"}` : ""}</p></div> },
+            { key: "school", header: "School", render: (item) => <div><p className="font-bold text-(--color-text-primary)">{item.school}</p><p className="text-[10px] text-(--color-text-muted)">{item.kind === "NGO" ? "NGO" : "Mission"}{item.state ? ` · ${item.state}` : ""}</p><p className="text-[10px] text-(--color-text-muted)">{item.evidence ?? "No evidence recorded"}{item.evidenceRef ? ` · ${item.evidenceRef}` : ""}{item.verifiedAt ? ` · verified ${new Date(item.verifiedAt).toLocaleDateString("en-GB")} by ${item.verifiedBy ?? "—"}` : ""}</p></div> },
             { key: "students", header: "Students", render: (item) => (studentsBySchool.get(item.schoolId) ?? 0).toLocaleString() },
             { key: "discount", header: "Discount", render: () => <span className="text-[11px] font-semibold">Concession tier</span> },
             { key: "expires", header: "Verified until", render: (item) => item.expiresAt ? <span className="text-[11px]" style={{ color: item.status === "VERIFIED" && (item.daysLeft ?? 99) <= 30 ? "var(--color-warning)" : "var(--color-text-secondary)" }}>{new Date(item.expiresAt).toLocaleDateString("en-GB")}{item.status === "VERIFIED" && item.daysLeft !== null ? ` · ${item.daysLeft} days` : ""}</span> : "—" },
@@ -743,7 +743,7 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
         getRowKey={(trial) => trial.schoolId}
         emptyState="No schools currently on trial. Trial schools will appear here as they self-onboard."
         columns={[
-          { key: "school", header: "School", render: (trial) => <span className="font-bold text-[var(--color-text-primary)]">{trial.schoolName}</span> },
+          { key: "school", header: "School", render: (trial) => <span className="font-bold text-(--color-text-primary)">{trial.schoolName}</span> },
           {
             key: "day",
             header: "Trial day",
@@ -799,8 +799,8 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
         ]}
       />
 
-      <section className="rounded-[14px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-5 py-4">
-        <h3 className="text-[12.5px] font-semibold text-[var(--color-text-primary)]">Post-trial behaviour</h3>
+      <section className="rounded-[14px] border border-(--color-border-default) bg-(--color-bg-subtle) px-5 py-4">
+        <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">Post-trial behaviour</h3>
         <p className="mt-1 text-pretty text-[12.5px] leading-[1.6] text-[#435048]">
           At day {trialPolicy.days} the school moves to Trial Ended — read-only for {trialPolicy.readOnlyDays} days, then locked at day {trialPolicy.days + trialPolicy.readOnlyDays}. Data is retained in full, never deleted, and restored instantly on conversion.
         </p>
@@ -817,7 +817,7 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
         actions={<ResourceActionDialog triggerLabel="Check now" title="Check the trial schedule now" description="Sends whatever is due to schools on a trial, or records why it was held back. It also runs by itself every hour." endpoint="/api/super-admin/billing-extras/trial-journey/run" method="POST" variant="secondary" submitLabel="Check now" fields={[]} />}
         emptyState="No trial schedule is available."
         columns={[
-          { key: "day", header: "Day", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.day}</span> },
+          { key: "day", header: "Day", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.day}</span> },
           { key: "message", header: "Message", render: (row) => <span className="text-[12px]">{row.message}</span> },
           { key: "channel", header: "Channel", render: (row) => row.channel },
           { key: "source", header: "Fires from", render: (row) => row.source },
@@ -835,11 +835,11 @@ async function TrialsTab({ trialBilling, trialPolicy }: { trialBilling: SuperAdm
         getRowKey={(row) => row.schoolId}
         emptyState="No school is on a trial."
         columns={[
-          { key: "school", header: "School", render: (row) => <span className="font-bold text-[var(--color-text-primary)]">{row.school}</span> },
+          { key: "school", header: "School", render: (row) => <span className="font-bold text-(--color-text-primary)">{row.school}</span> },
           { key: "day", header: "Day", render: (row) => (row.day === null ? "Not started" : row.day) },
-          { key: "last", header: "Last sent", render: (row) => row.last ?? <span className="text-[var(--color-text-muted)]">Nothing yet</span> },
+          { key: "last", header: "Last sent", render: (row) => row.last ?? <span className="text-(--color-text-muted)">Nothing yet</span> },
           { key: "next", header: "Next scheduled", render: (row) => row.next ?? "—" },
-          { key: "failed", header: "Failed", render: (row) => (row.failed ? <span className="font-semibold text-[var(--color-danger)]">{row.failed}</span> : 0) },
+          { key: "failed", header: "Failed", render: (row) => (row.failed ? <span className="font-semibold text-danger">{row.failed}</span> : 0) },
           { key: "wizard", header: "Wizard", render: (row) => <div className="flex items-center gap-2"><div className="h-1.5 w-16 rounded-full bg-[#EDF3EF]"><div className="h-1.5 rounded-full" style={{ width: `${(row.wizardDone / row.wizardTotal) * 100}%`, background: row.wizardDone >= row.wizardTotal ? "var(--color-success)" : row.wizardDone <= 2 ? "var(--color-danger)" : "var(--color-warning)" }} /></div><span className="text-[11px]">{row.wizardDone} of {row.wizardTotal}</span></div> }
         ]}
         footnote="A failed send is a failed delivery on the school's own record, so it lands in the contact-quality repair queue under Users → Reviews & Cases rather than disappearing."
@@ -920,7 +920,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
         }
         footnote="A credit added by hand is a stopgap. It keeps a school’s messages flowing today; it does not fix the payment method that failed."
         columns={[
-          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.school}</span> },
+          { key: "school", header: "School", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.school}</span> },
           { key: "tier", header: "Tier", render: (item) => item.tier },
           { key: "sms", header: "SMS", render: (item) => pill(item.sms.toLocaleString("en-NG"), item.smsTone) },
           { key: "whatsapp", header: "WhatsApp", render: (item) => item.whatsapp.toLocaleString("en-NG") },
@@ -944,7 +944,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
                   submitLabel="Add the credit"
                   fields={byHandFields(item)}
                 />
-                <Link href={`/super-admin/schools/${item.schoolId}` as Route} className="text-[11.5px] font-semibold text-[var(--color-text-accent)] hover:underline">Open</Link>
+                <Link href={`/super-admin/schools/${item.schoolId}` as Route} className="text-[11.5px] font-semibold text-(--color-text-accent) hover:underline">Open</Link>
               </div>
             )
           }
@@ -962,10 +962,10 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
         footnote="A failed charge is retried three times, then stops and raises an alert. It never silently keeps trying."
         columns={[
           { key: "when", header: "When", render: (item) => formatDate(item.at), sortValue: (item) => item.at },
-          { key: "school", header: "School", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.school}</span> },
+          { key: "school", header: "School", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.school}</span> },
           { key: "channel", header: "Channel", render: (item) => item.channel },
           { key: "amount", header: "Amount", render: (item) => <span className="font-bold">{item.amount}</span> },
-          { key: "trigger", header: "Trigger", render: (item) => <span className="text-[11px] text-[var(--color-text-secondary)]">{item.trigger}</span> },
+          { key: "trigger", header: "Trigger", render: (item) => <span className="text-[11px] text-(--color-text-secondary)">{item.trigger}</span> },
           { key: "gateway", header: "Gateway", render: (item) => item.gateway },
           { key: "reference", header: "Reference", render: (item) => <span className="font-mono text-[11px]">{item.reference}</span> },
           { key: "outcome", header: "Outcome", render: (item) => pill(item.outcome, item.tone) }
@@ -998,7 +998,7 @@ async function WalletsTab({ billing }: { billing: SuperAdminBillingRow[] }) {
           }
           footnote="Email is included in every tier, so it never draws on a wallet. Only SMS and WhatsApp spend credit."
           columns={[
-            { key: "channel", header: "Channel", render: (item) => <span className="font-bold text-[var(--color-text-primary)]">{item.channel}</span> },
+            { key: "channel", header: "Channel", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.channel}</span> },
             { key: "cost", header: "Cost to FutureRealm", render: (item) => item.cost },
             { key: "price", header: "Price to school", render: (item) => item.price },
             { key: "margin", header: "Margin", render: (item) => pill(item.margin.text, item.margin.tone) }
@@ -1032,8 +1032,8 @@ async function PricingPromotionsTab({ billing }: { billing: SuperAdminBillingRow
   const campaignCount = new Set(activeCodes.map((code) => code.campaignName ?? code.code)).size;
   const stat = (label: string, value: string, sub: string) => (
     <div key={label}>
-      <p className="text-[10.5px] font-semibold uppercase tracking-[0.05em] text-[#5f6e65]">{label}</p>
-      <p className="mt-1 text-[18px] font-extrabold tracking-[-0.02em] text-[var(--color-text-primary)]">{value}</p>
+      <p className="text-[10.5px] font-semibold uppercase tracking-wider text-[#5f6e65]">{label}</p>
+      <p className="mt-1 text-[18px] font-extrabold tracking-[-0.02em] text-(--color-text-primary)">{value}</p>
       <p className="mt-0.5 text-[11.5px] text-[#5f6e65]">{sub}</p>
     </div>
   );
@@ -1087,7 +1087,7 @@ async function PricingPromotionsTab({ billing }: { billing: SuperAdminBillingRow
         </div>
       }
       columns={[
-        { key: "code", header: "Code", render: (code) => <span className="font-bold text-[var(--color-text-primary)]">{code.code}</span> },
+        { key: "code", header: "Code", render: (code) => <span className="font-bold text-(--color-text-primary)">{code.code}</span> },
         { key: "discount", header: "Discount", render: (code) => (code.type === "PERCENTAGE" ? `${code.value}% off` : `${formatCurrency(code.value)} flat`) },
         { key: "campaign", header: "Campaign", render: (code) => code.campaignName ?? "—" },
         { key: "redemptions", header: "Redemptions", render: (code) => `${code.uses} / ${code.maxUses ?? "—"}` },

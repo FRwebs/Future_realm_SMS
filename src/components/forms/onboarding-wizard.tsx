@@ -1,5 +1,6 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -15,8 +16,12 @@ import {
 
 import { SearchCombo } from "@/components/forms/search-combo";
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
+import { useDebouncedValue } from "@/hooks/use-debounced-value";
+import { apiJson, getUrl } from "@/lib/api/client";
+import { countriesContract, schoolSearchContract, slugCheckContract } from "@/lib/api/contracts";
 import { getDefaultPathForRole, normalizeRole } from "@/lib/auth/roles";
 import { PHONE_PLACEHOLDER, geoFor } from "@/lib/onboarding/geo";
+import { focusOnMount } from "@/lib/ui/focus";
 
 type SignupRole = "admin" | "teacher";
 type View = "fork" | "wiz" | "done" | "verify";
@@ -27,6 +32,8 @@ interface SlugState {
   badge: string;
   note: string;
 }
+
+const IDLE_SLUG: SlugState = { tone: "idle", badge: "Type to check", note: "Lowercase letters and numbers only, 3–30 characters." };
 
 const ADMIN_STEPS = [
   { label: "About you", sub: "Your name, role and email" },
@@ -151,7 +158,7 @@ function fieldWrap(children: React.ReactNode) {
 }
 
 function inputClass(extra = "") {
-  return `w-full rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-none transition placeholder:text-[#b4c4bb] focus:border-[#12796a] ${extra}`;
+  return `w-full rounded-[10px] border-[1.5px] border-[#dee8e2] px-[11.5px] py-[10px] text-[12px] text-[#0d2315] outline-hidden transition placeholder:text-[#b4c4bb] focus:border-[#12796a] ${extra}`;
 }
 
 function fieldLabel(text: string, optional?: boolean, required?: boolean) {
@@ -195,23 +202,15 @@ export function OnboardingWizard() {
   const [email, setEmail] = useState("");
   const [position, setPosition] = useState("");
   const [country, setCountry] = useState("Nigeria");
-  const [openCountries, setOpenCountries] = useState<string[]>(["Nigeria"]);
+  const countries = useQuery({ queryKey: ["onboarding", "countries"], queryFn: ({ signal }) => apiJson(getUrl("/api/v1/onboarding/countries"), signal, countriesContract), staleTime: 60 * 60_000 });
+  const openCountries = countries.data?.length ? countries.data : ["Nigeria"];
+  // If the chosen country is not one the platform is open in, fall back to the first that is.
   useEffect(() => {
-    void fetch("/api/v1/onboarding/countries").then((response) => response.json()).then((body: { data?: string[] }) => {
-      if (body.data?.length) {
-        setOpenCountries(body.data);
-        setCountry((current) => (body.data?.includes(current) ? current : (body.data as string[])[0]));
-      }
-    }).catch(() => undefined);
-  }, []);
+    if (countries.data?.length) setCountry((current) => (countries.data.includes(current) ? current : countries.data[0]!));
+  }, [countries.data]);
 
   const [schoolName, setSchoolName] = useState("");
   const [slug, setSlug] = useState("");
-  const [slugState, setSlugState] = useState<SlugState>({
-    tone: "idle",
-    badge: "Type to check",
-    note: "Lowercase letters and numbers only, 3–30 characters."
-  });
   const [state, setState] = useState("");
   const [lga, setLga] = useState("");
   const [city, setCity] = useState("");
@@ -226,7 +225,6 @@ export function OnboardingWizard() {
   const [levelsOther, setLevelsOther] = useState("");
 
   const [teacherSchoolName, setTeacherSchoolName] = useState("");
-  const [teacherSchoolMatches, setTeacherSchoolMatches] = useState<Array<{ id: string; name: string; location: string | null }>>([]);
   const [joinRequestChoice, setJoinRequestChoice] = useState<"none" | "sent" | "declined">("none");
   /** The school the teacher chose to ask, once they have pressed "Send join request". */
   const [joinSchoolId, setJoinSchoolId] = useState<string | null>(null);
@@ -297,46 +295,27 @@ export function OnboardingWizard() {
   const steps = admin ? ADMIN_STEPS : TEACHER_STEPS;
   const geo = geoFor(country);
 
-  useEffect(() => {
-    if (!admin || step !== 2) return;
-    const value = slug.toLowerCase().trim();
-    if (!value) {
-      setSlugState({ tone: "idle", badge: "Type to check", note: "Lowercase letters and numbers only, 3–30 characters." });
-      return;
-    }
-    const handle = window.setTimeout(async () => {
-      try {
-        const response = await fetch(`/api/v1/onboarding/slug-check?slug=${encodeURIComponent(value)}`);
-        const body = (await response.json()) as { data?: SlugState };
-        if (body.data) setSlugState(body.data);
-      } catch {
-        // Availability check is advisory only; the create call re-validates server-side.
-      }
-    }, 350);
-    return () => window.clearTimeout(handle);
-  }, [slug, step, admin]);
+  // Is this web address free? Asked once typing pauses, and only on the step where it is chosen. The answer is advisory; creating the
+  // school re-validates on the server.
+  const slugValue = useDebouncedValue(slug.toLowerCase().trim());
+  const slugCheck = useQuery({
+    queryKey: ["onboarding", "slug-check", slugValue],
+    queryFn: ({ signal }) => apiJson(getUrl("/api/v1/onboarding/slug-check", { slug: slugValue }), signal, slugCheckContract),
+    enabled: admin && step === 2 && Boolean(slugValue),
+    staleTime: 30_000,
+  });
+  const slugState: SlugState = !slug.trim() ? IDLE_SLUG : (slugCheck.data ?? IDLE_SLUG);
 
-  // Real fuzzy match against schools already on the platform — debounced, and only once
-  // there's enough to search on. Matches are shown as-is; nothing is shared with the
-  // matched school unless the teacher explicitly sends a join request.
-  useEffect(() => {
-    if (admin || step !== 2) return;
-    const value = teacherSchoolName.trim();
-    if (value.length < 2) {
-      setTeacherSchoolMatches([]);
-      return;
-    }
-    const handle = window.setTimeout(async () => {
-      try {
-        const response = await fetch(`/api/v1/onboarding/school-search?q=${encodeURIComponent(value)}`);
-        const body = (await response.json()) as { data?: Array<{ id: string; name: string; location: string | null }> };
-        setTeacherSchoolMatches(body.data ?? []);
-      } catch {
-        setTeacherSchoolMatches([]);
-      }
-    }, 350);
-    return () => window.clearTimeout(handle);
-  }, [teacherSchoolName, step, admin]);
+  // Real fuzzy match against schools already on the platform — debounced, and only once there's enough to search on. Matches are shown
+  // as-is; nothing is shared with the matched school unless the teacher explicitly sends a join request.
+  const schoolQuery = useDebouncedValue(teacherSchoolName.trim());
+  const schoolSearch = useQuery({
+    queryKey: ["onboarding", "school-search", schoolQuery],
+    queryFn: ({ signal }) => apiJson(getUrl("/api/v1/onboarding/school-search", { q: schoolQuery }), signal, schoolSearchContract),
+    enabled: !admin && step === 2 && schoolQuery.length >= 2,
+    staleTime: 30_000,
+  });
+  const teacherSchoolMatches = teacherSchoolName.trim().length >= 2 ? (schoolSearch.data ?? []) : [];
 
   useEffect(() => {
     if (view !== "verify") return;
@@ -627,7 +606,7 @@ export function OnboardingWizard() {
     return (
       <div className="flex min-h-screen flex-col text-[#0d2315]" style={{ background: "#f4f8f6" }}>
         <div className="flex items-center justify-between px-6 py-[22px] sm:px-12">
-          <span className="font-[var(--font-heading)] text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
+          <span className="font-(--font-heading) text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
           <div className="text-[11.5px] text-[#435048]">
             Already have an account?{" "}
             <Link href="/login" className="font-semibold text-[#12796a] hover:underline">
@@ -644,7 +623,7 @@ export function OnboardingWizard() {
                   INSTANT SETUP · NO APPROVAL NEEDED
                 </span>
               </div>
-              <h1 className="mb-[9px] font-[var(--font-heading)] text-[30.5px] font-bold tracking-[-0.02em] text-[#0d2315]">
+              <h1 className="mb-[9px] font-(--font-heading) text-[30.5px] font-bold tracking-[-0.02em] text-[#0d2315]">
                 Who are you signing up as?
               </h1>
               <p className="mx-auto max-w-[420px] text-[13px] leading-[1.6] text-[#5f6e65]">
@@ -662,7 +641,7 @@ export function OnboardingWizard() {
                 <div className="mb-[16px] flex h-[39.5px] w-[39.5px] items-center justify-center rounded-[13px]" style={{ background: "#0d2315" }}>
                   <SchoolIcon className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
                 </div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[18px] font-bold text-[#0d2315]">School Administrator</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[18px] font-bold text-[#0d2315]">School Administrator</div>
                 <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#5f6e65]">
                   Proprietor, Director, Principal, Head of School or Administrator setting up their school.
                 </p>
@@ -693,7 +672,7 @@ export function OnboardingWizard() {
                 <div className="mb-[16px] flex h-[39.5px] w-[39.5px] items-center justify-center rounded-[13px]" style={{ background: "#12796a" }}>
                   <GraduationCap className="h-[19px] w-[19px] text-white" strokeWidth={1.9} />
                 </div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[18px] font-bold text-[#0d2315]">Teacher</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[18px] font-bold text-[#0d2315]">Teacher</div>
                 <p className="mb-[16px] text-[11.5px] leading-[1.6] text-[#5f6e65]">
                   Signing up on your own, whether or not your school is on FutureRealm yet.
                 </p>
@@ -734,12 +713,12 @@ export function OnboardingWizard() {
             <circle cx="360" cy="120" r="180" stroke="rgba(255,255,255,0.05)" strokeWidth="1" fill="none" />
             <path d="M-40 800 Q 140 700 300 780 T 600 720" stroke="rgba(255,255,255,0.06)" strokeWidth="1.4" fill="none" />
           </svg>
-          <div className="relative z-[1]">
-            <span className="mb-10 block font-[var(--font-heading)] text-base font-extrabold text-white">FutureRealm SMS</span>
+          <div className="relative z-1">
+            <span className="mb-10 block font-(--font-heading) text-base font-extrabold text-white">FutureRealm SMS</span>
             <div className="mb-[7px] text-[9.5px] font-bold tracking-[0.08em] text-[rgba(255,255,255,0.45)]">
               {admin ? "SCHOOL ADMINISTRATOR SIGNUP" : "TEACHER SIGNUP"}
             </div>
-            <div className="mb-8 font-[var(--font-heading)] text-[20.5px] font-bold leading-[1.25] text-white">
+            <div className="mb-8 font-(--font-heading) text-[20.5px] font-bold leading-tight text-white">
               {admin ? "Your school, live in under a minute." : "Your own teaching workspace, free forever."}
             </div>
             <div className="flex flex-col gap-0.5">
@@ -771,14 +750,14 @@ export function OnboardingWizard() {
                       <div className="text-[13px] font-semibold" style={{ color: current || done ? "#fff" : "rgba(255,255,255,0.55)" }}>
                         {s.label}
                       </div>
-                      <div className="mt-[3px] text-[11.5px] leading-[1.5] text-[rgba(255,255,255,0.42)]">{s.sub}</div>
+                      <div className="mt-[3px] text-[11.5px] leading-normal text-[rgba(255,255,255,0.42)]">{s.sub}</div>
                     </div>
                   </div>
                 );
               })}
             </div>
           </div>
-          <div className="relative z-[1] rounded-[13px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-[14.5px] py-[13.5px]">
+          <div className="relative z-1 rounded-[13px] border border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.06)] px-[14.5px] py-[13.5px]">
             <p className="text-[10.5px] leading-[1.55] text-[rgba(255,255,255,0.8)]">
               {admin
                 ? "Nothing here waits for approval. When you finish, your school exists, your address is live, and you are signed in."
@@ -803,7 +782,7 @@ export function OnboardingWizard() {
           <div className="max-w-[718px] flex-1 px-6 py-[23.5px] sm:px-[39.5px]">
             {step === 1 ? (
               <div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About you</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About you</div>
                 <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   {admin
                     ? "Instant — no human approval stands between you and a working school."
@@ -888,7 +867,7 @@ export function OnboardingWizard() {
 
             {step === 2 && admin ? (
               <div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About your school</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">About your school</div>
                 <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   Your short name becomes your permanent web address — the one every invitation email will carry.
                 </p>
@@ -917,12 +896,12 @@ export function OnboardingWizard() {
                         <input
                           value={slug}
                           onChange={(e) => setSlug(slugify(e.target.value))}
-                          className="w-[150px] min-w-0 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-none"
+                          className="w-[150px] min-w-0 border-none bg-transparent text-[12px] font-semibold text-[#0d2315] outline-hidden"
                           placeholder="powerhouse"
                         />
                         <span className="text-[12px] text-[#5f6e65]">.futurerealm.school</span>
                       </div>
-                      <div className="mt-1.5 text-[10px] leading-[1.5] text-[#5f6e65]">{slugState.note}</div>
+                      <div className="mt-1.5 text-[10px] leading-normal text-[#5f6e65]">{slugState.note}</div>
                     </label>
                     <label>
                       {fieldLabel("Country", false, true)}
@@ -1075,7 +1054,7 @@ export function OnboardingWizard() {
 
             {step === 2 && !admin ? (
               <div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">What you teach</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">What you teach</div>
                 <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   Tell us what you teach and we build your gradebook around it. Your school is optional — the rest we
                   need.
@@ -1181,7 +1160,7 @@ export function OnboardingWizard() {
                       placeholder="Any subject not listed — Kiswahili, Sanskrit, Design Technology — separate with commas"
                     />
                   )}
-                  <div className="mt-1.5 text-[10px] leading-[1.5] text-[#5f6e65]">
+                  <div className="mt-1.5 text-[10px] leading-normal text-[#5f6e65]">
                     Type as many as you like, separated by commas. Each one becomes a gradebook you can open on day
                     one.
                   </div>
@@ -1243,7 +1222,7 @@ export function OnboardingWizard() {
 
             {step === 3 ? (
               <div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Create your password</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Create your password</div>
                 <p className="mb-[25px] text-[12px] text-[#5f6e65]">
                   Minimum 8 characters with letters and numbers. No forced special characters.
                 </p>
@@ -1256,7 +1235,7 @@ export function OnboardingWizard() {
                         type={showPassword ? "text" : "password"}
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
-                        className="min-w-0 flex-1 border-none bg-transparent text-[12px] text-[#0d2315] outline-none"
+                        className="min-w-0 flex-1 border-none bg-transparent text-[12px] text-[#0d2315] outline-hidden"
                         placeholder="Choose a password"
                       />
                       <button type="button" onClick={() => setShowPassword((v) => !v)} className="shrink-0 text-[#b4c4bb] hover:text-[#435048]">
@@ -1304,7 +1283,7 @@ export function OnboardingWizard() {
 
             {step === 4 && admin ? (
               <div>
-                <div className="mb-[5.5px] font-[var(--font-heading)] text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 1-month free trial</div>
+                <div className="mb-[5.5px] font-(--font-heading) text-[24.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Start your 1-month free trial</div>
                 <p className="mb-[25px] text-[12px] text-[#5f6e65]">Every feature unlocked. No card required. No charge at the end.</p>
                 <div className="grid gap-4 sm:grid-cols-[1.15fr_0.85fr]">
                   <div className="relative overflow-hidden rounded-[18px] p-[23.5px]" style={{ background: "#0d2315" }}>
@@ -1313,7 +1292,7 @@ export function OnboardingWizard() {
                         <span className="h-1.5 w-1.5 rounded-full" style={{ background: "#3ee08a" }} />
                         <span className="text-[9.5px] font-bold tracking-[0.06em] text-white">30 DAYS · EVERY FEATURE</span>
                       </div>
-                      <div className="mb-3.5 font-[var(--font-heading)] text-[20px] font-bold leading-[1.3] text-white">
+                      <div className="mb-3.5 font-(--font-heading) text-[20px] font-bold leading-[1.3] text-white">
                         A whole term, end to end — attendance marked, scores approved, report cards issued and fees reconciled, with parents told the moment anything changes.
                       </div>
                       <div className="mb-6 text-[11.5px] leading-[1.6] text-[rgba(255,255,255,0.6)]">
@@ -1329,7 +1308,7 @@ export function OnboardingWizard() {
                           Not yet
                         </button>
                       </div>
-                      <div className="mt-3 text-[10px] leading-[1.5] text-[rgba(255,255,255,0.5)]">
+                      <div className="mt-3 text-[10px] leading-normal text-[rgba(255,255,255,0.5)]">
                         Choosing &ldquo;Not yet&rdquo; still creates your school. The 30 days only begin when you start them from your dashboard.
                       </div>
                     </div>
@@ -1341,7 +1320,7 @@ export function OnboardingWizard() {
                       {AUTO_SETUP_ADMIN.map((line) => (
                         <div key={line} className="flex items-start gap-[9px]">
                           <Check className="mt-[3px] h-[11.5px] w-[11.5px] shrink-0" style={{ color: "#12796a" }} strokeWidth={2.6} />
-                          <div className="text-[11px] leading-[1.5] text-[#435048]">{line}</div>
+                          <div className="text-[11px] leading-normal text-[#435048]">{line}</div>
                         </div>
                       ))}
                     </div>
@@ -1401,7 +1380,7 @@ export function OnboardingWizard() {
           <div className="mx-auto mb-[20px] flex h-[57.5px] w-[57.5px] items-center justify-center rounded-full border border-[#bfe3cd]" style={{ background: "#edf7f1" }}>
             <Check className="h-[27px] w-[27px]" style={{ color: "#12796a" }} strokeWidth={2.4} />
           </div>
-          <div className="mb-[7px] font-[var(--font-heading)] text-[22.5px] font-bold tracking-[-0.015em] text-[#0d2315]">
+          <div className="mb-[7px] font-(--font-heading) text-[22.5px] font-bold tracking-[-0.015em] text-[#0d2315]">
             {doneRole === "admin" ? `${schoolName || "Your school"} is live.` : "Your workspace is ready."}
           </div>
           <p className="mx-auto mb-[23px] max-w-[378px] text-[12px] leading-[1.65] text-[#5f6e65]">
@@ -1457,14 +1436,14 @@ export function OnboardingWizard() {
   return (
     <div className="flex min-h-screen flex-col text-[#0d2315]" style={{ background: "#f4f8f6" }}>
       <div className="px-6 py-[22px] sm:px-12">
-        <span className="font-[var(--font-heading)] text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
+        <span className="font-(--font-heading) text-lg font-extrabold text-[#0d2315]">FutureRealm SMS</span>
       </div>
       <div className="flex flex-1 items-center justify-center px-6 py-10 sm:px-10">
         <div className="w-full max-w-[414px] rounded-[20px] border border-[#dee8e2] bg-white px-[30.5px] pt-[30.5px] pb-[27px] shadow-[0_30px_70px_-50px_rgba(13,35,21,0.5)]">
           <div className="mb-5 flex h-[41.5px] w-[41.5px] items-center justify-center rounded-[13px]" style={{ background: "#eaf0ec" }}>
             <Mail className="h-[19px] w-[19px] text-[#0d2315]" strokeWidth={1.9} />
           </div>
-          <div className="mb-[5.5px] font-[var(--font-heading)] text-[20.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Verify your email</div>
+          <div className="mb-[5.5px] font-(--font-heading) text-[20.5px] font-bold tracking-[-0.015em] text-[#0d2315]">Verify your email</div>
           <p className="mb-[23.5px] text-[11.5px] leading-[1.6] text-[#5f6e65]">
             Enter the 6-digit code we sent to <b className="text-[#0d2315]">{email}</b>. Valid for 15 minutes · 3
             attempts.
@@ -1477,7 +1456,7 @@ export function OnboardingWizard() {
                 return (
                   <div
                     key={i}
-                    className="flex h-[50px] flex-1 items-center justify-center rounded-[11px] font-[var(--font-heading)] text-[20px] font-bold"
+                    className="flex h-[50px] flex-1 items-center justify-center rounded-[11px] font-(--font-heading) text-[20px] font-bold"
                     style={{
                       color: ch ? "#0d2315" : "#cfddd5",
                       background: "#fff",
@@ -1491,12 +1470,11 @@ export function OnboardingWizard() {
               })}
             </div>
             <input
-              ref={otpInputRef}
+              ref={(node) => { otpInputRef.current = node; focusOnMount(node); }}
               type="text"
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/[^0-9]/g, "").slice(0, 6))}
               inputMode="numeric"
-              autoFocus
               className="absolute inset-0 h-full w-full cursor-pointer border-none bg-transparent opacity-0"
             />
           </div>

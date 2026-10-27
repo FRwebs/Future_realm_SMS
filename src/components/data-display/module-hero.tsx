@@ -20,16 +20,16 @@ interface ModuleHeroProps {
 export function ModuleHero({ eyebrow, title, description, action }: ModuleHeroProps) {
   return (
     <section className="relative mb-[18px] overflow-hidden rounded-[20px] bg-[#0d2315] px-[27px] py-[23.5px] shadow-[0_18px_39.5px_-27px_rgba(13,35,21,0.8)]">
-      <div className="pointer-events-none absolute -right-[81px] -top-[135px] h-[342px] w-[342px] rounded-full border border-[rgba(95,214,180,0.12)]" />
-      <div className="pointer-events-none absolute -right-[18px] -top-[72px] h-[216px] w-[216px] rounded-full border border-[rgba(95,214,180,0.08)]" />
-      <div className="pointer-events-none absolute -bottom-[144px] -left-[63px] h-[252px] w-[252px] rounded-full border border-white/5" />
+      <div className="pointer-events-none absolute right-[-81px] top-[-135px] h-[342px] w-[342px] rounded-full border border-[rgba(95,214,180,0.12)]" />
+      <div className="pointer-events-none absolute right-[-18px] top-[-72px] h-[216px] w-[216px] rounded-full border border-[rgba(95,214,180,0.08)]" />
+      <div className="pointer-events-none absolute bottom-[-144px] left-[-63px] h-[252px] w-[252px] rounded-full border border-white/5" />
       <div className="relative flex flex-col items-start gap-4 md:flex-row md:items-center md:justify-between md:gap-[25px]">
         <div className="min-w-0 md:max-w-[594px]">
           <div className="mb-[10px] flex items-center gap-[8px]">
             <span className="h-[4.5px] w-[4.5px] shrink-0 rounded-full bg-[#5FD6B4]" />
             <span className="whitespace-nowrap text-[9.5px] font-bold uppercase tracking-[0.15em] text-white/55">{eyebrow}</span>
           </div>
-          <h1 className="text-pretty font-[var(--font-heading)] text-[26px] font-extrabold leading-[1.08] tracking-[-0.028em] text-white">
+          <h1 className="text-pretty font-(--font-heading) text-[26px] font-extrabold leading-[1.08] tracking-[-0.028em] text-white">
             {title}
           </h1>
           <p className="mt-[8px] max-w-3xl text-pretty text-[12px] leading-[1.55] text-[rgba(255,255,255,0.62)]">{description}</p>

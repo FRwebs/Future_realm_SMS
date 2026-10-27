@@ -13,7 +13,7 @@ type View = { tiers: Array<{ tier: string; schools: number }>; features: Feature
 const LABEL: Record<string, string> = { BASIC: "Basic", STANDARD: "Standard", PROFESSIONAL: "Professional", ENTERPRISE: "Enterprise", CUSTOM: "Custom" };
 
 function check(on: boolean) {
-  return on ? <span className="font-bold text-[var(--color-success)]">✓</span> : <span className="text-[var(--color-danger)]">✕</span>;
+  return on ? <span className="font-bold text-(--color-success)">✓</span> : <span className="text-danger">✕</span>;
 }
 
 export function FeatureMatrixTable({ view, actions }: { view: View; actions: ReactNode }) {
@@ -54,8 +54,8 @@ export function FeatureMatrixTable({ view, actions }: { view: View; actions: Rea
           header: "Feature",
           render: (item) => (
             <div>
-              <p className="font-semibold text-[var(--color-text-primary)]">{item.name} <span className="text-[10px] font-normal text-[var(--color-text-muted)]">v{item.version}</span></p>
-              <p className="text-[10px] text-[var(--color-text-muted)]">{item.enforcedAt ? `Enforced: ${item.enforcedAt}` : "Catalogue only — nothing in the product reads this yet"}</p>
+              <p className="font-semibold text-(--color-text-primary)">{item.name} <span className="text-[10px] font-normal text-(--color-text-muted)">v{item.version}</span></p>
+              <p className="text-[10px] text-(--color-text-muted)">{item.enforcedAt ? `Enforced: ${item.enforcedAt}` : "Catalogue only — nothing in the product reads this yet"}</p>
             </div>
           )
         },

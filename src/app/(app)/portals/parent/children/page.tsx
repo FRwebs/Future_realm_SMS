@@ -23,9 +23,9 @@ export default async function ParentChildrenPage() {
   return (
     <div className="portal-page">
       <section className="surface-hero p-6 md:p-7">
-        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-[var(--color-text-accent)]">Back to parent portal</Link>
-        <h1 className="mt-3 font-[var(--font-heading)] text-[26px] font-black text-[var(--color-text-primary)]">My children</h1>
-        <p className="mt-2 text-[13px] leading-6 text-[var(--color-text-secondary)]">All students linked to your guardian account.</p>
+        <Link href={"/portals/parent" as Route} className="text-[13px] font-semibold text-(--color-text-accent)">Back to parent portal</Link>
+        <h1 className="mt-3 font-(--font-heading) text-[26px] font-black text-(--color-text-primary)">My children</h1>
+        <p className="mt-2 text-[13px] leading-6 text-(--color-text-secondary)">All students linked to your guardian account.</p>
       </section>
 
       <TableCard
@@ -38,10 +38,10 @@ export default async function ParentChildrenPage() {
             header: "Student",
             render: (item) => (
               <div>
-                <Link href={`/portals/parent/children/${item.studentId}` as Route} className="font-semibold text-[var(--color-text-accent)] underline decoration-[var(--color-border-strong)] underline-offset-4">
+                <Link href={`/portals/parent/children/${item.studentId}` as Route} className="font-semibold text-(--color-text-accent) underline decoration-(--color-border-strong) underline-offset-4">
                   {item.studentName}
                 </Link>
-                <p className="text-xs text-[var(--color-text-muted)]">{item.admissionNumber ?? item.studentId}</p>
+                <p className="text-xs text-(--color-text-muted)">{item.admissionNumber ?? item.studentId}</p>
               </div>
             )
           },

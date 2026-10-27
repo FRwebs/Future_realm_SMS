@@ -5,7 +5,7 @@ import type { FormField } from "@/lib/modules/panels";
 import { CARD_BORDER, MUTED } from "@/lib/modules/tones";
 
 const CONTROL =
-  "w-full min-w-0 rounded-[10px] border-[1.5px] px-[11.5px] py-[10px] text-[12px] font-medium leading-normal text-[#0D2315] outline-none min-h-[38px] box-border focus:border-[#12796A]";
+  "w-full min-w-0 rounded-[10px] border-[1.5px] px-[11.5px] py-[10px] text-[12px] font-medium leading-normal text-[#0D2315] outline-hidden min-h-[38px] box-border focus:border-[#12796A]";
 
 import { cn } from "@/lib/utils/cn";
 
@@ -96,14 +96,14 @@ export function Field({
     <p className="mt-[5px] text-[10px] leading-[1.45] text-[#6B7A71]">{field.hint}</p>
   ) : null;
 
-  const wrap = cn("min-w-0", field.span === 2 && "col-[1/-1]");
+  const wrap = cn("min-w-0", field.span === 2 && "col-span-full");
 
   if (field.kind === "static") {
     const picked = field.by ? field.by.cases[String(values?.[field.by.field] ?? "")] : undefined;
     return (
       <div className={wrap}>
         {label}
-        <p className="text-pretty pt-[2px] text-[11.5px] font-semibold leading-[1.5] text-[#0D2315]">
+        <p className="text-pretty pt-[2px] text-[11.5px] font-semibold leading-normal text-[#0D2315]">
           {picked?.value ?? field.value}
         </p>
         {picked?.hint ?? field.hint ? (

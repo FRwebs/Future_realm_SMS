@@ -165,11 +165,11 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
           </div>
           {audience !== "all" ? (
             <div className="grid gap-[8px]">
-              <input value={find} onChange={(event) => setFind(event.target.value)} placeholder="Search by guardian or child" aria-label="Search families" className="w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11.5px] py-[9px] text-[12px] outline-none focus:border-[#12796A]" style={{ borderColor: CARD_BORDER, color: INK }} />
+              <input value={find} onChange={(event) => setFind(event.target.value)} placeholder="Search by guardian or child" aria-label="Search families" className="w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11.5px] py-[9px] text-[12px] outline-hidden focus:border-[#12796A]" style={{ borderColor: CARD_BORDER, color: INK }} />
               <div className="grid max-h-[220px] gap-[4px] overflow-y-auto rounded-[10px] border p-[6px]" style={{ borderColor: CARD_BORDER }}>
                 {shown.length ? shown.map((family) => (
                   <label key={family.id} className="flex cursor-pointer items-center gap-[9px] rounded-[8px] px-[8px] py-[6px] hover:bg-[#F6FAF8]">
-                    <input type={audience === "one" ? "radio" : "checkbox"} name="family" checked={picked.includes(family.id)} onChange={() => toggle(family.id)} />
+                    <input type={audience === "one" ? "radio" : "checkbox"} name="family" aria-label={family.name} checked={picked.includes(family.id)} onChange={() => toggle(family.id)} />
                     <span className="min-w-0 flex-1"><span className="block truncate text-[12px] font-semibold" style={{ color: INK }}>{family.name}</span><span className="block truncate text-[10.5px]" style={{ color: MUTED }}>{family.children.join(", ")}</span></span>
                   </label>
                 )) : <p className="px-[8px] py-[6px] text-[11.5px]" style={{ color: MUTED }}>No family matches that.</p>}
@@ -202,14 +202,14 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
                   {MERGE_FIELDS.map((field) => <button key={field} type="button" onClick={() => insert(field)} className="rounded-full border px-[8px] py-[2px] text-[10px] font-bold" style={{ borderColor: CARD_BORDER, color: "#12796A", background: "#fff" }}>{`{${field}}`}</button>)}
                 </span>
               </span>
-              <textarea ref={box} value={body} onChange={(event) => setBody(event.target.value)} rows={5} placeholder="Dear {Guardian}, …" aria-label="Message" className="min-h-[110px] w-full min-w-0 resize-y rounded-[10px] border-[1.5px] bg-white px-[11.5px] py-[10px] text-[12px] font-medium leading-[1.55] outline-none focus:border-[#12796A]" style={{ borderColor: CARD_BORDER, color: INK }} />
+              <textarea ref={box} value={body} onChange={(event) => setBody(event.target.value)} rows={5} placeholder="Dear {Guardian}, …" aria-label="Message" className="min-h-[110px] w-full min-w-0 resize-y rounded-[10px] border-[1.5px] bg-white px-[11.5px] py-[10px] text-[12px] font-medium leading-[1.55] outline-hidden focus:border-[#12796A]" style={{ borderColor: CARD_BORDER, color: INK }} />
               <span className="flex flex-wrap items-center justify-between gap-[6px] text-[10.5px]" style={{ color: unknown.length ? "#B23B3B" : MUTED }}>
                 <span>{unknown.length ? `${unknown.map((name) => `{${name}}`).join(", ")} ${unknown.length === 1 ? "is not a merge field" : "are not merge fields"} — use {"{Guardian}"}, {"{Child}"} or {"{Class}"}.` : "Families see this from the school, and replies reach the office."}</span>
                 <span>{[...body].length} characters{channel === "SMS" && parts > 1 ? ` · ${parts} parts` : ""}</span>
               </span>
             </div>
             <label className="flex cursor-pointer items-start gap-[9px] rounded-[10px] border px-[12px] py-[10px]" style={{ borderColor: CARD_BORDER }}>
-              <input type="checkbox" checked={ack} onChange={(event) => setAck(event.target.checked)} className="mt-[2px]" />
+              <input type="checkbox" aria-label="Ask families to acknowledge" checked={ack} onChange={(event) => setAck(event.target.checked)} className="mt-[2px]" />
               <span><span className="block text-[12px] font-semibold" style={{ color: INK }}>Ask families to acknowledge</span><span className="block text-[10.5px]" style={{ color: MUTED }}>{ack ? "A reply is asked for — you will see who has acknowledged in Sent." : "No reply needed."}</span></span>
             </label>
             {message ? <p className="rounded-[9px] px-[11px] py-[9px] text-[11.5px]" style={{ background: message.startsWith("Saved") ? toneOf("positive").bg : "#FDF3F3", color: message.startsWith("Saved") ? toneOf("positive").fg : "#B23B3B" }}>{message}</p> : null}
@@ -239,7 +239,7 @@ export function MessageComposer({ arms, families, wallet, threshold, sender, sms
 
         <section className={`${PANEL_SHELL} pb-[16px]`} style={{ borderColor: CARD_BORDER }}>
           <PanelHeader title="Before it leaves" sub="The cost is shown before every send, whatever the audience." tag={`${credits} credit${credits === 1 ? "" : "s"}`} tagTone={credits ? "attention" : "positive"} openDrawer={noop} />
-          <dl className="grid gap-[0px] px-[16px]">
+          <dl className="grid gap-0 px-[16px]">
             {([
               ["Recipients", String(reach), audience === "all" ? everyone : audience === "one" ? "One family" : "Selected families"],
               ["Channel", channelName, channel === "SMS" ? "1 credit for each part of the message" : "Free"],

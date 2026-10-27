@@ -21,6 +21,7 @@ export default defineConfig({
   test: {
     environment: "node",
     globals: true,
+    setupFiles: ["./tests/setup/dom.ts"],
     exclude: [
       "**/node_modules/**",
       "**/dist/**",
