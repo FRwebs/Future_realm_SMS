@@ -357,7 +357,7 @@ export function AllocationBuilder({
           <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
             What this list is
           </h2>
-          <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#67766D]">
+          <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#5E6D64]">
             Five answers. Everything else is the items themselves.
           </p>
         </div>
@@ -384,7 +384,7 @@ export function AllocationBuilder({
             <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
               The list itself
             </h2>
-            <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#67766D]">
+            <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#5E6D64]">
               Tick the categories this list covers, then fill each one.
             </p>
           </div>
@@ -456,7 +456,7 @@ export function AllocationBuilder({
                     <span className="text-[12px] font-bold" style={{ color: swatch.fg }}>
                       {cat}
                     </span>
-                    <span className="text-[10.5px] text-[#67766D]">
+                    <span className="text-[10.5px] text-[#5E6D64]">
                       {own.length} {own.length === 1 ? "item" : "items"}
                     </span>
                   </div>
@@ -569,7 +569,7 @@ export function AllocationBuilder({
               <div className="mt-[3px] font-(family-name:--font-heading) text-[17px] font-extrabold tracking-[-0.02em] text-[#0D2315]">
                 {value}
               </div>
-              <div className="mt-[2px] text-pretty text-[10px] leading-[1.45] text-[#67766D]">{hint}</div>
+              <div className="mt-[2px] text-pretty text-[10px] leading-[1.45] text-[#5E6D64]">{hint}</div>
             </div>
           ))}
         </div>

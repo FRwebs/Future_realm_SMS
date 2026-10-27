@@ -247,7 +247,7 @@ export default async function SuperAdminUserProfilePage({ params }: { params: Pr
         columns={[
           { key: "started", header: "Started", render: (item) => <span className="font-semibold text-[#0D2315]">{formatDate(item.startedAt)}</span> },
           { key: "activity", header: "Last activity", render: (item) => <span className="text-[#5f6e65]">{ago(item.lastActivityAt)}</span> },
-          { key: "device", header: "Device", render: (item) => <span className="inline-flex items-center gap-[7px]"><Monitor className="h-3 w-3 text-[#9FB8A7]" />{deviceLabel(item.device)}</span> },
+          { key: "device", header: "Device", render: (item) => <span className="inline-flex items-center gap-[7px]"><Monitor className="h-3 w-3 text-[#5E6D64]" />{deviceLabel(item.device)}</span> },
           { key: "ip", header: "IP address", render: (item) => <span className="text-[#5f6e65]">{item.ipAddress ?? "Unknown"}</span> },
           { key: "status", header: "Status", render: (item) => <span className="inline-block whitespace-nowrap rounded-full px-2 py-[2.5px] text-[10px] font-bold" style={item.active ? { background: "#EAF6F0", color: "#17714F" } : { background: "#F1F4F2", color: "#5C6A62" }}>{item.active ? "Live" : "Ended"}</span> }
         ]}

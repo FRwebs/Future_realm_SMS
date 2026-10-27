@@ -1,4 +1,4 @@
-const solid: Record<string, string> = { good: "#22A06B", warn: "#D9A22C", bad: "#DB5555", teal: "#12796A", mute: "#9FB8A7", info: "#2B5F8F", ink: "#0D2315", mid: "#4FA898", soft: "#A9D6C9" };
+const solid: Record<string, string> = { good: "#22A06B", warn: "#D9A22C", bad: "#DB5555", teal: "#12796A", mute: "#5E6D64", info: "#2B5F8F", ink: "#0D2315", mid: "#4FA898", soft: "#A9D6C9" };
 
 export type BarItem = { label: string; value: string; pct: number; tone: "good" | "warn" | "bad" | "teal" | "mute" | "ink" | "mid" | "soft"; note?: string };
 
@@ -20,7 +20,7 @@ export function BarList({ title, sub, items, empty, footer }: { title: string; s
             <div className="h-2 overflow-hidden rounded-full bg-[#EDF3EF]">
               <div className="h-full rounded-full" style={{ width: `${Math.max(2, Math.min(100, item.pct))}%`, background: solid[item.tone] }} />
             </div>
-            {item.note ? <p className="mt-[5px] text-[11px] text-[#9FB8A7]">{item.note}</p> : null}
+            {item.note ? <p className="mt-[5px] text-[11px] text-[#5E6D64]">{item.note}</p> : null}
           </div>
         ))}
         {items.length === 0 ? <p className="mt-[14px] text-[12.5px] text-[#5f6e65]">{empty ?? "Nothing to show yet."}</p> : null}

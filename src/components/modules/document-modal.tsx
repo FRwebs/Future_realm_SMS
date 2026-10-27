@@ -104,7 +104,7 @@ export function DocumentModal({ spec, onClose, onSwap }: { spec: DrawerSpec; onC
         </div>
 
         <div data-print-hide="true" className="flex flex-none flex-wrap items-center justify-between gap-[14px] border-t border-[#EDF3EF] bg-[#FBFDFC] px-5 py-[13px]">
-          <p className="max-w-[340px] text-pretty text-[10.5px] leading-[1.45] text-[#67766D]">{doc.note}</p>
+          <p className="max-w-[340px] text-pretty text-[10.5px] leading-[1.45] text-[#5E6D64]">{doc.note}</p>
           <div className="flex flex-none flex-wrap items-center gap-2">{(doc.acts ?? []).map(act)}</div>
         </div>
       </div>

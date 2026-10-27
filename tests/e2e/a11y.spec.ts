@@ -85,3 +85,54 @@ test.describe("signed-in screens", () => {
     await expect(opener).toBeFocused();
   });
 });
+
+/**
+ * A walk across more of each role's screens. Each is opened as that person and scanned once it has settled; the list is the screens that
+ * carry the most distinct components (tables, tinted notices, forms, calendars, toggles), not every route.
+ */
+const WALK: Array<{ who: string; email: string; paths: string[] }> = [
+  {
+    who: "proprietor",
+    email: "proprietor@greenfieldcollege.ng",
+    paths: [
+      "/command-center/oversight", "/school-configuration/calendar", "/class-timetable/timetable", "/attendance/compliance", "/score-entry-results/review",
+      "/staff-access/directory", "/staff-access/payroll", "/parents-guardians/submissions", "/fee-management/review", "/subscription-billing/credits",
+      "/communication-center/automation", "/analytics-reports/insights", "/audit-security/monitoring", "/account/preferences",
+    ],
+  },
+  { who: "teacher", email: "teacher@greenfieldcollege.ng", paths: ["/command-center/today", "/lesson-notes/notes", "/attendance/mark", "/score-entry-results/enter", "/account/security"] },
+  {
+    who: "student",
+    email: "std-ss3-04@students.greenfieldcollege.ng",
+    paths: ["/portals/student/today", "/portals/student/subjects", "/portals/student/attendance", "/portals/student/calendar", "/portals/student/messages", "/portals/student/account"],
+  },
+  {
+    who: "parent",
+    email: "kemi-adeyemi-0001@parents.greenfieldcollege.ng",
+    paths: ["/portals/parent/children", "/portals/parent/messages", "/portals/parent/profile", "/portals/parent/tell-the-school"],
+  },
+  {
+    who: "platform admin",
+    email: "admin@futurerealm.sms",
+    paths: ["/super-admin", "/super-admin/communications", "/super-admin/profile", "/super-admin/standards", "/super-admin/feature-flags", "/super-admin/internal-team"],
+  },
+];
+
+test.describe("walk across each role's screens", () => {
+  test.describe.configure({ timeout: 240_000 });
+  for (const { who, email, paths } of WALK) {
+    test(`${who}: ${paths.length} screens have no serious violations`, async ({ page }) => {
+      await signIn(page, email);
+      const problems: string[] = [];
+      for (const path of paths) {
+        await page.goto(path, { waitUntil: "load", timeout: 60_000 });
+        await page.waitForLoadState("networkidle", { timeout: 20_000 }).catch(() => undefined);
+        // A page fades its content in; scanning mid-fade reads half-transparent text as low contrast.
+        await page.waitForTimeout(1500);
+        const found = await serious(page);
+        if (found.length) problems.push(`${path}\n  ${found.join("\n  ")}`);
+      }
+      expect(problems).toEqual([]);
+    });
+  }
+});

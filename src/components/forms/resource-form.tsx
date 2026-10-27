@@ -170,7 +170,7 @@ function PickerBody({ field, picked, onChange }: { field: ResourceField; picked:
           placeholder="Search"
           style={{ flex: 1, minWidth: 0, fontSize: 11.5, border: "none", outline: "none", background: "transparent", color: "#0D2315" }}
         />
-        <span style={{ fontSize: 10.5, fontWeight: 600, color: picked.length ? "#12796A" : "#8C9A92", whiteSpace: "nowrap" }}>{picked.length ? `${picked.length} chosen` : "None chosen"}</span>
+        <span style={{ fontSize: 10.5, fontWeight: 600, color: picked.length ? "#12796A" : "#5E6D64", whiteSpace: "nowrap" }}>{picked.length ? `${picked.length} chosen` : "None chosen"}</span>
         {picked.length ? (
           <button type="button" onClick={() => setPicked([])} style={{ fontSize: 10.5, fontWeight: 600, color: "#5f6e65", background: "none", border: "none", cursor: "pointer" }}>
             Clear
@@ -536,7 +536,7 @@ export function ResourceForm({
                         </svg>
                         <div style={{ minWidth: 0 }}>
                           <div style={{ fontSize: 11, fontWeight: 600, color: "#77857C", textWrap: "pretty" }}>{field.label}</div>
-                          {field.placeholder || field.note ? <div style={{ fontSize: 10, color: "#9FB8A7", marginTop: 2, lineHeight: 1.45, textWrap: "pretty" }}>{[field.placeholder, field.note].filter(Boolean).join(" — ")}</div> : null}
+                          {field.placeholder || field.note ? <div style={{ fontSize: 10, color: "#5E6D64", marginTop: 2, lineHeight: 1.45, textWrap: "pretty" }}>{[field.placeholder, field.note].filter(Boolean).join(" — ")}</div> : null}
                         </div>
                       </div>
                     ))}
@@ -690,7 +690,7 @@ export function ResourceForm({
                                   <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
                                 </svg>
                               ) : isSelect ? (
-                                <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round" style={{ flex: "none" }}>
+                                <svg width="12.5" height="12.5" viewBox="0 0 24 24" fill="none" stroke="#5E6D64" strokeWidth="2.2" strokeLinecap="round" style={{ flex: "none" }}>
                                   <path d="m6 9 6 6 6-6" />
                                 </svg>
                               ) : null}
@@ -855,7 +855,7 @@ export function ResourceForm({
               <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 7, flexWrap: "wrap" }}>
                 {recorded.before ? <span style={{ fontSize: 10.5, color: "#5f6e65", background: "#F4F8F6", border: "1px solid #EDF3EF", borderRadius: 7, padding: "2px 7px" }}>{recorded.before}</span> : null}
                 {recorded.before && recorded.after ? (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="2.2" strokeLinecap="round">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#5E6D64" strokeWidth="2.2" strokeLinecap="round">
                     <path d="M5 12h13M13.5 7l5 5-5 5" />
                   </svg>
                 ) : null}
@@ -863,7 +863,7 @@ export function ResourceForm({
               </div>
             ) : null}
             <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 10, paddingTop: 10, borderTop: "1px solid #E6EEE9" }}>
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8C9A92" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#5E6D64" strokeWidth="1.9" strokeLinecap="round" style={{ flex: "none" }}>
                 <rect x="5" y="10.5" width="14" height="9.5" rx="2.2" />
                 <path d="M8.5 10.5V8a3.5 3.5 0 0 1 7 0v2.5" />
               </svg>

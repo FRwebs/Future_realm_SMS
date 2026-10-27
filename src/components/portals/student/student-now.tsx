@@ -29,7 +29,7 @@ export function StudentNow({ live, label, when, subject, who, topic, acts, later
       <div className="grid gap-[18px] p-[18px] sm:p-[22px] lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
         <div className="min-w-0">
           <span className="inline-flex items-center gap-[7px] rounded-full px-[10px] py-[4px] text-[10px] font-extrabold uppercase tracking-[0.08em]" style={{ background: live ? "#3EE08A" : "rgba(255,255,255,0.14)", color: live ? "#0D2315" : "#fff" }}>
-            <span className="h-[6px] w-[6px] flex-none rounded-full" style={{ background: live ? "#0D2315" : "#9FB8A7" }} />
+            <span className="h-[6px] w-[6px] flex-none rounded-full" style={{ background: live ? "#0D2315" : "#5E6D64" }} />
             {label}
           </span>
           <p className="mt-[10px] text-[11px]" style={{ color: "rgba(255,255,255,0.7)" }}>{when}</p>

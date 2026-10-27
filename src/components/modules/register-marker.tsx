@@ -300,7 +300,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
                               title={choice.label}
                               onClick={() => set(student.id, choice.value)}
                               className="flex min-w-[28px] items-center justify-center rounded-[7px] border px-[8px] py-[5px] text-[10.5px] font-bold disabled:cursor-not-allowed"
-                              style={{ borderColor: on ? swatch.dot : "#DEE8E2", background: on ? swatch.dot : "#fff", color: on ? "#fff" : "#67766D" }}
+                              style={{ borderColor: on ? swatch.dot : "#DEE8E2", background: on ? swatch.dot : "#fff", color: on ? "#fff" : "#5E6D64" }}
                             >
                               {choice.short}
                             </button>

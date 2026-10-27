@@ -97,7 +97,7 @@ function Ribbon({ weeks, selected, onPick, current }: { weeks: SchemeWeek[]; sel
         return (
           <button key={week.week} type="button" disabled={week.kind === "pre"} onClick={() => onPick(week.week)} title={`Week ${week.week} · ${week.dates}${week.topic ? ` · ${week.topic}` : ""}${week.short ? " · short week" : ""}`} className="flex min-w-0 cursor-pointer flex-col gap-[5px] disabled:cursor-default">
             <span className="block h-[9px] rounded-[3px]" style={{ backgroundColor: colour, backgroundImage: week.short ? `repeating-linear-gradient(135deg, ${colour} 0 4px, #fff 4px 6px)` : undefined, boxShadow: on ? "0 0 0 2px #fff, 0 0 0 3.5px #0D2315" : undefined }} />
-            <span className="text-center text-[9.5px] tabular-nums" style={{ fontWeight: on ? 800 : 600, color: on ? INK : current === week.week ? "#12796A" : "#8C9A92" }}>W{week.week}</span>
+            <span className="text-center text-[9.5px] tabular-nums" style={{ fontWeight: on ? 800 : 600, color: on ? INK : current === week.week ? "#12796A" : "#5E6D64" }}>W{week.week}</span>
           </button>
         );
       })}
@@ -355,7 +355,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
                 <div className="flex flex-wrap items-center gap-3">
                   {legend.map(([label, status, striped]) => (
                     <span key={label} className="flex items-center gap-[5px] whitespace-nowrap text-[10px]" style={{ color: "#5F6E65" }}>
-                      <span className="h-[7px] w-[10px] flex-none rounded-[2px]" style={{ backgroundColor: BAR[status], backgroundImage: striped ? "repeating-linear-gradient(135deg, #9FB8A7 0 3px, #fff 3px 5px)" : undefined }} />{label}
+                      <span className="h-[7px] w-[10px] flex-none rounded-[2px]" style={{ backgroundColor: BAR[status], backgroundImage: striped ? "repeating-linear-gradient(135deg, #5E6D64 0 3px, #fff 3px 5px)" : undefined }} />{label}
                     </span>
                   ))}
                 </div>
@@ -388,7 +388,7 @@ function Workspace({ overview, scheme, initialWeek }: WorkspaceProps) {
                             {editing ? (
                               <input className="min-h-[30px] w-full min-w-0 rounded-[8px] border bg-white px-[9px] py-[6px] text-[11.5px] font-semibold outline-hidden focus:border-[#12796A]" style={{ color: INK, borderColor: free && !entry.topic ? "#C2D2C8" : marked ? "#BFDCD1" : CARD_BORDER, borderStyle: free && !entry.topic ? "dashed" : "solid" }} value={entry.topic} placeholder={free ? `Name a topic for week ${entry.week}` : `Topic for week ${entry.week}`} onClick={(event) => event.stopPropagation()} onFocus={() => setSelected(entry.week)} onChange={(event) => patch(index, { topic: event.target.value })} aria-label={`Week ${entry.week} topic`} />
                             ) : (
-                              <span className="block truncate text-[11.5px]" style={{ color: free ? "#8C9A92" : INK, fontWeight: free ? 500 : 600, fontStyle: free ? "italic" : undefined }}>{free ? "Free week · no topic yet" : entry.topic || "Untitled week"}</span>
+                              <span className="block truncate text-[11.5px]" style={{ color: free ? "#5E6D64" : INK, fontWeight: free ? 500 : 600, fontStyle: free ? "italic" : undefined }}>{free ? "Free week · no topic yet" : entry.topic || "Untitled week"}</span>
                             )}
                             <span className="mt-0.5 block truncate text-[10px]" style={{ color: MUTED }}>{entry.dates}{entry.subtopics.length ? ` · ${entry.subtopics.length} sub-topic${entry.subtopics.length === 1 ? "" : "s"}` : ""}{entry.short ? " · short week" : ""}{entry.periods !== null && entry.periods !== per && !scheme.earlyYears ? ` · ${entry.periods} ${entry.periods === 1 ? "period" : "periods"}` : ""}{marked ? " · changed" : ""}</span>
                           </span>

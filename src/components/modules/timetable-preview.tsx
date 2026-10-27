@@ -16,7 +16,7 @@ const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surf
 const STATE: Record<string, { label: string; dot: string; chip: string }> = {
   RUNNING: { label: "Running now", dot: "#17714F", chip: "border-[#CFE4DB] bg-[#F1F8F4] text-[#17714F]" },
   DRAFT: { label: "Draft", dot: "#2B5FA8", chip: "border-[#CCDCF0] bg-[#F1F6FC] text-[#2B5FA8]" },
-  ARCHIVED: { label: "Archived", dot: "#67766D", chip: "border-[#DEE8E2] bg-[#F7FAF8] text-[#67766D]" },
+  ARCHIVED: { label: "Archived", dot: "#5E6D64", chip: "border-[#DEE8E2] bg-[#F7FAF8] text-[#5E6D64]" },
 };
 
 const GHOST =
@@ -211,7 +211,7 @@ export function TimetablePreview({
         <div className="mb-[13px] flex flex-wrap items-start justify-between gap-3 border-b border-[#EDF3EF] pb-[12px]">
           <div>
             <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">{byTeacher ? teacherName ?? "A teacher" : arm?.name ?? "Choose an arm"}</h2>
-            <p className="mt-[3px] text-[11px] text-[#67766D]">
+            <p className="mt-[3px] text-[11px] text-[#5E6D64]">
               {byTeacher ? `Every period ${teacherName ?? "they"} teach${teacherName ? "es" : ""}, across all arms.` : arm ? `${arm.level}${arm.formMaster ? ` · form master ${arm.formMaster}` : ""}${arm.room ? ` · ${arm.room}` : ""} · ${placed} of ${days.length * lessonPeriods} periods placed` : "No arm has a week in this timetable yet."}
             </p>
           </div>
@@ -230,7 +230,7 @@ export function TimetablePreview({
         </div>
 
         <div className="mb-[10px] flex flex-wrap items-center gap-[6px] print:hidden">
-          <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]">Read by</span>
+          <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]">Read by</span>
           {[["Arm", false], ["Teacher", true]].map(([label, teacher]) => {
             const on = byTeacher === teacher;
             return (
@@ -277,7 +277,7 @@ export function TimetablePreview({
         </div>
 
         {!pool.length ? (
-          <p className="rounded-[11px] border border-dashed border-[#DEE8E2] px-[14px] py-[22px] text-center text-[11.5px] text-[#67766D]">
+          <p className="rounded-[11px] border border-dashed border-[#DEE8E2] px-[14px] py-[22px] text-center text-[11.5px] text-[#5E6D64]">
             No periods are placed in any arm yet. Open the builder to start the week.
           </p>
         ) : (
@@ -285,21 +285,21 @@ export function TimetablePreview({
             <div className="min-w-[640px] overflow-hidden rounded-[11px] border border-[#E6EEE9]">
               <div className="grid gap-px bg-[#E6EEE9]" style={{ gridTemplateColumns: `58px 92px repeat(${days.length}, minmax(0, 1fr))` }}>
                 {["Period", "Time", ...days.map((day) => DAY_NAMES[day - 1])].map((label, index) => (
-                  <div key={label} className={cn("bg-[#F7FAF8] px-[10px] py-[9px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]", index > 1 && "text-center")}>
+                  <div key={label} className={cn("bg-[#F7FAF8] px-[10px] py-[9px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]", index > 1 && "text-center")}>
                     {label}
                   </div>
                 ))}
                 {periods.map((period) =>
                   period.n === "break" ? (
                     <div key={`break-${period.start}`} className="contents">
-                      <div className="bg-[#F7FAF8] px-[10px] py-[7px] text-[10.5px] font-semibold text-[#67766D]">—</div>
-                      <div className="bg-[#F7FAF8] px-[10px] py-[7px] text-[10px] tabular-nums text-[#67766D]">{period.start}–{period.end}</div>
-                      <div className="bg-[#F7FAF8] px-[10px] py-[7px] text-center text-[10.5px] text-[#67766D]" style={{ gridColumn: `span ${days.length}` }}>Break</div>
+                      <div className="bg-[#F7FAF8] px-[10px] py-[7px] text-[10.5px] font-semibold text-[#5E6D64]">—</div>
+                      <div className="bg-[#F7FAF8] px-[10px] py-[7px] text-[10px] tabular-nums text-[#5E6D64]">{period.start}–{period.end}</div>
+                      <div className="bg-[#F7FAF8] px-[10px] py-[7px] text-center text-[10.5px] text-[#5E6D64]" style={{ gridColumn: `span ${days.length}` }}>Break</div>
                     </div>
                   ) : (
                     <div key={`p-${period.n}`} className="contents">
                       <div className="bg-white px-[10px] py-[10px] text-[10.5px] font-semibold text-[#0D2315]">{period.n}</div>
-                      <div className="bg-white px-[10px] py-[10px] text-[10px] tabular-nums text-[#67766D]">{period.start}–{period.end}</div>
+                      <div className="bg-white px-[10px] py-[10px] text-[10px] tabular-nums text-[#5E6D64]">{period.start}–{period.end}</div>
                       {days.map((day) => {
                         if (byTeacher) {
                           const there = teacherCell(day, period.n as number);
@@ -308,7 +308,7 @@ export function TimetablePreview({
                               {there ? (
                                 <>
                                   <p className="truncate text-[11px] font-semibold text-[#243B2E]">{there.subject}</p>
-                                  <p className="mt-px truncate text-[9.5px] text-[#67766D]">{there.arm}</p>
+                                  <p className="mt-px truncate text-[9.5px] text-[#5E6D64]">{there.arm}</p>
                                 </>
                               ) : (
                                 <span className="text-[11px] text-[#C2D2C8]">—</span>
@@ -324,7 +324,7 @@ export function TimetablePreview({
                             {cell ? (
                               <>
                                 <p className={cn("truncate text-[11px] font-semibold", clash ? "text-[#B23B3B]" : "text-[#243B2E]")}>{subject?.name ?? "A subject"}</p>
-                                <p className="mt-px truncate text-[9.5px] text-[#67766D]">{subject?.teacher ?? "No teacher"}</p>
+                                <p className="mt-px truncate text-[9.5px] text-[#5E6D64]">{subject?.teacher ?? "No teacher"}</p>
                               </>
                             ) : (
                               <span className="text-[11px] text-[#C2D2C8]">—</span>
@@ -350,7 +350,7 @@ export function TimetablePreview({
       {panel === "publish" ? (
         <section className={cn(CARD, "p-[18px] print:hidden")}>
           <h3 className="text-[12.5px] font-semibold text-[#0D2315]">Publish {version.name}?</h3>
-          <p className="mt-[4px] text-[11px] leading-normal text-[#67766D]">
+          <p className="mt-[4px] text-[11px] leading-normal text-[#5E6D64]">
             It replaces the running timetable when it takes effect. The one it replaces is archived and can be published again. A timetable with a teacher in two rooms in one period is refused, and the answer names who.
           </p>
           <div className="mt-[12px] grid gap-[10px] sm:grid-cols-2">
@@ -413,7 +413,7 @@ export function TimetablePreview({
       {panel === "copy" ? (
         <section className={cn(CARD, "p-[18px] print:hidden")}>
           <h3 className="text-[12.5px] font-semibold text-[#0D2315]">Make an editable draft from {version.name}</h3>
-          <p className="mt-[4px] text-[11px] leading-normal text-[#67766D]">The running timetable is not changed. The draft is yours to edit and publish when it is ready.</p>
+          <p className="mt-[4px] text-[11px] leading-normal text-[#5E6D64]">The running timetable is not changed. The draft is yours to edit and publish when it is ready.</p>
           <input
             value={copyName}
             onChange={(event) => setCopyName(event.target.value)}
@@ -428,7 +428,7 @@ export function TimetablePreview({
 
       {version.state !== "RUNNING" ? (
         <section className={cn(CARD, "flex flex-wrap items-center justify-between gap-3 p-[14px] print:hidden")}>
-          <p className="text-[11px] text-[#67766D]">Not the running timetable — safe to delete. The record that it existed stays in the publish history.</p>
+          <p className="text-[11px] text-[#5E6D64]">Not the running timetable — safe to delete. The record that it existed stays in the publish history.</p>
           {panel === "delete" ? (
             <div className="flex items-center gap-2">
               <button type="button" className="rounded-[9px] bg-[#B23B3B] px-[14px] py-[9px] text-[11.5px] font-semibold text-white disabled:opacity-60" disabled={pending} onClick={remove}>
@@ -443,7 +443,7 @@ export function TimetablePreview({
           )}
         </section>
       ) : (
-        <p className="text-[11px] text-[#67766D] print:hidden">The running timetable cannot be deleted. Publish another one first.</p>
+        <p className="text-[11px] text-[#5E6D64] print:hidden">The running timetable cannot be deleted. Publish another one first.</p>
       )}
     </div>
   );

@@ -4,6 +4,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { usePathname } from "next/navigation";
 
+import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
 export type TabBarItem = {
@@ -23,6 +24,7 @@ export type TabBarItem = {
  */
 export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: string }) {
   const pathname = usePathname();
+  const ui = useUiText();
 
   if (items.length <= 1) return null;
 
@@ -43,10 +45,10 @@ export function TabBar({ items, ariaLabel }: { items: TabBarItem[]; ariaLabel: s
               "group -mb-px flex flex-none items-center gap-[7px] whitespace-nowrap border-b-2 px-[13px] py-[9px] text-[11.5px] transition-[color,border-color] duration-150 hover:border-b-[#BFDCD1] hover:text-[#0D2315]",
               active
                 ? "border-b-[#12796A] font-semibold text-[#0D2315]"
-                : "border-b-transparent font-medium text-[#67766D]",
+                : "border-b-transparent font-medium text-[#5E6D64]",
             )}
           >
-            <span>{item.label}</span>
+            <span>{ui(item.label)}</span>
             {item.count ? (
               <span
                 className={cn(

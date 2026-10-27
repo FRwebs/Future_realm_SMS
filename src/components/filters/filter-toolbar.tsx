@@ -71,7 +71,7 @@ export function FilterToolbar({
       {Object.entries(hidden ?? {}).map(([name, value]) => <input key={name} type="hidden" name={name} value={value} />)}
       {searchControl ? (
         <div className="flex w-full items-center gap-2 rounded-[10px] border border-[#DEE8E2] bg-white px-[11px] py-2 sm:w-auto sm:min-w-[236px]">
-          <Search className="h-[12.5px] w-[12.5px] shrink-0 text-[#9FB8A7]" strokeWidth={1.9} />
+          <Search className="h-[12.5px] w-[12.5px] shrink-0 text-[#5E6D64]" strokeWidth={1.9} />
           <input
             name={searchControl.name}
             type="search"
@@ -277,7 +277,7 @@ function FilterPill({ control, onChange }: { control: Extract<FilterControl, { t
     <div className="relative flex items-center gap-[6.5px] rounded-[10px] border border-[#DEE8E2] bg-white px-[11px] py-2 text-[11.5px] text-[#0D2315] transition hover:border-[#BFDCD1] hover:bg-[#F8FCFA]">
       <span className="text-[#5f6e65]">{control.label}</span>
       <span className="font-semibold">{shown}</span>
-      <ChevronDown className="h-[11px] w-[11px] shrink-0 text-[#9FB8A7]" strokeWidth={2.4} />
+      <ChevronDown className="h-[11px] w-[11px] shrink-0 text-[#5E6D64]" strokeWidth={2.4} />
       <select
         name={control.name}
         value={value}

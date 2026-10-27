@@ -411,7 +411,7 @@ function NumberedRow({
       >
         {title}
       </span>
-      <span className="text-sm leading-normal" style={{ color: dark ? "#9fb8a7" : "#435048" }}>
+      <span className="text-sm leading-normal" style={{ color: dark ? "#5E6D64" : "#435048" }}>
         {desc}
       </span>
     </div>
@@ -570,7 +570,7 @@ export function FutureRealmLandingPage() {
               <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
               <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
               <span className="h-[9px] w-[9px] rounded-full bg-[#d3dfd7]" />
-              <span className="ml-3 font-(--font-heading) text-[11px] text-[#9fb8a7]">app.futurerealm.school/dashboard</span>
+              <span className="ml-3 font-(--font-heading) text-[11px] text-[#5E6D64]">app.futurerealm.school/dashboard</span>
             </div>
             <div className="flex">
               <div className="flex w-14 flex-col items-center gap-4 border-r border-[#e3ece6] bg-[#f3f7f4] py-4">
@@ -588,7 +588,7 @@ export function FutureRealmLandingPage() {
                       className="rounded-[10px] p-3"
                       style={{ background: kpi.dark ? INK : "#eaf0ec" }}
                     >
-                      <p className="mb-1.5 text-[10px]" style={{ color: kpi.dark ? "#9fb8a7" : "#77857c" }}>
+                      <p className="mb-1.5 text-[10px]" style={{ color: kpi.dark ? "#5E6D64" : "#77857c" }}>
                         {kpi.label}
                       </p>
                       <p className="font-(--font-heading) text-lg font-bold" style={{ color: kpi.dark ? "#fff" : INK }}>
@@ -790,7 +790,7 @@ export function FutureRealmLandingPage() {
                 >
                   {card.title}
                 </p>
-                <p className="text-[13.5px] leading-[1.55]" style={{ color: card.dark ? "#9fb8a7" : "#435048" }}>
+                <p className="text-[13.5px] leading-[1.55]" style={{ color: card.dark ? "#5E6D64" : "#435048" }}>
                   {card.desc}
                 </p>
               </div>
@@ -842,7 +842,7 @@ export function FutureRealmLandingPage() {
             </div>
             <div className="flex flex-col justify-between rounded-[20px] p-[34px] text-white" style={{ background: INK }}>
               <div>
-                <p className="mb-2.5 text-[12.5px] text-[#9fb8a7]">Collection rate, this term</p>
+                <p className="mb-2.5 text-[12.5px] text-[#5E6D64]">Collection rate, this term</p>
                 <p className="font-(--font-heading) text-[52px] font-extrabold leading-none tracking-[-0.02em]">88%</p>
                 <div className="my-5 h-[9px] overflow-hidden rounded-full bg-[rgba(255,255,255,0.16)]">
                   <div className="h-full rounded-full" style={{ width: "88%", background: MINT }} />
@@ -932,7 +932,7 @@ export function FutureRealmLandingPage() {
                     <span className="rounded-sm bg-[#eaf0ec] px-[5px] py-px font-semibold">{"{due_date}"}</span>. Tap to pay
                     securely.
                   </div>
-                  <p className="mb-[11px] text-[11px] font-bold uppercase tracking-[0.08em] text-[#9fb8a7]">Send over</p>
+                  <p className="mb-[11px] text-[11px] font-bold uppercase tracking-[0.08em] text-[#5E6D64]">Send over</p>
                   <div className="mb-5 grid grid-cols-3 gap-2.5">
                     {messagingChannels.map((channel, index) => (
                       <div
@@ -979,7 +979,7 @@ export function FutureRealmLandingPage() {
               </div>
               <div className="mt-4 flex items-center justify-center gap-2.5">
                 <span className="h-1.5 w-1.5 shrink-0 rounded-full" style={{ background: MINT }} />
-                <p className="text-[12.5px] text-[#9fb8a7]">Two-way replies land in the school inbox, attached to the student record</p>
+                <p className="text-[12.5px] text-[#5E6D64]">Two-way replies land in the school inbox, attached to the student record</p>
               </div>
             </div>
           </div>
@@ -1245,7 +1245,7 @@ export function FutureRealmLandingPage() {
             <h2 className="font-(--font-heading) text-[32px] font-bold leading-[1.12] tracking-[-0.02em] text-white sm:text-[40px]">
               Simple pricing, per student
             </h2>
-            <p className="mx-auto mt-2.5 max-w-[520px] text-base text-[#9fb8a7]">
+            <p className="mx-auto mt-2.5 max-w-[520px] text-base text-[#5E6D64]">
               One price per student, per year. No setup fee, no per-module upsell.
             </p>
           </div>
@@ -1305,7 +1305,7 @@ export function FutureRealmLandingPage() {
             ))}
           </div>
           <div className="mt-9 flex flex-wrap items-center justify-center gap-8 border-t border-[rgba(255,255,255,0.16)] pt-7">
-            <span className="text-[13px] text-[#9fb8a7]">Every plan includes</span>
+            <span className="text-[13px] text-[#5E6D64]">Every plan includes</span>
             <div className="flex flex-wrap gap-6">
               {["30-day free trial", "Guided onboarding", "Offline mode", "Unlimited staff accounts", "Data export"].map((item) => (
                 <span key={item} className="text-[13.5px] font-medium text-[#eaf0ec]">{item}</span>
@@ -1436,7 +1436,7 @@ export function FutureRealmLandingPage() {
                   aria-describedby={newsletterMissing ? "newsletter-email-missing" : undefined}
                   onChange={(event) => { setNewsletterEmail(event.target.value); if (newsletterMissing) setNewsletterMissing(undefined); }}
                   placeholder="you@school.edu.ng"
-                  className="flex-1 rounded-[9px] border border-[#e3ece6] bg-[#f3f7f4] px-3 py-2.5 text-[13px] outline-hidden placeholder:text-[#9fb8a7]"
+                  className="flex-1 rounded-[9px] border border-[#e3ece6] bg-[#f3f7f4] px-3 py-2.5 text-[13px] outline-hidden placeholder:text-[#5E6D64]"
                 />
                 <button type="submit" disabled={newsletterPending} className="whitespace-nowrap rounded-[9px] px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-70" style={{ background: INK }}>
                   {newsletterPending ? "Joining…" : "Join"}

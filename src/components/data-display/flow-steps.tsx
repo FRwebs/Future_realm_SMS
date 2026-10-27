@@ -23,7 +23,7 @@ export function FlowSteps({ title, sub, steps }: { title: string; sub?: string; 
             <div key={`${step.label}-${index}`} className="flex items-center gap-[9px]">
               <div className="min-w-[126px] max-w-[190px] rounded-[11px] border px-[14px] py-[11px]" style={{ background: tone.bg, color: tone.fg, borderColor: tone.bd }}>
                 <p className="text-[12.5px] font-semibold leading-[1.3]">{step.label}</p>
-                <p className="mt-1 text-[10.5px] leading-[1.4] opacity-[0.72]">{step.note}</p>
+                <p className="mt-1 text-[10.5px] leading-[1.4]">{step.note}</p>
               </div>
               {index < steps.length - 1 ? (
                 <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#B4C4BB" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M4 12h14M13 7l5 5-5 5" /></svg>

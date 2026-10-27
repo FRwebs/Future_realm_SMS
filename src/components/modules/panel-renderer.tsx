@@ -39,6 +39,7 @@ import { readCookie, readableError } from "@/lib/modules/submit";
 import { narrowRows, tableCsv, csvFileName } from "@/lib/modules/table-query";
 import { cardIcon } from "@/lib/modules/card-icons";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
+import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
 /*
@@ -210,8 +211,9 @@ function TriggerControl({
 
   return (
     <span
-      className={cn(className, "cursor-default opacity-70")}
-      style={style}
+      // Dimmed by colour, not opacity: faded text on white would fall below the contrast a reader needs.
+      className={cn(className, "cursor-default")}
+      style={{ ...style, color: "#5E6D64" }}
       title="Not wired up yet"
     >
       {body}
@@ -378,7 +380,7 @@ function FactList({ facts, per }: { facts: PanelFact[]; per?: number }) {
     >
       {facts.map(([label, value, hint, tone], index) => (
         <div key={`${label}-${index}`} className="min-w-0">
-          <dt className="mb-1 text-[9.5px] font-semibold uppercase tracking-wider text-[#67766D]">
+          <dt className="mb-1 text-[9.5px] font-semibold uppercase tracking-wider text-[#5E6D64]">
             {label}
           </dt>
           <dd className="min-w-0">
@@ -589,6 +591,7 @@ function TablePanel({
   const [selected, setSelected] = useState<Set<TableRow>>(new Set());
   const [page, setPage] = useState(0);
   const router = useRouter();
+  const ui = useUiText();
   const [navigating, startNavigation] = useTransition();
   const typing = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -774,8 +777,8 @@ function TablePanel({
                     typing.current = setTimeout(() => ask({ q: text.trim() || null, p: null }), 350);
                   }
                 }}
-                placeholder={panel.search}
-                aria-label={panel.search}
+                placeholder={ui(panel.search)}
+                aria-label={ui(panel.search)}
                 className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] outline-hidden"
                 style={{ color: INK }}
               />
@@ -927,7 +930,9 @@ function TablePanel({
           </p>
         </div>
       ) : (
-        <div className="mx-[-18px] min-w-0 overflow-x-auto">
+        // Wide tables scroll sideways; a keyboard has to be able to reach the scrolling region to move it (axe: scrollable-region-focusable).
+        // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
+        <div className="mx-[-18px] min-w-0 overflow-x-auto" tabIndex={0} role="region" aria-label={panel.title ? `${panel.title} — scrolls sideways` : "Table — scrolls sideways"}>
           <table className={cn("w-full border-collapse", dense ? "min-w-0" : "min-w-[640px]")}>
             <thead>
               <tr
@@ -962,7 +967,7 @@ function TablePanel({
                     )}
                     style={{ color: MUTED }}
                   >
-                    {heading}
+                    {ui(heading)}
                   </th>
                 ))}
               </tr>
@@ -1201,7 +1206,7 @@ function TrackerPanel({
         </div>
       ) : null}
       {own && own.length === 0 ? (
-        <p className="rounded-[12px] border border-dashed px-4 py-5 text-center text-[11.5px] text-[#67766D]" style={{ borderColor: "#DEE8E2" }}>
+        <p className="rounded-[12px] border border-dashed px-4 py-5 text-center text-[11.5px] text-[#5E6D64]" style={{ borderColor: "#DEE8E2" }}>
           Nothing is outstanding when read this way.
         </p>
       ) : null}
@@ -1212,7 +1217,7 @@ function TrackerPanel({
           return (
             <li key={`${trackerRow.unit}-${index}`} className="list-none">
               {showOwnerHeading ? (
-                <p className="mb-[5px] mt-[4px] text-[9.5px] font-semibold uppercase tracking-[0.06em] text-[#67766D]">
+                <p className="mb-[5px] mt-[4px] text-[9.5px] font-semibold uppercase tracking-[0.06em] text-[#5E6D64]">
                   {trackerRow.owner} · {trackerRow.role}
                 </p>
               ) : null}
@@ -1715,7 +1720,7 @@ export function PanelView({
           key={entry.label}
           title={entry.disabled ? "Nothing on record for this term" : undefined}
           className="cursor-not-allowed whitespace-nowrap rounded-full border px-[12px] py-[6px] text-[11px] font-semibold"
-          style={{ background: "#F4F6F5", color: "#9AA8A0", borderColor: "#E4EDE8" }}
+          style={{ background: "#F4F6F5", color: "#5E6D64", borderColor: "#E4EDE8" }}
         >
           {entry.label}
         </span>
@@ -2347,7 +2352,7 @@ function FormPanel({
             </p>
           ) : null}
           <p
-            className="mt-[3px] text-[11px] leading-[1.55] opacity-[0.88]"
+            className="mt-[3px] text-[11px] leading-[1.55]"
             style={{ color: swatch.fg }}
           >
             {panel.body}

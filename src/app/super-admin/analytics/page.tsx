@@ -186,7 +186,7 @@ async function GrowthTab() {
                 </div>
                 <p className="mt-[10px] font-(--font-display) text-[13.5px] font-bold text-(--color-text-primary)">{stage.count.toLocaleString()}</p>
                 <p className="mt-[3.5px] text-pretty text-[10px] leading-[1.35] text-[#5f6e65]">{stage.stage}</p>
-                <p className="mt-[4.5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#9FB8A7" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
+                <p className="mt-[4.5px] text-[10px] font-semibold" style={{ color: stage.changePct === null ? "#5E6D64" : stage.changePct < 0 ? "#B23B3B" : "#22A06B" }}>
                   {stage.changePct === null ? "—" : stage.changePct < 0 ? `−${Math.abs(stage.changePct)}% drop` : `+${stage.changePct}%`}
                 </p>
               </div>

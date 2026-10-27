@@ -385,7 +385,7 @@ export function SchoolBulkTable({ schools, filterBar, paginationFooter }: { scho
                       <span className="rounded-full px-[9px] py-[3px] text-[11px] font-bold" style={{ background: verificationColors.bg, color: verificationColors.fg }}>
                         {verification.label}
                       </span>
-                      <span className="truncate text-[10px] text-[#9fb8a7]">{verification.note}</span>
+                      <span className="truncate text-[10px] text-[#5E6D64]">{verification.note}</span>
                     </div>
                     <dl className="mt-3 grid grid-cols-2 gap-3">
                       <div className="rounded-[9px] bg-[#F7FAF8] px-3 py-2">

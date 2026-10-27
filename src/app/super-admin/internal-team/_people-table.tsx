@@ -10,13 +10,12 @@ import type { SuperAdminInternalMember, SuperAdminPermissionGridMatrix } from "@
 import { formatDate } from "@/lib/utils/formatters";
 import { useQuery } from "@tanstack/react-query";
 import { apiJson, getUrl } from "@/lib/api/client";
+import { internalDevicesContract, internalOwnsContract } from "@/lib/api/contracts";
 
 const accessLevels = ["NONE", "VIEW", "EDIT", "FULL"].map((v) => ({ label: v, value: v }));
 
 export type PersonProfile = { departmentId: string | null; department: string | null; level: string | null; scopeStates: string[]; managerId: string | null; manager: string | null; staffNumber: string | null; isExternal: boolean; responsibilities?: string[]; mfaEnabled: boolean };
 type Option = { label: string; value: string };
-type DeviceRow = { device: string; first: string; last: string; count: number; ip: string | null };
-type Owns = { openTickets: number; schools: number; openFlags: number };
 
 function initialsOf(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -28,10 +27,10 @@ function initialsOf(name: string): string {
 function MemberReview({ member, matrix, profile, departmentOptions, memberOptions, moduleOptions }: { member: SuperAdminInternalMember; matrix: SuperAdminPermissionGridMatrix; profile?: PersonProfile; departmentOptions: Option[]; memberOptions: Option[]; moduleOptions: Option[] }) {
   const [open, setOpen] = useState(false);
   // Read when the sheet opens, and kept for a moment so closing and reopening it does not ask again.
-  const devicesQuery = useQuery({ queryKey: ["internal-team", "devices", member.id], queryFn: ({ signal }) => apiJson<DeviceRow[]>(getUrl("/api/super-admin/internal-team/devices/{userId}", { userId: member.id }), signal), enabled: open });
-  const ownsQuery = useQuery({ queryKey: ["internal-team", "owns", member.id], queryFn: ({ signal }) => apiJson<Owns>(getUrl("/api/super-admin/internal-team/owns/{userId}", { userId: member.id }), signal), enabled: open });
-  const devices: DeviceRow[] | null = devicesQuery.data ?? (devicesQuery.isError ? [] : null);
-  const owns: Owns | null = ownsQuery.data ?? null;
+  const devicesQuery = useQuery({ queryKey: ["internal-team", "devices", member.id], queryFn: ({ signal }) => apiJson(getUrl("/api/super-admin/internal-team/devices/{userId}", { userId: member.id }), signal, internalDevicesContract), enabled: open });
+  const ownsQuery = useQuery({ queryKey: ["internal-team", "owns", member.id], queryFn: ({ signal }) => apiJson(getUrl("/api/super-admin/internal-team/owns/{userId}", { userId: member.id }), signal, internalOwnsContract), enabled: open });
+  const devices = devicesQuery.data ?? (devicesQuery.isError ? [] : null);
+  const owns = ownsQuery.data ?? null;
   const gridRow = matrix.members.find((m) => m.id === member.id);
   const modules = matrix.modules ?? [];
   const grantedCount = modules.filter((moduleId) => (gridRow?.access[moduleId] ?? "NONE") !== "NONE").length;

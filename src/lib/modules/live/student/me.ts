@@ -1,3 +1,7 @@
+import { getTranslations } from "next-intl/server";
+
+import { LOCALES } from "@/i18n/locales";
+import { languagePanel, type AccountWords, type MyProfile } from "@/lib/modules/account";
 import { SW } from "@/lib/api/student-workspace";
 import { apiGet } from "@/lib/api/server";
 import { askDrawer, dLong, loadAskable, loadMe, loadPrefs } from "@/lib/modules/live/student/shared";
@@ -88,10 +92,16 @@ export async function notificationsPage(): Promise<StudentContent> {
 
 export async function accountPage(): Promise<StudentContent> {
   type Device = { id: string; device: string; where: string; lastActiveAt: string; startedAt: string; current: boolean };
-  const [me, sec, devices] = await Promise.all([
+  const t = await getTranslations("shell.account");
+  const words: AccountWords = {
+    language: t("language"), languageSub: t("languageSub"), languageHint: LOCALES.length > 1 ? t("languageHint") : t("languageHintOff"),
+    saved: t("savedLanguage"), save: t("saveLanguage"),
+  };
+  const [me, sec, devices, mine] = await Promise.all([
     loadMe(),
     apiGet<{ mustChangePassword: boolean; mfaEnabled: boolean; mfaEnrolledAt: string | null; passwordChangedAt: string | null; createdAt: string; signIns: Array<{ id: string; at: string; success: boolean; device: string; where: string; newDevice: boolean; reason: string | null }> }>(`${SW}/security`),
     apiGet<Device[]>(`${SW}/sessions`).catch(() => [] as Device[]),
+    apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile),
   ]);
   const change: DrawerSpec = {
     kicker: "Account", title: "Change your password", mode: "form", sub: "Use at least eight characters. You stay signed in here; other devices are asked to sign in again.",
@@ -125,6 +135,7 @@ export async function accountPage(): Promise<StudentContent> {
           ["Account", "Created by your school", `Enrolled ${dLong(me.enrolled)}`],
         ],
       }]),
+      row("1fr", [languagePanel(mine, words)]),
       row("minmax(0,1.2fr) minmax(0,1fr)", [
         {
           type: "list",

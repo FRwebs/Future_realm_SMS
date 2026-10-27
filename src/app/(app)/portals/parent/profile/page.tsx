@@ -1,11 +1,16 @@
 import Link from "next/link";
 import type { Route } from "next";
+import { getTranslations } from "next-intl/server";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
+import { PanelRows } from "@/components/modules/panel-renderer";
+import { LOCALES } from "@/i18n/locales";
 import { apiGet } from "@/lib/api/server";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
+import { languagePanel, type AccountWords, type MyProfile } from "@/lib/modules/account";
+import { row } from "@/lib/modules/panels";
 import { ParentProfileView } from "@/lib/domain/types";
 import { formatNigeriaClassName } from "@/lib/school-options";
 
@@ -16,7 +21,15 @@ export default async function ParentProfilePage() {
     return <AccessDenied backHref={getDefaultPathForRole(session.role)} />;
   }
 
-  const profile = await apiGet<ParentProfileView>("/api/v1/parent-portal/profile");
+  const [profile, mine] = await Promise.all([
+    apiGet<ParentProfileView>("/api/v1/parent-portal/profile"),
+    apiGet<MyProfile>("/api/v1/profile/me").catch(() => ({}) as MyProfile),
+  ]);
+  const t = await getTranslations("shell.account");
+  const words: AccountWords = {
+    language: t("language"), languageSub: t("languageSub"), languageHint: LOCALES.length > 1 ? t("languageHint") : t("languageHintOff"),
+    saved: t("savedLanguage"), save: t("saveLanguage"),
+  };
 
   return (
     <div className="portal-page">
@@ -38,6 +51,7 @@ export default async function ParentProfilePage() {
           <p><span className="font-semibold text-(--color-text-primary)">Email enabled:</span> {profile.canReceiveEmail ? "Yes" : "No"}</p>
         </div>
       </section>
+      <PanelRows rows={[row("1fr", [languagePanel(mine, words)])]} />
       <TableCard
         title="Linked children"
         description="Students attached to this guardian profile."

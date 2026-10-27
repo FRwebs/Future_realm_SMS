@@ -49,7 +49,7 @@ function Dow() {
   return (
     <div className="mb-[5px] grid grid-cols-5 gap-[6px]">
       {["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => (
-        <span key={day} className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#67766D" }}>{day}</span>
+        <span key={day} className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#5E6D64" }}>{day}</span>
       ))}
     </div>
   );
@@ -205,7 +205,7 @@ export function StudentAttendance({ terms, records, today, current, first, guard
       <section className="flex min-w-0 flex-wrap items-center justify-between gap-[10px] rounded-[14px] border bg-(--color-bg-surface) px-[14px] py-[12px]" style={{ borderColor: "#DEE8E2" }}>
         <div className="min-w-0">
           <p className="text-[14px] font-extrabold tracking-[-0.01em]" style={{ color: "#0D2315" }}>{label}</p>
-          <p className="mt-[2px] text-[10.5px]" style={{ color: "#67766D" }}>{range}</p>
+          <p className="mt-[2px] text-[10.5px]" style={{ color: "#5E6D64" }}>{range}</p>
         </div>
         <div className="flex flex-wrap items-center gap-[8px]">
           <span className="rounded-full border px-[10px] py-[3px] text-[10.5px] font-semibold" style={{ background: toneOf(toneFor(S.pct)).bg, color: toneOf(toneFor(S.pct)).fg, borderColor: toneOf(toneFor(S.pct)).bd }}>{S.n ? `${pct(S.pct)} present` : "No school days yet"}</span>
@@ -231,16 +231,16 @@ export function StudentAttendance({ terms, records, today, current, first, guard
           { label: "Longest run present", value: `${S.best} ${S.best === 1 ? "day" : "days"}`, sub: S.best ? `In a row, up to ${short(S.bestEnd)}` : "No school days yet", tone: "neutral" as PanelTone },
         ].map((card) => (
           <article key={card.label} className="rounded-[14px] border bg-(--color-bg-surface) px-[14px] pb-[14px] pt-[13px]" style={{ borderColor: "#DEE8E2" }}>
-            <p className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: "#67766D" }}>{card.label}</p>
+            <p className="text-[9.5px] font-semibold uppercase tracking-wider" style={{ color: "#5E6D64" }}>{card.label}</p>
             <p className="mt-[8px] text-[20.5px] font-extrabold leading-none tracking-[-0.03em] tabular-nums" style={{ color: toneOf(card.tone).fg }}>{card.value}</p>
-            <p className="mt-[6px] text-[10.5px] leading-[1.4]" style={{ color: "#67766D" }}>{card.sub}</p>
+            <p className="mt-[6px] text-[10.5px] leading-[1.4]" style={{ color: "#5E6D64" }}>{card.sub}</p>
           </article>
         ))}
       </section>
 
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{chartTitle}</h3>
-        <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{chartSub}</p>
+        <p className="mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>{chartSub}</p>
         {series.length ? (
           <LineChart
             points={series}
@@ -256,14 +256,14 @@ export function StudentAttendance({ terms, records, today, current, first, guard
         <Detail view={view} cur={cur} scope={scope} today={today} terms={terms} current={current} past={past} go={go} open={open} termRows={termRows} />
         <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
           <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Days away and late arrivals</h3>
-          <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>What happened, and who recorded it.</p>
+          <p className="mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>What happened, and who recorded it.</p>
           {away.length ? (
             <ul className="mt-[8px]">
               {away.map((record) => { const swatch = toneOf(TONE[record.status] ?? "neutral"); return (
                 <li key={record.date} className="border-b last:border-b-0" style={{ borderColor: "#F2F7F4" }}>
                   <button type="button" onClick={() => open(record, record.date)} className="flex w-full items-start gap-[10px] py-[10px] text-left">
                     <span className="flex h-[38px] w-[38px] flex-none flex-col items-center justify-center rounded-[10px] border leading-none" style={{ background: swatch.bg, borderColor: swatch.bd, color: swatch.fg }}><span className="text-[8.5px] font-bold uppercase">{MONTHS[dayOf(record.date).getUTCMonth()]!.slice(0, 3)}</span><span className="mt-[2px] text-[14px] font-extrabold">{dayOf(record.date).getUTCDate()}</span></span>
-                    <span className="min-w-0 flex-1"><span className="block text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>{long(record.date)}</span><span className="mt-[2px] block text-[10.5px]" style={{ color: "#67766D" }}>{record.reason ?? (record.status === "LATE" ? "Arrived after the morning register. Counted as present." : record.status === "EXCUSED" ? "Excused." : "No reason recorded yet.")}</span></span>
+                    <span className="min-w-0 flex-1"><span className="block text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>{long(record.date)}</span><span className="mt-[2px] block text-[10.5px]" style={{ color: "#5E6D64" }}>{record.reason ?? (record.status === "LATE" ? "Arrived after the morning register. Counted as present." : record.status === "EXCUSED" ? "Excused." : "No reason recorded yet.")}</span></span>
                     <span className="flex-none rounded-full border px-[8px] py-[2.5px] text-[10px] font-semibold" style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}>{record.status === "ABSENT" ? "Not explained" : NAME[record.status]}</span>
                   </button>
                 </li>
@@ -292,15 +292,15 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
     const rec = past.find((record) => record.date === date); const swatch = rec ? toneOf(TONE[rec.status] ?? "neutral") : null;
     return (
       <button key={date} type="button" disabled={!rec} onClick={() => open(rec, date)} className="flex min-h-[62px] min-w-0 flex-col justify-between rounded-[10px] p-[7px] text-left" style={swatch ? { background: swatch.bg, border: `1px solid ${date === today ? "#0D2315" : swatch.bd}` } : { background: "#FBFDFC", border: "1px dashed #E4EDE8" }}>
-        <span className="text-[11.5px] font-bold" style={{ color: rec ? "#0D2315" : "#AAB8B0" }}>{label ?? `${WEEKDAY[dayOf(date).getUTCDay()]!.slice(0, 3)} ${dayOf(date).getUTCDate()}`}</span>
-        <span className="truncate text-[9.5px] font-bold" style={{ color: swatch?.fg ?? "#AAB8B0" }}>{rec ? `${NAME[rec.status]}${date === today ? " · today" : ""}` : date > today ? "Coming up" : "No register"}</span>
+        <span className="text-[11.5px] font-bold" style={{ color: rec ? "#0D2315" : "#5E6D64" }}>{label ?? `${WEEKDAY[dayOf(date).getUTCDay()]!.slice(0, 3)} ${dayOf(date).getUTCDate()}`}</span>
+        <span className="truncate text-[9.5px] font-bold" style={{ color: swatch?.fg ?? "#5E6D64" }}>{rec ? `${NAME[rec.status]}${date === today ? " · today" : ""}` : date > today ? "Coming up" : "No register"}</span>
       </button>
     );
   };
   if (view === "Week") return (
     <section className={shell} style={{ borderColor: "#DEE8E2" }}>
       <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>The week, day by day</h3>
-      <p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Tap a day to see who marked it, and when.</p>
+      <p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>Tap a day to see who marked it, and when.</p>
       <Dow />
       <div className="grid grid-cols-5 gap-[6px]">{[0, 1, 2, 3, 4].map((i) => cell(addDays(cur, i)))}</div>
       <Legend keys={["PRESENT", "LATE", "ABSENT", "EXCUSED"]} />
@@ -313,7 +313,7 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
     return (
       <section className={shell} style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{MONTHS[mo]} {y}</h3>
-        <p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Tap a day to see who marked it, and when.</p>
+        <p className="mb-[10px] mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>Tap a day to see who marked it, and when.</p>
         <Dow />
         <div className="grid grid-cols-5 gap-[6px]">{Array.from({ length: lead }, (_, i) => <span key={`g${i}`} />)}{days.map((date) => cell(date, String(dayOf(date).getUTCDate())))}</div>
         <Legend keys={["PRESENT", "LATE", "ABSENT", "EXCUSED"]} />
@@ -329,8 +329,8 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
     const weekNo = (m: string) => (termStart ? Math.floor((dayOf(m).getTime() - dayOf(monday(termStart)).getTime()) / (7 * 86_400_000)) + 1 : 0);
     return (
       <section className={shell} style={{ borderColor: "#DEE8E2" }}>
-        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Week by week</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>Open a week to see each day.</p>
-        <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-left"><thead><tr style={{ color: "#67766D" }}>{["Week", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
+        <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Week by week</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>Open a week to see each day.</p>
+        <div className="overflow-x-auto"><table className="w-full min-w-[420px] text-left"><thead><tr style={{ color: "#5E6D64" }}>{["Week", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
           {weeks.map((m, i) => { const s = summary(scope.filter((record) => monday(record.date) === m)); const swatch = toneOf(toneFor(s.pct)); return (
             <tr key={m} className="cursor-pointer border-t hover:bg-[#F1F8F4]" style={{ borderColor: "#F2F7F4" }} onClick={() => go("Week", m)}>
               <td className="py-[9px] pr-[8px] text-[11.5px] font-bold">W{weekNo(m) || weeks.length - i}</td><td className="pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(m)} – {short(addDays(m, 4))}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>
@@ -345,11 +345,11 @@ function Detail({ view, cur, scope, today, terms, current, past, go, open, termR
   const rows = termRows(subset);
   return (
     <section className={shell} style={{ borderColor: "#DEE8E2" }}>
-      <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{view === "Year" ? `Terms in ${cur}` : "Every term on record"}</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{view === "Year" ? "Open a term to see it week by week." : "Each figure matches the attendance line on that term’s report card."}</p>
-      <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr style={{ color: "#67766D" }}>{["Term", "Class", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
+      <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{view === "Year" ? `Terms in ${cur}` : "Every term on record"}</h3><p className="mb-[8px] mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>{view === "Year" ? "Open a term to see it week by week." : "Each figure matches the attendance line on that term’s report card."}</p>
+      <div className="overflow-x-auto"><table className="w-full min-w-[560px] text-left"><thead><tr style={{ color: "#5E6D64" }}>{["Term", "Class", "Dates", "Present", "Away", "Late", "Rate"].map((h) => <th key={h} className={`${head} py-[6px] pr-[8px]`}>{h}</th>)}</tr></thead><tbody>
         {rows.map(({ term, s }) => { const swatch = toneOf(toneFor(s.pct)); return (
           <tr key={term.id} className="cursor-pointer border-t hover:bg-[#F1F8F4]" style={{ borderColor: "#F2F7F4", background: term.id === current ? "#F7FAF8" : undefined }} onClick={() => go("Term", term.id)}>
-            <td className="py-[9px] pr-[8px]"><span className="block text-[11.5px] font-semibold">{term.name}</span><span className="block text-[10px]" style={{ color: "#67766D" }}>{term.session}{term.id === current ? " · now" : ""}</span></td>
+            <td className="py-[9px] pr-[8px]"><span className="block text-[11.5px] font-semibold">{term.name}</span><span className="block text-[10px]" style={{ color: "#5E6D64" }}>{term.session}{term.id === current ? " · now" : ""}</span></td>
             <td className="pr-[8px] text-[11.5px]">{term.arm}</td>
             <td className="whitespace-nowrap pr-[8px] text-[11.5px]" style={{ color: "#435048" }}>{short(term.start)} – {short(term.end)}</td>
             <td className="pr-[8px] text-[11.5px] tabular-nums">{s.present} of {s.n}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.away.length}</td><td className="pr-[8px] text-[11.5px] tabular-nums">{s.late}</td>

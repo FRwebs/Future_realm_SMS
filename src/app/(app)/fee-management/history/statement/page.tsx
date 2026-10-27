@@ -77,7 +77,7 @@ export default async function StatementPage({ searchParams }: { searchParams: Pr
           {data.rows.length ? (
             <div className="overflow-x-auto">
               <table className="w-full min-w-[720px] text-[11px]">
-                <thead className="bg-[#F7FAF8] text-[9.5px] uppercase tracking-wider text-[#67766D]">
+                <thead className="bg-[#F7FAF8] text-[9.5px] uppercase tracking-wider text-[#5E6D64]">
                   <tr>{["Date", "Receipt", "Student", "Class and arm", "Amount", "Method", "Reference", "Recorded by"].map((head) => <th key={head} className="px-[14px] py-[9px] text-left">{head}</th>)}</tr>
                 </thead>
                 <tbody>

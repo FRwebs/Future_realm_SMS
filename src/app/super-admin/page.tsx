@@ -140,7 +140,7 @@ function CardHeader({ title, meta, sub }: { title: string; meta?: string; sub?: 
     <div>
       <div className="flex items-center justify-between gap-3">
         <h3 className="text-[12.5px] font-semibold text-(--color-text-primary)">{title}</h3>
-        {meta ? <p className="shrink-0 text-[10.5px] text-[#9fb8a7]">{meta}</p> : null}
+        {meta ? <p className="shrink-0 text-[10.5px] text-[#5E6D64]">{meta}</p> : null}
       </div>
       {sub ? <p className="mt-1.5 text-[10.5px] leading-5 text-[#5f6e65]">{sub}</p> : null}
     </div>
@@ -497,7 +497,7 @@ export default async function SuperAdminDashboardPage() {
                 <span className="text-[11px] font-bold" style={{ color: commandCenter.revenueSnapshot.monthOverMonthGrowth >= 0 ? "#5FD6B4" : "#F0A0A0" }}>
                   {commandCenter.revenueSnapshot.monthOverMonthGrowth >= 0 ? "+" : ""}{formatPercent(commandCenter.revenueSnapshot.monthOverMonthGrowth)}
                 </span>
-                <span className="text-[10.5px] text-white/40">vs last month</span>
+                <span className="text-[10.5px] text-white/60">vs last month</span>
               </div>
             </div>
           </div>
@@ -506,10 +506,10 @@ export default async function SuperAdminDashboardPage() {
         <article className="flex flex-col rounded-[14px] border px-[20px] py-5" style={{ borderColor: "#f0dfdf", background: "var(--color-bg-surface)" }}>
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0">
-              <p className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#a4726f" }}>Overdue balances</p>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.07em]" style={{ color: "#8C4F4B" }}>Overdue balances</p>
               <div className="mt-[10px] flex items-baseline gap-2">
                 <p className="font-(--font-heading) text-[29px] font-extrabold text-(--color-text-primary)">{formatCurrency(commandCenter.revenueSnapshot.overdueBalances)}</p>
-                <p className="text-[11px] text-[#9fb8a7]">{commandCenter.revenueSnapshot.overdueSchoolCount} school{commandCenter.revenueSnapshot.overdueSchoolCount === 1 ? "" : "s"}</p>
+                <p className="text-[11px] text-[#5E6D64]">{commandCenter.revenueSnapshot.overdueSchoolCount} school{commandCenter.revenueSnapshot.overdueSchoolCount === 1 ? "" : "s"}</p>
               </div>
             </div>
             {commandCenter.revenueSnapshot.newlyOverdueLast30Days > 0 ? (
@@ -549,7 +549,7 @@ export default async function SuperAdminDashboardPage() {
               <p className="min-h-[28px] text-[10.5px] leading-[1.35] text-[#5f6e65]">{tile.label}</p>
               <div className="mt-[8px] flex items-baseline gap-[6.5px]">
                 <p className="font-(--font-heading) text-[21.5px] font-extrabold tracking-tight text-[#0D2315]">{tile.value}</p>
-                <p className="min-w-0 truncate text-[10.5px] text-[#9FB8A7]">{tile.secondary}</p>
+                <p className="min-w-0 truncate text-[10.5px] text-[#5E6D64]">{tile.secondary}</p>
               </div>
               <div className="mt-3 flex min-w-0 items-end justify-between gap-2.5">
                 <div className="flex shrink-0 flex-col gap-0.5">
@@ -629,7 +629,7 @@ export default async function SuperAdminDashboardPage() {
                     <span className="h-[8px] w-[8px] shrink-0 rounded-[2.5px]" style={{ background: tierColors[index % tierColors.length] }} />
                     <span className="flex-1 text-[11.5px] text-(--color-text-secondary)">{item.plan}</span>
                     <span className="text-[11.5px] font-semibold text-(--color-text-primary)">{item.count}</span>
-                    <span className="w-[34px] text-right text-[10.5px] text-[#9fb8a7]">{Math.round((item.count / tierTotal) * 100)}%</span>
+                    <span className="w-[34px] text-right text-[10.5px] text-[#5E6D64]">{Math.round((item.count / tierTotal) * 100)}%</span>
                   </div>
                 ))}
               </div>

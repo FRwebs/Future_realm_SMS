@@ -44,7 +44,7 @@ export function Btn({ children, onClick, kind = "ghost", disabled, busy, small, 
   );
 }
 
-export const inputClass = "w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11px] py-[8px] text-[12px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A] disabled:bg-[#F6F9F7] disabled:text-[#67766D]";
+export const inputClass = "w-full min-w-0 rounded-[10px] border-[1.5px] bg-white px-[11px] py-[8px] text-[12px] font-medium text-[#0D2315] outline-hidden focus:border-[#12796A] disabled:bg-[#F6F9F7] disabled:text-[#5E6D64]";
 
 export function Label({ children, hint }: { children: React.ReactNode; hint?: string }) {
   return (

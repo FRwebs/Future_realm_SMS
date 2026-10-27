@@ -29,7 +29,7 @@ export function StudentTabs({ tabs, active, ariaLabel }: { tabs: Array<{ label: 
             aria-current={on ? "page" : undefined}
             className={cn(
               "group -mb-px flex flex-none items-center gap-[7px] whitespace-nowrap border-b-2 px-[13px] py-[9px] text-[11.5px] transition-[color,border-color] duration-150 hover:border-b-[#BFDCD1] hover:text-[#0D2315]",
-              on ? "border-b-[#12796A] font-semibold text-[#0D2315]" : "border-b-transparent font-medium text-[#67766D]",
+              on ? "border-b-[#12796A] font-semibold text-[#0D2315]" : "border-b-transparent font-medium text-[#5E6D64]",
             )}
           >
             <span>{tab.label}</span>

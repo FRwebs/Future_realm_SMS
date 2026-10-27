@@ -31,14 +31,14 @@ export const AuthField = forwardRef<HTMLInputElement, AuthFieldProps>(function A
         {aside}
       </div>
       <div className={`flex items-center gap-[10px] rounded-[11px] border-[1.5px] px-[14px] py-[12px] transition focus-within:border-[#12796a] ${error ? "border-[#a13d3d]" : "border-[#dee8e2]"}`}>
-        <span className="shrink-0 text-[#9fb8a7]" aria-hidden="true">{icon}</span>
+        <span className="shrink-0 text-[#5E6D64]" aria-hidden="true">{icon}</span>
         <input
           {...input}
           ref={ref}
           id={id}
           aria-invalid={Boolean(error)}
           aria-describedby={error ? errorId : undefined}
-          className={`w-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0d2315] outline-hidden placeholder:text-[#9fb8a7] ${className ?? ""}`}
+          className={`w-full min-w-0 flex-1 bg-transparent text-[13.5px] text-[#0d2315] outline-hidden placeholder:text-[#5E6D64] ${className ?? ""}`}
         />
         {trailing}
       </div>

@@ -1,7 +1,10 @@
 // Matchers like toBeInTheDocument / toHaveFocus, registered once. They only matter in files that opt into jsdom.
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
-import { afterEach } from "vitest";
+import { afterEach, vi } from "vitest";
+
+// The words around the pages are put into the person's language by a provider the app supplies; a test renders without one and reads English.
+vi.mock("@/hooks/use-ui-text", () => ({ useUiText: () => (text: string) => text }));
 
 afterEach(() => {
   cleanup();

@@ -15,7 +15,7 @@ interface ModuleAdoptionTableProps {
 
 function Spark({ points }: { points: Array<number | null> }) {
   const values = points.filter((p): p is number => p !== null);
-  if (values.length < 2) return <span className="text-[10px] text-[#9FB8A7]">{values.length === 1 ? `${values[0]}% · first reading` : "No readings yet"}</span>;
+  if (values.length < 2) return <span className="text-[10px] text-[#5E6D64]">{values.length === 1 ? `${values[0]}% · first reading` : "No readings yet"}</span>;
   const max = Math.max(...values, 1);
   const path = values.map((v, i) => `${i === 0 ? "M" : "L"}${(i / (values.length - 1)) * 60} ${18 - (v / max) * 16}`).join(" ");
   return <svg width="60" height="20" viewBox="0 0 60 20" aria-label={`${values.length}-week trend`}><path d={path} fill="none" stroke="#12796A" strokeWidth="1.5" /></svg>;

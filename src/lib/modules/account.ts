@@ -29,6 +29,7 @@ import {
   text,
   type DrawerSpec,
   type ModuleContent,
+  type Panel,
   type PanelFact,
   type PanelTone,
   type TabContent,
@@ -280,6 +281,27 @@ function profileTab(session: SessionUser, schoolName: string, profile: MyProfile
 /** The words on the account page that are put into the person's language by the page that draws it. */
 export type AccountWords = { language: string; languageSub: string; languageHint: string; saved: string; save: string };
 
+/** The Language form: the same panel for staff, students and parents, saved to the person's own account. */
+export function languagePanel(profile: Pick<MyProfile, "locale">, words: AccountWords): Panel {
+  return {
+    type: "form",
+    title: words.language,
+    sub: words.languageSub,
+    per: 1,
+    fields: [
+      {
+        kind: "select",
+        label: words.language,
+        value: LOCALE_NAMES[(ALL_LOCALES as readonly string[]).includes(profile.locale ?? "") ? (profile.locale as Locale) : DEFAULT_LOCALE],
+        options: ALL_LOCALES.map((code) => LOCALE_NAMES[code]),
+        hint: words.languageHint,
+      },
+    ],
+    submit: { endpoint: "/api/v1/profile/me", method: "PATCH", map: { [words.language]: "locale" }, done: words.saved, refreshAfter: true },
+    actions: [{ label: words.save, primary: true }],
+  };
+}
+
 function preferencesTab(session: SessionUser, schoolName: string, profile: MyProfile, words: AccountWords): TabContent {
   const saved = profile.preferences ?? {};
   const device = devicePreferencesFrom(saved);
@@ -289,25 +311,7 @@ function preferencesTab(session: SessionUser, schoolName: string, profile: MyPro
     title: "Preferences",
     desc: `How the product opens for you · ${session.name} · ${schoolName}`,
     rows: [
-      row("1fr", [
-        {
-          type: "form",
-          title: words.language,
-          sub: words.languageSub,
-          per: 1,
-          fields: [
-            {
-              kind: "select",
-              label: words.language,
-              value: LOCALE_NAMES[(ALL_LOCALES as readonly string[]).includes(profile.locale ?? "") ? (profile.locale as Locale) : DEFAULT_LOCALE],
-              options: ALL_LOCALES.map((code) => LOCALE_NAMES[code]),
-              hint: words.languageHint,
-            },
-          ],
-          submit: submit({ [words.language]: "locale" }, words.saved, true),
-          actions: [{ label: words.save, primary: true }],
-        },
-      ]),
+      row("1fr", [languagePanel(profile, words)]),
       row("1.35fr 1fr", [
         {
           type: "form",
@@ -390,7 +394,8 @@ function preferencesTab(session: SessionUser, schoolName: string, profile: MyPro
             },
           ],
           submit: submit({ "Notify me about": "preferences.notifyAbout", By: "preferences.notifyBy", "Quiet hours": "preferences.quietHours" }, "Saved to your account."),
-          formNote: "Saved against your account. Staff notifications are not yet sent through one dispatcher, so these choices are recorded but not yet enforced; emergency broadcasts always reach you.",
+          formNote:
+            "Saved against your account. Notices you unticked are left out of your bell and are not emailed or texted; a message that would reach you inside your quiet hours waits until they end. Emergencies and safeguarding alerts always reach you, and a notice the product cannot place in one of these kinds is always delivered.",
           formNoteTone: undefined,
           actions: [{ label: "Save", primary: true }],
         },

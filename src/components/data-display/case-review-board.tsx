@@ -186,7 +186,7 @@ export function CaseReviewBoard({
           </div>
           {searchPlaceholder ? (
             <div className="flex min-w-[262px] items-center gap-[9px] rounded-[10px] border border-[#DEE8E2] bg-white px-[13px] py-[8px]">
-              <Search className="h-[14px] w-[14px] shrink-0 text-[#9FB8A7]" />
+              <Search className="h-[14px] w-[14px] shrink-0 text-[#5E6D64]" />
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
@@ -194,7 +194,7 @@ export function CaseReviewBoard({
                 className="min-w-0 flex-1 border-none bg-transparent text-[12.5px] text-[#0D2315] outline-hidden placeholder:text-[#7a8f82]"
               />
               {query ? (
-                <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]" aria-label="Clear search">
+                <button type="button" onClick={() => setQuery("")} className="flex shrink-0 items-center text-[#5E6D64] hover:text-[#0D2315]" aria-label="Clear search">
                   <X className="h-3.5 w-3.5" />
                 </button>
               ) : null}
@@ -456,7 +456,7 @@ function LeanDetailPanel({ selected }: { selected: CaseRecord }) {
                   </span>
                   <span className="min-w-0">
                     <span className={cn("block text-[12.5px] font-medium", check.done ? "text-[#0D2315]" : "text-(--color-text-secondary)")}>{check.label}</span>
-                    <span className="block text-[11px] text-[#9FB8A7]">{check.who ? `Verified by ${check.who}` : "Not yet verified"}</span>
+                    <span className="block text-[11px] text-[#5E6D64]">{check.who ? `Verified by ${check.who}` : "Not yet verified"}</span>
                   </span>
                 </div>
               ))

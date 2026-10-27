@@ -64,7 +64,7 @@ export function StateAdoptionTable({ heatmapByState, stateHeatmapModules }: Stat
             <div key={row.state} className="grid items-center gap-1.5 py-[2.5px]" style={{ gridTemplateColumns: cols }}>
               <div className="min-w-0">
                 <div className="overflow-hidden text-ellipsis whitespace-nowrap text-[11px] text-[#0D2315]">{row.state}</div>
-                <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-[#9FB8A7]">
+                <div className="mt-0.5 overflow-hidden text-ellipsis whitespace-nowrap text-[9.5px] text-[#5E6D64]">
                   {row.schoolCount} school{row.schoolCount === 1 ? "" : "s"}
                 </div>
               </div>

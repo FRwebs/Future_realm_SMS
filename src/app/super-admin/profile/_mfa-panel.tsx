@@ -1,7 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 
 import { Modal } from "@/components/ui/modal";
 import { InlineNotice } from "@/components/ui/inline-notice";
@@ -32,6 +35,11 @@ async function apiCall<T>(endpoint: string, method: string, body?: unknown): Pro
   return result.data as T;
 }
 
+const codeSchema = z.object({ code: z.string().trim().regex(/^\d{6}$/, "Type the 6 digits your authenticator app shows.") });
+const passwordSchema = z.object({ password: z.string().min(1, "Type your current password.") });
+type CodeValues = z.infer<typeof codeSchema>;
+type PasswordValues = z.infer<typeof passwordSchema>;
+
 function BackupCodesView({ codes, onDone }: { codes: string[]; onDone: () => void }) {
   return (
     <div className="grid gap-4">
@@ -55,7 +63,7 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
   const router = useRouter();
   const [step, setStep] = useState<"loading" | "scan" | "done">("loading");
   const [setup, setSetup] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
-  const [code, setCode] = useState("");
+  const form = useForm<CodeValues>({ resolver: zodResolver(codeSchema), defaultValues: { code: "" } });
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[]>([]);
@@ -78,8 +86,7 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
     };
   }, []);
 
-  async function handleConfirm(event: React.FormEvent) {
-    event.preventDefault();
+  async function handleConfirm({ code }: CodeValues) {
     setPending(true);
     setError(null);
     try {
@@ -92,6 +99,8 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
       setPending(false);
     }
   }
+
+  const codeField = form.register("code");
 
   if (step === "loading") {
     return <p className="py-8 text-center text-[11.5px] text-(--color-text-secondary)">Setting up...</p>;
@@ -117,7 +126,7 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <form onSubmit={handleConfirm} className="grid gap-4">
+    <form onSubmit={form.handleSubmit(handleConfirm)} noValidate className="grid gap-4">
       <p className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">
         Scan this with an authenticator app (Google Authenticator, Authy, 1Password), or enter the code manually.
       </p>
@@ -131,15 +140,21 @@ function SetupFlow({ onClose }: { onClose: () => void }) {
         <span className="mb-1.5 block text-[10.5px] font-semibold text-[#435048]">Enter the 6-digit code to confirm</span>
         <input
           type="text"
-          ref={focusOnMount}
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          {...codeField}
+          ref={(node) => {
+            codeField.ref(node);
+            focusOnMount(node);
+          }}
+          aria-invalid={Boolean(form.formState.errors.code)}
           className="w-full rounded-[9px] border border-(--color-border-default) px-3.5 py-2.5 text-[12px] outline-hidden focus:border-(--color-accent-primary)"
           placeholder="123456"
         />
       </label>
+      {form.formState.errors.code ? <p role="alert" className="text-[11.5px] text-danger">{form.formState.errors.code.message}</p> : null}
       <InlineNotice notice={error ? { variant: "error", title: "That code did not work", description: error } : null} onDismiss={() => setError(null)} />
-      <button type="submit" disabled={pending || code.trim().length === 0} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" disabled={pending} className="btn-primary disabled:cursor-not-allowed disabled:opacity-60">
         {pending ? "Confirming..." : "Confirm and turn on"}
       </button>
     </form>
@@ -158,13 +173,13 @@ function PasswordConfirmFlow({
   onDone: () => void;
 }) {
   const router = useRouter();
-  const [password, setPassword] = useState("");
+  const form = useForm<PasswordValues>({ resolver: zodResolver(passwordSchema), defaultValues: { password: "" } });
+  const passwordField = form.register("password");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [backupCodes, setBackupCodes] = useState<string[] | null>(null);
 
-  async function handleSubmit(event: React.FormEvent) {
-    event.preventDefault();
+  async function handleSubmit({ password }: PasswordValues) {
     setPending(true);
     setError(null);
     try {
@@ -195,20 +210,25 @@ function PasswordConfirmFlow({
   }
 
   return (
-    <form onSubmit={handleSubmit} className="grid gap-4">
+    <form onSubmit={form.handleSubmit(handleSubmit)} noValidate className="grid gap-4">
       <p className="text-[11.5px] leading-relaxed text-(--color-text-secondary)">{description}</p>
       <label className="block">
         <span className="mb-1.5 block text-[10.5px] font-semibold text-[#435048]">Current password</span>
         <input
           type="password"
-          ref={focusOnMount}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
+          autoComplete="current-password"
+          {...passwordField}
+          ref={(node) => {
+            passwordField.ref(node);
+            focusOnMount(node);
+          }}
+          aria-invalid={Boolean(form.formState.errors.password)}
           className="w-full rounded-[9px] border border-(--color-border-default) px-3.5 py-2.5 text-[12px] outline-hidden focus:border-(--color-accent-primary)"
         />
       </label>
+      {form.formState.errors.password ? <p role="alert" className="text-[11.5px] text-danger">{form.formState.errors.password.message}</p> : null}
       {error ? <p className="text-[11.5px] text-danger">{error}</p> : null}
-      <button type="submit" disabled={pending || password.length === 0} className="btn-destructive disabled:cursor-not-allowed disabled:opacity-60">
+      <button type="submit" disabled={pending} className="btn-destructive disabled:cursor-not-allowed disabled:opacity-60">
         {pending ? "Working..." : submitLabel}
       </button>
     </form>

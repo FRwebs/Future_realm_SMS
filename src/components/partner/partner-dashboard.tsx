@@ -4,14 +4,7 @@ import { useRouter } from "next/navigation";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ApiRequestError, apiJson, getUrl } from "@/lib/api/client";
-
-type Overview = {
-  person: { name: string; email: string };
-  partner: { name: string; code: string | null; tier: string | null; territory: string | null };
-  schools: Array<{ name: string; location: string; tier: string; tenureMonths: number; state: string; commission: number }>;
-  deals: Array<{ prospect: string; location: string | null; registeredAt: string; validUntil: string; status: string; daysLeft: number }>;
-  commission: { accrued: number; statements: Array<{ ref: string; period: string; net: number; status: string; dueAt: string; settledAt: string | null }> };
-};
+import { partnerOverviewContract } from "@/lib/api/contracts";
 
 const naira = (value: number) => `₦${Math.round(value).toLocaleString("en-NG")}`;
 const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
@@ -51,7 +44,7 @@ function Table({ head, rows, empty }: { head: string[]; rows: React.ReactNode[][
 
 export function PartnerDashboard() {
   const router = useRouter();
-  const overview = useQuery({ queryKey: ["partner", "overview"], queryFn: ({ signal }) => apiJson<Overview>(getUrl("/api/partner-portal/overview"), signal) });
+  const overview = useQuery({ queryKey: ["partner", "overview"], queryFn: ({ signal }) => apiJson(getUrl("/api/partner-portal/overview"), signal, partnerOverviewContract) });
   const data = overview.data ?? null;
   const signedOut = overview.error instanceof ApiRequestError && overview.error.status === 401;
   const failed = overview.isError && !signedOut;

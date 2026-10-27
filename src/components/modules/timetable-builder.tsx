@@ -273,7 +273,7 @@ export function TimetableBuilder({
       <section className={CARD}>
         <div className="mb-[13px] border-b border-[#EDF3EF] pb-[11px]">
           <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">Timetable details</h2>
-          <p className="mt-[3px] text-[11px] text-[#67766D]">
+          <p className="mt-[3px] text-[11px] text-[#5E6D64]">
             What this timetable is, and how its day is shaped. {version.term ? `For ${version.term}.` : ""}
           </p>
         </div>
@@ -325,20 +325,20 @@ export function TimetableBuilder({
         <div className="mb-[13px] flex flex-wrap items-start justify-between gap-3 border-b border-[#EDF3EF] pb-[11px]">
           <div>
             <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold tracking-[-0.018em] text-[#0D2315]">Build the week</h2>
-            <p className="mt-[3px] text-[11px] text-[#67766D]">Pick a subject, then tap the periods it runs in. Tap a filled period with nothing selected to clear it.</p>
+            <p className="mt-[3px] text-[11px] text-[#5E6D64]">Pick a subject, then tap the periods it runs in. Tap a filled period with nothing selected to clear it.</p>
           </div>
-          <p className="text-[11px] text-[#67766D]">{scopeLabel} · {filled} of {total} periods placed</p>
+          <p className="text-[11px] text-[#5E6D64]">{scopeLabel} · {filled} of {total} periods placed</p>
         </div>
 
         <div className="mb-[12px] flex flex-wrap items-center gap-[6px]">
-          <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]">Apply to</span>
+          <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]">Apply to</span>
           {SCOPES.map((item) => (
             <button key={item} type="button" onClick={() => setScope(item)} className={cn("rounded-full border px-[11px] py-[5.5px] text-[10.5px] font-semibold", item === scope ? "border-[#0D2315] bg-[#0D2315] text-white" : "border-[#DEE8E2] bg-white text-[#5F6E65]")}>
               {item}
             </button>
           ))}
         </div>
-        <p className="mb-[12px] text-[10.5px] text-[#67766D]">
+        <p className="mb-[12px] text-[10.5px] text-[#5E6D64]">
           {scope === "One arm"
             ? `Applies to ${primary?.name ?? "—"} only.`
             : scope === "A whole class"
@@ -348,7 +348,7 @@ export function TimetableBuilder({
 
         {scope !== "Every arm in the school" ? (
           <div className="mb-[12px] flex flex-wrap items-center gap-[6px]">
-            <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]">{scope === "A whole class" ? "Class" : "Arm"}</span>
+            <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]">{scope === "A whole class" ? "Class" : "Arm"}</span>
             {(scope === "A whole class"
               ? Array.from(new Map(arms.map((arm) => [arm.levelId, arm])).values())
               : arms
@@ -363,7 +363,7 @@ export function TimetableBuilder({
           </div>
         ) : (
           <div className="mb-[12px] flex flex-wrap items-center gap-[6px]">
-            <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]">Counting in</span>
+            <span className="mr-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]">Counting in</span>
             {arms.slice(0, 40).map((arm) => (
               <button key={arm.id} type="button" onClick={() => setArmId(arm.id)} className={cn("rounded-full border px-[11px] py-[5.5px] text-[10.5px] font-semibold", arm.id === armId ? "border-[#0D2315] bg-[#0D2315] text-white" : "border-[#DEE8E2] bg-white text-[#5F6E65]")}>
                 {arm.name}
@@ -394,14 +394,14 @@ export function TimetableBuilder({
                   title={chip.teacher}
                 >
                   {chip.name}
-                  <span className={cn("rounded-full px-[6px] py-[1.5px] text-[9.5px] font-bold tabular-nums", on ? "bg-white/15 text-white" : over ? "bg-[#F6E3E3] text-[#B23B3B]" : full ? "bg-[#DCEDE4] text-[#17714F]" : "bg-[#F2F7F4] text-[#67766D]")}>
+                  <span className={cn("rounded-full px-[6px] py-[1.5px] text-[9.5px] font-bold tabular-nums", on ? "bg-white/15 text-white" : over ? "bg-[#F6E3E3] text-[#B23B3B]" : full ? "bg-[#DCEDE4] text-[#17714F]" : "bg-[#F2F7F4] text-[#5E6D64]")}>
                     {chip.used}/{chip.quota}
                   </span>
                 </button>
               );
             })
           ) : (
-            <span className="text-[11px] text-[#67766D]">The arms in this scope offer no subjects yet. Map subjects to teachers in the Subjects tab first.</span>
+            <span className="text-[11px] text-[#5E6D64]">The arms in this scope offer no subjects yet. Map subjects to teachers in the Subjects tab first.</span>
           )}
         </div>
 
@@ -409,21 +409,21 @@ export function TimetableBuilder({
           <div className="min-w-[680px] overflow-hidden rounded-[11px] border border-[#E6EEE9]">
             <div className="grid gap-px bg-[#E6EEE9]" style={{ gridTemplateColumns: `62px 92px repeat(${Math.max(dayNumbers.length, 1)}, minmax(0, 1fr))` }}>
               {["Period", "Time", ...dayNumbers.map((day) => DAY_NAMES[day - 1])].map((label, index) => (
-                <div key={label} className={cn("bg-[#F7FAF8] px-[10px] py-[9px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]", index > 1 && "text-center")}>
+                <div key={label} className={cn("bg-[#F7FAF8] px-[10px] py-[9px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]", index > 1 && "text-center")}>
                   {label}
                 </div>
               ))}
               {periods.map((period) =>
                 period.n === "break" ? (
                   <div key={`b-${period.start}`} className="contents">
-                    <div className="bg-[#F7FAF8] px-[10px] py-[8px] text-[10.5px] font-semibold text-[#67766D]">—</div>
-                    <div className="bg-[#F7FAF8] px-[10px] py-[8px] text-[10px] tabular-nums text-[#67766D]">{period.start}–{period.end}</div>
-                    <div className="bg-[#F7FAF8] px-[10px] py-[8px] text-center text-[10px] text-[#67766D]" style={{ gridColumn: `span ${Math.max(dayNumbers.length, 1)}` }}>Break</div>
+                    <div className="bg-[#F7FAF8] px-[10px] py-[8px] text-[10.5px] font-semibold text-[#5E6D64]">—</div>
+                    <div className="bg-[#F7FAF8] px-[10px] py-[8px] text-[10px] tabular-nums text-[#5E6D64]">{period.start}–{period.end}</div>
+                    <div className="bg-[#F7FAF8] px-[10px] py-[8px] text-center text-[10px] text-[#5E6D64]" style={{ gridColumn: `span ${Math.max(dayNumbers.length, 1)}` }}>Break</div>
                   </div>
                 ) : (
                   <div key={`p-${period.n}`} className="contents">
                     <div className="bg-white px-[10px] py-[9px] text-[10.5px] font-semibold tabular-nums text-[#0D2315]">{period.n}</div>
-                    <div className="bg-white px-[10px] py-[9px] text-[10px] tabular-nums text-[#67766D]">{period.start}–{period.end}</div>
+                    <div className="bg-white px-[10px] py-[9px] text-[10px] tabular-nums text-[#5E6D64]">{period.start}–{period.end}</div>
                     {dayNumbers.map((day) => {
                       const cell = grid[armId]?.[cellId(day, period.n as number)];
                       const subject = cell ? offered(armId, cell.subjectId) : undefined;
@@ -442,7 +442,7 @@ export function TimetableBuilder({
                           <span className={cn("max-w-full truncate text-[11px] font-bold leading-[1.1]", clash ? "text-[#B23B3B]" : cell ? "text-[#17714F]" : "text-[#B4C4BB]")}>
                             {cell ? subject?.code ?? "?" : selected ? "+" : ""}
                           </span>
-                          {cell ? <span className="max-w-full truncate text-[8.5px] leading-[1.1] text-[#67766D]">{(subject?.teacher ?? "No teacher").replace(/^(Mrs|Mr|Miss|Dr)\s/, "")}</span> : null}
+                          {cell ? <span className="max-w-full truncate text-[8.5px] leading-[1.1] text-[#5E6D64]">{(subject?.teacher ?? "No teacher").replace(/^(Mrs|Mr|Miss|Dr)\s/, "")}</span> : null}
                         </button>
                       );
                     })}
@@ -490,7 +490,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone: "ok"
   const color = tone === "ok" ? "#17714F" : tone === "bad" ? "#B23B3B" : tone === "warn" ? "#8A6410" : "#243B2E";
   return (
     <div className="flex min-w-0 flex-col gap-[3px]">
-      <dt className="text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#67766D]">{label}</dt>
+      <dt className="text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5E6D64]">{label}</dt>
       <dd className="truncate text-[13px] font-bold tabular-nums" style={{ color }}>{value}</dd>
     </div>
   );
