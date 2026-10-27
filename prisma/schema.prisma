@@ -1238,6 +1238,8 @@ model User {
   middleName                       String?
   lastName                         String
   preferredName                    String?
+  /// The language this person reads the product in (en, yo, ha, ig). Null means "whatever their browser asks for".
+  locale                           String?
   jobTitle                         String?
   gender                           Gender?
   dateOfBirth                      DateTime?

@@ -15,6 +15,7 @@ import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
+import { rememberLocale, toLocale } from "../../common/locale";
 import { ProfileService } from "./profile.service";
 
 @ApiTags("profiles")
@@ -32,8 +33,13 @@ export class ProfileController {
   @Patch("profile/me")
   @UseGuards(SessionGuard, CsrfGuard, PermissionsGuard)
   @RequirePermission("profiles.update_self")
-  updateMe(@CurrentSession() session: SessionPayload, @Body() body: unknown) {
-    return this.profileService.ok(this.profileService.updateMyProfile(session, body), "Profile updated.");
+  updateMe(@CurrentSession() session: SessionPayload, @Body() body: unknown, @Res({ passthrough: true }) response: Response) {
+    const saved = this.profileService.updateMyProfile(session, body).then((profile) => {
+      // A changed language is remembered on this device straight away, not only at the next sign-in.
+      rememberLocale(response, toLocale((body as { locale?: unknown } | null)?.locale));
+      return profile;
+    });
+    return this.profileService.ok(saved, "Profile updated.");
   }
 
   @Patch("profile/me/password")

@@ -2113,6 +2113,7 @@ function FormPanel({
   const [values, setValues] = useState<Record<string, unknown>>(() =>
     Object.fromEntries(panel.fields.map((field) => [field.label, initialValue(field)])),
   );
+  const router = useRouter();
   const [state, setState] = useState<SaveState>({ kind: "idle" });
   const minCol = panel.per === 1 ? 300 : 210;
   const submit = panel.submit;
@@ -2154,6 +2155,7 @@ function FormPanel({
         }));
       }
       setState({ kind: "saved", message: submit.done });
+      if (submit.refreshAfter) router.refresh();
     } catch (error) {
       setState({
         kind: "failed",

@@ -526,6 +526,8 @@ export type FormSubmit = {
   done: string;
   /** Clear these fields after a successful save, e.g. password boxes. */
   clearOnSuccess?: string[];
+  /** Draw the page again after a successful save — for a setting that changes how the page itself is drawn, like the language. */
+  refreshAfter?: boolean;
 };
 
 export type CourseCard = {

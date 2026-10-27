@@ -1,3 +1,4 @@
+import { ALL_LOCALES, DEFAULT_LOCALE, LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/locales";
 import { systemRoleLabels } from "@/lib/permissions/catalog";
 import { schoolModules, schoolTemplateReach } from "@/lib/modules/school-modules";
 import { roleTemplateFor, visibleModulesForRole } from "@/lib/modules/school-access";
@@ -13,6 +14,8 @@ export type MyProfile = {
   phone?: string | null;
   alternateEmail?: string | null;
   mfaEnabled?: boolean | null;
+  /** The language chosen for the product (en, yo, ha, ig), if one has been. */
+  locale?: string | null;
   lastLoginAt?: string | null;
   accountStatus?: string | null;
 };
@@ -271,7 +274,7 @@ function profileTab(session: SessionUser, schoolName: string, profile: MyProfile
 
 /* ------------------------------------------------------------- Preferences */
 
-function preferencesTab(session: SessionUser, schoolName: string): TabContent {
+function preferencesTab(session: SessionUser, schoolName: string, profile: MyProfile): TabContent {
   const savePreferences: DrawerSpec = {
     mode: "commit",
     kicker: "Preferences",
@@ -279,7 +282,6 @@ function preferencesTab(session: SessionUser, schoolName: string): TabContent {
     sub: "These change your own experience only — never anyone else's.",
     facts: [
       ["Open on", "Command Center · Today", "Where you land after signing in"],
-      ["Language", "English"],
       ["Density", "Compact", "Compact fits more rows; comfortable is easier on a projector"],
       ["Date format", "4 September 2026"],
       ["Saved against", "Your account, not this device"],
@@ -310,6 +312,35 @@ function preferencesTab(session: SessionUser, schoolName: string): TabContent {
     desc: `How the product opens for you · ${session.name} · ${schoolName}`,
     primary: { label: "Save preferences", drawer: savePreferences },
     rows: [
+      row("1fr", [
+        {
+          type: "form",
+          title: "Language",
+          sub: "The language you read the product in. It is saved to your account and follows you onto any device you sign in from.",
+          per: 1,
+          fields: [
+            {
+              kind: "select",
+              label: "Language",
+              value: LOCALE_NAMES[(ALL_LOCALES as readonly string[]).includes(profile.locale ?? "") ? (profile.locale as Locale) : DEFAULT_LOCALE],
+              options: ALL_LOCALES.map((code) => LOCALE_NAMES[code]),
+              hint:
+                "So far the sign-in, password-recovery and sign-up screens are translated; everything else stays in English until it is. " +
+                (LOCALES.length > 1
+                  ? "Yorùbá, Hausa and Igbo are drafts awaiting review by a fluent speaker."
+                  : "Yorùbá, Hausa and Igbo are drafts that are switched off on this server, so choosing one is saved but still shows English."),
+            },
+          ],
+          submit: {
+            endpoint: "/api/v1/profile/me",
+            method: "PATCH",
+            map: { Language: "locale" },
+            done: "Saved to your account.",
+            refreshAfter: true,
+          },
+          actions: [{ label: "Save language", primary: true }],
+        },
+      ]),
       row("1.35fr 1fr", [
         {
           type: "form",
@@ -328,12 +359,6 @@ function preferencesTab(session: SessionUser, schoolName: string): TabContent {
                 "Score Entry · Review",
               ],
               hint: "Where you land after signing in.",
-            },
-            {
-              kind: "select",
-              label: "Language",
-              value: "English",
-              options: ["English", "Hausa", "Yoruba", "Igbo"],
             },
             {
               kind: "choice",
@@ -744,7 +769,7 @@ export function accountContentFor(
 ): ModuleContent {
   return {
     profile: profileTab(session, schoolName, profile),
-    preferences: preferencesTab(session, schoolName),
+    preferences: preferencesTab(session, schoolName, profile),
     security: securityTab(session, schoolName, profile),
     "my-activity": myActivityTab(session, schoolName),
   };
