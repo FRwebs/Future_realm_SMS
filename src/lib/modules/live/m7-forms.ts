@@ -16,6 +16,7 @@ import type {
   StaffRecord,
   TemplateGrid,
 } from "@/lib/modules/live/m7-types";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Every modal in Staff & Access, as data.
@@ -357,7 +358,7 @@ export function recertifyDrawer(overview: AccessOverview, o: { userIds?: string[
   const above = people.filter((person) => person.above > 0).length;
   const risky = people.filter((person) => person.account !== "Active").length;
   const last = overview.recertification.last;
-  const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "Never");
+  const day = (iso: string | null | undefined) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }) : "Never");
   return {
     mode: "decide",
     kicker: "Permissions",

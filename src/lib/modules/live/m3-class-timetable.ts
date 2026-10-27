@@ -44,6 +44,7 @@ import {
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M03 Class & Timetable, read from `/api/v1/class-structure`.
@@ -67,14 +68,14 @@ const dateLabel = (iso: string | null | undefined) => {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return formatDay(date, { day: "numeric", month: "short" });
 };
 
 const dateLong = (iso: string | null | undefined) => {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 };
 
 const plural = (count: number, one: string, many = `${one}s`) => `${count} ${count === 1 ? one : many}`;

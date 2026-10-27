@@ -2,6 +2,7 @@ import { apiGet } from "@/lib/api/server";
 import { area, checks, fixed, select, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, PanelFact, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Staff & Access → Learning. Where a school writes the courses its staff take, and reads what came of them: who has finished what,
@@ -28,7 +29,7 @@ export type ManagedCourse = {
 const PERSONA_LABELS: Record<string, string> = { "form-master": "Form masters", "head-of-department": "Heads of department", "subject-teacher": "Subject teachers", "early-years": "Early years teachers", "teaching-assistant": "Teaching assistants", cover: "Cover teachers" };
 const labelOf = (slug: string) => PERSONA_LABELS[slug] ?? slug;
 const slugOf = Object.fromEntries(Object.entries(PERSONA_LABELS).map(([slug, label]) => [label, slug]));
-const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "");
+const day = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }) : "");
 
 export const loadManagedCourse = (id: string) => apiGet<ManagedCourse>(`${API}/courses/${id}`);
 

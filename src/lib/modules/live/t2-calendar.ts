@@ -1,6 +1,7 @@
 import { apiGet } from "@/lib/api/server";
 import type { PanelFact, PanelTone, TabContent, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M02 for a teaching person: the school calendar, read-only, with every date said in terms of their own work. Every deadline a
@@ -20,7 +21,7 @@ type CalendarView = {
 const DOWNLOAD = "M12 3.5v11M7.5 10l4.5 4.5 4.5-4.5M4.5 19.5h15";
 const ORDINAL = ["", "First", "Second", "Third", "Fourth"];
 
-const fmt = (value: string, long = false) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: long ? "long" : "short", timeZone: "UTC" }).format(new Date(value));
+const fmt = (value: string, long = false) => formatDay(new Date(value), { day: "numeric", month: long ? "long" : "short", timeZone: "UTC" });
 const span = (from: string, to: string | null) => (to && to !== from ? `${fmt(from)} – ${fmt(to)}` : fmt(from));
 const tone = (kind: string): PanelTone => (kind === "Attention" ? "attention" : kind === "Closed" ? "neutral" : kind === "Assessment" ? "progress" : "submitted");
 

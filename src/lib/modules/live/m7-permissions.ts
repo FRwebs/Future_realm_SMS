@@ -18,6 +18,7 @@ import {
   type TableCellKind,
   type TableRow,
 } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 const ACCOUNT_TONE: Record<AccountState, PanelTone> = {
   Active: "positive",
@@ -31,7 +32,7 @@ const plural = (count: number, one: string, many = `${one}s`) => `${count} ${cou
 const dayLong = (iso: string | null | undefined) => {
   if (!iso) return "—";
   const date = new Date(iso);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return Number.isNaN(date.getTime()) ? "—" : formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 };
 
 export const personHref = (userId: string) => `/staff-access/permissions/people/${userId}`;

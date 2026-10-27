@@ -6,6 +6,7 @@ import { attendanceSessionDrawer, collectorDrawer, documentDrawer, endSupportPla
 import { FEE_TONE, STATE_TONE, attTone, gradeTone, loadRegistry, studentHref } from "@/lib/modules/live/m8-registry";
 import type { Dossier, DossierSubject, Registry, TermResult } from "@/lib/modules/live/m8-types";
 import { name as nameCell, pill, termShort, text, type DrawerSpec, type KpiCard, type Panel, type PanelFact, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * One child, in full. Eight sections, one record, reached identically from a class roster and from
@@ -419,7 +420,7 @@ function wellbeing({ d, wrap }: Body): RecordPage {
 function studentSignIn(d: Dossier): Panel {
   const a = d.account!;
   const first = d.fullName.split(" ")[0] ?? "The student";
-  const when = (iso: string | null) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : null);
+  const when = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }) : null);
   const act = (action: "reset" | "disable" | "enable", title: string, sub: string, label: string): DrawerSpec => ({
     kicker: "Student portal", title, sub, mode: "commit", commitLabel: label, commitDone: action === "reset" ? "Temporary password ready" : "Done", commitDoneBody: action === "reset" ? "Shown once below. Give it to them in person." : "It takes effect straight away.",
     fields: [{ kind: "text", label: "Why", value: "", optional: true, placeholder: "Kept in the audit log", span: 2 }],

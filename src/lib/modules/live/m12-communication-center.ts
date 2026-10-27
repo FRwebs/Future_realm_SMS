@@ -11,6 +11,7 @@ import {
   type TableRow,
   type TileItem,
 } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M12 Communication Center, read from `/v1/communication-center`.
@@ -152,7 +153,7 @@ function whenLabel(iso: string | null): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short" });
+  return formatDay(date, { day: "numeric", month: "short" }, "en-NG");
 }
 
 function channelLabel(channel: string): string {

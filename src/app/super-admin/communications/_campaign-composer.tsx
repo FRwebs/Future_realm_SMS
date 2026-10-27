@@ -1,11 +1,38 @@
 "use client";
 
-import { useEffect, useState, type CSSProperties } from "react";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useForm } from "react-hook-form";
 import { useRouter } from "next/navigation";
+import { z } from "zod";
 
 import { InlineNotice, useNotice } from "@/components/ui/inline-notice";
 
 type Option = { label: string; value: string };
+
+const campaignSchema = (smsPrefix: string) =>
+  z
+    .object({
+      type: z.enum(["OPERATIONAL", "PROMOTIONAL"]),
+      channel: z.enum(["EMAIL", "SMS", "WHATSAPP"]),
+      name: z.string().trim().min(1, "Give the campaign a name."),
+      subject: z.string(),
+      body: z.string().trim().min(1, "Write what the campaign says."),
+      templateId: z.string(),
+      role: z.string(),
+      plan: z.string(),
+      state: z.string(),
+      city: z.string(),
+      lastLoginWithinDays: z.string(),
+      scheduledAt: z.string(),
+      recurrence: z.string(),
+    })
+    .superRefine((value, context) => {
+      if (value.channel === "SMS" && smsPrefix.length + value.body.length > 160) {
+        context.addIssue({ code: "custom", path: ["body"], message: `It opens with “${smsPrefix.trim().replace(/:$/, "")}”, which makes this ${smsPrefix.length + value.body.length} characters. An SMS is limited to 160 — shorten the message.` });
+      }
+    });
+type CampaignValues = z.infer<ReturnType<typeof campaignSchema>>;
 
 interface CampaignComposerProps {
   templateOptions: Option[];
@@ -36,25 +63,21 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
   const router = useRouter();
   const notice = useNotice();
 
-  const [type, setType] = useState<"OPERATIONAL" | "PROMOTIONAL">("OPERATIONAL");
-  const [channel, setChannel] = useState<"EMAIL" | "SMS" | "WHATSAPP">("EMAIL");
-  const [name, setName] = useState("");
-  const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
-  const [templateId, setTemplateId] = useState("");
-  const [role, setRole] = useState("");
-  const [plan, setPlan] = useState("");
-  const [state, setState] = useState("");
-  const [city, setCity] = useState("");
-  const [lastLoginWithinDays, setLastLoginWithinDays] = useState("");
-  const [scheduledAt, setScheduledAt] = useState("");
-  const [recurrence, setRecurrence] = useState("");
+  const smsPrefix = `${platformName}: `;
+  const schema = useMemo(() => campaignSchema(smsPrefix), [smsPrefix]);
+  const form = useForm<CampaignValues>({
+    resolver: zodResolver(schema),
+    defaultValues: { type: "OPERATIONAL", channel: "EMAIL", name: "", subject: "", body: "", templateId: "", role: "", plan: "", state: "", city: "", lastLoginWithinDays: "", scheduledAt: "", recurrence: "" },
+  });
+  const { type, channel, name, subject, body, templateId, role, plan, state, city, lastLoginWithinDays, scheduledAt, recurrence } = form.watch();
+  const setType = (value: CampaignValues["type"]) => form.setValue("type", value);
+  const setChannel = (value: CampaignValues["channel"]) => form.setValue("channel", value);
+  const setBody = (update: (current: string) => string) => form.setValue("body", update(form.getValues("body")), { shouldValidate: form.formState.isSubmitted });
 
   const [preview, setPreview] = useState<AudiencePreview | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [pending, setPending] = useState(false);
   const [testing, setTesting] = useState(false);
-  const smsPrefix = `${platformName}: `;
 
   useEffect(() => {
     const filters: Record<string, unknown> = {};
@@ -88,15 +111,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
     router.push("/super-admin/communications?tab=campaigns");
   }
 
-  async function handleSave() {
-    if (!name.trim() || !body.trim()) {
-      notice.warning("A name and a message are needed", "Give the campaign a name and write what it says.");
-      return;
-    }
-    if (channel === "SMS" && smsPrefix.length + body.length > 160) {
-      notice.warning("An SMS is limited to 160 characters", `It opens with “${platformName}”, which makes this ${smsPrefix.length + body.length}. Shorten the message.`);
-      return;
-    }
+  async function save() {
     notice.clear();
     setPending(true);
     try {
@@ -133,6 +148,12 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
     }
   }
 
+  /** A campaign that cannot be saved says which part, beside the part and in the notice, rather than failing quietly. */
+  const handleSave = form.handleSubmit(save, (errors) => {
+    const first = errors.name ?? errors.body;
+    notice.warning("The campaign is not ready", first?.message ?? "Check the highlighted fields.");
+  });
+
   async function handleTest() {
     if (!body.trim()) {
       notice.warning("Write the message first", "A test is sent exactly as written.");
@@ -158,22 +179,22 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
   }
 
   const audienceFilters = [
-    { label: "Role", node: <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="e.g. SCHOOL_ADMIN, PARENT" style={fieldInputStyle} /> },
+    { label: "Role", node: <input {...form.register("role")} placeholder="e.g. SCHOOL_ADMIN, PARENT" style={fieldInputStyle} /> },
     {
       label: "Plan tier",
       node: (
-        <select value={plan} onChange={(e) => setPlan(e.target.value)} style={fieldInputStyle}>
+        <select {...form.register("plan")} style={fieldInputStyle}>
           {planFilterOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
       )
     },
-    { label: "State", node: <input value={state} onChange={(e) => setState(e.target.value)} placeholder="e.g. Lagos" style={fieldInputStyle} /> },
-    { label: "City", node: <input value={city} onChange={(e) => setCity(e.target.value)} placeholder="e.g. Ikeja" style={fieldInputStyle} /> },
+    { label: "State", node: <input {...form.register("state")} placeholder="e.g. Lagos" style={fieldInputStyle} /> },
+    { label: "City", node: <input {...form.register("city")} placeholder="e.g. Ikeja" style={fieldInputStyle} /> },
     {
       label: "Active within (days)",
-      node: <input type="number" min={1} value={lastLoginWithinDays} onChange={(e) => setLastLoginWithinDays(e.target.value)} placeholder="e.g. 30" style={fieldInputStyle} />
+      node: <input type="number" min={1} {...form.register("lastLoginWithinDays")} placeholder="e.g. 30" style={fieldInputStyle} />
     }
   ];
 
@@ -240,7 +261,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
           <p className="text-[12.5px] font-semibold text-[#0D2315]">Message composer</p>
           <p className="text-[10.5px] text-[#5f6e65]">Sender is always “{platformName}”</p>
         </div>
-        <input value={name} onChange={(e) => setName(e.target.value)} placeholder="Campaign name * — internal, recipients never see it" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
+        <input {...form.register("name")} aria-invalid={Boolean(form.formState.errors.name)} aria-label="Campaign name" placeholder="Campaign name * — internal, recipients never see it" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
 
         <div className="mb-4 flex gap-1.5">
           {channelDefs.map((c) => {
@@ -261,19 +282,20 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
         </div>
 
         <div className="mb-1.5 text-[10px] font-semibold text-[#5f6e65]">Start from a template (optional)</div>
-        <select value={templateId} onChange={(e) => setTemplateId(e.target.value)} style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }}>
+        <select {...form.register("templateId")} aria-label="Template" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }}>
           {templateOptions.map((o) => (
             <option key={o.value} value={o.value}>{o.label}</option>
           ))}
         </select>
 
         <div className="mb-1.5 text-[10px] font-semibold text-[#5f6e65]">Subject line (email only)</div>
-        <input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Term 2 fee reminder" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
+        <input {...form.register("subject")} aria-label="Subject line" placeholder="e.g. Term 2 fee reminder" style={{ ...fieldInputStyle, marginBottom: 14, background: "#F7FAF8", border: "1px solid #E1EBE5", borderRadius: 9, padding: "11px 13px" }} />
 
         <div className="mb-1.5 text-[10px] font-semibold text-[#5f6e65]">Message body *</div>
         <textarea
-          value={body}
-          onChange={(e) => setBody(e.target.value)}
+          {...form.register("body")}
+          aria-label="Message body"
+          aria-invalid={Boolean(form.formState.errors.body)}
           rows={5}
           placeholder="Write the message..."
           style={{ width: "100%", fontSize: 13, lineHeight: 1.6, color: "#2F3B34", minHeight: 118, background: "#F7FAF8", border: `1px solid ${overLimit ? "#DB5555" : "#E1EBE5"}`, borderRadius: 9, padding: 13, outline: "none", resize: "vertical" }}
@@ -293,11 +315,11 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
           <div className="ml-auto flex items-center gap-2.5">
             <label className="text-[11px] text-[#5f6e65]">
               Schedule for
-              <input type="datetime-local" value={scheduledAt} onChange={(e) => setScheduledAt(e.target.value)} className="ml-2" style={{ fontSize: 12, border: "1px solid #DEE8E2", borderRadius: 8, padding: "6px 9px" }} />
+              <input type="datetime-local" {...form.register("scheduledAt")} className="ml-2" style={{ fontSize: 12, border: "1px solid #DEE8E2", borderRadius: 8, padding: "6px 9px" }} />
             </label>
             <label className="text-[11px] text-[#5f6e65]">
               Repeat
-              <select value={recurrence} onChange={(e) => setRecurrence(e.target.value)} disabled={!scheduledAt} className="ml-2" style={{ fontSize: 12, border: "1px solid #DEE8E2", borderRadius: 8, padding: "6px 9px" }}>
+              <select {...form.register("recurrence")} disabled={!scheduledAt} className="ml-2" style={{ fontSize: 12, border: "1px solid #DEE8E2", borderRadius: 8, padding: "6px 9px" }}>
                 <option value="">Once</option>
                 <option value="WEEKLY">Every week</option>
                 <option value="MONTHLY">Every month</option>
@@ -307,7 +329,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
         </div>
         <InlineNotice notice={notice.notice} onDismiss={notice.notice?.variant === "success" ? undefined : notice.clear} className="mt-4" />
         <div className="mt-4 flex flex-wrap items-center gap-2">
-          <button type="button" onClick={handleSave} disabled={pending} className="whitespace-nowrap rounded-[10px] bg-[#0D2315] px-4 py-2.5 text-[11.5px] font-semibold text-white transition hover:bg-[#17402A] disabled:opacity-60">
+          <button type="button" onClick={() => void handleSave()} disabled={pending} className="whitespace-nowrap rounded-[10px] bg-[#0D2315] px-4 py-2.5 text-[11.5px] font-semibold text-white transition hover:bg-[#17402A] disabled:opacity-60">
             {pending ? "Saving..." : scheduledAt ? "Schedule campaign" : "Save draft"}
           </button>
           <button type="button" onClick={handleTest} disabled={testing} className="whitespace-nowrap rounded-[10px] border border-[#DEE8E2] px-3.5 py-2.5 text-[11.5px] font-semibold text-[#435048] transition hover:bg-[#EFF6F2] disabled:opacity-60">

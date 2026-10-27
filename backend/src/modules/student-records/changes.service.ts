@@ -7,6 +7,7 @@ import { z } from "zod";
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
 import { STATE_TO_STATUS, armName, currentTerm, dayText, daysSince, fullName, genderLabel } from "./records.shared";
+import { formatDay } from "../../common/date-format";
 
 /**
  * Changes: what has been asked of a child's record, what is pending, and what is incomplete.
@@ -28,7 +29,7 @@ const requestSchema = z.object({
 
 const decideSchema = z.object({ decision: z.enum(["approve", "decline"]), note: z.string().trim().optional() });
 
-const dobText = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+const dobText = (date: Date) => formatDay(date, { day: "numeric", month: "short", year: "numeric" });
 
 @Injectable()
 export class ChangesService {

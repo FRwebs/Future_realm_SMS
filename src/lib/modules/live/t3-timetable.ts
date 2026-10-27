@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, choice, fixed, select, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M03 for a teaching person: their own timetable, and what they are assigned to.
@@ -44,8 +45,8 @@ const CLOCK = "M12 20.5a8.5 8.5 0 1 0 0-17 8.5 8.5 0 0 0 0 17M12 7.5V12l3 2";
 const BACK = "M15 5l-7 7 7 7";
 const QUESTIONS = "/api/v1/teacher-workspace/questions";
 
-const dayWords = (iso: string) => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(iso));
-const stamp = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const dayWords = (iso: string) => formatDay(new Date(iso), { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
+const stamp = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
 const sheetTone = (state: string): PanelTone => (state === "Returned" ? "negative" : state === "Not started" ? "attention" : state === "In progress" ? "progress" : state === "Submitted" ? "submitted" : state === "Approved" ? "positive" : "neutral");
 
 export async function teacherTimetableTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {

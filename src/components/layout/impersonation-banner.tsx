@@ -5,16 +5,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { SessionUser } from "@/lib/domain/types";
+import { formatDay } from "@/lib/date-format";
 
 function formatTime(value: string) {
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return null;
-  return new Intl.DateTimeFormat("en-NG", {
+  return formatDay(date, {
     hour: "numeric",
     minute: "2-digit",
     day: "numeric",
     month: "short"
-  }).format(date);
+  }, "en-NG");
 }
 
 export function ImpersonationBanner({ session }: { session: SessionUser }) {

@@ -791,7 +791,7 @@ function TablePanel({
                     if (typing.current) clearTimeout(typing.current);
                     ask({ q: null, p: null });
                   }}
-                  aria-label="Clear search"
+                  aria-label={ui("Clear search")}
                   className="flex flex-none"
                 >
                   <X
@@ -855,7 +855,7 @@ function TablePanel({
               <button
                 type="button"
                 onClick={() => setSelected(new Set())}
-                aria-label="Clear selection"
+                aria-label={ui("Clear selection")}
                 className="flex h-[15.5px] w-[15.5px] flex-none items-center justify-center rounded-[5px] bg-white"
               >
                 <Minus
@@ -917,7 +917,7 @@ function TablePanel({
             style={{ color: "#435048" }}
           >
             {everyRow === 0
-              ? (panel.emptyTitle ?? "Nothing here yet")
+              ? ui(panel.emptyTitle ?? "Nothing here yet")
               : `No ${nounPlural} match that`}
           </p>
           <p
@@ -925,8 +925,8 @@ function TablePanel({
             style={{ color: MUTED }}
           >
             {everyRow === 0
-              ? (panel.emptyBody ?? panel.empty ?? "Records will appear here as they are created.")
-              : "Clear the search or widen a filter to see more."}
+              ? ui(panel.emptyBody ?? panel.empty ?? "Records will appear here as they are created.")
+              : ui("Clear the search or widen a filter to see more.")}
           </p>
         </div>
       ) : (
@@ -1065,7 +1065,7 @@ function TablePanel({
               type="button"
               onClick={() => turnTo(Math.max(0, safePage - 1))}
               disabled={safePage === 0}
-              aria-label="Previous page"
+              aria-label={ui("Previous page")}
               className={pagerClass(false)}
             >
               <ChevronLeft
@@ -1092,7 +1092,7 @@ function TablePanel({
               type="button"
               onClick={() => turnTo(Math.min(pageCount - 1, safePage + 1))}
               disabled={safePage >= pageCount - 1}
-              aria-label="Next page"
+              aria-label={ui("Next page")}
               className={pagerClass(false)}
             >
               <ChevronRight

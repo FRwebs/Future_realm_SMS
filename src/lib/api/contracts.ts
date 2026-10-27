@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import type { TimetableDetail } from "@/lib/modules/live/m3-types";
+
 /**
  * What the browser expects the API to answer for the reads it makes after a page has loaded. The shapes are checked at the boundary: an
  * answer that does not match is reported as one clear error here instead of an `undefined` three components down. Extra fields are fine —
@@ -69,3 +71,53 @@ export const tierChangePreviewContract = z.object({
   termlyDifference: z.number(),
   blocked: z.object({ code: z.string(), message: z.string() }).nullable(),
 });
+
+/** A saved Back Office report, run: the figures by segment, with what was left out to protect small groups. */
+export const reportRunContract = z.object({
+  name: z.string(),
+  dimension: z.string(),
+  metric: z.string(),
+  question: z.string().nullable(),
+  locked: z.boolean(),
+  periodDays: z.number().nullable(),
+  compare: z.boolean(),
+  suppressUnder: z.number().nullable(),
+  showDropoff: z.boolean(),
+  weightChurned: z.boolean(),
+  rows: z.array(
+    z.object({
+      label: z.string(),
+      value: z.number().nullable(),
+      suppressed: z.boolean(),
+      schools: z.number().nullable(),
+      previous: z.number().nullable(),
+      churned: z.number().nullable(),
+      churnedSchools: z.number().nullable(),
+      schoolNames: z.array(z.string()),
+      dropoff: z.number().nullable(),
+    }),
+  ),
+});
+
+/**
+ * A timetable as the builder reads it. The version and the lists the builder cannot draw without are checked; the rest of the (large)
+ * answer is passed through as it came, since the builder only reads what it was built against.
+ */
+export const timetableDetailContract = z
+  .object({
+    version: z
+      .object({
+        id: z.string(),
+        name: z.string(),
+        state: z.enum(["DRAFT", "RUNNING", "ARCHIVED"]),
+        periodsPerDay: z.number(),
+        periodMinutes: z.number(),
+        firstStarts: z.string(),
+        schoolDays: z.array(z.string()),
+        live: z.boolean(),
+      })
+      .passthrough(),
+    arms: z.array(z.object({ id: z.string(), name: z.string(), level: z.string() }).passthrough()),
+    subjects: z.record(z.array(z.object({ subjectId: z.string(), name: z.string(), periods: z.number() }).passthrough())),
+  })
+  .passthrough() as unknown as z.ZodType<TimetableDetail, z.ZodTypeDef, unknown>;

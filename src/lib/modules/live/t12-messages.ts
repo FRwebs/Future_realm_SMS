@@ -2,6 +2,7 @@ import { apiGet } from "@/lib/api/server";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import type { DrawerSpec, PanelFact, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M12 for a teaching person: Messages — the families of their own class and nobody else's, with the cost shown before it goes. A family
@@ -27,8 +28,8 @@ type SentDetail = { recipients: Array<{ id: string; name: string; children: stri
 const API = "/api/v1/teacher-workspace";
 const PLUS = "M12 5.5v13M5.5 12h13";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
-const stamp = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso));
-const clock = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const stamp = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" });
+const clock = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
 const channelName = (code: string) => (code === "IN_APP" ? "In-app" : code === "SMS" ? "SMS" : "Email");
 
 /** What became of a send, in one word and a tone: it is only "delivered" once every family that could be reached has been. */

@@ -20,6 +20,7 @@ import {
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M02 School Configuration, read from `GET /v1/configuration/:resource`.
@@ -233,7 +234,7 @@ function dateLabel(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-NG", { day: "numeric", month: "short", year: "numeric" });
+  return formatDay(date, { day: "numeric", month: "short", year: "numeric" }, "en-NG");
 }
 
 /* ─────────────────────────── Profile ─────────────────────────── */
@@ -307,7 +308,7 @@ function longDate(iso: string | null | undefined): string {
   if (!iso) return "—";
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return "—";
-  return date.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return formatDay(date, { day: "numeric", month: "long", year: "numeric" });
 }
 
 /** "Approval expires in 15 months" — or that it already has. */
@@ -687,7 +688,7 @@ function profileTab(school: SchoolRecord, branding: BrandingVersion[], sample: S
     ? `${school.ownerName}${school.ownerPhone ? ` · ${school.ownerPhone}` : ""}`
     : "Not recorded";
   const edited = school.lastEdited
-    ? `Last edited ${new Date(school.lastEdited.at).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}${
+    ? `Last edited ${formatDay(new Date(school.lastEdited.at), { day: "numeric", month: "long" })}${
         school.lastEdited.byYou ? " by you" : school.lastEdited.by ? ` by ${school.lastEdited.by}` : ""
       }`
     : "No edit recorded yet";

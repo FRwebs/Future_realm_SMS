@@ -5,6 +5,8 @@ import { cache } from "react";
 import { resolveDirectApiGet } from "@/lib/api/direct";
 import { CTX_HEADER } from "@/lib/cache/ctx-version";
 import { noteCtx } from "@/lib/cache/ttl";
+import { noteRequestDateFormat } from "@/lib/date-format";
+import { PREFS_COOKIE, decodeDevicePreferences } from "@/lib/preferences";
 import { env } from "@/lib/utils/env";
 
 async function getAppBaseUrl() {
@@ -86,6 +88,9 @@ export async function apiGetEnvelope<T>(path: string): Promise<ApiEnvelope<T>> {
     cookies(),
     headers()
   ]);
+
+  // The page's data is built after this call, so this is the earliest the person's date format can be known and the last it is needed.
+  noteRequestDateFormat(decodeDevicePreferences(cookieStore.get(PREFS_COOKIE)?.value).dateFormat);
 
   return cachedApiEnvelopeRequest<T>(
     baseUrl,

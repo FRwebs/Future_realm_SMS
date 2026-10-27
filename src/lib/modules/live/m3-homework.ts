@@ -1,6 +1,7 @@
 import { apiGet } from "@/lib/api/server";
 import type { PanelTone, TabContent, TableRow } from "@/lib/modules/panels";
 import { bar, pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Class & Timetable → Homework: how much homework the school sets, how much comes back, and how long handed-in work waits to be marked —
@@ -38,7 +39,7 @@ export async function homeworkTab(): Promise<TabContent> {
     launchers: [{ label: "Who teaches what", href: "/class-timetable/teaching" }],
     rows: [
       row("1fr", [{
-        type: "kpi", title: `${d.term ?? "This term"} · set since ${new Date(d.since).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}`, per: 5,
+        type: "kpi", title: `${d.term ?? "This term"} · set since ${formatDay(new Date(d.since), { day: "numeric", month: "long" })}`, per: 5,
         cards: [
           { label: "Homework set", value: String(t.set), sub: `${t.teachersSetting} of ${t.teachersNamed} teachers have set some`, tone: t.set ? "neutral" : "attention", icon: "doc" },
           { label: "Handed in", value: `${back}%`, sub: `${t.handed.toLocaleString("en-NG")} of ${t.expected.toLocaleString("en-NG")} expected`, tone: t.expected ? tone(back, 80, 55) : "neutral", icon: "check" },

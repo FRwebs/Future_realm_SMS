@@ -1,3 +1,4 @@
+import { formatDay } from "@/lib/date-format";
 
 export const expectedTierOptions = [
   { label: "Starter", value: "BASIC" },
@@ -57,6 +58,6 @@ export function partnerReference(seed: string) {
 export function agreementSummary(agreementReference: string | null, agreementValidTo: string | null) {
   const reference = agreementReference ?? "No agreement on file";
   if (!agreementValidTo) return reference;
-  const validTo = new Date(agreementValidTo).toLocaleDateString("en-NG", { day: "2-digit", month: "short", year: "numeric" });
+  const validTo = formatDay(new Date(agreementValidTo), { day: "2-digit", month: "short", year: "numeric" }, "en-NG");
   return `${reference} · to ${validTo}`;
 }

@@ -10,6 +10,7 @@ import { INK, MUTED, toneSwatches } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 import { apiJson } from "@/lib/api/client";
 import { tierChangePreviewContract } from "@/lib/api/contracts";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Changing tier part-way through a term.
@@ -28,7 +29,7 @@ const naira = (value: number) => `₦${Math.round(value).toLocaleString("en-NG")
 
 const day = (iso: string | null) =>
   iso
-    ? new Date(iso).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" })
+    ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }, "en-NG")
     : "—";
 
 const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface)";

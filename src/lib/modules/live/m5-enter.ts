@@ -3,6 +3,7 @@ import { broadsheetHref, deleteEntryDrawer, gridHref, previewHref, SR, sheetHref
 import type { BroadsheetEnter, Chooser, Grid, State } from "@/lib/modules/live/m5-types";
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Enter — choosing the sheet, typing into it, previewing all of it, and handing it in. */
 
@@ -23,7 +24,7 @@ export const STATE_TONE: Record<string, PanelTone> = { "Not started": "neutral",
 export const stateTone = (state: string): PanelTone => STATE_TONE[state] ?? "neutral";
 export const gradeTone = (grade: string | null): PanelTone => (!grade ? "negative" : /^[AB]/.test(grade) ? "positive" : /^C/.test(grade) ? "submitted" : /^[DE]/.test(grade) ? "attention" : "negative");
 export const num = (value: number | null | undefined) => (value === null || value === undefined ? "—" : String(value));
-export const when = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—");
+export const when = (iso: string | null | undefined) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }) : "—");
 
 export function enterTab(c: Chooser): TabContent {
   const rows: PanelRow[] = [];

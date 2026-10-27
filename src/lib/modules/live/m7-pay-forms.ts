@@ -26,6 +26,7 @@ import type {
 import { PROCESS_FLOWS, flowPlain, type FlowId } from "@/lib/modules/staff-flows";
 import { KPI_SOURCES, LEAVE_OPTIONS, PAY_OPTIONS, type KpiSetName } from "@/lib/modules/staff-policy";
 import type { DrawerSpec, FlowPanel, FormField, PanelAction, PickerOption } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Naira, written out: ₦1,250,000. */
 export const naira = (value: number | null | undefined): string => (value === null || value === undefined ? "Held back" : `₦${Math.round(value).toLocaleString("en-NG")}`);
@@ -694,7 +695,7 @@ export function publishCycleDrawer(overview: AppraisalOverview): DrawerSpec {
     commitDoneBody: "Each person now has an appraisal against their role’s KPIs. Their automatic figures are read from the product as of today.",
     reviewNote: "A set whose weights do not total 100 cannot be published. Anyone already published to is left as they are.",
     fields: [
-      fixed("The cycle", overview.cycle.name, { span: 2, hint: overview.cycle.published ? `Published ${overview.cycle.publishedAt ? new Date(overview.cycle.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long" }) : ""} by ${overview.cycle.publishedBy ?? "someone"}` : "The current term" }),
+      fixed("The cycle", overview.cycle.name, { span: 2, hint: overview.cycle.published ? `Published ${overview.cycle.publishedAt ? formatDay(new Date(overview.cycle.publishedAt), { day: "numeric", month: "long" }) : ""} by ${overview.cycle.publishedBy ?? "someone"}` : "The current term" }),
       checks("Publish to", options, options.filter((_, index) => !bad.includes(sets[index][0])), { required: true, span: 2, hint: bad.length ? `Not publishable yet: ${bad.join(", ")} — weights do not total 100.` : "Every set totals 100." }),
       text("Staff complete theirs by", { type: "date", value: overview.cycle.deadline ? overview.cycle.deadline.slice(0, 10) : "", required: true }),
       area("A note to staff", { span: 2, optional: true, placeholder: "Anything you want them to read before they begin." }),

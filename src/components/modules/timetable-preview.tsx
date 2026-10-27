@@ -9,6 +9,7 @@ import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import type { TimetableDetail } from "@/lib/modules/live/m3-types";
 import { DAY_CODES, DAY_NAMES } from "@/lib/modules/timetable-periods";
 import { cn } from "@/lib/utils/cn";
+import { formatDay } from "@/lib/date-format";
 
 const API = "/api/v1/class-structure/timetables";
 const CARD = "min-w-0 rounded-[14px] border border-[#DEE8E2] bg-(--color-bg-surface)";
@@ -123,7 +124,7 @@ export function TimetablePreview({
       setPanel(null);
       if (result.scheduled && result.scheduledFor) {
         setNotice(
-          `Scheduled. It will publish itself on ${new Date(result.scheduledFor).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}, after the same checks run again. Nothing changes for anyone until then.`,
+          `Scheduled. It will publish itself on ${formatDay(new Date(result.scheduledFor), { weekday: "long", day: "numeric", month: "long" })}, after the same checks run again. Nothing changes for anyone until then.`,
         );
         router.refresh();
         return;
@@ -186,7 +187,7 @@ export function TimetablePreview({
             <p className="mt-1 text-[11px] leading-[1.45] text-white/60">
               {version.term ?? "No term"} · {armsOnIt} arm{armsOnIt === 1 ? "" : "s"} · {lessonPeriods} periods a day ·{" "}
               {clashes.length ? `${clashes.length} clash${clashes.length === 1 ? "" : "es"}` : "no clashes"}
-              {version.publishedAt ? ` · published ${new Date(version.publishedAt).toLocaleDateString("en-GB", { day: "numeric", month: "long" })}` : ""}
+              {version.publishedAt ? ` · published ${formatDay(new Date(version.publishedAt), { day: "numeric", month: "long" })}` : ""}
             </p>
           </div>
           <span className={cn("inline-flex items-center gap-[6px] rounded-full border px-[11px] py-[4px] text-[10.5px] font-semibold", state.chip)}>
@@ -199,7 +200,7 @@ export function TimetablePreview({
       {version.scheduledFor ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-[11px] border border-[#E7D9B4] bg-[#FBF6E8] px-[14px] py-[10px] print:hidden">
           <p className="text-[11.5px] font-medium text-[#8A6410]">
-            Scheduled to publish on {new Date(version.scheduledFor).toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}. It becomes the running timetable that morning.
+            Scheduled to publish on {formatDay(new Date(version.scheduledFor), { weekday: "long", day: "numeric", month: "long" })}. It becomes the running timetable that morning.
           </p>
           <button type="button" className={GHOST} disabled={pending} onClick={unschedule}>Take it off the schedule</button>
         </div>

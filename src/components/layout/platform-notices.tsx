@@ -6,6 +6,7 @@ import { useState } from "react";
 import { configApi } from "@/components/configuration/api";
 import type { PlatformSyncView } from "@/lib/domain/types";
 import { cn } from "@/lib/utils/cn";
+import { formatDay } from "@/lib/date-format";
 
 type Tone = "info" | "warning" | "critical";
 
@@ -16,7 +17,7 @@ const TONE: Record<Tone, string> = {
 };
 
 const stamp = (value: string) =>
-  new Intl.DateTimeFormat("en-NG", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }).format(new Date(value));
+  formatDay(new Date(value), { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }, "en-NG");
 
 function Notice({ tone, icon: Icon, title, children, onClose }: { tone: Tone; icon: typeof Info; title: string; children?: React.ReactNode; onClose?: () => void }) {
   return (

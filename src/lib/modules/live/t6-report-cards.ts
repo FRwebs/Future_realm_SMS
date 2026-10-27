@@ -4,6 +4,7 @@ import { cardDrawer, completionHref, formMasterDrawer, remarkHref } from "@/lib/
 import type { ArchiveOverview, CardState, CompletionArmPage, CompletionOverview, RemarkPage, RemarksOverview } from "@/lib/modules/live/m6-types";
 import type { DrawerSpec, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M06 for a teaching person: the remarks they write, the cards they may read, and the archive of the arms they answer for.
@@ -26,7 +27,7 @@ const gradeTone = (grade: string | null): PanelTone => {
   const first = (grade ?? "")[0];
   return first === "A" || first === "B" ? "positive" : first === "C" ? "submitted" : first === "D" ? "attention" : !grade ? "neutral" : "negative";
 };
-const shortDate = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(`${iso}T00:00:00Z`));
+const shortDate = (iso: string) => formatDay(new Date(`${iso}T00:00:00Z`), { day: "numeric", month: "long", timeZone: "UTC" });
 
 export async function teacherReportCardsTab(tabSlug: string, me: TeacherWorkspaceView): Promise<TabContent | null | undefined> {
   if (tabSlug === "remarks") {

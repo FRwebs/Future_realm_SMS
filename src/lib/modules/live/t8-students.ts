@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, choice, fixed, select, text as field, toggle } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, PanelFact, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M08 for a teaching person: "My students" — the children they answer for, and nobody else's. A form master sees their class in full; a
@@ -147,7 +148,7 @@ function studentsTab(v: StudentsView, me: TeacherWorkspaceView, held: Set<string
 }
 
 export type TeacherSupportPlan = { id: string; strategies: Array<{ area: string; strategy: string }>; reviewedOn: string; nextReviewOn: string; overdue: boolean; author: { name: string; title: string } | null } | null;
-const shortDay = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const shortDay = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" });
 
 /** A child's wellbeing, as a teacher may see it: a flag, the strategies they must apply, and who holds what is behind it. */
 export function teacherWellbeing(name: string, arm: string, adm: string, alert: boolean, formWord: string, plan: TeacherSupportPlan = null): TabContent {

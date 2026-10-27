@@ -12,6 +12,7 @@ import {
   type TabContent,
   type TableRow,
 } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M15 Audit & Security · Audit log, read from `GET /v1/audit/recent`.
@@ -145,7 +146,7 @@ function auditTab(feed: AuditFeed): TabContent {
               {
                 label: "Oldest entry",
                 value: feed.firstAt
-                  ? new Date(feed.firstAt).toLocaleDateString("en-NG", { day: "numeric", month: "short" })
+                  ? formatDay(new Date(feed.firstAt), { day: "numeric", month: "short" }, "en-NG")
                   : "—",
                 sub: "Nothing before this can be answered for",
               },
@@ -485,11 +486,11 @@ function dataProtectionTab(data: DataProtection): TabContent {
               {
                 label: "Accountable since",
                 value: data.audit.firstAt
-                  ? new Date(data.audit.firstAt).toLocaleDateString("en-NG", {
+                  ? formatDay(new Date(data.audit.firstAt), {
                       day: "numeric",
                       month: "short",
                       year: "numeric",
-                    })
+                    }, "en-NG")
                   : "—",
                 sub: data.audit.spanDays
                   ? `${data.audit.spanDays} days · ${data.audit.entries.toLocaleString()} entries`

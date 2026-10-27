@@ -5,6 +5,7 @@ import type { CompletionArmPage, CompletionOverview } from "@/lib/modules/live/m
 import { gradeTone, num, stateTone } from "@/lib/modules/live/m5-enter";
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type PanelRow, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Completion — which arms can go out, and what is holding the rest. */
 
@@ -185,7 +186,7 @@ export function completionArmPage(a: CompletionArmPage, school: string): { conte
           ["Remarks written", `${a.remarksWritten} of ${a.sum.roll}`, a.sum.owed ? `${a.sum.owed} still owed` : "Complete"],
           ["Principal reviews", `${a.principalWritten} of ${a.sum.roll}`, "Written by the Principal"],
           ["Score sheets", `${a.subjects.approved} of ${a.subjects.of} approved`, a.sum.blocked ? `${plural(a.sum.blocked, "card")} blocked on scores` : "All in"],
-          ["Publish window", a.publishDate ? new Date(`${a.publishDate.iso}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "long", timeZone: "UTC" }) : "No release date is set", a.publishDate ? "From the assessment windows" : "Set one in School Configuration"],
+          ["Publish window", a.publishDate ? formatDay(new Date(`${a.publishDate.iso}T00:00:00Z`), { day: "numeric", month: "long", timeZone: "UTC" }) : "No release date is set", a.publishDate ? "From the assessment windows" : "Set one in School Configuration"],
         ],
       },
     ],

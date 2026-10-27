@@ -2,6 +2,7 @@ import { apiGet } from "@/lib/api/server";
 import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import type { MarkerStudent, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M04 for a teaching person: the registers they hold, marked in under a minute, online or not — and the history of the arm they
@@ -72,7 +73,7 @@ const API = "/api/v1/teacher-workspace";
 
 const stateTone = (state: string): PanelTone => (state === "Marked" ? "positive" : state === "In progress" ? "progress" : state === "Not due" ? "neutral" : "attention");
 const markHref = (entry: RegistersView["registers"][number]) => (entry.kind === "daily" ? `/attendance/mark/${entry.classId}` : `/attendance/mark/${entry.classId}/${entry.subjectId}/${entry.periodNumber}`);
-const dayWords = (iso: string) => new Intl.DateTimeFormat("en-GB", { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" }).format(new Date(iso));
+const dayWords = (iso: string) => formatDay(new Date(iso), { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" });
 
 export async function teacherAttendanceTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[], query: Record<string, string | undefined>): Promise<TabContent | null | undefined> {
   const held = new Set(permissions);

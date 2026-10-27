@@ -11,7 +11,8 @@ import type { DrawerSpec, FormField, PanelFact } from "@/lib/modules/panels";
 import { Field, assetSummary, fieldVisible, initialValue } from "@/components/modules/field";
 import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
-import { focusOnMount } from "@/lib/ui/focus";
+import { useUiText } from "@/hooks/use-ui-text";
+import { focusOnMount, useFocusTrap } from "@/lib/ui/focus";
 import { apiRaw } from "@/lib/api/client";
 import { readDevicePreferences } from "@/lib/preferences";
 
@@ -173,6 +174,7 @@ export function ConfirmSheet({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const ui = useUiText();
   const palette =
     tone === "critical"
       ? { bg: "#FDF2F2", fg: "#B23B3B", button: "#B23B3B" }
@@ -204,10 +206,10 @@ export function ConfirmSheet({
           </svg>
         </span>
         <p className="text-[14px] font-bold leading-[1.3]" style={{ color: INK }}>
-          {title}
+          {ui(title)}
         </p>
         <p className="mt-[5px] text-pretty text-[11.5px] leading-[1.55]" style={{ color: "#5C6A62" }}>
-          {body}
+          {ui(body)}
         </p>
         <div className="mt-[16px] flex flex-wrap items-center justify-end gap-2">
           <button
@@ -217,7 +219,7 @@ export function ConfirmSheet({
             className="whitespace-nowrap rounded-[9px] border bg-white px-[14px] py-[9px] text-[11.5px] font-semibold"
             style={{ borderColor: "#CFDDD5", color: "#435048" }}
           >
-            {cancel}
+            {ui(cancel)}
           </button>
           <button
             type="button"
@@ -226,7 +228,7 @@ export function ConfirmSheet({
             className="whitespace-nowrap rounded-[9px] px-[15px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
             style={{ background: palette.button }}
           >
-            {pending ? "Working…" : ok}
+            {pending ? ui("Working…") : ui(ok)}
           </button>
         </div>
       </div>
@@ -255,6 +257,8 @@ export const asText = (value: unknown) =>
 
 /** What a field's answer reads as when it is read back before saving. */
 export function describe(field: FormField, value: unknown): string {
+  // A password read back for checking is never written out on the screen.
+  if (field.kind === "text" && field.type === "password") return asText(value) ? "\u2022".repeat(Math.min(asText(value).length, 12)) : "";
   if (field.kind === "matrix") {
     const ticks = (value as string[] | undefined) ?? [];
     const rows = new Set(ticks.map((tick) => tick.split("|")[0]));
@@ -472,6 +476,8 @@ function DrawerPanel({
   onClose: () => void;
   onEdit?: () => void;
 }) {
+  const panel = useFocusTrap<HTMLDivElement>();
+  const ui = useUiText();
   const [committed, setCommitted] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -701,7 +707,9 @@ function DrawerPanel({
       />
 
       <div
-        className="relative flex w-full flex-col overflow-hidden rounded-[20px] bg-white"
+        ref={panel}
+        tabIndex={-1}
+        className="relative flex w-full flex-col overflow-hidden rounded-[20px] bg-white outline-hidden"
         style={{
           maxWidth: `${panelMax}px`,
           maxHeight: "calc(100vh - 64px)",
@@ -729,7 +737,7 @@ function DrawerPanel({
                 className="mb-[5.5px] text-[9.5px] font-bold tracking-[0.08em]"
                 style={{ color: "rgba(255,255,255,0.45)" }}
               >
-                {(spec.kicker ?? modeMeta.label).toUpperCase()}
+                {ui(spec.kicker ?? modeMeta.label).toUpperCase()}
                 {isEdit && spec.kicker ? " · EDITING" : ""}
               </p>
               <h2 className="text-pretty text-[19px] font-bold leading-tight tracking-[-0.01em] text-white">
@@ -748,8 +756,8 @@ function DrawerPanel({
               {staged && !committed ? (
                 <div className="mt-[11px] flex flex-wrap items-center gap-[7px]">
                   {[
-                    { label: isEdit ? "Edit the values" : "Fill it in", on: !reviewing, done: reviewing, mark: reviewing ? "✓" : "1" },
-                    { label: "Check and confirm", on: reviewing, done: false, mark: "2" },
+                    { label: ui(isEdit ? "Edit the values" : "Fill it in"), on: !reviewing, done: reviewing, mark: reviewing ? "✓" : "1" },
+                    { label: ui("Check and confirm"), on: reviewing, done: false, mark: "2" },
                   ].map((pill) => (
                     <span
                       key={pill.label}
@@ -972,7 +980,7 @@ function DrawerPanel({
                     className="whitespace-nowrap rounded-[9px] border bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold"
                     style={{ borderColor: "#CFDDD5", color: "#435048" }}
                   >
-                    Cancel
+                    {ui("Cancel")}
                   </button>
                 ) : null}
                 {steps.length && stepIndex > 0 && !(staged && reviewing) ? (
@@ -992,7 +1000,7 @@ function DrawerPanel({
                     className="whitespace-nowrap rounded-[9px] border bg-white px-[12px] py-[9px] text-[11.5px] font-semibold"
                     style={{ borderColor: "#DEE8E2", color: "#435048" }}
                   >
-                    Back to the form
+                    {ui("Back to the form")}
                   </button>
                 ) : null}
                 {staged && !reviewing && onLastStep ? (
@@ -1011,7 +1019,7 @@ function DrawerPanel({
                     className="whitespace-nowrap rounded-[9px] px-[17px] py-[10px] text-[11.5px] font-semibold text-white disabled:cursor-not-allowed disabled:opacity-50"
                     style={{ background: INK, boxShadow: "0 7px 16px -9px rgba(13,35,21,0.6)" }}
                   >
-                    {isEdit ? "Review changes" : "Review"}
+                    {ui(isEdit ? "Review changes" : "Review")}
                   </button>
                 ) : null}
                 {!onLastStep && !(staged && reviewing) ? (
@@ -1053,7 +1061,7 @@ function DrawerPanel({
                   className="whitespace-nowrap rounded-[9px] border bg-white px-[15.5px] py-[9px] text-[11.5px] font-semibold"
                   style={{ borderColor: "#CFDDD5", color: "#435048" }}
                 >
-                  Close
+                  {ui("Close")}
                 </button>
                 {onEdit && !committed ? (
                   <button

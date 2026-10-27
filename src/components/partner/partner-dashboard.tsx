@@ -5,9 +5,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { ApiRequestError, apiJson, getUrl } from "@/lib/api/client";
 import { partnerOverviewContract } from "@/lib/api/contracts";
+import { formatDay } from "@/lib/date-format";
 
 const naira = (value: number) => `₦${Math.round(value).toLocaleString("en-NG")}`;
-const day = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" });
+const day = (iso: string) => formatDay(new Date(iso), { day: "2-digit", month: "short", year: "numeric" });
 const label = (value: string) => value.charAt(0) + value.slice(1).toLowerCase().replaceAll("_", " ");
 
 function Panel({ title, sub, children }: { title: string; sub?: string; children: React.ReactNode }) {

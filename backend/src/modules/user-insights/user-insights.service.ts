@@ -4,6 +4,7 @@ import { z } from "zod";
 
 import type { SessionPayload } from "../../../../src/lib/auth/session-core";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { formatDay } from "../../common/date-format";
 
 const DAY = 86_400_000;
 const OWNER_ROLES = new Set<string>(["SCHOOL_OWNER", "PROPRIETOR"]);
@@ -51,7 +52,7 @@ export class UserInsightsService {
       },
       rows: people.map((p) => ({
         id: p.id, name: `${p.home?.firstName} ${p.home?.lastName}`, contact: p.home?.email ?? "", memberships: p.schools.size,
-        roles: [`${pretty(String(p.home?.role))} · ${p.home?.school.name}`, ...p.extra.map((m) => `${pretty(String(m.role))} · ${school.get(m.schoolId) ?? "a school"}${m.expiresAt ? ` (until ${m.expiresAt.toLocaleDateString("en-GB")})` : ""}`)],
+        roles: [`${pretty(String(p.home?.role))} · ${p.home?.school.name}`, ...p.extra.map((m) => `${pretty(String(m.role))} · ${school.get(m.schoolId) ?? "a school"}${m.expiresAt ? ` (until ${formatDay(m.expiresAt, { day: "2-digit", month: "2-digit", year: "numeric" })})` : ""}`)],
         lastActive: p.home?.lastLoginAt?.toISOString() ?? null
       })).sort((a, b) => b.memberships - a.memberships).slice(0, 100),
       items: live.map((m) => ({ id: m.id, person: users.find((u) => u.id === m.userId) ? `${users.find((u) => u.id === m.userId)?.firstName} ${users.find((u) => u.id === m.userId)?.lastName}` : "", school: school.get(m.schoolId) ?? "", role: pretty(String(m.role)), expiresAt: m.expiresAt?.toISOString() ?? null })).slice(0, 200)

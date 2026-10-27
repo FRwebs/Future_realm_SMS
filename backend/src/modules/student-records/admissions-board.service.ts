@@ -7,6 +7,7 @@ import { prisma } from "../../../../src/lib/db/prisma";
 import { AdmissionsService } from "../admissions/admissions.service";
 import { ConfigStore } from "../staff-access/staff-access.shared";
 import { daysSince, fullName, genderLabel, nextAdmissionNumber } from "./records.shared";
+import { formatDay } from "../../common/date-format";
 
 /**
  * The admissions board: every applicant, where they are, and what moves them on. The pipeline is
@@ -319,8 +320,8 @@ export class AdmissionsBoardService {
       }),
       missingDocuments: required.filter((label) => !have.has(label.toLowerCase())),
       said: [
-        ...row.history.slice(-6).reverse().map((entry) => ({ label: entry.note ?? `Moved to ${entry.toStatus.replace(/_/g, " ").toLowerCase()}`, sub: `${entry.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}${entry.changedBy ? ` · ${fullName(entry.changedBy)}` : ""}` })),
-        ...row.comments.slice(0, 4).map((comment) => ({ label: comment.body.slice(0, 90), sub: `${comment.createdAt.toLocaleDateString("en-GB", { day: "numeric", month: "long" })}${comment.author ? ` · ${fullName(comment.author)}` : ""}` }))
+        ...row.history.slice(-6).reverse().map((entry) => ({ label: entry.note ?? `Moved to ${entry.toStatus.replace(/_/g, " ").toLowerCase()}`, sub: `${formatDay(entry.createdAt, { day: "numeric", month: "long" })}${entry.changedBy ? ` · ${fullName(entry.changedBy)}` : ""}` })),
+        ...row.comments.slice(0, 4).map((comment) => ({ label: comment.body.slice(0, 90), sub: `${formatDay(comment.createdAt, { day: "numeric", month: "long" })}${comment.author ? ` · ${fullName(comment.author)}` : ""}` }))
       ],
       placesLeft,
       siblingInSchool: sameGuardian > 0,

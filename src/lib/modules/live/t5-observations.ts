@@ -2,6 +2,7 @@ import { apiGet } from "@/lib/api/server";
 import { area, select } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M05 for an early-years teacher: Observations. What they saw, in words, against the school's own learning areas — never a score.
@@ -24,7 +25,7 @@ export type ChildPage = {
   history: Array<{ id: string; at: string; half: number; areas: Record<string, string>; note: string | null; by: string; photos: number }>;
 };
 
-const short = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "—");
+const short = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" }) : "—");
 export const observeHref = (studentId: string) => `/score-entry-results/enter/observe/${studentId}`;
 export const loadChild = (studentId: string) => apiGet<ChildPage>(`${API}/observations/${studentId}`);
 

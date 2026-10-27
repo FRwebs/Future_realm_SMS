@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useFocusTrap } from "@/lib/ui/focus";
+import { useEffect } from "react";
 import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 
@@ -33,7 +34,7 @@ interface DetailSheetProps {
 /** A right-anchored sliding detail panel — matches the mockup's row-click "review" sheet (as
  * distinct from the centered Modal used for actual create/edit forms). */
 export function DetailSheet({ open, onClose, eyebrow, title, subtitle, avatarLabel, chips, children, footer, width = "504px" }: DetailSheetProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
+  const panelRef = useFocusTrap<HTMLElement>(open);
 
   useEffect(() => {
     if (!open) return;
@@ -60,7 +61,8 @@ export function DetailSheet({ open, onClose, eyebrow, title, subtitle, avatarLab
           role="dialog"
           aria-modal="true"
           aria-label={title}
-          className="panel-enter-right pointer-events-auto relative h-full w-full max-w-[92vw] overflow-y-auto bg-[#F8FAF9] shadow-[-36px_0_81px_-27px_rgba(13,35,21,0.55)]"
+          tabIndex={-1}
+          className="outline-hidden panel-enter-right pointer-events-auto relative h-full w-full max-w-[92vw] overflow-y-auto bg-[#F8FAF9] shadow-[-36px_0_81px_-27px_rgba(13,35,21,0.55)]"
           style={{ width }}
         >
           <div className="sticky top-0 z-2 bg-[#0D2315] px-[21.5px] py-[18px]">

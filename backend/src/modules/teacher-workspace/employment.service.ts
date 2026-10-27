@@ -8,6 +8,7 @@ import { addDays, dayOf, iso, today } from "../attendance-management/attendance.
 import { armName, fullName } from "../fee-management/fees.shared";
 import { forgetTeachingScope } from "../../common/teaching-scope";
 import { TeacherWorkspaceService } from "./workspace.service";
+import { formatDay } from "../../common/date-format";
 
 const LEADERS = new Set(["SCHOOL_OWNER", "PROPRIETOR", "PRINCIPAL", "HEAD_TEACHER", "VICE_PRINCIPAL_ACADEMICS", "ADMINISTRATOR", "SUPER_ADMIN"]);
 const MAX_COVER_DAYS = 120;
@@ -33,7 +34,7 @@ const documentSchema = z.object({
   notes: z.string().trim().optional()
 });
 
-const dateLabel = (date: Date) => date.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+const dateLabel = (date: Date) => formatDay(date, { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
 /**
  * My Employment, the parts that are about the person's work rather than their leave and appraisal: what they hold and cover (and who

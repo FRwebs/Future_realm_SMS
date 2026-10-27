@@ -25,6 +25,8 @@ export const NOTIFY_ABOUT = [
   "A sensitive record being opened",
   "Weekly oversight summary",
 ] as const;
+/** How a date is written wherever the product writes one, each shown as the same example day. */
+export const DATE_FORMATS = ["4 Sep 2026", "04/09/2026", "09/04/2026", "2026-09-04"] as const;
 export const NOTIFY_BY = ["In-app", "Email", "SMS"] as const;
 
 export const preferencesSchema = z
@@ -36,12 +38,13 @@ export const preferencesSchema = z
     notifyAbout: z.array(z.enum(NOTIFY_ABOUT)),
     notifyBy: z.array(z.enum(NOTIFY_BY)),
     quietHours: z.enum(QUIET_HOURS),
+    dateFormat: z.enum(DATE_FORMATS),
   })
   .partial();
 export type Preferences = z.infer<typeof preferencesSchema>;
 
 /** What a person gets until they choose: the product as it has always been. */
-export const DEFAULT_PREFERENCES: Required<Pick<Preferences, "density" | "confirmLeave" | "keepOffline">> = { density: "Compact", confirmLeave: true, keepOffline: true };
+export const DEFAULT_PREFERENCES: Required<Pick<Preferences, "density" | "confirmLeave" | "keepOffline" | "dateFormat">> = { density: "Compact", confirmLeave: true, keepOffline: true, dateFormat: "4 Sep 2026" };
 
 /** The page a person asked to open on, if they asked for one. */
 export function landingPathFor(preferences: Preferences | null | undefined): string | null {
@@ -57,6 +60,7 @@ export function devicePreferencesFrom(preferences: Preferences | null | undefine
     density: preferences?.density ?? DEFAULT_PREFERENCES.density,
     confirmLeave: preferences?.confirmLeave ?? DEFAULT_PREFERENCES.confirmLeave,
     keepOffline: preferences?.keepOffline ?? DEFAULT_PREFERENCES.keepOffline,
+    dateFormat: preferences?.dateFormat ?? DEFAULT_PREFERENCES.dateFormat,
   };
 }
 
@@ -70,6 +74,7 @@ export function decodeDevicePreferences(raw: string | undefined | null): DeviceP
       density: parsed.density === "Comfortable" ? "Comfortable" : "Compact",
       confirmLeave: parsed.confirmLeave !== false,
       keepOffline: parsed.keepOffline !== false,
+      dateFormat: (DATE_FORMATS as readonly string[]).includes(parsed.dateFormat ?? "") ? (parsed.dateFormat as DevicePreferences["dateFormat"]) : DEFAULT_PREFERENCES.dateFormat,
     };
   } catch {
     return DEFAULT_PREFERENCES;

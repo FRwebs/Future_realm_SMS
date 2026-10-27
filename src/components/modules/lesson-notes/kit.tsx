@@ -8,6 +8,7 @@ import type { PanelTone } from "@/lib/modules/panels";
 import { GRID_SUFFIX, type Letterhead, type Section } from "@/lib/modules/lesson-notes-types";
 import { sendJsonForData } from "@/lib/modules/submit";
 import { CARD_BORDER, INK, MUTED, toneOf } from "@/lib/modules/tones";
+import { formatDay } from "@/lib/date-format";
 
 export { CARD_BORDER, INK, MUTED };
 
@@ -143,7 +144,7 @@ export const toBase64 = (file: File) =>
     reader.readAsDataURL(file);
   });
 
-export const longDate = (iso: string) => new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" });
+export const longDate = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" });
 
 /* ───────────────────────── printing ───────────────────────── */
 
@@ -187,7 +188,7 @@ export function notesHtml(sections: Section[], text: Record<string, string>): st
 export function printSheet(input: { letterhead: Letterhead; kicker: string; title: string; sub?: string; body: string; by?: string }): boolean {
   const frame = window.open("", "_blank", "width=900,height=720");
   if (!frame) return false;
-  const when = new Date().toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" });
+  const when = formatDay(new Date(), { day: "numeric", month: "long", year: "numeric", timeZone: "Africa/Lagos" });
   frame.document.write(`<!doctype html><title>${esc(input.title)}</title><style>
     @page{margin:16mm}body{font:12.5px/1.6 system-ui,-apple-system,sans-serif;color:#0D2315;margin:0}
     .lh{border-bottom:2px solid #0D2315;padding-bottom:10px;margin-bottom:16px}.lh b{display:block;font-size:18px;letter-spacing:.01em}.lh span{display:block;color:#555;font-size:11.5px}

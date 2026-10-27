@@ -6,6 +6,7 @@ import type { Day, DayStudent, Options, Overview, CorrectionOptions } from "@/li
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type DrawerSpec, type KpiCard, type PanelRow, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
 import type { Compliance } from "@/lib/modules/live/m4-types";
+import { formatDay } from "@/lib/date-format";
 
 /** The Register tab — the whole school's day — and one arm's day behind it. */
 
@@ -30,7 +31,7 @@ export const tone = (state: string): PanelTone => STATE_TONE[state] ?? "neutral"
 
 const CHECK = "M5 12.5l4.5 4.5 9-10";
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
-const LONG_DATE = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
+const LONG_DATE = (iso: string) => formatDay(new Date(`${iso}T00:00:00Z`), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 /** A strip of days that can be walked: each is a link to the same page on another date. */
 export function dayStrip(days: string[], current: string, href: (iso: string) => string, title = "Choose another day", states?: Record<string, string>): PanelRow {

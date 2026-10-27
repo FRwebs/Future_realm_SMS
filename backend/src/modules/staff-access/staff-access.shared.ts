@@ -2,6 +2,7 @@ import { Prisma, UserRole } from "@prisma/client";
 
 import { roleTemplateFor } from "../../../../src/lib/modules/school-access";
 import { prisma } from "../../../../src/lib/db/prisma";
+import { formatDay as writeDay } from "../../common/date-format";
 
 /**
  * Small things every part of Staff & Access reads the same way: how a person is named,
@@ -95,7 +96,7 @@ export const store = (schoolId: string, resource: string) => new ConfigStore(sch
 export function formatDay(date: Date | string | null | undefined): string {
   if (!date) return "—";
   const parsed = typeof date === "string" ? new Date(date) : date;
-  return Number.isNaN(parsed.getTime()) ? "—" : parsed.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return Number.isNaN(parsed.getTime()) ? "—" : writeDay(parsed, { day: "numeric", month: "short" });
 }
 
 export function monthYear(date: Date | null | undefined): string {

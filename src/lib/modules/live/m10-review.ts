@@ -3,6 +3,7 @@ import { plural } from "@/lib/modules/live/m7-format";
 import { FEES, applyUnappliedDrawer, closeDayDrawer, countDrawer, flagDrawer, naira, waiverDrawer } from "@/lib/modules/live/m10-forms";
 import type { Review } from "@/lib/modules/live/m10-types";
 import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Review: supervise the finance function without running it. A day stays on the unreconciled list
@@ -12,7 +13,7 @@ import { name as nameCell, pill, text, type KpiCard, type PanelTone, type TabCon
 export const loadReview = () => apiGet<Review>(`${FEES}/review`);
 
 const STATE_TONE: Record<string, PanelTone> = { Closed: "positive", "In progress": "progress", Unreconciled: "negative" };
-const dayText = (iso: string) => new Date(`${iso}T00:00:00`).toLocaleDateString("en-GB", { day: "numeric", month: "long" });
+const dayText = (iso: string) => formatDay(new Date(`${iso}T00:00:00`), { day: "numeric", month: "long" });
 const token = (kind: string, value: string) => `${kind}:${value}|`;
 
 export function reviewTab(data: Review): TabContent {

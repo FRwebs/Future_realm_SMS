@@ -1,5 +1,6 @@
 "use client";
 
+import { useFocusTrap } from "@/lib/ui/focus";
 import { X } from "lucide-react";
 import Link from "next/link";
 import type { Route } from "next";
@@ -20,6 +21,7 @@ const dark = "whitespace-nowrap rounded-[9px] px-[16px] py-[9.5px] text-[11.5px]
  */
 export function DocumentModal({ spec, onClose, onSwap }: { spec: DrawerSpec; onClose: () => void; onSwap: (next: DrawerSpec) => void }) {
   const doc = spec.doc;
+  const panel = useFocusTrap<HTMLDivElement>();
   useEffect(() => {
     const previous = document.body.style.overflow;
     document.body.style.overflow = "hidden";
@@ -64,7 +66,7 @@ export function DocumentModal({ spec, onClose, onSwap }: { spec: DrawerSpec; onC
   return createPortal(
     <div data-doc-print="true" className="fixed inset-0 z-42 flex items-center justify-center p-6" role="dialog" aria-modal="true" aria-label={spec.title}>
       <button type="button" aria-label="Close" onClick={onClose} className="fixed inset-0 cursor-default" style={{ background: "rgba(13,35,21,0.5)" }} data-print-hide="true" />
-      <div className="relative flex max-h-[calc(100vh-48px)] w-full max-w-[940px] flex-col overflow-hidden rounded-[18px] bg-white" style={{ boxShadow: "0 45px 90px -36px rgba(13,35,21,0.6)" }}>
+      <div ref={panel} tabIndex={-1} className="relative flex max-h-[calc(100vh-48px)] w-full max-w-[940px] flex-col overflow-hidden rounded-[18px] bg-white outline-hidden" style={{ boxShadow: "0 45px 90px -36px rgba(13,35,21,0.6)" }}>
         <div data-print-hide="true" className="flex flex-none items-center justify-between gap-[14px] px-5 py-[13px] text-white" style={{ background: INK }}>
           <div className="flex min-w-0 flex-wrap items-center gap-[10px]">
             <p className="text-[9.5px] font-bold uppercase tracking-[0.08em]" style={{ color: "rgba(255,255,255,0.45)" }}>{doc.heading}</p>

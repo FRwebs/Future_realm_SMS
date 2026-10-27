@@ -2,13 +2,14 @@ import { area, checks, choice, fixed, select, text, toggle } from "@/lib/modules
 import { plural } from "@/lib/modules/live/m7-format";
 import type { Account, Credits, InvoiceRow, Plan } from "@/lib/modules/live/m11-types";
 import type { DrawerSpec } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** Every modal in Subscription & Billing, as data. */
 
 export const SB = "/api/v1/subscription-billing";
 export const naira = (value: number | null | undefined): string => (value === null || value === undefined ? "—" : `₦${Math.round(value).toLocaleString("en-NG")}`);
 export const rate2 = (value: number): string => `₦${value.toFixed(2)}`;
-const day = (iso: string | null | undefined): string => (iso ? new Date(iso).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" }) : "—");
+const day = (iso: string | null | undefined): string => (iso ? formatDay(new Date(iso), { day: "numeric", month: "long", year: "numeric" }) : "—");
 
 const TIER_LABEL = (name: string, rate: number) => `${name} · ${naira(rate)} each`;
 

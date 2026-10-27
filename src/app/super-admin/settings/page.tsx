@@ -6,6 +6,7 @@ import { TableCard } from "@/components/data-display/table-card";
 import { ResourceActionDialog } from "@/components/forms/resource-action-dialog";
 import { apiGet } from "@/lib/api/server";
 import type { SuperAdminInfraMonitoring, SuperAdminSettingsView } from "@/lib/domain/types";
+import { formatDay } from "@/lib/date-format";
 
 type Policy = {
   trial: { days: number; readOnlyDays: number; lockReminderDays: number };
@@ -266,7 +267,7 @@ async function PlatformTab() {
           { key: "school", header: "School", render: (item) => <span className="font-bold text-(--color-text-primary)">{item.school}</span> },
           { key: "status", header: "Status now", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.status.replaceAll("_", " ").toLowerCase()}</span> },
           { key: "kind", header: "What happens", render: (item) => <span className="text-[11.5px] text-(--color-text-secondary)">{LIFECYCLE_LABEL[item.kind] ?? item.kind}</span> },
-          { key: "login", header: "Last sign-in", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.lastLoginAt ? new Date(item.lastLoginAt).toLocaleDateString("en-GB") : "Never"}</span> }
+          { key: "login", header: "Last sign-in", render: (item) => <span className="text-[11px] text-(--color-text-muted)">{item.lastLoginAt ? formatDay(new Date(item.lastLoginAt), { day: "2-digit", month: "2-digit", year: "numeric" }) : "Never"}</span> }
         ]}
       />
     </section>

@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, checks, choice, toggle } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M09 for a teaching person: the families of their class — a number to call, and what those families have sent in. Contact details
@@ -27,7 +28,7 @@ const CHECK = "M5 12.5l4.5 4.5 9-10";
 const WARN = "M12 8.2v4.6M12 16h.02M12 3.6 21 19.4H3z";
 const EYE = "M2.5 12s3.5-6.5 9.5-6.5S21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12zM12 14.6a2.6 2.6 0 1 0 0-5.2 2.6 2.6 0 0 0 0-5.2";
 const pair = (items: Array<{ value: string; label: string }>) => Object.fromEntries(items.map((item) => [item.label, item.value]));
-const stamp = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const stamp = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", timeZone: "Africa/Lagos" });
 
 export async function teacherGuardiansTab(tabSlug: string, me: TeacherWorkspaceView, permissions: string[]): Promise<TabContent | null | undefined> {
   const held = new Set(permissions);
@@ -40,7 +41,7 @@ function noClass(title: string, desc: string): TabContent {
   return { title, desc, rows: [row("1fr", [{ type: "note", tone: "neutral", icon: EYE, title: "You hold no form class this term", body: "The families of a class are the form master’s to reach. When the school gives you a class, its guardians appear here." }])] };
 }
 
-const clock = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+const clock = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
 const OUTCOMES = ["Spoke to them", "No answer", "Left a message", "Number not working"];
 
 /** What a person opens from a guardian's row: the number to ring, what is known of how they like to be reached, and a place to say how the call went. */

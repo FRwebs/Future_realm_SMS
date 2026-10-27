@@ -3,6 +3,7 @@ import type { TeacherWorkspaceView } from "@/lib/api/teacher-workspace";
 import { area, text } from "@/lib/modules/live/m7-forms";
 import type { CourseCard, DocumentSpec, DrawerSpec, FormField, PanelFact, PanelRow, PanelTone, TabContent, TableCellKind, TableRow, TrayItem } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * M19 for a teaching person: Training. Courses written by their school, fitted to the work they do — some free, some bought from an outside
@@ -58,7 +59,7 @@ export type CoursePage = {
 export type LessonPage = { preview?: boolean; course: { id: string; title: string; task: string | null; hours: number; certificateName: string; provider: string; required: { by: string | null; note: string | null } | null; lessonsTotal: number; done: number }; outline: Array<{ position: number; title: string; minutes: number; done: boolean }>; lesson: { position: number; title: string; minutes: number; body: string; question: string; options: string[]; done: boolean } };
 
 const length = (hours: number) => (hours < 1 ? `${Math.round(hours * 60)} min` : Number.isInteger(hours) ? `${hours} ${hours === 1 ? "hour" : "hours"}` : `${Math.floor(hours)} h ${Math.round((hours % 1) * 60)} min`);
-const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "");
+const day = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }) : "");
 const stateTone = (state: string, required: boolean): PanelTone => (state === "Completed" ? "positive" : required || state === "Required" ? "attention" : state === "In progress" ? "progress" : "neutral");
 /** Prices arrive in kobo; nothing here ever holds money as a float. */
 const naira = (kobo: number) => `₦${(kobo / 100).toLocaleString("en-NG", { maximumFractionDigits: 0 })}`;

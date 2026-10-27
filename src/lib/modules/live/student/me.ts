@@ -8,6 +8,7 @@ import { askDrawer, dLong, loadAskable, loadMe, loadPrefs } from "@/lib/modules/
 import type { StudentContent } from "@/lib/modules/live/student/shared";
 import type { DrawerSpec, PanelFact, PanelTone, TableRow } from "@/lib/modules/panels";
 import { row } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /* ───────────────────────── profile ───────────────────────── */
 
@@ -112,7 +113,7 @@ export async function accountPage(): Promise<StudentContent> {
     commitLabel: "Update password", commitDone: "Password changed", commitDoneBody: "Use the new one next time you sign in.",
     submit: { endpoint: "/api/v1/profile/me/password", method: "PATCH", map: { "Current password": "currentPassword", "New password": "newPassword" } },
   };
-  const when = (iso: string) => new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" }).format(new Date(iso));
+  const when = (iso: string) => formatDay(new Date(iso), { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit", timeZone: "Africa/Lagos" });
   const lastIn = sec.signIns.find((entry) => entry.success) ?? null;
   const rows: TableRow[] = sec.signIns.map((entry) => ({
     cells: [

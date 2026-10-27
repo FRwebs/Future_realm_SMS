@@ -2,6 +2,7 @@ import { apiGet } from "@/lib/api/server";
 import { checks, text } from "@/lib/modules/live/m7-forms";
 import type { DrawerSpec, FormField, PanelFact, PanelRow, TabContent, TableCellKind, TableRow } from "@/lib/modules/panels";
 import { pill, row, text as cell } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /**
  * Audit & Security → Integrations: the keys a school issues so another system can read a small slice of its record. A key is shown
@@ -16,7 +17,7 @@ type Overview = {
   entitled: boolean; why: string; scopes: Array<{ key: string; label: string; detail: string }>;
   keys: Array<{ id: string; name: string; prefix: string; scopes: string[]; createdAt: string; by: string; lastUsedAt: string | null; calls: number; revoked: boolean }>;
 };
-const day = (iso: string | null) => (iso ? new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }).format(new Date(iso)) : "Never");
+const day = (iso: string | null) => (iso ? formatDay(new Date(iso), { day: "numeric", month: "short", year: "numeric", timeZone: "Africa/Lagos" }) : "Never");
 
 export async function integrationsTab(): Promise<TabContent> {
   const v = await apiGet<Overview>(API);

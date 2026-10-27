@@ -125,6 +125,11 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
           if (decision === "defer") continue;
           if (decision === "suppress") {
             await this.mark(row.id, meta, "SUPPRESSED", { suppressed: "The recipient chose not to receive this (Preferences)" });
+            // A message the school already paid for is given back, and the campaign it belongs to is told it did not arrive.
+            if (meta.prepaid === true) {
+              if (row.channel === "SMS" || row.channel === "WHATSAPP") await this.refund(row.schoolId, row.channel, row.title, Number(meta.credits ?? 1));
+              await reflectCarrierAnswer(row.id, "FAILED", "The recipient chose not to receive this");
+            }
             continue;
           }
         }

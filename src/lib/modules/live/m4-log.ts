@@ -4,6 +4,7 @@ import { dayHref, markHref, pct, rateTone, staffRecordHref, tone, trendHref, wee
 import type { Log, Options, Trend, Week } from "@/lib/modules/live/m4-types";
 import { plural } from "@/lib/modules/live/m7-format";
 import { name as nameCell, pill, text, type DrawerSpec, type PanelRow, type PanelTone, type TabContent, type TableRow } from "@/lib/modules/panels";
+import { formatDay } from "@/lib/date-format";
 
 /** The Log is the children over time: a trend per arm, who needs attention, and what the school has done about it. */
 
@@ -72,7 +73,7 @@ export function logTab(l: Log, options: Options): TabContent {
       {
         cols: "1fr",
         panels: [{
-          type: "kpi", title: l.term.name, sub: `${l.schoolDays} school days on record${l.plannedDays ? `, of a planned ${l.plannedDays}` : ""}${l.since ? ` · counted from ${new Date(`${l.since}T00:00:00Z`).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}` : ""}.`, per: 5,
+          type: "kpi", title: l.term.name, sub: `${l.schoolDays} school days on record${l.plannedDays ? `, of a planned ${l.plannedDays}` : ""}${l.since ? ` · counted from ${formatDay(new Date(`${l.since}T00:00:00Z`), { day: "numeric", month: "short" })}` : ""}.`, per: 5,
           cards: [
             { label: "School attendance", value: pct(k.rate), sub: k.rate === null ? "No register yet" : `Target ${policy.target}% · ${k.rate >= policy.target ? "above" : "below"} it`, tone: rateTone(k.rate, policy) },
             { label: "Best arm", value: pct(k.best?.term ?? null), sub: k.best ? k.best.name : "—", tone: "positive", link: k.best ? "Open the arm" : undefined, href: k.best ? trendHref(k.best.id) : undefined },
