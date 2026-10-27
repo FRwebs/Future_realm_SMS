@@ -117,7 +117,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
               Work email
             </label>
             <div className={box}>
-              <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#5E6D64" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="3" y="5" width="18" height="14" rx="2.4" />
                 <path d="m4 7 8 6 8-6" />
               </svg>
@@ -140,7 +140,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
               <span className="text-[10.5px] font-semibold text-[#12796A]">Reset via Super Admin</span>
             </div>
             <div className={box}>
-              <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#9FB8A7" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <svg width="14.5" height="14.5" viewBox="0 0 24 24" fill="none" stroke="#5E6D64" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <rect x="4.5" y="10.5" width="15" height="9.5" rx="2.2" />
                 <path d="M8 10.5V7.5a4 4 0 0 1 8 0v3" />
               </svg>
@@ -241,7 +241,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
       <ul className="grid gap-[7px]">
         {access.levels.map((entry) => (
           <li key={entry.level} className="flex items-start gap-[9px]">
-            <span className="w-[12.5px] flex-none font-(family-name:--font-heading) text-[9.5px] font-bold text-[#9FB8A7]">
+            <span className="w-[12.5px] flex-none font-(family-name:--font-heading) text-[9.5px] font-bold text-[#5E6D64]">
               {entry.level}
             </span>
             <span className="w-[106px] flex-none text-[11px] font-semibold text-[#0D2315]">{entry.role}</span>
@@ -265,7 +265,7 @@ export function PlatformSignInForm({ access }: { access: AccessControl }) {
         </p>
       </div>
 
-      <p className="mt-[21.5px] text-center text-[11px] text-[#9FB8A7]">
+      <p className="mt-[21.5px] text-center text-[11px] text-[#5E6D64]">
         Locked out? <span className="font-semibold">Contact a Super Admin</span>
       </p>
     </div>

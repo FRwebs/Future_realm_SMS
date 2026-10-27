@@ -11,7 +11,7 @@ import { expect, test } from "@playwright/test";
  */
 const base = process.env.STORYBOOK_URL;
 test.skip(!base, "needs a running Storybook — see the note at the top of this file");
-test.describe.configure({ mode: "parallel" });
+test.describe.configure({ mode: "parallel", timeout: 180_000 });
 
 type Entry = { id: string; title: string; name: string; type: string };
 

@@ -7,6 +7,8 @@ import { CsrfGuard } from "../../auth/csrf.guard";
 import { CurrentSession } from "../../auth/current-session.decorator";
 import { SessionGuard } from "../../auth/session.guard";
 import { ok } from "../student-records/records.shared";
+import { decideNotice } from "../../../../src/lib/staff-notices";
+import type { Preferences } from "../../../../src/lib/preferences";
 
 /** Where each kind of notice opens. Matched on the title, so every service that writes one stays a one-liner. */
 const DESTINATIONS: Array<[RegExp, string]> = [
@@ -37,7 +39,14 @@ export class NotificationsController {
   @Get("mine")
   mine(@CurrentSession() session: SessionPayload) {
     return ok(
-      prisma.notificationLog.findMany({ where: { schoolId: session.schoolId, channel: "IN_APP", OR: [{ userId: session.userId }, { userId: null }] }, orderBy: { sentAt: "desc" }, take: 50 }).then((rows) =>
+      Promise.all([
+        prisma.notificationLog.findMany({ where: { schoolId: session.schoolId, channel: "IN_APP", OR: [{ userId: session.userId }, { userId: null }] }, orderBy: { sentAt: "desc" }, take: 50 }),
+        prisma.user.findUnique({ where: { id: session.userId }, select: { preferences: true } }),
+      ]).then(([all, me]) => {
+        // What this person asked not to hear about (Preferences → What reaches me) is left out of their bell; emergencies never are.
+        const chosen = (me?.preferences as Preferences | null) ?? null;
+        return all.filter((row) => decideNotice(chosen, { channel: "IN_APP", title: row.title, urgency: typeof (row.metadata as { urgency?: unknown } | null)?.urgency === "string" ? (row.metadata as { urgency: string }).urgency : null }) !== "suppress");
+      }).then((rows) =>
         rows.map((row) => ({ id: row.id, title: row.title, body: row.body, status: row.status, sentAt: row.sentAt?.toISOString() ?? null, href: DESTINATIONS.find(([pattern]) => pattern.test(row.title))?.[1] ?? null }))
       )
     );

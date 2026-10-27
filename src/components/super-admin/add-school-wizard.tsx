@@ -69,7 +69,7 @@ function Field({ label, hint, children }: { label: string; hint?: string; childr
     <label className="block">
       <span className="mb-[6.5px] flex items-center justify-between text-[10.5px] font-semibold text-[#435048]">
         {label}
-        {hint ? <span className="font-medium text-[#9fb8a7]">{hint}</span> : null}
+        {hint ? <span className="font-medium text-[#5E6D64]">{hint}</span> : null}
       </span>
       {children}
     </label>

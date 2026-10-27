@@ -597,7 +597,7 @@ export function OnboardingWizard() {
     good: ["#edf7f1", "#17604f"],
     warn: ["#fdf3e6", "#8a5a17"],
     bad: ["#fceeee", "#9b2f2f"],
-    idle: ["#f2f6f4", "#8c9a92"]
+    idle: ["#f2f6f4", "#5E6D64"]
   };
 
   const errorBanner = <InlineNotice notice={stepNotice.notice} onDismiss={stepNotice.clear} className="mb-[18px]" />;
@@ -858,7 +858,7 @@ export function OnboardingWizard() {
                       </label>
                     ) : null}
                   </div>
-                  <div className="mt-[14.5px] text-[10px] text-[#9fb8a7]">
+                  <div className="mt-[14.5px] text-[10px] text-[#5E6D64]">
                     Fields marked <span className="font-bold text-[#b23b3b]">*</span> are required.
                   </div>
                 </div>
@@ -959,7 +959,7 @@ export function OnboardingWizard() {
                         <span className="text-[10.5px] font-semibold text-[#435048]">
                           Levels operated<span className="ml-[2px] font-semibold text-[#b23b3b]">*</span>
                         </span>
-                        <span className="text-[10px] text-[#9fb8a7]">
+                        <span className="text-[10px] text-[#5E6D64]">
                           {Object.values(levels).filter(Boolean).length ? `${Object.values(levels).filter(Boolean).length} selected` : "Pick at least one"}
                         </span>
                       </div>
@@ -990,7 +990,7 @@ export function OnboardingWizard() {
                         })}
                       </div>
                       <div className="mb-[6.5px] mt-3 text-[10.5px] font-semibold text-[#435048]">
-                        Any level we haven&apos;t listed <span className="font-medium text-[#9fb8a7]">optional</span>
+                        Any level we haven&apos;t listed <span className="font-medium text-[#5E6D64]">optional</span>
                       </div>
                       {fieldWrap(
                         <input
@@ -1037,7 +1037,7 @@ export function OnboardingWizard() {
                       )}
                     </label>
                   </div>
-                  <div className="mt-4 text-[10px] text-[#9fb8a7]">
+                  <div className="mt-4 text-[10px] text-[#5E6D64]">
                     Fields marked <span className="font-bold text-[#b23b3b]">*</span> are required. Registration
                     numbers can be added later from School Configuration.
                   </div>
@@ -1128,7 +1128,7 @@ export function OnboardingWizard() {
 
                   <div className="mb-[9px] flex items-center justify-between">
                     <span className="text-[11.5px] font-semibold text-[#435048]">Subjects you teach</span>
-                    <span className="text-[10px] text-[#9fb8a7]">
+                    <span className="text-[10px] text-[#5E6D64]">
                       {Object.values(subjects).filter(Boolean).length ? `${Object.values(subjects).filter(Boolean).length} selected` : "Pick at least one"}
                     </span>
                   </div>
@@ -1169,7 +1169,7 @@ export function OnboardingWizard() {
 
                   <div className="mb-[9px] flex items-center justify-between">
                     <span className="text-[11.5px] font-semibold text-[#435048]">Levels you teach</span>
-                    <span className="text-[10px] text-[#9fb8a7]">
+                    <span className="text-[10px] text-[#5E6D64]">
                       {Object.values(levels).filter(Boolean).length ? `${Object.values(levels).filter(Boolean).length} selected` : "Pick at least one"}
                     </span>
                   </div>
@@ -1200,7 +1200,7 @@ export function OnboardingWizard() {
                     })}
                   </div>
                   <div className="mb-[7px] mt-3 text-[11.5px] font-semibold text-[#435048]">
-                    Any level we haven&apos;t listed <span className="font-medium text-[#9fb8a7]">optional</span>
+                    Any level we haven&apos;t listed <span className="font-medium text-[#5E6D64]">optional</span>
                   </div>
                   {fieldWrap(
                     <input
@@ -1349,7 +1349,7 @@ export function OnboardingWizard() {
                 <ArrowRight className="h-[13.5px] w-[13.5px]" />
               </button>
               ) : null}
-              <span className="hidden text-[10.5px] text-[#9fb8a7] sm:inline">
+              <span className="hidden text-[10.5px] text-[#5E6D64] sm:inline">
                 Progress is saved at every step — you can leave and come back.
               </span>
             </div>
@@ -1489,7 +1489,7 @@ export function OnboardingWizard() {
             style={
               otpComplete
                 ? { background: "#0d2315", color: "#fff", boxShadow: "0 10px 22px -10px rgba(13,35,21,0.55)" }
-                : { background: "#edf3ef", color: "#9fb8a7", cursor: "not-allowed" }
+                : { background: "#edf3ef", color: "#5E6D64", cursor: "not-allowed" }
             }
           >
             {verifyPending ? "Verifying..." : "Verify and continue"}
@@ -1506,7 +1506,7 @@ export function OnboardingWizard() {
           <p className="text-[10.5px] leading-[1.55] text-[#5f6e65]">
             Codes go to email only. We never send passwords by email.
           </p>
-          <div className="mt-[14px] text-[11px] text-[#9fb8a7]">
+          <div className="mt-[14px] text-[11px] text-[#5E6D64]">
             Wrong address?{" "}
             {changingEmail ? (
               <span className="mt-2 flex gap-2">

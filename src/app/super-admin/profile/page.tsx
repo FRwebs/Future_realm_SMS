@@ -167,15 +167,17 @@ export default async function SuperAdminProfilePage() {
               ]}
             />
           </div>
-          <FieldLine label="Full name" value={profile.fullName} />
-          <FieldLine label="Preferred name" value={profile.preferredName} />
-          <FieldLine label="Role" value={profile.role.replaceAll("_", " ")} />
-          <FieldLine label="Email" value={profile.email} />
-          <FieldLine label="Phone" value={profile.phone} />
-          <FieldLine label="City" value={profile.contact.city} />
-          <FieldLine label="Country" value={profile.contact.country} />
-          <FieldLine label="Member since" value={formatDate(profile.createdAt)} />
-          <FieldLine label="Last sign-in" value={profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"} />
+          <dl>
+            <FieldLine label="Full name" value={profile.fullName} />
+            <FieldLine label="Preferred name" value={profile.preferredName} />
+            <FieldLine label="Role" value={profile.role.replaceAll("_", " ")} />
+            <FieldLine label="Email" value={profile.email} />
+            <FieldLine label="Phone" value={profile.phone} />
+            <FieldLine label="City" value={profile.contact.city} />
+            <FieldLine label="Country" value={profile.contact.country} />
+            <FieldLine label="Member since" value={formatDate(profile.createdAt)} />
+            <FieldLine label="Last sign-in" value={profile.lastLoginAt ? formatDate(profile.lastLoginAt) : "Never"} />
+          </dl>
         </article>
 
         <article className="overflow-hidden rounded-[14px] border border-(--color-border-default) bg-(--color-bg-surface)">
@@ -193,7 +195,7 @@ export default async function SuperAdminProfilePage() {
                       {log.action.replaceAll("_", " ")} — {log.target}
                       {log.schoolName ? ` · ${log.schoolName}` : ""}
                     </p>
-                    <p className="mt-0.5 text-[10px] text-[#9FB8A7]">{formatDate(log.timestamp)}</p>
+                    <p className="mt-0.5 text-[10px] text-[#5E6D64]">{formatDate(log.timestamp)}</p>
                   </div>
                 </div>
               ))

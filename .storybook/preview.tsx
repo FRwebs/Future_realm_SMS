@@ -1,4 +1,7 @@
 import type { Preview } from "@storybook/nextjs-vite";
+import { NextIntlClientProvider } from "next-intl";
+
+import en from "../src/messages/en.json";
 
 // The product's own styles and design tokens, so a component looks here exactly as it does in the app.
 import "../src/app/globals.css";
@@ -11,6 +14,8 @@ const preview: Preview = {
     a11y: { test: "error" },
     nextjs: { appDirectory: true },
   },
+  // Components that read the product's words (labels, tab names) get English, as the app does for anyone who has not chosen another language.
+  decorators: [(Story) => <NextIntlClientProvider locale="en" messages={en}><Story /></NextIntlClientProvider>],
   tags: ["autodocs"],
 };
 

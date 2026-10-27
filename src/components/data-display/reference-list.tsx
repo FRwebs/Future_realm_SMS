@@ -1,4 +1,4 @@
-const dot: Record<string, string> = { good: "#22A06B", teal: "#12796A", warn: "#D9A22C", bad: "#DB5555", mute: "#9FB8A7", info: "#2B5F8F", ink: "#0D2315" };
+const dot: Record<string, string> = { good: "#22A06B", teal: "#12796A", warn: "#D9A22C", bad: "#DB5555", mute: "#5E6D64", info: "#2B5F8F", ink: "#0D2315" };
 const pillTone: Record<string, { bg: string; fg: string }> = {
   good: { bg: "#EAF6F0", fg: "#17714F" },
   teal: { bg: "#E4F1EC", fg: "#17604F" },

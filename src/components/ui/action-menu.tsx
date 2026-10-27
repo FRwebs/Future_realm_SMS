@@ -66,7 +66,7 @@ export function ActionMenu({
               type="button"
               aria-label={triggerLabel}
               className={cn(
-                compact ? "inline-flex h-[25px] w-[25px] items-center justify-center rounded-lg text-[#9FB8A7] transition hover:bg-[#F1F8F4] hover:text-[#0D2315]" : "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--color-border-default) bg-(--color-bg-surface) text-(--color-text-secondary) shadow-(--shadow-sm) transition",
+                compact ? "inline-flex h-[25px] w-[25px] items-center justify-center rounded-lg text-[#5E6D64] transition hover:bg-[#F1F8F4] hover:text-[#0D2315]" : "inline-flex h-9 w-9 items-center justify-center rounded-xl border border-(--color-border-default) bg-(--color-bg-surface) text-(--color-text-secondary) shadow-(--shadow-sm) transition",
                 !compact && "hover:border-(--color-accent-primary) hover:bg-(--color-accent-primary-dim) hover:text-(--color-text-accent)",
               )}
             >

@@ -6,6 +6,7 @@ import { useState } from "react";
 
 import { ModuleDrawer } from "@/components/modules/lazy-drawer";
 import { PanelRowsWithDrawer } from "@/components/modules/panel-renderer";
+import { useUiText } from "@/hooks/use-ui-text";
 import type { DrawerSpec, PanelAction, PanelRow } from "@/lib/modules/panels";
 import { cn } from "@/lib/utils/cn";
 
@@ -101,6 +102,7 @@ function ModuleHead({
   openDrawer: (spec: DrawerSpec) => void;
 }) {
   const shortcuts = (launchers ?? []).slice(0, 2);
+  const ui = useUiText();
 
   return (
     <section className="relative overflow-hidden rounded-[15px] bg-[#0D2315] px-[19px] py-[15px] shadow-[0_14px_30px_-24px_rgba(13,35,21,0.8)]">
@@ -113,11 +115,11 @@ function ModuleHead({
           <div className="mb-[5px] flex items-center gap-[7px]">
             <span className="h-[4.5px] w-[4.5px] flex-none rounded-full bg-[#5FD6B4]" />
             <span className="whitespace-nowrap text-[9px] font-bold uppercase tracking-[0.14em] text-white/50">
-              {eyebrow}
+              {ui(eyebrow)}
             </span>
           </div>
           <h1 className="text-pretty font-(family-name:--font-heading) text-[19px] font-extrabold leading-[1.15] tracking-[-0.024em] text-white">
-            {title}
+            {ui(title)}
           </h1>
           <p className="mt-1 max-w-[560px] text-pretty text-[11px] leading-[1.45] text-white/60">
             {description}

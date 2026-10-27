@@ -197,7 +197,7 @@ async function CampaignsTab({ campaigns }: { campaigns: SuperAdminCampaignRow[] 
           </div>
           {shown.length ? shown.map((rule) => (
             <div key={rule.name} className="flex items-center gap-[10px] border-b border-[#F2F7F4] py-[10px] last:border-b-0">
-              <span aria-label={rule.on ? "On" : "Off"} className="h-[17px] w-[30.5px] flex-none rounded-full p-[2px]" style={{ background: rule.on ? "#12796A" : "#D5E0DA" }}>
+              <span role="img" aria-label={rule.on ? "On" : "Off"} className="h-[17px] w-[30.5px] flex-none rounded-full p-[2px]" style={{ background: rule.on ? "#12796A" : "#D5E0DA" }}>
                 <span className="block h-[13.5px] w-[13.5px] rounded-full bg-white" style={{ marginLeft: rule.on ? 13.5 : 0 }} />
               </span>
               <div className="min-w-0 flex-1">

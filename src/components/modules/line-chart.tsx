@@ -132,7 +132,7 @@ export function LineChart({ points, ceiling = 100, target = null, keys, format, 
       <div className="mt-[12px] flex gap-[8px]">
         <div className="relative h-[188px] w-[34px] flex-none">
           {ticks.map((tick) => (
-            <span key={tick} className="absolute right-0 -translate-y-1/2 text-[9.5px] tabular-nums" style={{ top: `${y(tick)}%`, color: "#8A9A92" }}>
+            <span key={tick} className="absolute right-0 -translate-y-1/2 text-[9.5px] tabular-nums" style={{ top: `${y(tick)}%`, color: "#5E6D64" }}>
               {show(tick)}
             </span>
           ))}
@@ -180,7 +180,7 @@ export function LineChart({ points, ceiling = 100, target = null, keys, format, 
               if (!(index % step === 0 || index === n - 1)) return null;
               const go = onPoint?.(index);
               const href = hrefFor?.(index);
-              const style = { left: `${x(index)}%`, top: 7, color: point.on ? "#0D2315" : point.v === null ? "#AAB8B0" : "#67766D", fontWeight: point.on ? 700 : 500 };
+              const style = { left: `${x(index)}%`, top: 7, color: point.on ? "#0D2315" : point.v === null ? "#5E6D64" : "#5E6D64", fontWeight: point.on ? 700 : 500 };
               const labelClass = "absolute -translate-x-1/2 whitespace-nowrap text-[9.5px]";
               if (go) return <button key={`x-${point.label}-${index}`} type="button" onClick={go} className={`${labelClass} cursor-pointer`} style={style}>{point.label}</button>;
               if (href) return <Link key={`x-${point.label}-${index}`} href={href as Route} className={`${labelClass} cursor-pointer`} style={style}>{point.label}</Link>;

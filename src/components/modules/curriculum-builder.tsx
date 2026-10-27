@@ -90,7 +90,7 @@ function Rail({
     <aside className={cn(CARD, "h-fit px-[14px] py-[14px]")}>
       <div className="mb-[11px]">
         <div className="mb-[6px] flex items-baseline justify-between gap-2">
-          <span className="text-[10px] font-bold uppercase tracking-widest text-[#67766D]">Progress</span>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-[#5E6D64]">Progress</span>
           <span className="text-[10.5px] font-semibold text-[#0D2315]">{doneCount} of 7 done</span>
         </div>
         <div className="h-[5px] w-full overflow-hidden rounded-full bg-[#EDF3EF]">
@@ -121,7 +121,7 @@ function Rail({
                       ? "border-[#22A06B] bg-[#22A06B] text-white"
                       : on
                         ? "border-[#12796A] text-[#12796A]"
-                        : "border-[#DEE8E2] text-[#9FB8A7]",
+                        : "border-[#DEE8E2] text-[#5E6D64]",
                   )}
                 >
                   {section.done ? "✓" : index + 1}
@@ -135,7 +135,7 @@ function Rail({
                   >
                     {section.label}
                   </span>
-                  <span className="mt-[2px] block text-pretty text-[10px] leading-[1.4] text-[#67766D]">
+                  <span className="mt-[2px] block text-pretty text-[10px] leading-[1.4] text-[#5E6D64]">
                     {section.sub}
                   </span>
                 </span>
@@ -207,7 +207,7 @@ function PresetRow({
 }) {
   return (
     <div className="mb-[13px]">
-      <div className="mb-[7px] text-[10px] font-semibold text-[#67766D]">{label}</div>
+      <div className="mb-[7px] text-[10px] font-semibold text-[#5E6D64]">{label}</div>
       <div className="flex flex-wrap gap-[6px]">
         {presets.map((preset) => (
           <button
@@ -535,7 +535,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
               <h2 className="font-(family-name:--font-heading) text-[14px] font-extrabold leading-[1.2] tracking-[-0.018em] text-[#0D2315]">
                 {current.title}
               </h2>
-              <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#67766D]">{current.sub}</p>
+              <p className="mt-[3px] text-pretty text-[11px] leading-[1.45] text-[#5E6D64]">{current.sub}</p>
             </div>
             {current.kind === "components" ? (
               <Tag
@@ -615,7 +615,7 @@ export function CurriculumBuilder({ backHref }: { backHref: string }) {
                         setComponents(components.map((item, other) => (other === index ? { ...item, weight: num(next) } : item)))
                       }
                     />
-                    <span className="text-[11px] text-[#67766D]">Sum across term</span>
+                    <span className="text-[11px] text-[#5E6D64]">Sum across term</span>
                     <RemoveButton onClick={() => setComponents(components.filter((_, other) => other !== index))} />
                   </div>
                 ))}

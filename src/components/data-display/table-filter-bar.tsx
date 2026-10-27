@@ -35,7 +35,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
     <div className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
       {search ? (
         <div className="flex min-w-[236px] items-center gap-2 rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[7px]">
-          <Search className="h-3.5 w-3.5 shrink-0 text-[#9FB8A7]" />
+          <Search className="h-3.5 w-3.5 shrink-0 text-[#5E6D64]" />
           <input
             value={search.value}
             onChange={(event) => search.onChange(event.target.value)}
@@ -46,7 +46,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
             <button
               type="button"
               onClick={() => search.onChange("")}
-              className="flex shrink-0 items-center text-[#9FB8A7] hover:text-[#0D2315]"
+              className="flex shrink-0 items-center text-[#5E6D64] hover:text-[#0D2315]"
               aria-label="Clear search"
             >
               <X className="h-3.5 w-3.5" />
@@ -73,7 +73,7 @@ export function TableFilterBar({ search, filters, note }: TableFilterBarProps) {
                 </option>
               ))}
             </select>
-            <ChevronDown className="pointer-events-none absolute right-2.5 h-3 w-3 text-[#9FB8A7]" />
+            <ChevronDown className="pointer-events-none absolute right-2.5 h-3 w-3 text-[#5E6D64]" />
           </label>
         ) : (
           <div

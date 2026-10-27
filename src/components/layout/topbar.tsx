@@ -445,7 +445,7 @@ function NowPill({ chrome }: { chrome: StudentChrome }) {
   const running = live?.tag === "Now";
   const swatch = running
     ? { bg: "#EBF1FA", bd: "#DCE7F5", dot: "#22A06B" }
-    : { bg: "#F2F7F4", bd: "#E4EDE8", dot: "#9FB8A7" };
+    : { bg: "#F2F7F4", bd: "#E4EDE8", dot: "#5E6D64" };
   if (!live) return null;
   const tagInk = running ? "#2A5A96" : "#5F6E65";
   return (
@@ -467,7 +467,7 @@ function NowPill({ chrome }: { chrome: StudentChrome }) {
         </span>
       </Link>
       {chrome.next ? (
-        <span className="hidden min-w-0 flex-[1_1_auto] truncate text-[11px] md:block" style={{ color: "#67766D" }}>
+        <span className="hidden min-w-0 flex-[1_1_auto] truncate text-[11px] md:block" style={{ color: "#5E6D64" }}>
           {chrome.next}
         </span>
       ) : null}
@@ -502,7 +502,7 @@ function SyncPill() {
 
   const tone = online
     ? { bg: "#EAF6F0", fg: "#17714F", dot: "#22A06B", bd: "#CFE4DB" }
-    : { bg: "#F4F6F5", fg: "#5A6862", dot: "#8A9A92", bd: "#E2E8E5" };
+    : { bg: "#F4F6F5", fg: "#5A6862", dot: "#5E6D64", bd: "#E2E8E5" };
 
   return (
     <Link
@@ -595,7 +595,7 @@ function ProfileDropdown({
             <p className="truncate text-[11.5px] font-semibold text-[#0D2315]">
               {session.name}
             </p>
-            <p className="truncate text-[9.5px] text-[#67766D]">
+            <p className="truncate text-[9.5px] text-[#5E6D64]">
               {roleLabels[session.role]}
               {schoolName ? ` · ${schoolName}` : ""}
             </p>
@@ -612,7 +612,7 @@ function ProfileDropdown({
             {schools.map((entry) => (
               <button key={entry.schoolId} type="button" disabled={entry.current} onClick={() => void switchSchool(entry.schoolId)} className="flex w-full items-center justify-between gap-2 rounded-[9px] px-[11px] py-[7px] text-left text-[11.5px] font-medium text-[#2A3B31] transition hover:bg-[#F1F8F4] disabled:cursor-default disabled:bg-[#F7FAF8]">
                 <span className="min-w-0 truncate">{entry.schoolName}</span>
-                <span className="flex-none text-[9.5px] text-[#67766D]">{entry.current ? t("hereNow") : entry.role.replaceAll("_", " ").toLowerCase()}</span>
+                <span className="flex-none text-[9.5px] text-[#5E6D64]">{entry.current ? t("hereNow") : entry.role.replaceAll("_", " ").toLowerCase()}</span>
               </button>
             ))}
           </div>
@@ -1051,7 +1051,7 @@ export function Topbar({
                   </span>
                   {/* A student's class is the half of "who they are" that
                       actually varies between two people with the same role. */}
-                  <span className="block whitespace-nowrap text-[9.5px] leading-tight text-[#67766D]">
+                  <span className="block whitespace-nowrap text-[9.5px] leading-tight text-[#5E6D64]">
                     {studentChrome ? studentChrome.who.line : roleLabels[session.role]}
                   </span>
                 </span>

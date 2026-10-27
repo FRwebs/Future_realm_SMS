@@ -1,7 +1,10 @@
 "use client";
 
+import { zodResolver } from "@hookform/resolvers/zod";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
 
 import { readCookie } from "@/lib/modules/submit";
 import { toneOf } from "@/lib/modules/tones";
@@ -9,6 +12,10 @@ import { toneOf } from "@/lib/modules/tones";
 export type TwoStepProps = { enabled: boolean; since: string | null };
 
 const API = "/api/v1/profile/me/mfa";
+const confirmSchema = z.object({ code: z.string().regex(/^\d{6}$/, "Type the 6 digits the app shows.") });
+const offSchema = z.object({ password: z.string().min(1, "Type your password to turn it off.") });
+type ConfirmValues = z.infer<typeof confirmSchema>;
+type OffValues = z.infer<typeof offSchema>;
 const BTN = "inline-flex rounded-[9px] px-[14px] py-[9px] text-[11.5px] font-semibold disabled:opacity-50";
 
 async function call<T>(path: string, method: "POST" | "PATCH", body: Record<string, unknown> = {}): Promise<T> {
@@ -23,8 +30,8 @@ export function StudentTwoStep({ enabled, since }: TwoStepProps) {
   const router = useRouter();
   const [stage, setStage] = useState<"idle" | "scan" | "codes" | "off">("idle");
   const [setup, setSetup] = useState<{ secret: string; qrCodeDataUrl: string } | null>(null);
-  const [code, setCode] = useState("");
-  const [password, setPassword] = useState("");
+  const confirmForm = useForm<ConfirmValues>({ resolver: zodResolver(confirmSchema), defaultValues: { code: "" } });
+  const offForm = useForm<OffValues>({ resolver: zodResolver(offSchema), defaultValues: { password: "" } });
   const [codes, setCodes] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -59,13 +66,16 @@ export function StudentTwoStep({ enabled, since }: TwoStepProps) {
           <img src={setup.qrCodeDataUrl} alt="QR code to scan with your authenticator app" width={150} height={150} className="rounded-[10px] border bg-white p-[6px]" style={{ borderColor: "#CFDDD5" }} />
           <div className="grid content-start gap-[8px]">
             <p className="text-[11px]" style={{ color: tone.fg }}>Scan this with an authenticator app (Google Authenticator, Microsoft Authenticator, Authy). Cannot scan? Type this key in: <b className="break-all font-mono">{setup.secret}</b></p>
-            <label className="text-[10.5px] font-semibold" style={{ color: "#435048" }}>The 6-digit code the app shows
-              <input value={code} onChange={(event) => setCode(event.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" className="mt-[4px] block w-[160px] rounded-[9px] border bg-white px-[11px] py-[8px] text-[13px] tabular-nums tracking-[0.2em]" style={{ borderColor: "#CFDDD5" }} />
-            </label>
-            <div className="flex gap-[8px]">
-              <button type="button" disabled={busy || code.length < 6} className={`${BTN} text-white`} style={{ background: "#0D2315" }} onClick={() => run(async () => { const done = await call<{ backupCodes: string[] }>("/confirm", "POST", { code }); setCodes(done.backupCodes); setStage("codes"); })}>Confirm</button>
-              <button type="button" className={`${BTN} border bg-white`} style={{ borderColor: "#CFDDD5", color: "#435048" }} onClick={() => { setStage("idle"); setCode(""); }}>Cancel</button>
-            </div>
+            <form noValidate className="grid gap-[8px]" onSubmit={confirmForm.handleSubmit((values) => run(async () => { const done = await call<{ backupCodes: string[] }>("/confirm", "POST", { code: values.code }); setCodes(done.backupCodes); setStage("codes"); }))}>
+              <label className="text-[10.5px] font-semibold" style={{ color: "#435048" }}>The 6-digit code the app shows
+                <input {...confirmForm.register("code", { onChange: (event) => { event.target.value = event.target.value.replace(/\D/g, "").slice(0, 6); } })} inputMode="numeric" autoComplete="one-time-code" aria-invalid={Boolean(confirmForm.formState.errors.code)} className="mt-[4px] block w-[160px] rounded-[9px] border bg-white px-[11px] py-[8px] text-[13px] tabular-nums tracking-[0.2em]" style={{ borderColor: "#CFDDD5" }} />
+              </label>
+              {confirmForm.formState.errors.code ? <p role="alert" className="text-[11px]" style={{ color: "#B23B3B" }}>{confirmForm.formState.errors.code.message}</p> : null}
+              <div className="flex gap-[8px]">
+                <button type="submit" disabled={busy} className={`${BTN} text-white`} style={{ background: "#0D2315" }}>Confirm</button>
+                <button type="button" className={`${BTN} border bg-white`} style={{ borderColor: "#CFDDD5", color: "#435048" }} onClick={() => { setStage("idle"); confirmForm.reset(); }}>Cancel</button>
+              </div>
+            </form>
           </div>
         </div>
       ) : null}
@@ -79,15 +89,16 @@ export function StudentTwoStep({ enabled, since }: TwoStepProps) {
       ) : null}
 
       {stage === "off" ? (
-        <div className="mt-[12px] grid max-w-[360px] gap-[8px]">
+        <form noValidate className="mt-[12px] grid max-w-[360px] gap-[8px]" onSubmit={offForm.handleSubmit((values) => run(async () => { await call("/disable", "PATCH", { password: values.password }); offForm.reset(); setStage("idle"); router.refresh(); }))}>
           <label className="text-[10.5px] font-semibold" style={{ color: "#435048" }}>Your password, to turn it off
-            <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="current-password" className="mt-[4px] block w-full rounded-[9px] border bg-white px-[11px] py-[8px] text-[12px]" style={{ borderColor: "#CFDDD5" }} />
+            <input type="password" {...offForm.register("password")} autoComplete="current-password" aria-invalid={Boolean(offForm.formState.errors.password)} className="mt-[4px] block w-full rounded-[9px] border bg-white px-[11px] py-[8px] text-[12px]" style={{ borderColor: "#CFDDD5" }} />
           </label>
+          {offForm.formState.errors.password ? <p role="alert" className="text-[11px]" style={{ color: "#B23B3B" }}>{offForm.formState.errors.password.message}</p> : null}
           <div className="flex gap-[8px]">
-            <button type="button" disabled={busy || !password} className={`${BTN} text-white`} style={{ background: "#B23B3B" }} onClick={() => run(async () => { await call("/disable", "PATCH", { password }); setPassword(""); setStage("idle"); router.refresh(); })}>Turn off</button>
-            <button type="button" className={`${BTN} border bg-white`} style={{ borderColor: "#CFDDD5", color: "#435048" }} onClick={() => { setStage("idle"); setPassword(""); }}>Keep it on</button>
+            <button type="submit" disabled={busy} className={`${BTN} text-white`} style={{ background: "#B23B3B" }}>Turn off</button>
+            <button type="button" className={`${BTN} border bg-white`} style={{ borderColor: "#CFDDD5", color: "#435048" }} onClick={() => { setStage("idle"); offForm.reset(); }}>Keep it on</button>
           </div>
-        </div>
+        </form>
       ) : null}
 
       {error ? <p className="mt-[8px] text-[11.5px]" style={{ color: "#B23B3B" }}>{error}</p> : null}

@@ -42,18 +42,18 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
     <div className="grid min-w-0 gap-[14px]">
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] pb-[14px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>What reaches you, and where</h3>
-        <p className="mt-[3.5px] text-[10.5px]" style={{ color: "#67766D" }}>In-app notifications cannot be turned off — they are your record.</p>
+        <p className="mt-[3.5px] text-[10.5px]" style={{ color: "#5E6D64" }}>In-app notifications cannot be turned off — they are your record.</p>
         <div className="mt-[12px] overflow-x-auto">
           <div className="min-w-[420px]">
             <div className="grid items-end gap-[10px] border-b pb-[9px]" style={{ gridTemplateColumns: cols, borderColor: "#EDF3EF" }}>
-              <span className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#67766D" }}>Notify me about</span>
+              <span className="text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#5E6D64" }}>Notify me about</span>
               {channels.map((channel) => (
                 <span key={channel.key} className="text-center text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#435048" }}>{channel.label}<span className="block text-[9px] font-medium normal-case tracking-normal" style={{ color: "#5f6e65" }}>{channel.sub}</span></span>
               ))}
             </div>
             {categories.map((category) => (
               <div key={category.key} className="grid items-center gap-[10px] border-b py-[11px]" style={{ gridTemplateColumns: cols, borderColor: "#EDF3EF" }}>
-                <span className="min-w-0"><span className="block text-[12px] font-semibold" style={{ color: "#0D2315" }}>{category.label}</span><span className="block text-[10.5px]" style={{ color: "#67766D" }}>{category.sub}</span></span>
+                <span className="min-w-0"><span className="block text-[12px] font-semibold" style={{ color: "#0D2315" }}>{category.label}</span><span className="block text-[10.5px]" style={{ color: "#5E6D64" }}>{category.sub}</span></span>
                 {channels.map((channel) => {
                   const on = isOn(category.key, channel.key, channel.locked, channel.unavailable);
                   const fixed = Boolean(channel.locked || channel.unavailable);
@@ -69,14 +69,14 @@ export function StudentPrefs({ base, categories, channels, matrix, defaults, qui
             ))}
           </div>
         </div>
-        <p className="mt-[10px] text-[10.5px]" style={{ color: "#67766D" }}>{foot}</p>
+        <p className="mt-[10px] text-[10.5px]" style={{ color: "#5E6D64" }}>{foot}</p>
         {error ? <p className="mt-[6px] text-[11px]" style={{ color: "#B23B3B" }}>{error}</p> : null}
       </section>
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[18px] py-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>Timing</h3>
         <div className="mt-[10px] grid gap-[14px] sm:grid-cols-2">
-          <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>Quiet hours</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#67766D" }}>No email in these hours, except safety notices.</p>{chips(hours, quietOptions, setHours, "quiet")}</div>
-          <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>Remind me about work that is due</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#67766D" }}>One reminder, at 16:00.</p>{chips(reminder, remindOptions, setReminder, "remind")}</div>
+          <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>Quiet hours</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#5E6D64" }}>No email in these hours, except safety notices.</p>{chips(hours, quietOptions, setHours, "quiet")}</div>
+          <div><p className="text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>Remind me about work that is due</p><p className="mb-[8px] mt-[2px] text-[10.5px]" style={{ color: "#5E6D64" }}>One reminder, at 16:00.</p>{chips(reminder, remindOptions, setReminder, "remind")}</div>
         </div>
       </section>
     </div>

@@ -44,7 +44,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
           </div>
         </div>
         <div className="grid grid-cols-7 gap-[5px]">
-          {MON.map((name) => <span key={name} className="px-[4px] pb-[2px] text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#67766D" }}>{name.slice(0, 3)}</span>)}
+          {MON.map((name) => <span key={name} className="px-[4px] pb-[2px] text-[9.5px] font-bold uppercase tracking-[0.07em]" style={{ color: "#5E6D64" }}>{name.slice(0, 3)}</span>)}
           {cells.map((cell, position) => {
             if (!cell) return <span key={`gap-${position}`} className="min-h-[74px]" />;
             const list = on(cell.value);
@@ -58,24 +58,24 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
                 className="flex min-h-[74px] min-w-0 flex-col gap-[3px] rounded-[10px] border p-[6px] text-left"
                 style={{ background: cell.value === selected ? "#F1F7F4" : weekend ? "#FBFDFC" : "#fff", borderColor: cell.value === selected ? "#0D2315" : "#E6EEE9", borderWidth: cell.value === selected ? 1.5 : 1 }}
               >
-                <span className="mb-px flex h-[20px] w-[20px] items-center justify-center rounded-full text-[11px] font-bold" style={isToday ? { background: "#12796A", color: "#fff" } : { color: weekend ? "#9AA8A0" : "#0D2315" }}>{cell.day}</span>
+                <span className="mb-px flex h-[20px] w-[20px] items-center justify-center rounded-full text-[11px] font-bold" style={isToday ? { background: "#12796A", color: "#fff" } : { color: weekend ? "#5E6D64" : "#0D2315" }}>{cell.day}</span>
                 {list.slice(0, 2).map((item) => {
                   const swatch = toneOf(CAT_TONE[item.cat] ?? "neutral");
                   return <span key={item.id} className="truncate rounded-[5px] px-[5px] py-[2px] text-[9.5px] font-semibold leading-tight" style={{ background: swatch.bg, color: swatch.fg }}>{item.cat === "Due" ? item.title.split(" · ")[0] : item.title}</span>;
                 })}
-                {list.length > 2 ? <span className="px-[5px] text-[9.5px]" style={{ color: "#67766D" }}>+{list.length - 2} more</span> : null}
+                {list.length > 2 ? <span className="px-[5px] text-[9.5px]" style={{ color: "#5E6D64" }}>+{list.length - 2} more</span> : null}
               </button>
             );
           })}
         </div>
         <div className="mt-[10px] flex flex-wrap gap-x-[14px] gap-y-[4px]">
-          {legend.map((entry) => { const swatch = toneOf(CAT_TONE[entry.cat] ?? "neutral"); return <span key={entry.label} className="flex items-center gap-[6px] text-[10.5px]" style={{ color: "#67766D" }}><span className="h-[10px] w-[10px] rounded-[3px] border" style={{ background: swatch.bg, borderColor: swatch.bd }} />{entry.label}</span>; })}
+          {legend.map((entry) => { const swatch = toneOf(CAT_TONE[entry.cat] ?? "neutral"); return <span key={entry.label} className="flex items-center gap-[6px] text-[10.5px]" style={{ color: "#5E6D64" }}><span className="h-[10px] w-[10px] rounded-[3px] border" style={{ background: swatch.bg, borderColor: swatch.bd }} />{entry.label}</span>; })}
         </div>
       </section>
 
       <section className="min-w-0 rounded-[14px] border bg-(--color-bg-surface) px-[16px] pb-[8px] pt-[14px]" style={{ borderColor: "#DEE8E2" }}>
         <h3 className="text-[12.5px] font-semibold" style={{ color: "#0D2315" }}>{longDay(selected)}</h3>
-        <p className="mt-[3px] text-[10.5px]" style={{ color: "#67766D" }}>{chosen.length ? `${chosen.length} on this day.` : "Nothing on this day."}</p>
+        <p className="mt-[3px] text-[10.5px]" style={{ color: "#5E6D64" }}>{chosen.length ? `${chosen.length} on this day.` : "Nothing on this day."}</p>
         <ul className="mt-[8px]">
           {chosen.map((item) => {
             const swatch = toneOf(CAT_TONE[item.cat] ?? "neutral");
@@ -83,7 +83,7 @@ export function StudentCalendar({ items, today, months, legend }: StudentCalenda
               <>
                 <span className="min-w-0 flex-1">
                   <span className="block text-pretty text-[11.5px] font-semibold" style={{ color: "#0D2315" }}>{item.title}</span>
-                  <span className="mt-[2px] block text-[10.5px]" style={{ color: "#67766D" }}>{[item.time, item.where, item.note].filter(Boolean).join(" · ") || item.cat}</span>
+                  <span className="mt-[2px] block text-[10.5px]" style={{ color: "#5E6D64" }}>{[item.time, item.where, item.note].filter(Boolean).join(" · ") || item.cat}</span>
                 </span>
                 <span className="flex-none rounded-full border px-[8px] py-[2.5px] text-[10px] font-semibold" style={{ background: swatch.bg, color: swatch.fg, borderColor: swatch.bd }}>{item.cat}</span>
               </>

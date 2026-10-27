@@ -7,6 +7,8 @@ import { platformPolicy } from "../platform-policy/policy.service";
 import { inQuietHours } from "../platform-policy/policy.shared";
 import { reflectCarrierAnswer } from "../communications/delivery-sync";
 import { CARRIERS } from "./providers";
+import { decideNotice } from "../../../../src/lib/staff-notices";
+import type { Preferences } from "../../../../src/lib/preferences";
 
 /**
  * Takes what the school queued and hands it to a carrier.
@@ -106,10 +108,26 @@ export class DeliveryService implements OnModuleInit, OnModuleDestroy {
         orderBy: { sentAt: "asc" },
         take: BATCH,
       });
+      const personalChoices = new Map<string, Preferences | null>();
       for (const row of rows) {
         const carrier = CARRIERS[row.channel];
         if (!carrier?.configured()) continue;
         const meta = (row.metadata ?? {}) as Meta;
+        // What this person asked to hear about, and when (Preferences → What reaches me). Anything they chose against is not sent;
+        // anything that would land in their quiet hours waits for them to end. Emergencies are never held back.
+        if (row.userId) {
+          let chosen = personalChoices.get(row.userId);
+          if (chosen === undefined) {
+            chosen = ((await prisma.user.findUnique({ where: { id: row.userId }, select: { preferences: true } }))?.preferences as Preferences | null) ?? null;
+            personalChoices.set(row.userId, chosen);
+          }
+          const decision = decideNotice(chosen, { channel: row.channel, title: row.title, urgency: typeof meta.urgency === "string" ? meta.urgency : null });
+          if (decision === "defer") continue;
+          if (decision === "suppress") {
+            await this.mark(row.id, meta, "SUPPRESSED", { suppressed: "The recipient chose not to receive this (Preferences)" });
+            continue;
+          }
+        }
         const user = row.userId ? await prisma.user.findUnique({ where: { id: row.userId }, select: { email: true, phone: true } }) : null;
         const to = row.channel === "EMAIL" ? String(meta.email ?? user?.email ?? "") : String(meta.phone ?? user?.phone ?? "");
         if (!to) {

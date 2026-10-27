@@ -9,6 +9,7 @@ import { readableError, sendJson } from "@/lib/modules/submit";
 import { INK, MUTED, toneSwatches } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
 import { apiJson } from "@/lib/api/client";
+import { tierChangePreviewContract } from "@/lib/api/contracts";
 
 /**
  * Changing tier part-way through a term.
@@ -22,26 +23,6 @@ import { apiJson } from "@/lib/api/client";
  * The figures come from the server, from the same calculation that performs the
  * change, so the number shown and the number charged cannot drift apart.
  */
-
-type Preview = {
-  isUpgrade: boolean;
-  direction: "UPGRADE" | "DOWNGRADE" | "SAME";
-  currentTier: { key: string; name: string; rate: number };
-  targetTier: { key: string; name: string; rate: number };
-  activeStudentCount: number;
-  term: { id: string; label: string; startDate: string; endDate: string } | null;
-  totalTermDays: number;
-  remainingTermDays: number;
-  prorationRatio: number;
-  immediateAmountDue: number;
-  taxOnImmediate: number;
-  immediateTotal: number;
-  effectiveDate: string;
-  effectiveOn: string | null;
-  newTermlyAmount: number;
-  termlyDifference: number;
-  blocked: { code: string; message: string } | null;
-};
 
 const naira = (value: number) => `₦${Math.round(value).toLocaleString("en-NG")}`;
 
@@ -83,7 +64,7 @@ export function TierChange({ panel }: { panel: TierChangePanel }) {
   // What moving to the chosen tier would cost, worked out by the server. Cached per tier, so flipping between two is instant.
   const estimate = useQuery({
     queryKey: ["tier-change", panel.previewEndpoint, open],
-    queryFn: ({ signal }) => apiJson<Preview>(`${panel.previewEndpoint}?tier=${encodeURIComponent(open as string)}`, signal),
+    queryFn: ({ signal }) => apiJson(`${panel.previewEndpoint}?tier=${encodeURIComponent(open as string)}`, signal, tierChangePreviewContract),
     enabled: Boolean(open),
     retry: false,
     staleTime: 15_000,

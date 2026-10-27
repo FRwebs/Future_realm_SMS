@@ -193,9 +193,9 @@ export function BackOfficeTable({ title, description, meta, emptyState, actions,
       {searchable ? (
         <div className="flex flex-wrap items-center gap-[7px] border-b border-[#EDF3EF] bg-[#FCFDFC] px-[18px] py-[12.5px]">
           <div className="flex min-w-[236px] items-center gap-2 rounded-[9px] border border-[#DEE8E2] bg-white px-[11px] py-[7px]">
-            <Search className="h-3 w-3 shrink-0 text-[#9FB8A7]" strokeWidth={1.9} />
+            <Search className="h-3 w-3 shrink-0 text-[#5E6D64]" strokeWidth={1.9} />
             <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={`Search ${String(columns[0]?.header || "this table").toLowerCase()}`} aria-label="Search this table" className="min-w-0 flex-1 border-none bg-transparent text-[11.5px] text-[#0D2315] outline-hidden placeholder:text-[#7a8f82]" />
-            {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="flex shrink-0 text-[#9FB8A7] hover:text-[#0D2315]"><X className="h-3 w-3" /></button> : null}
+            {query ? <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="flex shrink-0 text-[#5E6D64] hover:text-[#0D2315]"><X className="h-3 w-3" /></button> : null}
           </div>
           {needle ? <span className="ml-auto text-[10.5px] text-[#5f6e65]">{matching.length} of {all.length} shown</span> : null}
         </div>

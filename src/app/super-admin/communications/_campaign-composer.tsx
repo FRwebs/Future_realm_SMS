@@ -210,7 +210,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
               type="button"
               onClick={() => setType(t)}
               className="flex-1 rounded-[7px] px-2.5 py-2 text-[11px] font-semibold transition"
-              style={{ background: type === t ? "#fff" : "transparent", color: type === t ? "#0D2315" : "#8C9A92", boxShadow: type === t ? "0 2px 6px rgba(13,35,21,0.08)" : "none" }}
+              style={{ background: type === t ? "#fff" : "transparent", color: type === t ? "#0D2315" : "#5E6D64", boxShadow: type === t ? "0 2px 6px rgba(13,35,21,0.08)" : "none" }}
             >
               {t === "OPERATIONAL" ? "Operational" : "Promotional"}
             </button>
@@ -284,7 +284,7 @@ export function CampaignComposer({ templateOptions, planFilterOptions, platformN
               <button key={field} type="button" onClick={() => setBody((current) => `${current}${current && !current.endsWith(" ") ? " " : ""}{{${field}}}`)} className="rounded-[6px] bg-[#E4F1EC] px-[7px] py-[3.5px] text-[10px] font-semibold text-[#12796A] hover:bg-[#D5EBE2]">{`{{${field}}}`}</button>
             ))}
           </span>
-          <span className="text-[10.5px] font-semibold" style={{ color: channel === "SMS" ? (overLimit ? "#DB5555" : "#8A6410") : "#8C9A92" }}>
+          <span className="text-[10.5px] font-semibold" style={{ color: channel === "SMS" ? (overLimit ? "#DB5555" : "#8A6410") : "#5E6D64" }}>
             {channel === "SMS" ? smsCount : `${body.length} characters`}
           </span>
         </div>
