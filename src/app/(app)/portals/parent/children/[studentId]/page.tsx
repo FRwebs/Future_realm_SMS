@@ -22,6 +22,9 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
 
   const { studentId } = await params;
   const child = await apiGet<ParentChildPortalView>(`/api/v1/parent-portal/children/${studentId}`);
+  // What the school keeps back from guardians (School Configuration → Policies) is not fetched at all; the page just stops pointing at it.
+  const hidden = new Set(child.hidden ?? []);
+  const has = (page: string) => !hidden.has(page);
 
   return (
     <div className="portal-page">
@@ -36,32 +39,40 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
         ) : null}
         <div className="mt-5">
           <ActionMenu triggerLabel={`Actions for ${child.studentName}`}>
-            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/attendance`}>Attendance</ActionMenuLink>
-            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/results`}>Results</ActionMenuLink>
-            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/fees`}>Fees</ActionMenuLink>
-            <ActionMenuLink href={`/portals/parent/children/${child.studentId}/timetable`}>Timetable</ActionMenuLink>
+            {has("attendance") ? <ActionMenuLink href={`/portals/parent/children/${child.studentId}/attendance`}>Attendance</ActionMenuLink> : null}
+            {has("results") ? <ActionMenuLink href={`/portals/parent/children/${child.studentId}/results`}>Results</ActionMenuLink> : null}
+            {has("fees") ? <ActionMenuLink href={`/portals/parent/children/${child.studentId}/fees`}>Fees</ActionMenuLink> : null}
+            {has("timetable") ? <ActionMenuLink href={`/portals/parent/children/${child.studentId}/timetable`}>Timetable</ActionMenuLink> : null}
             <ActionMenuLink href={`/my-children/${child.studentId}/subjects`}>Subjects & SOW</ActionMenuLink>
           </ActionMenu>
         </div>
       </section>
 
       <section className="grid gap-4 md:grid-cols-4">
+        {has("attendance") ? (
         <article className="surface-card p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
           <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatPercentage(child.attendanceRate)}</p>
         </article>
+        ) : null}
+        {has("results") ? (
         <article className="surface-card p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Average</p>
           <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{child.averageScore.toFixed(1)}%</p>
         </article>
+        ) : null}
+        {has("fees") ? (
         <article className="surface-card p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding</p>
           <p className="mt-2 text-[22px] font-bold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p>
         </article>
+        ) : null}
+        {has("timetable") ? (
         <article className="surface-card p-5">
           <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Next class</p>
           <p className="mt-2 text-[14px] font-semibold text-[var(--color-text-primary)]">{child.nextClass ? formatNigeriaClassName(child.nextClass) : "Not set"}</p>
         </article>
+        ) : null}
       </section>
 
       <section className="grid gap-5 xl:grid-cols-2">
@@ -76,6 +87,7 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
             { key: "track", header: "Track", render: (item) => item.track ?? item.departmentName ?? "General" }
           ]}
         />
+        {has("timetable") ? (
         <TableCard
           title="Recent timetable"
           description="Class periods visible for this child."
@@ -87,6 +99,8 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
             { key: "venue", header: "Venue", render: (item) => item.venue }
           ]}
         />
+        ) : null}
+        {has("fees") ? (
         <TableCard
           title="Recent invoices"
           description="Balances and due dates for this child."
@@ -98,6 +112,7 @@ export default async function ParentChildOverviewPage({ params }: PageProps) {
             { key: "status", header: "Status", render: (item) => item.status }
           ]}
         />
+        ) : null}
       </section>
     </div>
   );

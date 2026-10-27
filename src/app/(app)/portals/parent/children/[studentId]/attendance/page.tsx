@@ -3,7 +3,7 @@ import type { Route } from "next";
 
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
-import { apiGet } from "@/lib/api/server";
+import { KeptBack, guardianPage } from "@/components/portals/kept-back";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { StudentPortalAttendanceView } from "@/lib/domain/types";
@@ -19,7 +19,9 @@ export default async function ParentChildAttendancePage({ params }: PageProps) {
   }
 
   const { studentId } = await params;
-  const attendance = await apiGet<StudentPortalAttendanceView>(`/api/v1/parent-portal/children/${studentId}/attendance`);
+  const page = await guardianPage<StudentPortalAttendanceView>(`/api/v1/parent-portal/children/${studentId}/attendance`);
+  if (page.data === null) return <KeptBack title="Child attendance" message={page.keptBack} backHref={`/portals/parent/children/${studentId}`} />;
+  const attendance = page.data;
 
   return (
     <div className="portal-page">

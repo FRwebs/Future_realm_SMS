@@ -18,6 +18,7 @@ import {
   StudentPortalNotificationView
 } from "../../../../src/lib/domain/types";
 import { formatNigeriaClassName } from "../../../../src/lib/school-options";
+import { assertGuardianMaySee, hiddenGuardianPages, loadGuardianPolicy, type GuardianVisible } from "./guardian-policy";
 
 const dayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
@@ -549,19 +550,26 @@ export class ParentPortalService {
   }
 
   private async buildChildOverview(session: SessionPayload, student: LinkedChild): Promise<ParentChildPortalView> {
-    const [attendance, resultHistory, finance, timetable, services] = await Promise.all([
-      this.getAttendance(session, student.id),
-      this.getResults(session, student),
-      this.getFees(session, student.id),
+    const policy = await loadGuardianPolicy(session.schoolId);
+    const shows = (what: GuardianVisible) => policy.sees.has(what);
+    // What the school keeps back is never fetched, so it is never in the payload — hiding it in the page alone would still hand it over.
+    const [attendanceFull, resultsFull, financeFull, timetableFull, services] = await Promise.all([
+      shows("Attendance") ? this.getAttendance(session, student.id) : null,
+      shows("Results") ? this.getResults(session, student) : null,
+      shows("Fees") ? this.getFees(session, student.id) : null,
       this.getTimetable(session, student),
       this.getServices(session, student.id)
     ]);
+    const timetable = shows("Timetable") ? timetableFull : { ...timetableFull, weeklyTimetable: [], examTimetable: [] };
+    const attendance = attendanceFull ?? undefined;
+    const resultHistory = (resultsFull ?? []).map((sheet) => (shows("Report cards") ? sheet : { ...sheet, reportCardUrl: undefined }));
+    const finance = financeFull ?? [];
     const latestResult = resultHistory[0];
     const outstandingBalance = finance.reduce((sum, item) => sum + item.balance, 0);
     const notes = [
-      attendance.summary.lowAttendanceWarning,
+      attendance?.summary.lowAttendanceWarning,
       outstandingBalance > 0 ? "Outstanding fee balance" : undefined,
-      latestResult ? undefined : "No published result yet"
+      shows("Results") && !latestResult ? "No published result yet" : undefined
     ].filter(Boolean) as string[];
 
     return {
@@ -569,7 +577,7 @@ export class ParentPortalService {
       studentName: formatStudentName(student),
       admissionNumber: student.admissionNumber,
       className: formatClassName(student.currentClass?.name, student.currentClass?.arm),
-      attendanceRate: attendance.summary.attendanceRate,
+      attendanceRate: attendance?.summary.attendanceRate ?? 0,
       averageScore: latestResult?.average ?? 0,
       outstandingBalance,
       nextClass: timetable.weeklyTimetable[0] ? `${timetable.weeklyTimetable[0].subject} ${timetable.weeklyTimetable[0].time}` : "No next class",
@@ -586,7 +594,8 @@ export class ParentPortalService {
       transport: services.transport,
       hostel: services.hostel,
       library: services.library,
-      notes: notes.length ? notes : ["Stable student profile"]
+      notes: notes.length ? notes : ["Stable student profile"],
+      hidden: hiddenGuardianPages(policy)
     };
   }
 
@@ -597,6 +606,7 @@ export class ParentPortalService {
     const outstanding = children.reduce((sum, child) => sum + child.outstandingBalance, 0);
     const announcements = await this.getParentAnnouncements(session);
     const notifications = await this.getParentNotifications(session);
+    const feesShown = (await loadGuardianPolicy(session.schoolId)).sees.has("Fees");
 
     return {
       parentId: guardian.id,
@@ -606,7 +616,7 @@ export class ParentPortalService {
       headline: children.length > 1 ? "All your children in one family view" : "Monitor your child's school progress",
       familyStats: [
         { label: "Children", value: String(children.length) },
-        { label: "Outstanding", value: `NGN ${outstanding.toLocaleString("en-NG")}` },
+        ...(feesShown ? [{ label: "Outstanding", value: `NGN ${outstanding.toLocaleString("en-NG")}` }] : []),
         { label: "Alerts", value: String(children.filter((child) => child.notes.some((note) => note !== "Stable student profile")).length) }
       ],
       children,
@@ -623,18 +633,23 @@ export class ParentPortalService {
 
   async getChildAttendanceForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
+    await assertGuardianMaySee(session.schoolId, "Attendance");
     await this.getAuthorizedChild(session, studentId);
     return this.getAttendance(session, studentId);
   }
 
   async getChildResultsForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
+    await assertGuardianMaySee(session.schoolId, "Results");
     const child = await this.getAuthorizedChild(session, studentId);
-    return this.getResults(session, child);
+    const sheets = await this.getResults(session, child);
+    const cards = (await loadGuardianPolicy(session.schoolId)).sees.has("Report cards");
+    return cards ? sheets : sheets.map((sheet) => ({ ...sheet, reportCardUrl: undefined }));
   }
 
   async getChildFeesForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
+    await assertGuardianMaySee(session.schoolId, "Fees");
     await this.getAuthorizedChild(session, studentId);
     return this.getFees(session, studentId);
   }
@@ -647,6 +662,7 @@ export class ParentPortalService {
 
   async getChildTimetableForParent(session: SessionPayload, studentId: string) {
     this.assertParentSession(session);
+    await assertGuardianMaySee(session.schoolId, "Timetable");
     const child = await this.getAuthorizedChild(session, studentId);
     return this.getTimetable(session, child);
   }
@@ -662,6 +678,7 @@ export class ParentPortalService {
 
   async getParentAnnouncements(session: SessionPayload) {
     this.assertParentSession(session);
+    if (!(await loadGuardianPolicy(session.schoolId)).sees.has("Announcements")) return [];
     const guardian = await this.getGuardianContext(session);
     const classNames = guardian.students.map((item) => formatClassName(item.student.currentClass?.name, item.student.currentClass?.arm));
     const announcements = await prisma.announcement.findMany({

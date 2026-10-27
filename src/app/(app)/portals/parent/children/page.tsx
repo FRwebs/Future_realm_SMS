@@ -18,6 +18,7 @@ export default async function ParentChildrenPage() {
   }
 
   const children = await apiGet<ParentChildPortalView[]>("/api/v1/parent-portal/children");
+  const hidden = new Set(children[0]?.hidden ?? []);
 
   return (
     <div className="portal-page">
@@ -45,9 +46,9 @@ export default async function ParentChildrenPage() {
             )
           },
           { key: "className", header: "Class", render: (item) => formatNigeriaClassName(item.className) },
-          { key: "attendanceRate", header: "Attendance", render: (item) => formatPercentage(item.attendanceRate) },
-          { key: "averageScore", header: "Average", render: (item) => `${item.averageScore.toFixed(1)}%` },
-          { key: "balance", header: "Balance", render: (item) => formatCurrency(item.outstandingBalance) }
+          ...(hidden.has("attendance") ? [] : [{ key: "attendanceRate", header: "Attendance", render: (item: ParentChildPortalView) => formatPercentage(item.attendanceRate) }]),
+          ...(hidden.has("results") ? [] : [{ key: "averageScore", header: "Average", render: (item: ParentChildPortalView) => `${item.averageScore.toFixed(1)}%` }]),
+          ...(hidden.has("fees") ? [] : [{ key: "balance", header: "Balance", render: (item: ParentChildPortalView) => formatCurrency(item.outstandingBalance) }])
         ]}
       />
     </div>

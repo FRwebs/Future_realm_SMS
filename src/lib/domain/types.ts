@@ -2151,6 +2151,8 @@ export interface ParentChildPortalView {
   hostel?: StudentPortalHostelView[];
   library?: StudentPortalLibraryLoanView[];
   notes: string[];
+  /** Pages the school keeps back from guardians (policy "Guardian portal visibility"): results, attendance, fees, timetable, announcements. */
+  hidden?: string[];
 }
 
 export interface ParentPortalView {

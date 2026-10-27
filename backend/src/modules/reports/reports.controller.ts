@@ -12,6 +12,7 @@ import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
+import { assertGuardianMaySee } from "../parent-portal/guardian-policy";
 
 const broadsheetExportRoles = [
   "SUPER_ADMIN",
@@ -114,6 +115,7 @@ export class ReportsController {
     @Param("studentId") studentId: string,
     @Res() response: Response
   ) {
+    if (session.role === "PARENT") await assertGuardianMaySee(session.schoolId, "Report cards");
     const student = await prisma.student.findFirstOrThrow({
       where: {
         id: studentId,
