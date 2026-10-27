@@ -13,6 +13,7 @@ import { sendJson, sendJsonForData } from "@/lib/modules/submit";
 import { INK, MUTED } from "@/lib/modules/tones";
 import { focusOnMount } from "@/lib/ui/focus";
 import { apiRaw } from "@/lib/api/client";
+import { readDevicePreferences } from "@/lib/preferences";
 
 export function FactRows({ facts }: { facts: PanelFact[] }) {
   return (
@@ -504,7 +505,7 @@ function DrawerPanel({
 
   // Anything with something to lose asks before it closes.
   function requestClose() {
-    if (!committed && dirty) setConfirm("discard");
+    if (!committed && dirty && readDevicePreferences().confirmLeave) setConfirm("discard");
     else onClose();
   }
 

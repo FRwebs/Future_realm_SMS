@@ -1,4 +1,5 @@
-import { ALL_LOCALES, DEFAULT_LOCALE, LOCALES, LOCALE_NAMES, type Locale } from "@/i18n/locales";
+import { ALL_LOCALES, DEFAULT_LOCALE, LOCALE_NAMES, type Locale } from "@/i18n/locales";
+import { DENSITIES, NOTIFY_ABOUT, NOTIFY_BY, OPEN_ON_CHOICES, QUIET_HOURS, devicePreferencesFrom, type Preferences } from "@/lib/preferences";
 import { systemRoleLabels } from "@/lib/permissions/catalog";
 import { schoolModules, schoolTemplateReach } from "@/lib/modules/school-modules";
 import { roleTemplateFor, visibleModulesForRole } from "@/lib/modules/school-access";
@@ -16,6 +17,8 @@ export type MyProfile = {
   mfaEnabled?: boolean | null;
   /** The language chosen for the product (en, yo, ha, ig), if one has been. */
   locale?: string | null;
+  /** How the product opens and behaves for this person. */
+  preferences?: Preferences | null;
   lastLoginAt?: string | null;
   accountStatus?: string | null;
 };
@@ -274,125 +277,90 @@ function profileTab(session: SessionUser, schoolName: string, profile: MyProfile
 
 /* ------------------------------------------------------------- Preferences */
 
-function preferencesTab(session: SessionUser, schoolName: string, profile: MyProfile): TabContent {
-  const savePreferences: DrawerSpec = {
-    mode: "commit",
-    kicker: "Preferences",
-    title: "Save your preferences",
-    sub: "These change your own experience only — never anyone else's.",
-    facts: [
-      ["Open on", "Command Center · Today", "Where you land after signing in"],
-      ["Density", "Compact", "Compact fits more rows; comfortable is easier on a projector"],
-      ["Date format", "4 September 2026"],
-      ["Saved against", "Your account, not this device"],
-    ],
-    commitLabel: "Save preferences",
-    commitDone: "Preferences saved",
-    commitDoneBody: "They follow your account onto any device you sign in from.",
-  };
+/** The words on the account page that are put into the person's language by the page that draws it. */
+export type AccountWords = { language: string; languageSub: string; languageHint: string; saved: string; save: string };
 
-  const saveNotifications: DrawerSpec = {
-    mode: "commit",
-    kicker: "Preferences",
-    title: "Save what reaches you",
-    sub: "Emergency broadcasts ignore every one of these, by design.",
-    facts: [
-      ["Notified about", "What you ticked"],
-      ["By", "The channels you ticked", "SMS draws on the school's credits"],
-      ["Quiet hours", "19:00 – 07:00 WAT"],
-      ["Emergency broadcasts", "Always reach you", "They ignore quiet hours and every preference here"],
-    ],
-    commitLabel: "Save",
-    commitDone: "Notification preferences saved",
-    commitDoneBody: "Emergency broadcasts still reach you, by design.",
-  };
+function preferencesTab(session: SessionUser, schoolName: string, profile: MyProfile, words: AccountWords): TabContent {
+  const saved = profile.preferences ?? {};
+  const device = devicePreferencesFrom(saved);
+  const submit = (map: Record<string, string>, done: string, refreshAfter = false) => ({ endpoint: "/api/v1/profile/me", method: "PATCH" as const, map, done, refreshAfter });
 
   return {
     title: "Preferences",
     desc: `How the product opens for you · ${session.name} · ${schoolName}`,
-    primary: { label: "Save preferences", drawer: savePreferences },
     rows: [
       row("1fr", [
         {
           type: "form",
-          title: "Language",
-          sub: "The language you read the product in. It is saved to your account and follows you onto any device you sign in from.",
+          title: words.language,
+          sub: words.languageSub,
           per: 1,
           fields: [
             {
               kind: "select",
-              label: "Language",
+              label: words.language,
               value: LOCALE_NAMES[(ALL_LOCALES as readonly string[]).includes(profile.locale ?? "") ? (profile.locale as Locale) : DEFAULT_LOCALE],
               options: ALL_LOCALES.map((code) => LOCALE_NAMES[code]),
-              hint:
-                "So far the sign-in, password-recovery and sign-up screens are translated; everything else stays in English until it is. " +
-                (LOCALES.length > 1
-                  ? "Yorùbá, Hausa and Igbo are drafts awaiting review by a fluent speaker."
-                  : "Yorùbá, Hausa and Igbo are drafts that are switched off on this server, so choosing one is saved but still shows English."),
+              hint: words.languageHint,
             },
           ],
-          submit: {
-            endpoint: "/api/v1/profile/me",
-            method: "PATCH",
-            map: { Language: "locale" },
-            done: "Saved to your account.",
-            refreshAfter: true,
-          },
-          actions: [{ label: "Save language", primary: true }],
+          submit: submit({ [words.language]: "locale" }, words.saved, true),
+          actions: [{ label: words.save, primary: true }],
         },
       ]),
       row("1.35fr 1fr", [
         {
           type: "form",
           title: "How the product opens for you",
-          sub: "These change your own experience only — never anyone else's.",
+          sub: "These change your own experience only — never anyone else's. They are saved to your account and follow you onto any device you sign in from.",
           fields: [
             {
               kind: "select",
               label: "Open on",
-              value: "Command Center · Today",
-              options: [
-                "Command Center · Today",
-                "Command Center · Oversight",
-                "Approvals · Queue",
-                "Attendance · Mark",
-                "Score Entry · Review",
-              ],
-              hint: "Where you land after signing in.",
+              value: saved.openOn ?? OPEN_ON_CHOICES[0],
+              options: [...OPEN_ON_CHOICES],
+              hint: "Where you land when you sign in — if your role cannot see that page, you land where you always have.",
             },
             {
               kind: "choice",
               label: "Density",
-              value: "Compact",
-              options: ["Compact", "Comfortable"],
-              hint: "Compact fits more rows on a screen; comfortable is easier on a projector.",
+              value: device.density,
+              options: [...DENSITIES],
+              hint: "Compact fits more rows on a screen; comfortable gives tables and lists more room and is easier on a projector.",
             },
             {
-              kind: "select",
+              kind: "static",
               label: "Date format",
-              value: "4 September 2026",
-              options: ["4 September 2026", "04/09/2026", "2026-09-04"],
+              value: "4 Sep 2026",
+              hint: "Dates are written one way across the product for now, so there is nothing to choose yet.",
             },
             {
               kind: "toggle",
               label: "Confirm before I leave an unsaved screen",
-              on: true,
+              on: device.confirmLeave,
               onLabel: "Always confirm",
               offLabel: "Leave without asking",
             },
             {
               kind: "toggle",
               label: "Keep my work on this device when offline",
-              on: true,
+              on: device.keepOffline,
               onLabel: "Kept on this device",
               offLabel: "Do not keep",
             },
           ],
-          formNote: "Saved against your account, not this device.",
-          actions: [
-            { label: "Reset to defaults" },
-            { label: "Save preferences", primary: true, drawer: savePreferences },
-          ],
+          submit: submit(
+            {
+              "Open on": "preferences.openOn",
+              Density: "preferences.density",
+              "Confirm before I leave an unsaved screen": "preferences.confirmLeave",
+              "Keep my work on this device when offline": "preferences.keepOffline",
+            },
+            "Saved to your account.",
+            true,
+          ),
+          formNote: "A register or scores typed while offline are kept on the device until you are connected again — switch that off and offline writes are refused instead.",
+          actions: [{ label: "Save preferences", primary: true }],
         },
         {
           type: "form",
@@ -403,37 +371,28 @@ function preferencesTab(session: SessionUser, schoolName: string, profile: MyPro
             {
               kind: "checks",
               label: "Notify me about",
-              options: [
-                "An approval routed to me",
-                "An item escalating past me",
-                "A returned submission of mine",
-                "A sync failure on my device",
-                "A sensitive record being opened",
-                "Weekly oversight summary",
-              ],
-              checked: [
-                "An approval routed to me",
-                "An item escalating past me",
-                "A returned submission of mine",
-                "A sync failure on my device",
-              ],
+              options: [...NOTIFY_ABOUT],
+              checked: saved.notifyAbout ?? NOTIFY_ABOUT.slice(0, 4),
             },
             {
               kind: "checks",
               label: "By",
-              options: ["In-app", "Email", "SMS"],
-              checked: ["In-app", "Email"],
+              options: [...NOTIFY_BY],
+              checked: saved.notifyBy ?? ["In-app", "Email"],
               row: true,
             },
             {
               kind: "select",
               label: "Quiet hours",
-              value: "19:00 – 07:00 WAT",
-              options: ["None", "19:00 – 07:00 WAT", "21:00 – 06:00 WAT"],
+              value: saved.quietHours ?? QUIET_HOURS[1],
+              options: [...QUIET_HOURS],
               hint: "Emergency broadcasts ignore quiet hours, by design.",
             },
           ],
-          actions: [{ label: "Save", primary: true, drawer: saveNotifications }],
+          submit: submit({ "Notify me about": "preferences.notifyAbout", By: "preferences.notifyBy", "Quiet hours": "preferences.quietHours" }, "Saved to your account."),
+          formNote: "Saved against your account. Staff notifications are not yet sent through one dispatcher, so these choices are recorded but not yet enforced; emergency broadcasts always reach you.",
+          formNoteTone: undefined,
+          actions: [{ label: "Save", primary: true }],
         },
       ]),
     ],
@@ -766,10 +725,11 @@ export function accountContentFor(
   session: SessionUser,
   schoolName = "your school",
   profile: MyProfile = {},
+  words: AccountWords = { language: "Language", languageSub: "", languageHint: "", saved: "Saved to your account.", save: "Save language" },
 ): ModuleContent {
   return {
     profile: profileTab(session, schoolName, profile),
-    preferences: preferencesTab(session, schoolName, profile),
+    preferences: preferencesTab(session, schoolName, profile, words),
     security: securityTab(session, schoolName, profile),
     "my-activity": myActivityTab(session, schoolName),
   };

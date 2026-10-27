@@ -8,6 +8,7 @@ import type { DrawerSpec, MarkerPanel, PanelFact } from "@/lib/modules/panels";
 import { sendJson } from "@/lib/modules/submit";
 import { INK, MUTED, toneOf } from "@/lib/modules/tones";
 import { cn } from "@/lib/utils/cn";
+import { readDevicePreferences } from "@/lib/preferences";
 
 /**
  * Taking a register, the way the mockup takes it: nobody is present until someone says so, one tap per
@@ -76,7 +77,7 @@ export function RegisterMarker({ panel, openDrawer }: { panel: MarkerPanel; open
   useEffect(() => {
     if (!touched || locked) return;
     const warn = (event: BeforeUnloadEvent) => {
-      event.preventDefault();
+      if (readDevicePreferences().confirmLeave) event.preventDefault();
     };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);

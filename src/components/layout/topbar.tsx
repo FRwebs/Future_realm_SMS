@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 
@@ -69,6 +70,7 @@ import type {
 } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
 import type { StudentChrome } from "@/lib/api/student-workspace";
+import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
 type TopbarProps = {
@@ -309,6 +311,8 @@ function NotificationBell({
   const bellRef = useRef<HTMLDivElement>(null);
   const endpoint = notificationsEndpoint(session, portalType);
   const queryClient = useQueryClient();
+  const t = useTranslations("shell");
+  const ui = useUiText();
   // Kept fresh while the tab is open: a notice sent after the page loaded shows up in the count within a minute, without a reload.
   const feed = useQuery({
     queryKey: ["notifications", endpoint],
@@ -357,7 +361,7 @@ function NotificationBell({
         type="button"
         onClick={() => { if (open) markRead(); setOpen((value) => !value); }}
         className="relative flex flex-none items-center gap-[6px] rounded-[9px] border border-[#DEE8E2] bg-(--color-bg-surface) px-[10px] py-[6.5px] transition hover:border-[#BFDCD1] hover:bg-[#F7FAF8]"
-        aria-label={`${count} unread notifications`}
+        aria-label={t("unreadNotifications", { count })}
         aria-expanded={open}
       >
         <Bell
@@ -373,10 +377,10 @@ function NotificationBell({
         <div className="overflow-hidden rounded-2xl border border-(--color-border-default) bg-(--color-bg-surface) shadow-(--shadow-lg)">
           <div className="border-b border-(--color-border-default) px-4 py-3.5">
             <p className="text-sm font-semibold text-(--color-text-primary)">
-              Notifications
+              {ui("Notifications")}
             </p>
             <p className="text-xs text-(--color-text-secondary)">
-              {count} unread · everything routed to you
+              {t("unreadSummary", { count })}
             </p>
           </div>
 
@@ -408,14 +412,14 @@ function NotificationBell({
             ) : (
               <div className="px-3 py-6 text-center">
                 <p className="text-xs text-(--color-text-secondary)">
-                  Nothing is routed to you right now.
+                  {t("nothingRouted")}
                 </p>
                 {!endpoint ? (
                   <Link
                     href="/approvals-workflow/queue"
                     className="mt-2 inline-block text-[11px] font-semibold text-[#12796A] hover:underline"
                   >
-                    Open the approvals queue
+                    {t("openApprovals")}
                   </Link>
                 ) : null}
               </div>
@@ -482,6 +486,7 @@ function canBroadcast(session: SessionUser) {
  * "Offline · saved on device" the moment the connection drops.
  */
 function SyncPill() {
+  const t = useTranslations("shell");
   const [online, setOnline] = useState(true);
 
   useEffect(() => {
@@ -502,7 +507,7 @@ function SyncPill() {
   return (
     <Link
       href="/sync-support/sync"
-      title="Sync status"
+      title={t("syncStatus")}
       className="hidden flex-none items-center gap-[6px] whitespace-nowrap rounded-full border px-[12px] py-[6px] text-[11px] font-semibold lg:flex"
       style={{ background: tone.bg, borderColor: tone.bd, color: tone.fg }}
     >
@@ -510,7 +515,7 @@ function SyncPill() {
         className="h-[6px] w-[6px] flex-none rounded-full"
         style={{ background: tone.dot }}
       />
-      <span>{online ? "All work saved" : "Offline · saved on device"}</span>
+      <span>{online ? t("allWorkSaved") : t("offlineSaved")}</span>
     </Link>
   );
 }
@@ -535,6 +540,8 @@ function ProfileDropdown({
   currentThemeMode?: "dark" | "light";
 }) {
   const router = useRouter();
+  const t = useTranslations("shell");
+  const ui = useUiText();
   const isSuperAdmin = portalType === "super_admin";
   const memberships = useQuery({
     queryKey: ["memberships", "mine"],
@@ -596,16 +603,16 @@ function ProfileDropdown({
         </div>
         {session.impersonation ? (
           <div className="mx-[6px] mt-[6px] rounded-[9px] border border-(--color-warning) bg-(--color-warning-dim) px-[11px] py-[7px] text-[11px] font-semibold text-(--color-warning)">
-            Impersonating account
+            {t("impersonating")}
           </div>
         ) : null}
         {schools.length > 1 ? (
           <div className="border-b border-[#EDF3EF] p-[6px]">
-            <p className="px-[11px] pb-[3px] pt-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">Switch school</p>
+            <p className="px-[11px] pb-[3px] pt-[4px] text-[9.5px] font-bold uppercase tracking-[0.06em] text-[#5f6e65]">{t("switchSchool")}</p>
             {schools.map((entry) => (
               <button key={entry.schoolId} type="button" disabled={entry.current} onClick={() => void switchSchool(entry.schoolId)} className="flex w-full items-center justify-between gap-2 rounded-[9px] px-[11px] py-[7px] text-left text-[11.5px] font-medium text-[#2A3B31] transition hover:bg-[#F1F8F4] disabled:cursor-default disabled:bg-[#F7FAF8]">
                 <span className="min-w-0 truncate">{entry.schoolName}</span>
-                <span className="flex-none text-[9.5px] text-[#67766D]">{entry.current ? "Here now" : entry.role.replaceAll("_", " ").toLowerCase()}</span>
+                <span className="flex-none text-[9.5px] text-[#67766D]">{entry.current ? t("hereNow") : entry.role.replaceAll("_", " ").toLowerCase()}</span>
               </button>
             ))}
           </div>
@@ -622,7 +629,7 @@ function ProfileDropdown({
                 name={item.icon}
                 className="h-[14px] w-[14px] flex-none text-[#5F6E65]"
               />
-              <span className="min-w-0 flex-1 truncate">{item.label}</span>
+              <span className="min-w-0 flex-1 truncate">{ui(item.label)}</span>
             </button>
           ))}
           {onToggleTheme ? (
@@ -640,7 +647,7 @@ function ProfileDropdown({
                 <Moon className="h-[14px] w-[14px] flex-none text-[#5F6E65]" />
               )}
               <span className="min-w-0 flex-1 truncate">
-                {currentThemeMode === "dark" ? "Light mode" : "Dark mode"}
+                {currentThemeMode === "dark" ? t("lightMode") : t("darkMode")}
               </span>
             </button>
           ) : null}
@@ -659,10 +666,10 @@ function ProfileDropdown({
             className="flex w-full items-center gap-[9px] rounded-[9px] px-[11px] py-[8px] text-left text-[11.5px] font-semibold text-[#B23B3B] transition hover:bg-[#FDF3F3]"
           >
             <LogOut className="h-[14px] w-[14px] flex-none" strokeWidth={1.9} />
-            <span>Sign out</span>
+            <span>{t("signOut")}</span>
           </button>
           <p className="px-[11px] pb-[5px] pt-[2px] text-[9.5px] leading-[1.45] text-[#6B7A71]">
-            Anything not yet synced stays saved on this device.
+            {t("unsyncedSaved")}
           </p>
         </div>
       </div>
@@ -706,7 +713,7 @@ function ProfileDropdown({
         ) : null}
         {session.impersonation ? (
           <div className="mt-3 rounded-[12px] border border-(--color-warning) bg-(--color-warning-dim) px-3 py-2 text-[11.5px] font-semibold text-(--color-warning)">
-            Impersonating account
+            {t("impersonating")}
           </div>
         ) : null}
       </div>
@@ -741,17 +748,17 @@ function ProfileDropdown({
                     : "text-(--color-text-primary)",
                 )}
               >
-                {item.label}
+                {ui(item.label)}
               </span>
               {item.note ? (
                 <span className="mt-0.5 block truncate text-[0.68rem] font-normal text-(--color-text-muted)">
-                  {item.note}
+                  {ui(item.note)}
                 </span>
               ) : null}
             </span>
             {typeof item.badge === "number" && item.badge > 0 ? (
               <span className="shrink-0 rounded-full bg-(--color-warning-dim) px-2 py-0.5 text-[0.66rem] font-bold text-(--color-warning)">
-                {item.badge} open
+                {t("openCount", { count: item.badge })}
               </span>
             ) : null}
           </button>
@@ -772,7 +779,7 @@ function ProfileDropdown({
           className="flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left text-[0.82rem] font-semibold text-danger transition hover:bg-(--color-danger-dim)"
         >
           <LogOut className="h-3.5 w-3.5 text-danger" />
-          <span>Sign Out</span>
+          <span>{t("signOut")}</span>
         </button>
       </div>
     </div>
@@ -793,6 +800,7 @@ export function Topbar({
   currentThemeMode,
   studentChrome,
 }: TopbarProps) {
+  const t = useTranslations("shell");
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -851,7 +859,7 @@ export function Topbar({
             type="button"
             onClick={onOpenMobileSidebar}
             className={cn(chromeButton(), "md:hidden")}
-            aria-label="Toggle menu"
+            aria-label={t("toggleMenu")}
           >
             <Menu className="h-4 w-4" />
           </button>
@@ -956,7 +964,7 @@ export function Topbar({
             <Link
               href="/communication-center/compose"
               className="hidden flex-none items-center gap-[6px] rounded-[9px] border border-[#F0D3D3] bg-[#FDF3F3] px-[10px] py-[6.5px] transition hover:bg-[#FAE7E7] sm:flex"
-              title="Send an emergency broadcast to every family"
+              title={t("emergencyBroadcast")}
             >
               <Megaphone
                 className="h-[13px] w-[13px] text-[#B23B3B]"
@@ -975,7 +983,7 @@ export function Topbar({
               type="button"
               onClick={onToggleTheme}
               className={chromeButton()}
-              aria-label={`Switch to ${currentThemeMode === "dark" ? "light" : "dark"} mode`}
+              aria-label={currentThemeMode === "dark" ? t("switchToLight") : t("switchToDark")}
               title={`Switch to ${currentThemeMode === "dark" ? "light" : "dark"} mode`}
             >
               {mounted && currentThemeMode === "dark" ? (
@@ -990,7 +998,7 @@ export function Topbar({
             <Link
               href="/super-admin/support"
               className={chromeButton()}
-              aria-label="Help"
+              aria-label={t("help")}
             >
               <HelpCircle className="h-4 w-4" />
             </Link>

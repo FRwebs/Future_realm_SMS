@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useTranslations } from "next-intl";
 import { ChevronDown, FileText, HelpCircle, LogOut, PanelLeftClose, PanelLeftOpen, Search, Settings, User, X } from "lucide-react";
 
 import { roleLabels } from "@/lib/auth/roles";
@@ -12,6 +13,7 @@ import { dropdownItemsFor } from "@/components/layout/topbar";
 import { SessionUser } from "@/lib/domain/types";
 import type { PortalType } from "@/lib/navigation/registry";
 import { getVisibleWorkflowNavGroups, teacherRailGroups, type TeacherRail } from "@/lib/navigation/workflows";
+import { useUiText } from "@/hooks/use-ui-text";
 import { cn } from "@/lib/utils/cn";
 
 type SidebarProps = {
@@ -92,10 +94,15 @@ function SidebarContent({
   const accountMenuRef = useRef<HTMLDivElement>(null);
   const profilePath = dropdownItemsFor(session)[0]?.path ?? "/dashboard";
 
-  const visibleGroups =
+  const t = useTranslations("shell");
+  const ui = useUiText();
+  const untranslatedGroups =
     teacherRail && portalType === "school"
       ? teacherRailGroups(teacherRail, navBadges)
       : getVisibleWorkflowNavGroups(session.role, permissions, portalType, hiddenNavIds);
+  // Titles and entries are named in English where they are defined; they are put into the person's language here, so searching the
+  // sidebar searches what is on screen.
+  const visibleGroups = untranslatedGroups.map((group) => ({ ...group, title: ui(group.title), items: group.items.map((item) => ({ ...item, label: ui(item.label) })) }));
 
   const normalizedPath = normalizePath(pathname);
 
@@ -175,7 +182,7 @@ function SidebarContent({
             <button
               type="button"
               onClick={onToggleCollapse}
-              aria-label="Expand sidebar"
+              aria-label={t("expandSidebar")}
               className="inline-flex h-9 w-9 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
             >
               <PanelLeftOpen className="h-4 w-4" />
@@ -194,7 +201,7 @@ function SidebarContent({
                 <button
                   type="button"
                   onClick={onToggleCollapse}
-                  aria-label="Collapse sidebar"
+                  aria-label={t("collapseSidebar")}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
                 >
                   <PanelLeftClose className="h-4 w-4" />
@@ -205,7 +212,7 @@ function SidebarContent({
                 <button
                   type="button"
                   onClick={onCloseMobile}
-                  aria-label="Close mobile sidebar"
+                  aria-label={t("closeMobileSidebar")}
                   className="inline-flex h-8 w-8 items-center justify-center rounded-[9px] border border-[rgba(255,255,255,0.16)] bg-[rgba(255,255,255,0.08)] text-[rgba(255,255,255,0.7)] transition hover:bg-[rgba(255,255,255,0.14)] hover:text-white"
                 >
                   <X className="h-4 w-4" />
@@ -223,14 +230,14 @@ function SidebarContent({
             <input
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder={portalType === "super_admin" ? "Search everything" : "Search students, staff"}
+              placeholder={portalType === "super_admin" ? t("searchEverything") : t("searchStudentsStaff")}
               className="min-w-0 flex-1 bg-transparent text-[12.5px] leading-[1.2] text-white placeholder:text-[rgba(255,255,255,0.55)] outline-hidden"
             />
             {search ? (
               <button
                 type="button"
                 onClick={() => setSearch("")}
-                aria-label="Clear search"
+                aria-label={t("clearSearch")}
                 className="shrink-0 text-[rgba(255,255,255,0.55)] hover:text-white"
               >
                 <X className="h-3.5 w-3.5" />
@@ -371,7 +378,7 @@ function SidebarContent({
                               is visible. */}
                           {!collapsed && item.dot && !active ? (
                             <span
-                              title="Unresolved problem"
+                              title={t("unresolvedProblem")}
                               className="relative z-1 h-[6px] w-[6px] shrink-0 rounded-full bg-[#D99A0B]"
                             />
                           ) : null}
@@ -400,7 +407,7 @@ function SidebarContent({
               : null}
 
             {query && filteredGroups.length === 0 ? (
-              <p className="px-3 text-[12.5px] text-[rgba(255,255,255,0.5)]">No pages match &ldquo;{search}&rdquo;.</p>
+              <p className="px-3 text-[12.5px] text-[rgba(255,255,255,0.5)]">{t("noPagesMatch", { query: search })}</p>
             ) : null}
           </div>
         </nav>
@@ -416,7 +423,7 @@ function SidebarContent({
             )}
           >
             <FileText className="h-[15px] w-[15px] shrink-0" />
-            Docs
+            {t("docs")}
           </Link>
           <Link
             href="/super-admin/settings"
@@ -426,7 +433,7 @@ function SidebarContent({
             )}
           >
             <Settings className="h-[15px] w-[15px] shrink-0" />
-            Settings
+            {ui("Settings")}
           </Link>
           <Link
             href="/super-admin/help"
@@ -436,7 +443,7 @@ function SidebarContent({
             )}
           >
             <HelpCircle className="h-[15px] w-[15px] shrink-0" />
-            Help
+            {t("help")}
           </Link>
         </div>
       ) : null}
@@ -447,7 +454,7 @@ function SidebarContent({
       {studentChrome && !collapsed ? (
         <div className="border-t px-[13px] pb-[14px] pt-[11px]" style={{ borderColor: "rgba(255,255,255,0.1)" }}>
           <p className="mb-[7px] text-[9px] font-bold uppercase tracking-widest" style={{ color: "rgba(255,255,255,0.55)" }}>
-            Your school
+            {t("yourSchool")}
           </p>
           <p className="truncate text-[11px] font-semibold text-white">{studentChrome.school.name}</p>
           <p className="mt-[2px] truncate text-[10px] font-semibold" style={{ color: "#3EE08A" }}>{studentChrome.school.term}</p>
@@ -478,7 +485,7 @@ function SidebarContent({
                 className="mx-2 flex items-center gap-3 rounded-[10px] px-3 py-2.5 text-left text-[13px] text-(--color-text-secondary) transition hover:bg-(--color-bg-subtle) hover:text-(--color-text-primary)"
               >
                 <User className="h-4 w-4 text-(--color-text-muted)" />
-                My Profile
+                {ui("My Profile")}
               </Link>
               <button
                 type="button"
@@ -488,7 +495,7 @@ function SidebarContent({
                 style={{ color: "var(--color-danger)" }}
               >
                 <LogOut className="h-4 w-4" />
-                {signingOut ? "Signing out…" : "Sign Out"}
+                {signingOut ? t("signingOut") : t("signOut")}
               </button>
             </div>
           </div>

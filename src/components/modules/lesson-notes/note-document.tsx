@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Btn, Card, Chip, CARD_BORDER, Confirm, INK, Label, MUTED, GRID_DAYS, GRID_SLOTS, composeGrid, inputClass, longDate, notesHtml, parseGrid, printSheet, useToast, useWrite } from "@/components/modules/lesson-notes/kit";
 import { GRID_SUFFIX, LN_API, stateLabel, stateTone, type Letterhead, type NoteData, type Section, type ThreadEntry } from "@/lib/modules/lesson-notes-types";
+import { readDevicePreferences } from "@/lib/preferences";
 
 const has = (value: string | undefined) => Boolean((value ?? "").trim());
 
@@ -50,7 +51,7 @@ export function NoteDocument({ data }: { data: NoteData }) {
   useEffect(() => { setText(data.text); setDirty(false); setVersion(data.updatedAt); setStale(false); }, [data.text, data.planId, data.state, data.updatedAt]);
   useEffect(() => {
     if (!dirty) return;
-    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); };
+    const warn = (event: BeforeUnloadEvent) => { if (readDevicePreferences().confirmLeave) event.preventDefault(); };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty]);

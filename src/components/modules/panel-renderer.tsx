@@ -2114,7 +2114,21 @@ function FormPanel({
     Object.fromEntries(panel.fields.map((field) => [field.label, initialValue(field)])),
   );
   const router = useRouter();
+  // A save that redraws the page (a new language, a new density) would otherwise take its own "Saved" with it; the word is carried across
+  // the redraw in the tab's session storage and shown once on the other side.
+  const savedKey = `fr:form-saved:${panel.title ?? ""}`;
   const [state, setState] = useState<SaveState>({ kind: "idle" });
+  useEffect(() => {
+    try {
+      const carried = window.sessionStorage.getItem(savedKey);
+      if (!carried) return;
+      window.sessionStorage.removeItem(savedKey);
+      const { message, at } = JSON.parse(carried) as { message: string; at: number };
+      if (Date.now() - at < 15_000) setState({ kind: "saved", message });
+    } catch {
+      // Nothing carried over, or storage is blocked.
+    }
+  }, [savedKey]);
   const minCol = panel.per === 1 ? 300 : 210;
   const submit = panel.submit;
 
@@ -2127,7 +2141,12 @@ function FormPanel({
       const value = values[label];
       // An emptied box is sent as "" so a field can be cleared; the API turns
       // that into null. Only a field with no value at all is left out.
-      if (value !== undefined) payload[key] = value;
+      if (value === undefined) continue;
+      // A key written "preferences.density" lands inside a nested object, for settings the API keeps together.
+      const path = key.split(".");
+      let into = payload;
+      for (const step of path.slice(0, -1)) into = (into[step] ??= {}) as Record<string, unknown>;
+      into[path[path.length - 1]!] = value;
     }
 
     try {
@@ -2155,7 +2174,14 @@ function FormPanel({
         }));
       }
       setState({ kind: "saved", message: submit.done });
-      if (submit.refreshAfter) router.refresh();
+      if (submit.refreshAfter) {
+        try {
+          window.sessionStorage.setItem(savedKey, JSON.stringify({ message: submit.done, at: Date.now() }));
+        } catch {
+          // Storage can be blocked; the page still redraws, it just does not repeat the word.
+        }
+        router.refresh();
+      }
     } catch (error) {
       setState({
         kind: "failed",

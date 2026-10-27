@@ -8,6 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { DrawerSpec, SheetEntryPanel } from "@/lib/modules/panels";
 import { sendJson } from "@/lib/modules/submit";
 import { INK, MUTED, toneOf } from "@/lib/modules/tones";
+import { readDevicePreferences } from "@/lib/preferences";
 
 /**
  * Entering a score sheet: every child against every component of one subject. Every column head carries
@@ -90,7 +91,7 @@ export function SheetEntry({ panel, openDrawer }: { panel: SheetEntryPanel; open
   const dirty = useMemo(() => panel.rows.some((row) => panel.columns.some((column) => (cells[row.id]?.[column.key] ?? "") !== (baseline[row.id]?.[column.key] ?? ""))), [baseline, cells, panel.columns, panel.rows]);
   useEffect(() => {
     if (!dirty || locked) return;
-    const warn = (event: BeforeUnloadEvent) => event.preventDefault();
+    const warn = (event: BeforeUnloadEvent) => { if (readDevicePreferences().confirmLeave) event.preventDefault(); };
     window.addEventListener("beforeunload", warn);
     return () => window.removeEventListener("beforeunload", warn);
   }, [dirty, locked]);

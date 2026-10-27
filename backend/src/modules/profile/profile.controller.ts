@@ -15,7 +15,8 @@ import { CurrentSession } from "../../auth/current-session.decorator";
 import { PermissionsGuard } from "../../auth/permissions.guard";
 import { RequirePermission } from "../../auth/require-permission.decorator";
 import { SessionGuard } from "../../auth/session.guard";
-import { rememberLocale, toLocale } from "../../common/locale";
+import { rememberDevicePreferences, rememberLocale, toLocale } from "../../common/locale";
+import type { Preferences } from "../../../../src/lib/preferences";
 import { ProfileService } from "./profile.service";
 
 @ApiTags("profiles")
@@ -37,6 +38,7 @@ export class ProfileController {
     const saved = this.profileService.updateMyProfile(session, body).then((profile) => {
       // A changed language is remembered on this device straight away, not only at the next sign-in.
       rememberLocale(response, toLocale((body as { locale?: unknown } | null)?.locale));
+      rememberDevicePreferences(response, (profile as { preferences?: Preferences | null }).preferences);
       return profile;
     });
     return this.profileService.ok(saved, "Profile updated.");

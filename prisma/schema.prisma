@@ -1240,6 +1240,8 @@ model User {
   preferredName                    String?
   /// The language this person reads the product in (en, yo, ha, ig). Null means "whatever their browser asks for".
   locale                           String?
+  /// How the product opens and behaves for this person: where they land, density, confirmations, offline keeping, what reaches them.
+  preferences                      Json?
   jobTitle                         String?
   gender                           Gender?
   dateOfBirth                      DateTime?
