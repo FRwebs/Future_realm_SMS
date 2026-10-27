@@ -55,6 +55,10 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
     [portal.children, selectedChildId],
   );
 
+  // What the school keeps back from guardians (School Configuration → Policies) is not fetched at all; the page just stops pointing at it.
+  const hidden = new Set(portal.children[0]?.hidden ?? []);
+  const has = (page: string) => !hidden.has(page);
+  const seeable = [has("timetable") && "timetable", has("attendance") && "attendance", has("results") && "results", has("fees") && "fee balance and payments", has("announcements") && "school notices"].filter(Boolean) as string[];
   const paymentBalance = selectedChild?.finance.reduce((sum, item) => sum + item.balance, 0) ?? selectedChild?.outstandingBalance ?? 0;
   const nextPaymentDue = selectedChild?.finance
     .filter((item) => item.balance > 0)
@@ -76,8 +80,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               {portal.headline}
             </h1>
             <p className="mt-3 max-w-3xl text-[13.5px] leading-6 text-[var(--color-text-secondary)]">
-              {portal.parentName} can review each child&apos;s timetable, attendance, results, fee balance, payments,
-              and school notices from one secure family workspace.
+              {portal.parentName} can review each child&apos;s {seeable.length > 1 ? `${seeable.slice(0, -1).join(", ")} and ${seeable[seeable.length - 1]}` : seeable[0] ?? "school record"} from one secure family workspace.
             </p>
 
             <div className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -105,26 +108,30 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 <ActionMenu triggerLabel={`Actions for ${selectedChild.studentName}`}>
                   <ActionMenuButton onClick={() => setPanelOpen(true)}>Quick view</ActionMenuButton>
                   <ActionMenuLink href={`/portals/parent/children/${selectedChild.studentId}`}>Open overview</ActionMenuLink>
-                  <ActionMenuLink href={`/portals/parent/children/${selectedChild.studentId}/results`}>View results</ActionMenuLink>
-                  <ActionMenuLink href={`/portals/parent/children/${selectedChild.studentId}/fees`}>View fees</ActionMenuLink>
+                  {has("results") ? <ActionMenuLink href={`/portals/parent/children/${selectedChild.studentId}/results`}>View results</ActionMenuLink> : null}
+                  {has("fees") ? <ActionMenuLink href={`/portals/parent/children/${selectedChild.studentId}/fees`}>View fees</ActionMenuLink> : null}
                 </ActionMenu>
               ) : null}
             </div>
 
             {selectedChild ? (
               <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
-                  <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{formatPercentage(selectedChild.attendanceRate)}</p>
-                  <p className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">{selectedChild.notes[0] ?? "Steady routine this week."}</p>
-                </div>
-                <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
-                  <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding</p>
-                  <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{formatCurrency(paymentBalance)}</p>
-                  <p className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">
-                    {nextPaymentDue ? `Next due ${formatDate(nextPaymentDue.dueOn)}` : "No unpaid invoice due right now."}
-                  </p>
-                </div>
+                {has("attendance") ? (
+                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Attendance</p>
+                    <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{formatPercentage(selectedChild.attendanceRate)}</p>
+                    <p className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">{selectedChild.notes[0] ?? "Steady routine this week."}</p>
+                  </div>
+                ) : null}
+                {has("fees") ? (
+                  <div className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Outstanding</p>
+                    <p className="mt-2 text-[19px] font-bold text-[var(--color-text-primary)]">{formatCurrency(paymentBalance)}</p>
+                    <p className="mt-2 text-[11.5px] text-[var(--color-text-muted)]">
+                      {nextPaymentDue ? `Next due ${formatDate(nextPaymentDue.dueOn)}` : "No unpaid invoice due right now."}
+                    </p>
+                  </div>
+                ) : null}
               </div>
             ) : (
               <div className="rounded-[10px] border border-dashed border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] px-4 py-6 text-[13px] text-[var(--color-text-secondary)]">
@@ -143,7 +150,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
           { label: "Announcements", href: "/portals/parent/announcements", icon: Megaphone },
           { label: "Fees", href: selectedChild ? `/portals/parent/children/${selectedChild.studentId}/fees` : "/portals/parent/children", icon: CreditCard },
           { label: "Results", href: selectedChild ? `/portals/parent/children/${selectedChild.studentId}/results` : "/portals/parent/children", icon: GraduationCap },
-        ].map((action) => {
+        ].filter((action) => has(action.label.toLowerCase())).map((action) => {
           const Icon = action.icon;
           return (
             <Link
@@ -191,18 +198,22 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                     <p className="font-semibold text-[var(--color-text-primary)]">{child.studentName}</p>
                     <p className="mt-1 text-[13px] text-[var(--color-text-secondary)]">{child.className}</p>
                     <div className="mt-3 flex flex-wrap gap-2">
-                      <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
-                        {formatPercentage(child.attendanceRate)} attendance
-                      </span>
-                      <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
-                        {child.averageScore.toFixed(1)}% average
-                      </span>
+                      {has("attendance") ? (
+                        <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
+                          {formatPercentage(child.attendanceRate)} attendance
+                        </span>
+                      ) : null}
+                      {has("results") ? (
+                        <span className="rounded-full bg-[var(--color-bg-surface)] px-3 py-1 text-[11px] font-semibold text-[var(--color-text-secondary)] shadow-[var(--shadow-sm)]">
+                          {child.averageScore.toFixed(1)}% average
+                        </span>
+                      ) : null}
                     </div>
                   </div>
 
                   <div className="shrink-0 text-right">
-                    <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p>
-                    <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{child.nextClass}</p>
+                    {has("fees") ? <p className="text-[13px] font-semibold text-[var(--color-text-primary)]">{formatCurrency(child.outstandingBalance)}</p> : null}
+                    {has("timetable") ? <p className="mt-1 text-[11px] text-[var(--color-text-muted)]">{child.nextClass}</p> : null}
                   </div>
                 </button>
               );
@@ -234,23 +245,26 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             {selectedChild ? (
               <>
                 <div className="mt-6 grid gap-4 md:grid-cols-4">
-                  <ParentQuickStat label="Attendance" value={formatPercentage(selectedChild.attendanceRate)} tone="good" />
-                  <ParentQuickStat label="Average" value={`${selectedChild.averageScore.toFixed(1)}%`} tone="info" />
-                  <ParentQuickStat label="Balance" value={formatCurrency(paymentBalance)} tone="warn" />
+                  {has("attendance") ? <ParentQuickStat label="Attendance" value={formatPercentage(selectedChild.attendanceRate)} tone="good" /> : null}
+                  {has("results") ? <ParentQuickStat label="Average" value={`${selectedChild.averageScore.toFixed(1)}%`} tone="info" /> : null}
+                  {has("fees") ? <ParentQuickStat label="Balance" value={formatCurrency(paymentBalance)} tone="warn" /> : null}
                   <ParentQuickStat label="Notes" value={selectedChild.notes[0] ?? "Stable"} tone="neutral" />
                 </div>
 
                 <div className="mt-6 grid gap-4 xl:grid-cols-[1.05fr_0.95fr]">
                   <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Next academic stop</p>
-                    <p className="mt-3 text-[16px] font-black text-[var(--color-text-primary)]">{selectedChild.nextClass}</p>
-                    <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
-                      {highlightedResult
-                        ? `Latest result: ${highlightedResult.term} ${highlightedResult.session}, ${highlightedResult.average.toFixed(1)}% average and grade ${highlightedResult.grade}.`
-                        : "No published result has been shared with the family yet."}
-                    </p>
+                    <p className="mt-3 text-[16px] font-black text-[var(--color-text-primary)]">{has("timetable") ? selectedChild.nextClass : "Not shared by the school"}</p>
+                    {has("results") ? (
+                      <p className="mt-2 text-[12.5px] leading-6 text-[var(--color-text-secondary)]">
+                        {highlightedResult
+                          ? `Latest result: ${highlightedResult.term} ${highlightedResult.session}, ${highlightedResult.average.toFixed(1)}% average and grade ${highlightedResult.grade}.`
+                          : "No published result has been shared with the family yet."}
+                      </p>
+                    ) : null}
                   </article>
 
+                  {has("fees") ? (
                   <article className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
                     <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Fee readiness</p>
                     <p className="mt-3 text-[16px] font-black text-[var(--color-text-primary)]">
@@ -262,6 +276,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                         : "All visible invoices are settled or not yet due."}
                     </p>
                   </article>
+                  ) : null}
                 </div>
               </>
             ) : (
@@ -272,6 +287,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
           </section>
 
           <section className="grid gap-5 xl:grid-cols-2">
+            {has("timetable") ? (
             <TableCard
               title="Upcoming timetable"
               description="A compact look at the selected child's next visible classes this week."
@@ -295,7 +311,9 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               getRowKey={(item) => `${item.day}-${item.time}-${item.subject}`}
               primaryColumnKey="subject"
             />
+            ) : null}
 
+            {has("fees") ? (
             <TableCard
               title="Fee tracker"
               description="Current invoices, balances, and due dates for the selected child."
@@ -311,11 +329,13 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               primaryColumnKey="title"
               featuredColumnKeys={["balance"]}
             />
+            ) : null}
           </section>
         </section>
       </section>
 
       <section className="grid gap-5 xl:grid-cols-[1.1fr_0.9fr]">
+        {has("results") ? (
         <section className="surface-card p-6">
           <p className="text-[14px] font-bold text-[var(--color-text-primary)]">Published result snapshots</p>
           <div className="mt-5 grid gap-3">
@@ -353,7 +373,9 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             ) : null}
           </div>
         </section>
+        ) : null}
 
+        {has("announcements") ? (
         <section className="surface-card p-6">
           <div className="flex items-center gap-3">
             <div className="flex h-10 w-10 items-center justify-center rounded-[10px] bg-[var(--color-accent-primary-dim)] text-[var(--color-text-accent)]">
@@ -376,6 +398,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
             ) : null}
           </div>
         </section>
+        ) : null}
       </section>
 
       <SidePanel
@@ -391,9 +414,11 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 <Link href={`/portals/parent/children/${selectedChild.studentId}` as Route} className="btn-secondary px-4">
                   Overview
                 </Link>
-                <Link href={`/portals/parent/children/${selectedChild.studentId}/fees` as Route} className="btn-primary px-4">
-                  Fees
-                </Link>
+                {has("fees") ? (
+                  <Link href={`/portals/parent/children/${selectedChild.studentId}/fees` as Route} className="btn-primary px-4">
+                    Fees
+                  </Link>
+                ) : null}
               </div>
             </div>
           ) : null
@@ -402,9 +427,9 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
         {selectedChild ? (
           <div className="grid gap-5">
             <div className="grid gap-3 sm:grid-cols-3">
-              <ParentQuickStat label="Attendance" value={formatPercentage(selectedChild.attendanceRate)} tone="good" />
-              <ParentQuickStat label="Average" value={`${selectedChild.averageScore.toFixed(1)}%`} tone="info" />
-              <ParentQuickStat label="Outstanding" value={formatCurrency(paymentBalance)} tone="warn" />
+              {has("attendance") ? <ParentQuickStat label="Attendance" value={formatPercentage(selectedChild.attendanceRate)} tone="good" /> : null}
+              {has("results") ? <ParentQuickStat label="Average" value={`${selectedChild.averageScore.toFixed(1)}%`} tone="info" /> : null}
+              {has("fees") ? <ParentQuickStat label="Outstanding" value={formatCurrency(paymentBalance)} tone="warn" /> : null}
             </div>
 
             <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-subtle)] p-5">
@@ -418,6 +443,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
               </div>
             </section>
 
+            {has("fees") ? (
             <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Finance snapshot</p>
               <div className="mt-4 grid gap-3">
@@ -435,7 +461,9 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 ))}
               </div>
             </section>
+            ) : null}
 
+            {has("results") ? (
             <section className="rounded-[10px] border border-[var(--color-border-default)] bg-[var(--color-bg-surface)] p-5">
               <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-[var(--color-text-muted)]">Recent result</p>
               {highlightedResult ? (
@@ -466,6 +494,7 @@ export function ParentPortalDashboard({ portal }: { portal: ParentPortalView }) 
                 <p className="mt-3 text-[13px] text-[var(--color-text-secondary)]">No published result is available for this child yet.</p>
               )}
             </section>
+            ) : null}
           </div>
         ) : null}
       </SidePanel>

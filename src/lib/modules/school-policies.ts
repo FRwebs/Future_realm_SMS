@@ -171,7 +171,7 @@ export const POLICY_DEFINITIONS: PolicyDefinition[] = [
         options: ["Results", "Attendance", "Fees", "Announcements", "Timetable", "Report cards"],
       },
     ],
-    defaults: { sees: ["Results", "Attendance", "Fees", "Announcements"] },
+    defaults: { sees: ["Results", "Attendance", "Fees", "Announcements", "Timetable", "Report cards"] },
   },
   {
     code: "student_portal_visibility",

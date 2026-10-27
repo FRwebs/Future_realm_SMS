@@ -11,6 +11,7 @@ import { CurrentSession } from "../../auth/current-session.decorator";
 import { RolesGuard } from "../../auth/roles.guard";
 import { Roles } from "../../auth/roles.decorator";
 import { SessionGuard } from "../../auth/session.guard";
+import { assertGuardianMaySee } from "../parent-portal/guardian-policy";
 import { FinanceService } from "./finance.service";
 
 const financeOversightRoles = ["SUPER_ADMIN", "SCHOOL_OWNER", "PROPRIETOR", "ADMINISTRATOR", "PRINCIPAL", "ADMIN_OFFICER", "BURSAR", "ACCOUNTANT", "ACCOUNT_OFFICER"] as const;
@@ -165,6 +166,7 @@ export class FinanceController {
   @Roles(...financeOversightRoles, "PARENT")
   async initializePayment(@CurrentSession() session: SessionPayload, @Body() body: Record<string, unknown>) {
     if (session.role !== "PARENT") this.assertFinanceManager(session);
+    else await assertGuardianMaySee(session.schoolId, "Fees");
     return {
       ok: true,
       data: await this.financeService.initializePaymentFlow(session.schoolId, session.userId, body, session)

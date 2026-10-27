@@ -4,7 +4,7 @@ import type { Route } from "next";
 import { TableCard } from "@/components/data-display/table-card";
 import { AccessDenied } from "@/components/feedback/access-denied";
 import { PayInvoiceButton } from "@/components/portals/pay-invoice-button";
-import { apiGet } from "@/lib/api/server";
+import { KeptBack, guardianPage } from "@/components/portals/kept-back";
 import { canAccessPath, getDefaultPathForRole } from "@/lib/auth/roles";
 import { getServerSession } from "@/lib/auth/session";
 import { PortalFinanceItem } from "@/lib/domain/types";
@@ -20,7 +20,9 @@ export default async function ParentChildFeesPage({ params }: PageProps) {
   }
 
   const { studentId } = await params;
-  const fees = await apiGet<PortalFinanceItem[]>(`/api/v1/parent-portal/children/${studentId}/fees`);
+  const page = await guardianPage<PortalFinanceItem[]>(`/api/v1/parent-portal/children/${studentId}/fees`);
+  if (page.data === null) return <KeptBack title="Child fees" message={page.keptBack} backHref={`/portals/parent/children/${studentId}`} />;
+  const fees = page.data;
   const outstanding = fees.reduce((sum, item) => sum + item.balance, 0);
 
   return (
